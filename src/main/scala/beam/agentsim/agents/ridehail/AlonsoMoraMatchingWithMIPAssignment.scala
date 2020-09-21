@@ -114,8 +114,10 @@ class AlonsoMoraMatchingWithMIPAssignment(
       for (t <- rvG.outgoingEdgesOf(v).asScala) {
         individualRequestsList.append(t)
         rTvG.addVertex(t)
-        rTvG.addVertex(t.requests.head)
-        rTvG.addEdge(t.requests.head, t)
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
+        val firstRequest = t.requests.head
+        rTvG.addVertex(firstRequest)
+        rTvG.addEdge(firstRequest, t)
         rTvG.addEdge(t, v)
       }
       finalRequestsList.appendAll(individualRequestsList)
@@ -124,8 +126,10 @@ class AlonsoMoraMatchingWithMIPAssignment(
         val pairRequestsList = ListBuffer.empty[RideHailTrip]
         val combinations = ListBuffer.empty[String]
         for (t1 <- individualRequestsList) {
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
+          val firstT1Request = t1.requests.head
           for (t2 <- individualRequestsList
-                 .filter(x => t1 != x && rvG.containsEdge(t1.requests.head, x.requests.head))) {
+                 .filter(x => t1 != x && rvG.containsEdge(firstT1Request, x.requests.head))) {
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
@@ -133,8 +137,10 @@ class AlonsoMoraMatchingWithMIPAssignment(
                 combinations.append(t.matchId)
                 pairRequestsList append t
                 rTvG.addVertex(t)
-                rTvG.addEdge(t1.requests.head, t)
-                rTvG.addEdge(t2.requests.head, t)
+                rTvG.addEdge(firstT1Request, t)
+                @SuppressWarnings(Array("UnsafeTraversableMethods"))
+                val firstT2Request = t2.requests.head
+                rTvG.addEdge(firstT2Request, t)
                 rTvG.addEdge(t, v)
               }
             }

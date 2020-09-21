@@ -158,6 +158,7 @@ class InverseSquareDistanceRepositioningFactor(
     new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava).sample()
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   private def chooseLocation(coords: IndexedSeq[Coord]): Coord = {
     // create a probability distribution based on number of activities by sub clusters (sub hexagons)
     val subClusters = coords

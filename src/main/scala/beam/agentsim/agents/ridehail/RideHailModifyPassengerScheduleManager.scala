@@ -143,17 +143,25 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    if (allTriggersInWave.nonEmpty)
-      rideHailManager.log.debug(
-        "Earliest tick in triggers to schedule is {} and latest is {}",
-        allTriggersInWave.map(_.trigger.tick).min,
-        allTriggersInWave.map(_.trigger.tick).max
-      )
+
+    if (allTriggersInWave.nonEmpty) {
+      debugAllTriggersInWave()
+    }
     scheduler.tell(
       CompletionNotice(triggerId, allTriggersInWave :+ ScheduleTrigger(timerTrigger, rideHailManagerRef)),
       rideHailManagerRef
     )
     allTriggersInWave = Vector()
+  }
+
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  @inline
+  private def debugAllTriggersInWave(): Unit = {
+    if (rideHailManager.log.isDebugEnabled) {
+      val min = allTriggersInWave.map(_.trigger.tick).min
+      val max = allTriggersInWave.map(_.trigger.tick).max
+      rideHailManager.log.debug("Earliest tick in triggers to schedule is {} and latest is {}", min, max)
+    }
   }
 
   def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger): Unit = {

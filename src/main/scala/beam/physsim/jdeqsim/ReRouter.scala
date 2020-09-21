@@ -22,9 +22,15 @@ import org.matsim.core.router.util.TravelTime
 
 class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
 
-  private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
-    .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
-    .maxBy(_._2.sampleProbabilityWithinCategory)
+  private val carVehType: BeamVehicleType = findCarVehicleType
+
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def findCarVehicleType: BeamVehicleType = {
+    val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
+      .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
+      .maxBy(_._2.sampleProbabilityWithinCategory)
+    carVehType
+  }
 
   def reroutePeople(travelTime: TravelTime, toReroute: Vector[Person]): Statistics = {
     if (toReroute.nonEmpty) {

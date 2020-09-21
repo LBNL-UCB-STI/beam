@@ -15,9 +15,10 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.NetworkReaderMatsimV2
-
 import scala.collection.mutable
 import scala.util.Try
+
+import beam.utils.SequenceUtils
 
 class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
     extends BasicEventHandler
@@ -51,10 +52,9 @@ class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val filePath = controlerIO.getIterationFilename(event.getIteration, "PhysSimEventToHourFrequency.csv")
     val csvWriter = new CsvWriter(filePath, Vector("event_type", "hour", "count"))
-    val maxHour = eventToHourFreq.values.flatten.map(_._1).max
-    logger.info(s"Handled ${cnt} events. MaxHour: $maxHour")
-
     try {
+      val maxHour = SequenceUtils.maxOption(eventToHourFreq.values.flatten.map(_._1)).getOrElse(-1)
+      logger.info(s"Handled ${cnt} events. MaxHour: $maxHour")
       (0 to maxHour).map { hour =>
         eventToHourFreq.map {
           case (event, hourFreq) =>

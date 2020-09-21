@@ -5,7 +5,7 @@ import javax.inject.Inject
 import scala.collection.mutable.ArrayBuffer
 
 class RideHailIterationHistory @Inject()() {
-
+  RideHailManager
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
   // create methods in that class, which I need for my programming
@@ -15,7 +15,7 @@ class RideHailIterationHistory @Inject()() {
   def updateRideHailStats(stats: TNCIterationStats): Unit = {
     rideHailIterationStatsHistory += stats
 
-    // trimm array buffer as we just need 2 elements
+    // trim array buffer as we just need 2 elements
     if (rideHailIterationStatsHistory.size > 2) {
       rideHailIterationStatsHistory.remove(0)
     }
@@ -23,6 +23,7 @@ class RideHailIterationHistory @Inject()() {
 
   def oscillationAdjustedTNCIterationStats: Option[TNCIterationStats] = {
     if (rideHailIterationStatsHistory.size >= 2) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastElement = rideHailIterationStatsHistory.last
       val secondLastElement = rideHailIterationStatsHistory(rideHailIterationStatsHistory.size - 2)
       Some(TNCIterationStats.merge(lastElement, secondLastElement))

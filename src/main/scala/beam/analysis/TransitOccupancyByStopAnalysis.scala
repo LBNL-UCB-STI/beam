@@ -29,10 +29,11 @@ class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEnd
 
   def writeCSVRows(path: String): Unit = {
 
-    val analysis =
-      pathTraversalEvents.toList.groupBy(_.vehicleId.toString).map {
-        case (k, v) => k -> v.map(_.numberOfPassengers.toString)
-      }
+    val analysis = pathTraversalEvents.toList.groupBy(_.vehicleId.toString).map {
+      case (k, v) => k -> v.map(_.numberOfPassengers.toString)
+    }
+
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val max = analysis.values.map(_.size).max
     val resultData = analysis.map { case (k, v) => k -> getList(max, v) }
     val values = resultData.values.transpose

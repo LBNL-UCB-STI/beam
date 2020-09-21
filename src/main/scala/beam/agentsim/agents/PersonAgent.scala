@@ -1,28 +1,30 @@
 package beam.agentsim.agents
 
-import akka.actor.FSM.Failure
+import scala.concurrent.duration._
+
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
+import akka.actor.FSM.Failure
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
+import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
-import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -31,10 +33,12 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
-import beam.sim.population.AttributesOfIndividual
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent}
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.sim.common.GeoUtils
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
@@ -42,11 +46,6 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
-import scala.annotation.tailrec
-import scala.concurrent.duration._
-
-import beam.sim.common.GeoUtils
-import beam.utils.NetworkHelper
 
 /**
   */
@@ -401,14 +400,9 @@ class PersonAgent(
   }
 
   def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
-    @tailrec
-    def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
-      if (remaining.isEmpty) None
-      else if (remaining.head.beamLeg.mode == CAR) Some { remaining.head } else _find(remaining.tail)
-    }
     for {
       trip <- data.currentTrip
-      leg  <- _find(trip.legs)
+      leg  <- trip.legs.find(_.beamLeg.mode == CAR)
     } yield {
       leg
     }
@@ -513,7 +507,7 @@ class PersonAgent(
         BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _)
         ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
-      logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
+      logDebug(s"Replaned to leg ${restOfCurrentTrip.headOption.getOrElse("")}")
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
@@ -634,14 +628,14 @@ class PersonAgent(
     case Event(
         TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, energyConsumedOption), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _, _)
-        ) if vehicleToExit.equals(currentVehicle.head) =>
+        ) if currentVehicle.headOption.contains(vehicleToExit) =>
       updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
-        currentVehicle = currentVehicle.tail
+        currentVehicle = currentVehicle.drop(1)
       )
   }
 
@@ -663,21 +657,23 @@ class PersonAgent(
         )
       val dataForNextLegOrActivity = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         data.copy(
-          restOfCurrentTrip = data.restOfCurrentTrip.tail,
-          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
+          restOfCurrentTrip = data.restOfCurrentTrip.drop(1),
+          // TODO: the following line looks like wrong. the test condition should not be bigger than zero?
+          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.drop(1) else Vector.empty,
           currentTripCosts = 0.0
         )
       } else {
         data.copy(
-          restOfCurrentTrip = data.restOfCurrentTrip.tail,
+          restOfCurrentTrip = data.restOfCurrentTrip.drop(1),
           currentVehicle = Vector(body.id),
           currentTripCosts = 0.0
         )
       }
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
-        val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
+        val vehicleToExit = data.currentVehicle.head
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
@@ -688,7 +684,7 @@ class PersonAgent(
           if (!currentBeamVehicle.isMustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle)
-            beamVehicles -= data.currentVehicle.head
+            beamVehicles -= vehicleToExit
           }
         }
       }

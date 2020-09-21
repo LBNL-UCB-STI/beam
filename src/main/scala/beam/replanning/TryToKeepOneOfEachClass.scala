@@ -4,19 +4,13 @@ import beam.sim.MapStringDouble
 import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
 import org.matsim.core.replanning.selectors.PlanSelector
 import scala.language.existentials
-
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
   override def selectPlan(member: HasPlansAndId[Plan, Person]): Plan = {
 
-    val (someClassWithMoreThanOnePlan, thosePlans) = scala.util.Random
-      .shuffle(
-        member.getPlans.asScala
-          .groupBy(plan => plan.getAttributes.getAttribute("modality-style").toString)
-          .filter(e => e._2.size > 1)
-      )
-      .head
+    val (someClassWithMoreThanOnePlan, thosePlans: Seq[Plan]) = chooseRandomly(member)
 
     val worstPlanOfThatClassWithRespectToThatClass = thosePlans
       .map(
@@ -34,4 +28,16 @@ class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
 
     worstPlanOfThatClassWithRespectToThatClass
   }
+
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def chooseRandomly(member: HasPlansAndId[Plan, Person]): (String, Seq[Plan]) = {
+    scala.util.Random
+      .shuffle(
+        member.getPlans.asScala
+          .groupBy(plan => plan.getAttributes.getAttribute("modality-style").toString)
+          .filter(e => e._2.size > 1)
+      )
+      .head
+  }
+  
 }
