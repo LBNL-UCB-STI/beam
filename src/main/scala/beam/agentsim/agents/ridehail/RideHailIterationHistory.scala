@@ -5,6 +5,7 @@ import javax.inject.Inject
 import scala.collection.mutable.ArrayBuffer
 
 class RideHailIterationHistory @Inject()() {
+
   //val rideHailIterationHistory=scala.collection.mutable.ListBuffer( Map[String, ArrayBuffer[Option[RideHailStatsEntry]]])
   // TODO: put in RideHailStats class!
   // create methods in that class, which I need for my programming
