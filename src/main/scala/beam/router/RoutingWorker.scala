@@ -331,6 +331,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
   private def createGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+    // Clean up GHs variable and than calculate new ones
+    graphHoppers = Map()
     new Directory(new File(graphHopperDir)).deleteRecursively()
 
     val graphHopperInstances = if (carRouter == "quasiDynamicGH") noOfTimeBins else 1
