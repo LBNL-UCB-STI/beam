@@ -305,9 +305,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         geo.utm2Wgs(request.destinationUTM),
         10E3
       )
-      val directMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
-      val accessMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
-      val egressMode = LegMode.WALK
+      val vehicleLegMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
       val profileResponse =
         latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
           getStreetPlanFromR5(
@@ -315,10 +313,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               fromWgs,
               toWgs,
               time,
-              directMode,
-              accessMode,
+              directMode = vehicleLegMode,
+              accessMode = vehicleLegMode,
               withTransit = false,
-              egressMode,
+              egressMode = LegMode.WALK,
               request.timeValueOfMoney,
               vehicle.vehicleTypeId
             )
