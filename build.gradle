@@ -630,7 +630,7 @@ task dockerPullPostgresImage(type: DockerPullImage) {
     group = 'Docker Postgres'
     description = 'Pulls Postgres image'
 
-    repository = 'docker.io/library/postgres'
+    repository = 'library/postgres:latest'
 //    tag = 'latest'
 
 }
@@ -639,13 +639,14 @@ task dockerPullPostgresImage(type: DockerPullImage) {
 task dockerCreatePostgresContainer(type: DockerCreateContainer) {
     group = 'Docker Postgres'
     description = 'Creates Postgres container'
-
+    imageId = 'library/postgres:latest'
     dependsOn dockerPullPostgresImage
 
-    targetImageId { dockerPullPostgresImage.tag }
+    //targetImageId { dockerPullPostgresImage.tag }
     withEnvVar('POSTGRES_USER', 'postgres')
     withEnvVar('POSTGRES_PASSWORD', 'postgres')
     withEnvVar('PGDATA', '/pgdata/pgdata')
+
     volumes = [file('pgdata').absolutePath + ":/pgdata"]
 }
 
@@ -654,8 +655,6 @@ task dockerStartPostgresContainer(type: DockerStartContainer) {
     description = 'Starts Postgres container'
 
     dependsOn dockerCreatePostgresContainer
-
-    targetContainerId dockerCreatePostgresContainer.containerId
 }
 
 jmh {
