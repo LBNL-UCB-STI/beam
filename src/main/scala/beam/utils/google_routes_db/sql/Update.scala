@@ -65,14 +65,14 @@ object Update {
         var i = 1
         ps.setString(i, item.requestId); i += 1
         ps.setTimestamp(i, Timestamp.valueOf(item.departureDateTime)); i += 1
-        ps.setInt(i, item.departureTime)    ; i += 1
+        ps.setInt(i, item.departureTime); i += 1
         ps.setString(i, item.boundNortheast); i += 1
         ps.setString(i, item.boundSouthwest); i += 1
-        ps.setString(i, item.copyrights)    ; i += 1
-        ps.setString(i, item.summary)       ; i += 1
+        ps.setString(i, item.copyrights); i += 1
+        ps.setString(i, item.summary); i += 1
         item.googleapiResponsesJsonFileUri match {
           case Some(value) => ps.setString(i, value)
-          case None => ps.setNull(i, Types.VARCHAR)
+          case None        => ps.setNull(i, Types.VARCHAR)
         }; i += 1
         ps.setTimestamp(i, Timestamp.from(item.timestamp))
       }
@@ -130,10 +130,10 @@ object Update {
     implicit val psMapping: PSMapping[Update.GoogleRouteLegItem] =
       (item: Update.GoogleRouteLegItem, ps: PreparedStatement) => {
         var i = 1
-        ps.setLong(i, item.routeId)       ; i += 1
-        ps.setLong(i, item.distance)      ; i += 1
+        ps.setLong(i, item.routeId); i += 1
+        ps.setLong(i, item.distance); i += 1
         ps.setString(i, item.distanceText); i += 1
-        ps.setLong(i, item.duration)      ; i += 1
+        ps.setLong(i, item.duration); i += 1
         ps.setString(i, item.durationText); i += 1
         item.durationInTraffic match {
           case Some(value) => ps.setLong(i, value)
@@ -147,13 +147,13 @@ object Update {
           case Some(value) => ps.setString(i, value)
           case None        => ps.setNull(i, Types.VARCHAR)
         }; i += 1
-        ps.setString(i, item.endLocation)  ; i += 1
+        ps.setString(i, item.endLocation); i += 1
         item.startAddress match {
           case Some(value) => ps.setString(i, value)
           case None        => ps.setNull(i, Types.VARCHAR)
         }; i += 1
         ps.setString(i, item.startLocation); i += 1
-        ps.setString(i, item.steps)        ; i += 1
+        ps.setString(i, item.steps); i += 1
       }
 
     val insertSql: String =
@@ -183,7 +183,7 @@ object Update {
     }
   }
 
-  private def insertMappableBatch[T : PSMapping](
+  private def insertMappableBatch[T: PSMapping](
     items: Seq[T],
     sql: String,
     con: Connection

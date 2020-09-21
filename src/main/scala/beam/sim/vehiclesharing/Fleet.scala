@@ -75,14 +75,14 @@ case class FixedNonReservingFleetByTAZ(
     )
     Props(
       new FixedNonReservingFleetManager(
-        managerId,
-        parkingManager,
-        initialLocation,
-        vehicleType,
-        beamScheduler,
-        beamServices,
-        config.maxWalkingDistance,
-        repConfig.map(RepositionAlgorithms.lookup)
+        id = managerId,
+        parkingManager = parkingManager,
+        locations = initialLocation,
+        vehicleType = vehicleType,
+        mainScheduler = beamScheduler,
+        beamServices = beamServices,
+        maxWalkingDistance = config.maxWalkingDistance,
+        repositionAlgorithmType = repConfig.map(RepositionAlgorithms.lookup)
       )
     )
   }

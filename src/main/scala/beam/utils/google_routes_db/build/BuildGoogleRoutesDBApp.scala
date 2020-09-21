@@ -56,9 +56,10 @@ object BuildGoogleRoutesDBApp extends BeamHelper {
               GoogleRoutesDB.createGoogleRoutesTables(con)
             }
           })
-          .flatMapConcat { _ => sourceGoogleapiFiles(config) }
+          .flatMapConcat { _ =>
+            sourceGoogleapiFiles(config)
+          }
           .mapAsync(1) { googleapiFiles =>
-
             val grrSeq: Seq[GoogleRoutesResponse] =
               GoogleRoutesResponse.Json.decodeGoogleRoutesResponses(
                 googleapiFiles.googleapiResponsesJsonText

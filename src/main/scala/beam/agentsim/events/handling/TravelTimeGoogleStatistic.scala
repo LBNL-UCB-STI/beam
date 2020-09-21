@@ -35,11 +35,11 @@ import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
 /**
- * TravelTimeGoogleStatistic listens [[PathTraversalEvent]]'s of [[BeamMode.CAR]] mode and
- * outputs googleTravelTimeEstimation.csv in iteration folder.
- * It uses a prebuilt database as cache (see [[beam.utils.google_routes_db.build.BuildGoogleRoutesDBApp]] and
- * Google Maps (Directions) API for missing routes (see [[GoogleAdapter]]).
- */
+  * TravelTimeGoogleStatistic listens [[PathTraversalEvent]]'s of [[BeamMode.CAR]] mode and
+  * outputs googleTravelTimeEstimation.csv in iteration folder.
+  * It uses a prebuilt database as cache (see [[beam.utils.google_routes_db.build.BuildGoogleRoutesDBApp]] and
+  * Google Maps (Directions) API for missing routes (see [[GoogleAdapter]]).
+  */
 class TravelTimeGoogleStatistic(
   cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
   actorSystem: ActorSystem,
@@ -58,7 +58,8 @@ class TravelTimeGoogleStatistic(
   private val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
 
   private val maybeDataSource: Option[DataSource] =
-    Option(cfg.enable && cfg.googleRoutesDb.enable).filter(x => x)
+    Option(cfg.enable && cfg.googleRoutesDb.enable)
+      .filter(x => x)
       .flatMap(_ => cfg.googleRoutesDb.postgresql)
       .map(makeDataSource)
 
@@ -83,8 +84,7 @@ class TravelTimeGoogleStatistic(
       )
       val numEventsPerHour = Math.max(1, cfg.numDataPointsOver24Hours / 24)
       val byHour: Map[Int, ListBuffer[PathTraversalEvent]] = acc
-        .groupBy(pte =>
-          departureHour(pte.departureTime))
+        .groupBy(pte => departureHour(pte.departureTime))
         .filter {
           case (hour, _) => hour < 24
         }
@@ -145,9 +145,8 @@ class TravelTimeGoogleStatistic(
             eventContainers.map { ec =>
               GoogleRoutesResponse(
                 requestId = ec.requestId,
-                departureLocalDateTime =
-                  makeDepartureLocatDateTime(ec.event.departureTime)
-                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                departureLocalDateTime = makeDepartureLocatDateTime(ec.event.departureTime)
+                  .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 ec.directionsResult
               )
             },
@@ -174,17 +173,19 @@ class TravelTimeGoogleStatistic(
     departureDateTime: LocalDateTime,
     geoUtils: GeoUtils
   ): Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] = {
-    maybeDataSource.map { ds =>
-      try {
-        using(ds.getConnection) { con =>
-          GoogleRoutesDB.queryGoogleRoutes(ptes, departureDateTime, geoUtils, con)
+    maybeDataSource
+      .map { ds =>
+        try {
+          using(ds.getConnection) { con =>
+            GoogleRoutesDB.queryGoogleRoutes(ptes, departureDateTime, geoUtils, con)
+          }
+        } catch {
+          case e: Throwable =>
+            logger.warn("Failed to query GoogleRoutesDB", e)
+            Map.empty[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]]
         }
-      } catch {
-        case e: Throwable =>
-          logger.warn("Failed to query GoogleRoutesDB", e)
-        Map.empty[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]]
       }
-    }.getOrElse(Map.empty)
+      .getOrElse(Map.empty)
   }
 
   def insertGoogleRoutesAndLegsInDb(
