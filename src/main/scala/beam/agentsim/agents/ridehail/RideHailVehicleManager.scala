@@ -172,12 +172,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       )
     if (times2RideHailAgents.isEmpty) None
     else {
-//      SequenceUtils.minOption(
-//        times2RideHailAgents
-//      )(RideHailAgentETAComparatorMinTimeToCustomer)
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
-      val result = times2RideHailAgents.min(RideHailAgentETAComparatorMinTimeToCustomer)
-      Some(result)
+      SequenceUtils.minOption(
+        times2RideHailAgents
+      )(RideHailAgentETAComparatorMinTimeToCustomer)
     }
   }
 
