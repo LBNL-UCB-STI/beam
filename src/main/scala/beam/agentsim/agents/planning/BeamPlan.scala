@@ -63,7 +63,7 @@ object BeamPlan {
               outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
             }
           } else if (elems.head.isInstanceOf[Leg] && elems.last
-            .isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
+                       .isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
             outputElems = List()
           }
         }
@@ -72,7 +72,7 @@ object BeamPlan {
       .toList
     val newPlanElements: List[PlanElement] = plan.getPlanElements.asScala.lastOption match {
       case Some(value) => list :+ value
-      case None =>list
+      case None        => list
     }
     val newPlan = PopulationUtils.createPlan()
     newPlanElements.foreach(

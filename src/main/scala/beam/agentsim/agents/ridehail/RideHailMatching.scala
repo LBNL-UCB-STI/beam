@@ -68,6 +68,7 @@ object RideHailMatching {
     def getNoPassengers: Int = numberOfPassengers
     def getSeatingCapacity: Int = seatingCapacity
     def getFreeSeats: Int = seatingCapacity - numberOfPassengers
+
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag == EnRoute).getOrElse(schedule.head)
   }

@@ -545,7 +545,10 @@ trait ChoosesMode {
         .map { trip =>
           if (getHeadFromEmbodiedBeamTrip(trip).beamLeg.mode != WALK) {
             val startLeg = EmbodiedBeamLeg(
-              BeamLeg.dummyLeg(getHeadFromEmbodiedBeamTrip(trip).beamLeg.startTime, getHeadFromEmbodiedBeamTrip(trip).beamLeg.travelPath.startPoint.loc),
+              BeamLeg.dummyLeg(
+                getHeadFromEmbodiedBeamTrip(trip).beamLeg.startTime,
+                getHeadFromEmbodiedBeamTrip(trip).beamLeg.travelPath.startPoint.loc
+              ),
               body.id,
               body.beamVehicleType.id,
               asDriver = true,

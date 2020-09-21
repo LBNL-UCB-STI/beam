@@ -61,7 +61,7 @@ class ModeChoiceMultinomialLogit(
           .groupBy(_.embodiedBeamTrip.tripClassifier)
           .flatMap {
             case (_, group: IndexedSeq[ModeCostTimeTransfer]) if group.isEmpty => None
-            case (_, group: IndexedSeq[ModeCostTimeTransfer]) => Some(findBestIn(group))
+            case (_, group: IndexedSeq[ModeCostTimeTransfer])                  => Some(findBestIn(group))
           }
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =

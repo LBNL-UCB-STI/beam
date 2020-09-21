@@ -28,8 +28,7 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
     val containsRideHailAlt: IndexedSeq[Int] = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == RIDE_HAIL => idx
     }
-    containsRideHailAlt
-      .headOption
+    containsRideHailAlt.headOption
       .map(idx => alternatives(idx))
       .orElse(chooseRandomElement(alternatives))
   }

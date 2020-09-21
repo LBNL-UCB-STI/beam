@@ -27,12 +27,11 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
     val containsDriveAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier == CAR => idx
     }
-    containsDriveAlt
-      .headOption
+    containsDriveAlt.headOption
       .map(idx => alternatives(idx)) match {
-        case result @ Some(_) => result
-        case None => chooseRandomElement(alternatives)
-      }
+      case result @ Some(_) => result
+      case None             => chooseRandomElement(alternatives)
+    }
   }
 
   override def utilityOf(

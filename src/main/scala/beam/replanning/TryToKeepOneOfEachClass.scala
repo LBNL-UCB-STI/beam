@@ -39,5 +39,5 @@ class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
       )
       .head
   }
-  
+
 }
