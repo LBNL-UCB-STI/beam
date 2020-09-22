@@ -7,7 +7,7 @@ package object sql {
   type GeometryPoint = String
   type GeometryLinestring = String
 
-  val projection: Int = 4326
+  val espg4326Projection: Int = 4326
 
   def makeGeometryPoint(coord: LatLng): GeometryPoint =
     s"POINT(${coord.lat} ${coord.lng})"

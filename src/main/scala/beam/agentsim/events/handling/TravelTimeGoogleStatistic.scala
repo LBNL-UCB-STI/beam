@@ -141,19 +141,24 @@ class TravelTimeGoogleStatistic(
           val requestIdToDepartureTime: Map[String, Int] =
             googleEntries.values.flatten.groupBy(_.requestId).mapValues(_.head.departureTime)
 
-          insertGoogleRoutesAndLegsInDb(
-            eventContainers.map { ec =>
-              GoogleRoutesResponse(
-                requestId = ec.requestId,
-                departureLocalDateTime = makeDepartureLocatDateTime(ec.event.departureTime)
-                  .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-                ec.directionsResult
-              )
-            },
-            requestIdToDepartureTime,
-            filePath,
-            Instant.now()
-          )
+          try {
+            insertGoogleRoutesAndLegsInDb(
+              eventContainers.map { ec =>
+                GoogleRoutesResponse(
+                  requestId = ec.requestId,
+                  departureLocalDateTime = makeDepartureLocatDateTime(ec.event.departureTime)
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                  ec.directionsResult
+                )
+              },
+              requestIdToDepartureTime,
+              filePath,
+              Instant.now()
+            )
+          } catch {
+            case e: Throwable =>
+              logger.warn("Failed to insert Google routes", e)
+          }
 
           googleEntries
         }

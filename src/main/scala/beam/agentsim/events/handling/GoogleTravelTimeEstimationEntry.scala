@@ -38,7 +38,7 @@ object GoogleTravelTimeEstimationEntry {
   implicit def intToString(x: Int): String = x.toString
   implicit def optionIntToString(x: Option[Int]): String = x.map(intToString).getOrElse("")
   implicit def longToString(x: Long): String = x.toString
-  implicit def optioLlongToString(x: Option[Long]): String = x.map(longToString).getOrElse("")
+  implicit def optionLongToString(x: Option[Long]): String = x.map(longToString).getOrElse("")
 
   def toRow(entry: GoogleTravelTimeEstimationEntry): Vector[String] = {
     Vector[String](
@@ -133,18 +133,20 @@ object GoogleTravelTimeEstimationEntry {
     }
 
     def parseEntries(text: String): Seq[GoogleTravelTimeEstimationEntry] = {
-      val csvReader = new CsvMapReader(new StringReader(text), CsvPreference.STANDARD_PREFERENCE)
-      val header = csvReader.getHeader(true)
-      val result = new mutable.ArrayBuffer[GoogleTravelTimeEstimationEntry]()
+      using(new CsvMapReader(new StringReader(text), CsvPreference.STANDARD_PREFERENCE)) { csvReader =>
 
-      Iterator
-        .continually(csvReader.read(header: _*))
-        .takeWhile(_ != null)
-        .foreach { rowMap =>
-          result.append(GoogleTravelTimeEstimationEntry.fromJulMap(rowMap))
-        }
+        val header = csvReader.getHeader(true)
+        val result = new mutable.ArrayBuffer[GoogleTravelTimeEstimationEntry]()
 
-      result
+        Iterator
+          .continually(csvReader.read(header: _*))
+          .takeWhile(_ != null)
+          .foreach { rowMap =>
+            result.append(GoogleTravelTimeEstimationEntry.fromJulMap(rowMap))
+          }
+
+        result
+      }
     }
   }
 }

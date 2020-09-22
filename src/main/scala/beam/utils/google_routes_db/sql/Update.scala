@@ -55,7 +55,7 @@ object Update {
          |  copyrights, summary, googleapi_responses_json_file_uri, timestamp
          |) VALUES (
          |  ?, ?, ?,
-         |  ST_GeometryFromText(?, $projection), ST_GeometryFromText(?, $projection),
+         |  ST_GeometryFromText(?, $espg4326Projection), ST_GeometryFromText(?, $espg4326Projection),
          |  ?, ?, ?, ?
          |) RETURNING id
          |""".stripMargin
@@ -169,9 +169,9 @@ object Update {
          |  ?, ?, ?,
          |  ?, ?,
          |  ?, ?,
-         |  ?, ST_GeometryFromText(?, $projection),
-         |  ?, ST_GeometryFromText(?, $projection),
-         |  ST_GeometryFromText(?, $projection)
+         |  ?, ST_GeometryFromText(?, $espg4326Projection),
+         |  ?, ST_GeometryFromText(?, $espg4326Projection),
+         |  ST_GeometryFromText(?, $espg4326Projection)
          |)
          |""".stripMargin
 

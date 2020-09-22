@@ -59,8 +59,8 @@ object Select {
         |  leg.duration_in_traffic
         |FROM
         |  (SELECT
-        |     ST_GeometryFromText(?, $projection) :: GEOMETRY as origin,
-        |     ST_GeometryFromText(?, $projection) :: GEOMETRY as dest,
+        |     ST_GeometryFromText(?, $espg4326Projection) :: GEOMETRY as origin,
+        |     ST_GeometryFromText(?, $espg4326Projection) :: GEOMETRY as dest,
         |     ? :: INTEGER as departure_time,
         |     ? :: TIMESTAMP as departure_date_time
         |  ) args,
