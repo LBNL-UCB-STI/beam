@@ -53,7 +53,7 @@ class Coordinator(
     val events = executeSubPeriod(tillTime, Vector.empty[Event])
     asyncFlushEvents(events)
     val minTime = workers.map(_.minTime).min
-    if (minTime != Double.MaxValue) {
+    if (!minTime.equals(Double.MaxValue)) {
       executePeriod(minTime + config.syncInterval)
     }
   }
@@ -74,7 +74,7 @@ class Coordinator(
     }
   }
 
-  var seqFuture = Future.successful(())
+  var seqFuture: Future[Unit] = Future.successful(())
   private def asyncFlushEvents(events: Vector[Event]): Unit = {
     seqFuture = seqFuture.flatMap(
       _ =>

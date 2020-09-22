@@ -26,7 +26,11 @@ import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.{BikeLanesAdjustment, NetworkCoordinator}
+import beam.router.r5.{
+  BikeLanesAdjustment,
+  BikeLanesData,
+  NetworkCoordinator
+}
 import beam.router.skim.{DriveTimeSkimmer, ODSkimmer, Skims, TAZSkimmer, TransitCrowdingSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
@@ -52,6 +56,7 @@ import com.google.inject.Scopes
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.{Config => MatsimConfig}
@@ -62,6 +67,13 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByIns
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
+import scala.sys.process.Process
+import scala.util.{Random, Try}
 
 trait BeamHelper extends LazyLogging {
 
@@ -209,6 +221,7 @@ trait BeamHelper extends LazyLogging {
               new TravelTimeCalculatorConfigGroup()
             )
           )
+          bind(classOf[beam.router.r5.BikeLanesData]).toInstance(BikeLanesData(beamConfig))
           bind(classOf[BikeLanesAdjustment]).in(Scopes.SINGLETON)
           bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
           bind(classOf[RideHailIterationHistory]).asEagerSingleton()
@@ -404,7 +417,7 @@ trait BeamHelper extends LazyLogging {
 
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
-      .parseString(s"""
+      .parseString("""
            |akka.cluster.roles = [compute]
            |akka.actor.deployment {
            |      /statsService/singleton/workerRouter {
@@ -566,7 +579,20 @@ trait BeamHelper extends LazyLogging {
     beamScenario: BeamScenario,
     outputDir: String
   ): Unit = {
+    if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0D)) {
+      applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
+    }
+
     samplePopulation(scenario, beamScenario, beamServices.beamConfig, scenario.getConfig, beamServices, outputDir)
+
+    // write static metrics, such as population size, vehicles fleet size, etc.
+    // necessary to be called after population sampling
+    BeamStaticMetricsWriter.writeSimulationParameters(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamServices.beamConfig
+    )
 
     val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
       .values()
@@ -583,6 +609,52 @@ trait BeamHelper extends LazyLogging {
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
 
     run(beamServices)
+  }
+
+  private def applyFractionOfPlansWithSingleActivity(
+    scenario: MutableScenario,
+    beamConfig: BeamConfig,
+    matSimConf: MatsimConfig
+  ): Unit = {
+    val random = new Random(matSimConf.global().getRandomSeed)
+
+    val people = random.shuffle(scenario.getPopulation.getPersons.values().asScala)
+
+    val peopleForRemovingWorkActivities =
+      (people.size * beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity).toInt
+
+    if (!beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+      people
+        .take(peopleForRemovingWorkActivities)
+        .map(_.getId)
+        .foreach(scenario.getPopulation.removePerson)
+    } else {
+      people
+        .take(peopleForRemovingWorkActivities)
+        .flatMap(p => p.getPlans.asScala.toSeq)
+        .filter(_.getPlanElements.size() > 1)
+        .foreach { plan =>
+          val planElements = plan.getPlanElements
+          val firstActivity = planElements.get(0)
+          firstActivity.asInstanceOf[Activity].setEndTime(Double.NegativeInfinity)
+          planElements.clear()
+          planElements.add(firstActivity)
+        }
+
+      people
+        .groupBy(
+          _.getSelectedPlan.getPlanElements.asScala
+            .collect { case activity: Activity => activity.getType }
+            .mkString("->")
+        )
+        .filter(_._2.size > 1) // too many of them and we don't need such unique data in logs
+        .toSeq
+        .sortBy(_._2.size)(Ordering[Int].reverse)
+        .foreach {
+          case (planKey, people) =>
+            logger.info("There are {} people with plan `{}`", people.size, planKey)
+        }
+    }
   }
 
   protected def buildBeamServicesAndScenario(
@@ -768,15 +840,6 @@ trait BeamHelper extends LazyLogging {
     }
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
-
-    // write static metrics, such as population size, vehicles fleet size, etc.
-    // necessary to be called after population sampling
-    BeamStaticMetricsWriter.writeSimulationParameters(
-      scenario,
-      beamScenario,
-      beamServices,
-      beamConfig
-    )
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
@@ -798,7 +861,7 @@ trait BeamHelper extends LazyLogging {
       .map(str => InputType(str.toLowerCase))
       .getOrElse(
         throw new IllegalStateException(
-          s"`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
+          "`beamConfig.beam.exchange.scenario.fileFormat` is null or empty!"
         )
       )
     val scenarioReader = fileFormat match {

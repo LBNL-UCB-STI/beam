@@ -172,7 +172,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       event.getServices.getIterationNumber,
       skimFileBaseName + "Full.csv.gz"
     )
-    val uniqueModes = currentSkim.map(keyVal => keyVal.asInstanceOf[ODSkimmerKey].mode).toList.distinct
+    val uniqueModes = currentSkim.keys.map(key => key.asInstanceOf[ODSkimmerKey].mode).toList.distinct
     val uniqueTimeBins = 0 to 23
 
     val dummyId = Id.create(
@@ -191,9 +191,11 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
             uniqueModes.foreach { mode =>
               uniqueTimeBins
                 .foreach { timeBin =>
-                  val theSkim: ODSkimmer.Skim = currentSkim
+                  val internalSkimmer = currentSkim
                     .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
-                    .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
+                    .map(_.asInstanceOf[ODSkimmerInternal])
+                  val theSkim: ODSkimmer.Skim = internalSkimmer
+                    .map(_.toSkimExternal)
                     .getOrElse {
                       if (origin.equals(destination)) {
                         val newDestCoord = new Coord(
@@ -225,7 +227,9 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                     }
 
                   writer.write(
-                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedTime},${theSkim.distance},${theSkim.count},${theSkim.energy}\n"
+                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.count},${internalSkimmer
+                      .map(_.iterations)
+                      .getOrElse(0)}\n"
                   )
                 }
             }

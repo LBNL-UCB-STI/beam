@@ -38,6 +38,7 @@ object BeamConfig {
       collectEvents: scala.Boolean,
       endTime: java.lang.String,
       firstIteration: scala.Int,
+      fractionOfPlansWithSingleActivity: scala.Double,
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
       populationAdjustment: java.lang.String,
@@ -1649,6 +1650,9 @@ object BeamConfig {
           collectEvents = c.hasPathOrNull("collectEvents") && c.getBoolean("collectEvents"),
           endTime = if (c.hasPathOrNull("endTime")) c.getString("endTime") else "30:00:00",
           firstIteration = if (c.hasPathOrNull("firstIteration")) c.getInt("firstIteration") else 0,
+          fractionOfPlansWithSingleActivity =
+            if (c.hasPathOrNull("fractionOfPlansWithSingleActivity")) c.getDouble("fractionOfPlansWithSingleActivity")
+            else 0.0,
           h3taz = BeamConfig.Beam.Agentsim.H3taz(
             if (c.hasPathOrNull("h3taz")) c.getConfig("h3taz")
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
@@ -1913,7 +1917,8 @@ object BeamConfig {
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
       vmInformation: BeamConfig.Beam.Debug.VmInformation,
-      writeModeChoiceAlternatives: scala.Boolean
+      writeModeChoiceAlternatives: scala.Boolean,
+      writeRealizedModeChoiceFile: scala.Boolean
     )
 
     object Debug {
@@ -2088,6 +2093,9 @@ object BeamConfig {
           ),
           writeModeChoiceAlternatives = c.hasPathOrNull("writeModeChoiceAlternatives") && c.getBoolean(
             "writeModeChoiceAlternatives"
+          ),
+          writeRealizedModeChoiceFile = c.hasPathOrNull("writeRealizedModeChoiceFile") && c.getBoolean(
+            "writeRealizedModeChoiceFile"
           )
         )
       }

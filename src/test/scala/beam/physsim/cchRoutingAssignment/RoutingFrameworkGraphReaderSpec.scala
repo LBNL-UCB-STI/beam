@@ -8,7 +8,8 @@ class RoutingFrameworkGraphReaderSpec extends FlatSpec with Matchers {
   private val routingFrameworkGraph = new RoutingFrameworkGraphReaderImpl()
 
   "RoutingFramework graph reader" must "correctly read generated graph" in {
-    val graphFile = new File(getClass.getResource("/files/graph.gr.bin").getFile)
+    val basePath = System.getenv("PWD")
+    val graphFile = new File(s"$basePath/test/test-resources/beam/router/graph.gr.bin")
 
     val graph = routingFrameworkGraph.read(graphFile)
 

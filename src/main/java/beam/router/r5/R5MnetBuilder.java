@@ -35,7 +35,6 @@ public class R5MnetBuilder {
     private final GeotoolsTransformation transform;
     private final String osmFile;
     private final Map<Coord, Id<Node>> coordinateNodes = new HashMap<>();
-    private final BeamConfig.Beam beamConfig;
     private final HighwaySetting highwaySetting;
 
     private int matsimNetworkNodeId = 0;
@@ -46,12 +45,12 @@ public class R5MnetBuilder {
      */
     public R5MnetBuilder(TransportNetwork r5Net, BeamConfig beamConfig, HighwaySetting highwaySetting) {
         this.r5Network = r5Net;
-        this.beamConfig = beamConfig.beam();
+        BeamConfig.Beam beamConfig1 = beamConfig.beam();
         this.highwaySetting = highwaySetting;
 
-        osmFile = this.beamConfig.routing().r5().osmMapdbFile();
-        transform = new GeotoolsTransformation(this.beamConfig.routing().r5().mNetBuilder().fromCRS(),
-                this.beamConfig.routing().r5().mNetBuilder().toCRS());
+        osmFile = beamConfig1.routing().r5().osmMapdbFile();
+        transform = new GeotoolsTransformation(beamConfig1.routing().r5().mNetBuilder().fromCRS(),
+                beamConfig1.routing().r5().mNetBuilder().toCRS());
         mNetwork = NetworkUtils.createNetwork();
     }
 

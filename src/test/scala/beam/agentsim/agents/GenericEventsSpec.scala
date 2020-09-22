@@ -1,9 +1,9 @@
 package beam.agentsim.agents
 
 import beam.integration.IntegrationSpecCommon
+import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
-import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.{FileUtils, NetworkHelper}
 import com.google.inject
 import org.matsim.api.core.v01.Scenario
@@ -21,7 +21,6 @@ trait GenericEventsSpec extends WordSpecLike with IntegrationSpecCommon with Bea
   private var injector: inject.Injector = _
 
   override def beforeAll(): Unit = {
-
     val beamConfig = BeamConfig(baseConfig)
     val beamScenario = loadScenario(beamConfig)
     val configBuilder = new MatSimBeamConfigBuilder(baseConfig)

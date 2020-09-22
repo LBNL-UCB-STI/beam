@@ -1,11 +1,10 @@
 package beam.utils
 
 import java.io.BufferedReader
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.scalatest.{Matchers, WordSpecLike}
-
 import scala.collection.JavaConverters._
 
 /**
@@ -13,7 +12,8 @@ import scala.collection.JavaConverters._
   * @author Dmitry Openkov
   */
 class FileUtilsSpec extends WordSpecLike with Matchers {
-  val skimPath = Paths.get(getClass.getResource("/files/multi-part-od-skims").toURI)
+
+  val skimPath: Path = Paths.get(System.getenv("PWD"), "test/test-resources/beam/od-skims/multi-part-od-skims")
 
   "FileUtils" must {
     "read files in parallel into a map" in {
@@ -46,7 +46,7 @@ class FileUtilsSpec extends WordSpecLike with Matchers {
 
     "write data to files in parallel" in {
       val data = Array.ofDim[String](111)
-      for (i <- 0 until data.length) {
+      for (i <- data.indices) {
         data(i) = i + (",CAR,101241,101241,153,153.0,0.128873295,0.468873295," +
         "1175.0,0.0,0,0,CAR,101241,101241,153,153.0,0.128873295,0.468873295,1175.0,0.0,0,0CAR,101241,101241,153," +
         "153.0,0.128873295,0.468873295,1175.0,0.0,0,0")

@@ -59,7 +59,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
 
-  private val bikeLanesAdjustment = new BikeLanesAdjustment(beamConfig)
+  private val bikeLanesAdjustment = BikeLanesAdjustment(beamConfig)
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
@@ -221,12 +221,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       if (mainRouteFromVehicle) {
         val body = request.streetVehicles.find(_.mode == WALK).get
         if (geo.distUTMInMeters(vehicle.locationUTM.loc, request.originUTM) > beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
-          val from = geo.snapToR5Edge(
+          val fromWgs = geo.snapToR5Edge(
             transportNetwork.streetLayer,
             geo.utm2Wgs(request.originUTM),
             10E3
           )
-          val to = geo.snapToR5Edge(
+          val toWgs = geo.snapToR5Edge(
             transportNetwork.streetLayer,
             geo.utm2Wgs(vehicle.locationUTM.loc),
             10E3
@@ -238,8 +238,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
               getStreetPlanFromR5(
                 R5Request(
-                  from,
-                  to,
+                  fromWgs,
+                  toWgs,
                   request.departureTime,
                   directMode,
                   accessMode,
@@ -253,7 +253,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           if (profileResponse.options.isEmpty) {
             Some(
               EmbodiedBeamLeg(
-                createBushwackingBeamLeg(request.departureTime, from, to, geo),
+                createBushwackingBeamLeg(request.departureTime, request.originUTM, vehicle.locationUTM.loc, geo),
                 body.id,
                 body.vehicleTypeId,
                 asDriver = true,
@@ -295,12 +295,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         .round(geo.distUTMInMeters(request.originUTM, vehicle.locationUTM.loc) / 5.8)
         .intValue()
       val time = request.departureTime + estimateDurationToGetToVeh
-      val from = geo.snapToR5Edge(
+      val fromWgs = geo.snapToR5Edge(
         transportNetwork.streetLayer,
         geo.utm2Wgs(vehicle.locationUTM.loc),
         10E3
       )
-      val to = geo.snapToR5Edge(
+      val toWgs = geo.snapToR5Edge(
         transportNetwork.streetLayer,
         geo.utm2Wgs(request.destinationUTM),
         10E3
@@ -312,8 +312,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
           getStreetPlanFromR5(
             R5Request(
-              from,
-              to,
+              fromWgs,
+              toWgs,
               time,
               directMode,
               accessMode,
@@ -334,7 +334,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
       } else {
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(request.departureTime, from, to, geo),
+          createBushwackingBeamLeg(request.departureTime, vehicle.locationUTM.loc, request.destinationUTM, geo),
           vehicle.id,
           vehicle.vehicleTypeId,
           asDriver = true,
@@ -1010,7 +1010,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
   }
 
-  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction == 0.0) {
+  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction.equals(0D)) {
     Array.empty
   } else {
     Array.fill(1000000) {
@@ -1037,7 +1037,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           assert(link != null)
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
           val physSimTravelTimeWithNoise =
-            (if (travelTimeNoiseFraction == 0.0 || !shouldAddNoise) {
+            (if (travelTimeNoiseFraction.equals(0D) || !shouldAddNoise) {
                physSimTravelTime
              } else {
                val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
@@ -1046,7 +1046,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
           Math.min(linkTravelTime, maxTravelTime)
         } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-          val scaleFactor = bikeLanesAdjustment.calculateBicycleScaleFactor(vehicleType, linkId)
+          val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
           minTravelTime * scaleFactor
         } else {
           minTravelTime

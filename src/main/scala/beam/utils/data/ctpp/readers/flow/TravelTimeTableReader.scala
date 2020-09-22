@@ -92,7 +92,7 @@ object TravelTimeTableReader {
     val rdr = new TravelTimeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
     val readData = rdr.read().toVector
 
-    val nonZeros = readData.filter(x => x.value != 0.0)
+    val nonZeros = readData.filterNot(x => x.value.equals(0D))
     val distinctHomeLocations = readData.map(_.source).distinct.size
     val distintWorkLocations = readData.map(_.destination).distinct.size
     val sumOfValues = readData.map(_.value).sum
