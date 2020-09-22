@@ -26,7 +26,7 @@ object TransitFareDefaults {
   def estimateTransitFares(alternatives: IndexedSeq[EmbodiedBeamTrip]): IndexedSeq[Double] = {
     alternatives.map { alt =>
       alt.tripClassifier match {
-        case theMode: BeamMode if theMode.isTransit && alt.costEstimate == zero =>
+        case theMode: BeamMode if theMode.isTransit && alt.costEstimate.equals(zero) =>
           var vehId = Id.create("dummy", classOf[BeamVehicle])
           var theFare = zero
           alt.legs.foreach { leg =>

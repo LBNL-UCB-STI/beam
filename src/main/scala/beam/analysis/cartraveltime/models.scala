@@ -35,9 +35,9 @@ case class CarTripStat(
   startCoordWGS: Coord,
   endCoordWGS: Coord
 ) {
-  def speed: Double = if (travelTime == 0.0) Double.NaN else distance / travelTime
+  def speed: Double = if (travelTime.equals(0D)) Double.NaN else distance / travelTime
 
-  def freeFlowSpeed: Double = if (freeFlowTravelTime == 0.0) Double.NaN else distance / freeFlowTravelTime
+  def freeFlowSpeed: Double = if (freeFlowTravelTime.equals(0D)) Double.NaN else distance / freeFlowTravelTime
 }
 case class TravelTimeStatistics(stats: Statistics)
 

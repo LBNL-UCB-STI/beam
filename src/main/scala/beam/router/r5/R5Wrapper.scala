@@ -1013,7 +1013,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
   }
 
-  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction == 0.0) {
+  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction.equals(0D)) {
     Array.empty
   } else {
     Array.fill(1000000) {
@@ -1040,7 +1040,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           assert(link != null)
           val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
           val physSimTravelTimeWithNoise =
-            (if (travelTimeNoiseFraction == 0.0 || !shouldAddNoise) {
+            (if (travelTimeNoiseFraction.equals(0D) || !shouldAddNoise) {
                physSimTravelTime
              } else {
                val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
