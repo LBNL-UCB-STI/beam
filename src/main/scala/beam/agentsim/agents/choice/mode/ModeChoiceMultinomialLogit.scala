@@ -1,6 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.collection.mutable.ListBuffer
 
 import beam.agentsim.agents.choice.logit
@@ -56,9 +56,13 @@ class ModeChoiceMultinomialLogit(
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
-      val bestInGroup = modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
-        case (_, group) => findBestIn(group)
-      }
+      val bestInGroup: immutable.Iterable[ModeCostTimeTransfer] =
+        modeCostTimeTransfers
+          .groupBy(_.embodiedBeamTrip.tripClassifier)
+          .flatMap {
+            case (_, group: IndexedSeq[ModeCostTimeTransfer]) if group.isEmpty => None
+            case (_, group: IndexedSeq[ModeCostTimeTransfer])                  => Some(findBestIn(group))
+          }
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
           Map("cost" -> timeAndCost(mct))
@@ -116,6 +120,8 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  // TODO: this method should be refactored
   private def findBestIn(group: IndexedSeq[ModeCostTimeTransfer]): ModeCostTimeTransfer = {
     if (group.size == 1) {
       group.head
@@ -372,6 +378,7 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): Double = {
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val modeCostTimeTransfer =
       altsToModeCostTimeTransfers(IndexedSeq(alternative), attributesOfIndividual, destinationActivity).head
     utilityOf(modeCostTimeTransfer)

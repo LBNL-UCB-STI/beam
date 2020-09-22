@@ -169,6 +169,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
         val distr = new EnumeratedDistribution[ClusterInfo](rng, pmf.asJava)
         val sampled = distr.sample()
         // Randomly pick the coordinate of one of activities
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
         val drawnCoord = rndGen.shuffle(sampled.activitiesLocation).head
         logger.debug(
           s"tick $tick, currentTimeBin: $currentTimeBin, nextTimeBin: $nextTimeBin, vehicleId: $vehicleId, vehicleLocation: $vehicleLocation. Top $N closest: ${topNClosest.toVector}, sampled: $sampled, drawn coord: $drawnCoord"

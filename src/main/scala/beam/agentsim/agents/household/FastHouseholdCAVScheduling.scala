@@ -149,12 +149,14 @@ class FastHouseholdCAVScheduling(
 
       val sortedRequests =
         (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.baselineNonPooledTime)
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val startRequest = sortedRequests.head
       val newHouseholdSchedule = mutable.ListBuffer(startRequest.copy())
       var newHouseholdScheduleCost = householdScheduleCost.copy()
       var newOccupancy: Int = cavSchedule.occupancy
 
       sortedRequests.drop(1).foreach { curReq =>
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
         val prevReq = newHouseholdSchedule.last
         val metric = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
           prevReq.activity.getCoord,

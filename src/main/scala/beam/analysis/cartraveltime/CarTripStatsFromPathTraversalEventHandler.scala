@@ -321,6 +321,7 @@ class CarTripStatsFromPathTraversalEventHandler(
     val hourAverageSpeed = trips.groupBy(stats => stats.departureTime.toInt / secondsInHour).map {
       case (hour, statsList) => hour -> (statsList.map(_.speed).sum / statsList.size)
     }
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val maxHour = hourAverageSpeed.keys.max
     val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
 

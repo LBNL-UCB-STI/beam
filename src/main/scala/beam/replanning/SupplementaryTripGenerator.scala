@@ -76,8 +76,11 @@ class SupplementaryTripGenerator(
 
     val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }.toList
 
-    if (!elements(1).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.head) }
+    if (!elements(1).getType.equalsIgnoreCase("temp")) {
+      elements.headOption.foreach(newPlan.addActivity)
+    }
 
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     var updatedPreviousActivity = elements.head
 
     val activityAccumulator = ListBuffer[Activity]()
@@ -90,15 +93,15 @@ class SupplementaryTripGenerator(
             generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
           newActivities.foreach { x =>
             activityAccumulator.lastOption match {
-              case Some(lastTrip) =>
-                if (lastTrip.getType == x.getType) {
-                  activityAccumulator -= activityAccumulator.last
-                }
+              case Some(lastTrip) if lastTrip.getType == x.getType =>
+                activityAccumulator -= lastTrip
               case _ =>
             }
             activityAccumulator.append(x)
           }
-          updatedPreviousActivity = activityAccumulator.last
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
+          val lastActivityAccValue = activityAccumulator.last
+          updatedPreviousActivity = lastActivityAccValue
         } else {
           if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
             activityAccumulator.append(curr)
@@ -110,7 +113,9 @@ class SupplementaryTripGenerator(
     activityAccumulator.foreach { x =>
       newPlan.addActivity(x)
     }
-    if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.last) }
+    if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) {
+      elements.lastOption.foreach(newPlan.addActivity)
+    }
 
     if (anyChanges) {
       //newPlan.setScore(plan.getScore)

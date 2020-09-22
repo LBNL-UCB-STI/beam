@@ -84,7 +84,9 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     toPool.grouped(2).foreach { twoToPool =>
       twoToPool.size match {
         case 1 =>
-          Pooling.serveOneRequest(twoToPool.head, tick, alreadyAllocated, rideHailManager, beamServices) match {
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
+          val twoToPollHead = twoToPool.head
+          Pooling.serveOneRequest(twoToPollHead, tick, alreadyAllocated, rideHailManager, beamServices) match {
             case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
               allocResponses = allocResponses :+ res
               alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
@@ -92,7 +94,9 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
               allocResponses = allocResponses :+ res
           }
         case 2 =>
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
           val request1 = twoToPool.head
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
           val request2 = twoToPool.last
           val request1Updated = RideHailRequest.handleImpression(request1, beamServices)
           val request2Updated = RideHailRequest.handleImpression(request2, beamServices)
