@@ -26,11 +26,7 @@ import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
-import beam.router.r5.{
-  BikeLanesAdjustment,
-  BikeLanesData,
-  NetworkCoordinator
-}
+import beam.router.r5.{BikeLanesAdjustment, BikeLanesData, NetworkCoordinator}
 import beam.router.skim.{DriveTimeSkimmer, ODSkimmer, Skims, TAZSkimmer, TransitCrowdingSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
