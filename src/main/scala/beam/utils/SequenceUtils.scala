@@ -27,7 +27,7 @@ object SequenceUtils {
       Some(seq.min(cmp))
   }
 
-  def maxOption[A](seq: Iterable[A])(implicit cmp: Ordering[A]): Option[A] = {
+  def maxOpt[A](seq: Iterable[A])(implicit cmp: Ordering[A]): Option[A] = {
     if (seq.isEmpty)
       None
     else

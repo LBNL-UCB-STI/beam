@@ -53,7 +53,7 @@ class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
     val filePath = controlerIO.getIterationFilename(event.getIteration, "PhysSimEventToHourFrequency.csv")
     val csvWriter = new CsvWriter(filePath, Vector("event_type", "hour", "count"))
     try {
-      val maxHour = SequenceUtils.maxOption(eventToHourFreq.values.flatten.map(_._1)).getOrElse(-1)
+      val maxHour = SequenceUtils.maxOpt(eventToHourFreq.values.flatten.map(_._1)).getOrElse(-1)
       logger.info(s"Handled ${cnt} events. MaxHour: $maxHour")
       (0 to maxHour).map { hour =>
         eventToHourFreq.map {
