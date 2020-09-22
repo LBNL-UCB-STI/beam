@@ -111,24 +111,25 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          edges.map(_.intValue()).toVector,
-          TravelTimeUtils.scaleTravelTime(
+          linkIds = edges.map(_.intValue()).toVector,
+          linkTravelTime = TravelTimeUtils.scaleTravelTime(
             streetSeg.getDuration,
             math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
-          None,
-          SpaceTime(
+          transitStops = Some(TransitStopsInfo(agencyId = "", routeId = "", vehicleId = vehicleId,
+            fromIdx = fromStop, toIdx = toStop)),
+          startPoint = SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,
             departureTime
           ),
-          SpaceTime(
+          endPoint = SpaceTime(
             endEdge.getGeometry.getEndPoint.getX,
             endEdge.getGeometry.getEndPoint.getY,
             departureTime + math.round(streetSeg.getDuration - scaledLinkTimes.head).toInt
           ),
-          distance
+          distanceInM = distance
         )
     }
 
