@@ -59,7 +59,7 @@ object ParkingMNL {
         case (param, value) =>
           f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
-      .mkString(s"", " ", ": ")
+      .mkString("", " ", ": ")
   }
 
   sealed trait Parameters

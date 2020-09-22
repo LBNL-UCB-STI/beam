@@ -38,7 +38,6 @@ import beam.router.RoutingWorker
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-  private implicit val executionContext: ExecutionContext = context.dispatcher
 
   val dummyRHVehicle: StreetVehicle =
     StreetVehicle(
@@ -238,6 +237,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           departTime,
           withTransit,
+          Some(id),
           vehicles,
           Some(attributes),
           streetVehiclesIntermodalUse
@@ -266,7 +266,7 @@ trait ChoosesMode {
         rideHailManager ! inquiry
       }
 
-      def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
+      def makeRideHailTransitRoutingRequest(bodyStreetVehicleRequestParam: StreetVehicle): Option[Int] = {
         //TODO make ride hail wait buffer config param
         val startWithWaitBuffer = 900 + departTime
         val currentSpaceTime =
@@ -276,7 +276,8 @@ trait ChoosesMode {
           nextAct.getCoord,
           startWithWaitBuffer,
           withTransit = true,
-          Vector(bodyStreetVehicle, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
+          Some(id),
+          Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
           streetVehiclesUseIntermodalUse = AccessAndEgress
         )
         router ! theRequest
@@ -325,7 +326,7 @@ trait ChoosesMode {
             requestId = None
           }
           parkingRequestId = makeRequestWith(
-            withTransit = true,
+            withTransit = availableModes.exists(_.isTransit),
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             withParking = willRequestDrivingRoute
           )
@@ -678,7 +679,7 @@ trait ChoosesMode {
       ),
       cost = 0
     )
-    assert(firstLeg.cost + secondLeg.cost == leg.cost)
+    assert((firstLeg.cost + secondLeg.cost).equals(leg.cost))
     assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
     assert(
       Math.abs(

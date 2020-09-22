@@ -91,6 +91,9 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     chargingPlugOutEvents: AtomicInteger
   ): Unit = {
     val broker = helics.helicsCreateBroker("zmq", "", s"-f 2 --name=BeamBrokerTemp")
+    val isHelicsBrokerConnected = helics.helicsBrokerIsConnected(broker)
+    isHelicsBrokerConnected should be > 0
+
     val fedName = "BeamFederateTemp"
     val fedInfo = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)

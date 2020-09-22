@@ -181,39 +181,39 @@ class DockerRoutingFrameworkWrapper(
     FileUtils.gzipFile(itHourRelatedPath(tempDirPath, iteration, hour, "stat.csv").toString, deleteSourceFile = true)
     FileUtils.gzipFile(odPairsFileInTempDir(iteration, hour).toString, deleteSourceFile = true)
 
-    var curIter = -1
-    val wayId2TravelTime = new mutable.HashMap[Long, Double]()
-
     val reader = FileUtils.readerFromFile(s"$flowFile.gz")
     //skip first line, which contains debug info
     reader.readLine()
     //file format : iteration,vol,sat,travel_time,way_id,bpr_result
-    new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE)
-      .use { csvReader =>
-        val headers = csvReader.getHeader(false)
-        Iterator
-          .continually(csvReader.read(headers: _*))
-          .takeWhile(_ != null)
-          .map { map =>
-            val iteration = map.get("iteration").toInt
-            if (iteration != curIter) {
-              curIter = iteration
-              wayId2TravelTime.clear()
-            }
-            map.get("way_id").toLong ->
-            // travel time in routing framework is measured in tens of seconds
-            // so we are dividing it by 10 to get time in seconds
-            map.get("bpr_result").toDouble / 10
-          }
-          .foreach {
-            case (wayId, travelTime) =>
-              wayId2TravelTime.get(wayId) match {
-                case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
-                case None    => wayId2TravelTime.put(wayId, travelTime)
-              }
+
+    new CsvMapReader(reader, CsvPreference.STANDARD_PREFERENCE).use(mapFromCsvReader)
+  }
+
+  private def mapFromCsvReader(csvReader: CsvMapReader): Map[Long, Double] = {
+    val wayId2TravelTime = new mutable.HashMap[Long, Double]()
+    val headers = csvReader.getHeader(false)
+    var curIter = -1
+    Iterator
+      .continually(csvReader.read(headers: _*))
+      .takeWhile(_ != null)
+      .map { map =>
+        val iteration = map.get("iteration").toInt
+        if (iteration != curIter) {
+          curIter = iteration
+          wayId2TravelTime.clear()
+        }
+        map.get("way_id").toLong ->
+        // travel time in routing framework is measured in tens of seconds
+        // so we are dividing it by 10 to get time in seconds
+        map.get("bpr_result").toDouble / 10
+      }
+      .foreach {
+        case (wayId, travelTime) =>
+          wayId2TravelTime.get(wayId) match {
+            case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
+            case None    => wayId2TravelTime.put(wayId, travelTime)
           }
       }
-
     wayId2TravelTime.toMap
   }
 

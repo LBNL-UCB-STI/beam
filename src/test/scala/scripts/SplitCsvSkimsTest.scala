@@ -12,7 +12,8 @@ import scala.reflect.io.File
 class SplitCsvSkimsTest extends FunSuite with StrictLogging {
 
   test("Split skims file to parts") {
-    val inputFilePath = getClass.getResource("/files/od_for_test.csv.gz").getFile
+    val basePath = System.getenv("PWD")
+    val inputFilePath = s"$basePath/test/test-resources/beam/od-skims/od_for_test.csv.gz"
     val outputDirectory = Files.createTempDirectory("beam-tests").toString
     val numberOfParts = 3
 

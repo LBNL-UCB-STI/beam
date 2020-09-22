@@ -252,22 +252,28 @@ class ZonalParkingManager(
           case Some(result) =>
             result
           case None =>
-            // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.getX + 2000,
-              inquiry.destinationUtm.getX - 2000,
-              inquiry.destinationUtm.getY + 2000,
-              inquiry.destinationUtm.getY - 2000
-            )
-            val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+            inquiry.activityType match {
+              case "init" | "home" =>
+                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+              case _ =>
+                // didn't find any stalls, so, as a last resort, create a very expensive stall
+                val boxAroundRequest = new Envelope(
+                  inquiry.destinationUtm.getX + 2000,
+                  inquiry.destinationUtm.getX - 2000,
+                  inquiry.destinationUtm.getY + 2000,
+                  inquiry.destinationUtm.getY - 2000
+                )
+                val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+            }
         }
 
       log.debug(
         s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
       )
       log.debug(
-        s"sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
+        "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
         chargingTypeToNo(parkingZonesSampled),
         parkingTypeToNo(parkingZonesSampled),
         listOfCosts(parkingZonesSampled)
@@ -287,9 +293,9 @@ class ZonalParkingManager(
           totalStallsAvailable -= 1
         }
 
-        log.debug(s"Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
+        log.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
 
-        if (totalStallsInUse % 1000 == 0) log.debug(s"Parking stalls in use: {}", totalStallsInUse)
+        if (totalStallsInUse % 1000 == 0) log.debug("Parking stalls in use: {}", totalStallsInUse)
       }
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)

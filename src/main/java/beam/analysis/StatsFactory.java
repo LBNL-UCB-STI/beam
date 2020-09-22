@@ -53,7 +53,8 @@ public class StatsFactory {
         LoadOverTimeAnalysis,
         ChargingAnalysis,
         EVFleetAnalysis,
-        PersonAverageTravelTimeAnalysis
+        PersonAverageTravelTimeAnalysis,
+        RoutingRequestAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -168,6 +169,8 @@ public class StatsFactory {
                 return new RideHailFleetAnalysis(beamServices);
             case PersonAverageTravelTimeAnalysis:
                 return new PersonAverageTravelTimeAnalysis(beamConfig);
+            case RoutingRequestAnalysis:
+                return new RoutingRequestAnalysis();
             default:
                 return null;
         }
