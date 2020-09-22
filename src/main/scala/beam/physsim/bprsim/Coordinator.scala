@@ -54,7 +54,7 @@ class Coordinator(
   private def executePeriod(tillTime: Double): Unit = {
     val events = executeSubPeriod(tillTime, Vector.empty[Event])
     asyncFlushEvents(events)
-    val minTime: Option[Double] = SequenceUtils.minOption(workers.map(_.minTime))
+    val minTime: Option[Double] = SequenceUtils.minOpt(workers.map(_.minTime))
     if (!minTime.contains(Double.MaxValue)) {
       executePeriod(minTime.get + config.syncInterval)
     }
@@ -68,7 +68,7 @@ class Coordinator(
     val acceptedEvents: Seq[Int] = parallelExecution(workers.map(w => () => w.acceptEvents(workerEvents)))
     logger.debug(s"Accepted events: ${acceptedEvents.mkString(",")}")
     val allEvents = eventAcc ++ producedEvents.flatten
-    if (SequenceUtils.minOption(workers.map(_.minTime)).exists(value => value > tillTime)) {
+    if (SequenceUtils.minOpt(workers.map(_.minTime)).exists(value => value > tillTime)) {
       allEvents
     } else {
       executeSubPeriod(tillTime, allEvents)

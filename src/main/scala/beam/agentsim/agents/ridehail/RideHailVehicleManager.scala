@@ -172,7 +172,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       )
     if (times2RideHailAgents.isEmpty) None
     else {
-      SequenceUtils.minOption(
+      SequenceUtils.minOpt(
         times2RideHailAgents
       )(RideHailAgentETAComparatorMinTimeToCustomer)
     }

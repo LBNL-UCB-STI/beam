@@ -507,7 +507,7 @@ class PersonAgent(
         BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _)
         ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
-      logDebug(s"Replaned to leg ${restOfCurrentTrip.headOption.getOrElse("")}")
+      logDebug(s"Replanned to leg [${restOfCurrentTrip.headOption.getOrElse("NONE")}]")
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }

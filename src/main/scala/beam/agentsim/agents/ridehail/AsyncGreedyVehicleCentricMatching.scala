@@ -86,6 +86,7 @@ class AsyncGreedyVehicleCentricMatching(
               combinations.append(t.matchId)
               val cost = computeCost(t)
               if (tripsWithKPassengers.size == solutionSizePerPool) {
+                // then replace the trip with highest sum of delays
                 SequenceUtils.maxByOpt(
                   seq = tripsWithKPassengers.zipWithIndex,
                   f = (v: ((RideHailTrip, Double), Int)) => v._1._2
