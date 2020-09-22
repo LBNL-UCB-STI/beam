@@ -662,7 +662,7 @@ task dockerCreatePostgresContainer(type: DockerCreateContainer) {
     withEnvVar('POSTGRES_USER', 'postgres')
     withEnvVar('POSTGRES_PASSWORD', 'postgres')
     withEnvVar('PGDATA', '/data/pgdata')
-    def dataDir = file('docker/postgres/data').absolutePath
+    def dataDir = file('docker/postgresql/data').absolutePath
     volumes = [dataDir]
     binds = [(dataDir): '/data']
     portBindings = ["5432:5432"]
