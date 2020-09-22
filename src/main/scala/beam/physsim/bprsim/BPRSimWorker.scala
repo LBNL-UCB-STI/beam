@@ -45,8 +45,9 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
     def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double, counter: Int): Int = {
       val seOption = queue.headOption
       seOption match {
-        case None => counter
-        case Some(se) if se.time <= tillTime =>
+        case None                           => counter
+        case Some(se) if se.time > tillTime => counter
+        case Some(_) =>
           val simEvent = queue.dequeue()
           val (events, maybeSimEvent) = simEvent.execute(scenario, params)
           eventBuffer ++= events
