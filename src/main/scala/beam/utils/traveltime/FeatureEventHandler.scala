@@ -57,7 +57,7 @@ class FeatureEventHandler(
 
   def handleEvent(event: Event): Unit = {
     val attrib = event.getAttributes
-    val linkId = Option(attrib.get("link")).map(_.toInt).get
+    val linkId = attrib.get("link").toInt
     val link = links.get(Id.create(attrib.get("link"), classOf[Link]))
     event.getEventType match {
       case "entered link" | "vehicle enters traffic" | "wait2link" =>

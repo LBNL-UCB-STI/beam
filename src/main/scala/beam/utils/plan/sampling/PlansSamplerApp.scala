@@ -324,7 +324,7 @@ object PlansSampler {
   val counter: Counter = new Counter("[" + this.getClass.getSimpleName + "] created household # ")
 
   private var planQt: Option[QuadTree[Plan]] = None
-  var wgsConverter: Option[WGSConverter] = None
+  var wgsConverter: WGSConverter = _
   val conf: Config = ConfigUtils.createConfig()
 
   private val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
@@ -357,7 +357,7 @@ object PlansSampler {
     spatialSampler = Try(new SpatialSampler(args(1))).getOrElse(null)
     val sourceCrs = MGC.getCRS(args(7))
 
-    wgsConverter = Some(WGSConverter(args(7), args(8)))
+    wgsConverter = WGSConverter(args(7), args(8))
     pop ++= scala.collection.JavaConverters
       .mapAsScalaMap(sc.getPopulation.getPersons)
       .values
@@ -365,13 +365,13 @@ object PlansSampler {
 
     synthHouseholds ++=
       filterSynthHouseholds(
-        synthHouseholdsToFilter = new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
+        synthHouseholdsToFilter = new SynthHouseholdParser(wgsConverter).parseFile(args(3)),
         aoiFeatures = shapeFileReader.getFeatureSet,
         sourceCRS = sourceCrs
       )
 
     planQt = Some(
-      new QuadTreeBuilder(wgsConverter.get)
+      new QuadTreeBuilder(wgsConverter)
         .buildQuadTree(shapeFileReader.getFeatureSet, sourceCrs, pop)
     )
 
@@ -401,14 +401,14 @@ object PlansSampler {
 
     while (col.size < n) {
       radius += 1
-      val candidates = JavaConverters.collectionAsScalaIterable(
-        planQt.get.getDisk(spCoord.getX, spCoord.getY, radius)
-      )
-      for (plan <- candidates) {
-        if (!col.contains(plan) && (!withoutWork || hasNoWorkAct(plan))) {
-          col ++= Vector(plan)
-        }
-      }
+      planQt.foreach(planQtVal => {
+        val candidates = planQtVal.getDisk(spCoord.getX, spCoord.getY, radius)
+        candidates.forEach(plan => {
+          if (!col.contains(plan) && (!withoutWork || hasNoWorkAct(plan))) {
+            col ++= Vector(plan)
+          }
+        })
+      })
     }
     col
   }
@@ -424,7 +424,7 @@ object PlansSampler {
   ): Vector[SynthHousehold] = {
 
     if (spatialSampler == null) {
-      val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
+      val aoi: Geometry = new QuadTreeBuilder(wgsConverter)
         .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
       synthHouseholdsToFilter
         .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))

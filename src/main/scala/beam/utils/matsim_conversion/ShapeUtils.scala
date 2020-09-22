@@ -85,8 +85,7 @@ object ShapeUtils {
 
       val tazs = features.asScala
         .map(featureToCsvTaz(_, tazIDFieldName))
-        .filter(_.isDefined)
-        .map(_.get)
+        .collect { case Some(csvTaz) => csvTaz }
         .toArray
 //      println(s"Total TAZ ${tazs.length}")
 

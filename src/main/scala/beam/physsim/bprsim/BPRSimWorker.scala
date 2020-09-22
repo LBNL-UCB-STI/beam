@@ -44,23 +44,23 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
     @tailrec
     def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double, counter: Int): Int = {
       val seOption = queue.headOption
-      if (seOption.isEmpty || seOption.get.time > tillTime) {
-        counter
-      } else {
-        val simEvent = queue.dequeue()
-        val (events, maybeSimEvent) = simEvent.execute(scenario, params)
-        eventBuffer ++= events
-        maybeSimEvent
-          .foreach { se =>
-            if (myLinks.contains(se.linkId)) {
-              acceptSimEvent(se)
-            } else {
-              val workerEvents = otherWorkerEvents.getOrElseUpdate(workers(se.linkId), ArrayBuffer.empty)
-              workerEvents += se
+      seOption match {
+        case None => counter
+        case Some(se) if se.time <= tillTime =>
+          val simEvent = queue.dequeue()
+          val (events, maybeSimEvent) = simEvent.execute(scenario, params)
+          eventBuffer ++= events
+          maybeSimEvent
+            .foreach { se =>
+              if (myLinks.contains(se.linkId)) {
+                acceptSimEvent(se)
+              } else {
+                val workerEvents = otherWorkerEvents.getOrElseUpdate(workers(se.linkId), ArrayBuffer.empty)
+                workerEvents += se
+              }
             }
-          }
+          processQueuedEvents(workers, tillTime: Double, counter + 1)
 
-        processQueuedEvents(workers, tillTime: Double, counter + 1)
       }
     }
 
