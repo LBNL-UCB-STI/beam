@@ -634,9 +634,9 @@ jmh {
 // Docker integration + GoogleRoutesDB
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-def googleRoutesDbEnabled =
-        project.hasProperty('withGoogleRoutesDb') &&
-                project.getProperty('withGoogleRoutesDb').toBoolean()
+def googleRoutesDBEnabled =
+        project.hasProperty('withGoogleRoutesDB') &&
+                project.getProperty('withGoogleRoutesDB').toBoolean()
 
 import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
 import com.bmuschko.gradle.docker.tasks.container.DockerCreateContainer
@@ -685,7 +685,7 @@ task dockerStopPostgresContainer(type: DockerStopContainer) {
     targetContainerId dockerCreatePostgresContainer.getContainerId
 }
 
-task googleRoutesDbTryRestore(type: DockerExecContainer) {
+task googleRoutesDBTryRestore(type: DockerExecContainer) {
     group = 'Docker'
     description = 'Tries to restore GoogleRoutesDB dump'
     dependsOn dockerStartPostgresContainer
@@ -693,9 +693,9 @@ task googleRoutesDbTryRestore(type: DockerExecContainer) {
     targetContainerId dockerCreatePostgresContainer.getContainerId
     withCommand(['/data/scripts/try_restore_google_routes_db.sh'])
 }
-dockerStopPostgresContainer.mustRunAfter(googleRoutesDbTryRestore)
+dockerStopPostgresContainer.mustRunAfter(googleRoutesDBTryRestore)
 
-task googleRoutesDbTryDump(type: DockerExecContainer) {
+task googleRoutesDBTryDump(type: DockerExecContainer) {
     group = 'Docker'
     description = 'Tries to dump GoogleRoutesDB'
     dependsOn dockerStartPostgresContainer
@@ -703,24 +703,24 @@ task googleRoutesDbTryDump(type: DockerExecContainer) {
     targetContainerId dockerCreatePostgresContainer.getContainerId
     withCommand(['/data/scripts/try_dump_google_routes_db.sh'])
 }
-dockerStopPostgresContainer.mustRunAfter(googleRoutesDbTryDump)
+dockerStopPostgresContainer.mustRunAfter(googleRoutesDBTryDump)
 
-task googleRoutesDbStart {
+task googleRoutesDBStart {
     group = 'Docker'
     description = 'Starts a GoogleRoutesDB (see dockerStartPostgresContainer)'
     dependsOn dockerStartPostgresContainer
-    finalizedBy googleRoutesDbTryRestore
+    finalizedBy googleRoutesDBTryRestore
 }
 
-task googleRoutesDbStop {
+task googleRoutesDBStop {
     group = 'Docker'
     description = 'Tries to restore GoogleRoutesDB dump'
-    dependsOn(googleRoutesDbTryDump, dockerStopPostgresContainer)
+    dependsOn(googleRoutesDBTryDump, dockerStopPostgresContainer)
 }
 
-if (googleRoutesDbEnabled) {
-    run.dependsOn(googleRoutesDbStart)
-    run.finalizedBy(googleRoutesDbStop)
-    execute.dependsOn(googleRoutesDbStart)
-    execute.finalizedBy(googleRoutesDbStop)
+if (googleRoutesDBEnabled) {
+    run.dependsOn(googleRoutesDBStart)
+    run.finalizedBy(googleRoutesDBStop)
+    execute.dependsOn(googleRoutesDBStart)
+    execute.finalizedBy(googleRoutesDBStop)
 }
