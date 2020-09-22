@@ -108,13 +108,6 @@ trait ModeChoiceCalculator {
     attributesOfIndividual: AttributesOfIndividual
   ): Double
 
-  final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
-    if (alternatives.nonEmpty) {
-      Random.nextInt(alternatives.size)
-    } else {
-      throw new IllegalArgumentException("Cannot choose from an empty choice set.")
-    }
-  }
   final def chooseRandomElement(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
     if (alternatives.isEmpty) None
     else {
