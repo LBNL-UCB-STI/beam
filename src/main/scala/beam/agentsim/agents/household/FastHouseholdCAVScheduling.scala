@@ -139,7 +139,6 @@ class FastHouseholdCAVScheduling(
       outHouseholdSchedule.toList
     }
 
-    // TODO: there are a lot of assumptions on this method
     private def getScheduleOrNone(
       cav: BeamVehicle,
       cavSchedule: CAVSchedule,
