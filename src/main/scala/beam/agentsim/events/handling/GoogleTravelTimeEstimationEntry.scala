@@ -134,7 +134,6 @@ object GoogleTravelTimeEstimationEntry {
 
     def parseEntries(text: String): Seq[GoogleTravelTimeEstimationEntry] = {
       using(new CsvMapReader(new StringReader(text), CsvPreference.STANDARD_PREFERENCE)) { csvReader =>
-
         val header = csvReader.getHeader(true)
         val result = new mutable.ArrayBuffer[GoogleTravelTimeEstimationEntry]()
 
