@@ -16,7 +16,7 @@ class HouseholdIncomeTableReader(
   def read(): Iterable[OD[HouseholdIncome]] = {
     readRaw()
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         val income = HouseholdIncome.all(entry.lineNumber - 1)
         OD(fromGeoId, toGeoId, income, entry.estimate)
       }
