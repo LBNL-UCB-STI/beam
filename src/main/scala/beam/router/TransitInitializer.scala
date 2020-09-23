@@ -92,7 +92,11 @@ class TransitInitializer(
         )
     }
 
-    def pathWithStreetRoute(fromStopIdx: Int, toStopIdx: Int, streetSeg: StreetPath) = {
+    def pathWithStreetRoute(
+      fromStopIdx: Int,
+      toStopIdx: Int,
+      streetSeg: StreetPath
+    ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
