@@ -433,8 +433,13 @@ object HouseholdTripsHelper {
                   delayToArrivalInSec,
                   beamServices
                 )
-              if (firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.baselineNonPooledTime > pickup.baselineNonPooledTime)
-                firstPickupOfTheDay = Some(pickup)
+              firstPickupOfTheDay match {
+                case Some(firstPickup) if firstPickup.baselineNonPooledTime > pickup.baselineNonPooledTime =>
+                  firstPickupOfTheDay = Some(pickup)
+                case None =>
+                  firstPickupOfTheDay = Some(pickup)
+                case _ =>
+              }
               tours.append(pickup)
               tours.append(dropoff)
               if (!Modes.isChainBasedMode(pickup.defaultMode) || tours.head.trip.parentTour != pickup.trip.parentTour) {

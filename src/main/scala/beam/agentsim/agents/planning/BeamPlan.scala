@@ -172,7 +172,10 @@ class BeamPlan extends Plan {
       case act: Activity =>
         tour.trips.last.activity == act
       case leg: Leg =>
-        tour.trips.last.leg.isDefined && tour.trips.last.leg.get == leg
+        tour.trips.last.leg match {
+          case Some(tripLeg) => tripLeg == leg
+          case None          => false
+        }
       case trip: Trip =>
         tour.trips.last == trip
       case _ =>
