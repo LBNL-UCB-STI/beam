@@ -92,7 +92,7 @@ class TransitInitializer(
         )
     }
 
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
+    def pathWithStreetRoute(fromStopIdx: Int, toStopIdx: Int, streetSeg: StreetPath) = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
@@ -117,8 +117,15 @@ class TransitInitializer(
             math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
-          transitStops = Some(TransitStopsInfo(agencyId = "", routeId = "", vehicleId = vehicleId,
-            fromIdx = fromStop, toIdx = toStop)),
+          transitStops = Some(
+            TransitStopsInfo(
+              agencyId = "",
+              routeId = "",
+              vehicleId = vehicleId,
+              fromIdx = fromStopIdx,
+              toIdx = toStopIdx
+            )
+          ),
           startPoint = SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,
@@ -148,7 +155,7 @@ class TransitInitializer(
                 routeTransitPathThroughStreets(fromStop, toStop)
               ) match {
                 case Some(streetSeg) =>
-                  pathWithStreetRoute(fromStop, toStop, streetSeg)
+                  pathWithStreetRoute(fromStopIdx, toStopIdx, streetSeg)
                 case None =>
                   pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
               }
