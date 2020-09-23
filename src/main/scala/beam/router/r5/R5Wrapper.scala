@@ -1001,7 +1001,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       fr = Vector(fr.minBy(_.fare.price))
     }
     fr
-
   }
 
   private def getFareSegments(
