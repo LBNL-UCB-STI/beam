@@ -307,9 +307,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         geo.utm2Wgs(request.destinationUTM),
         10E3
       )
-      val directMode = vehicle.mode.r5Mode.get.left.get
-      val accessMode = vehicle.mode.r5Mode.get.left.get
-      val egressMode = LegMode.WALK
+      val vehicleLegMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
       val profileResponse =
         latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
           getStreetPlanFromR5(
@@ -317,10 +315,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               fromWgs,
               toWgs,
               time,
-              directMode,
-              accessMode,
+              directMode = vehicleLegMode,
+              accessMode = vehicleLegMode,
               withTransit = false,
-              egressMode,
+              egressMode = LegMode.WALK,
               request.timeValueOfMoney,
               vehicle.vehicleTypeId
             )
@@ -380,15 +378,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
-    val vehicleToInt = (streetVehicle: StreetVehicle) =>
-      maybeWalkToVehicle(streetVehicle)
-        .map(leg => leg.beamLeg.duration)
-        .getOrElse(0)
-
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
-      .groupBy(_.mode.r5Mode.get.left.get)
-      .mapValues(vehicles => vehicles.minBy(vehicleToInt))
+      .groupBy(_.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")))
+      .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
@@ -971,7 +964,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     transitJourneyID: TransitJourneyID,
     fromTime: ZonedDateTime
   ): IndexedSeq[BeamFareSegment] = {
-    val pattern: SegmentPattern = getPattern(transitSegment, transitJourneyID)
+    val pattern = getPattern(transitSegment, transitJourneyID)
     val route = getRoute(pattern)
     val routeId = route.route_id
     val agencyId = route.agency_id
