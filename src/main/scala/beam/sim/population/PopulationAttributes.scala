@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
-import beam.router.model.EmbodiedBeamLeg
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
@@ -30,6 +30,9 @@ case class AttributesOfIndividual(
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+
+  val busTransit: Set[BeamMode] = Set(BeamMode.BUS, BeamMode.WALK)
+  val subwayTransit: Set[BeamMode] = Set(BeamMode.SUBWAY, BeamMode.WALK)
 
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
@@ -79,6 +82,7 @@ case class AttributesOfIndividual(
   }
 
   def getGeneralizedTimeOfLegForMNL(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
@@ -104,11 +108,14 @@ case class AttributesOfIndividual(
           )
         )
       case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
+        val uniqueModes = embodiedBeamTrip.beamLegs.map(_.mode).toSet
         val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
-
         val beamVehicleTypeId = TransitVehicleInitializer.transitModeToBeamVehicleType(embodiedBeamLeg.beamLeg.mode)
-        val multiplier = modeChoiceModel.transitVehicleTypeVOTMultipliers.getOrElse(beamVehicleTypeId, modeMultiplier)
-
+        val multiplier = if (uniqueModes == subwayTransit || uniqueModes == busTransit) {
+          modeChoiceModel.transitVehicleTypeVOTMultipliers.getOrElse(beamVehicleTypeId, modeMultiplier)
+        } else {
+          modeMultiplier
+        }
         val durationInHours = embodiedBeamLeg.beamLeg.duration.toDouble / 3600
         transitCrowdingSkims match {
           case Some(transitCrowding) =>
