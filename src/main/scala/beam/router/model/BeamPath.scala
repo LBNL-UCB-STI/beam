@@ -41,7 +41,7 @@ case class BeamPath(
   def toShortString: String = {
     linkIds.headOption match {
       case Some(head) => s"$head .. ${linkIds(linkIds.size - 1)}"
-      case None => ""
+      case None       => ""
     }
   }
 

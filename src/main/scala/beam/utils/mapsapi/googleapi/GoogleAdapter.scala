@@ -94,7 +94,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
     jsRoutes.flatMap { route =>
       (route \ "legs").as[JsArray].value.headOption match {
         case Some(value) => Some(parseRoute(value.as[JsObject]))
-        case None => None
+        case None        => None
       }
     }
   }
