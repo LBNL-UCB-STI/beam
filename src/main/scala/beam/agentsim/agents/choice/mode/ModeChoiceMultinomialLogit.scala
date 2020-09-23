@@ -169,21 +169,18 @@ class ModeChoiceMultinomialLogit(
           case None => None
         }
 
-        time match {
-          case Some(t) =>
-            Some(
-              ModeChoiceOccurredEvent(
-                t,
-                p.getId.toString,
-                alternatives,
-                altCostTimeTransfer,
-                altUtility,
-                chosenModeCostTime.head.index
-              )
+        time.map { t =>
+          {
+            ModeChoiceOccurredEvent(
+              t,
+              p.getId.toString,
+              alternatives,
+              altCostTimeTransfer,
+              altUtility,
+              chosenModeCostTime.head.index
             )
-          case None => None
+          }
         }
-
       case _ => None
     }
   }
