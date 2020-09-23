@@ -41,6 +41,7 @@ trait ModeChoiceCalculator {
   }
 
   def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
