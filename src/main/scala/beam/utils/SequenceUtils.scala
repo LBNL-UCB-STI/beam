@@ -4,6 +4,7 @@ package beam.utils
   * This class contains methods equivalent to those available in scala 2.13
   * and should be removed once scala version is upgraded
   */
+@SuppressWarnings(Array("UnsafeTraversableMethods"))
 object SequenceUtils {
 
   def minByOpt[A, B](seq: Seq[A], f: A => B)(implicit cmp: Ordering[B]): Option[A] = {

@@ -11,6 +11,7 @@ import beam.router.RouteHistory.{RouteHistoryADT, _}
 import beam.sim.config.BeamConfig
 import beam.sim.BeamWarmStart
 import beam.utils.FileUtils
+import com.google.common.escape.ArrayBasedUnicodeEscaper
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -55,16 +56,20 @@ class RouteHistory @Inject()(
 
   def rememberRoute(route: IndexedSeq[Int], departTime: Int): Unit = {
     val timeBin = timeToBin(departTime)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    val routeHead = route.head
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    val routeLast = route.last
     routeHistory.get(timeBin) match {
       case Some(subMap) =>
-        subMap.get(route.head) match {
+        subMap.get(routeHead) match {
           case Some(subSubMap) =>
-            subSubMap.put(route.last, route)
+            subSubMap.put(routeLast, route)
           case None =>
-            subMap.put(route.head, TrieMap(route.last -> route))
+            subMap.put(routeHead, TrieMap(routeLast -> route))
         }
       case None =>
-        routeHistory.put(timeBin, TrieMap(route.head -> TrieMap(route.last -> route)))
+        routeHistory.put(timeBin, TrieMap(routeHead -> TrieMap(routeLast -> route)))
     }
   }
 

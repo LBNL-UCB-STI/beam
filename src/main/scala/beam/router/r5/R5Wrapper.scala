@@ -74,7 +74,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
     val duration = linksTimesAndDistances.travelTimes.tail.sum
     val updatedTravelPath = BeamPath(
@@ -305,7 +307,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         geo.utm2Wgs(request.destinationUTM),
         10E3
       )
-      val vehicleLegMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
+      val directMode = vehicle.mode.r5Mode.get.left.get
+      val accessMode = vehicle.mode.r5Mode.get.left.get
+      val egressMode = LegMode.WALK
       val profileResponse =
         latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
           getStreetPlanFromR5(
@@ -313,10 +317,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               fromWgs,
               toWgs,
               time,
-              directMode = vehicleLegMode,
-              accessMode = vehicleLegMode,
+              directMode,
+              accessMode,
               withTransit = false,
-              egressMode = LegMode.WALK,
+              egressMode,
               request.timeValueOfMoney,
               vehicle.vehicleTypeId
             )
@@ -376,9 +380,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
+    val vehicleToInt = (streetVehicle: StreetVehicle) =>
+      maybeWalkToVehicle(streetVehicle)
+        .map(leg => leg.beamLeg.duration)
+        .getOrElse(0)
+
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
-      .groupBy(_.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")))
-      .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
+      .groupBy(_.mode.r5Mode.get.left.get)
+      .mapValues(vehicles => vehicles.minBy(vehicleToInt))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
@@ -961,7 +971,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     transitJourneyID: TransitJourneyID,
     fromTime: ZonedDateTime
   ): IndexedSeq[BeamFareSegment] = {
-    val pattern = getPattern(transitSegment, transitJourneyID)
+    val pattern: SegmentPattern = getPattern(transitSegment, transitJourneyID)
     val route = getRoute(pattern)
     val routeId = route.route_id
     val agencyId = route.agency_id
@@ -972,12 +982,26 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ChronoUnit.SECONDS
         .between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
 
+    calculateFr(pattern, routeId, agencyId, fromStopId, toStopId, duration)
+  }
+
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def calculateFr(
+    pattern: SegmentPattern,
+    routeId: String,
+    agencyId: String,
+    fromStopId: String,
+    toStopId: String,
+    duration: Long
+  ): IndexedSeq[BeamFareSegment] = {
     var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(
       f => BeamFareSegment(f, pattern.patternIdx, duration)
     )
-    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex))
+    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex)) {
       fr = Vector(fr.minBy(_.fare.price))
+    }
     fr
+
   }
 
   private def getFareSegments(

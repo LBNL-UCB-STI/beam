@@ -76,6 +76,7 @@ case class AvailabilityBasedRepositioning(
     val topUndersuppliedTAZ = undersuppliedTAZ.take(matchLimit)
     val ODs = new mutable.ListBuffer[(RepositioningRequest, RepositioningRequest, Int, Int)]
     while (topOversuppliedTAZ.nonEmpty && topUndersuppliedTAZ.nonEmpty) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>

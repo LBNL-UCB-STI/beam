@@ -61,9 +61,14 @@ class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleTyp
     }
 
     pastSkims match {
-      case Seq(x)          => average(getValueFrom(x), None, vehicleTypeId)
-      case Seq(x, xs @ _*) => average(getValueFrom(x), getValueFrom(xs.head), vehicleTypeId)
-      case Seq()           => average(None, None, vehicleTypeId)
+      case Seq(x) =>
+        average(getValueFrom(x), None, vehicleTypeId)
+      case Seq(x, xs @ _*) =>
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
+        val head = xs.head
+        average(getValueFrom(x), getValueFrom(head), vehicleTypeId)
+      case Seq() =>
+        average(None, None, vehicleTypeId)
     }
   }
 

@@ -52,6 +52,7 @@ class GraphHopperWrapper(
     )
     val origin = geo.utm2Wgs(routingRequest.originUTM)
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
     if (carRouter == "quasiDynamicGH") {

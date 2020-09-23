@@ -35,11 +35,13 @@ case class ODSkimmerEvent(
         EmbodiedBeamTrip(legs)
     }
     val beamLegs = correctedTrip.beamLegs
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val origLeg = beamLegs.head
     val origCoord = geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
     val origTaz = beamScenario.tazTreeMap
       .getTAZ(origCoord.getX, origCoord.getY)
       .tazId
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val destLeg = beamLegs.last
     val destCoord = geo.wgs2Utm(destLeg.travelPath.endPoint.loc)
     val destTaz = beamScenario.tazTreeMap

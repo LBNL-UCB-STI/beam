@@ -73,6 +73,7 @@ case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) ex
   def getDistanceToPD(plan: Plan): Double = {
     val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity]).map(_.asInstanceOf[Activity])
 
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val home = activities.find(isHome).head
 
     val maxDurationActivity = activities.toList.sliding(2).maxBy(activityDuration).lastOption

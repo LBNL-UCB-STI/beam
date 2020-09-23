@@ -60,6 +60,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
       .toList
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def toHerePath(jsObject: JsObject): HerePath = {
     val firstRoute = (jsObject \ "routes").as[JsArray].value.head
     val firstSection = (firstRoute \ "sections").as[JsArray].value.head
