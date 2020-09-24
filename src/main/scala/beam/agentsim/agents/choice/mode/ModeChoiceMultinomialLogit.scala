@@ -221,7 +221,7 @@ class ModeChoiceMultinomialLogit(
       } else {
         1D
       }
-      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity) * factor
+      getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity) * factor
     }.sum + getGeneralizedTime(waitingTime, None, None)
   }
 
@@ -248,6 +248,7 @@ class ModeChoiceMultinomialLogit(
   }
 
   override def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
@@ -255,6 +256,7 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual match {
       case Some(attributes) =>
         attributes.getGeneralizedTimeOfLegForMNL(
+          embodiedBeamTrip,
           embodiedBeamLeg,
           this,
           beamServices,
