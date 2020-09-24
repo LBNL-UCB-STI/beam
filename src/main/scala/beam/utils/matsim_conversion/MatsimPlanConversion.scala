@@ -28,6 +28,7 @@ object MatsimPlanConversion {
       )
       VehiclesDataConversion.generateVehiclesDataFromPersons(persons, conversionConfig)
     } else {
+      @SuppressWarnings(Array("OptionGet"))
       val vehiclesFile = conversionConfig.vehiclesInput.get
       val vehiclesDoc = XML.loadFile(vehiclesFile)
       val vehicleTypes = VehiclesDataConversion.generateVehicleTypesFromSource(vehiclesDoc \\ "vehicleType")
@@ -79,6 +80,7 @@ object MatsimPlanConversion {
 
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map {
       case (person, _) =>

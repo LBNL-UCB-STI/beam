@@ -107,6 +107,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
       .collect { case p if p.planElementType.contains("activity") => p }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   private def createAndInitializeDatabase(acts: scala.collection.Iterable[PlanElement]): Database = {
     val data: Array[Array[Double]] = Array.ofDim[Double](acts.size, 2)
     val labels: Array[String] = Array.ofDim[String](acts.size)

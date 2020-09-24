@@ -75,10 +75,9 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
     val newDuration = if (indexOfNewEndLink < 1) { 0 } else {
       math.round(this.travelPath.linkTravelTime.take(indexOfNewEndLink + 1).tail.sum).toInt
     }
-    val newEndPoint = SpaceTime(
-      geoUtils.utm2Wgs(networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord),
-      this.startTime + newDuration
-    )
+    @SuppressWarnings(Array("OptionGet"))
+    val newCoord = networkHelper.getLink(this.travelPath.linkIds(indexOfNewEndLink)).get.getCoord
+    val newEndPoint = SpaceTime(geoUtils.utm2Wgs(newCoord), this.startTime + newDuration)
     val newTravelPath = this.travelPath.copy(
       linkIds = this.travelPath.linkIds.take(indexOfNewEndLink + 1),
       linkTravelTime = this.travelPath.linkTravelTime.take(indexOfNewEndLink + 1),
@@ -103,6 +102,7 @@ object BeamLeg {
 
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {
     if (legs.exists(_.isDefined)) {
+      @SuppressWarnings(Array("OptionGet"))
       var runningStartTime = legs.find(_.isDefined).head.get.startTime
       for (legOpt <- legs) yield {
         val newLeg = legOpt.map(leg => leg.updateStartTime(runningStartTime))

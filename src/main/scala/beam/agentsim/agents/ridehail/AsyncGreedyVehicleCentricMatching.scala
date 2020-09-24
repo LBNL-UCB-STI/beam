@@ -125,6 +125,7 @@ class AsyncGreedyVehicleCentricMatching(
   }
 
   private def computeCost(trip: RideHailTrip): Double = {
+    @SuppressWarnings(Array("OptionGet"))
     val passengers = trip.requests.size + trip.vehicle.get.getNoPassengers
     val delay = trip.sumOfDelays
     val maximum_delay = trip.upperBoundDelays

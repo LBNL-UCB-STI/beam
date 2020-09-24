@@ -104,10 +104,10 @@ object GTFSToShape extends LazyLogging {
         })
 
         stopRouteAgency.foreach {
-          case (stop, _, Some(agency))                => agencyToStops(agency) += stop.wgsPoint
-          case (stop, _, _) if defaultAgency.nonEmpty => agencyToStops(defaultAgency.get) += stop.wgsPoint
-          case (stop, Some(route), _)                 => takeIntoAccauntAnOrphaneStop(stop, route.source)
-          case (stop, None, None)                     => takeIntoAccauntAnOrphaneStop(stop, zipFileName)
+          case (stop, _, Some(agency))                 => agencyToStops(agency) += stop.wgsPoint
+          case (stop, _, _) if defaultAgency.nonEmpty  => defaultAgency.foreach(agencyToStops(_) += stop.wgsPoint)
+          case (stop, Some(route), _)                  => takeIntoAccauntAnOrphaneStop(stop, route.source)
+          case (stop, None, None)                      => takeIntoAccauntAnOrphaneStop(stop, zipFileName)
         }
 
       } catch {

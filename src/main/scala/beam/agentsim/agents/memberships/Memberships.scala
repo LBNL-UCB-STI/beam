@@ -18,7 +18,11 @@ object Memberships {
     def lookupMemberRank(id: Id[T]): Option[Int]
 
     def sortByRank(r2: MemberWithRank[T], r1: MemberWithRank[T]): Boolean = {
-      r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
+      (r1.rank, r2.rank) match {
+        case (Some(r1Rank), Some(r2Rank)) => r1Rank > r2Rank
+        case (None, _)                    => true
+        case (_, _)                       => false
+      }
     }
 
   }

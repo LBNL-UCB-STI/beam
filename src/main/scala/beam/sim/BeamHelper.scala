@@ -112,6 +112,7 @@ trait BeamHelper extends LazyLogging {
     }).getOrElse(config)
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   private def embedSelectArgumentsIntoConfig(
     parsedArgs: Arguments,
     config: TypesafeConfig
@@ -342,6 +343,7 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def runBeamUsing(args: Array[String], isConfigArgRequired: Boolean = true): Unit = {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
 
@@ -353,6 +355,7 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
     val parsedArgs = ArgumentsParser.parseArguments(args) match {
       case Some(pArgs) => pArgs

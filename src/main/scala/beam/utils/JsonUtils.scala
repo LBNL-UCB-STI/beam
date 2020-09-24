@@ -24,6 +24,7 @@ object JsonUtils {
     }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def processEventsFileVizData(inFile: String, outFile: String): Unit = {
     val xml = XML.load(IOUtils.getInputStream(inFile))
     val events = xml \\ "events" \ "event"

@@ -66,6 +66,7 @@ class UrbansimReaderV2(
         .merge(planReader.iterator())
         .map { plan: PlanElement =>
           if (plan.planElementType.equalsIgnoreCase("activity") && shouldConvertWgs2Utm) {
+            @SuppressWarnings(Array("OptionGet"))
             val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
             plan.copy(activityLocationX = Some(utmCoord.getX), activityLocationY = Some(utmCoord.getY))
           } else {

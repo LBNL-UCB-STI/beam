@@ -109,12 +109,12 @@ object BeamStaticMetricsWriter {
 
           publicChargers.foreach(
             publicCharger =>
-              if (publicCharger.chargingPointType.nonEmpty) {
-                if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
+              publicCharger.chargingPointType.foreach(chargingPointType => {
+                if (ChargingPointType.getChargingPointCurrent(chargingPointType) == DC) {
                   cntPublicFastCharge += 1
                   cntPublicFastChargeStalls += publicCharger.stallsAvailable
                 }
-            }
+              })
           )
         }
 

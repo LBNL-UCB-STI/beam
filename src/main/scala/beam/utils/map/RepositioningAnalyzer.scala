@@ -55,6 +55,7 @@ object RepositioningAnalyzer extends LazyLogging {
     ???
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def writeActivities(path: String, activitiesPerHour: Map[Int, Array[PlanElement]]): Unit = {
     implicit val writer: BufferedWriter =
       IOUtils.getBufferedWriter(path)

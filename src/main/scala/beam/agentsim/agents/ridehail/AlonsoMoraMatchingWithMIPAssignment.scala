@@ -177,6 +177,7 @@ class AlonsoMoraMatchingWithMIPAssignment(
     rTvG
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def optimalAssignment(rTvG: RTVGraph): List[RideHailTrip] = {
     val optimalAssignment = mutable.ListBuffer.empty[RideHailTrip]
     val combinations = rTvG

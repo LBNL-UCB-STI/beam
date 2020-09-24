@@ -31,6 +31,8 @@ trait RepositionAlgorithmType {
 case class AvailabilityBasedRepositioningType(
   params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
 ) extends RepositionAlgorithmType {
+
+  @SuppressWarnings(Array("OptionGet"))
   override def getInstance(
     managerId: Id[VehicleManager],
     beamServices: BeamServices

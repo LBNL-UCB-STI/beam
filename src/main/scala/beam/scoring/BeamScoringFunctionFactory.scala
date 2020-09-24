@@ -251,6 +251,7 @@ class BeamScoringFunctionFactory @Inject()(
                     leg.isPooledTrip
                   )
 
+                  @SuppressWarnings(Array("OptionGet"))
                   val linkCost = tripCost / tripDistance * beamServices.networkHelper.getLink(linkId).get.getLength
                   val generalizedLinkCost = attributes.getVOT(generalizedLinkTime) + linkCost
 

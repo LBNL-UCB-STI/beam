@@ -184,13 +184,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
   ) {
 
     def toGeofence: Option[Geofence] = {
-      if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
-        Some(Geofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
-      } else {
-        None
+      (geofenceX, geofenceY, geofenceRadius) match {
+        case (Some(fenceX), Some(fenceY), Some(fenceRadius)) => Some(Geofence(fenceX, fenceY, fenceRadius))
+        case (_, _, _)                                       => None
       }
     }
-
   }
 
   /**

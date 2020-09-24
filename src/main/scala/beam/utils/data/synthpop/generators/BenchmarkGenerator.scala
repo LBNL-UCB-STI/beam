@@ -43,7 +43,7 @@ object BenchmarkGenerator {
       .map { od =>
         (od.attribute.toBeamMode, od.value)
       }
-      .collect { case (maybeBeamMode, value) if maybeBeamMode.nonEmpty => (maybeBeamMode.get, value) }
+      .collect { case (Some(beamMode), value) => (beamMode, value) }
       .groupBy { case (beamMode, _) => beamMode }
       .map { case (mode, xs) => mode -> xs.view.map(_._2).sum }
   }

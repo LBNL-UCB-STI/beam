@@ -9,6 +9,8 @@ import org.matsim.api.core.v01.{Coord, Id}
 case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: BeamScenario)
     extends VehiclesAdjustment {
   val carId: Id[BeamVehicleType] = Id.create("Car", classOf[BeamVehicleType])
+
+  @SuppressWarnings(Array("OptionGet"))
   val vehicleTypesByCategory: BeamVehicleType = beamScenario.vehicleTypes.values.find(vt => vt.id == carId).get
 
   override def sampleRideHailVehicleTypes(

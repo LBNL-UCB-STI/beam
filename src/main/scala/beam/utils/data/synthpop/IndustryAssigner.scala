@@ -41,8 +41,10 @@ object IndustryAssigner {
       .map {
         case (_, xs) =>
           // First activity is home, so we can get its geoid
+          @SuppressWarnings(Array("OptionGet"))
           val homeGeoId = xs(0).geoId.get.replace("-", "")
           // The second activity is work
+          @SuppressWarnings(Array("OptionGet"))
           val workGeoId = xs(1).geoId.get.replace("-", "")
           ((homeGeoId, workGeoId), 1)
       }

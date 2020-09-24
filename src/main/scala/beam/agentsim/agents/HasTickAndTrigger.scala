@@ -14,6 +14,7 @@ trait HasTickAndTrigger {
   }
 
   def releaseTickAndTriggerId(): (Int, Long) = {
+    @SuppressWarnings(Array("OptionGet"))
     val theTuple = (_currentTick.get, _currentTriggerId.get)
     _currentTick = None
     _currentTriggerId = None

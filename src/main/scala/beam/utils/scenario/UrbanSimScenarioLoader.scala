@@ -53,7 +53,7 @@ class UrbanSimScenarioLoader(
       val personIdsWithinRange =
         activities
           .filter { act =>
-            val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
+            val actCoord = activityCoord(act)
             val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(actCoord) else actCoord
             beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
           }
@@ -125,6 +125,11 @@ class UrbanSimScenarioLoader(
 
     logger.info("The scenario loading is completed..")
     scenario
+  }
+
+  @SuppressWarnings(Array("OptionGet"))
+  private def activityCoord(activity: PlanElement): Coord = {
+    new Coord(activity.activityLocationX.get, activity.activityLocationY.get)
   }
 
   private def clear(): Unit = {
@@ -258,7 +263,7 @@ class UrbanSimScenarioLoader(
   private def plansToTravelStats(planElements: Iterable[PlanElement]): PersonTravelStats = {
     val homeCoord = planElements.find(_.activityType.getOrElse("") == "Home") match {
       case Some(homeElement) =>
-        Some(geo.wgs2Utm(new Coord(homeElement.activityLocationX.get, homeElement.activityLocationY.get)))
+        Some(geo.wgs2Utm(activityCoord(homeElement)))
       case None =>
         None
     }
@@ -567,9 +572,9 @@ class UrbanSimScenarioLoader(
             s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
           )
           val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
-            geo.wgs2Utm(new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get))
+            geo.wgs2Utm(activityCoord(planInfo))
           } else {
-            new Coord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
+            activityCoord(planInfo)
           }
           val activityType = planInfo.activityType.getOrElse(
             throw new IllegalStateException(

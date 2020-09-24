@@ -144,9 +144,15 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
 
+            val checkFirstRepositionWithinRange = (coord: Coord) =>
+              firstRepositionCoordsOfDay match {
+                case Some(firstRepositionCoord) =>
+                  rideHailManager.beamServices.geo
+                    .distUTMInMeters(firstRepositionCoord._1, coord) < 10000
+                case None => true
+            }
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
-              if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
-                    .distUTMInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
+              if (checkFirstRepositionWithinRange(tazEntry._1)) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
                   StringToPlot(
@@ -193,9 +199,13 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
               )
             }
 
-            spatialPlot.addString(
-              StringToPlot("A", firstRepositionCoordsOfDay.get._1, Color.BLACK, 50)
+            firstRepositionCoordsOfDay.foreach(
+              firstRepositionCoords =>
+                spatialPlot.addString(
+                  StringToPlot("A", firstRepositionCoords._1, Color.BLACK, 50)
+              )
             )
+
             //spatialPlot.addString(StringToPlot("B", firstRepositionCoordsOfDay.get._2, Color.BLACK, 50))
 
             val iteration = "it." + rideHailManager.beamServices.matsimServices.getIterationNumber

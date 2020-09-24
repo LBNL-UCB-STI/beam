@@ -234,11 +234,9 @@ object FileUtils extends LazyLogging {
   def writeToFile(filePath: String, fileHeader: Option[String], data: String, fileFooter: Option[String]): Unit = {
     val bw = IOUtils.getBufferedWriter(filePath) //new BufferedWriter(new FileWriter(filePath))
     try {
-      if (fileHeader.isDefined)
-        bw.append(fileHeader.get + "\n")
+      fileHeader.foreach(header => bw.append(s"$header\n"))
       bw.append(data)
-      if (fileFooter.isDefined)
-        bw.append("\n" + fileFooter.get)
+      fileFooter.foreach(footer => bw.append(s"\n$footer"))
     } catch {
       case e: IOException =>
         logger.error(s"Error while writing data to file - $filePath : " + e.getMessage, e)

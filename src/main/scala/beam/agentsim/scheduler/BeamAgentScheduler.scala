@@ -223,9 +223,9 @@ class BeamAgentScheduler(
         log.error(s"Received bad completion notice $notice from ${sender().path}")
       } else {
         val trigger = triggerIdToScheduledTrigger(triggerId)
-        awaitingResponse.remove(completionTickOpt.get, trigger)
+        completionTickOpt.foreach(awaitingResponse.remove(_, trigger))
         val st = triggerIdToScheduledTrigger(triggerId)
-        awaitingResponse.remove(completionTickOpt.get, st)
+        completionTickOpt.foreach(awaitingResponse.remove(_, st))
         stuckFinder.removeByKey(st)
         triggerIdToScheduledTrigger -= triggerId
         maybeTriggerMeasurer.foreach(_.resolved(trigger.triggerWithId))

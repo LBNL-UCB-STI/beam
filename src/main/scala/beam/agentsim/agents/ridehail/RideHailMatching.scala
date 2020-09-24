@@ -223,7 +223,9 @@ object RideHailMatching {
         newSchedule.append(curReq.copy(serviceTime = serviceTime, serviceDistance = serviceDistance))
         processedRequests.remove(curReqIndex)
         if (curReq.tag == Pickup) {
-          agentsPooled = agentsPooled :+ curReq.person.get
+          curReq.person.foreach(person => {
+            agentsPooled = agentsPooled :+ person
+          })
         }
       }
     }
@@ -232,7 +234,7 @@ object RideHailMatching {
     } else None
   }
 
-  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  @SuppressWarnings(Array("UnsafeTraversableMethods", "OptionGet"))
   private def calculateMinimum(
     beamServices: BeamServices,
     processedRequests: ListBuffer[MobilityRequest],

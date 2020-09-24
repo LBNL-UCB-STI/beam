@@ -506,9 +506,11 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
-      if (eventsAccumulator.isDefined) {
-        eventsAccumulator.get ! Finish
-        context.stop(eventsAccumulator.get)
+      eventsAccumulator match {
+        case Some(accumulator) =>
+          accumulator ! Finish
+          context.stop(accumulator)
+        case None =>
       }
       context.stop(scheduler)
       context.stop(errorListener)

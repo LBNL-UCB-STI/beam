@@ -23,6 +23,7 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
         (cat, vehTypeWithProbability)
     }
 
+  @SuppressWarnings(Array("OptionGet"))
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
@@ -40,6 +41,7 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
     }.toList
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   override def sampleRideHailVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,

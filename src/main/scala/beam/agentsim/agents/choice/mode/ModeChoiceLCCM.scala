@@ -312,6 +312,8 @@ class ModeChoiceLCCM(
     person.getSelectedPlan.getAttributes
       .putAttribute("scores", MapStringDouble(vectorOfUtilities))
 
+    @SuppressWarnings(Array("OptionGet"))
+    val modalityStyle = attributesOfIndividual.modalityStyle.get
     val logsum = Option(
       math.log(
         person.getPlans.asScala.view
@@ -320,7 +322,7 @@ class ModeChoiceLCCM(
               plan.getAttributes
                 .getAttribute("scores")
                 .asInstanceOf[MapStringDouble]
-                .data(attributesOfIndividual.modalityStyle.get)
+                .data(modalityStyle)
           )
           .map(score => math.exp(score))
           .sum
@@ -331,7 +333,7 @@ class ModeChoiceLCCM(
     lccm
       .classMembershipModels(Mandatory)
       .getUtilityOfAlternative(
-        attributesOfIndividual.modalityStyle.get,
+        modalityStyle,
         Map(
           "income"        -> attributesOfIndividual.householdAttributes.householdIncome,
           "householdSize" -> attributesOfIndividual.householdAttributes.householdSize.toDouble,

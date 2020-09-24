@@ -85,6 +85,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,

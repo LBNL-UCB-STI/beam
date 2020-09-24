@@ -27,6 +27,7 @@ class RideHailNetworkAPI {
     this.maybeTravelTime = Some(travelTime)
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def getTravelTimeEstimate(time: Double, linkId: Int): Double = {
     maybeTravelTime match {
       case Some(matsimTravelTime) =>

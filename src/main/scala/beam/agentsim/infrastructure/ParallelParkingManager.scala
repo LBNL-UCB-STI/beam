@@ -87,6 +87,7 @@ class ParallelParkingManager(
         w.cluster.convexHull.contains(point)
       }
 
+      @SuppressWarnings(Array("OptionGet"))
       val worker = foundCluster
         .orElse(
           tazToWorker.get(findTazId(inquiry))
@@ -258,6 +259,7 @@ object ParallelParkingManager extends LazyLogging {
           }
           val ch = new ConvexHull(dCoords.toArray, geometryFactory).getConvexHull
           val convexHull = pgf.create(ch)
+          @SuppressWarnings(Array("OptionGet"))
           val tazes = clusterZones
             .map(_.tazId)
             .distinct

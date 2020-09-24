@@ -626,6 +626,8 @@ object SimpleScenarioGenerator extends StrictLogging {
     val geoUtils: GeoUtils = new GeoUtils {
       override def localCRS: String = parsedArgs.localCRS
     }
+
+    @SuppressWarnings(Array("OptionGet"))
     val allActivities = planElements.filter(_.planElementType == "activity").map { plan =>
       geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
     }

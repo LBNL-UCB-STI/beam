@@ -50,6 +50,7 @@ class Coordinator(
     eventExecutor.awaitTermination(Long.MaxValue, TimeUnit.MILLISECONDS)
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   @tailrec
   private def executePeriod(tillTime: Double): Unit = {
     val events = executeSubPeriod(tillTime, Vector.empty[Event])

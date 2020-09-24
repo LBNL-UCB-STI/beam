@@ -121,7 +121,9 @@ object BeamPath extends Ordering[BeamPath] {
         if (r != 0) r
         else {
           // Transform to the tuples
+          @SuppressWarnings(Array("OptionGet"))
           val xTransitTuple = x.transitStops.map(TransitStopsInfo.unapply(_).get)
+          @SuppressWarnings(Array("OptionGet"))
           val yTransitTuple = y.transitStops.map(TransitStopsInfo.unapply(_).get)
           // And compare tuples
           r = xTransitTuple.compareTo(yTransitTuple)

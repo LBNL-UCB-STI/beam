@@ -90,7 +90,11 @@ case class AvailabilityBasedRepositioning(
           ),
           beamServices.beamScenario
         )
-        if (destTimeOpt.isEmpty || (destTimeOpt.isDefined && skim.time < destTimeOpt.get._2)) {
+        val checkDestTime = destTimeOpt match {
+          case Some(time) => skim.time < time._2
+          case None       => true
+        }
+        if (checkDestTime) {
           destTimeOpt = Some((dst, skim.time))
         }
       }

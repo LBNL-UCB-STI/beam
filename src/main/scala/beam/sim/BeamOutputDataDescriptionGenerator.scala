@@ -64,11 +64,9 @@ class BeamOutputDataDescriptionGenerator @Inject()(
   ): Unit = {
     val bw = new BufferedWriter(new FileWriter(filePath))
     try {
-      if (fileHeader.isDefined)
-        bw.append(fileHeader.get)
+      fileHeader.foreach(bw.append(_))
       bw.append(data)
-      if (fileFooter.isDefined)
-        bw.append(fileFooter.get)
+      fileHeader.foreach(bw.append(_))
     } catch {
       case e: IOException => logger.error("exception occurred due to ", e)
     } finally {

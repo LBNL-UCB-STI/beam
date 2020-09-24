@@ -141,6 +141,7 @@ object Modes {
 
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
 
+  @SuppressWarnings(Array("OptionGet"))
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get
 

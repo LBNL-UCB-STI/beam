@@ -57,6 +57,7 @@ object ModeIncentive {
 
   object Incentive {
 
+    @SuppressWarnings(Array("OptionGet"))
     def apply(mode: String, age: String, income: String, amount: String): Incentive = new Incentive(
       BeamMode.fromString(mode).get,
       Range(age),

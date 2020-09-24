@@ -5,6 +5,7 @@ import org.matsim.api.core.v01.Id
 
 object Fleets {
 
+  @SuppressWarnings(Array("OptionGet"))
   def lookup(config: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm): FleetType = {
     val vehicleManagerId = Id.create(config.name, classOf[VehicleManager])
     config.managerType match {

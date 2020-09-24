@@ -229,6 +229,7 @@ class RoutingFrameworkTravelTimeCalculator(
     Option(link.getAttributes.getAttribute("origid"))
       .map(_.toString.toLong)
 
+  @SuppressWarnings(Array("OptionGet"))
   private def getClosestVertexId(
     coordinate: Coordinate
   ): Long = {

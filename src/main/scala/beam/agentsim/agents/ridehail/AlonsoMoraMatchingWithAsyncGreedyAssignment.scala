@@ -115,6 +115,7 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
       }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   private def greedyAssignment(rTvG: RTVGraph): List[RideHailTrip] = {
     val greedyAssignmentList = ListBuffer.empty[RideHailTrip]
     val v_ok = ListBuffer.empty[VehicleAndSchedule]

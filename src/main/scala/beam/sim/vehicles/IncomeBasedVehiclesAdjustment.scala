@@ -54,6 +54,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     }
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()
+      @SuppressWarnings(Array("OptionGet"))
       val (vehType, _) = vehTypeWithProbability.find { case (_, prob) => prob >= newRand }.get
       vehType
     }.toList
@@ -78,6 +79,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     }
     (1 to numVehicles).map { _ =>
       val newRand = realDistribution.sample()
+      @SuppressWarnings(Array("OptionGet"))
       val (vehType, _) = vehTypeWithProbability.find { case (_, prob) => prob >= newRand }.get
       vehType
     }.toList

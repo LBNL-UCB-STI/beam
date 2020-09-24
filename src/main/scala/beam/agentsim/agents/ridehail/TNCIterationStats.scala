@@ -544,6 +544,7 @@ case class TNCIterationStats(
     getAggregatedRideHailStats(tazId, startTime, endTime)
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def getCoordinatesWithRideHailStatsEntry(
     startTime: Double,
     endTime: Double

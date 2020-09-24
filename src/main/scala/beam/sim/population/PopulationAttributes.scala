@@ -154,6 +154,7 @@ case class AttributesOfIndividual(
     beamServices: BeamServices
   ): (congestionLevel, roadwayType) = {
     // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
+    @SuppressWarnings(Array("OptionGet"))
     val currentLink = beamServices.networkHelper.getLink(linkID).get
     val freeSpeed: Double = currentLink.getFreespeed()
     val currentSpeed: Double = if (travelTime == 0) { freeSpeed } else { currentLink.getLength() / travelTime }

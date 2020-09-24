@@ -283,6 +283,7 @@ class BeamVehicle(
     }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def getState: BeamVehicleState = {
     val primaryFuelLevel = primaryFuelLevelInJoules
     BeamVehicleState(

@@ -133,15 +133,19 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     secondsPerEuclideanMeterFactor: Double = 0.1 // (~13.4m/s)^-1 * 1.4
   ): Option[RideHailAgentETA] = {
     var start = System.currentTimeMillis()
+    val isPickupDropOffLocationWithinGeofence = (geofence: Option[Geofence]) => {
+      geofence match {
+        case Some(gfence) => gfence.contains(pickupLocation) && gfence.contains(dropoffLocation)
+        case None         => true
+      }
+    }
     val nearbyAvailableRideHailAgents = idleRideHailAgentSpatialIndex
       .getDisk(pickupLocation.getX, pickupLocation.getY, radius)
       .asScala
       .view
       .filter { x =>
         idleRideHailVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId) &&
-        (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
-        (x.geofence.isDefined && x.geofence.get
-          .contains(dropoffLocation))))
+        isPickupDropOffLocationWithinGeofence(x.geofence)
       }
 
     var end = System.currentTimeMillis()

@@ -62,12 +62,12 @@ object MatsimConversionTool extends App {
   def generateTazDefaults(conversionConfig: ConversionConfig, network: Network): Unit = {
     val outputFilePath = s"${conversionConfig.scenarioDirectory}/taz-centers.csv"
 
-    if (conversionConfig.shapeConfig.isDefined) {
-      val shapeConfig = conversionConfig.shapeConfig.get
-      ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath)
-    } else {
-      val defaultTaz = getDefaultTaz(network, conversionConfig.localCRS)
-      generateSingleDefaultTaz(defaultTaz, outputFilePath, conversionConfig.localCRS)
+    conversionConfig.shapeConfig match {
+      case Some(shapeConfig) =>
+        ShapeUtils.shapeFileToCsv(shapeConfig.shapeFile, shapeConfig.tazIDFieldName, outputFilePath)
+      case None =>
+        val defaultTaz = getDefaultTaz(network, conversionConfig.localCRS)
+        generateSingleDefaultTaz(defaultTaz, outputFilePath, conversionConfig.localCRS)
     }
   }
 

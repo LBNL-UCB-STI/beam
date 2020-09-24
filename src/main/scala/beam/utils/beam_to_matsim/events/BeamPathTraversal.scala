@@ -78,6 +78,7 @@ object BeamPathTraversal {
         travelTimes
     }
 
+    @SuppressWarnings(Array("OptionGet"))
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
 
     new BeamPathTraversal(

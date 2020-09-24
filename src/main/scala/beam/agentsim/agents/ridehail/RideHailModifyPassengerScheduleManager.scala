@@ -196,6 +196,7 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     vehicleIdToModifyPassengerScheduleStatus.get(rideHailVehicleId) match {
       case Some(status) =>
+        @SuppressWarnings(Array("OptionGet"))
         val reply = status.interruptReply.get
         val isRepositioning = waitingToReposition.nonEmpty
         interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
@@ -241,19 +242,8 @@ class RideHailModifyPassengerScheduleManager(
                 log.debug("sending Resume from sendNewPassengerScheduleToVehicle to {}", reply.vehicleId)
                 rideHailAgentRef ! Resume
                 clearModifyStatusFromCacheWithInterruptId(reply.interruptId)
-                if (requestId.isDefined) {
-                  rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)
-                  //              if (rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule(requestId.get)) {
-                  //                log.debug(
-                  //                  "sendCompletionAndScheduleNewTimeout from line 100 @ {} with trigger {}",
-                  //                  _currentTick,
-                  //                  _currentTriggerId
-                  //                )
-                  //                if (rideHailManager.processBufferedRequestsOnTimeout) {
-                  //                  rideHailManager.cleanUpBufferedRequestProcessing(_currentTick.get)
-                  //                }
-                  //              }
-                }
+                requestId.foreach(rideHailManager.cancelReservationDueToFailedModifyPassengerSchedule)
+
               case _ =>
                 // Success! Continue with modify process
                 log.debug(

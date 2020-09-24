@@ -73,8 +73,11 @@ trait PopulationAdjustment extends LazyLogging {
         population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
       ).map(_.toString)
       // if excluded modes is defined for the person add it to the cumulative list
-      if (personExcludedModes.isDefined && personExcludedModes.get.nonEmpty)
-        allExcludedModes = allExcludedModes ++ personExcludedModes.get.split(",")
+      personExcludedModes.foreach(personExcludedMode => {
+        if (personExcludedMode.nonEmpty) {
+          allExcludedModes = allExcludedModes ++ personExcludedMode.split(",")
+        }
+      })
       personExcludedModes.isDefined
     }
 

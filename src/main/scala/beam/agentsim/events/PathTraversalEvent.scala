@@ -207,6 +207,7 @@ object PathTraversalEvent {
     )
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def apply(genericEvent: Event): PathTraversalEvent = {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala

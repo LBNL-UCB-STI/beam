@@ -133,11 +133,13 @@ object TazTravelTimeAnalyzer extends LazyLogging {
           writer.write(ot.endTazId.toString)
           writer.write(',')
 
+          @SuppressWarnings(Array("OptionGet"))
           val startTaz = tazTreeMap.getTAZ(ot.startTazId).get
           val wgsStartCoord = geoUtils.utm2Wgs(startTaz.coord)
 
           writeCoord(writer, wgsStartCoord)
 
+          @SuppressWarnings(Array("OptionGet"))
           val endTaz = tazTreeMap.getTAZ(ot.endTazId).get
           val wgsEndCoord = geoUtils.utm2Wgs(endTaz.coord)
           writeCoord(writer, wgsEndCoord)
@@ -170,7 +172,9 @@ object TazTravelTimeAnalyzer extends LazyLogging {
           writer.write(simulatedTravelTime)
           writer.write(',')
 
-          writer.write(ot.observedTravelTime.get.toString)
+          @SuppressWarnings(Array("OptionGet"))
+          val observedTravelTime = ot.observedTravelTime.get.toString
+          writer.write(observedTravelTime)
           writer.write(',')
 
           writer.write("1")

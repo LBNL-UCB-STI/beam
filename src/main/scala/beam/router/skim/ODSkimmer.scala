@@ -319,6 +319,7 @@ object ODSkimmer extends LazyLogging {
     override def toCsv: String = hour + "," + mode + "," + originTaz + "," + destinationTaz
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def fromCsv(
     row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {

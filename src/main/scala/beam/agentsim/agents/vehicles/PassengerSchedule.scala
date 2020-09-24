@@ -75,7 +75,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
   def numLegsWithPassengersAfter(legIndex: Int): Int =
     schedule.slice(legIndex, schedule.size).values.count(_.riders.nonEmpty)
 
-  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  @SuppressWarnings(Array("UnsafeTraversableMethods", "OptionGet"))
   def linkAtTime(tick: Int): Int = {
     if (tick < schedule.keys.head.startTime) {
       schedule.keys.head.travelPath.linkIds.head
@@ -84,6 +84,7 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     }
   }
 
+  @SuppressWarnings(Array("OptionGet"))
   def locationAtTime(tick: Int, beamServices: BeamServices): Location = {
     beamServices.networkHelper.getLink(linkAtTime(tick)).get.getCoord
   }
