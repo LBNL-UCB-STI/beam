@@ -128,9 +128,9 @@ object BeamLeg {
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
     legs.headOption match {
       case None => legs
-      case Some(legHead) =>
-        var latestEndTime = legHead.startTime - 1
-        var newLeg = legHead
+      case Some(headLeg) =>
+        var latestEndTime = headLeg.startTime - 1
+        var newLeg = headLeg
         for (leg <- legs) yield {
           if (leg.startTime < latestEndTime) {
             newLeg = leg.updateStartTime(latestEndTime)
