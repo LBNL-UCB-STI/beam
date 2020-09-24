@@ -1111,7 +1111,9 @@ trait ChoosesMode {
           data.availablePersonalStreetVehicles.nonEmpty,
           chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
           _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
-          chosenTrip
+          chosenTrip,
+          _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
+          nextActivity(data.personData).get.getType
         )
       )
 
