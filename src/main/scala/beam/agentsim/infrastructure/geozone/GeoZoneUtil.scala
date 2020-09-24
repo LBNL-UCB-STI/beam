@@ -55,8 +55,7 @@ object GeoZoneUtil extends LazyLogging {
       val gf = new GeometryFactory()
       val hexagons: Iterable[(Polygon, String, Int, Int)] = content.items.map { bucket =>
         val boundary: mutable.Seq[GeoCoord] = H3Wrapper.h3Core.h3ToGeoBoundary(bucket.index.value).asScala
-        val moreElements = boundary.headOption.toArray.map(toJtsCoordinate)
-        val polygon: Polygon = gf.createPolygon(boundary.map(toJtsCoordinate).toArray ++ moreElements)
+        val polygon: Polygon = gf.createPolygon(boundary.map(toJtsCoordinate).toArray :+ toJtsCoordinate(boundary.head))
         (
           polygon,
           bucket.index.value,

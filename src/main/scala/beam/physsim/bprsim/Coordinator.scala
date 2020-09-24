@@ -8,12 +8,10 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+
 import scala.annotation.tailrec
-import scala.collection.immutable
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, ExecutionContext, Future}
-
-import beam.utils.SequenceUtils
 
 /**
   *
@@ -54,9 +52,9 @@ class Coordinator(
   private def executePeriod(tillTime: Double): Unit = {
     val events = executeSubPeriod(tillTime, Vector.empty[Event])
     asyncFlushEvents(events)
-    val minTime: Option[Double] = SequenceUtils.minOpt(workers.map(_.minTime))
-    if (!minTime.contains(Double.MaxValue)) {
-      executePeriod(minTime.get + config.syncInterval)
+    val minTime = workers.map(_.minTime).min
+    if (!minTime.equals(Double.MaxValue)) {
+      executePeriod(minTime + config.syncInterval)
     }
   }
 
@@ -67,8 +65,9 @@ class Coordinator(
     val (producedEvents, workerEvents) = events.unzip
     val acceptedEvents: Seq[Int] = parallelExecution(workers.map(w => () => w.acceptEvents(workerEvents)))
     logger.debug(s"Accepted events: ${acceptedEvents.mkString(",")}")
+    val minTime = workers.map(_.minTime).min
     val allEvents = eventAcc ++ producedEvents.flatten
-    if (SequenceUtils.minOpt(workers.map(_.minTime)).exists(value => value > tillTime)) {
+    if (minTime > tillTime) {
       allEvents
     } else {
       executeSubPeriod(tillTime, allEvents)

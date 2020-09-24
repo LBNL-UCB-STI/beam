@@ -2,18 +2,16 @@ package beam.agentsim.agents.ridehail
 
 import java.math.BigInteger
 
+import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
+import beam.sim.BeamServices
+import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.util.Try
-
-import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
-import beam.sim.BeamServices
-import beam.utils.SequenceUtils
-import org.matsim.core.utils.collections.QuadTree
 
 class AsyncGreedyVehicleCentricMatching(
   demand: QuadTree[CustomerRequest],
@@ -87,16 +85,9 @@ class AsyncGreedyVehicleCentricMatching(
               val cost = computeCost(t)
               if (tripsWithKPassengers.size == solutionSizePerPool) {
                 // then replace the trip with highest sum of delays
-                SequenceUtils.maxByOpt(
-                  seq = tripsWithKPassengers.zipWithIndex,
-                  f = (v: ((RideHailTrip, Double), Int)) => v._1._2
-                ) match {
-                  case Some(value: ((RideHailTrip, Double), Int)) =>
-                    val ((_, tripWithHighestCost), index) = value
-                    if (tripWithHighestCost > cost) {
-                      tripsWithKPassengers.remove(index)
-                    }
-                  case _ =>
+                val ((_, tripWithHighestCost), index) = tripsWithKPassengers.zipWithIndex.maxBy(_._1._2)
+                if (tripWithHighestCost > cost) {
+                  tripsWithKPassengers.remove(index)
                 }
               }
               if (tripsWithKPassengers.size < solutionSizePerPool) {
@@ -115,7 +106,6 @@ class AsyncGreedyVehicleCentricMatching(
     val greedyAssignmentList = mutable.ListBuffer.empty[RideHailTrip]
     var tripsByPoolSize = trips.sortBy(_._2)
     while (tripsByPoolSize.nonEmpty) {
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val (trip, _) = tripsByPoolSize.head
       greedyAssignmentList.append(trip)
       tripsByPoolSize =
@@ -141,5 +131,4 @@ class AsyncGreedyVehicleCentricMatching(
     }
     res
   }
-
 }

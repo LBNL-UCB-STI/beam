@@ -287,9 +287,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             }
             .toList
           allocResponses = allocResponses :+ RoutingRequiredToAllocateVehicle(newRideHailRequest.get, rReqs)
-          @SuppressWarnings(Array("UnsafeTraversableMethods"))
-          val requests = scheduleToCache :+ theTrip.schedule.last
-          tempScheduleStore.put(newRideHailRequest.get.requestId, requests)
+          tempScheduleStore.put(newRideHailRequest.get.requestId, scheduleToCache :+ theTrip.schedule.last)
+
         }
       }
       // Anyone unsatisfied must be assigned NoVehicleAllocated
