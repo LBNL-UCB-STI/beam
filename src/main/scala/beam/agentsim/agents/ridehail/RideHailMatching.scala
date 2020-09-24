@@ -1,7 +1,5 @@
 package beam.agentsim.agents.ridehail
 
-import scala.collection.immutable
-
 import beam.agentsim.agents._
 import beam.agentsim.agents.planning.Trip
 import beam.agentsim.agents.ridehail.RideHailMatching.RideHailTrip
@@ -68,8 +66,6 @@ object RideHailMatching {
     def getNoPassengers: Int = numberOfPassengers
     def getSeatingCapacity: Int = seatingCapacity
     def getFreeSeats: Int = seatingCapacity - numberOfPassengers
-
-    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     def getRequestWithCurrentVehiclePosition: MobilityRequest = schedule.find(_.tag == EnRoute).getOrElse(schedule.head)
   }
   // Trip that can be satisfied by one or more ride hail vehicle
@@ -209,13 +205,13 @@ object RideHailMatching {
     processedRequests.appendAll(newRequests)
 
     var isValid = true
-    var agentsPooled: Seq[PersonIdWithActorRef] = schedule.flatMap(_.person).distinct.toVector
+    var agentsPooled = schedule.flatMap(_.person).distinct.toVector
     while (processedRequests.nonEmpty && isValid) {
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val prevReq = newSchedule.last
-      val (curReqIndex, curReq, skim) = {
-        calculateMinimum(beamServices, processedRequests, prevReq, agentsPooled)
-      }
+      val (curReqIndex, curReq, skim) = processedRequests.zipWithIndex
+        .filter(r => r._1.tag == Pickup || agentsPooled.contains(r._1.person.get))
+        .map(r => (r._2, r._1, getTimeDistanceAndCost(prevReq, r._1, beamServices)))
+        .minBy(_._3.time)
       val serviceTime = Math.max(prevReq.serviceTime + skim.time, curReq.serviceTime)
       val serviceDistance = prevReq.serviceDistance + skim.distance
       isValid = serviceTime <= curReq.upperBoundTime && Math.ceil(serviceDistance) <= remainingVehicleRangeInMeters
@@ -230,19 +226,6 @@ object RideHailMatching {
     if (isValid) {
       Some(pastSchedule ++ newSchedule.drop(1).toList)
     } else None
-  }
-
-  @SuppressWarnings(Array("UnsafeTraversableMethods"))
-  private def calculateMinimum(
-    beamServices: BeamServices,
-    processedRequests: ListBuffer[MobilityRequest],
-    prevReq: MobilityRequest,
-    agentsPooled: Seq[PersonIdWithActorRef]
-  ): (Int, MobilityRequest, ODSkimmer.Skim) = {
-    val tuples = processedRequests.zipWithIndex
-      .filter(r => r._1.tag == Pickup || agentsPooled.contains(r._1.person.get))
-      .map(r => (r._2, r._1, getTimeDistanceAndCost(prevReq, r._1, beamServices)))
-    tuples.minBy(_._3.time)
   }
 
   def createPersonRequest(

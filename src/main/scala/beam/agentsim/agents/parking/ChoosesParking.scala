@@ -6,23 +6,23 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{StartLegTrigger}
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{PassengerSchedule}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
+
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
-import scala.concurrent.duration.Duration
 
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch
+import scala.concurrent.duration.Duration
+import beam.agentsim.infrastructure.parking.{ParkingZoneSearch}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
-import org.matsim.api.core.v01.Id
 
 /**
   * BEAM
@@ -42,9 +42,7 @@ trait ChoosesParking extends {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
 
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val firstLeg = personData.restOfCurrentTrip.head
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastLeg =
         personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
@@ -111,11 +109,14 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
   }
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall, _), data: PersonData) =>
+    case Event(ParkingInquiryResponse(stall, _), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      val nextLeg = nextLegFromPersonData(data)
+      val nextLeg =
+        data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
+
+      // data.currentVehicle.head
 
       //Veh id
       //distance to dest
@@ -196,40 +197,39 @@ trait ChoosesParking extends {
         data: BasePersonData
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val nextLeg = nextLegFromPersonData(data)
+      val nextLeg =
+        data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
-      val firstLegFromFirstItineraryFromRouting2 = routingResponse2.itineraries.head.legs.head
       // If no car leg returned, use previous route to destination (i.e. assume parking is at dest)
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
         logDebug("no CAR leg returned by router, assuming parking spot is at destination")
         (
           EmbodiedBeamLeg(
             nextLeg,
-            currentVehicleHeadFromPersonData(data),
+            data.currentVehicle.head,
             body.beamVehicleType.id,
             true,
             0.0,
             true
           ),
-          firstLegFromFirstItineraryFromRouting2
+          routingResponse2.itineraries.head.legs.head
         )
       } else {
-        @SuppressWarnings(Array("UnsafeTraversableMethods"))
-        val headFromRouting1 = routingResponse1.itineraries.view
-          .filter(_.tripClassifier == CAR)
-          .head
-          .legs
-          .view
-          .filter(_.beamLeg.mode == CAR)
-          .head
-        (headFromRouting1, firstLegFromFirstItineraryFromRouting2)
+        (
+          routingResponse1.itineraries.view
+            .filter(_.tripClassifier == CAR)
+            .head
+            .legs
+            .view
+            .filter(_.beamLeg.mode == CAR)
+            .head,
+          routingResponse2.itineraries.head.legs.head
+        )
       }
       // Update start time of the second leg
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))
 
       // update person data with new legs
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val firstLeg = data.restOfCurrentTrip.head
       var legsToDrop = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
       if (legsToDrop.size == data.restOfCurrentTrip.size - 1) legsToDrop = data.restOfCurrentTrip
@@ -245,7 +245,7 @@ trait ChoosesParking extends {
       } else {
         currentBeamVehicle.unsetDriver()
         eventsManager.processEvent(
-          new PersonLeavesVehicleEvent(tick, id, currentVehicleHeadFromPersonData(data))
+          new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
         (data.currentVehicle.drop(1), body)
       }
@@ -267,16 +267,6 @@ trait ChoosesParking extends {
         currentLegPassengerScheduleIndex = 0,
         currentVehicle = newVehicle
       )
-  }
-
-  @SuppressWarnings(Array("UnsafeTraversableMethods"))
-  private def currentVehicleHeadFromPersonData(data: PersonData): Id[BeamVehicle] = {
-    data.currentVehicle.head
-  }
-
-  @SuppressWarnings(Array("UnsafeTraversableMethods"))
-  private def nextLegFromPersonData(data: PersonData): BeamLeg = {
-    data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
   }
 
   def calculateScore(

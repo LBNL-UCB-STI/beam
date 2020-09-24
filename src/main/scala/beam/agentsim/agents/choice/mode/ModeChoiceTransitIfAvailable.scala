@@ -30,9 +30,13 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
     val containsTransitAlt = alternatives.zipWithIndex.collect {
       case (trip, idx) if trip.tripClassifier.isTransit => idx
     }
-    containsTransitAlt.headOption
-      .map(idx => alternatives(idx))
-      .orElse(chooseRandomElement(alternatives))
+    if (containsTransitAlt.nonEmpty) {
+      Some(alternatives(containsTransitAlt.head))
+    } else if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
+    } else {
+      None
+    }
   }
 
   override def utilityOf(
