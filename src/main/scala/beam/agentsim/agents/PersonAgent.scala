@@ -43,9 +43,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
-import org.matsim.core.utils.misc.Time
 
-import scala.annotation.tailrec
 import scala.concurrent.duration._
 
 /**
@@ -404,14 +402,9 @@ class PersonAgent(
   }
 
   def findFirstCarLegOfTrip(data: BasePersonData): Option[EmbodiedBeamLeg] = {
-    @tailrec
-    def _find(remaining: IndexedSeq[EmbodiedBeamLeg]): Option[EmbodiedBeamLeg] = {
-      if (remaining.isEmpty) None
-      else if (remaining.head.beamLeg.mode == CAR) Some { remaining.head } else _find(remaining.tail)
-    }
     for {
       trip <- data.currentTrip
-      leg  <- _find(trip.legs)
+      leg  <- trip.legs.find(_.beamLeg.mode == CAR)
     } yield {
       leg
     }
@@ -504,7 +497,7 @@ class PersonAgent(
         BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _)
         ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
-      logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
+      logDebug(s"Replanned to leg [${restOfCurrentTrip.headOption.getOrElse("NONE")}]")
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity)
   }
@@ -625,14 +618,14 @@ class PersonAgent(
     case Event(
         TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, energyConsumedOption), triggerId),
         data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _, _)
-        ) if vehicleToExit.equals(currentVehicle.head) =>
+        ) if currentVehicle.headOption.contains(vehicleToExit) =>
       updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, id, vehicleToExit))
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         restOfCurrentTrip = restOfCurrentTrip.dropWhile(leg => leg.beamVehicleId == vehicleToExit),
-        currentVehicle = currentVehicle.tail
+        currentVehicle = currentVehicle.drop(1)
       )
   }
 
@@ -654,21 +647,23 @@ class PersonAgent(
         )
       val dataForNextLegOrActivity = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         data.copy(
-          restOfCurrentTrip = data.restOfCurrentTrip.tail,
-          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
+          restOfCurrentTrip = data.restOfCurrentTrip.drop(1),
+          // TODO: the following line looks like wrong. the test condition should not be bigger than zero?
+          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.drop(1) else Vector.empty,
           currentTripCosts = 0.0
         )
       } else {
         data.copy(
-          restOfCurrentTrip = data.restOfCurrentTrip.tail,
+          restOfCurrentTrip = data.restOfCurrentTrip.drop(1),
           currentVehicle = Vector(body.id),
           currentTripCosts = 0.0
         )
       }
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
-        val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
+        val vehicleToExit = data.currentVehicle.head
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
@@ -679,7 +674,7 @@ class PersonAgent(
           if (!currentBeamVehicle.isMustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
             currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle)
-            beamVehicles -= data.currentVehicle.head
+            beamVehicles -= vehicleToExit
           }
         }
       }

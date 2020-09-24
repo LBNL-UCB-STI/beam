@@ -51,8 +51,8 @@ object MathUtils {
 
   def logSumExp(a: Double, b: Double): Double = {
     val output: Double =
-      if (a == Double.NegativeInfinity) b
-      else if (b == Double.NegativeInfinity) a
+      if (a.isNegInfinity) b
+      else if (b.isNegInfinity) a
       else if (a < b) b + math.log(1 + math.exp(a - b))
       else a + math.log(1 + math.exp(b - a))
     output
@@ -74,7 +74,7 @@ object MathUtils {
     var accum = 0.0
     while (iter.hasNext) {
       val b = iter.next
-      if (b != Double.NegativeInfinity)
+      if (!b.isNegInfinity)
         accum += math.exp(b - max)
     }
     max + math.log(accum)

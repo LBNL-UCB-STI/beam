@@ -543,9 +543,12 @@ trait ChoosesMode {
       })
       val correctedItins = theRouterResult.itineraries
         .map { trip =>
-          if (trip.legs.head.beamLeg.mode != WALK) {
+          if (getHeadFromEmbodiedBeamTrip(trip).beamLeg.mode != WALK) {
             val startLeg = EmbodiedBeamLeg(
-              BeamLeg.dummyLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc),
+              BeamLeg.dummyLeg(
+                getHeadFromEmbodiedBeamTrip(trip).beamLeg.startTime,
+                getHeadFromEmbodiedBeamTrip(trip).beamLeg.travelPath.startPoint.loc
+              ),
               body.id,
               body.beamVehicleType.id,
               asDriver = true,
@@ -679,7 +682,7 @@ trait ChoosesMode {
       ),
       cost = 0
     )
-    assert(firstLeg.cost + secondLeg.cost == leg.cost)
+    assert((firstLeg.cost + secondLeg.cost).equals(leg.cost))
     assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
     assert(
       Math.abs(
@@ -707,14 +710,14 @@ trait ChoosesMode {
         .legsBeforePassengerBoards(bodyVehiclePersonId)
         .map(_.duration)
         .sum
-      val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
+      val extraWaitTimeBuffer = getHeadFromEmbodiedBeamTrip(driveTransitTrip).beamLeg.endTime - _currentTick.get -
       tncAccessLeg.last.beamLeg.duration - timeToCustomer
       if (extraWaitTimeBuffer < 300) {
         // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
         None
       } else {
         // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
-        val startTimeAdjustment = driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - timeToCustomer
+        val startTimeAdjustment = getHeadFromEmbodiedBeamTrip(driveTransitTrip).beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - timeToCustomer
         val startTimeBufferForWaiting = math.min(
           extraWaitTimeBuffer,
           math.max(300.0, timeToCustomer.toDouble * 1.5)
@@ -725,7 +728,7 @@ trait ChoosesMode {
               leg.beamLeg
                 .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
           )
-        ) ++ driveTransitTrip.legs.tail
+        ) ++ driveTransitTrip.legs.drop(1)
         val fullTrip = if (rideHail2TransitEgressResult.error.isEmpty) {
           accessAndTransit.dropRight(2) ++ rideHail2TransitEgressResult.travelProposal.get
             .toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
@@ -1020,19 +1023,19 @@ trait ChoosesMode {
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
               val originalWalkTripLeg =
                 routingResponse.itineraries.find(_.tripClassifier == WALK) match {
-                  case Some(originalWalkTrip) =>
-                    originalWalkTrip.legs.head
+                  case Some(originalWalkTrip: EmbodiedBeamTrip) =>
+                    getHeadFromEmbodiedBeamTrip(originalWalkTrip)
                   case None =>
-                    RoutingWorker
-                      .createBushwackingTrip(
-                        currentPersonLocation.loc,
-                        nextAct.getCoord,
-                        _currentTick.get,
-                        body.toStreetVehicle,
-                        beamServices.geo
-                      )
-                      .legs
-                      .head
+                    getHeadFromEmbodiedBeamTrip(
+                      RoutingWorker
+                        .createBushwackingTrip(
+                          currentPersonLocation.loc,
+                          nextAct.getCoord,
+                          _currentTick.get,
+                          body.toStreetVehicle,
+                          beamServices.geo
+                        )
+                    )
                 }
               val expensiveWalkTrip = EmbodiedBeamTrip(
                 Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
@@ -1044,6 +1047,13 @@ trait ChoosesMode {
               )
           }
       }
+  }
+
+  // TODO: is it possible to assume legs will never be empty?
+  // In case of yes we should add Require to EmbodiedBeamTrip and add a method there
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def getHeadFromEmbodiedBeamTrip(originalWalkTrip: EmbodiedBeamTrip) = {
+    originalWalkTrip.legs.head
   }
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) {
@@ -1131,7 +1141,7 @@ trait ChoosesMode {
         triggerId,
         Vector(
           ScheduleTrigger(
-            PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)),
+            PersonDepartureTrigger(math.max(getHeadFromEmbodiedBeamTrip(chosenTrip).beamLeg.startTime, tick)),
             self
           )
         )

@@ -15,7 +15,7 @@ class MeansOfTransportationTableReader(
     readRaw()
       .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         val mode = MeansOfTransportation(entry.lineNumber).get
         OD(fromGeoId, toGeoId, mode, entry.estimate)
       }

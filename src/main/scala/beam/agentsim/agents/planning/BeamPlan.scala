@@ -10,9 +10,8 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteFactories
 import org.matsim.utils.objectattributes.attributable.Attributes
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 
 /**
   * BeamPlan
@@ -52,7 +51,7 @@ object BeamPlan {
     originActivity: Activity,
     destinationActivity: Activity
   ): Plan = {
-    val newPlanElements = plan.getPlanElements.asScala
+    val newPlanElements: List[PlanElement] = plan.getPlanElements.asScala
       .sliding(2)
       .flatMap { elems =>
         var outputElems = List(elems.head)
@@ -70,7 +69,7 @@ object BeamPlan {
         }
         outputElems
       }
-      .toList :+ plan.getPlanElements.asScala.last
+      .toList ++ plan.getPlanElements.asScala.lastOption.toList
     val newPlan = PopulationUtils.createPlan()
     newPlanElements.foreach(
       pe =>
@@ -180,6 +179,7 @@ class BeamPlan extends Plan {
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def tourIndexOfElement(planElement: PlanElement): Int = {
     (for (tour <- tours.zipWithIndex if tour._1 == getTourContaining(planElement))
       yield tour._2).head

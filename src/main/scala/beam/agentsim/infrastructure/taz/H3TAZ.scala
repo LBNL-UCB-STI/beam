@@ -82,7 +82,8 @@ object H3TAZ {
     val hexagons = h3Tazs.map {
       case (h, taz, v) =>
         val boundary = H3.h3ToGeoBoundary(h).asScala
-        (h, taz, v, gf.createPolygon(boundary.map(toJtsCoordinate).toArray :+ toJtsCoordinate(boundary.head)))
+        val moreElements = boundary.headOption.toArray.map(toJtsCoordinate)
+        (h, taz, v, gf.createPolygon(boundary.map(toJtsCoordinate).toArray ++ moreElements))
     }
     val pf: PolygonFeatureFactory = new PolygonFeatureFactory.Builder()
       .setCrs(MGC.getCRS("EPSG:4326"))

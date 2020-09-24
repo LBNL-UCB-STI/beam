@@ -149,12 +149,14 @@ class FastHouseholdCAVScheduling(
 
       val sortedRequests =
         (cavSchedule.schedule ++ requests).filter(_.tag != Relocation).sortBy(_.baselineNonPooledTime)
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val startRequest = sortedRequests.head
       val newHouseholdSchedule = mutable.ListBuffer(startRequest.copy())
       var newHouseholdScheduleCost = householdScheduleCost.copy()
       var newOccupancy: Int = cavSchedule.occupancy
 
       sortedRequests.drop(1).foreach { curReq =>
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
         val prevReq = newHouseholdSchedule.last
         val metric = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
           prevReq.activity.getCoord,
@@ -478,13 +480,13 @@ object HouseholdTripsHelper {
     val startTime = prevTrip.activity.getEndTime.toInt
     val arrivalTime = startTime + skim.time
 
-    val nextTripStartTime = curTrip.activity.getEndTime
-    if (nextTripStartTime != Double.NegativeInfinity && startTime >= nextTripStartTime.toInt) {
+    val nextTripStartTime: Double = curTrip.activity.getEndTime
+    if (!nextTripStartTime.isNegInfinity && startTime >= nextTripStartTime.toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
       break
-    } else if (nextTripStartTime != Double.NegativeInfinity && arrivalTime > nextTripStartTime.toInt) {
+    } else if (!nextTripStartTime.isNegInfinity && arrivalTime > nextTripStartTime.toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )

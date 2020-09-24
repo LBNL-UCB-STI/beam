@@ -410,6 +410,7 @@ class RideHailManager(
           try {
             val person = persons(idx)
 
+            @SuppressWarnings(Array("UnsafeTraversableMethods"))
             val vehicleType = vehiclesAdjustment
               .sampleRideHailVehicleTypes(
                 numVehicles = 1,
@@ -1099,7 +1100,7 @@ class RideHailManager(
     val beamLegs = BeamLeg.makeLegsConsistent(embodiedTrip.toBeamTrip.legs.toList.map(Some(_))).flatten
     PassengerSchedule()
       .addLegs(beamLegs)
-      .addPassenger(request.customer, beamLegs.tail)
+      .addPassenger(request.customer, beamLegs.drop(1))
   }
 
   def calcFare(
@@ -1345,6 +1346,7 @@ class RideHailManager(
       ) match {
         case Some(rememberedRoute) =>
           cacheHits = cacheHits + 1
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
           val embodyReq = BeamRouter.linkIdsToEmbodyRequest(
             rememberedRoute,
             rReq.streetVehicles.head,

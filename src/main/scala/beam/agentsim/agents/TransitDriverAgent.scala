@@ -108,6 +108,7 @@ class TransitDriverAgent(
 
   override val id: Id[TransitDriverAgent] = transitDriverId
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   val myUnhandled: StateFunction = {
     case Event(TransitReservationRequest(fromIdx, toIdx, passenger), data) =>
       val slice = legs.slice(fromIdx, toIdx)

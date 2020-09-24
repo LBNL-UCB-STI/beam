@@ -328,6 +328,7 @@ class RideHailAgent(
       stay
     case Event(RoutingResponse(itineraries, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
       val (tick, triggerId) = releaseTickAndTriggerId()
@@ -737,7 +738,7 @@ class RideHailAgent(
         ev.triggerId,
         ev.newTriggers :+ ScheduleTrigger(EndShiftTrigger(data.remainingShifts.head.upperBound), self)
       )
-      stay using data.copy(remainingShifts = data.remainingShifts.tail)
+      stay using data.copy(remainingShifts = data.remainingShifts.drop(1))
     }
   }
 

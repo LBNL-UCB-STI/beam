@@ -14,9 +14,10 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
-
 import scala.collection.JavaConverters._
-import scala.collection.mutable
+import scala.collection.{mutable, IterableView}
+
+import beam.utils.SequenceUtils
 
 object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
   override def compare(
@@ -147,7 +148,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     val diff1 = end - start
 
     start = System.currentTimeMillis()
-    val times2RideHailAgents = nearbyAvailableRideHailAgents
+    val times2RideHailAgents: IterableView[RideHailAgentETA, Iterable[_]] = nearbyAvailableRideHailAgents
       .map { rideHailAgentLocation =>
         val distance =
           CoordUtils.calcProjectedEuclideanDistance(pickupLocation, rideHailAgentLocation.currentLocationUTM.loc)
@@ -171,7 +172,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       )
     if (times2RideHailAgents.isEmpty) None
     else {
-      Some(times2RideHailAgents.min(RideHailAgentETAComparatorMinTimeToCustomer))
+      SequenceUtils.minOpt(
+        times2RideHailAgents
+      )(RideHailAgentETAComparatorMinTimeToCustomer)
     }
   }
 
