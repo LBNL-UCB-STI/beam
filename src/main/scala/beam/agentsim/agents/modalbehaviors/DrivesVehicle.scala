@@ -263,17 +263,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
       }
 
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
-      val firstVehicleId = data.currentVehicle.head
       data.passengerSchedule.schedule(currentLeg).alighters.foreach { pv =>
         logDebug(
-          s"Scheduling AlightVehicleTrigger for Person ${pv.personId} from vehicle $firstVehicleId @ $tick"
+          s"Scheduling AlightVehicleTrigger for Person ${pv.personId} from vehicle ${data.currentVehicle.head} @ $tick"
         )
         scheduler ! ScheduleTrigger(
           AlightVehicleTrigger(
             tick,
-            vehicleId = firstVehicleId,
-            fuelConsumed = Some(fuelConsumedByTrip(pv.personId))
+            data.currentVehicle.head,
+            Some(fuelConsumedByTrip(pv.personId))
           ),
           pv.personRef
         )
@@ -286,7 +284,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       // We help ourselves by not emitting link events for walking, but a better criterion
       // would be to only emit link events for the "main" leg.
       if (currentLeg.mode != WALK) {
-        processLinkEvents(eventsManager, firstVehicleId, currentLeg)
+        processLinkEvents(eventsManager, data.currentVehicle.head, currentLeg)
       }
 
       logDebug(s"PathTraversal @ $tick")
@@ -295,7 +293,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           tick,
           id.asInstanceOf[Id[Person]],
           Id.createLinkId(currentLeg.travelPath.linkIds.lastOption.getOrElse(Int.MinValue).toString),
-          firstVehicleId,
+          data.currentVehicle.head,
           "car",
           0.0
         )
@@ -334,8 +332,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T]
         } else {
-          @SuppressWarnings(Array("UnsafeTraversableMethods"))
-          val nextLeg: BeamLeg =
+          val nextLeg =
             data.passengerSchedule.schedule.keys.view
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
@@ -517,7 +514,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           stopTick,
           id.asInstanceOf[Id[Person]],
           null,
-          currentVehicleUnderControl,
+          data.currentVehicle.head,
           "car",
           0.0
         )
@@ -626,17 +623,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             currentBeamVehicle.unsetParkingStall()
           case None =>
         }
-        @SuppressWarnings(Array("UnsafeTraversableMethods"))
-        val currentVehicleHead = data.currentVehicle.head
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
           .schedule(newLeg)
           .boarders
           .map { personVehicle =>
             logDebug(
-              s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle $currentVehicleHead @ $tick"
+              s"Scheduling BoardVehicleTrigger at $tick for Person ${personVehicle.personId} into vehicle ${data.currentVehicle.head} @ $tick"
             )
             ScheduleTrigger(
-              BoardVehicleTrigger(tick, currentVehicleHead),
+              BoardVehicleTrigger(tick, data.currentVehicle.head),
               personVehicle.personRef
             )
           }
@@ -646,7 +641,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             tick,
             Id.createPersonId(id),
             Id.createLinkId(newLeg.travelPath.linkIds.headOption.getOrElse(Int.MinValue).toString),
-            currentVehicleHead,
+            data.currentVehicle.head,
             "car",
             1.0
           )
@@ -740,14 +735,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         .toSeq
       if (legsInThePast.nonEmpty)
         log.debug("Legs in the past: {} -- {}", legsInThePast, req)
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
-      val currentVehicleHead = data.currentVehicle.head
       val boardTrigger = if (legsInThePast.nonEmpty) {
         Vector(
           ScheduleTrigger(
             BoardVehicleTrigger(
               legsInThePast.head.startTime,
-              currentVehicleHead
+              data.currentVehicle.head
             ),
             sender()
           )
@@ -760,7 +753,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
           ScheduleTrigger(
             AlightVehicleTrigger(
               legsInThePast.last.endTime,
-              currentVehicleHead,
+              data.currentVehicle.head,
             ),
             sender()
           )
@@ -778,7 +771,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
               ScheduleTrigger(
                 BoardVehicleTrigger(
                   currentLeg.startTime,
-                  currentVehicleHead
+                  data.currentVehicle.head
                 ),
                 sender()
               )

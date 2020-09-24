@@ -190,7 +190,6 @@ class ModeChoiceLCCM(
     conditionedOnModalityStyle: String,
     tourType: TourType
   ): Double = {
-    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val best = altsToBestInGroup(Vector(embodiedBeamTrip), tourType).head
 
     utilityOf(

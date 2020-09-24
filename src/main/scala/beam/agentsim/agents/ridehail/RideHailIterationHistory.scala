@@ -15,7 +15,7 @@ class RideHailIterationHistory @Inject()() {
   def updateRideHailStats(stats: TNCIterationStats): Unit = {
     rideHailIterationStatsHistory += stats
 
-    // trim array buffer as we just need 2 elements
+    // trimm array buffer as we just need 2 elements
     if (rideHailIterationStatsHistory.size > 2) {
       rideHailIterationStatsHistory.remove(0)
     }
@@ -23,7 +23,6 @@ class RideHailIterationHistory @Inject()() {
 
   def oscillationAdjustedTNCIterationStats: Option[TNCIterationStats] = {
     if (rideHailIterationStatsHistory.size >= 2) {
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastElement = rideHailIterationStatsHistory.last
       val secondLastElement = rideHailIterationStatsHistory(rideHailIterationStatsHistory.size - 2)
       Some(TNCIterationStats.merge(lastElement, secondLastElement))
