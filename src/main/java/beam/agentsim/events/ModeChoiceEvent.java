@@ -24,6 +24,9 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
     public final static String ATTRIBUTE_TRIP_LENGTH = "length";
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
+    public final static String ATTRIBUTE_LEG_MODES = "legModes";
+    public final static String ATTRIBUTE_LEG_VEHICLE_IDS = "legVehicleIds";
+
     public final EmbodiedBeamTrip chosenTrip;
     public final Id<Person> personId;
     public final String mode;
@@ -83,6 +86,8 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_PERSONAL_VEH_AVAILABLE, vehAvailable);
         attr.put(ATTRIBUTE_TRIP_LENGTH, length.toString());
         attr.put(ATTRIBUTE_TOUR_INDEX, tourIndex.toString());
+        attr.put(ATTRIBUTE_LEG_MODES, chosenTrip.legModes().mkString(","));
+        attr.put(ATTRIBUTE_LEG_VEHICLE_IDS, chosenTrip.legVehicleIds().mkString(","));
         return attr;
     }
 
