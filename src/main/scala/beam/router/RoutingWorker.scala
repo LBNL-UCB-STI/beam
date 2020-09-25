@@ -198,6 +198,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
               ghWalkResponse.exists(_.itineraries.nonEmpty)
             )
 
+            val successfulCarResponse = ghCarResponse.exists(_.itineraries.nonEmpty)
+            val successfulWalkResponse = ghWalkResponse.exists(_.itineraries.nonEmpty)
+
             if (request.streetVehicles.exists(_.mode == CAR) && !successfulCarResponse) {
               carRoutesCallbackToR5.incrementAndGet()
             }
