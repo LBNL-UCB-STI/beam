@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.power
 
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
 import org.matsim.api.core.v01.Id
 
 class SitePowerManager() {

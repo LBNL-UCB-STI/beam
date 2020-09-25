@@ -63,7 +63,7 @@ for t in range(0, iterations):
     timebin = 300
     currenttime = -1
     rec_value = 0.0
-    time_sleep = 0
+    time_sleep = 0 # if time_sleep is > 0 then simulation of delay happens for the Helics Grid below in the loop
 
     for t in range(0, timebin*360+1, timebin):
         while currenttime < t:
