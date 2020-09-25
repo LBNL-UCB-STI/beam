@@ -478,7 +478,7 @@ class BeamMobsimIteration(
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
-  val eventsAccumulatorMaybe: Option[ActorRef] =
+  val eventsAccumulatorOption: Option[ActorRef] =
     if (beamConfig.beam.agentsim.collectEvents) {
       val eventsAccumulator = context.actorOf(EventsAccumulator.props(beamServices))
       context.watch(eventsAccumulator)
@@ -487,7 +487,7 @@ class BeamMobsimIteration(
     } else None
   eventsManager match {
     case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulatorMaybe)
+      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulatorOption)
     case _ =>
   }
 
@@ -521,7 +521,7 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
-      eventsAccumulatorMaybe.foreach { eventsAccumulator =>
+      eventsAccumulatorOption.foreach { eventsAccumulator =>
         eventsAccumulator ! Finish
         context.stop(eventsAccumulator)
       }

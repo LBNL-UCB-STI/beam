@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -34,7 +35,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
 
   "PowerController when connected to grid" should {
     val powerController = new PowerController(beamServicesMock, BeamConfig(config)) {
-      override private[power] lazy val beamFederateMaybe = Some(beamFederateMock)
+      override private[power] lazy val beamFederateOption = Some(beamFederateMock)
     }
 
     "publish power over planning horizon" in {
@@ -51,7 +52,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   }
   "PowerController when not connected to grid" should {
     val powerController = new PowerController(beamServicesMock, BeamConfig(config)) {
-      override private[power] lazy val beamFederateMaybe = None
+      override private[power] lazy val beamFederateOption = None
     }
 
     "publish nothing" in {

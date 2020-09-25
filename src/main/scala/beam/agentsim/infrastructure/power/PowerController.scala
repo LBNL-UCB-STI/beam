@@ -9,10 +9,10 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
-
+  import PowerController._
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
 
-  private[power] lazy val beamFederateMaybe: Option[BeamFederate] = Try {
+  private[power] lazy val beamFederateOption: Option[BeamFederate] = Try {
     logger.debug("Init PowerController resources...")
     BeamFederate.loadHelics
     BeamFederate.getInstance(beamServices)
@@ -22,7 +22,7 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
       Failure(e)
   }.toOption
 
-  lazy val isConnectedToGrid: Boolean = beamFederateMaybe.isDefined
+  lazy val isConnectedToGrid: Boolean = beamFederateOption.isDefined
 
   /**
     * Publishes required power to the grid
@@ -31,10 +31,9 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     */
   def publishPowerOverPlanningHorizon(requiredPower: Double, currentTime: Int): Unit = {
     logger.debug("Sending power over planning horizon {} to the grid at time {}...", requiredPower, currentTime)
-    beamFederateMaybe
-      .map(_.publishPowerOverPlanningHorizon(requiredPower))
-      .getOrElse {
-        logger.warn("Not connected to grid, nothing was sent")
+    beamFederateOption
+      .fold(logger.warn("Not connected to grid, nothing was sent")) { beamFederate =>
+        beamFederate.publishPowerOverPlanningHorizon(requiredPower)
       }
   }
 
@@ -47,10 +46,10 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
   def obtainPowerPhysicalBounds(currentTime: Int): (PhysicalBounds, Int) = {
     logger.debug("Obtaining power from the grid at time {}...", currentTime)
     val (bounds, nextTime) =
-      beamFederateMaybe
-        .map { f =>
-          val nextTime = f.syncAndMoveToNextTimeStep(currentTime)
-          val value = f.obtainPowerFlowValue
+      beamFederateOption
+        .map { beamFederate =>
+          val nextTime = beamFederate.syncAndMoveToNextTimeStep(currentTime)
+          val value = beamFederate.obtainPowerFlowValue
           (PhysicalBounds(value, value, 0), nextTime)
         }
         .getOrElse {
@@ -63,10 +62,9 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
 
   def close(): Unit = {
     logger.debug("Release PowerController resources...")
-    beamFederateMaybe
-      .map(_.close())
-      .getOrElse {
-        logger.warn("Not connected to grid, just releasing helics resources")
+    beamFederateOption
+      .fold(logger.warn("Not connected to grid, just releasing helics resources")) { beamFederate =>
+        beamFederate.close()
       }
 
     try {
@@ -80,6 +78,14 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
 
   def defaultPowerPhysicalBounds(currentTime: Int): (PhysicalBounds, Int) = {
     val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
-    (PhysicalBounds.default(0.0), fedTimeStep * (1 + (currentTime / fedTimeStep)))
+    (PhysicalBounds.default, fedTimeStep * (1 + (currentTime / fedTimeStep)))
+  }
+}
+
+object PowerController {
+  case class PhysicalBounds(minPower: Double, maxPower: Double, price: Double)
+
+  object PhysicalBounds {
+    val default: PhysicalBounds = PhysicalBounds(0.0, 0.0, 0)
   }
 }
