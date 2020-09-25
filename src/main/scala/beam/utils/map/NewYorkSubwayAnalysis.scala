@@ -29,17 +29,33 @@ object NewYorkSubwayAnalysis {
     getNumberOf(walkTransitRequestToResponses, Set("walk", "subway"))
   }
 
+  def getNumberOfTrams(walkTransitRequestToResponses: Map[Int, Array[Data]]): Int = {
+    getNumberOf(walkTransitRequestToResponses, Set("walk", "tram"))
+  }
+
+  def getNumberOfFerries(walkTransitRequestToResponses: Map[Int, Array[Data]]): Int = {
+    getNumberOf(walkTransitRequestToResponses, Set("walk", "ferry"))
+  }
+
+  def getNumberOfRails(walkTransitRequestToResponses: Map[Int, Array[Data]]): Int = {
+    getNumberOf(walkTransitRequestToResponses, Set("walk", "rail"))
+  }
+
   def getNumberOfBusAndSubways(walkTransitRequestToResponses: Map[Int, Array[Data]]): Int = {
     getNumberOf(walkTransitRequestToResponses, Set("walk", "subway", "bus"))
   }
 
   def main(args: Array[String]): Unit = {
     val pathToResponseFile =
-      "C:/temp/NY_runs/NYC-200k-bus-vs-subway-more-samples-2__2020-09-23_14-51-18_ret/0.routingResponse.parquet"
+      "C:/temp/NY_runs/NYC-200k-bus-vs-subway-more-samples-1__2020-09-23_17-24-23_kbj/0.routingResponse.parquet"
     val walkTransitRequestToResponses = getWalkTransitRequestToResponses(pathToResponseFile)
 
+    println(s"All possible modes: ${walkTransitRequestToResponses.flatMap(_._2.map(_.mode)).toSet}")
+    println(
+      s"All possible trip classifiers: ${walkTransitRequestToResponses.flatMap(_._2.map(_.tripClassifier)).toSet}"
+    )
+
     val totalWalkTransits = walkTransitRequestToResponses.map(x => x._2.map(_.itineraryIndex).distinct.length).sum
-    println(s"totalWalkTransits: ${totalWalkTransits}")
 
     val moreThanOneTransit = walkTransitRequestToResponses.count {
       case (_, xs) =>
@@ -50,6 +66,10 @@ object NewYorkSubwayAnalysis {
           .count(x => x.tripClassifier == "walk_transit" && x.legIndex == 0)
         nWalkTransits > 1
     }
+
+    println(s"File: $pathToResponseFile")
+    println(s"totalWalkTransits: ${totalWalkTransits}")
+
     println(s"The number of cases when there are more than one transit: ${moreThanOneTransit}")
 
     val onlyBusCount: Int = getNumberOfBuses(walkTransitRequestToResponses)
@@ -58,9 +78,29 @@ object NewYorkSubwayAnalysis {
     val onlySubwayCount: Int = getNumberOfSubways(walkTransitRequestToResponses)
     println(s"Contains only SUBWAY mode: $onlySubwayCount")
 
+    val onlyTramCount: Int = getNumberOfTrams(walkTransitRequestToResponses)
+    println(s"Contains only TRAM mode: $onlyTramCount")
+
+    val onlyFerryCount: Int = getNumberOfFerries(walkTransitRequestToResponses)
+    println(s"Contains only Ferry mode: $onlyFerryCount")
+
+    val onlyRailCount: Int = getNumberOfRails(walkTransitRequestToResponses)
+    println(s"Contains only Rail mode: $onlyFerryCount")
+
     val busAndSubwayCount: Int = getNumberOfBusAndSubways(walkTransitRequestToResponses)
     println(s"Contains both BUS and SUBWAY: $busAndSubwayCount")
 
+    val csvStr = Array(
+      totalWalkTransits,
+      moreThanOneTransit,
+      onlyBusCount,
+      onlySubwayCount,
+      onlyTramCount,
+      onlyFerryCount,
+      onlyRailCount,
+      busAndSubwayCount
+    ).map(x => "\"" + x + "\"").mkString(",")
+    println(s"Csv: $csvStr")
   }
 
   private def getWalkTransitRequestToResponses(pathToResponeFile: String): Map[Int, Array[Data]] = {
