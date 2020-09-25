@@ -14,11 +14,15 @@ object NewYorkSubwayAnalysis {
   )
 
   def getNumberOf(walkTransitResponses: Map[Int, Array[Data]], modes: Set[String]): Int = {
-    walkTransitResponses.count {
+    walkTransitResponses.map {
       case (_, xs) =>
-        val uniqueModes = xs.map(_.mode).toSet
-        uniqueModes == modes
-    }
+        val itineraryIndices = xs.filter(x => x.mode == "bike").map(_.itineraryIndex).toSet
+        val noBikeTransit = xs
+          .filter(x => !itineraryIndices.contains(x.itineraryIndex))
+        val areMatching = noBikeTransit.groupBy(x => x.itineraryIndex)
+          .map { case (_, xs) => modes == xs.map(_.mode).toSet}
+        areMatching.count(x => x)
+    }.sum
   }
 
   def getNumberOfBuses(walkTransitRequestToResponses: Map[Int, Array[Data]]): Int = {
