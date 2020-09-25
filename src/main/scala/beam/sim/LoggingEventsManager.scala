@@ -2,9 +2,6 @@ package beam.sim
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.EventsAccumulator
-import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
@@ -34,20 +31,7 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
   private val stacktraceToException: collection.mutable.HashMap[StackTraceElement, Exception] =
     collection.mutable.HashMap()
 
-  private var eventsAccumulatorMaybe: Option[ActorRef] = None
-
-  def setEventsAccumulator(accumulator: Option[ActorRef]): Unit = {
-    eventsAccumulatorMaybe = accumulator
-  }
-
   override def processEvent(event: Event): Unit = {
-    eventsAccumulatorMaybe.foreach { accumulator =>
-      event match {
-        case e @ (_: ChargingPlugInEvent | _: ChargingPlugOutEvent | _: RefuelSessionEvent) =>
-          accumulator ! EventsAccumulator.ProcessChargingEvents(e)
-        case _ =>
-      }
-    }
     blockingQueue.add(event)
     numOfEvents.incrementAndGet()
   }

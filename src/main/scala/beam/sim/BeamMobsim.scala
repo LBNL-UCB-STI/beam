@@ -9,13 +9,12 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
-import beam.cosim.helics.BeamFederate.BeamFederateTrigger
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
 import beam.router.Modes.BeamMode
 import beam.router._
@@ -478,19 +477,6 @@ class BeamMobsimIteration(
   context.watch(tazSkimmer)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), tazSkimmer)
 
-  val eventsAccumulatorMaybe: Option[ActorRef] =
-    if (beamConfig.beam.agentsim.collectEvents) {
-      val eventsAccumulator = context.actorOf(EventsAccumulator.props(beamServices))
-      context.watch(eventsAccumulator)
-      scheduler ! ScheduleTrigger(BeamFederateTrigger(0), eventsAccumulator)
-      Some(eventsAccumulator)
-    } else None
-  eventsManager match {
-    case lem: LoggingEventsManager =>
-      lem.asInstanceOf[LoggingEventsManager].setEventsAccumulator(eventsAccumulatorMaybe)
-    case _ =>
-  }
-
   def prepareMemoryLoggingTimerActor(
     timeoutInSeconds: Int,
     system: ActorSystem,
@@ -521,10 +507,6 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
-      eventsAccumulatorMaybe.foreach { eventsAccumulator =>
-        eventsAccumulator ! Finish
-        context.stop(eventsAccumulator)
-      }
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
