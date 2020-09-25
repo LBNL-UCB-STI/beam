@@ -73,7 +73,6 @@ trait ModeChoiceCalculator {
 
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
-    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val totalCost = embodiedBeamTrip.tripClassifier match {
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
         val transitFareDefault =
@@ -108,11 +107,11 @@ trait ModeChoiceCalculator {
     attributesOfIndividual: AttributesOfIndividual
   ): Double
 
-  final def chooseRandomElement(alternatives: Seq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    if (alternatives.isEmpty) None
-    else {
-      val position = Random.nextInt(alternatives.size)
-      Some(alternatives(position))
+  final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
+    if (alternatives.nonEmpty) {
+      Random.nextInt(alternatives.size)
+    } else {
+      throw new IllegalArgumentException("Cannot choose from an empty choice set.")
     }
   }
 }

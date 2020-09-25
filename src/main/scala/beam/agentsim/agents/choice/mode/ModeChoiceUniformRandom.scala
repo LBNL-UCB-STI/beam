@@ -19,7 +19,13 @@ class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalc
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
     person: Option[Person] = None
-  ): Option[EmbodiedBeamTrip] = chooseRandomElement(alternatives)
+  ): Option[EmbodiedBeamTrip] = {
+    if (alternatives.nonEmpty) {
+      Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
+    } else {
+      None
+    }
+  }
 
   override def utilityOf(
     alternative: EmbodiedBeamTrip,
