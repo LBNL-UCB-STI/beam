@@ -22,7 +22,7 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
       Failure(e)
   }.toOption
 
-  lazy val isConnectedToGrid: Boolean = beamFederateOption.isDefined
+  def initFederateConnection: Boolean = beamFederateOption.isDefined
 
   /**
     * Publishes required power to the grid
@@ -76,6 +76,14 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     }
   }
 
+  /**
+    * This method is safe to call because it doesn't utilize any Helics or BeamFederate resources.
+    *
+    * It's needed when a client would like to mimic the behaviour of method [[obtainPowerPhysicalBounds(Int)]]
+    * but don't want to force PowerController to connect to grid
+    * @param currentTime
+    * @return
+    */
   def defaultPowerPhysicalBounds(currentTime: Int): (PhysicalBounds, Int) = {
     val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
     (PhysicalBounds.default, fedTimeStep * (1 + (currentTime / fedTimeStep)))

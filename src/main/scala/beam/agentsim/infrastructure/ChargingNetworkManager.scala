@@ -33,7 +33,8 @@ class ChargingNetworkManager(
   private val gridConnectionEnabled = beamConfig.beam.agentsim.chargingNetworkManager.gridConnectionEnabled
   log.info("ChargingNetworkManager should be connected to grid: {}", gridConnectionEnabled)
   if (gridConnectionEnabled) {
-    log.info("ChargingNetworkManager is connected to grid: {}", powerController.isConnectedToGrid)
+    val isConnectionEstablished = powerController.initFederateConnection
+    log.info("ChargingNetworkManager is actually connected to grid: {}", isConnectionEstablished)
   }
 
   override def receive: Receive = {
