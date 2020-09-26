@@ -112,24 +112,40 @@ class ChargingNetworkManager(
           val (chargingDuration, providedEnergy) =
             vehicle.refuelingSessionDurationAndEnergyInJoules(Some(maxChargeDuration))
 
-          vehicle.addFuel(providedEnergy)
-          val currentSession = ChargingSession(providedEnergy, chargingDuration)
-          val newTotalSession = totalChargingSession.combine(currentSession)
+          // make correctness if the vehicle is potentially over fueled
+          if (vehicle.primaryFuelLevelInJoules + providedEnergy > vehicle.beamVehicleType.primaryFuelCapacityInJoule) {
+            val adjustedProvidedEnergy = vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules
+            log.error(
+              "Vehicle {} is over fueled! Provided {} energy, but required {} in J.",
+              vehicle,
+              providedEnergy,
+              adjustedProvidedEnergy
+            )
+            vehicle.addFuel(adjustedProvidedEnergy)
+          } else {
+            vehicle.addFuel(providedEnergy)
+          }
 
-          endRefuelSessionTriggerMaybe(
-            vehicle,
-            tick,
-            maxChargeDuration,
-            currentSession,
-            newTotalSession
-          ).map { endRefuelSession =>
-              vehiclesToCharge.remove(vehicleId)
-              ScheduleTrigger(endRefuelSession, agent)
-            }
-            .orElse {
-              vehiclesToCharge.update(vehicleId, ChargingVehicle(vehicle, agent, newTotalSession, currentSession))
-              None
-            }
+          val currentSession = ChargingSession(providedEnergy, chargingDuration)
+          val totalSession = totalChargingSession.combine(currentSession)
+
+          if (isChargingOver(vehicle, tick, maxChargeDuration, currentSession, totalSession)) {
+            vehiclesToCharge.remove(vehicleId)
+            Some(
+              ScheduleTrigger(
+                EndRefuelSessionTrigger(
+                  tick + currentSession.duration.toInt,
+                  vehicle.getChargerConnectedTick(),
+                  totalSession.energy,
+                  vehicle
+                ),
+                agent
+              )
+            )
+          } else {
+            vehiclesToCharge.update(vehicleId, ChargingVehicle(vehicle, agent, totalSession, currentSession))
+            None
+          }
 
         case (id, energy) if energy <= 0 =>
           log.warning(
@@ -183,28 +199,21 @@ class ChargingNetworkManager(
     (nextTick, requiredEnergyPerVehicle)
   }
 
-  private def endRefuelSessionTriggerMaybe(
+  private def isChargingOver(
     vehicle: BeamVehicle,
     tick: Int,
     maxChargeDuration: Long,
     currentSession: ChargingSession,
     totalSession: ChargingSession
-  ): Option[EndRefuelSessionTrigger] = {
-    if (vehicle.primaryFuelLevelInJoules >= vehicle.beamVehicleType.primaryFuelCapacityInJoule) {
+  ): Boolean = {
+    if (vehicle.primaryFuelLevelInJoules == vehicle.beamVehicleType.primaryFuelCapacityInJoule) {
       log.debug(
         "Vehicle {} is fully charged. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
         vehicle.id,
         tick + currentSession.duration.toInt,
         totalSession.energy
       )
-      Some(
-        EndRefuelSessionTrigger(
-          tick + currentSession.duration.toInt,
-          vehicle.getChargerConnectedTick(),
-          totalSession.energy,
-          vehicle
-        )
-      )
+      true
     } else if (currentSession.duration < maxChargeDuration) {
       log.debug(
         "Vehicle {} is charged by a short time: {}. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
@@ -213,14 +222,7 @@ class ChargingNetworkManager(
         tick + currentSession.duration.toInt,
         totalSession.energy
       )
-      Some(
-        EndRefuelSessionTrigger(
-          tick + currentSession.duration.toInt,
-          vehicle.getChargerConnectedTick(),
-          totalSession.energy,
-          vehicle
-        )
-      )
+      true
     } else {
       log.debug(
         "Ending refuel cycle for vehicle {}. Provided {} J. during {}",
@@ -228,7 +230,7 @@ class ChargingNetworkManager(
         currentSession.energy,
         currentSession.duration
       )
-      None
+      false
     }
   }
 
