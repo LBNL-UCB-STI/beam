@@ -193,16 +193,19 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
             // run graphHopper for only walk
             val ghWalkResponse = calcGhRoute(request, WALK)
 
+            val successfulCarResponse = ghCarResponse.exists(_.itineraries.nonEmpty)
+            val successfulWalkResponse = ghWalkResponse.exists(_.itineraries.nonEmpty)
+
             val modesToExclude = calcExcludeModes(
-              ghCarResponse.exists(_.itineraries.nonEmpty),
-              ghWalkResponse.exists(_.itineraries.nonEmpty)
+              successfulCarResponse,
+              successfulWalkResponse
             )
 
-            if (request.streetVehicles.exists(_.mode == CAR) && !ghCarResponse.exists(_.itineraries.nonEmpty)) {
+            if (request.streetVehicles.exists(_.mode == CAR) && !successfulCarResponse) {
               carRoutesCallbackToR5.incrementAndGet()
             }
 
-            if (request.streetVehicles.exists(_.mode == WALK) && !ghWalkResponse.exists(_.itineraries.nonEmpty)) {
+            if (request.streetVehicles.exists(_.mode == WALK) && !successfulWalkResponse) {
               walkRoutesCallbackToR5.incrementAndGet()
             }
 
