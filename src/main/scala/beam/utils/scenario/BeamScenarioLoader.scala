@@ -316,7 +316,8 @@ object BeamScenarioLoader extends LazyLogging {
       case Some(persons) =>
         persons.map(x => Id.createPersonId(x.personId.id)).toList.asJava
       case None =>
-        logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'.")
+        // FIXME Uncomment
+//        logger.warn(s"Could not find persons for the `household_id` '${householdInfo.householdId}'.")
         util.Collections.emptyList()
     }
   }

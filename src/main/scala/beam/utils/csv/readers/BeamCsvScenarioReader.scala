@@ -47,7 +47,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val cars = householdIdToVehiclesSize.get(householdId) match {
       case Some(total) => total
       case None =>
-        logger.warn(s"HouseholdId [$householdId] has no cars associated")
+        // FIXME Uncomment
+        //        logger.warn(s"HouseholdId [$householdId] has no cars associated")
         0
     }
     HouseholdInfo(
