@@ -62,13 +62,27 @@ class ChargingNetworkManager(
         .remove(vehicle.id)
         .map { cv =>
           val restChargeDuration = (tick % beamConfig.beam.cosim.helics.timeStep)
+          val lastSession = cv.lastChargingSession
+          val totalSession = cv.totalChargingSession
+
           val totalEnergyAdjustedByTick =
-            if (cv.lastChargingSession.duration == 0) {
+            if (lastSession.duration == 0) {
+              // If the last session duration is 0 when ChargingUnplugRequest even happens -
+              // it means the vehicle was added to the sequence of `vehiclesToCharge`
+              // but a PlanningTimeOutTrigger event has never happened yet.
+              // And this is the place when we need to
+              // - calculate only the energy during `restChargeDuration`
               val (_, energy) = vehicle.refuelingSessionDurationAndEnergyInJoules(Some(restChargeDuration))
               energy
             } else {
-              val energyAdjustedByLastTick = cv.lastChargingSession.energy / cv.lastChargingSession.duration * restChargeDuration
-              (cv.totalChargingSession.energy - cv.lastChargingSession.energy + Math.round(energyAdjustedByLastTick))
+              // If the last session duration is > 0 when ChargingUnplugRequest even happens -
+              // it means one or more PlanningTimeOutTrigger events have happened already.
+              // And this is the place when we need to:
+              // - make and adjustment of last charging energy session using `restChargeDuration`
+              // - apply this adjustment to all previous charging sessions
+              val energyAdjustedByLastTick = Math.round(lastSession.energy / lastSession.duration * restChargeDuration)
+              val energy = totalSession.energy - lastSession.energy + energyAdjustedByLastTick
+              energy
             }
           log.debug(
             "Vehicle {} is removed from ChargingManager. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
