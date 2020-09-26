@@ -62,13 +62,15 @@ object NewYorkSubwayAnalysis {
 
   def main(args: Array[String]): Unit = {
     val pathToResponseFile =
-      "C:/temp/NY_runs/new-york-200k-baseline__2020-09-25_03-19-16_luj/10.routingResponse.parquet"
+      """C:\temp\NY_runs\new-york-200k-baseline__2020-09-25_03-19-16_luj\10.routingResponse.parquet"""
     val walkTransitRequestToResponses = getWalkTransitRequestToResponses(pathToResponseFile)
 
     println(s"All possible modes: ${walkTransitRequestToResponses.flatMap(_._2.map(_.mode)).toSet}")
     println(
       s"All possible trip classifiers: ${walkTransitRequestToResponses.flatMap(_._2.map(_.tripClassifier)).toSet}"
     )
+
+    showTransitDiversification(walkTransitRequestToResponses)
 
     val allWalkDistancesBetweenTwoSubways = walkTransitRequestToResponses.values.flatMap { xs =>
       val withoutBikes = noBikes(xs)
@@ -135,6 +137,62 @@ object NewYorkSubwayAnalysis {
     ).map(x => "\"" + x + "\"").mkString(",")
     println(s"Csv: $csvStr")
 
+  }
+
+  private def showTransitDiversification(walkTransitRequestToResponses: Map[Int, Array[Data]]): Unit = {
+    val temp = walkTransitRequestToResponses.values.map { xs =>
+      val withoutBikes = noBikes(xs)
+      val allLegsSorted =
+        withoutBikes.groupBy(x => x.itineraryIndex).map { case (_, legs) => legs.sortBy(x => x.legIndex) }
+      val tripClass = allLegsSorted.map { legs =>
+        val uniqueModes = legs.map(_.mode).toSet
+        val hasBus = uniqueModes.contains("bus")
+        val hasSubway = uniqueModes.contains("subway")
+        (hasBus, hasSubway, hasBus && hasSubway)
+      }
+
+      val anyBus = tripClass.exists { case (hasBus, hasSubway, _)    => hasBus && !hasSubway }
+      val anySubway = tripClass.exists { case (hasBus, hasSubway, _) => hasSubway && !hasBus }
+      val anyBoth = tripClass.exists { case (_, _, both)             => both }
+
+      val onlyBusClass = tripClass.forall { case (hasBus, hasSubway, _)    => hasBus && !hasSubway }
+      val onlySubwayClass = tripClass.forall { case (hasBus, hasSubway, _) => hasSubway && !hasBus }
+      val onlyBothClass = tripClass.forall { case (_, _, both)             => both }
+      val `bus + subway | subway Class` = anyBoth && anySubway && !anyBus
+      val `bus + subway | bus Class` = anyBoth && anyBus && !anySubway
+      val allClass = anyBoth && anySubway && anyBus
+
+      if (onlyBusClass) "onlyBusClass"
+      else if (onlySubwayClass) "onlySubwayClass"
+      else if (onlyBothClass) "onlyBothClass"
+      else if (`bus + subway | subway Class`) "bus + subway | subway Class"
+      else if (`bus + subway | bus Class`) "bus + subway | bus Class"
+      else if (allClass) "allClass"
+      else "Others"
+    }
+
+    val default = Map(
+      "onlyBusClass"                -> 0,
+      "onlySubwayClass"             -> 0,
+      "onlyBothClass"               -> 0,
+      "bus + subway | subway Class" -> 0,
+      "bus + subway | bus Class"    -> 0,
+      "allClass"                    -> 0,
+      "Others"                      -> 0
+    )
+    val transitDiversifivation =
+      (default ++ temp.groupBy(identity).map { case (clazz, xs) => clazz -> xs.size }).toSeq.sortBy(x => x._1)
+    println(s"transitDiversifivation: ${transitDiversifivation.size}")
+    transitDiversifivation.foreach {
+      case (clazz, cnt) =>
+        println(s"${clazz},$cnt")
+    }
+
+    val csvKeys = transitDiversifivation.map(_._1).map(x => "\"" + x + "\"").mkString(",")
+    println(csvKeys)
+
+    val csvVals = transitDiversifivation.map(_._2).map(x => "\"" + x + "\"").mkString(",")
+    println(csvVals)
   }
 
   private def getWalkBetweenTwoSubways(legs: Array[Data]): Seq[Double] = {
