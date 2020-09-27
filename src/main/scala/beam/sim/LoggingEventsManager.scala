@@ -80,9 +80,11 @@ class LoggingEventsManager @Inject()(config: Config) extends EventsManager with 
   override def finishProcessing(): Unit = {
     val s = System.currentTimeMillis()
     isFinished.set(true)
-    logger.info("Set `isFinished` to true")
+    logger.debug("Set `isFinished` to true")
     dedicatedHandler.foreach { f =>
-      logger.info("Starting to wait dedicatedHandler future to finish...")
+      logger.info(
+        s"Starting to wait dedicatedHandler future to finish... Number of events in the queue to process: ${blockingQueue.size()}"
+      )
       Await.result(f, 1000.seconds)
       logger.info("dedicatedHandler future finished.")
     }
