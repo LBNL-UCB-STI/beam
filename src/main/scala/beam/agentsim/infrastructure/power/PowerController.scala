@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
@@ -8,8 +9,12 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
+import spray.json._
+import DefaultJsonProtocol._
 
 class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
+  import PowerController._
+  import JsonProtocol._
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = Try {
@@ -34,21 +39,24 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     * @param currentTime current time
     * @return tuple of PhysicalBounds and Int (next time)
     */
-  def obtainPowerPhysicalBounds(currentTime: Int, requiredLoad: Map[Int, Double]): Map[Int, PhysicalBounds] = {
+  def obtainPowerPhysicalBounds(currentTime: Int, requiredLoad: Map[ChargingZone, Double]): Map[Int, PhysicalBounds] = {
     logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
     beamFederateOption
       .fold(logger.warn("Not connected to grid, nothing was sent")) { beamFederate =>
-        beamFederate.publishPowerOverPlanningHorizon(requiredLoad)
+        val value =
+          requiredLoad.map(x => PhysicalBoundsMessage(x._1.tazId.toString, x._1.parkingZoneId, x._2, x._2).toJson)
+        beamFederate.publishPowerOverPlanningHorizon(JsArray(value.toVector))
       }
     logger.debug("Obtaining power from the grid at time {}...", currentTime)
     val bounds = beamFederateOption
-        .map { beamFederate =>
-          beamFederate.syncAndMoveToNextTimeStep(currentTime)
-          beamFederate.obtainPowerFlowValue.map {
-            case (k, (a, b, c)) => k -> PhysicalBounds(a, b, c)
-          }
-        }
-        .getOrElse(defaultPowerPhysicalBounds(currentTime, requiredLoad))
+      .map { beamFederate =>
+        beamFederate.syncAndMoveToNextTimeStep(currentTime)
+        beamFederate.obtainPowerFlowValue
+          .convertTo[List[PhysicalBoundsMessage]]
+          .map(x => x.zoneId -> PhysicalBounds(x.minLoad, x.maxLoad))
+      }
+      .getOrElse(defaultPowerPhysicalBounds(currentTime, requiredLoad))
+      .toMap
     logger.debug("Obtained power from the grid {}...", bounds)
     bounds
   }
@@ -69,8 +77,36 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     }
   }
 
-  def defaultPowerPhysicalBounds(currentTime: Int, requiredLoad: Map[Int, Double]): Map[Int, PhysicalBounds] = {
+  def defaultPowerPhysicalBounds(
+    currentTime: Int,
+    requiredLoad: Map[ChargingZone, Double]
+  ): Map[Int, PhysicalBounds] = {
     logger.warn("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
-    requiredLoad.map{case (k, v) => k -> PhysicalBounds(v, v, 0.0)}
+    requiredLoad.map { case (k, v) => k.parkingZoneId -> PhysicalBounds(v, v) }
+  }
+}
+
+object PowerController {
+  case class PhysicalBoundsMessage(tazId: String, zoneId: Int, minLoad: Double, maxLoad: Double)
+
+  object JsonProtocol extends DefaultJsonProtocol {
+    implicit object PBMJsonFormat extends RootJsonFormat[PhysicalBoundsMessage] {
+
+      def write(c: PhysicalBoundsMessage) = JsObject(
+        "tazId"   -> JsString(c.tazId),
+        "zoneId"  -> JsNumber(c.zoneId),
+        "minLoad" -> JsNumber(c.minLoad),
+        "maxLoad" -> JsNumber(c.maxLoad)
+      )
+
+      def read(value: JsValue) = {
+        value.asJsObject.getFields("tazId", "zoneId", "minLoad", "maxLoad") match {
+          case Seq(JsString(tazId), JsNumber(zoneId), JsNumber(minLoad), JsNumber(maxLoad)) =>
+            PhysicalBoundsMessage(tazId, zoneId.toInt, minLoad.toDouble, maxLoad.toDouble)
+          case _ =>
+            throw DeserializationException("PhysicalBoundsMessage expected")
+        }
+      }
+    }
   }
 }

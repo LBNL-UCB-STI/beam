@@ -11,6 +11,10 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 
 import scala.collection.mutable
+import scala.util.parsing.json._
+import spray.json._
+import DefaultJsonProtocol._
+
 import scala.reflect.ClassTag
 
 object BeamFederate {
@@ -36,6 +40,14 @@ object BeamFederate {
     helics.helicsCloseLibrary()
     beamFed = None
   }
+
+//  import scala.reflect.ClassTag
+//  import scala.reflect.runtime.universe._
+//  abstract class BeamFederateMessage() {
+//    def classAccessors[T: TypeTag]: String = typeOf[T].members.collect {
+//      case m: MethodSymbol if m.isCaseAccessor => m.name
+//    }.mkString("\t")
+//  }
 }
 
 case class BeamFederate(beamServices: BeamServices, fedName: String, fedTimeStep: Int) extends StrictLogging {
@@ -87,14 +99,17 @@ case class BeamFederate(beamServices: BeamServices, fedName: String, fedTimeStep
     }
   }
 
-  def publishPowerOverPlanningHorizon(values: Map[Int, Double]): Unit = {
-    helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), value)
-    logger.debug("Sent power over next interval value = {} from grid", value)
+  def publishPowerOverPlanningHorizon(value: JsValue): Unit = {
+    helics.helicsFederatePublishJSON(registeredEvents(PowerOverNextInterval), value.compactPrint)
+    logger.debug("Sent load over next interval to the grid")
   }
 
-  def obtainPowerFlowValue: Map[Int, (Double, Double, Double)] = {
-    val value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
-    logger.debug("Received power flow value = {} from grid", value)
+  def obtainPowerFlowValue: JsValue = {
+    val buffer = new Array[Byte](1000)
+    val bufferInt = new Array[Int](1)
+    helics.helicsInputGetString(registeredSubscriptions(PowerFlow), buffer, bufferInt)
+    val value = buffer.take(bufferInt(0)).map(_.toChar).mkString.parseJson
+    logger.debug("Received physical bounds from the grid")
     value
   }
 

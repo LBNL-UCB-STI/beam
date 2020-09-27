@@ -38,10 +38,10 @@ class ChargingNetworkManager(
   private def vehicles: Map[Id[BeamVehicle], BeamVehicle] = vehiclesToCharge.mapValues(_.vehicle).toMap
 
   private val chargingStationsQTree: QuadTree[ChargingZone] = loadChargingStations()
-  private val sitePowerManager = new SitePowerManager(chargingStationsQTree.values().asScala.map(s => s.parkingZoneId -> s).toMap, beamServices)
+  private val sitePowerManager =
+    new SitePowerManager(chargingStationsQTree.values().asScala.map(s => s.parkingZoneId -> s).toMap, beamServices)
   private val powerController = new PowerController(beamServices, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
-
 
   log.info("ChargingNetworkManager should be connected to grid: {}", cnmConfig.gridConnectionEnabled)
   private val isConnectedToTheGrid: Boolean = cnmConfig.gridConnectionEnabled && powerController.initFederateConnection
@@ -198,7 +198,8 @@ class ChargingNetworkManager(
       beamConfig.beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters
     )) || (!vehicle.isCAV && vehicle.isRefuelNeeded(
       beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
-      beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters))
+      beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
+    ))
   }
 
   private def endRefuelSessionTriggerMaybe(

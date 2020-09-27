@@ -186,7 +186,12 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
 
       chargingNetworkManager ! ChargingUnplugRequest(beamVilleCar, 615)
-      expectMsgType[ScheduleTrigger].trigger shouldBe EndRefuelSessionTrigger(615, 0, 1.3544999999999998E7, beamVilleCar)
+      expectMsgType[ScheduleTrigger].trigger shouldBe EndRefuelSessionTrigger(
+        615,
+        0,
+        1.3544999999999998E7,
+        beamVilleCar
+      )
       expectNoMessage()
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(900), 0)

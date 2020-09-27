@@ -31,13 +31,14 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
     * @param tick bean time
     * @return power (in Kilo Watt) over planning horizon
     */
-  def getPowerOverNextPlanningHorizon(tick: Int): Map[Int, Double] = {
-    chargingStations.map { case (_, s) =>
-      val load = tazSkimmer.getLatestSkimByTAZ(tick, s.tazId, SKIM_ACTOR, SKIM_VAR_PREFIX + s.parkingZoneId) match {
-        case Some(skim) => skim.value * skim.observations
-        case None       => ChargingPointType.getChargingPointInstalledPowerInKw(s.chargingPointType) * s.maxStations
-      }
-      s.parkingZoneId -> load
+  def getPowerOverNextPlanningHorizon(tick: Int): Map[ChargingZone, Double] = {
+    chargingStations.map {
+      case (_, s) =>
+        val load = tazSkimmer.getLatestSkimByTAZ(tick, s.tazId, SKIM_ACTOR, SKIM_VAR_PREFIX + s.parkingZoneId) match {
+          case Some(skim) => skim.value * skim.observations
+          case None       => ChargingPointType.getChargingPointInstalledPowerInKw(s.chargingPointType) * s.maxStations
+        }
+        s -> load
     }
   }
 
@@ -47,11 +48,16 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
     * @param vehicles beam vehicles
     * @return map of electrical vehicles with required amount of energy in joules
     */
-  def replanHorizonAndGetChargingPlanPerVehicle(tick: Int, vehicles: Map[Id[BeamVehicle], BeamVehicle]): Map[Id[BeamVehicle], Double] = {
+  def replanHorizonAndGetChargingPlanPerVehicle(
+    tick: Int,
+    vehicles: Map[Id[BeamVehicle], BeamVehicle]
+  ): Map[Id[BeamVehicle], Double] = {
     val vehicleToLoad = vehicles.view
       .map {
         case (_, v) =>
-          val load = v.refuelingSessionDurationAndEnergyInJoules(Some(planningHorizonInSeconds))._2 / 3600000 / planningHorizonInSeconds
+          val load = v
+            .refuelingSessionDurationAndEnergyInJoules(Some(planningHorizonInSeconds))
+            ._2 / 3600000 / planningHorizonInSeconds
           val zone = v.stall.get.parkingZoneId
           val vehicle = v.id
           eventsManager.processEvent(
@@ -68,7 +74,7 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
 }
 
 object SitePowerManager {
-  case class PhysicalBounds(minPower: Double = Int.MaxValue, maxPower: Double = Int.MaxValue, price: Double = 0.0)
+  case class PhysicalBounds(minPower: Double = Int.MaxValue, maxPower: Double = Int.MaxValue)
   val SKIM_ACTOR = "SitePowerManager"
   val SKIM_VAR_PREFIX = "ChargingStation-"
 }
