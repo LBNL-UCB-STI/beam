@@ -205,9 +205,11 @@ object ChainBasedTourVehicleAllocator {
 
     def apply(possibleVehicles: Vector[VehicleRecord], subtour: Subtour): SubtourRecord = {
       val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
-      val startTime = Try {
-        trips.headOption.map(_.getOriginActivity.getStartTime).get
-      }.getOrElse(throw new RuntimeException(s"No startTime in ${trips.head.getOriginActivity}"))
+
+      val tripOriginActivityOption = trips.headOption.map(_.getOriginActivity)
+      val startTime = tripOriginActivityOption
+        .map(_.getStartTime)
+        .getOrElse(throw new RuntimeException(s"No startTime in $tripOriginActivityOption"))
 
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
