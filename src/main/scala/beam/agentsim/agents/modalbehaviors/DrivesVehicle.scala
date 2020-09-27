@@ -163,6 +163,7 @@ object DrivesVehicle {
   def processLinkEvents(eventsManager: EventsManager, beamVehicleId: Id[BeamVehicle], leg: BeamLeg): Unit = {
     val path = leg.travelPath
     if (path.linkTravelTime.nonEmpty & path.linkIds.size > 1) {
+      val vehicleId = Id.create(beamVehicleId.toString, classOf[Vehicle])
       val links = path.linkIds
       val linkTravelTime = path.linkTravelTime
       var i: Int = 0
@@ -173,7 +174,6 @@ object DrivesVehicle {
         val to = links(i + 1)
         val timeAtNode = math.round(linkTravelTime(i).toFloat)
         curTime = curTime + timeAtNode
-        val vehicleId = Id.create(beamVehicleId.toString, classOf[Vehicle])
         eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
         eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
         i += 1
