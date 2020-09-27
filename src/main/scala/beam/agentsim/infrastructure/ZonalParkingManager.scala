@@ -216,11 +216,15 @@ class ZonalParkingManager(
               if (goingHome) 1.0 else 0.0
             }
 
-          val params: Map[ParkingMNL.Parameters, Double] = Map(
-            ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
-            ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
-            ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
-            ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
+          val params: Map[ParkingMNL.Parameters, Double] = new scala.collection.immutable.Map.Map4(
+            key1 = ParkingMNL.Parameters.RangeAnxietyCost,
+            value1 = rangeAnxietyFactor,
+            key2 = ParkingMNL.Parameters.WalkingEgressCost,
+            value2 = distanceFactor,
+            key3 = ParkingMNL.Parameters.ParkingTicketCost,
+            value3 = parkingCostsPriceFactor,
+            key4 = ParkingMNL.Parameters.HomeActivityPrefersResidentialParking,
+            value4 = homeActivityPrefersResidentialFactor
           )
 
           if (log.isDebugEnabled && inquiry.activityType.toLowerCase == "home") {
