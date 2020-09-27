@@ -31,12 +31,12 @@ class SitePowerManagerSpec extends WordSpecLike with Matchers {
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
-      sitePowerManager.getPowerOverPlanningHorizon(vehiclesMap) shouldBe 0.0
+      sitePowerManager.getPowerOverNextPlanningHorizon(vehiclesMap) shouldBe 0.0
     }
     "get power over planning horizon greater than 0.0 for discharged vehicles" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
-      sitePowerManager.getPowerOverPlanningHorizon(vehiclesMap) shouldBe 10000.0
+      sitePowerManager.getPowerOverNextPlanningHorizon(vehiclesMap) shouldBe 10000.0
     }
     "replan horizon and get charging plan per vehicle" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)

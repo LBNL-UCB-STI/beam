@@ -367,7 +367,7 @@ class BeamMobsimIteration(
   context.watch(parkingManager)
 
   private val chargingNetworkManager = context.actorOf(
-    Props(new ChargingNetworkManager(beamServices, beamScenario, scheduler))
+    Props(new ChargingNetworkManager(beamServices, beamScenario, scheduler, activityQuadTreeBounds))
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )

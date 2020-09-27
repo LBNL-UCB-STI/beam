@@ -23,10 +23,10 @@ object BeamFederate {
 
   var beamFed = Option.empty[BeamFederate]
 
-  def getInstance(beamServices: BeamServices): BeamFederate = this.synchronized {
+  def getInstance(beamServices: BeamServices, fedName: String, fedTimeStep: Int): BeamFederate = this.synchronized {
     if (beamFed.isEmpty) {
       loadHelics
-      beamFed = Some(BeamFederate(beamServices))
+      beamFed = Some(BeamFederate(beamServices, fedName, fedTimeStep))
     }
     beamFed.get
   }
@@ -38,13 +38,11 @@ object BeamFederate {
   }
 }
 
-case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
+case class BeamFederate(beamServices: BeamServices, fedName: String, fedTimeStep: Int) extends StrictLogging {
   private val beamConfig = beamServices.beamScenario.beamConfig
   private val tazTreeMap = beamServices.beamScenario.tazTreeMap
   private val registeredEvents = mutable.HashMap.empty[String, SWIGTYPE_p_void]
   private val registeredSubscriptions = mutable.HashMap.empty[String, SWIGTYPE_p_void]
-  private val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
-  private val fedName = beamConfig.beam.cosim.helics.federateName
   private val fedInfo = helics.helicsCreateFederateInfo()
   helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
   helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, "zmq")
@@ -89,12 +87,12 @@ case class BeamFederate(beamServices: BeamServices) extends StrictLogging {
     }
   }
 
-  def publishPowerOverPlanningHorizon(value: Double): Unit = {
+  def publishPowerOverPlanningHorizon(values: Map[Int, Double]): Unit = {
     helics.helicsPublicationPublishDouble(registeredEvents(PowerOverNextInterval), value)
     logger.debug("Sent power over next interval value = {} from grid", value)
   }
 
-  def obtainPowerFlowValue: Double = {
+  def obtainPowerFlowValue: Map[Int, (Double, Double, Double)] = {
     val value = helics.helicsInputGetDouble(registeredSubscriptions(PowerFlow))
     logger.debug("Received power flow value = {} from grid", value)
     value

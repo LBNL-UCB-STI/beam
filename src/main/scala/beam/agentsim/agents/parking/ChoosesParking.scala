@@ -5,7 +5,11 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ChargingUnplugRequest, EndRefuelSessionTrigger, StartLegTrigger}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
+  ChargingUnplugRequest,
+  EndRefuelSessionTrigger,
+  StartLegTrigger
+}
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle

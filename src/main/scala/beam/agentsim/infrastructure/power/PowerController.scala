@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
+import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -9,13 +11,16 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
-  import PowerController._
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = Try {
     logger.debug("Init PowerController resources...")
     BeamFederate.loadHelics
-    BeamFederate.getInstance(beamServices)
+    BeamFederate.getInstance(
+      beamServices,
+      beamConfig.beam.agentsim.chargingNetworkManager.helicsFederateName,
+      beamConfig.beam.agentsim.chargingNetworkManager.planningHorizonInSeconds
+    )
   }.recoverWith {
     case e =>
       logger.error("Cannot init BeamFederate: {}", e.getMessage)
@@ -25,39 +30,28 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
   lazy val isConnectedToGrid: Boolean = beamFederateOption.isDefined
 
   /**
-    * Publishes required power to the grid
-    *
-    * @param requiredPower power (in joules) over planning horizon
-    */
-  def publishPowerOverPlanningHorizon(requiredPower: Double, currentTime: Int): Unit = {
-    logger.debug("Sending power over planning horizon {} to the grid at time {}...", requiredPower, currentTime)
-    beamFederateOption
-      .fold(logger.warn("Not connected to grid, nothing was sent")) { beamFederate =>
-        beamFederate.publishPowerOverPlanningHorizon(requiredPower)
-      }
-  }
-
-  /**
     * Obtains physical bounds from the grid
     *
     * @param currentTime current time
     * @return tuple of PhysicalBounds and Int (next time)
     */
-  def obtainPowerPhysicalBounds(currentTime: Int): (PhysicalBounds, Int) = {
+  def obtainPowerPhysicalBounds(currentTime: Int, requiredLoad: Map[Int, Double]): Map[Int, PhysicalBounds] = {
+    logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
+    beamFederateOption
+      .fold(logger.warn("Not connected to grid, nothing was sent")) { beamFederate =>
+        beamFederate.publishPowerOverPlanningHorizon(requiredLoad)
+      }
     logger.debug("Obtaining power from the grid at time {}...", currentTime)
-    val (bounds, nextTime) =
-      beamFederateOption
+    val bounds = beamFederateOption
         .map { beamFederate =>
-          val nextTime = beamFederate.syncAndMoveToNextTimeStep(currentTime)
-          val value = beamFederate.obtainPowerFlowValue
-          (PhysicalBounds(value, value, 0), nextTime)
+          beamFederate.syncAndMoveToNextTimeStep(currentTime)
+          beamFederate.obtainPowerFlowValue.map {
+            case (k, (a, b, c)) => k -> PhysicalBounds(a, b, c)
+          }
         }
-        .getOrElse {
-          logger.warn("Not connected to grid, falling to default physical bounds (0.0)")
-          defaultPowerPhysicalBounds(currentTime)
-        }
+        .getOrElse(defaultPowerPhysicalBounds(currentTime, requiredLoad))
     logger.debug("Obtained power from the grid {}...", bounds)
-    (bounds, nextTime)
+    bounds
   }
 
   def close(): Unit = {
@@ -76,16 +70,8 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     }
   }
 
-  def defaultPowerPhysicalBounds(currentTime: Int): (PhysicalBounds, Int) = {
-    val fedTimeStep = beamConfig.beam.cosim.helics.timeStep
-    (PhysicalBounds.default, fedTimeStep * (1 + (currentTime / fedTimeStep)))
-  }
-}
-
-object PowerController {
-  case class PhysicalBounds(minPower: Double, maxPower: Double, price: Double)
-
-  object PhysicalBounds {
-    val default: PhysicalBounds = PhysicalBounds(0.0, 0.0, 0)
+  def defaultPowerPhysicalBounds(currentTime: Int, requiredLoad: Map[Int, Double]): Map[Int, PhysicalBounds] = {
+    logger.warn("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
+    requiredLoad.map{case (k, v) => k -> PhysicalBounds(v, v, 0.0)}
   }
 }

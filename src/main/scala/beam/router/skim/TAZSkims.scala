@@ -7,6 +7,8 @@ import org.matsim.api.core.v01.Id
 
 case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
+  def isEmpty() = pastSkims.isEmpty
+
   def getLatestSkim(
     time: Int,
     taz: Id[TAZ],
