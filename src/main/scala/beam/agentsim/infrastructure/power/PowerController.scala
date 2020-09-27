@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
@@ -27,7 +26,7 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
       Failure(e)
   }.toOption
 
-  lazy val isConnectedToGrid: Boolean = beamFederateOption.isDefined
+  def initFederateConnection: Boolean = beamFederateOption.isDefined
 
   /**
     * Obtains physical bounds from the grid

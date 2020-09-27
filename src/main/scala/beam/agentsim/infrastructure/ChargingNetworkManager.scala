@@ -43,11 +43,9 @@ class ChargingNetworkManager(
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
 
-
   log.info("ChargingNetworkManager should be connected to grid: {}", cnmConfig.gridConnectionEnabled)
-  if (cnmConfig.gridConnectionEnabled) {
-    log.info("ChargingNetworkManager is connected to grid: {}", powerController.isConnectedToGrid)
-  }
+  private val isConnectedToTheGrid: Boolean = cnmConfig.gridConnectionEnabled && powerController.initFederateConnection
+  log.info("ChargingNetworkManager is connected to grid: {}", isConnectedToTheGrid)
 
   override def receive: Receive = {
     case ChargingPlugRequest(vehicle, drivingAgent) =>
@@ -104,7 +102,7 @@ class ChargingNetworkManager(
       // replanning for the next horizon
       log.debug("PlanningTimeOutTrigger, tick: {}", tick)
       sitePowerManager.updatePhysicalBounds(
-        if (cnmConfig.gridConnectionEnabled) {
+        if (isConnectedToTheGrid) {
           powerController.obtainPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
         } else {
           powerController.defaultPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
@@ -138,22 +136,25 @@ class ChargingNetworkManager(
 
           vehicle.addFuel(providedEnergy)
           val currentSession = ChargingSession(providedEnergy, chargingDuration)
-          val newTotalSession = totalChargingSession.combine(currentSession)
+          val totalSession = totalChargingSession.combine(currentSession)
 
-          endRefuelSessionTriggerMaybe(
-            vehicle,
-            tick,
-            maxChargeDuration,
-            currentSession,
-            newTotalSession
-          ).map { endRefuelSession =>
-              vehiclesToCharge.remove(vehicleId)
-              ScheduleTrigger(endRefuelSession, agent)
-            }
-            .orElse {
-              vehiclesToCharge.update(vehicleId, ChargingVehicle(vehicle, agent, newTotalSession, currentSession))
-              None
-            }
+          if (endRefuelSessionTriggerMaybe(vehicle, tick, maxChargeDuration, currentSession, totalSession)) {
+            vehiclesToCharge.remove(vehicleId)
+            Some(
+              ScheduleTrigger(
+                EndRefuelSessionTrigger(
+                  tick + currentSession.duration.toInt,
+                  vehicle.getChargerConnectedTick(),
+                  totalSession.energy,
+                  vehicle
+                ),
+                agent
+              )
+            )
+          } else {
+            vehiclesToCharge.update(vehicleId, ChargingVehicle(vehicle, agent, totalSession, currentSession))
+            None
+          }
 
         case (id, energy) if energy <= 0 =>
           log.warning(
@@ -191,28 +192,30 @@ class ChargingNetworkManager(
       )
   }
 
+  private def isRefuelNeeded(vehicle: BeamVehicle): Boolean = {
+    (vehicle.isCAV && vehicle.isRefuelNeeded(
+      beamConfig.beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters,
+      beamConfig.beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters
+    )) || (!vehicle.isCAV && vehicle.isRefuelNeeded(
+      beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
+      beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters))
+  }
+
   private def endRefuelSessionTriggerMaybe(
     vehicle: BeamVehicle,
     tick: Int,
     maxChargeDuration: Long,
     currentSession: ChargingSession,
     totalSession: ChargingSession
-  ): Option[EndRefuelSessionTrigger] = {
-    if (vehicle.primaryFuelLevelInJoules >= vehicle.beamVehicleType.primaryFuelCapacityInJoule) {
+  ): Boolean = {
+    if (isRefuelNeeded(vehicle)) {
       log.debug(
         "Vehicle {} is fully charged. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
         vehicle.id,
         tick + currentSession.duration.toInt,
         totalSession.energy
       )
-      Some(
-        EndRefuelSessionTrigger(
-          tick + currentSession.duration.toInt,
-          vehicle.getChargerConnectedTick(),
-          totalSession.energy,
-          vehicle
-        )
-      )
+      true
     } else if (currentSession.duration < maxChargeDuration) {
       log.debug(
         "Vehicle {} is charged by a short time: {}. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
@@ -221,14 +224,7 @@ class ChargingNetworkManager(
         tick + currentSession.duration.toInt,
         totalSession.energy
       )
-      Some(
-        EndRefuelSessionTrigger(
-          tick + currentSession.duration.toInt,
-          vehicle.getChargerConnectedTick(),
-          totalSession.energy,
-          vehicle
-        )
-      )
+      true
     } else {
       log.debug(
         "Ending refuel cycle for vehicle {}. Provided {} J. during {}",
@@ -236,7 +232,7 @@ class ChargingNetworkManager(
         currentSession.energy,
         currentSession.duration
       )
-      None
+      false
     }
   }
 
