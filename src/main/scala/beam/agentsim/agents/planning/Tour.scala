@@ -7,12 +7,11 @@ class Tour(private var tripsInternal: Vector[Trip] = Vector()) extends PlanEleme
 
   def trips: Seq[Trip] = tripsInternal
 
-  // TODO: every time it creates a new attribute. is it supposed to be like that?
   override def getAttributes = new Attributes
 
   def addTrip(newTrip: Trip): Unit = tripsInternal = tripsInternal :+ newTrip
 
-  def tripIndexOfElement(planElement: PlanElement): Int = {
+  def tripIndexOfElement(planElement: PlanElement): Option[Int] = {
     val indexes = for {
       tripsWithIndex <- tripsInternal.zipWithIndex
       if isTripOrActivityPlanElement(tripsWithIndex._1, planElement) || isTripLegPlanElement(
@@ -20,7 +19,7 @@ class Tour(private var tripsInternal: Vector[Trip] = Vector()) extends PlanEleme
         planElement
       )
     } yield tripsWithIndex._2
-    indexes.headOption.getOrElse(-1)
+    indexes.headOption
   }
 
   @inline
