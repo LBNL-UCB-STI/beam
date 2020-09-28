@@ -30,19 +30,25 @@ object GtfsUtils {
     * @param gtfsFeed could be either zip file or directory with GTFS data
     */
   def loadTripsFromGtfs(gtfsFeed: Path): (Seq[TripAndStopTimes], GtfsMutableRelationalDao) = {
+    val dao: GtfsRelationalDaoImpl = createDAO(gtfsFeed)
+
+    (getSortedTripsWithStopTimes(dao), dao)
+  }
+
+  private[transit] def createDAO(gtfsFeed: Path) = {
     val dao = new GtfsRelationalDaoImpl
 
     val reader = new GtfsReader
     reader.setEntityStore(dao)
     reader.setInputLocation(gtfsFeed.toFile)
     reader.run()
-
-    (getSortedTripsWithStopTimes(dao), dao)
+    dao
   }
 
   /**
     * Loads GTFS feed into sequence of trips with their stop times
     * and applies transformation strategies
+ *
     * @param gtfsFeed path could be either zip file or directory with GTFS data
     * @param gtfsFeedOut path could be either zip file or directory with GTFS data
     * @param transformerStrategies list of transform strategies to be applied to GTFS entities
