@@ -103,7 +103,9 @@ class ActivitySimFilterEventSpec extends WordSpecLike with MockitoSugar with Mat
       Random.nextBoolean(),
       Random.nextDouble(),
       tourIndex,
-      EmbodiedBeamTrip(IndexedSeq.empty[EmbodiedBeamLeg])
+      EmbodiedBeamTrip(IndexedSeq.empty[EmbodiedBeamLeg]),
+      Random.nextString(10),
+      Random.nextString(10),
     )
   }
 
