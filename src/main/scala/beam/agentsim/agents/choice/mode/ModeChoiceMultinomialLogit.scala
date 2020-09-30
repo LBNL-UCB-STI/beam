@@ -210,7 +210,10 @@ class ModeChoiceMultinomialLogit(
     adjustSpecialBikeLines: Boolean = false
   ): Double = {
     val adjustedTripDuration = if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      ModeChoiceMultinomialLogit.calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip, bikeLanesAdjustment)
+      ModeChoiceMultinomialLogit.calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
+        embodiedBeamTrip,
+        bikeLanesAdjustment
+      )
     } else {
       embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }

@@ -128,7 +128,6 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private val totalCarRouteRequests = new AtomicInteger(0)
   private val totalWalkRouteRequests = new AtomicInteger(0)
 
-
   override final def receive: Receive = {
     case "tick" =>
       firstMsgTime match {

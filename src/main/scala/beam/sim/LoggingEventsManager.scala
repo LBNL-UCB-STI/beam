@@ -6,19 +6,23 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.EventsAccumulator
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.inject.name.Named
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
-import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.events.handler.EventHandler
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-class LoggingEventsManager @Inject()(config: Config) extends EventsManager with LazyLogging {
-  private val eventManager = new EventsManagerImpl()
+class LoggingEventsManager @Inject()(
+  @Named("ParallelEM") defaultEventManager: EventsManager
+) extends EventsManager
+    with LazyLogging {
+  private val eventManager = defaultEventManager
   logger.info(s"Created ${eventManager.getClass} with hashcode: ${eventManager.hashCode()}")
 
   private val numOfEvents: AtomicInteger = new AtomicInteger(0)
