@@ -3295,6 +3295,7 @@ object BeamConfig {
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
         directory: java.lang.String,
+        directory2: scala.Option[java.lang.String],
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
@@ -3340,6 +3341,7 @@ object BeamConfig {
               if (c.hasPathOrNull("bikeLaneScaleFactor")) c.getDouble("bikeLaneScaleFactor") else 1.0,
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
+            directory2 = if (c.hasPathOrNull("directory2")) Some(c.getString("directory2")) else None,
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
