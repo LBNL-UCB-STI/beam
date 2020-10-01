@@ -1,11 +1,14 @@
 package beam.agentsim.infrastructure.power
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
+
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.TAZSkims
 import beam.sim.BeamServices
+import beam.utils.ReadWriteLockUtil.RichReadWriteLock
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
@@ -26,7 +29,10 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
           ChargingPointType.getChargingPointInstalledPowerInKw(s._2.chargingPointType) * s._2.maxStations
       )
     )
-  private var physicalBounds: Map[ZoneId, PhysicalBounds] = unlimitedPhysicalBounds
+
+  private val physicalBoundsRWLock = new ReentrantReadWriteLock()
+  private var physicalBoundsInternal: Map[ZoneId, PhysicalBounds] = unlimitedPhysicalBounds
+  private def physicalBounds: Map[ZoneId, PhysicalBounds] = physicalBoundsRWLock.read { physicalBoundsInternal }
 
   /**
     * Set physical bounds
@@ -34,7 +40,9 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
     * @param physicalBounds Physical bounds from the Power Controller
     */
   def updatePhysicalBounds(physicalBounds: Map[ZoneId, PhysicalBounds]) = {
-    this.physicalBounds = physicalBounds
+    physicalBoundsRWLock.write {
+      physicalBoundsInternal = physicalBounds
+    }
   }
 
   /**
@@ -77,6 +85,15 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
       val (_, unconstrainedEnergy) = v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval))
       v.id -> (chargingDuration, energyToCharge, unconstrainedEnergy)
     }.toMap
+  }
+
+  /**
+   * reset physical bounds
+   */
+  def resetState(): Unit = {
+    physicalBoundsRWLock.write {
+      physicalBoundsInternal = unlimitedPhysicalBounds
+    }
   }
 }
 

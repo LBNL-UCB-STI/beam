@@ -297,6 +297,7 @@ class ChargingNetworkManager(
     if (cnmConfig.gridConnectionEnabled) {
       powerController.close()
     }
+    sitePowerManager.resetState()
     super.postStop()
   }
 }
