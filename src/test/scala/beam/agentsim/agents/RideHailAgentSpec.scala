@@ -65,8 +65,8 @@ class RideHailAgentSpec
     "ParkingManager"
   )
 
-  private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
+    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
 
   case class TestTrigger(tick: Int) extends Trigger
 
@@ -174,7 +174,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
-          chargingNetworkManager(scheduler),
+          self,
           services,
           beamScenario,
           beamScenario.transportNetwork,
@@ -251,7 +251,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
-          chargingNetworkManager(scheduler),
+          self,
           services,
           beamScenario,
           beamScenario.transportNetwork,
@@ -322,7 +322,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
-          chargingNetworkManager(scheduler),
+          self,
           services,
           beamScenario,
           beamScenario.transportNetwork,

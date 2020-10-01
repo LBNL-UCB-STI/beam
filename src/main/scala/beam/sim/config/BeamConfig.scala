@@ -1511,7 +1511,7 @@ object BeamConfig {
             helicsFederateName =
               if (c.hasPathOrNull("helicsFederateName")) c.getString("helicsFederateName") else "BeamCNM",
             planningHorizonInSeconds =
-              if (c.hasPathOrNull("planningHorizonInSeconds")) c.getInt("planningHorizonInSeconds") else 300
+              if (c.hasPathOrNull("planningHorizonInSec")) c.getInt("planningHorizonInSec") else 300
           )
         }
       }

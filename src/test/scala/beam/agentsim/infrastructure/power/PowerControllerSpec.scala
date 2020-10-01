@@ -1,24 +1,31 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
+import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.mockito.ArgumentMatchers.any
+import org.matsim.api.core.v01.Id
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
+import spray.json._
 
 class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach {
 
   private val config =
     ConfigFactory
       .parseString(s"""
-                      |beam.cosim.helics = {
-                      |  timeStep = 300
-                      |  federateName = "BeamFederate"
+                      |beam.agentsim.chargingNetworkManager {
+                      |  gridConnectionEnabled = false
+                      |  chargingSessionInSeconds = 300
+                      |  planningHorizonInSec = 300
+                      |  helicsFederateName = "BeamCNM"
                       |}
                     """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -27,10 +34,24 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   val beamServicesMock = mock[BeamServices]
   val beamFederateMock = mock[BeamFederate]
 
+  val dummyChargingZone = ChargingZone(
+    1,
+    Id.create("Dummy", classOf[TAZ]),
+    ParkingType.Public,
+    1,
+    1,
+    ChargingPointType.ChargingStationType1,
+    PricingModel.FlatFee(0.0)
+  )
+  val dummyPhysicalBounds = PhysicalBounds(dummyChargingZone.tazId, dummyChargingZone.parkingZoneId, 5678.90, 5678.90)
+
   override def beforeEach = {
+    import DefaultJsonProtocol._
+    import SitePowerManager._
+    import JsonProtocol.PBMJsonFormat
     reset(beamServicesMock, beamFederateMock)
     when(beamFederateMock.syncAndMoveToNextTimeStep(300)).thenReturn(600)
-    when(beamFederateMock.obtainPowerFlowValue).thenReturn(5678.90)
+    when(beamFederateMock.obtainPowerFlowValue).thenReturn(List(dummyPhysicalBounds).toJson)
   }
 
   "PowerController when connected to grid" should {
@@ -38,14 +59,10 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       override private[power] lazy val beamFederateOption = Some(beamFederateMock)
     }
 
-    "publish power over planning horizon" in {
-      powerController.publishPowerOverPlanningHorizon(100.0, 300)
-      verify(beamFederateMock, times(1)).publishPowerOverPlanningHorizon(100.0)
-    }
     "obtain power physical bounds" in {
-      val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(300)
-      bounds shouldBe PhysicalBounds(5678.90, 5678.90, 0.0)
-      nextTick shouldBe 600
+      val bounds =
+        powerController.obtainPowerPhysicalBounds(300, Map[ChargingZone, Double](dummyChargingZone -> 5678.90))
+      bounds shouldBe PhysicalBounds(dummyChargingZone.tazId, dummyChargingZone.parkingZoneId, 5678.90, 5678.90)
       verify(beamFederateMock, times(1)).syncAndMoveToNextTimeStep(300)
       verify(beamFederateMock, times(1)).obtainPowerFlowValue
     }
@@ -55,15 +72,9 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       override private[power] lazy val beamFederateOption = None
     }
 
-    "publish nothing" in {
-      powerController.publishPowerOverPlanningHorizon(100.0, 300)
-      verify(beamFederateMock, never()).publishPowerOverPlanningHorizon(any())
-    }
-
     "obtain default (0.0) power physical bounds" in {
-      val (bounds, nextTick) = powerController.obtainPowerPhysicalBounds(300)
-      bounds shouldBe PhysicalBounds(0.0, 0.0, 0.0)
-      nextTick shouldBe 600
+      val bounds = powerController.obtainPowerPhysicalBounds(300, Map[ChargingZone, Double](dummyChargingZone -> 0.0))
+      bounds shouldBe PhysicalBounds(dummyChargingZone.tazId, dummyChargingZone.parkingZoneId, 0.0, 0.0)
       verify(beamFederateMock, never()).syncAndMoveToNextTimeStep(300)
       verify(beamFederateMock, never()).obtainPowerFlowValue
     }

@@ -75,8 +75,8 @@ class PersonAndTransitDriverSpec
     "ParkingManager"
   )
 
-  private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
+    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -256,7 +256,7 @@ class PersonAndTransitDriverSpec
           tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
-          chargingNetworkManager = chargingNetworkManager(scheduler),
+          chargingNetworkManager = self,
           transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
           vehicle = bus,
           Array(busLeg.beamLeg, busLeg2.beamLeg),
@@ -272,7 +272,7 @@ class PersonAndTransitDriverSpec
           tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
-          chargingNetworkManager = chargingNetworkManager(scheduler),
+          chargingNetworkManager = self,
           transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
           vehicle = tram,
           Array(tramLeg.beamLeg),
@@ -347,7 +347,7 @@ class PersonAndTransitDriverSpec
           router = self,
           rideHailManager = self,
           parkingManager = parkingManager,
-          chargingNetworkManager = chargingNetworkManager(scheduler),
+          chargingNetworkManager = self,
           eventsManager = eventsManager,
           population = population,
           household = household,

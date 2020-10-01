@@ -262,7 +262,10 @@ class BeamVehicle(
     *
     * @return refuelingDuration
     */
-  def refuelingSessionDurationAndEnergyInJoules(sessionDurationLimit: Option[Long] = None): (Long, Double) = {
+  def refuelingSessionDurationAndEnergyInJoules(
+    sessionDurationLimit: Option[Long] = None,
+    chargingPowerLimit: Option[Double] = None
+  ): (Long, Double) = {
     stall match {
       case Some(theStall) =>
         theStall.chargingPointType match {
@@ -273,7 +276,8 @@ class BeamVehicle(
               beamVehicleType.primaryFuelCapacityInJoule,
               1e6,
               1e6,
-              sessionDurationLimit
+              sessionDurationLimit,
+              chargingPowerLimit
             )
           case None =>
             (0, 0.0)

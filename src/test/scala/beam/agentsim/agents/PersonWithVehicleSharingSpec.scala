@@ -115,7 +115,7 @@ class PersonWithVehicleSharingSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val mockRouter = TestProbe()
       val mockSharedVehicleFleet = TestProbe()
@@ -132,7 +132,7 @@ class PersonWithVehicleSharingSpec
             mockRouter.ref,
             mockRideHailingManager.ref,
             parkingManager,
-            chargingNetworkManager,
+            self,
             eventsManager,
             population,
             household,
@@ -264,7 +264,7 @@ class PersonWithVehicleSharingSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val mockRouter = TestProbe()
       val mockSharedVehicleFleet = TestProbe()
@@ -281,7 +281,7 @@ class PersonWithVehicleSharingSpec
             mockRouter.ref,
             mockRideHailingManager.ref,
             parkingManager,
-            chargingNetworkManager,
+            self,
             eventsManager,
             population,
             household,
@@ -508,7 +508,7 @@ class PersonWithVehicleSharingSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val mockRouter = TestProbe()
       val mockRideHailingManager = TestProbe()
@@ -524,7 +524,7 @@ class PersonWithVehicleSharingSpec
           mockRouter.ref,
           mockRideHailingManager.ref,
           parkingManager,
-          chargingNetworkManager,
+          self,
           eventsManager,
           population,
           household,

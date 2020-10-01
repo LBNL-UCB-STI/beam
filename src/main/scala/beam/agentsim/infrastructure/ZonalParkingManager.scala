@@ -176,7 +176,8 @@ class ZonalParkingManager(
                       beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
                       1e6,
                       1e6,
-                      parkingDuration
+                      parkingDuration,
+                      None
                     )
                     addedEnergy
                   case None => 0.0 // no charger here

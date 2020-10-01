@@ -107,7 +107,7 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val parkingLocation = new Coord(167138.4, 1117.0)
       val parkingManager = system.actorOf(Props(new AnotherTrivialParkingManager(parkingLocation)))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         Props(
@@ -121,7 +121,7 @@ class PersonWithPersonalVehiclePlanSpec
             self,
             self,
             parkingManager,
-            chargingNetworkManager,
+            self,
             eventsManager,
             population,
             household,
@@ -337,7 +337,7 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager()))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         Props(
@@ -351,7 +351,7 @@ class PersonWithPersonalVehiclePlanSpec
             self,
             self,
             parkingManager,
-            chargingNetworkManager,
+            self,
             eventsManager,
             population,
             household,
@@ -485,7 +485,7 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -498,7 +498,7 @@ class PersonWithPersonalVehiclePlanSpec
           self,
           self,
           parkingManager,
-          chargingNetworkManager,
+          self,
           eventsManager,
           population,
           household,
@@ -585,7 +585,7 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -598,7 +598,7 @@ class PersonWithPersonalVehiclePlanSpec
           self,
           self,
           parkingManager,
-          chargingNetworkManager,
+          self,
           eventsManager,
           population,
           household,

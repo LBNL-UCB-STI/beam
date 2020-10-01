@@ -5,12 +5,14 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.power.SitePowerManager.{SKIM_ACTOR, SKIM_VAR_PREFIX}
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.Location
+import beam.router.skim.TAZSkimmerEvent
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.DateUtils
@@ -18,10 +20,9 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.util.Random
-
-import scala.collection.JavaConverters._
 
 class ChargingNetworkManager(
   beamServices: BeamServices,
@@ -48,6 +49,33 @@ class ChargingNetworkManager(
   log.info("ChargingNetworkManager is connected to grid: {}", isConnectedToTheGrid)
 
   override def receive: Receive = {
+    case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
+      log.debug("PlanningTimeOutTrigger, tick: {}", tick)
+      // Update physical bounds either via the Grid or use the default physical bounds
+      sitePowerManager.updatePhysicalBounds(
+        if (isConnectedToTheGrid) {
+          powerController.obtainPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
+        } else {
+          powerController.defaultPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
+        }
+      )
+
+      // Plan a ChargingTimeOutTrigger. Charging occurs at the end of each charging session.
+      // If charging session is 300, then charging occurs at time 300
+      // by calculating the energy required from time 0 to 300.
+      if (tick == 0)
+        sender ! ScheduleTrigger(ChargingTimeOutTrigger(cnmConfig.chargingSessionInSeconds), self)
+
+      // Replan PlanningTimeOutTrigger to update the the SitePowerManager's physical bounds
+      val nextTick = cnmConfig.planningHorizonInSeconds * (1 + (tick / cnmConfig.planningHorizonInSeconds))
+      sender ! CompletionNotice(
+        triggerId,
+        if (nextTick <= endOfSimulationTime)
+          Vector(ScheduleTrigger(PlanningTimeOutTrigger(nextTick), self))
+        else
+          Vector.empty[ScheduleTrigger]
+      )
+
     case ChargingPlugRequest(vehicle, drivingAgent) =>
       if (vehicle.isBEV | vehicle.isPHEV) {
         log.info(
@@ -77,95 +105,85 @@ class ChargingNetworkManager(
     case ChargingUnplugRequest(vehicle, tick) =>
       log.info("ChargingUnplugRequest for vehicle {} at {}", vehicle, tick)
 
-      vehiclesToCharge
-        .remove(vehicle.id)
-        .map { cv =>
-          val chargeDuration = tick % cnmConfig.chargingSessionInSeconds
-          val (chargeDurationByTick, energyByTick) =
-            vehicle.refuelingSessionDurationAndEnergyInJoules(Some(chargeDuration))
-          vehicle.addFuel(energyByTick)
-          val currentSession = ChargingSession(energyByTick, chargeDurationByTick)
-          val newTotalSession = cv.totalChargingSession.combine(currentSession)
-          log.debug(
-            "Vehicle {} is removed from ChargingManager. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
-            vehicle,
-            tick,
-            newTotalSession.energy
-          )
-          scheduler ! ScheduleTrigger(
-            EndRefuelSessionTrigger(tick, vehicle.getChargerConnectedTick(), newTotalSession.energy, vehicle),
-            cv.agent
-          )
-        }
+      // compute charging plan for the vehicle to unplug at time tick
+      sitePowerManager
+        .replanHorizonAndGetChargingPlanPerVehicle(
+          vehicles.values,
+          tick % cnmConfig.chargingSessionInSeconds
+        )
+        .get(vehicle.id) match {
+        case Some(chargingPlan) =>
+          vehiclesToCharge
+            .remove(vehicle.id)
+            .map { cv =>
+              val (chargeDurationAtTick, constrainedEnergyToCharge, unconstrainedEnergy) = chargingPlan
 
-    case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
-      // replanning for the next horizon
-      log.debug("PlanningTimeOutTrigger, tick: {}", tick)
-      sitePowerManager.updatePhysicalBounds(
-        if (isConnectedToTheGrid) {
-          powerController.obtainPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
-        } else {
-          powerController.defaultPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
-        }
-      )
-      if (tick == 0) sender ! ScheduleTrigger(ChargingTimeOutTrigger(cnmConfig.chargingSessionInSeconds), self)
-      val nextTick = cnmConfig.planningHorizonInSeconds * (1 + (tick / cnmConfig.planningHorizonInSeconds))
-      sender ! CompletionNotice(
-        triggerId,
-        if (nextTick <= endOfSimulationTime)
-          Vector(ScheduleTrigger(PlanningTimeOutTrigger(nextTick), self))
-        else
-          Vector.empty[ScheduleTrigger]
-      )
+              // Collect data on unconstrained load demand (not the constrained demand)
+              collectDataOnLoadDemand(tick, vehicle, chargeDurationAtTick, unconstrainedEnergy)
+
+              // Refuel the vehicle
+              vehicle.addFuel(constrainedEnergyToCharge)
+
+              // Preparing EndRefuelSessionTrigger to notify the driver
+              val currentSession = ChargingSession(constrainedEnergyToCharge, chargeDurationAtTick)
+              val newTotalSession = cv.totalChargingSession.combine(currentSession)
+              log.debug(
+                "Vehicle {} is removed from ChargingManager. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
+                vehicle,
+                tick,
+                newTotalSession.energy
+              )
+              scheduler ! ScheduleTrigger(
+                EndRefuelSessionTrigger(tick, vehicle.getChargerConnectedTick(), newTotalSession.energy, vehicle),
+                cv.agent
+              )
+            }
+        case _ => //
+      }
 
     case TriggerWithId(ChargingTimeOutTrigger(tick), triggerId) =>
       if (vehiclesToCharge.nonEmpty)
         log.debug("ChargingTimeOutTrigger, tick: {}", tick)
 
-      val requiredEnergyPerVehicle = sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(tick, vehicles)
-      val maxChargeDuration = cnmConfig.chargingSessionInSeconds
+      // Calculate the energy to charge each vehicle connected to the a charging station
+      val scheduleTriggers = sitePowerManager
+        .replanHorizonAndGetChargingPlanPerVehicle(vehicles.values, cnmConfig.chargingSessionInSeconds)
+        .flatMap {
+          case (vehicleId, (chargingDuration, constrainedEnergyToCharge, unconstrainedEnergy)) =>
+            // Get vehicle charging status
+            val ChargingVehicle(vehicle, agent, totalChargingSession, _) = vehiclesToCharge(vehicleId)
 
-      val scheduleTriggers = requiredEnergyPerVehicle.flatMap {
-        case (vehicleId, requiredEnergy) if requiredEnergy > 0 =>
-          val ChargingVehicle(vehicle, agent, totalChargingSession, _) = vehiclesToCharge(vehicleId)
+            // Collect data on load demand
+            collectDataOnLoadDemand(tick, vehicle, chargingDuration, unconstrainedEnergy)
 
-          log.debug("Charging vehicle {}. Required energy = {}", vehicle, requiredEnergy)
+            // Refuel the vehicle
+            log.debug("Charging vehicle {}. Energy to charge = {}", vehicle, constrainedEnergyToCharge)
+            vehicle.addFuel(constrainedEnergyToCharge)
 
-          val (chargingDuration, providedEnergy) =
-            vehicle.refuelingSessionDurationAndEnergyInJoules(Some(maxChargeDuration))
-
-          vehicle.addFuel(providedEnergy)
-          val currentSession = ChargingSession(providedEnergy, chargingDuration)
-          val totalSession = totalChargingSession.combine(currentSession)
-
-          if (endRefuelSessionTriggerMaybe(vehicle, tick, maxChargeDuration, currentSession, totalSession)) {
-            vehiclesToCharge.remove(vehicleId)
-            Some(
-              ScheduleTrigger(
-                EndRefuelSessionTrigger(
-                  tick + currentSession.duration.toInt,
-                  vehicle.getChargerConnectedTick(),
-                  totalSession.energy,
-                  vehicle
-                ),
-                agent
+            // Verify the state of charge
+            val currentSession = ChargingSession(constrainedEnergyToCharge, chargingDuration)
+            val totalSession = totalChargingSession.combine(currentSession)
+            if (endRefuelSessionTriggerMaybe(vehicle, tick, currentSession, totalSession)) {
+              vehiclesToCharge.remove(vehicle.id)
+              Some(
+                ScheduleTrigger(
+                  EndRefuelSessionTrigger(
+                    tick + currentSession.duration.toInt,
+                    vehicle.getChargerConnectedTick(),
+                    totalSession.energy,
+                    vehicle
+                  ),
+                  agent
+                )
               )
-            )
-          } else {
-            vehiclesToCharge.update(vehicleId, ChargingVehicle(vehicle, agent, totalSession, currentSession))
-            None
-          }
+            } else {
+              vehiclesToCharge.update(vehicle.id, ChargingVehicle(vehicle, agent, totalSession, currentSession))
+              None
+            }
+        }
+        .toVector
 
-        case (id, energy) if energy <= 0 =>
-          log.warning(
-            "Vehicle {}  (primaryFuelLevel = {}) requires energy {} - which is less or equals zero",
-            vehicles(id),
-            vehicles(id).primaryFuelLevelInJoules,
-            energy
-          )
-          None
-      }.toVector
-
+      // Preparing EndRefuelSessionTrigger to notify the drivers and replanning the ChargingTimeOutTrigger
       val nextTick = cnmConfig.chargingSessionInSeconds * (1 + (tick / cnmConfig.chargingSessionInSeconds))
       sender ! CompletionNotice(
         triggerId,
@@ -192,48 +210,49 @@ class ChargingNetworkManager(
       )
   }
 
-  private def isRefuelNeeded(vehicle: BeamVehicle): Boolean = {
-    (vehicle.isCAV && vehicle.isRefuelNeeded(
-      beamConfig.beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters,
-      beamConfig.beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters
-    )) || (!vehicle.isCAV && vehicle.isRefuelNeeded(
-      beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
-      beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
-    ))
+  private def collectDataOnLoadDemand(
+    tick: Int,
+    vehicle: BeamVehicle,
+    chargingDuration: Long,
+    requiredEnergy: Double
+  ): Unit = {
+    // Collect data on load demand
+    beamServices.matsimServices.getEvents.processEvent(
+      TAZSkimmerEvent(
+        tick,
+        vehicle.stall.get.locationUTM,
+        SKIM_VAR_PREFIX + vehicle,
+        (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0),
+        beamServices,
+        SKIM_ACTOR
+      )
+    )
   }
 
   private def endRefuelSessionTriggerMaybe(
     vehicle: BeamVehicle,
     tick: Int,
-    maxChargeDuration: Long,
     currentSession: ChargingSession,
     totalSession: ChargingSession
   ): Boolean = {
-    if (isRefuelNeeded(vehicle)) {
-      log.debug(
-        "Vehicle {} is fully charged. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
-        vehicle.id,
-        tick + currentSession.duration.toInt,
-        totalSession.energy
-      )
-      true
-    } else if (currentSession.duration < maxChargeDuration) {
-      log.debug(
-        "Vehicle {} is charged by a short time: {}. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
-        vehicle.id,
-        currentSession.duration,
-        tick + currentSession.duration.toInt,
-        totalSession.energy
-      )
-      true
-    } else {
-      log.debug(
-        "Ending refuel cycle for vehicle {}. Provided {} J. during {}",
-        vehicle.id,
-        currentSession.energy,
-        currentSession.duration
-      )
-      false
+    vehicle.refuelingSessionDurationAndEnergyInJoules() match {
+      case (chargingDuration, energyRequired) if chargingDuration == 0 && energyRequired == 0.0 =>
+        log.debug(
+          "Vehicle {} is fully charged. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
+          vehicle.id,
+          tick + currentSession.duration.toInt,
+          totalSession.energy
+        )
+        true
+      case (chargingDuration, energyRequired) =>
+        log.debug(
+          "Ending refuel cycle for vehicle {}. Provided {} J. remaining {} J for {} sec",
+          vehicle.id,
+          currentSession.energy,
+          energyRequired,
+          chargingDuration
+        )
+        false
     }
   }
 
@@ -252,20 +271,22 @@ class ChargingNetworkManager(
       activityQuadTreeBounds.maxy
     )
     zones.filter(_.chargingPointType.isDefined).foreach { zone =>
-      beamScenario.tazTreeMap.getTAZ(zone.tazId).foreach { taz =>
-        stationsQuadTree.put(
-          taz.coord.getX,
-          taz.coord.getY,
-          ChargingZone(
-            zone.parkingZoneId,
-            zone.tazId,
-            zone.parkingType,
-            zone.stallsAvailable,
-            zone.maxStalls,
-            zone.chargingPointType.get,
-            zone.pricingModel.get
+      beamScenario.tazTreeMap.getTAZ(zone.tazId) match {
+        case Some(taz) =>
+          stationsQuadTree.put(
+            taz.coord.getX,
+            taz.coord.getY,
+            ChargingZone(
+              zone.parkingZoneId,
+              zone.tazId,
+              zone.parkingType,
+              zone.stallsAvailable,
+              zone.maxStalls,
+              zone.chargingPointType.get,
+              zone.pricingModel.get
+            )
           )
-        )
+        case _ =>
       }
     }
     stationsQuadTree
