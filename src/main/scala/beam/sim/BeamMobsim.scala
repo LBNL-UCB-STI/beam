@@ -125,7 +125,10 @@ class BeamMobsim @Inject()(
 
     if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, beamServices.matsimServices.getIterationNumber)
+      fillInSecondaryActivities(
+        beamServices.matsimServices.getScenario.getHouseholds,
+        beamServices.matsimServices.getIterationNumber
+      )
     }
 
     val iteration = actorSystem.actorOf(

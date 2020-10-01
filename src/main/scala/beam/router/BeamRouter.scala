@@ -128,6 +128,7 @@ class BeamRouter(
       RoutingWorker.props(
         beamScenario,
         transportNetwork,
+        beamScenario.networks2,
         networkHelper,
         fareCalculator,
         tollCalculator

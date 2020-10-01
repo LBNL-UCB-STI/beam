@@ -88,7 +88,15 @@ class SupplementaryTripGenerator(
           anyChanges = true
           val newActivities = prev.getType match {
             case "Work" =>
-              generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes.filter(_ != BeamMode.CAR))
+              generateSubtour(
+                updatedPreviousActivity,
+                curr,
+                next,
+                modeMNL,
+                destinationMNL,
+                tripMNL,
+                modes.filter(_ != BeamMode.CAR)
+              )
             case _ =>
               generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
           }
