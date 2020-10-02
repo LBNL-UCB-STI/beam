@@ -1,12 +1,12 @@
 package beam.utils.analysis
 
 import beam.sim.common.GeoUtils
-import beam.utils.ProfilingUtils
+import beam.utils.{GeoJsonReader, ProfilingUtils}
 import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
-import beam.utils.map.ShapefileReader
+import beam.utils.map.{GeoAttribute, ShapefileReader}
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import beam.utils.shape.Attributes
@@ -17,93 +17,98 @@ import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
+import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
-private case class Attrib(nPeople: Int) extends Attributes
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 
-object NewYorkHomeWorkLocationAnalysis {
+object NewYorkBeamVsLodes {
+  private case class GeoAttribute(
+    state: String,
+    county: String,
+    tractCode: String,
+    blockGroup: String,
+    censusBlockGroup: String
+  ) extends Attributes
+
+  private def mapper(feature: Feature): (GeoAttribute, MultiPolygon) = {
+    val geom = feature.asInstanceOf[SimpleFeature].getDefaultGeometry.asInstanceOf[MultiPolygon]
+    val state = feature.getProperty("StateFIPS").getValue.toString
+    val county = feature.getProperty("CountyFIPS").getValue.toString
+    val tractCode = feature.getProperty("TractCode").getValue.toString
+    val blockGroup = feature.getProperty("BlockGroup").getValue.toString
+    val censusBlockGroup = feature.getProperty("CensusBlockGroup").getValue.toString
+    (GeoAttribute(state, county, tractCode, blockGroup, censusBlockGroup), geom)
+  }
 
   val geoUtils: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:32118"
   }
 
   def main(args: Array[String]): Unit = {
-    // Source is uploaded to our S3: https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#new_city/ctpp/
-    val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/CTPP/"), Set("36"))
-    val readData =
-      new HouseholdIncomeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
-        .read()
-        .toVector
-    val nonZeros = readData.filter(x => x.value != 0.0)
-    val distinctHomeLocations = readData.map(_.source).distinct.size
-    val distintWorkLocations = readData.map(_.destination).distinct.size
-    val sumOfValues = readData.map(_.value).sum
+    val pathToGeoJson = "C:/Users/User/Downloads/cbg.geojson"
+    // Replace `urn:ogc:def:crs:OGC:1.3:CRS84` in that origina file by `EPSG:4326`
+    val allFeatures = GeoJsonReader.read(pathToGeoJson, mapper)
 
-    println(s"Read ${readData.size} OD pairs. ${nonZeros.size} is non-zero")
-    println(s"distinctHomeLocations: $distinctHomeLocations")
-    println(s"distintWorkLocations: $distintWorkLocations")
-    println(s"sumOfValues: ${sumOfValues.toInt}")
+    val envelope = allFeatures.foldLeft(new Envelope()) {
+      case (env, (k, v)) =>
+        val center = v.getCentroid
+        env.expandToInclude(center.getX, center.getY)
+        env
+    }
 
-    val srcDstToPeople = readData
-      .groupBy(x => (x.source, x.destination))
-      .map {
-        case ((src, dst), xs) =>
-          ((src, dst), xs.map(_.value).sum)
-      }
-      .toSeq
-      .sortBy(x => -x._2)
-    println(s"srcDstToPeople: ${srcDstToPeople.size}")
-
-    val allTazGeoIds: Set[String] = srcDstToPeople.flatMap { case ((src, dst), _) => List(src, dst) }.toSet
-    println(s"allTazGeoIds: ${allTazGeoIds.size}")
-
-    // TAZ Shape file for New York state: https://catalog.data.gov/dataset/tiger-line-shapefile-2011-2010-state-new-york-2010-census-traffic-analysis-zone-taz-state-based29d50/resource/25db8b3b-86d1-4ba0-8f05-2ea371ab0d26
-    val newYorkTazs: Map[String, MultiPolygon] =
-      readTaz("D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_36_taz10/tl_2011_36_taz10.shp")
-        .filter { case (tazGeoId, _) => allTazGeoIds.contains(tazGeoId) }
-    println(s"newYorkTazs: ${allTazGeoIds.size}")
-
-    // Borough Boundaries shape file from https://data.cityofnewyork.us/City-Government/Borough-Boundaries/tqmj-j8zm
-    val boroughMap: Map[String, MultiPolygon] = readBorough(
-      "D:/Work/beam/NewYork/input/Shape/Others/Borough Boundaries/geo_export_77031048-d035-4f7d-bd07-d568f2b54acb.shp"
+    val quadTree =
+      new QuadTree[(GeoAttribute, MultiPolygon)](envelope.getMinX, envelope.getMinY, envelope.getMaxX, envelope.getMaxY)
+    allFeatures.foreach {
+      case (k, v) =>
+        quadTree.put(v.getCentroid.getX, v.getCentroid.getY, ((k, v)))
+    }
+    val homeToWork = NewYorkHomeWorkLocationAnalysis.getHomeWorkLocations(
+      "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
+      isUtmCoord = false
     )
-    println(s"boroughMap: ${boroughMap.size}")
-
-    val tazGeoIdToBorough: Map[String, String] = ProfilingUtils.timed("TAZ to Borough", x => println(x)) {
-      newYorkTazs.par.map {
-        case (tazGeoId, tazGeom) =>
-          boroughMap.find { case (_, boroughGeom) => !boroughGeom.intersection(tazGeom).isEmpty } match {
-            case Some((borough, _)) => (tazGeoId, borough)
-            case None =>
-              (tazGeoId, "other")
-          }
-      }.seq
+    @tailrec
+    def findPolygonViaQuadTree(coord: Coord, distance: Double = 0.0): Option[(GeoAttribute, MultiPolygon)] = {
+      val xs = if (distance == 0.0) {
+        Seq(quadTree.getClosest(coord.getX, coord.getY))
+      } else {
+        quadTree.getDisk(coord.getX, coord.getY, distance).asScala
+      }
+      xs.find { case (_, polygon) => polygon.contains(MGC.coord2Point(coord)) } match {
+        case Some(value: (GeoAttribute, MultiPolygon)) =>
+          Some(value)
+        case None if distance <= 2 =>
+          None
+        case None =>
+          findPolygonViaQuadTree(coord, distance + 0.01)
+      }
     }
-    println(s"tazGeoIdToBorough: ${tazGeoIdToBorough.size}")
 
-    computeFullStats(srcDstToPeople, tazGeoIdToBorough, "household_income_borough.csv")
-    println
+    var originIsNotInside: Int = 0
+    var destIsNotInside: Int = 0
 
-    ProfilingUtils.timed("Compute for 200k scenario", println) {
-      computeBeamScenario(
-        boroughMap,
-        "https://beam-outputs.s3.amazonaws.com/output/newyork/nyc-200k-crowding-exp8__2020-09-11_18-09-53_gsq/ITERS/it.0/0.plans.csv.gz",
-        "beam_200k_scenario_derived_from_location_household_income_borough.csv",
-        isUtmCoord = true
-      )
+    homeToWork.foreach {
+      case ((origin, destination), cnt) =>
+        val x = findPolygonViaQuadTree(origin)
+        val y = findPolygonViaQuadTree(destination)
+
+        if (x.isEmpty) originIsNotInside += 1
+        if (y.isEmpty) destIsNotInside += 1
+
+//      val isFoundOriginInside = originPolygon.contains(MGC.coord2Point(origin))
+//      if (!isFoundOriginInside) originIsNotInside += 1
+//
+//      val isFoundDestInside = destPolygon.contains(MGC.coord2Point(destination))
+//      if (!isFoundDestInside) destIsNotInside += 1
+
+//      println(s"originAttrib: $originAttrib, isFoundOriginInside: $isFoundOriginInside")
+//      println(s"destAttrib: $destAttrib, isFoundDestInside: $isFoundDestInside")
     }
-    println
-
-    ProfilingUtils.timed("Compute for 1049k scenario", println) {
-      computeBeamScenario(
-        boroughMap,
-        "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
-        "beam_full_scenario_derived_from_location_household_income_borough.csv",
-        isUtmCoord = false
-      )
-    }
-    println
+    println(s"homeToWork: ${homeToWork.size}")
+    println(s"originIsNotInside: $originIsNotInside, ratio: ${originIsNotInside.toDouble / homeToWork.size}")
+    println(s"destIsNotInside: $destIsNotInside, ratio: ${destIsNotInside.toDouble / homeToWork.size}")
 
   }
 
@@ -184,7 +189,7 @@ object NewYorkHomeWorkLocationAnalysis {
 
   }
 
-  def getHomeWorkLocations(pathToPlans: String, isUtmCoord: Boolean): Seq[((Coord, Coord), Double)] = {
+  private def getHomeWorkLocations(pathToPlans: String, isUtmCoord: Boolean): Seq[((Coord, Coord), Double)] = {
     def filter(planElement: PlanElement): Boolean = {
       planElement.planSelected && planElement.planElementType == "activity" && planElement.activityType.exists(
         actType => actType.toLowerCase == "home" || actType.toLowerCase == "work"
@@ -219,8 +224,6 @@ object NewYorkHomeWorkLocationAnalysis {
                 val srcWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(srcCoord) else srcCoord
                 val dstCoord = new Coord(sorted(1).activityLocationX.get, sorted(1).activityLocationY.get)
                 val dstWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(dstCoord) else dstCoord
-//                val srcActivity = sorted(0).copy(activityLocationX = Some(srcWgsCoord.getX), activityLocationY =  Some(srcWgsCoord.getY))
-//                val dstActivity = sorted(1).copy(activityLocationX = Some(dstWgsCoord.getX), activityLocationY =  Some(dstWgsCoord.getY))
                 Some(((srcWgsCoord, dstWgsCoord), 1))
               }
             }
@@ -232,29 +235,6 @@ object NewYorkHomeWorkLocationAnalysis {
     } finally {
       toClose.close()
     }
-  }
-
-  private def computeFullStats(
-    srcDstToPeople: Seq[((String, String), Double)],
-    tazGeoIdToBorough: Map[String, String],
-    outputCsvPath: String
-  ): Unit = {
-    val boroughToBorough = srcDstToPeople
-      .map {
-        case ((src, dst), cnt) =>
-          ((tazGeoIdToBorough.get(src), tazGeoIdToBorough.get(dst)), cnt)
-      }
-      .groupBy { case ((src, dst), _) => (src, dst) }
-      .map { case ((src, dst), xs) => ((src, dst), xs.map(_._2).sum) }
-    println(s"boroughToBorough: ${boroughToBorough.size}")
-
-    val csvWriter = new CsvWriter(outputCsvPath, Array("source", "destination", "count"))
-
-    boroughToBorough.foreach {
-      case ((src, dst), count) =>
-        csvWriter.write(src, dst, count)
-    }
-    csvWriter.close()
   }
 
   def readTaz(path: String): Map[String, MultiPolygon] = {
