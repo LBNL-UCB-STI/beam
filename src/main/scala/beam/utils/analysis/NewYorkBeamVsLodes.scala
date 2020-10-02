@@ -40,6 +40,10 @@ object NewYorkBeamVsLodes {
     val tractCode = feature.getProperty("TractCode").getValue.toString
     val blockGroup = feature.getProperty("BlockGroup").getValue.toString
     val censusBlockGroup = feature.getProperty("CensusBlockGroup").getValue.toString
+
+    require(geom.isSimple)
+    require(geom.isValid)
+
     (GeoAttribute(state, county, tractCode, blockGroup, censusBlockGroup), geom)
   }
 
@@ -79,7 +83,7 @@ object NewYorkBeamVsLodes {
       xs.find { case (_, polygon) => polygon.contains(MGC.coord2Point(coord)) } match {
         case Some(value: (GeoAttribute, MultiPolygon)) =>
           Some(value)
-        case None if distance <= 2 =>
+        case None if distance > 2 =>
           None
         case None =>
           findPolygonViaQuadTree(coord, distance + 0.01)
