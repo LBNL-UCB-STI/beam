@@ -62,19 +62,33 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     "obtain power physical bounds" in {
       val bounds =
         powerController.obtainPowerPhysicalBounds(300, Map[ChargingZone, Double](dummyChargingZone -> 5678.90))
-      bounds shouldBe PhysicalBounds(dummyChargingZone.tazId, dummyChargingZone.parkingZoneId, 5678.90, 5678.90)
+      bounds shouldBe Map(
+        dummyChargingZone.parkingZoneId -> PhysicalBounds(
+          dummyChargingZone.tazId,
+          dummyChargingZone.parkingZoneId,
+          5678.90,
+          5678.90
+        )
+      )
       verify(beamFederateMock, times(1)).syncAndMoveToNextTimeStep(300)
       verify(beamFederateMock, times(1)).obtainPowerFlowValue
     }
   }
   "PowerController when not connected to grid" should {
-    val powerController = new PowerController(beamServicesMock, BeamConfig(config)) {
+    val powerController: PowerController = new PowerController(beamServicesMock, BeamConfig(config)) {
       override private[power] lazy val beamFederateOption = None
     }
 
     "obtain default (0.0) power physical bounds" in {
       val bounds = powerController.obtainPowerPhysicalBounds(300, Map[ChargingZone, Double](dummyChargingZone -> 0.0))
-      bounds shouldBe PhysicalBounds(dummyChargingZone.tazId, dummyChargingZone.parkingZoneId, 0.0, 0.0)
+      bounds shouldBe Map(
+        dummyChargingZone.parkingZoneId -> PhysicalBounds(
+          dummyChargingZone.tazId,
+          dummyChargingZone.parkingZoneId,
+          0.0,
+          0.0
+        )
+      )
       verify(beamFederateMock, never()).syncAndMoveToNextTimeStep(300)
       verify(beamFederateMock, never()).obtainPowerFlowValue
     }

@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -17,6 +19,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import beam.utils.ReadWriteLockUtil.RichReadWriteLock
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
@@ -48,6 +51,8 @@ class ChargingNetworkManager(
   private val isConnectedToTheGrid: Boolean = cnmConfig.gridConnectionEnabled && powerController.initFederateConnection
   log.info("ChargingNetworkManager is connected to grid: {}", isConnectedToTheGrid)
 
+  private val vehiclesToChargeRWLock = new ReentrantReadWriteLock()
+
   override def receive: Receive = {
     case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
       log.debug("PlanningTimeOutTrigger, tick: {}", tick)
@@ -78,21 +83,23 @@ class ChargingNetworkManager(
 
     case ChargingPlugRequest(vehicle, drivingAgent) =>
       if (vehicle.isBEV | vehicle.isPHEV) {
-        log.info(
-          "ChargingPlugRequest for vehicle {} by agent {} on stall {}",
-          vehicle,
-          drivingAgent.path.name,
-          vehicle.stall
-        )
-        vehiclesToCharge.put(
-          vehicle.id,
-          ChargingVehicle(
+        vehiclesToChargeRWLock.write {
+          log.info(
+            "ChargingPlugRequest for vehicle {} by agent {} on stall {}",
             vehicle,
-            drivingAgent,
-            totalChargingSession = ChargingSession.Empty,
-            lastChargingSession = ChargingSession.Empty
+            drivingAgent.path.name,
+            vehicle.stall
           )
-        )
+          vehiclesToCharge.put(
+            vehicle.id,
+            ChargingVehicle(
+              vehicle,
+              drivingAgent,
+              totalChargingSession = ChargingSession.Empty,
+              lastChargingSession = ChargingSession.Empty
+            )
+          )
+        }
       } else {
         log.error(
           "ChargingPlugRequest for non BEV/PHEV vehicle {} by agent {} on stall {}",
@@ -105,109 +112,115 @@ class ChargingNetworkManager(
     case ChargingUnplugRequest(vehicle, tick) =>
       log.info("ChargingUnplugRequest for vehicle {} at {}", vehicle, tick)
 
-      // compute charging plan for the vehicle to unplug at time tick
-      sitePowerManager
-        .replanHorizonAndGetChargingPlanPerVehicle(
-          vehicles.values,
-          tick % cnmConfig.chargingSessionInSeconds
-        )
-        .get(vehicle.id) match {
-        case Some(chargingPlan) =>
-          vehiclesToCharge
-            .remove(vehicle.id)
-            .map { cv =>
-              val (chargeDurationAtTick, constrainedEnergyToCharge, unconstrainedEnergy) = chargingPlan
+      vehiclesToChargeRWLock.write {
+        // compute charging plan for the vehicle to unplug at time tick
+        val chargePlanMaybe = sitePowerManager
+          .replanHorizonAndGetChargingPlanPerVehicle(
+            vehicles.values,
+            tick % cnmConfig.chargingSessionInSeconds
+          )
+          .get(vehicle.id)
+        // unplug
+        val removedVehicleMaybe = vehiclesToCharge.remove(vehicle.id)
 
-              // Collect data on unconstrained load demand (not the constrained demand)
-              collectDataOnLoadDemand(tick, vehicle, chargeDurationAtTick, unconstrainedEnergy)
+        if (chargePlanMaybe.isDefined && removedVehicleMaybe.isDefined) {
+          val (chargeDurationAtTick, constrainedEnergyToCharge, unconstrainedEnergy) = chargePlanMaybe.get
+          val chargingVehicle = removedVehicleMaybe.get
+          // Collect data on unconstrained load demand (not the constrained demand)
+          collectDataOnLoadDemand(tick, vehicle, chargeDurationAtTick, unconstrainedEnergy)
 
-              // Refuel the vehicle
-              vehicle.addFuel(constrainedEnergyToCharge)
+          // Refuel the vehicle
+          vehicle.addFuel(constrainedEnergyToCharge)
 
-              // Preparing EndRefuelSessionTrigger to notify the driver
-              val currentSession = ChargingSession(constrainedEnergyToCharge, chargeDurationAtTick)
-              val newTotalSession = cv.totalChargingSession.combine(currentSession)
-              log.debug(
-                "Vehicle {} is removed from ChargingManager. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
-                vehicle,
-                tick,
-                newTotalSession.energy
-              )
-              scheduler ! ScheduleTrigger(
-                EndRefuelSessionTrigger(tick, vehicle.getChargerConnectedTick(), newTotalSession.energy, vehicle),
-                cv.agent
-              )
-            }
-        case _ => //
+          // Preparing EndRefuelSessionTrigger to notify the driver
+          val currentSession = ChargingSession(constrainedEnergyToCharge, chargeDurationAtTick)
+          val newTotalSession = chargingVehicle.totalChargingSession.combine(currentSession)
+          log.debug(
+            "Vehicle {} is removed from ChargingManager. Scheduling EndRefuelSessionTrigger at {} with {} J delivered",
+            vehicle,
+            tick,
+            newTotalSession.energy
+          )
+          scheduler ! ScheduleTrigger(
+            EndRefuelSessionTrigger(tick, vehicle.getChargerConnectedTick(), newTotalSession.energy, vehicle),
+            chargingVehicle.agent
+          )
+        } else {
+          log.warning(
+            "Unplugging vehicle {} that is not in the queue. It is either due to wrong request or concurrent access",
+            vehicle.id
+          )
+        }
       }
 
     case TriggerWithId(ChargingTimeOutTrigger(tick), triggerId) =>
-      if (vehiclesToCharge.nonEmpty)
-        log.debug("ChargingTimeOutTrigger, tick: {}", tick)
+      log.debug("ChargingTimeOutTrigger, tick: {}", tick)
 
-      // Calculate the energy to charge each vehicle connected to the a charging station
-      val scheduleTriggers = sitePowerManager
-        .replanHorizonAndGetChargingPlanPerVehicle(vehicles.values, cnmConfig.chargingSessionInSeconds)
-        .flatMap {
-          case (vehicleId, (chargingDuration, constrainedEnergyToCharge, unconstrainedEnergy)) =>
-            // Get vehicle charging status
-            val ChargingVehicle(vehicle, agent, totalChargingSession, _) = vehiclesToCharge(vehicleId)
+      vehiclesToChargeRWLock.write {
+        // Calculate the energy to charge each vehicle connected to the a charging station
+        val scheduleTriggers = sitePowerManager
+          .replanHorizonAndGetChargingPlanPerVehicle(vehicles.values, cnmConfig.chargingSessionInSeconds)
+          .flatMap {
+            case (vehicleId, (chargingDuration, constrainedEnergyToCharge, unconstrainedEnergy)) =>
+              // Get vehicle charging status
+              val ChargingVehicle(vehicle, agent, totalChargingSession, _) = vehiclesToCharge(vehicleId)
 
-            // Collect data on load demand
-            collectDataOnLoadDemand(tick, vehicle, chargingDuration, unconstrainedEnergy)
+              // Collect data on load demand
+              collectDataOnLoadDemand(tick, vehicle, chargingDuration, unconstrainedEnergy)
 
-            // Refuel the vehicle
-            log.debug("Charging vehicle {}. Energy to charge = {}", vehicle, constrainedEnergyToCharge)
-            vehicle.addFuel(constrainedEnergyToCharge)
+              // Refuel the vehicle
+              log.debug("Charging vehicle {}. Energy to charge = {}", vehicle, constrainedEnergyToCharge)
+              vehicle.addFuel(constrainedEnergyToCharge)
 
-            // Verify the state of charge
-            val currentSession = ChargingSession(constrainedEnergyToCharge, chargingDuration)
-            val totalSession = totalChargingSession.combine(currentSession)
-            if (endRefuelSessionTriggerMaybe(vehicle, tick, currentSession, totalSession)) {
-              vehiclesToCharge.remove(vehicle.id)
-              Some(
+              // Verify the state of charge
+              val currentSession = ChargingSession(constrainedEnergyToCharge, chargingDuration)
+              val totalSession = totalChargingSession.combine(currentSession)
+              if (endRefuelSessionTriggerMaybe(vehicle, tick, currentSession, totalSession)) {
+                vehiclesToCharge.remove(vehicle.id)
+                Some(
+                  ScheduleTrigger(
+                    EndRefuelSessionTrigger(
+                      tick + currentSession.duration.toInt,
+                      vehicle.getChargerConnectedTick(),
+                      totalSession.energy,
+                      vehicle
+                    ),
+                    agent
+                  )
+                )
+              } else {
+                vehiclesToCharge.update(vehicle.id, ChargingVehicle(vehicle, agent, totalSession, currentSession))
+                None
+              }
+          }
+          .toVector
+
+        // Preparing EndRefuelSessionTrigger to notify the drivers and replanning the ChargingTimeOutTrigger
+        val nextTick = cnmConfig.chargingSessionInSeconds * (1 + (tick / cnmConfig.chargingSessionInSeconds))
+        sender ! CompletionNotice(
+          triggerId,
+          if (nextTick <= endOfSimulationTime)
+            scheduleTriggers :+ ScheduleTrigger(ChargingTimeOutTrigger(nextTick), self)
+          else {
+            // if we still have a BEV/PHEV that is connected to a charging point,
+            // we assume that they will charge until the end of the simulation and throwing events accordingly
+            val completeTriggers = scheduleTriggers ++ vehiclesToCharge.map {
+              case (_, cv) =>
                 ScheduleTrigger(
                   EndRefuelSessionTrigger(
-                    tick + currentSession.duration.toInt,
-                    vehicle.getChargerConnectedTick(),
-                    totalSession.energy,
-                    vehicle
+                    tick,
+                    cv.vehicle.getChargerConnectedTick(),
+                    cv.totalChargingSession.energy,
+                    cv.vehicle
                   ),
-                  agent
+                  cv.agent
                 )
-              )
-            } else {
-              vehiclesToCharge.update(vehicle.id, ChargingVehicle(vehicle, agent, totalSession, currentSession))
-              None
             }
-        }
-        .toVector
-
-      // Preparing EndRefuelSessionTrigger to notify the drivers and replanning the ChargingTimeOutTrigger
-      val nextTick = cnmConfig.chargingSessionInSeconds * (1 + (tick / cnmConfig.chargingSessionInSeconds))
-      sender ! CompletionNotice(
-        triggerId,
-        if (nextTick <= endOfSimulationTime)
-          scheduleTriggers :+ ScheduleTrigger(ChargingTimeOutTrigger(nextTick), self)
-        else {
-          // if we still have a BEV/PHEV that is connected to a charging point,
-          // we assume that they will charge until the end of the simulation and throwing events accordingly
-          val completeTriggers = scheduleTriggers ++ vehiclesToCharge.map {
-            case (_, cv) =>
-              ScheduleTrigger(
-                EndRefuelSessionTrigger(
-                  tick,
-                  cv.vehicle.getChargerConnectedTick(),
-                  cv.totalChargingSession.energy,
-                  cv.vehicle
-                ),
-                cv.agent
-              )
+            vehiclesToCharge.clear()
+            completeTriggers
           }
-          vehiclesToCharge.clear()
-          completeTriggers
-        }
-      )
+        )
+      }
   }
 
   private def collectDataOnLoadDemand(

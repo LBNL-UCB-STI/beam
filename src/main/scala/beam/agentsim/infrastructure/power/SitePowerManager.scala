@@ -52,13 +52,17 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
     * @return power (in Kilo Watt) over planning horizon
     */
   def getPowerOverNextPlanningHorizon(tick: Int): Map[ChargingZone, PowerInKW] = {
-    chargingStations.map {
-      case (_, s) =>
-        val load = tazSkimmer.getLatestSkimByTAZ(tick, s.tazId, SKIM_ACTOR, SKIM_VAR_PREFIX + s.parkingZoneId) match {
-          case Some(skim) => skim.value * skim.observations
-          case None       => unlimitedPhysicalBounds(s.parkingZoneId).maxLoad
-        }
-        s -> load
+    if (!tazSkimmer.isEmpty()) {
+      chargingStations.map {
+        case (_, s) =>
+          val load = tazSkimmer.getLatestSkimByTAZ(tick, s.tazId, SKIM_ACTOR, SKIM_VAR_PREFIX + s.parkingZoneId) match {
+            case Some(skim) => skim.value * skim.observations
+            case None       => 0.0
+          }
+          s -> load
+      }
+    } else {
+      chargingStations.map { case (_, s) => s -> unlimitedPhysicalBounds(s.parkingZoneId).maxLoad }
     }
   }
 
@@ -88,8 +92,8 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
   }
 
   /**
-   * reset physical bounds
-   */
+    * reset physical bounds
+    */
   def resetState(): Unit = {
     physicalBoundsRWLock.write {
       physicalBoundsInternal = unlimitedPhysicalBounds
