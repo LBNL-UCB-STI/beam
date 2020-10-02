@@ -9,9 +9,9 @@ import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
 import beam.utils.map.{GeoAttribute, ShapefileReader}
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
-import beam.utils.shape.Attributes
+import beam.utils.shape.{Attributes, NoAttributeShapeWriter, ShapeWriter}
 import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
-import com.vividsolutions.jts.geom.{Geometry, MultiPolygon}
+import com.vividsolutions.jts.geom.{Geometry, LineString, MultiPolygon, Point}
 import org.geotools.geometry.jts.JTS
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
@@ -89,13 +89,25 @@ object NewYorkBeamVsLodes {
     var originIsNotInside: Int = 0
     var destIsNotInside: Int = 0
 
+    val shapeWriter = NoAttributeShapeWriter.worldGeodetic[Point](s"not_inside_of_polygon.shp")
+
+    var idx: Int = 0
+
     homeToWork.foreach {
       case ((origin, destination), cnt) =>
         val x = findPolygonViaQuadTree(origin)
         val y = findPolygonViaQuadTree(destination)
 
-        if (x.isEmpty) originIsNotInside += 1
-        if (y.isEmpty) destIsNotInside += 1
+        if (x.isEmpty) {
+          shapeWriter.add(MGC.coord2Point(origin), idx.toString)
+          idx += 1
+          originIsNotInside += 1
+        }
+        if (y.isEmpty) {
+          shapeWriter.add(MGC.coord2Point(destination), idx.toString)
+          idx += 1
+          destIsNotInside += 1
+        }
 
 //      val isFoundOriginInside = originPolygon.contains(MGC.coord2Point(origin))
 //      if (!isFoundOriginInside) originIsNotInside += 1
@@ -106,6 +118,7 @@ object NewYorkBeamVsLodes {
 //      println(s"originAttrib: $originAttrib, isFoundOriginInside: $isFoundOriginInside")
 //      println(s"destAttrib: $destAttrib, isFoundDestInside: $isFoundDestInside")
     }
+    shapeWriter.write()
     println(s"homeToWork: ${homeToWork.size}")
     println(s"originIsNotInside: $originIsNotInside, ratio: ${originIsNotInside.toDouble / homeToWork.size}")
     println(s"destIsNotInside: $destIsNotInside, ratio: ${destIsNotInside.toDouble / homeToWork.size}")
