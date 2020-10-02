@@ -195,16 +195,28 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
               r5Response.map(_.itineraries).getOrElse(Seq.empty)
             )
           } else {
-            secondR5 match {
-              case Some(r52) =>
+            (secondR5, request.withTransit) match {
+              case (Some(r52), true) =>
                 val resp1 = r5.calcRoute(request)
                 val resp2 = r52.calcRoute(request)
+
+                def union(it1: Seq[EmbodiedBeamTrip], it2: Seq[EmbodiedBeamTrip]): Seq[EmbodiedBeamTrip] = {
+                  val filtered = it1.filter(trip1 => !it2.exists(trip2 => equals(trip1, trip2)))
+                  filtered ++ it2
+                }
+
+                def equals(trip1: EmbodiedBeamTrip, trip2: EmbodiedBeamTrip): Boolean = {
+                  trip1.tripClassifier == trip2.tripClassifier &&
+                  trip1.legs.size == trip2.legs.size &&
+                  trip1.totalTravelTimeInSecs == trip2.totalTravelTimeInSecs
+                }
+
                 resp1.copy(
-                  itineraries = resp1.itineraries ++ resp2.itineraries,
+                  itineraries = union(resp1.itineraries, resp2.itineraries),
                   computedInMs = resp1.computedInMs + resp2.computedInMs
                 )
 
-              case None =>
+              case _ =>
                 r5.calcRoute(request)
             }
 
