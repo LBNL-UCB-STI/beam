@@ -94,8 +94,10 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_PERSONAL_VEH_AVAILABLE, vehAvailable);
         attr.put(ATTRIBUTE_TRIP_LENGTH, length.toString());
         attr.put(ATTRIBUTE_TOUR_INDEX, tourIndex.toString());
-        attr.put(ATTRIBUTE_LEG_MODES, chosenTrip.legModes().mkString(","));
-        attr.put(ATTRIBUTE_LEG_VEHICLE_IDS, chosenTrip.legVehicleIds().mkString(","));
+        if (chosenTrip != null) {
+            attr.put(ATTRIBUTE_LEG_MODES, chosenTrip.legModes().mkString(","));
+            attr.put(ATTRIBUTE_LEG_VEHICLE_IDS, chosenTrip.legVehicleIds().mkString(","));
+        }
         attr.put(ATTRIBUTE_CURRENT_ACTIVITY, currentActivity);
         attr.put(ATTRIBUTE_NEXT_ACTIVITY, nextActivity);
         return attr;
