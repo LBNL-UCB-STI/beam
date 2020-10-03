@@ -1,28 +1,22 @@
 package beam.utils.analysis
 
+import java.io.Closeable
+import java.util
+
 import beam.sim.common.GeoUtils
-import beam.utils.{GeoJsonReader, ProfilingUtils}
-import beam.utils.csv.CsvWriter
-import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
-import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
-import beam.utils.data.ctpp.readers.flow.HouseholdIncomeTableReader
-import beam.utils.map.{GeoAttribute, ShapefileReader}
+import beam.utils.GeoJsonReader
+import beam.utils.csv.{CsvWriter, GenericCsvReader}
+import beam.utils.geospatial.PolygonUtil
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
-import beam.utils.shape.{Attributes, NoAttributeShapeWriter, ShapeWriter}
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
-import com.vividsolutions.jts.geom.{Geometry, LineString, MultiPolygon, Point}
-import org.geotools.geometry.jts.JTS
+import beam.utils.shape.Attributes
+import com.vividsolutions.jts.geom.MultiPolygon
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
-import org.opengis.referencing.operation.MathTransform
-
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
 
 object NewYorkBeamVsLodes {
   private case class GeoAttribute(
@@ -53,6 +47,66 @@ object NewYorkBeamVsLodes {
 
   def main(args: Array[String]): Unit = {
     val pathToGeoJson = "C:/Users/User/Downloads/cbg.geojson"
+    val pathToPlans = "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz"
+    val pathToLodes = "C:/Users/User/Downloads/NYC_LODES_and_distance.csv"
+
+    val beamHomeToWorkCounts = getBeamHomeWorkCounts(pathToGeoJson, pathToPlans)
+    println(s"beamHomeToWorkCounts: ${beamHomeToWorkCounts.size}")
+    println(
+      s"beamHomeToWorkCounts: ${beamHomeToWorkCounts.size}. Found ratio: ${beamHomeToWorkCounts.size.toDouble / beamHomeToWorkCounts.size}"
+    )
+
+    val beamHomeWorkToCountMap: Map[(String, String), Int] = beamHomeToWorkCounts
+      .map { case (o, d, cnt) => (o.censusBlockGroup, d.censusBlockGroup, cnt) }
+      .groupBy { case (o, d, _) => (o, d) }
+      .map { case (x, xs) => (x -> xs.map(_._3).sum) }
+
+    val lodesHomeToWorkCount = getLodesHomeWorkCounts(pathToLodes)
+    println(s"lodesHomeToWorkCount: ${lodesHomeToWorkCount.size}")
+
+    val lodesHomeWorkToCountMap: Map[(String, String), Int] = lodesHomeToWorkCount
+      .groupBy { case (o, d, _) => (o, d) }
+      .map { case (x, xs) => (x -> xs.map(_._3).sum) }
+
+    val beamKeys = beamHomeWorkToCountMap.keySet
+    val lodesKeys = lodesHomeWorkToCountMap.keySet
+    val allKeys = beamKeys ++ lodesKeys
+    println(s"beamKeys: ${beamKeys.size}")
+    println(s"lodesKeys: ${lodesKeys.size}")
+    println(s"beamKeys intersects with lodesKeys: ${beamKeys.intersect(lodesKeys).size}")
+    println
+
+    val csvWriter = new CsvWriter("beam_vs_lodes.csv", Array("source", "destination", "beam_count", "lodes_count"))
+    allKeys.foreach { key =>
+      val (src, dst) = key
+      val beamCount = beamHomeWorkToCountMap.getOrElse(key, 0)
+      val lodesCount = lodesHomeWorkToCountMap.getOrElse(key, 0)
+      csvWriter.write("\"" + src + "\"", "\"" + dst + "\"", beamCount, lodesCount)
+    }
+    csvWriter.close()
+  }
+
+  private def getLodesHomeWorkCounts(pathToLodes: String): Seq[(String, String, Int)] = {
+    def mapper(rec: util.Map[String, String]): (String, String, Int) = {
+      val originBlockGroupId = rec.get("O_bg").toString
+      val destBlockGroupId = rec.get("D_bg").toString
+      val count = rec.get("S000").toInt
+      (originBlockGroupId, destBlockGroupId, count)
+    }
+
+    val (iter, toClose: Closeable) =
+      GenericCsvReader.readAs[(String, String, Int)](pathToLodes, mapper, _ => true)
+    try {
+      iter.toIndexedSeq
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private def getBeamHomeWorkCounts(
+    pathToGeoJson: String,
+    pathToPlans: String
+  ): Seq[(GeoAttribute, GeoAttribute, Int)] = {
     // Replace `urn:ogc:def:crs:OGC:1.3:CRS84` in that origina file by `EPSG:4326`
     val allFeatures = GeoJsonReader.read(pathToGeoJson, mapper)
 
@@ -70,63 +124,22 @@ object NewYorkBeamVsLodes {
         quadTree.put(v.getCentroid.getX, v.getCentroid.getY, ((k, v)))
     }
     val homeToWork = NewYorkHomeWorkLocationAnalysis.getHomeWorkLocations(
-      "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
+      pathToPlans,
       isUtmCoord = false
     )
-    @tailrec
-    def findPolygonViaQuadTree(coord: Coord, distance: Double = 0.0): Option[(GeoAttribute, MultiPolygon)] = {
-      val xs = if (distance == 0.0) {
-        Seq(quadTree.getClosest(coord.getX, coord.getY))
-      } else {
-        quadTree.getDisk(coord.getX, coord.getY, distance).asScala
-      }
-      xs.find { case (_, polygon) => polygon.contains(MGC.coord2Point(coord)) } match {
-        case Some(value: (GeoAttribute, MultiPolygon)) =>
-          Some(value)
-        case None if distance > 2 =>
-          None
-        case None =>
-          findPolygonViaQuadTree(coord, distance + 0.01)
-      }
-    }
 
-    var originIsNotInside: Int = 0
-    var destIsNotInside: Int = 0
-
-    val shapeWriter = NoAttributeShapeWriter.worldGeodetic[Point](s"not_inside_of_polygon.shp")
-
-    var idx: Int = 0
-
-    homeToWork.foreach {
+    val beamBlockToBlock = homeToWork.flatMap {
       case ((origin, destination), cnt) =>
-        val x = findPolygonViaQuadTree(origin)
-        val y = findPolygonViaQuadTree(destination)
-
-        if (x.isEmpty) {
-          shapeWriter.add(MGC.coord2Point(origin), idx.toString)
-          idx += 1
-          originIsNotInside += 1
-        }
-        if (y.isEmpty) {
-          shapeWriter.add(MGC.coord2Point(destination), idx.toString)
-          idx += 1
-          destIsNotInside += 1
-        }
-
-//      val isFoundOriginInside = originPolygon.contains(MGC.coord2Point(origin))
-//      if (!isFoundOriginInside) originIsNotInside += 1
-//
-//      val isFoundDestInside = destPolygon.contains(MGC.coord2Point(destination))
-//      if (!isFoundDestInside) destIsNotInside += 1
-
-//      println(s"originAttrib: $originAttrib, isFoundOriginInside: $isFoundOriginInside")
-//      println(s"destAttrib: $destAttrib, isFoundDestInside: $isFoundDestInside")
+        for {
+          (originAttrib, _) <- PolygonUtil.findPolygonViaQuadTree(quadTree, origin, maxDistance = 2, delta = 0.01)
+          (destAttrib, _)   <- PolygonUtil.findPolygonViaQuadTree(quadTree, destination, maxDistance = 2, delta = 0.01)
+        } yield (originAttrib, destAttrib, cnt)
     }
-    shapeWriter.write()
     println(s"homeToWork: ${homeToWork.size}")
-    println(s"originIsNotInside: $originIsNotInside, ratio: ${originIsNotInside.toDouble / homeToWork.size}")
-    println(s"destIsNotInside: $destIsNotInside, ratio: ${destIsNotInside.toDouble / homeToWork.size}")
-
+    println(
+      s"beamBlockToBlock: ${beamBlockToBlock.size}. Found ratio: ${beamBlockToBlock.size.toDouble / homeToWork.size}"
+    )
+    beamBlockToBlock
   }
 
   private def computeBeamScenario(
@@ -252,27 +265,5 @@ object NewYorkBeamVsLodes {
     } finally {
       toClose.close()
     }
-  }
-
-  def readTaz(path: String): Map[String, MultiPolygon] = {
-    val crsCode: String = "EPSG:4326"
-    def map(mathTransform: MathTransform, feature: SimpleFeature): (String, MultiPolygon) = {
-      val fullTractGeoId = feature.getAttribute("GEOID10").toString
-      val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-      val wgsGeom = JTS.transform(geom.getGeometry, mathTransform).asInstanceOf[MultiPolygon]
-      (fullTractGeoId, wgsGeom)
-    }
-    ShapefileReader.read(crsCode, path, _ => true, map).toMap
-  }
-
-  def readBorough(path: String): Map[String, MultiPolygon] = {
-    val crsCode: String = "EPSG:4326"
-    def map(mathTransform: MathTransform, feature: SimpleFeature): (String, MultiPolygon) = {
-      val boroughName = feature.getAttribute("boro_name").toString
-      val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
-      val wgsGeom = JTS.transform(geom.getGeometry, mathTransform).asInstanceOf[MultiPolygon]
-      (boroughName, wgsGeom)
-    }
-    ShapefileReader.read(crsCode, path, _ => true, map).toMap
   }
 }
