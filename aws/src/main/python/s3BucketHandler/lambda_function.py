@@ -1,12 +1,12 @@
 import os
-import json
 import boto3
-import base64
 import datetime
 
 lm = boto3.client('lambda')
 #cw = boto3.client('cloudwatch')
 #now = datetime.datetime.now()
+
+DEFAULT_REGION = 'us-east-2'
 
 initscript = (('''#cloud-config
 runcmd:
@@ -58,13 +58,15 @@ def startInstance(script, instance_type, shutdown_behaviour):
     return res['Instances'][0]['InstanceId']
 
 def lambda_handler(event, context):
-    bucket = event['bucket']
-    prefix = event['folder']
+    bucket = event.get('bucket')
+    prefix = event.get('folder')
+    region = event.get('region', DEFAULT_REGION)
     if bucket is None:
-        return "Bucket Name not provided"
+        return "Bucket Name not provided!!!"
+    if prefix is None:
+        return "Directory Name not provided!!!"
     if event.get('aws_access_key') is None or event.get('aws_access_secret') is None:
         return "AWS credentials not set"
-    region = 'us-east-2'
     instance_type = os.environ['INSTANCE_TYPE']
     shutdown_behaviour = 'terminate'
     shutdown_wait = "10"
