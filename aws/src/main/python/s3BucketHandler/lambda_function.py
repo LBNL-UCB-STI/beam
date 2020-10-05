@@ -12,7 +12,7 @@ runcmd:
   - sudo dpkg --configure -a
   - sudo apt update
   - result=$(aws s3 --region=$REGION ls s3://$BUCKET/$FOLDER --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total/1024/1024" MB"}')
-  - echo "invoke cloudwatch for updating matric..."
+  - echo "invoke cloudwatch for updating metric..."
   - aws logs --region=$REGION create-log-stream --log-group-name S3-Bucket-Log --log-stream-name $BUCKET/$FOLDER
   - aws logs --region=$REGION describe-log-streams --log-group-name S3-Bucket-Log --log-stream-name-prefix=$BUCKET/$FOLDER > output.txt
   - token=$(jq -r '.logStreams[] | select(.logStreamName=="$BUCKET/$FOLDER") | .uploadSequenceToken' output.txt)
