@@ -94,7 +94,7 @@ class SecondaryActivitiesSpec
 
     "check secondary activity mode count is less then original run mode count" in {
 
-      val (_, output, _) = runBeamWithConfig(config)
+      val output = runBeamWithConfig(config).run().outputDirectory
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       modeChoiceCommute.foreach {
@@ -117,7 +117,7 @@ class SecondaryActivitiesSpec
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
 
-      val (_, output, _) = runBeamWithConfig(baseConf)
+      val output = runBeamWithConfig(baseConf).run().outputDirectory
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       assert(modeChoice == modeChoiceCommute)
@@ -136,7 +136,7 @@ class SecondaryActivitiesSpec
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
 
-      val (_, output, _) = runBeamWithConfig(baseConf)
+      val output = runBeamWithConfig(baseConf).run().outputDirectory
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       modeChoiceCommute.foreach {

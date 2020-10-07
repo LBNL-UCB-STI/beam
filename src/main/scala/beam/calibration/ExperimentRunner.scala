@@ -3,7 +3,8 @@ package beam.calibration
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
+import scala.collection.{mutable, JavaConverters}
+
 import beam.calibration.impl.example.{
   CountsObjectiveFunction,
   ErrorComparisonType,
@@ -16,8 +17,6 @@ import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler.OutputDirectoryHierarchy
-
-import scala.collection.{mutable, JavaConverters}
 
 object ObjectiveFunctionClassBuilder extends ReflectionUtils {
   override def packageName: String = "beam.calibration"
@@ -50,8 +49,9 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
         )
       )
 
-      val ((matsimConfig, _, services), execTimeInMillis) = timed {
-        runBeamWithConfig(modedConfig.resolve())
+      val ((matsimConfig, services), execTimeInMillis) = timed {
+        val runner = runBeamWithConfig(modedConfig.resolve()).run()
+        (runner.matsimConfig, runner.beamServices)
       }
 
       logger.info(
