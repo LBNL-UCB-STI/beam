@@ -1,6 +1,9 @@
 package beam.sim
 
+import scala.collection.JavaConverters._
+
 import com.google.inject
+import com.google.inject.Module
 import org.matsim.core.config.{Config => MatsimConfig}
 
 class BeamRunner(
@@ -24,6 +27,11 @@ class BeamRunner(
   def run(): BeamRunner = {
     runMethod()
     postRunner(this)
+    this
+  }
+
+  def addModules(module: Module, others: Module*): BeamRunner = {
+    injector.createChildInjector((module +: others).asJava)
     this
   }
 }
