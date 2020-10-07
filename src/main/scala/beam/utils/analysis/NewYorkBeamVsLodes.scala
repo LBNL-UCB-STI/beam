@@ -19,7 +19,7 @@ import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 
 object NewYorkBeamVsLodes {
-  private case class GeoAttribute(
+  private[analysis] case class GeoAttribute(
     state: String,
     county: String,
     tractCode: String,
@@ -27,7 +27,7 @@ object NewYorkBeamVsLodes {
     censusBlockGroup: String
   ) extends Attributes
 
-  private def mapper(feature: Feature): (GeoAttribute, MultiPolygon) = {
+  private[analysis] def mapper(feature: Feature): (GeoAttribute, MultiPolygon) = {
     val geom = feature.asInstanceOf[SimpleFeature].getDefaultGeometry.asInstanceOf[MultiPolygon]
     val state = feature.getProperty("StateFIPS").getValue.toString
     val county = feature.getProperty("CountyFIPS").getValue.toString
@@ -46,9 +46,9 @@ object NewYorkBeamVsLodes {
   }
 
   def main(args: Array[String]): Unit = {
-    val pathToGeoJson = "C:/Users/User/Downloads/cbg.geojson"
+    val pathToGeoJson = "test/input/external-data/cbg.geojson"
     val pathToPlans = "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz"
-    val pathToLodes = "C:/Users/User/Downloads/NYC_LODES_and_distance.csv"
+    val pathToLodes = "test/input/external-data/NYC_LODES_and_distance.csv"
 
     val beamHomeToWorkCounts = getBeamHomeWorkCounts(pathToGeoJson, pathToPlans)
     println(s"beamHomeToWorkCounts: ${beamHomeToWorkCounts.size}")
