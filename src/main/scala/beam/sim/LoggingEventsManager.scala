@@ -12,7 +12,7 @@ import javax.inject.Inject
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
-import org.matsim.core.events.ParallelEventsManagerImpl
+import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
 import org.matsim.core.events.handler.EventHandler
 
 import scala.concurrent.duration._
@@ -22,7 +22,11 @@ class LoggingEventsManager @Inject()(
   @Named("ParallelEM") defaultEventManager: EventsManager
 ) extends EventsManager
     with LazyLogging {
+//  private val matsimEventManager = new ParallelEventsManagerImpl(1)
+  private val seqEventManager = new EventsManagerImpl()
   private val eventManager = defaultEventManager
+//  private val eventManager = new ParallelEventsManagerImpl(1)
+//  private val eventManager = new EventsManagerImpl()
   logger.info(s"Created ${eventManager.getClass} with hashcode: ${eventManager.hashCode()}")
 
   private val numOfEvents: AtomicInteger = new AtomicInteger(0)
@@ -58,27 +62,44 @@ class LoggingEventsManager @Inject()(
     numOfEvents.incrementAndGet()
   }
 
+  private val toSeqEvents = List(
+    "org.matsim"
+//    ,
+//    "beam.router.skim",
+//    "beam.analysis",
+//    "beam.agentsim.events.handling"
+  )
+
   override def addHandler(handler: EventHandler): Unit = {
-    tryLog("addHandler", eventManager.addHandler(handler))
+    if (!toSeqEvents.exists(x => handler.getClass.toString.contains(x))) {
+      tryLog("addHandler", seqEventManager.addHandler(handler))
+    } else {
+      logger.info("###### To parallel EM: {}", handler)
+      tryLog("addHandler", eventManager.addHandler(handler))
+    }
   }
 
   override def removeHandler(handler: EventHandler): Unit = {
+    tryLog("removeHandler", seqEventManager.removeHandler(handler))
     tryLog("removeHandler", eventManager.removeHandler(handler))
   }
 
   override def resetHandlers(iteration: Int): Unit = {
+    tryLog("resetHandlers", seqEventManager.resetHandlers(iteration))
     tryLog("resetHandlers", eventManager.resetHandlers(iteration))
   }
 
   override def initProcessing(): Unit = {
     numOfEvents.set(0)
     stacktraceToException.clear()
+    tryLog("initProcessing", seqEventManager.initProcessing())
     tryLog("initProcessing", eventManager.initProcessing())
     isFinished.set(false)
     dedicatedHandler = Some(createDedicatedHandler)
   }
 
   override def afterSimStep(time: Double): Unit = {
+    tryLog("afterSimStep", seqEventManager.afterSimStep(time))
     tryLog("afterSimStep", eventManager.afterSimStep(time))
   }
   override def finishProcessing(): Unit = {
@@ -92,6 +113,7 @@ class LoggingEventsManager @Inject()(
       Await.result(f, 1000.seconds)
       logger.info("dedicatedHandler future finished.")
     }
+    tryLog("finishProcessing", seqEventManager.finishProcessing())
     tryLog("finishProcessing", eventManager.finishProcessing())
     val e = System.currentTimeMillis()
     logger.info(s"finishProcessing executed in ${e - s} ms")
@@ -141,6 +163,7 @@ class LoggingEventsManager @Inject()(
 
   private def tryToProcessEvent(event: Event): Unit = {
     try {
+      seqEventManager.processEvent(event)
       eventManager.processEvent(event)
     } catch {
       case ex: Exception =>
