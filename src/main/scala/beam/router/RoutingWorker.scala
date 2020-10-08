@@ -185,9 +185,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
             } else if (request.streetVehicles.exists(_.mode != CAR)) {
               val r5Response =
                 Some(r5.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode != CAR))))
-              ghResponse.get.copy(
-                ghResponse.map(_.itineraries).getOrElse(Seq.empty) ++
-                r5Response.map(_.itineraries).getOrElse(Seq.empty)
+              ghResponse.foreach(
+                _.copy(
+                  ghResponse.map(_.itineraries).getOrElse(Seq.empty) ++
+                  r5Response.map(_.itineraries).getOrElse(Seq.empty)
+                )
               )
             } else ghResponse.get
 

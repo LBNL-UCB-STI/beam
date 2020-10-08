@@ -83,8 +83,7 @@ class GraphHopperWrapper(
             response
           }
         })
-        .filter(_.isDefined)
-        .map(_.get)
+        .collect { case Some(beamTrip) => beamTrip }
     }
     RoutingResponse(alternatives, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
   }

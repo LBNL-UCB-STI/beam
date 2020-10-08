@@ -225,12 +225,12 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
 
     try {
 
-      if (personOutboundParkingStats.leaveParkingTime.isDefined) {
+      personOutboundParkingStats.leaveParkingTime.foreach(leavingParkingTime => {
         // Calculate the outbound parking overhead time
-        val outboundParkingTime = personOutboundParkingStats.leaveParkingTime.get - personOutboundParkingStats.departureTime
-          .getOrElse(0D)
+        val departureParkingTime = personOutboundParkingStats.departureTime.getOrElse(0D)
+        val outboundParkingTime = leavingParkingTime - departureParkingTime
         // Compute the hour of event
-        val hourOfEvent = (personOutboundParkingStats.departureTime.get / 3600).toInt
+        val hourOfEvent = (departureParkingTime / 3600).toInt
         personOutboundParkingStats.parkingTAZ match {
           case Some(taz) =>
             //compute the outbound overhead time and add it to the cumulative stats grouped by hour + taz
@@ -246,7 +246,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           case None =>
             logger.error("No taz information available in the person outbound stats")
         }
-      }
+      })
     } catch {
       case e: Exception => logger.error("Error while processing the outbound parking stats : " + e.getMessage, e)
     }
@@ -263,13 +263,12 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
   ): Unit = {
 
     try {
-
-      if (personInboundParkingStats.arrivalTime.isDefined) {
+      personInboundParkingStats.arrivalTime.foreach(arrivalTime => {
+        val parkingTime = personInboundParkingStats.parkingTime.getOrElse(0D)
         // Calculate the inbound parking overhead time
-        val inboundParkingTime = personInboundParkingStats.arrivalTime.get - personInboundParkingStats.parkingTime
-          .getOrElse(0D)
+        val inboundParkingTime = arrivalTime - parkingTime
         // Compute the hour of event
-        val hourOfEvent = (personInboundParkingStats.parkingTime.get / 3600).toInt
+        val hourOfEvent = (parkingTime / 3600).toInt
         personInboundParkingStats.parkingTAZ match {
           case Some(taz) =>
             //compute the outbound overhead time and add it to the cumulative stats grouped by hour + taz
@@ -278,7 +277,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
               ParkingStatsCollector.ParkingStats(List.empty, List.empty, List.empty)
             )
             val inboundParkingTimes = inboundParkingTime +: parkingStats.inboundParkingTimeOverhead
-            val inboundParkingCosts = personInboundParkingStats.parkingCost.getOrElse(0D) +: parkingStats.inboundParkingCostOverhead
+            val inboundParkingCosts = personInboundParkingStats.parkingCost
+              .getOrElse(0D) +: parkingStats.inboundParkingCostOverhead
             parkingStatsByBinAndTaz.put(
               hourOfEvent -> taz,
               parkingStats.copy(
@@ -289,7 +289,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           case None =>
             logger.error("No taz information available in the person inbound stats")
         }
-      }
+      })
     } catch {
       case e: Exception => logger.error("Error while processing the inbound parking stats : " + e.getMessage, e)
     }

@@ -56,18 +56,19 @@ trait ChoosesParking extends {
 
       // in meter (the distance that should be considered as buffer for range estimation
 
-      val nextActivityType = nextActivity(personData).get.getType
-
       val remainingTripData = calculateRemainingTripData(personData)
 
-      parkingManager ! ParkingInquiry(
-        destinationUtm,
-        nextActivityType,
-        this.currentTourBeamVehicle,
-        remainingTripData,
-        attributes.valueOfTime,
-        parkingDuration
-      )
+      nextActivity(personData).foreach(activity => {
+        parkingManager ! ParkingInquiry(
+          destinationUtm,
+          activity.getType,
+          this.currentTourBeamVehicle,
+          remainingTripData,
+          attributes.valueOfTime,
+          parkingDuration
+        )
+      })
+
   }
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
@@ -102,8 +103,9 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
-      val stall = currentBeamVehicle.stall.get
-      parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
+      currentBeamVehicle.stall.foreach(stall => {
+        parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
+      })
       currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data

@@ -23,11 +23,14 @@ object BeamFederate {
   var beamFed = Option.empty[BeamFederate]
 
   def getInstance(beamServices: BeamServices): BeamFederate = this.synchronized {
-    if (beamFed.isEmpty) {
-      loadHelics
-      beamFed = Some(BeamFederate(beamServices))
+    beamFed match {
+      case Some(beamFederate) => beamFederate
+      case None =>
+        loadHelics
+        val beamFederate = BeamFederate(beamServices)
+        beamFed = Some(beamFederate)
+        beamFederate
     }
-    beamFed.get
   }
 }
 

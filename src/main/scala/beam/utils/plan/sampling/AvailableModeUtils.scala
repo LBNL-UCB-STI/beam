@@ -140,14 +140,13 @@ object AvailableModeUtils extends LazyLogging {
     */
   def replaceAvailableModesForPerson(person: Person, newAvailableModes: Seq[String]): Unit = {
     val maybeIndividual = getPersonCustomAttributes(person)
-    if (maybeIndividual.isDefined) {
-      val attributesOfIndividual = maybeIndividual.get
+    maybeIndividual.foreach(attributesOfIndividual => {
       val modes: Seq[BeamMode] = newAvailableModes.flatMap(f => selectBeamMode(f.toLowerCase))
       person.getCustomAttributes.put(
         PopulationAdjustment.BEAM_ATTRIBUTES,
         attributesOfIndividual.copy(availableModes = modes)
       )
-    }
+    })
   }
 
   private def selectBeamMode(mode: String): Option[BeamMode] = {
