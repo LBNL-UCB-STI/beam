@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.io.FileOutputStream
-import java.nio.file.{Files, Paths, StandardCopyOption}
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
 
@@ -10,7 +10,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
-import scala.util.Try
+import scala.util.{Random, Try}
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
@@ -58,8 +58,8 @@ import com.google.inject.Scopes
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -69,13 +69,6 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByIns
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
-
-import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Await
-import scala.sys.process.Process
-import scala.util.{Random, Try}
 
 trait BeamHelper extends LazyLogging {
 
@@ -347,10 +340,25 @@ trait BeamHelper extends LazyLogging {
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
-      case _ =>
-        val (_, outputDirectory, _) = runBeamWithConfig(config)
-        postRunActivity(parsedArgs.configLocation.get, config, outputDirectory)
+      case _            =>
+        // todo: use buildRunner
+        val runner = runBeamWithConfig(config).run()
+        postRunActivity(parsedArgs.configLocation.get, config, runner.outputDirectory)
     }
+  }
+
+  def buildRunner(args: Array[String], isConfigArgRequired: Boolean = true): BeamRunner = {
+    val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+
+    val postRunner: BeamRunner => Path = (runner: BeamRunner) =>
+      postRunActivity(
+        parsedArgs.configLocation.get,
+        config,
+        runner.outputDirectory
+    )
+    runBeamWithConfig(config)
+      .withPostRunner(postRunner)
+      .run()
   }
 
   def prepareConfig(args: Array[String], isConfigArgRequired: Boolean): (Arguments, TypesafeConfig) = {
@@ -394,7 +402,7 @@ trait BeamHelper extends LazyLogging {
     }
   }
 
-  private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String) = {
+  private def postRunActivity(configLocation: String, config: TypesafeConfig, outputDirectory: String): Path = {
     val props = new Properties()
     props.setProperty("commitHash", BashUtils.getCommitHash)
     props.setProperty("configFile", configLocation)
@@ -478,24 +486,39 @@ trait BeamHelper extends LazyLogging {
     }), scala.concurrent.duration.Duration.Inf)
   }
 
-  def runBeamWithConfig(config: TypesafeConfig): (MatsimConfig, String, BeamServices) = {
+  def runBeamWithConfig(config: TypesafeConfig): BeamRunner = {
     val (
       beamExecutionConfig: BeamExecutionConfig,
       scenario: MutableScenario,
       beamScenario: BeamScenario,
-      services: BeamServices
+      services: BeamServices,
+      injector: inject.Injector
     ) = prepareBeamService(config)
 
-    runBeam(
-      services,
-      scenario,
-      beamScenario,
-      beamExecutionConfig.outputDirectory
+    val runMethod = () => {
+      runBeam(
+        beamServices = services,
+        scenario = scenario,
+        beamScenario = beamScenario,
+        outputDir = beamExecutionConfig.outputDirectory
+      )
+    }
+    new BeamRunner(
+      matsimConfig = scenario.getConfig,
+      outputDirectory = beamExecutionConfig.outputDirectory,
+      beamServices = services,
+      injector = injector,
+      runMethod = runMethod
     )
-    (scenario.getConfig, beamExecutionConfig.outputDirectory, services)
   }
 
-  def prepareBeamService(config: TypesafeConfig): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {
+  def prepareBeamService(config: TypesafeConfig): (
+    BeamExecutionConfig,
+    MutableScenario,
+    BeamScenario,
+    BeamServices,
+    inject.Injector
+  ) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
@@ -526,7 +549,7 @@ trait BeamHelper extends LazyLogging {
     val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
 
     val services = injector.getInstance(classOf[BeamServices])
-    (beamExecutionConfig, scenario, beamScenario, services)
+    (beamExecutionConfig, scenario, beamScenario, services, injector)
   }
 
   def fixDanglingPersons(result: MutableScenario): Unit = {

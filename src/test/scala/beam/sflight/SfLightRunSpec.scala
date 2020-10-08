@@ -91,7 +91,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
         .withValue(METRICS_LEVEL, ConfigValueFactory.fromAnyRef("off"))
         .withValue(KAMON_INFLUXDB, ConfigValueFactory.fromAnyRef("no"))
         .resolve()
-      val (_, output, _) = runBeamWithConfig(conf)
+      val output = runBeamWithConfig(conf).run().outputDirectory
 
       val outDir = Paths.get(output).toFile
 

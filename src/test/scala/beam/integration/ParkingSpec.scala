@@ -89,7 +89,9 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
       .withFallback(param)
       .resolve()
 
-    val (matsimConfig, outputDirectory, _) = runBeamWithConfig(config)
+    val runner = runBeamWithConfig(config).run()
+    val matsimConfig = runner.matsimConfig
+    val outputDirectory = runner.outputDirectory
 
     val queueEvents = ArrayBuffer[Seq[Event]]()
     for (i <- 0 until iterations) {

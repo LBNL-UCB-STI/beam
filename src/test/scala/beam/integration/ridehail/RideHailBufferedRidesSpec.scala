@@ -45,7 +45,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       )
       .resolve()
 
-    val matsimConfig = runBeamWithConfig(config)._1
+    val matsimConfig = runBeamWithConfig(config).run().matsimConfig
     val filePath = getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
     val events = fromXmlFile(filePath)
 
@@ -75,7 +75,7 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
       )
       .resolve()
 
-    val matsimConfig = runBeamWithConfig(config)._1
+    val matsimConfig = runBeamWithConfig(config).run().matsimConfig
     val filePath = getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
     val events = fromXmlFile(filePath)
 
