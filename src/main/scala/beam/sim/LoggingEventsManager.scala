@@ -71,7 +71,7 @@ class LoggingEventsManager @Inject()(
   )
 
   override def addHandler(handler: EventHandler): Unit = {
-    if (!toSeqEvents.exists(x => handler.getClass.toString.contains(x))) {
+    if (toSeqEvents.exists(x => handler.getClass.toString.contains(x))) {
       tryLog("addHandler", seqEventManager.addHandler(handler))
     } else {
       logger.info("###### To parallel EM: {}", handler)
