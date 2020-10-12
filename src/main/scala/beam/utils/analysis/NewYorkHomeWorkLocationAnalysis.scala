@@ -184,7 +184,7 @@ object NewYorkHomeWorkLocationAnalysis {
 
   }
 
-  def getHomeWorkLocations(pathToPlans: String, isUtmCoord: Boolean): Seq[((Coord, Coord), Double)] = {
+  def getHomeWorkLocations(pathToPlans: String, isUtmCoord: Boolean): Seq[((Coord, Coord), Int)] = {
     def filter(planElement: PlanElement): Boolean = {
       planElement.planSelected && planElement.planElementType == "activity" && planElement.activityType.exists(
         actType => actType.toLowerCase == "home" || actType.toLowerCase == "work"
@@ -227,7 +227,7 @@ object NewYorkHomeWorkLocationAnalysis {
         }
         .flatten
         .groupBy { case ((src, dst), _) => (src, dst) }
-        .map { case (x, xs) => (x, xs.map(_._2).sum.toDouble) }
+        .map { case (x, xs) => (x, xs.map(_._2).sum) }
         .toSeq
     } finally {
       toClose.close()

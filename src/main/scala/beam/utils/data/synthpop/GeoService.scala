@@ -81,7 +81,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
       val blockGroup = feature.getAttribute("BLKGRPCE").toString
-      val shouldConsider = uniqueGeoIds.contains(
+      val shouldConsider = uniqueGeoIds.isEmpty || uniqueGeoIds.contains(
         BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroup)
       )
       shouldConsider

@@ -14,6 +14,7 @@ import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.GeoService.CheckResult
+import beam.utils.data.synthpop.SimpleScenarioGenerator.getBlockGroupToTazs
 import beam.utils.data.synthpop.generators.{
   RandomWorkDestinationGenerator,
   TimeLeavingHomeGenerator,
@@ -30,6 +31,7 @@ import beam.utils.scenario.generic.writers.{
   CsvPlanElementWriter
 }
 import com.typesafe.scalalogging.StrictLogging
+import com.vividsolutions.jts.geom.Geometry
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
@@ -159,7 +161,7 @@ class SimpleScenarioGenerator(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
     x => logger.info(x)
   ) {
-    getBlockGroupToTazs
+    getBlockGroupToTazs(geoSvc.blockGroupGeoIdToGeom, geoSvc.tazGeoIdToGeom).map { case (k, v) => k -> v.map(_._1) }
   }
   logger.info(s"blockGroupToToTazs: ${blockGroupToToTazs.size}")
 
@@ -415,24 +417,6 @@ class SimpleScenarioGenerator(
     )
   }
 
-  private def getBlockGroupToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = {
-    // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
-    val blockGroupToTazs = geoSvc.blockGroupGeoIdToGeom
-      .map {
-        case (blockGroupGeoId, blockGroupGeom) =>
-          // Intersect with all TAZ
-          val allIntersections = geoSvc.tazGeoIdToGeom.flatMap {
-            case (tazGeoId, tazGeo) =>
-              val intersection = blockGroupGeom.intersection(tazGeo)
-              if (intersection.isEmpty)
-                None
-              else Some((intersection, blockGroupGeoId, tazGeoId))
-          }
-          blockGroupGeoId -> allIntersections.map(_._3).toList
-      }
-    blockGroupToTazs
-  }
-
   def findWorkingLocation(
     tazGeoId: TazGeoId,
     households: Seq[Models.Household],
@@ -618,6 +602,27 @@ object SimpleScenarioGenerator extends StrictLogging {
 
   def getCurrentDateTime: String = {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss").format(LocalDateTime.now)
+  }
+
+  def getBlockGroupToTazs(
+    blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry],
+    tazGeoIdToGeom: Map[TazGeoId, Geometry]
+  ): Map[BlockGroupGeoId, List[(TazGeoId, Double)]] = {
+    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map {
+      case (blockGroupGeoId, blockGroupGeom) =>
+        // Intersect with all TAZ
+        val allIntersections = tazGeoIdToGeom.flatMap {
+          case (tazGeoId, tazGeo) =>
+            val intersection: Geometry = blockGroupGeom.intersection(tazGeo)
+            if (intersection.isEmpty) // Should we consider the area?  && intersection.getArea == 0
+              None
+            else {
+              Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
+            }
+        }
+        blockGroupGeoId -> allIntersections.map(_._3).toList
+    }.seq
+    blockGroupToTazs
   }
 
   def run(parsedArgs: Arguments): Unit = {
