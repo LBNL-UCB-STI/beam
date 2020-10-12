@@ -14,20 +14,21 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
 import org.matsim.core.events.handler.EventHandler
+import org.matsim.core.scoring.{EventsToActivities, EventsToLegs}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
 class LoggingEventsManager @Inject()(
-  @Named("ParallelEM") defaultEventManager: EventsManager
+  @Named("ParallelEM") eventManager: EventsManager
 ) extends EventsManager
     with LazyLogging {
-//  private val matsimEventManager = new ParallelEventsManagerImpl(1)
-  private val seqEventManager = new EventsManagerImpl()
-  private val eventManager = defaultEventManager
-//  private val eventManager = new ParallelEventsManagerImpl(1)
-//  private val eventManager = new EventsManagerImpl()
-  logger.info(s"Created ${eventManager.getClass} with hashcode: ${eventManager.hashCode()}")
+  private val sequentialHandlers = List(classOf[EventsToActivities], classOf[EventsToLegs])
+  private val sequentialEventManager = new EventsManagerImpl()
+  private val defaultEventManager = eventManager
+
+  logger.info(s"Created sequential ${sequentialEventManager.getClass} with hashcode: ${sequentialEventManager.hashCode()}")
+  logger.info(s"Created default ${defaultEventManager.getClass} with hashcode: ${defaultEventManager.hashCode()}")
 
   private val numOfEvents: AtomicInteger = new AtomicInteger(0)
 
@@ -62,45 +63,36 @@ class LoggingEventsManager @Inject()(
     numOfEvents.incrementAndGet()
   }
 
-  private val toSeqEvents = List(
-    "org.matsim"
-//    ,
-//    "beam.router.skim",
-//    "beam.analysis",
-//    "beam.agentsim.events.handling"
-  )
-
   override def addHandler(handler: EventHandler): Unit = {
-    if (toSeqEvents.exists(x => handler.getClass.toString.contains(x))) {
-      tryLog("addHandler", seqEventManager.addHandler(handler))
+    if (sequentialHandlers.contains(handler.getClass)) {
+      tryLog("addHandler", sequentialEventManager.addHandler(handler))
     } else {
-      logger.info("###### To parallel EM: {}", handler)
-      tryLog("addHandler", eventManager.addHandler(handler))
+      tryLog("addHandler", defaultEventManager.addHandler(handler))
     }
   }
 
   override def removeHandler(handler: EventHandler): Unit = {
-    tryLog("removeHandler", seqEventManager.removeHandler(handler))
-    tryLog("removeHandler", eventManager.removeHandler(handler))
+    tryLog("removeHandler", sequentialEventManager.removeHandler(handler))
+    tryLog("removeHandler", defaultEventManager.removeHandler(handler))
   }
 
   override def resetHandlers(iteration: Int): Unit = {
-    tryLog("resetHandlers", seqEventManager.resetHandlers(iteration))
-    tryLog("resetHandlers", eventManager.resetHandlers(iteration))
+    tryLog("resetHandlers", sequentialEventManager.resetHandlers(iteration))
+    tryLog("resetHandlers", defaultEventManager.resetHandlers(iteration))
   }
 
   override def initProcessing(): Unit = {
     numOfEvents.set(0)
     stacktraceToException.clear()
-    tryLog("initProcessing", seqEventManager.initProcessing())
-    tryLog("initProcessing", eventManager.initProcessing())
+    tryLog("initProcessing", sequentialEventManager.initProcessing())
+    tryLog("initProcessing", defaultEventManager.initProcessing())
     isFinished.set(false)
     dedicatedHandler = Some(createDedicatedHandler)
   }
 
   override def afterSimStep(time: Double): Unit = {
-    tryLog("afterSimStep", seqEventManager.afterSimStep(time))
-    tryLog("afterSimStep", eventManager.afterSimStep(time))
+    tryLog("afterSimStep", sequentialEventManager.afterSimStep(time))
+    tryLog("afterSimStep", defaultEventManager.afterSimStep(time))
   }
   override def finishProcessing(): Unit = {
     val s = System.currentTimeMillis()
@@ -113,8 +105,8 @@ class LoggingEventsManager @Inject()(
       Await.result(f, 1000.seconds)
       logger.info("dedicatedHandler future finished.")
     }
-    tryLog("finishProcessing", seqEventManager.finishProcessing())
-    tryLog("finishProcessing", eventManager.finishProcessing())
+    tryLog("finishProcessing", sequentialEventManager.finishProcessing())
+    tryLog("finishProcessing", defaultEventManager.finishProcessing())
     val e = System.currentTimeMillis()
     logger.info(s"finishProcessing executed in ${e - s} ms")
     logger.info(s"Overall processed events: ${numOfEvents.get()}")
@@ -163,8 +155,8 @@ class LoggingEventsManager @Inject()(
 
   private def tryToProcessEvent(event: Event): Unit = {
     try {
-      seqEventManager.processEvent(event)
-      eventManager.processEvent(event)
+      sequentialEventManager.processEvent(event)
+      defaultEventManager.processEvent(event)
     } catch {
       case ex: Exception =>
         if (shouldLog(ex)) {
