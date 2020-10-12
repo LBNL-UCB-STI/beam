@@ -31,7 +31,7 @@ runcmd:
   - esac
   - done
   - done
-  - sort -o s3-result-out.csv -n -t , -k 2 -r result.csv
+  - sort -o s3-result-out.csv -g -t , -k 2 -r result.csv
   - echo "folder, size(MB)" > output.csv
   - head -$N s3-result-out.csv >> s3-buckets-output.csv
   - aws s3 --region=$REGION cp s3-buckets-output.csv s3://beam-outputs/s3-buckets-output.csv
