@@ -38,6 +38,9 @@ class BeamGraphHopper(wayId2TravelTime: Map[Long, Double]) extends GraphHopper {
 }
 
 object BeamGraphHopper {
-  val profile = "beam_car"
+  val profileBeamCar = "beam_car"
+  val profileFastestCar = "fastest_car"
+  val profileFastestFoot = "fastest_foot"
+  val profileFastestBike = "fastest_bike"
   val weightingName = "beam"
 }
