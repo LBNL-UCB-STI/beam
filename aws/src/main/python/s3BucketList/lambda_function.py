@@ -18,13 +18,13 @@ runcmd:
   - aws s3 ls --region=us-east-2 s3://$bucket --human-readable --summarize | while read -r line; do
   - case "$line" in PRE* )
   - key=$(echo $bucket/$line | sed 's/PRE //g')
-  - result=$(aws s3 ls --region=us-east-2 s3://$key --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total/1024/1024}')
+  - result=$(aws s3 ls --region=us-east-2 s3://$key --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total}')
   - echo $key, $result >> "result.csv"
   - aws s3 ls --region=us-east-2 s3://$key --human-readable --summarize | while read -r nested_key; do
   - case "$nested_key" in PRE* )
   - key=$(echo $key | sed "s,/$,,")
   - inner_nested_key=$(echo $key/$nested_key | sed 's/PRE //g')
-  - result=$(aws s3 ls --region=us-east-2 s3://$inner_nested_key --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total/1024/1024}')
+  - result=$(aws s3 ls --region=us-east-2 s3://$inner_nested_key --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total}')
   - echo $inner_nested_key, $result >> "result.csv"
   - esac
   - done
