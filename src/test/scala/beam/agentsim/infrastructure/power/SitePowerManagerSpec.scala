@@ -11,7 +11,6 @@ import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamFederate
 import beam.sim.{BeamHelper, BeamServicesImpl}
-import beam.sim.{BeamServices, BeamServicesImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{BeamVehicleUtils, TestConfigUtils}
