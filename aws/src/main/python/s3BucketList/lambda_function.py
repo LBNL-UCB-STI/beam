@@ -10,19 +10,25 @@ runcmd:
   - sudo dpkg --remove --force-remove-reinstreq unattended-upgrades
   - sudo apt-get install unattended-upgrades
   - sudo dpkg --configure -a
+  - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6B05F25D762E3157
   - sudo apt update
   - buckets=$(aws s3 ls | awk '{print $3}')
   - for bucket in $buckets; do
-  - lines=$(aws s3 ls --region=$REGION s3://$bucket --recursive --human-readable --summarize)
-  - for line in $lines; do
-  - echo $line | grep -qE "/$"
-  - if [ $? = 0 ]; then 
-  - token_count=$(echo $line | awk -F'/' '{ print NF }')
-  - if [ $token_count -eq 2 -o $token_count -eq 3 ]; then
-  - result=$(aws s3 ls --region=$REGION s3://$bucket/$line --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total/1024/1024}')
-  - echo $bucket/$line, $result >> "result.csv"
-  - fi
-  - fi 
+  - bucket=$(echo $bucket | sed "s,/$,,")
+  - aws s3 ls --region=us-east-2 s3://$bucket --human-readable --summarize | while read -r line; do
+  - case "$line" in PRE* )
+  - key=$(echo $bucket/$line | sed 's/PRE //g')
+  - result=$(aws s3 ls --region=us-east-2 s3://$key --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total/1024/1024}')
+  - echo $key, $result >> "result.csv"
+  - aws s3 ls --region=us-east-2 s3://$key --human-readable --summarize | while read -r nested_key; do
+  - case "$nested_key" in PRE* )
+  - key=$(echo $key | sed "s,/$,,")
+  - inner_nested_key=$(echo $key/$nested_key | sed 's/PRE //g')
+  - result=$(aws s3 ls --region=us-east-2 s3://$inner_nested_key --recursive | awk 'BEGIN {total=0}{total+=$3}END{print total/1024/1024}')
+  - echo $inner_nested_key, $result >> "result.csv"
+  - esac
+  - done
+  - esac
   - done
   - done
   - sort -o s3-result-out.csv -n -t , -k 2 -r result.csv
@@ -33,6 +39,7 @@ runcmd:
   - sudo shutdown -h +$SHUTDOWN_WAIT
   - echo "shutdown in $SHUTDOWN_WAIT ..."
 '''))
+
 
 DEFAULT_REGION = 'us-east-2'
 
