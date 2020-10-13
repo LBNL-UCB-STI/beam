@@ -126,4 +126,9 @@ object PassengerSchedule {
   }
 }
 
-case class PersonIdWithActorRef(personId: Id[Person], personRef: ActorRef)
+case class PersonIdWithActorRef(personId: Id[Person], personRef: ActorRef) extends Comparable[PersonIdWithActorRef] {
+  override def compareTo(that: PersonIdWithActorRef): Int = {
+    // Comparing `ActorRef` is pretty expensive, so just compare `personId`
+    personId.compareTo(that.personId)
+  }
+}
