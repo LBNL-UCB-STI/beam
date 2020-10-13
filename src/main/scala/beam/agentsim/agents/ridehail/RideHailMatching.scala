@@ -83,12 +83,14 @@ object RideHailMatching {
       s"${requests.size} requests and this schedule: ${schedule.map(_.toString).mkString("\n")}"
   }
 
+  val geodeticCalculatorPerThread: ThreadLocal[GeodeticCalculator] =
+    ThreadLocal.withInitial[GeodeticCalculator](() => new GeodeticCalculator(DefaultGeographicCRS.WGS84))
+
   def checkAngle(origin: Coord, dest1: Coord, dest2: Coord)(implicit services: BeamServices): Boolean = {
-    val crs = DefaultGeographicCRS.WGS84
+    val calc = geodeticCalculatorPerThread.get()
     val orgWgs = services.geo.utm2Wgs.transform(origin)
     val dst1Wgs = services.geo.utm2Wgs.transform(dest1)
     val dst2Wgs = services.geo.utm2Wgs.transform(dest2)
-    val calc = new GeodeticCalculator(crs)
     val gf = new GeometryFactory()
     val point1 = gf.createPoint(new Coordinate(orgWgs.getX, orgWgs.getY))
     calc.setStartingGeographicPoint(point1.getX, point1.getY)
