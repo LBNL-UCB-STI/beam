@@ -3,6 +3,7 @@ package beam.utils.osm
 import com.conveyal.osmlib.Way
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.Function.tupled
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -12,16 +13,16 @@ object WayFixer extends LazyLogging {
   val MAXSPEED_TAG: String = "maxspeed"
 
   def fix(ways: java.util.Map[java.lang.Long, Way]): Unit = {
-    val nFixedHighways = ways.asScala.count {
-      case (osmId, way) =>
-        fixHighwayType(osmId, way)
-    }
-    val nFixedLanes = ways.asScala.count {
-      case (osmId, way) =>
-        fixLanes(osmId, way)
-    }
+    val waysMap = ways.asScala.map { case (k, v) => (Long2long(k), v) }
+    lazy val averageMaxSpeedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(waysMap.values.toList)
+
+    val nFixedHighways = waysMap.count(tupled(fixHighwayType))
+    val nFixedLanes = waysMap.count(tupled(fixLanes))
+    val nFixedMaxSpeeds = waysMap.count(tupled(deriveMaxSpeedFromRoadType(averageMaxSpeedByRoadTypes)))
+
     logger.info(s"Fixed highway types in $nFixedHighways from ${ways.size}")
     logger.info(s"Fixed lanes in $nFixedLanes from ${ways.size}")
+    logger.info(s"Derived maxSpeed tags in $nFixedMaxSpeeds from ${ways.size}")
   }
 
   def fixHighwayType(osmId: Long, way: Way): Boolean = {
@@ -38,38 +39,19 @@ object WayFixer extends LazyLogging {
     }
   }
 
-//  def fixSpeed(osmId: Long, way: Way): Boolean = {
-//    getFixedSpeed(osmId, way).exists { maxSpeed =>
-//      replace(osmId, way, MAXSPEED_TAG, maxSpeed.toString)
-//      true
-//    }
-//  }
+  def deriveMaxSpeedFromRoadType(averageMaxSpeedByRoadTypes: Map[String, Double])(osmId: Long, way: Way): Boolean = {
+    getDerivedByHighway(averageMaxSpeedByRoadTypes, way).exists { maxSpeed =>
+      replace(osmId, way, MAXSPEED_TAG, maxSpeed.toString)
+      true
+    }
+  }
 
-//  private[osm] def getFixedSpeed(osmId: Long, way: Way): Option[Double] = {
-//    Option(way.getTag(MAXSPEED_TAG)) match {
-//      case Some(rawMaxSpeed) =>
-//        if (rawMaxSpeed.startsWith("[")) {
-//          val maxSpeedStr = split(rawMaxSpeed)
-//          if (maxSpeedStr.isEmpty) {
-//            logger.warn(s"Could not split maxspeed from '$rawMaxSpeed'. OSM[$osmId]")
-//            None
-//          } else {
-//            val lanes = maxSpeedStr.flatMap { x =>
-//              Try(x.toInt).toOption
-//            }
-//            val avgLanes = if (lanes.isEmpty) 1 else lanes.sum.toDouble / lanes.length
-//            Some(avgLanes.toInt)
-//          }
-//        } else {
-//          None
-//        }
-//      case None =>
-//        logger.warn(s"Could not find tag[$LANES_TAG] from OSM[$osmId]")
-//        None
-//    }
-//  }
-
-//  private[osm] def getFixedSpeed()
+  private[osm] def getDerivedByHighway(averageMaxSpeedByRoadTypes: Map[String, Double], way: Way): Option[Double] = {
+    (Option(way.getTag(HIGHWAY_TAG)), Option(way.getTag(MAXSPEED_TAG))) match {
+      case (Some(highwayType), None) => averageMaxSpeedByRoadTypes.get(highwayType)
+      case _                         => None
+    }
+  }
 
   private[osm] def replace(osmId: Long, way: Way, tagName: String, newValue: String): Unit = {
     val oldValue = way.getTag(tagName)
