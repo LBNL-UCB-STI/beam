@@ -65,8 +65,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val allWaysWithMaxSpeedInKmph = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(3, w3)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         // 30 mph == 48.2802 kmph
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("48.2802")
       }
@@ -75,7 +75,6 @@ class WayFixerTest extends WordSpec with Matchers {
         val w1 = new Way()
         val w2 = new Way()
         val w3 = new Way()
-        lazy val allWaysWithMaxSpeedInKmph = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
 
         w1.addTag(WayFixer.HIGHWAY_TAG, "motorway")
         w1.addTag(WayFixer.MAXSPEED_TAG, "35 mph")
@@ -85,7 +84,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(3, w3)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         // 30 mph == 48.2802 kmph
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("48.2802")
       }
@@ -104,8 +104,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val allWaysWithMaxSpeedInKmph = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(3, w3)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         // 30 knots == 55.56 kmph
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("55.56")
       }
@@ -114,7 +114,6 @@ class WayFixerTest extends WordSpec with Matchers {
         val w1 = new Way()
         val w2 = new Way()
         val w3 = new Way()
-        lazy val allWaysWithMaxSpeedInKmph = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
 
         w1.addTag(WayFixer.HIGHWAY_TAG, "motorway")
         w1.addTag(WayFixer.MAXSPEED_TAG, "35 knots")
@@ -124,7 +123,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(3, w3)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         // 30 knots == 55.56 kmph
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("55.56")
       }
@@ -143,8 +143,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val allWaysWithMaxSpeedInKmph = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(3, w3)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("30.0")
       }
 
@@ -169,9 +169,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w5.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val allWaysWithMaxSpeedInKmph =
-          OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: w4 :: w5 :: Nil)
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(5, w5)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: w4 :: w5 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(5, w5)
         w5.getTag(WayFixer.MAXSPEED_TAG) should be("30.0")
       }
     }
@@ -193,8 +192,8 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w4.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val allWaysWithMaxSpeedInKmph = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: w4 :: Nil)
-        WayFixer.deriveMaxSpeedFromRoadType(allWaysWithMaxSpeedInKmph)(4, w4)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: w4 :: Nil)
+        WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(4, w4)
         // 18.641157 mph ~= 30.0 km/h
         // 16.198727 knots ~= 30.0 km/h
         w4.getTag(WayFixer.MAXSPEED_TAG) should be("30.000000670126667")

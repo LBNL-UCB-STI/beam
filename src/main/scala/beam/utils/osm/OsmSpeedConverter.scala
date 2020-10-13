@@ -18,7 +18,7 @@ object OsmSpeedConverter {
     case MphRegex(maxSpeedMph)     => Some(mph2kmph(BigDecimal(maxSpeedMph)))
     case KnotsRegex(maxSpeedKnots) => Some(knots2kmph(BigDecimal(maxSpeedKnots)))
     case KmphRegex(maxSpeed, _)    => Some(BigDecimal(maxSpeed))
-    case x                         => println(x); None
+    case _                         => None
   }
 
   def averageMaxSpeedByRoadTypes(ways: List[Way]): Map[String, Double] =
