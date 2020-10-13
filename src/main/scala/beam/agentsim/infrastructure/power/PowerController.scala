@@ -2,11 +2,12 @@ package beam.agentsim.infrastructure.power
 
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.power.SitePowerManager.{PhysicalBounds, PowerInKW, ZoneId}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamFederate
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import org.matsim.api.core.v01.Id
 import org.slf4j.{Logger, LoggerFactory}
-import spray.json._
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
@@ -14,15 +15,12 @@ import scala.util.{Failure, Try}
 class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
+  private val cnmCfg = beamConfig.beam.agentsim.chargingNetworkManager
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = Try {
     logger.debug("Init PowerController resources...")
     BeamFederate.loadHelics
-    BeamFederate.getInstance(
-      beamServices,
-      beamConfig.beam.agentsim.chargingNetworkManager.helicsFederateName,
-      beamConfig.beam.agentsim.chargingNetworkManager.planningHorizonInSeconds
-    )
+    BeamFederate(beamServices, cnmCfg.helicsFederateName, cnmCfg.planningHorizonInSeconds, cnmCfg.helicsBufferSize, cnmCfg.helicsDataOutStreamPoint, cnmCfg.helicsDataInStreamPoint)
   }.recoverWith {
     case e =>
       logger.error("Cannot init BeamFederate: {}", e.getMessage)
@@ -42,23 +40,29 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
     currentTime: Int,
     requiredLoad: Map[ChargingZone, PowerInKW]
   ): Map[Int, PhysicalBounds] = {
-    import DefaultJsonProtocol._
     import SitePowerManager._
-    import JsonProtocol.PBMJsonFormat
     logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
     beamFederateOption
       .fold(logger.warn("Not connected to grid, nothing was sent")) { beamFederate =>
         val value =
-          requiredLoad.map(x => PhysicalBounds(x._1.tazId, x._1.parkingZoneId, x._2, x._2)).toList
-        beamFederate.publishPowerOverPlanningHorizon(value.toJson)
+          requiredLoad.map(x => Map(
+            "tazId"   -> x._1.tazId.toString,
+            "zoneId"  -> x._1.parkingZoneId,
+            "minLoad" -> x._2,
+            "maxLoad" -> x._2
+          )).toList
+        beamFederate.publish(value)
       }
     logger.debug("Obtaining power from the grid at time {}...", currentTime)
     val bounds = beamFederateOption
       .map { beamFederate =>
-        beamFederate.syncAndMoveToNextTimeStep(currentTime)
-        beamFederate.obtainPowerFlowValue
-          .convertTo[List[PhysicalBounds]]
-          .map(x => x.zoneId -> x)
+        beamFederate.syncAndMoveToNextTimeStep(currentTime).map(
+          x => x("zoneId").asInstanceOf[Int] -> PhysicalBounds(
+            Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
+            x("zoneId").asInstanceOf[Int],
+            x("minLoad").asInstanceOf[Double],
+            x("maxLoad").asInstanceOf[Double])
+        )
       }
       .getOrElse(defaultPowerPhysicalBounds(currentTime, requiredLoad))
       .toMap
@@ -75,7 +79,7 @@ class PowerController(beamServices: BeamServices, beamConfig: BeamConfig) {
 
     try {
       logger.debug("Destroying BeamFederate")
-      BeamFederate.destroyInstance()
+      BeamFederate.unloadHelics
     } catch {
       case NonFatal(ex) =>
         logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")

@@ -14,7 +14,6 @@ import org.matsim.api.core.v01.Id
 import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
-import spray.json._
 
 class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach {
 
@@ -43,15 +42,16 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     ChargingPointType.ChargingStationType1,
     PricingModel.FlatFee(0.0)
   )
-  val dummyPhysicalBounds = PhysicalBounds(dummyChargingZone.tazId, dummyChargingZone.parkingZoneId, 5678.90, 5678.90)
+  val dummyPhysicalBounds = Map(
+    "tazId"   -> dummyChargingZone.tazId.toString,
+    "zoneId"  -> dummyChargingZone.parkingZoneId,
+    "minLoad" -> 5678.90,
+    "maxLoad" -> 5678.90
+  )
 
   override def beforeEach = {
-    import DefaultJsonProtocol._
-    import SitePowerManager._
-    import JsonProtocol.PBMJsonFormat
     reset(beamServicesMock, beamFederateMock)
-    when(beamFederateMock.syncAndMoveToNextTimeStep(300)).thenReturn(600)
-    when(beamFederateMock.obtainPowerFlowValue).thenReturn(List(dummyPhysicalBounds).toJson)
+    when(beamFederateMock.syncAndMoveToNextTimeStep(300)).thenReturn(List(dummyPhysicalBounds))
   }
 
   "PowerController when connected to grid" should {
@@ -71,7 +71,6 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
         )
       )
       verify(beamFederateMock, times(1)).syncAndMoveToNextTimeStep(300)
-      verify(beamFederateMock, times(1)).obtainPowerFlowValue
     }
   }
   "PowerController when not connected to grid" should {
@@ -90,7 +89,6 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
         )
       )
       verify(beamFederateMock, never()).syncAndMoveToNextTimeStep(300)
-      verify(beamFederateMock, never()).obtainPowerFlowValue
     }
 
   }
