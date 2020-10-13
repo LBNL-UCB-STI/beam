@@ -9,6 +9,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
 import beam.agentsim.events.handling.TravelTimeGoogleStatistic
 import beam.analysis.cartraveltime.{
@@ -232,12 +233,16 @@ class BeamSim @Inject()(
       event.getServices.getControlerIO
     )
 
-    tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
-      eventsManager,
-      beamServices,
-      rideHailIterationHistory,
-      transportNetwork
-    )
+    if (RideHailResourceAllocationManager.requiredRideHailIterationsStatsCollector(
+          beamServices.beamConfig.beam.agentsim.agents.rideHail
+        )) {
+      tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
+        eventsManager,
+        beamServices,
+        rideHailIterationHistory,
+        transportNetwork
+      )
+    }
 
     delayMetricAnalysis = new DelayMetricAnalysis(
       eventsManager,
@@ -381,8 +386,10 @@ class BeamSim @Inject()(
       graphFileNameDirectory.clear()
 
       // rideHailIterationHistoryActor ! CollectRideHailStats
-      tncIterationsStatsCollector
-        .tellHistoryToRideHailIterationHistoryActorAndReset()
+      if (tncIterationsStatsCollector != null) {
+        tncIterationsStatsCollector
+          .tellHistoryToRideHailIterationHistoryActorAndReset()
+      }
 
       if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
         routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
