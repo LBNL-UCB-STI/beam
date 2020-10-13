@@ -4,6 +4,7 @@ import beam.agentsim.agents.ridehail.RideHailMatching._
 import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
+import beam.utils.ProfilingUtils
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
@@ -24,7 +25,10 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
   override def matchAndAssign(tick: Int): Future[List[RideHailTrip]] = {
     asyncBuildOfRSVGraph().map {
       case rTvG if rTvG.edgeSet().isEmpty => List.empty[RideHailTrip]
-      case rTvG                           => greedyAssignment(rTvG)
+      case rTvG                           =>
+        ProfilingUtils.timed(s"greedyAssignment for ${rTvG.vertexSet().size()} X ${rTvG.edgeSet().size()}", x => logger.info(x)) {
+          greedyAssignment(rTvG)
+        }
     }
   }
 
@@ -95,16 +99,24 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
   }
 
   private def asyncBuildOfRSVGraph(): Future[RTVGraph] = {
+    val s = System.currentTimeMillis()
     Future
       .sequence(supply.withFilter(_.getFreeSeats >= 1).map { v =>
         Future { matchVehicleRequests(v) }
       })
       .map { result =>
+        val e = System.currentTimeMillis()
+        logger.info(s"matchVehicleRequests got ${result.size} in ${e - s} ms")
+
         val rTvG = RTVGraph(classOf[DefaultEdge])
-        result foreach {
-          case (vertices, edges) =>
-            vertices foreach (vertex => rTvG.addVertex(vertex))
-            edges foreach { case (vertexSrc, vertexDst) => rTvG.addEdge(vertexSrc, vertexDst) }
+        ProfilingUtils.timed(s"Created a graph from ${result.size}", x => logger.info(x)) {
+          result foreach {
+            case (vertices, edges) =>
+              vertices foreach (vertex => rTvG.addVertex(vertex))
+              edges foreach { case (vertexSrc: RTVGraphNode, vertexDst) =>
+                rTvG.addEdge(vertexSrc, vertexDst)
+              }
+          }
         }
         rTvG
       }

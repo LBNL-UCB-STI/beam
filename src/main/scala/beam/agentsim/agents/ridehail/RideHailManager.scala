@@ -1595,6 +1595,9 @@ class RideHailManager(
     var allRoutesRequired: Vector[RoutingRequest] = Vector()
     log.debug("findAllocationsAndProcess @ {}", tick)
 
+    val avgTimePerAllocation = timeSpendForFindAllocationsAndProcessMs.toDouble  / nFindAllocationsAndProcess
+    log.info(s"nFindAllocationsAndProcess: ${nFindAllocationsAndProcess}, timeSpendForFindAllocationsAndProcessMs: ${timeSpendForFindAllocationsAndProcessMs}, avgTimePerAllocation: ${avgTimePerAllocation}")
+
     rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick, beamServices) match {
       case VehicleAllocations(allocations) =>
         allocations.foreach {

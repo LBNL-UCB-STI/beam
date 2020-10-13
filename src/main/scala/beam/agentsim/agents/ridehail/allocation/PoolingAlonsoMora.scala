@@ -11,6 +11,7 @@ import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.BeamServices
+import beam.utils.ProfilingUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
@@ -209,7 +210,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 
       import scala.concurrent.duration._
       val assignment = try {
-        Await.result(createMatchingAlgorithm(availVehicles).matchAndAssign(tick), atMost = 2.minutes)
+        ProfilingUtils.timed("PoolingAlonsoMora.createMatchingAlgorithm", x => logger.info(x)) {
+          Await.result(createMatchingAlgorithm(availVehicles).matchAndAssign(tick), atMost = 2.minutes)
+        }
       } catch {
         case e: TimeoutException =>
           rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")
