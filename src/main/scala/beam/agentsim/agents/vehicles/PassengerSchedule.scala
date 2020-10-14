@@ -131,4 +131,16 @@ case class PersonIdWithActorRef(personId: Id[Person], personRef: ActorRef) exten
     // Comparing `ActorRef` is pretty expensive, so just compare `personId`
     personId.compareTo(that.personId)
   }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: PersonIdWithActorRef =>
+        personId.equals(that.personId)
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = {
+    personId.hashCode()
+  }
 }
