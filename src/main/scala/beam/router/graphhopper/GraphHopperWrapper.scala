@@ -277,12 +277,12 @@ object GraphHopperWrapper {
     val carFlagEncoderParams = new PMap
     carFlagEncoderParams.putObject("turn_costs", false)
     val carFlagEncoder = new CarFlagEncoder(carFlagEncoderParams)
-    val bikeFlagEncoder = new BikeFlagEncoder
+//    val bikeFlagEncoder = new BikeFlagEncoder
     val footFlagEncoder = new FootFlagEncoder
 
     val emBuilder: EncodingManager.Builder = new EncodingManager.Builder
     emBuilder.add(carFlagEncoder)
-    emBuilder.add(bikeFlagEncoder)
+//    emBuilder.add(bikeFlagEncoder)
     emBuilder.add(footFlagEncoder)
     val encodingManager = emBuilder.build
 
@@ -295,16 +295,16 @@ object GraphHopperWrapper {
       CHConfig.nodeBased(BeamGraphHopper.profileFastestCar, new FastestWeighting(carFlagEncoder))
     }
 
-    val bikeCH = CHConfig.nodeBased(
-      BeamGraphHopper.profileFastestBike,
-      new PriorityWeighting(bikeFlagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER)
-    )
+//    val bikeCH = CHConfig.nodeBased(
+//      BeamGraphHopper.profileFastestBike,
+//      new PriorityWeighting(bikeFlagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER)
+//    )
     val footCH = CHConfig.nodeBased(BeamGraphHopper.profileFastestFoot, new FastestWeighting(footFlagEncoder))
 
     val ghDirectory = new GHDirectory(directory, DAType.RAM_STORE)
     val graphHopperStorage = new GraphHopperStorage(ghDirectory, encodingManager, false)
     graphHopperStorage.addCHGraph(carCH)
-    graphHopperStorage.addCHGraph(bikeCH)
+//    graphHopperStorage.addCHGraph(bikeCH)
     graphHopperStorage.addCHGraph(footCH)
     graphHopperStorage.create(1000)
 
@@ -345,8 +345,8 @@ object GraphHopperWrapper {
     val handler = new CHPreparationHandler
     handler.addCHConfig(carCH)
     handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, carCH))
-    handler.addCHConfig(bikeCH)
-    handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, bikeCH))
+//    handler.addCHConfig(bikeCH)
+//    handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, bikeCH))
     handler.addCHConfig(footCH)
     handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, footCH))
     handler.setPreparationThreads(3)
@@ -375,15 +375,16 @@ object GraphHopperWrapper {
       fastestCarProfile
     }
 
-    val bestBikeProfile = new Profile(BeamGraphHopper.profileFastestBike)
-    bestBikeProfile.setVehicle("bike")
-    bestBikeProfile.setWeighting("fastest")
-    bestBikeProfile.setTurnCosts(false)
+//    val bestBikeProfile = new Profile(BeamGraphHopper.profileFastestBike)
+//    bestBikeProfile.setVehicle("bike")
+//    bestBikeProfile.setWeighting("fastest")
+//    bestBikeProfile.setTurnCosts(false)
 
     val fastestFootProfile = new Profile(BeamGraphHopper.profileFastestFoot)
     fastestFootProfile.setVehicle("foot")
     fastestFootProfile.setWeighting("fastest")
     fastestFootProfile.setTurnCosts(false)
+//    List(carProfile, bestBikeProfile, fastestFootProfile)
     List(carProfile, bestBikeProfile, fastestFootProfile)
   }
 
