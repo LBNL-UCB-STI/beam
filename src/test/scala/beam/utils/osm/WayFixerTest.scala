@@ -65,10 +65,10 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
-        // 30 mph == 48.2802 kmph
-        w3.getTag(WayFixer.MAXSPEED_TAG) should be("48.2802")
+        // 30 mph == 48.28032 kmph
+        w3.getTag(WayFixer.MAXSPEED_TAG) should be("48.28032")
       }
 
       {
@@ -84,10 +84,10 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
-        // 30 mph == 48.2802 kmph
-        w3.getTag(WayFixer.MAXSPEED_TAG) should be("48.2802")
+        // 30 mph == 48.28032 kmph
+        w3.getTag(WayFixer.MAXSPEED_TAG) should be("48.28032")
       }
     }
     "be able to derive max speed based on existing max speed values (unit: knots)" in {
@@ -104,7 +104,7 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         // 30 knots == 55.56 kmph
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("55.56")
@@ -123,7 +123,7 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         // 30 knots == 55.56 kmph
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("55.56")
@@ -143,7 +143,7 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(3, w3)
         w3.getTag(WayFixer.MAXSPEED_TAG) should be("30.0")
       }
@@ -169,7 +169,7 @@ class WayFixerTest extends WordSpec with Matchers {
 
         w5.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: w4 :: w5 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: w4 :: w5 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(5, w5)
         w5.getTag(WayFixer.MAXSPEED_TAG) should be("30.0")
       }
@@ -185,18 +185,18 @@ class WayFixerTest extends WordSpec with Matchers {
         w1.addTag(WayFixer.MAXSPEED_TAG, "30 kmph")
 
         w2.addTag(WayFixer.HIGHWAY_TAG, "motorway")
-        w2.addTag(WayFixer.MAXSPEED_TAG, "18.641157 mph")
+        w2.addTag(WayFixer.MAXSPEED_TAG, "18.64114 mph")
 
         w3.addTag(WayFixer.HIGHWAY_TAG, "motorway")
-        w3.addTag(WayFixer.MAXSPEED_TAG, "16.198727 knots")
+        w3.addTag(WayFixer.MAXSPEED_TAG, "16.19872 knots")
 
         w4.addTag(WayFixer.HIGHWAY_TAG, "motorway")
 
-        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(w1 :: w2 :: w3 :: w4 :: Nil)
+        lazy val speedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadType(w1 :: w2 :: w3 :: w4 :: Nil)
         WayFixer.deriveMaxSpeedFromRoadType(speedByRoadTypes)(4, w4)
-        // 18.641157 mph ~= 30.0 km/h
-        // 16.198727 knots ~= 30.0 km/h
-        w4.getTag(WayFixer.MAXSPEED_TAG) should be("30.000000670126667")
+        // 18.64114 mph ~= 30.0 km/h
+        // 16.19872 knots ~= 30.0 km/h
+        w4.getTag(WayFixer.MAXSPEED_TAG).toDouble should be(30.0 +- 0.00005)
       }
 
     }

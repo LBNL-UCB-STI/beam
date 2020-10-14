@@ -14,15 +14,15 @@ object WayFixer extends LazyLogging {
 
   def fix(ways: java.util.Map[java.lang.Long, Way]): Unit = {
     val waysMap = ways.asScala.map { case (k, v) => (Long2long(k), v) }
-    lazy val averageMaxSpeedByRoadTypes = OsmSpeedConverter.averageMaxSpeedByRoadTypes(waysMap.values.toList)
+    lazy val avgMaxSpeedByRoadType = OsmSpeedConverter.averageMaxSpeedByRoadType(waysMap.values.toList)
 
     val nFixedHighways = waysMap.count(tupled(fixHighwayType))
     val nFixedLanes = waysMap.count(tupled(fixLanes))
-    val nFixedMaxSpeeds = waysMap.count(tupled(deriveMaxSpeedFromRoadType(averageMaxSpeedByRoadTypes)))
+    val nDerivedMaxSpeeds = waysMap.count(tupled(deriveMaxSpeedFromRoadType(avgMaxSpeedByRoadType)))
 
     logger.info(s"Fixed highway types in $nFixedHighways from ${ways.size}")
     logger.info(s"Fixed lanes in $nFixedLanes from ${ways.size}")
-    logger.info(s"Derived maxSpeed tags in $nFixedMaxSpeeds from ${ways.size}")
+    logger.info(s"Derived maxSpeed tags in $nDerivedMaxSpeeds from ${ways.size} using mapping:\n$avgMaxSpeedByRoadType")
   }
 
   def fixHighwayType(osmId: Long, way: Way): Boolean = {
@@ -39,16 +39,16 @@ object WayFixer extends LazyLogging {
     }
   }
 
-  def deriveMaxSpeedFromRoadType(averageMaxSpeedByRoadTypes: Map[String, Double])(osmId: Long, way: Way): Boolean = {
-    getDerivedByHighway(averageMaxSpeedByRoadTypes, way).exists { maxSpeed =>
+  def deriveMaxSpeedFromRoadType(avgMaxSpeedByRoadType: Map[String, Double])(osmId: Long, way: Way): Boolean = {
+    getDerivedByHighway(avgMaxSpeedByRoadType, way).exists { maxSpeed =>
       replace(osmId, way, MAXSPEED_TAG, maxSpeed.toString)
       true
     }
   }
 
-  private[osm] def getDerivedByHighway(averageMaxSpeedByRoadTypes: Map[String, Double], way: Way): Option[Double] = {
+  private[osm] def getDerivedByHighway(avgMaxSpeedByRoadType: Map[String, Double], way: Way): Option[Double] = {
     (Option(way.getTag(HIGHWAY_TAG)), Option(way.getTag(MAXSPEED_TAG))) match {
-      case (Some(highwayType), None) => averageMaxSpeedByRoadTypes.get(highwayType)
+      case (Some(highwayType), None) => avgMaxSpeedByRoadType.get(highwayType)
       case _                         => None
     }
   }

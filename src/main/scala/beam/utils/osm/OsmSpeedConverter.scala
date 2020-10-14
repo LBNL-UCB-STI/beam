@@ -11,17 +11,17 @@ object OsmSpeedConverter {
 
   final case class HighwayTypeSpeed(highwayType: String, maxSpeedKph: BigDecimal)
 
-  private def mph2kmph(mph: BigDecimal) = mph * 1.60934
+  private def mph2kmph(mph: BigDecimal) = mph * 1.609344
   private def knots2kmph(knots: BigDecimal) = knots * 1.852
 
-  private def osmSpeedUnit2kmph: PartialFunction[String, Option[BigDecimal]] = {
+  private[osm] def osmSpeedUnit2kmph: PartialFunction[String, Option[BigDecimal]] = {
     case MphRegex(maxSpeedMph)     => Some(mph2kmph(BigDecimal(maxSpeedMph)))
     case KnotsRegex(maxSpeedKnots) => Some(knots2kmph(BigDecimal(maxSpeedKnots)))
     case KmphRegex(maxSpeed, _)    => Some(BigDecimal(maxSpeed))
     case _                         => None
   }
 
-  def averageMaxSpeedByRoadTypes(ways: List[Way]): Map[String, Double] =
+  def averageMaxSpeedByRoadType(ways: List[Way]): Map[String, Double] =
     ways
       .flatMap { way =>
         for {
