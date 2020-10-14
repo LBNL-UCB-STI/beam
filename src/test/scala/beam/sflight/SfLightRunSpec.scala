@@ -37,6 +37,7 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
     "run 0.5k scenario for one iteration and at least one person chooses car mode" in {
       val config = ConfigFactory
         .parseString("""
+          |beam.actorSystemName = "SfLightRunSpec"
           |beam.outputs.events.fileOutputFormats = xml
           |beam.agentsim.lastIteration = 0
         """.stripMargin)
