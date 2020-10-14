@@ -48,7 +48,7 @@ object GtfsUtils {
   /**
     * Loads GTFS feed into sequence of trips with their stop times
     * and applies transformation strategies
- *
+    *
     * @param gtfsFeed path could be either zip file or directory with GTFS data
     * @param gtfsFeedOut path could be either zip file or directory with GTFS data
     * @param transformerStrategies list of transform strategies to be applied to GTFS entities
@@ -123,6 +123,7 @@ object GtfsUtils {
 
   def doubleTripsStrategy(
     dao: GtfsMutableRelationalDao,
+    modifiedRouteIds: Set[String],
     tripsWithStopTimes: Seq[TripAndStopTimes],
     factor: Float = 2.0f,
     timeFrame: TimeFrame = TimeFrame.WholeDay
@@ -133,14 +134,20 @@ object GtfsUtils {
     val lastArrivalTime = timeFrame.endTime
 
     val foundTrips = findTrips(tripsWithStopTimes, timeFrame)
-    val allTrips = foundTrips.flatten
-    val totalNum = allTrips.size
-    val numExtraTrips = Math.round(totalNum * (factor - 1)) % totalNum
-    val (specialTrips, regularTrips) = Random.shuffle(allTrips).splitAt(numExtraTrips)
-    val factors = (specialTrips.map(tripAndStopTimes => tripAndStopTimes.trip -> (factor.toInt + 1))
-    ++ regularTrips.map(tripAndStopTimes => tripAndStopTimes.trip             -> factor.toInt)).toMap
+    val routeToTrips: Map[Route, Seq[TripAndStopTimes]] = foundTrips.flatten.groupBy(_.trip.getRoute)
+    val filtered: Map[Route, Seq[TripAndStopTimes]] =
+      if (modifiedRouteIds.isEmpty) routeToTrips
+      else routeToTrips.filterKeys(route => modifiedRouteIds.contains(route.getId.getId))
+    //creates a map, trip -> number of trips that need to be created after the given trip
+    val factors = filtered.values.flatMap { modifiedTrips =>
+      val totalNum = modifiedTrips.size
+      val numExtraTrips = Math.round(totalNum * (factor - 1)) % totalNum
+      val (specialTrips, regularTrips) = Random.shuffle(modifiedTrips).splitAt(numExtraTrips)
+      (specialTrips.map(tripAndStopTimes => tripAndStopTimes.trip   -> (factor.toInt + 1))
+      ++ regularTrips.map(tripAndStopTimes => tripAndStopTimes.trip -> factor.toInt))
+    }.toMap
 
-    foundTrips
+    filtered.values
       .foreach { trips =>
         // doubling trips between first stop and the last but one
         trips.tail
@@ -260,6 +267,54 @@ object GtfsUtils {
     toDelete.foreach { trip =>
       resultStrategy.addModification(new TypedEntityMatch(classOf[Trip], {
         case trp: Trip => trp.getId == trip.getId
+        case _         => false
+      }), removeEntityUpdateStrategy)
+    }
+    resultStrategy
+  }
+
+  private def chooseToBeDeleted(trips: Seq[Trip]): Seq[Trip] = {
+    trips.zipWithIndex
+      .filter { case (_, i) => i % 2 != 0 }
+      .map { case (trip, _) => trip }
+  }
+
+  def partiallyRemoveHalfTripsStrategy(
+    tripsWithStopTimes: Seq[TripAndStopTimes],
+    modifiedRouteIds: Set[String],
+    timeFrame: TimeFrame = TimeFrame.WholeDay
+  ): GtfsTransformStrategy = {
+    val allTrips = tripsWithStopTimes
+      .filter(_.stopTimes.head.getArrivalTime >= timeFrame.startTime)
+      .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
+      .map(_.trip)
+
+    val routeToTrips = allTrips.groupBy(_.getRoute).filter {
+      case (route, _) => modifiedRouteIds.contains(route.getId.getId)
+    }
+    println(s"routeToTrips = ${routeToTrips.mapValues(_.size)}")
+
+    val toDelete = routeToTrips.values.flatMap(chooseToBeDeleted)
+
+    val removeEntityUpdateStrategy = new RemoveEntityUpdateStrategy()
+    val resultStrategy = new EntitiesTransformStrategy()
+    toDelete.foreach { trip =>
+      resultStrategy.addModification(new TypedEntityMatch(classOf[Trip], {
+        case trp: Trip => trp.getId == trip.getId
+        case _         => false
+      }), removeEntityUpdateStrategy)
+    }
+    resultStrategy
+  }
+
+  def removeRoutesStrategy(
+    modifiedRouteIds: Set[String]
+  ): GtfsTransformStrategy = {
+    val removeEntityUpdateStrategy = new RemoveEntityUpdateStrategy()
+    val resultStrategy = new EntitiesTransformStrategy()
+    modifiedRouteIds.foreach { routeId =>
+      resultStrategy.addModification(new TypedEntityMatch(classOf[Route], {
+        case rt: Route => rt.getId.getId == routeId
         case _         => false
       }), removeEntityUpdateStrategy)
     }

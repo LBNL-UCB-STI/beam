@@ -3,7 +3,7 @@ package beam.utils.transit
 import java.nio.file.{Files, Path, Paths}
 import java.util.stream.Collectors
 
-import beam.utils.transit.GtfsUtils.{TimeFrame, TripAndStopTimes}
+import beam.utils.transit.GtfsUtils.TimeFrame
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.io.FilenameUtils
 import org.onebusaway.gtfs.services.GtfsMutableRelationalDao
@@ -16,8 +16,8 @@ import scala.collection.JavaConverters._
   * {{{
   *   ./gradlew execute -PmainClass=beam.utils.transit.GtfsFeedAdjuster -PappArgs=\
   *   "[
-  *     '--op', 'double|scale',
-  *     '--multiplier', '0.5',
+  *     '--op', 'multiplication|scale|remove_routes',
+  *     '--factor', '0.5',
   *     '--startTime', '36000',
   *     '--endTime', '57600',
   *     '--in', 'test/input/sf-light/r5/BA.zip',
@@ -48,6 +48,8 @@ object GtfsFeedAdjuster extends App with StrictLogging {
           config.copy(strategy = "multiplication")
         case (config, Array("--op", "scale")) =>
           config.copy(strategy = "scale")
+        case (config, Array("--op", "remove_routes")) =>
+          config.copy(strategy = "remove_routes")
         case (config, Array("--factor", value)) => config.copy(factor = value.toDouble)
         case (config, Array("--in", path))      => config.copy(in = Paths.get(path))
         case (config, Array("--out", path))     => config.copy(out = Paths.get(path))
@@ -63,8 +65,6 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   if (zipList.nonEmpty) {
     logger.info("Found {} zip files", zipList.size)
     logger.info("Transform to {}", adjusterConfig.out)
-    if (Files.notExists(adjusterConfig.out))
-      Files.createDirectories(adjusterConfig.out)
     zipList.foreach { zip =>
       val cfg = adjusterConfig.copy(in = zip, out = adjusterConfig.out.resolve(zip.getFileName))
       transformSingleEntry(cfg)
@@ -73,12 +73,21 @@ object GtfsFeedAdjuster extends App with StrictLogging {
     transformSingleEntry(adjusterConfig)
 
   private def findZips(dir: Path): List[Path] = {
+    //todo load from file
+    val filesToTransform = Set(
+      "MTA_Bronx_20200121.zip",
+      "MTA_Brooklyn_20200118.zip",
+      "MTA_Manhattan_20200123.zip",
+      "MTA_Queens_20200118.zip",
+      "MTA_Staten_Island_20200118.zip",
+    )
     if (Files.isDirectory(dir))
       Files
         .walk(dir, 1)
         .filter(
           (file: Path) =>
             Files.isRegularFile(file)
+            && filesToTransform.contains(file.getFileName.toString)
             && "zip".equalsIgnoreCase(FilenameUtils.getExtension(file.getFileName.toString))
         )
         .sorted()
@@ -90,14 +99,44 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   }
 
   private[transit] def transformSingleEntry(cfg: GtfsFeedAdjusterConfig) = {
-    logger.info("Processing file {}, strategy: {}", cfg.in, cfg.strategy)
+    logger.info("Processing file {}, strategy: {}, factor {}", cfg.in, cfg.strategy, cfg.factor)
+    if (Files.notExists(cfg.out.getParent)) {
+      logger.info("Creating directory {}", cfg.out.getParent)
+      Files.createDirectories(cfg.out.getParent)
+    }
+    //todo load from file
+    val modifiedRouteIds = Set(
+      "B15",
+      "M79+",
+      "M103",
+      "B82+",
+      "M7",
+      "M11",
+      "M5",
+      "B35",
+      "B41",
+      "B44",
+      "Q58",
+      "M1",
+      "M102",
+      "B8",
+      "M42",
+      "M31",
+      "M15+",
+      "B6",
+      "M86+",
+      "M15"
+    )
     val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>
-        GtfsUtils.doubleTripsStrategy(dao, trips, cfg.factor.toFloat, cfg.timeFrame)
+        GtfsUtils.doubleTripsStrategy(dao, modifiedRouteIds, trips, cfg.factor.toFloat, cfg.timeFrame)
+      case "multiplication" if cfg.factor < 1.0 && modifiedRouteIds.nonEmpty =>
+        GtfsUtils.partiallyRemoveHalfTripsStrategy(trips, modifiedRouteIds, cfg.timeFrame)
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
-      case "scale" => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+      case "remove_routes" => GtfsUtils.removeRoutesStrategy(modifiedRouteIds)
+      case "scale"         => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
     }
     GtfsUtils.transformGtfs(
       cfg.in,
