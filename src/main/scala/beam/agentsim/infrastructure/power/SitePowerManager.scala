@@ -7,18 +7,13 @@ import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.TAZSkims
-import beam.sim.BeamServices
 import beam.utils.ReadWriteLockUtil.RichReadWriteLock
 import org.matsim.api.core.v01.Id
-import org.matsim.core.api.experimental.events.EventsManager
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
 
-class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: BeamServices) {
+class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizonInSec: Int, tazSkimmer: TAZSkims) {
   import SitePowerManager._
 
-  val tazSkimmer: TAZSkims = beamServices.skims.taz_skimmer
-  val eventsManager: EventsManager = beamServices.matsimServices.getEvents
-  val planningHorizonInSec: Int = beamServices.beamConfig.beam.agentsim.chargingNetworkManager.planningHorizonInSeconds
   private val unlimitedPhysicalBounds: Map[ZoneId, PhysicalBounds] =
     chargingStations.map(
       s =>
@@ -39,7 +34,7 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
     *
     * @param physicalBounds Physical bounds from the Power Controller
     */
-  def updatePhysicalBounds(physicalBounds: Map[ZoneId, PhysicalBounds]) = {
+  def updatePhysicalBounds(physicalBounds: Map[ZoneId, PhysicalBounds]): Unit = {
     physicalBoundsRWLock.write {
       physicalBoundsInternal = physicalBounds
     }

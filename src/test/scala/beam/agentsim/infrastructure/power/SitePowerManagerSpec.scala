@@ -43,7 +43,7 @@ class SitePowerManagerSpec
     with ImplicitSender
     with BeforeAndAfterEach {
 
-  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
+  private val filesPath = s"${System.getenv("PWD")}/test  /test-resources/beam/input"
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
                                                |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
@@ -74,20 +74,20 @@ class SitePowerManagerSpec
   private val injector = buildInjector(system.settings.config, beamConfig, scenario, beamScenario)
   val beamServices = new BeamServicesImpl(injector)
 
-  val beamFederateMock = mock[BeamFederate]
-  val parkingStall1 = mock[ParkingStall]
+  val beamFederateMock: BeamFederate = mock[BeamFederate]
+  val parkingStall1: ParkingStall = mock[ParkingStall]
   when(parkingStall1.chargingPointType).thenReturn(Some(ChargingPointType.ChargingStationType1))
   when(parkingStall1.locationUTM).thenReturn(beamServices.beamScenario.tazTreeMap.getTAZs.head.coord)
   when(parkingStall1.parkingZoneId).thenReturn(1)
 
-  val parkingStall2 = mock[ParkingStall]
+  val parkingStall2: ParkingStall = mock[ParkingStall]
   when(parkingStall2.chargingPointType).thenReturn(Some(ChargingPointType.ChargingStationType1))
   when(parkingStall2.locationUTM).thenReturn(beamServices.beamScenario.tazTreeMap.getTAZs.head.coord)
   when(parkingStall2.parkingZoneId).thenReturn(1)
 
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
 
-  val dummyChargingZone = ChargingZone(
+  val dummyChargingZone: ChargingZone = ChargingZone(
     1,
     Id.create("Dummy", classOf[TAZ]),
     ParkingType.Public,
@@ -114,7 +114,11 @@ class SitePowerManagerSpec
   }
 
   "SitePowerManager" should {
-    val sitePowerManager = new SitePowerManager(Map[Int, ChargingZone](1 -> dummyChargingZone), beamServices)
+    val sitePowerManager = new SitePowerManager(
+      Map[Int, ChargingZone](1 -> dummyChargingZone),
+      beamServices.beamConfig.beam.agentsim.chargingNetworkManager.planningHorizonInSeconds,
+      beamServices.skims.taz_skimmer
+    )
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(

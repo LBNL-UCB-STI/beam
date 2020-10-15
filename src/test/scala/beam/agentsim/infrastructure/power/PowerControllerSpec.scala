@@ -30,10 +30,9 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
 
-  val beamServicesMock = mock[BeamServices]
-  val beamFederateMock = mock[BeamFederate]
+  val beamFederateMock: BeamFederate = mock[BeamFederate]
 
-  val dummyChargingZone = ChargingZone(
+  val dummyChargingZone: ChargingZone = ChargingZone(
     1,
     Id.create("Dummy", classOf[TAZ]),
     ParkingType.Public,
@@ -42,6 +41,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     ChargingPointType.ChargingStationType1,
     PricingModel.FlatFee(0.0)
   )
+
   val dummyPhysicalBounds = Map(
     "tazId"   -> dummyChargingZone.tazId.toString,
     "zoneId"  -> dummyChargingZone.parkingZoneId,
@@ -49,13 +49,13 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     "maxLoad" -> 5678.90
   )
 
-  override def beforeEach = {
-    reset(beamServicesMock, beamFederateMock)
-    when(beamFederateMock.syncAndMoveToNextTimeStep(300)).thenReturn(List(dummyPhysicalBounds))
+  override def beforeEach: Unit = {
+    reset(beamFederateMock)
+    when(beamFederateMock.syncAndCollectJSON(300)).thenReturn((300.0, List(dummyPhysicalBounds)))
   }
 
   "PowerController when connected to grid" should {
-    val powerController = new PowerController(beamServicesMock, BeamConfig(config)) {
+    val powerController: PowerController = new PowerController(BeamConfig(config)) {
       override private[power] lazy val beamFederateOption = Some(beamFederateMock)
     }
 
@@ -70,11 +70,11 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
           5678.90
         )
       )
-      verify(beamFederateMock, times(1)).syncAndMoveToNextTimeStep(300)
+      verify(beamFederateMock, times(1)).syncAndCollectJSON(300)
     }
   }
   "PowerController when not connected to grid" should {
-    val powerController: PowerController = new PowerController(beamServicesMock, BeamConfig(config)) {
+    val powerController: PowerController = new PowerController(BeamConfig(config)) {
       override private[power] lazy val beamFederateOption = None
     }
 
@@ -88,7 +88,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
           0.0
         )
       )
-      verify(beamFederateMock, never()).syncAndMoveToNextTimeStep(300)
+      verify(beamFederateMock, never()).syncAndCollectJSON(300)
     }
 
   }

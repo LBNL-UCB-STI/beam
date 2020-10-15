@@ -43,8 +43,12 @@ class ChargingNetworkManager(
 
   private val chargingStationsQTree: QuadTree[ChargingZone] = loadChargingStations()
   private val sitePowerManager =
-    new SitePowerManager(chargingStationsQTree.values().asScala.map(s => s.parkingZoneId -> s).toMap, beamServices)
-  private val powerController = new PowerController(beamServices, beamConfig)
+    new SitePowerManager(
+      chargingStationsQTree.values().asScala.map(s => s.parkingZoneId -> s).toMap,
+      beamServices.beamConfig.beam.agentsim.chargingNetworkManager.planningHorizonInSeconds,
+      beamServices.skims.taz_skimmer
+    )
+  private val powerController = new PowerController(beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
   log.info("ChargingNetworkManager should be connected to grid: {}", cnmConfig.gridConnectionEnabled)
