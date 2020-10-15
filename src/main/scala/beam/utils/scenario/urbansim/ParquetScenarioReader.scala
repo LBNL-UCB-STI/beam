@@ -101,13 +101,15 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       value == 2L
     }
     val rank: Int = 0
+    val industry = Option(rec.get("industry")).map(_.toString)
     PersonInfo(
       personId = personId,
       householdId = householdId,
       rank = rank,
       age = age,
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D),
+      industry = industry
     )
   }
 

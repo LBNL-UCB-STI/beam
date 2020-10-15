@@ -3,8 +3,8 @@ package beam.utils.scenario.urbansim
 import beam.utils.scenario.urbansim.DataExchange._
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 
@@ -62,7 +62,15 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
         ).asJava
       )
       ParquetScenarioReader.toPersonInfo(gr) should be(
-        PersonInfo(personId = "1", householdId = "2", age = 3, rank = 0, isFemale = false, valueOfTime = 0)
+        PersonInfo(
+          personId = "1",
+          householdId = "2",
+          age = 3,
+          rank = 0,
+          isFemale = false,
+          valueOfTime = 0,
+          industry = None
+        )
       )
     }
 
