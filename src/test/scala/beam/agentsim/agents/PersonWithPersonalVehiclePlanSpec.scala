@@ -32,7 +32,7 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
@@ -42,6 +42,7 @@ class PersonWithPersonalVehiclePlanSpec
     with TestKitBase
     with SimRunnerForTest
     with BeforeAndAfterAll
+    with BeforeAndAfter
     with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
@@ -732,6 +733,15 @@ class PersonWithPersonalVehiclePlanSpec
   override def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  after {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    receiveWhile(1500 millis) {
+      case _: CompletionNotice =>
+    }
   }
 
 }
