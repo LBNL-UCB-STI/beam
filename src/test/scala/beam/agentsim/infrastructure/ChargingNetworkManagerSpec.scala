@@ -62,7 +62,10 @@ class ChargingNetworkManagerSpec
                                                |  gridConnectionEnabled = false
                                                |  chargingSessionInSeconds = 300
                                                |  planningHorizonInSec = 300
-                                               |  helicsFederateName = "BeamCNM"
+                                               |  helicsFederateName = "CNMFederate"
+                                               |  helicsDataOutStreamPoint = ""
+                                               |  helicsDataInStreamPoint = ""
+                                               |  helicsBufferSize = 1000
                                                |}
                                                |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
@@ -257,12 +260,5 @@ class ChargingNetworkManagerSpec
       chargingNetworkManager ! ChargingUnplugRequest(beamVilleCar, 915)
       expectNoMessage() // the vehicle is removed from queue already
     }
-  }
-
-  override def afterEach(): Unit = {
-//    beamVilleCar.resetState()
-//    beamVilleCar.disconnectFromChargingPoint()
-//    beamVilleCar.unsetParkingStall()
-//    beamVilleCar.addFuel(beamVilleCar.beamVehicleType.primaryFuelCapacityInJoule)
   }
 }

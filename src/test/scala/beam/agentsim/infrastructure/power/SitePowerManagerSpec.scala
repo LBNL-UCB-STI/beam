@@ -9,7 +9,7 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.cosim.helics.BeamFederate
+import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
@@ -43,11 +43,8 @@ class SitePowerManagerSpec
     with ImplicitSender
     with BeforeAndAfterEach {
 
-  private val filesPath = s"${System.getenv("PWD")}/test  /test-resources/beam/input"
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
-                                               |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
-                                               |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
                                                |beam.router.skim = {
                                                |  keepKLatestSkims = 1
                                                |  writeSkimsInterval = 1
@@ -61,7 +58,10 @@ class SitePowerManagerSpec
                                                |  gridConnectionEnabled = false
                                                |  chargingSessionInSeconds = 300
                                                |  planningHorizonInSec = 300
-                                               |  helicsFederateName = "BeamCNM"
+                                               |  helicsFederateName = "CNMFederate"
+                                               |  helicsDataOutStreamPoint = ""
+                                               |  helicsDataInStreamPoint = ""
+                                               |  helicsBufferSize = 1000
                                                |}
                                                |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())

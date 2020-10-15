@@ -3,15 +3,14 @@ package beam.cosim.helics
 import beam.sim.BeamHelper
 import com.java.helics.helics
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import beam.cosim.helics.BeamHelicsInterface._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
-class BeamFederate2Spec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
-  override def beforeAll(): Unit = {
-    BeamFederate.loadHelics
-  }
+class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
+  override def beforeAll(): Unit = loadHelics
 
   override def afterAll(): Unit = {
     helics.helicsCleanupLibrary()
@@ -20,9 +19,8 @@ class BeamFederate2Spec extends FlatSpec with Matchers with BeamHelper with Befo
 
   "Running a broker and two federates" must "result is message being transmitted back and forth" in {
     lazy val beamBroker =
-      BeamFederate.getBrokerInstance("Broker", 2, "Federate1", Some("LIST_MAP_ANY"), Some(("Federate2/LIST_ANY", 1000)))
-    lazy val beamFederate =
-      BeamFederate.getFederateInstance("Federate2", Some("LIST_ANY"), Some(("Federate1/LIST_MAP_ANY", 1000)))
+      getBrokerInstance("Broker", 2, "Federate1", Some("LIST_MAP_ANY"), Some(("Federate2/LIST_ANY", 1000)))
+    lazy val beamFederate = getFederateInstance("Federate2", Some("LIST_ANY"), Some(("Federate1/LIST_MAP_ANY", 1000)))
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {

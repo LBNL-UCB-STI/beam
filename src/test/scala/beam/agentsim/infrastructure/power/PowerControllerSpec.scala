@@ -5,8 +5,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.cosim.helics.BeamFederate
-import beam.sim.BeamServices
+import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory

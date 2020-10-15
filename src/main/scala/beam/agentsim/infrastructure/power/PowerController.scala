@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.power.SitePowerManager.{PhysicalBounds, PowerInKW, ZoneId}
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.cosim.helics.BeamFederate
+import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
 import org.slf4j.{Logger, LoggerFactory}
@@ -18,7 +18,7 @@ class PowerController(beamConfig: BeamConfig) {
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = Try {
     logger.debug("Init PowerController resources...")
-    BeamFederate.getFederateInstance(
+    getFederateInstance(
       cnmCfg.helicsFederateName,
       cnmCfg.helicsDataOutStreamPoint match {
         case s: String if s.nonEmpty => Some(s)
@@ -99,7 +99,7 @@ class PowerController(beamConfig: BeamConfig) {
 
     try {
       logger.debug("Destroying BeamFederate")
-      BeamFederate.unloadHelics()
+      unloadHelics()
     } catch {
       case NonFatal(ex) =>
         logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
