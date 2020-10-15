@@ -21,7 +21,7 @@ object OsmSpeedConverter {
     case _                         => None
   }
 
-  def averageMaxSpeedByRoadType(ways: List[Way]): Map[String, Double] =
+  def avgMaxSpeedByRoadType(ways: List[Way], inferenceType: String): Map[String, Double] =
     ways
       .flatMap { way =>
         for {
@@ -31,7 +31,28 @@ object OsmSpeedConverter {
         } yield HighwayTypeSpeed(highwayType, maxSpeedKph)
       }
       .groupBy(_.highwayType)
-      .mapValues(allSpeeds => allSpeeds.map(_.maxSpeedKph).sum / allSpeeds.size)
+      .mapValues(values => averageValue(values.map(_.maxSpeedKph), inferenceType))
       .mapValues(_.doubleValue)
 
+  private[osm] def averageValue(values: List[BigDecimal], inferenceType: String): BigDecimal = inferenceType match {
+    case "MEAN"   => values.mean
+    case "MEDIAN" => values.median
+    case x        => throw new IllegalArgumentException(s"Unsupported maxSpeed inference type: $x")
+  }
+
+  private final implicit class RichBigDecimalList(values: List[BigDecimal]) {
+    private val size = values.size
+
+    def mean: BigDecimal = values.sum / size
+
+    def median: BigDecimal = {
+      val sortedValues = values.sorted
+      if (size % 2 == 1) {
+        sortedValues(size / 2)
+      } else {
+        val (left, right) = sortedValues.splitAt(size / 2)
+        (left.last + right.head) / 2
+      }
+    }
+  }
 }
