@@ -2465,7 +2465,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network.MaxSpeedInference = {
             BeamConfig.Beam.Physsim.Network.MaxSpeedInference(
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              `type` = c.getString("type")
+              `type` = if (c.hasPathOrNull("type")) c.getString("type") else "MEAN"
             )
           }
         }
