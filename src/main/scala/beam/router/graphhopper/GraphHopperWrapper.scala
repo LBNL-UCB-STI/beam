@@ -385,7 +385,7 @@ object GraphHopperWrapper {
     fastestFootProfile.setWeighting("fastest")
     fastestFootProfile.setTurnCosts(false)
 //    List(carProfile, bestBikeProfile, fastestFootProfile)
-    List(carProfile, bestBikeProfile, fastestFootProfile)
+    List(carProfile, fastestFootProfile)
   }
 
   def fromOsm(pathToOsm: String): GraphHopper = {
