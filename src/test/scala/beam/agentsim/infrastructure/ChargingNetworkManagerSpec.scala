@@ -13,7 +13,6 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.utils.TestConfigUtils.testConfig
-import beam.utils.plan.PlanUtils
 import beam.utils.{DateUtils, StuckFinder, TestConfigUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
