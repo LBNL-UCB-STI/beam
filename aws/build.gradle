@@ -228,6 +228,27 @@ task terminateEC2(type: AWSLambdaInvokeTask) {
     }
 }
 
+task listS3Bucket(type: AWSLambdaInvokeTask) {
+    doFirst {
+        functionName = "s3BucketList"
+        invocationType = InvocationType.RequestResponse
+        payload = buildS3ListPayload()
+    }
+
+    doLast {
+        printResult(payload, invokeResult)
+    }
+}
+
+def buildS3ListPayload() {
+    return """{
+        "size": "${project.findProperty('size')}",
+        "region": "${project.findProperty('region') ?: defaultRegion}"
+     }"""
+}
+
+
+
 def checkInstanceId() {
     if (!project.hasProperty('instanceIds')) {
         throw new GradleException('Please specify instance ids using argument `instanceIds`.')
