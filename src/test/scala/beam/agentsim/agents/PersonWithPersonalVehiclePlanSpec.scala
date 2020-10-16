@@ -8,7 +8,7 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, ChargingNetworkManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._

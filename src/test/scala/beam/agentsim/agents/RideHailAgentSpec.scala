@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
@@ -14,7 +14,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ChargingNetworkManager, ZonalParkingManager}
+import beam.agentsim.infrastructure.ZonalParkingManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}

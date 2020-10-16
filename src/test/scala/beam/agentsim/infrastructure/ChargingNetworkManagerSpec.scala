@@ -119,14 +119,7 @@ class ChargingNetworkManagerSpec
     )
     val personAgent = TestActorRef[PersonAgent](Props.empty)
     val chargingNetworkManager = TestActorRef[ChargingNetworkManager](
-      Props(
-        new ChargingNetworkManager(
-          beamServices,
-          beamScenario,
-          scheduler,
-          PlanUtils.buildActivityQuadTreeBounds(beamServices.matsimServices.getScenario.getPopulation, beamConfig)
-        )
-      )
+      Props(new ChargingNetworkManager(beamServices, beamScenario, scheduler))
     )
 
     "process trigger ChargingTimeOutTrigger" in {

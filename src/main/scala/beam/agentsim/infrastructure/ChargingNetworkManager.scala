@@ -18,7 +18,6 @@ import beam.router.skim.TAZSkimmerEvent
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.DateUtils
-import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.ReadWriteLockUtil.RichReadWriteLock
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
@@ -30,11 +29,11 @@ import scala.util.Random
 class ChargingNetworkManager(
   beamServices: BeamServices,
   beamScenario: BeamScenario,
-  scheduler: ActorRef,
-  activityQuadTreeBounds: QuadTreeBounds
+  scheduler: ActorRef
 ) extends Actor
     with ActorLogging {
   import ChargingNetworkManager._
+  import beamServices._
 
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
@@ -281,11 +280,20 @@ class ChargingNetworkManager(
       beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
       new Random(beamConfig.matsim.modules.global.randomSeed)
     )
-    val stationsQuadTree: QuadTree[ChargingZone] = new QuadTree[ChargingZone](
-      activityQuadTreeBounds.minx,
-      activityQuadTreeBounds.miny,
-      activityQuadTreeBounds.maxx,
-      activityQuadTreeBounds.maxy
+    val zonesWithCharger = zones.filter(_.chargingPointType.isDefined)
+    val coordinates = zonesWithCharger.flatMap(z => beamScenario.tazTreeMap.getTAZ(z.tazId)).map(_.coord)
+    val xs = coordinates.map(_.getX)
+    val ys = coordinates.map(_.getY)
+    val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
+    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
+    envelopeInUTM.expandToInclude(xs.min, ys.min)
+    envelopeInUTM.expandToInclude(xs.max, ys.max)
+
+    val stationsQuadTree = new QuadTree[ChargingZone](
+      envelopeInUTM.getMinX,
+      envelopeInUTM.getMinY,
+      envelopeInUTM.getMaxX,
+      envelopeInUTM.getMaxY
     )
     zones.filter(_.chargingPointType.isDefined).foreach { zone =>
       beamScenario.tazTreeMap.getTAZ(zone.tazId) match {

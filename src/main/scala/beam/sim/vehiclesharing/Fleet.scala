@@ -53,8 +53,8 @@ case class FixedNonReservingFleetByTAZ(
               _ =>
                 initialLocation
                   .append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-                    case Some(taz) => TAZTreeMap.randomLocationInTAZ(taz, rand)
-                    case _         => coord
+                    case Some(taz) if coord.getX == 0.0 & coord.getY == 0.0 => TAZTreeMap.randomLocationInTAZ(taz, rand)
+                    case _                                                  => coord
                   })
             )
         }
