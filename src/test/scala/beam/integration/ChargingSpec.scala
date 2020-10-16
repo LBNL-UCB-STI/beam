@@ -14,7 +14,7 @@ import beam.utils.data.synthpop.models.Models.Household
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, LinkLeaveEvent}
+import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Leg, Person}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
@@ -25,14 +25,13 @@ import org.scalatest.{FlatSpec, Matchers}
 import scala.collection.mutable.ArrayBuffer
 
 class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
-
   private val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
   private val vehicleId = Id.create(2, classOf[Vehicle])
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
   val config = ConfigFactory
     .parseString(
-      s"""|beam.outputs.events.fileOutputFormats = xml
+      s"""|beam.outputs.events.fileOutputFormats = csv
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 0
          |beam.agentsim.tuning.transitCapacity = 0.0
@@ -40,7 +39,6 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
          |beam.agentsim.agents.vehicles.sharedFleets = []
          |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
          |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
-         |beam.cosim.helics.timeStep = 300
          |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
          |
       """.stripMargin
@@ -60,7 +58,7 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     val chargingPlugInEvents: ArrayBuffer[Double] = new ArrayBuffer[Double]()
     val chargingPlugOutEvents: ArrayBuffer[Double] = new ArrayBuffer[Double]()
     val refuelSessionEvents: ArrayBuffer[(Double, Long)] = new ArrayBuffer[(Double, Long)]()
-    val linkDistances: ArrayBuffer[Double] = new ArrayBuffer[Double]()
+    var energyConsumed: Double = 0.0
 
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
@@ -72,10 +70,18 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
               event match {
                 case ChargingPlugInEvent(_, _, _, `vehicleId`, fuelLevel, _) => chargingPlugInEvents += fuelLevel
                 case ChargingPlugOutEvent(_, _, `vehicleId`, fuelLevel, _)   => chargingPlugOutEvents += fuelLevel
-                case RefuelSessionEvent(_, _, energyInJoules, _, sessionDuration, `vehicleId`, _) =>
+                case RefuelSessionEvent(
+                    tick,
+                    _,
+                    energyInJoules,
+                    sessionStartingFuelLevelInJoules,
+                    sessionDuration,
+                    `vehicleId`,
+                    _
+                    ) =>
                   refuelSessionEvents += ((energyInJoules, sessionDuration))
-                case e: LinkLeaveEvent if e.getVehicleId == vehicleId =>
-                  linkDistances += scenario.getNetwork.getLinks.get(e.getLinkId).getLength
+                case e: PathTraversalEvent if e.vehicleId == vehicleId =>
+                  energyConsumed += e.primaryFuelConsumed
                 case _ =>
               }
             }
@@ -113,9 +119,7 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
         population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, noCarModes)
     }
     transportNetwork.transitLayer.tripPatterns.clear()
-
     DefaultPopulationAdjustment(services).update(scenario)
-
     val controler = services.controler
     controler.run()
 
@@ -123,8 +127,10 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
     val chargingPlugOutEventsAmount = chargingPlugOutEvents.size
     val totalEnergyInJoules = refuelSessionEvents.map(_._1).sum
     val totalSessionDuration = refuelSessionEvents.map(_._2).sum
-    val totalDistance = linkDistances.sum
-    val consumedEnergy = totalDistance * beamVilleCarEVType.primaryFuelConsumptionInJoulePerMeter
+
+    assume(totalEnergyInJoules > 0, "totalEnergyInJoules should be non zero")
+    assume(totalSessionDuration > 0, "totalSessionDuration should be non zero")
+    assume(energyConsumed > 0, "energyConsumed should be non zero")
 
     assume(chargingPlugInEventsAmount >= 1, "Something's wildly broken, I am not seeing enough chargingPlugInEvents.")
     assume(chargingPlugOutEventsAmount >= 1, "Something's wildly broken, I am not seeing enough chargingPlugOutEvents.")
@@ -139,9 +145,7 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
         chargingPlugInEvents(id) + energyAdded shouldBe chargingPlugOutEvents(id)
     }
     // consumed energy should be more or less equal total added energy
-    println(consumedEnergy)
-    println(totalEnergyInJoules)
-    // totalEnergyInJoules shouldBe (consumedEnergy +- 1000) // TODO the difference is to big: 2.4e7 != (1.5e7 +- 1e3)
-
+    // TODO Hard to test this without ensuring an energy conservation mechanism
+    // totalEnergyInJoules shouldBe (energyConsumed +- 1000)
   }
 }
