@@ -9,13 +9,14 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 object PolygonUtil {
+
   def findPolygonViaQuadTree[A, G <: JtsGeometry](
-                                                   quadTree: QuadTree[(A, G)],
-                                                   coord: Coord,
-                                                   maxDistance: Double,
-                                                   delta: Double,
-                                                   distance: Double = 0
-                                                 ): Option[(A, G)] = {
+    quadTree: QuadTree[(A, G)],
+    coord: Coord,
+    maxDistance: Double,
+    delta: Double,
+    distance: Double = 0
+  ): Option[(A, G)] = {
     @tailrec
     def findPolygonViaQuadTree0(distance: Double): Option[(A, G)] = {
       val xs = if (distance == 0.0) {
