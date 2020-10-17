@@ -13,7 +13,8 @@ object DataExchange {
     rank: Int,
     age: Int,
     isFemale: Boolean,
-    valueOfTime: Double
+    valueOfTime: Double,
+    industry: Option[String]
   )
 
   case class PlanElement(
