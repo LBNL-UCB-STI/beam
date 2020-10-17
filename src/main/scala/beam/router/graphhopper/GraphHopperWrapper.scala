@@ -12,15 +12,16 @@ import beam.router.{Modes, Router}
 import beam.sim.common.GeoUtils
 import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
-import com.graphhopper.{GHRequest, GraphHopper, GraphHopperConfig}
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
 import com.graphhopper.reader.osm.GraphHopperOSM
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
-import com.graphhopper.routing.util._
+import com.graphhopper.routing.util.parsers.TagParserFactory
+import com.graphhopper.routing.util.{EncodingManager, _}
 import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, TurnCostProvider}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
+import com.graphhopper.{GHRequest, GraphHopper, GraphHopperConfig}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -278,9 +279,10 @@ object GraphHopperWrapper {
     List(carProfiles, bestBikeProfile, fastestFootProfile)
   }
 
-  def fromOsm(pathToOsm: String): GraphHopper = {
+  def fromOsm(pathToOsm: String, tagParserFactory: Option[TagParserFactory]): GraphHopper = {
     val cfg = new GraphHopperConfig()
     cfg.putObject("graph.flag_encoders", "car")
+    cfg.putObject("graph.encoded_values", "way_id")
 
     val fastestCarProfile = new Profile("car")
     fastestCarProfile.setVehicle("car")
@@ -291,9 +293,10 @@ object GraphHopperWrapper {
     cfg.setCHProfiles(util.Arrays.asList(chProfile))
 
     val tempGh = new GraphHopperOSM()
-    tempGh
       .setOSMFile(pathToOsm)
       .forServer()
+    val tempGh1 = tagParserFactory.map(pf => tempGh.setTagParserFactory(pf)).getOrElse(tempGh)
+    tempGh1
       .init(cfg)
       .importOrLoad()
 

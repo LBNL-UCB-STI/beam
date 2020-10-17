@@ -30,7 +30,8 @@ case class InputPersonInfo(
   personId: String,
   householdId: String,
   age: Int,
-  sex: Sex
+  sex: Sex,
+  industry: Option[String]
 )
 
 object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
@@ -39,7 +40,8 @@ object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
     val householdId = getIfNotNull(rec, "household_id")
     val age = getIfNotNull(rec, "age").toInt
     val sex = Sex.determineSex(getIfNotNull(rec, "sex").toInt)
+    val industry = Option(rec.get("industry"))
 
-    InputPersonInfo(personId, householdId, age, sex)
+    InputPersonInfo(personId, householdId, age, sex, industry)
   }
 }
