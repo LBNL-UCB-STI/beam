@@ -37,6 +37,7 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
   "Skimmers" must "results at skims being collected written on disk" in {
     val config = ConfigFactory
       .parseString("""
+         |beam.actorSystemName = "SkimmerSpec"
          |beam.outputs.events.fileOutputFormats = xml
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
