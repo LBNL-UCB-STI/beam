@@ -23,10 +23,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 
 abstract class GraphHopperWrapper(
-                                   graphDir: String,
-                                   geo: GeoUtils,
-                                   id2Link: Map[Int, (Coord, Coord)]
-                                 ) extends Router {
+  graphDir: String,
+  geo: GeoUtils,
+  id2Link: Map[Int, (Coord, Coord)]
+) extends Router {
 
   protected val beamMode: BeamMode
 
@@ -44,9 +44,7 @@ abstract class GraphHopperWrapper(
   protected def createGraphHopper(): GraphHopper
   protected def getProfile(): Profile
   protected def prepareRequest(request: GHRequest)
-  protected def getLinkTravelTimes(
-                                             responsePath: ResponsePath,
-                                             totalTravelTime: Int): IndexedSeq[Double]
+  protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double]
   protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double
 
   override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
@@ -101,12 +99,12 @@ abstract class GraphHopperWrapper(
     val allLinkTravelTimes = getLinkTravelTimes(responsePath, totalTravelTime)
 
     val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-      // TODO ask why GH is producing negative travel time
-      //          .map { x =>
-      //            require(x > 0, "GOING BACK IN TIME")
-      //            x
-      //          }
-      //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+    // TODO ask why GH is producing negative travel time
+    //          .map { x =>
+    //            require(x > 0, "GOING BACK IN TIME")
+    //            x
+    //          }
+    //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
       .take(ghLinkIds.size)
 
     if (allLinkTravelTimes.size > ghLinkIds.size) {
@@ -126,15 +124,15 @@ abstract class GraphHopperWrapper(
   }
 
   private def getRouteResponse(
-                                routingRequest: RoutingRequest,
-                                beamTotalTravelTime: Int,
-                                linkIds: IndexedSeq[Int],
-                                linkTravelTimes: IndexedSeq[Double],
-                                origin: Coord,
-                                destination: Coord,
-                                distance: Double,
-                                streetVehicle: StreetVehicle
-                              ) = {
+    routingRequest: RoutingRequest,
+    beamTotalTravelTime: Int,
+    linkIds: IndexedSeq[Int],
+    linkTravelTimes: IndexedSeq[Double],
+    origin: Coord,
+    destination: Coord,
+    distance: Double,
+    streetVehicle: StreetVehicle
+  ) = {
     try {
       val beamLeg = BeamLeg(
         routingRequest.departureTime,
@@ -184,19 +182,19 @@ abstract class GraphHopperWrapper(
       .toIndexedSeq
 
     linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
-    else ghLinkIds.last * 2 + 1)
+                else ghLinkIds.last * 2 + 1)
   }
 }
 
 object GraphHopperWrapper {
 
   def createCarGraphDirectoryFromR5(
-                                     carRouter: String,
-                                     transportNetwork: TransportNetwork,
-                                     osm: OSM,
-                                     directory: String,
-                                     wayId2TravelTime: Map[Long, Double]
-                                   ): Unit = {
+    carRouter: String,
+    transportNetwork: TransportNetwork,
+    osm: OSM,
+    directory: String,
+    wayId2TravelTime: Map[Long, Double]
+  ): Unit = {
     val flagEncoderParams = new PMap
     flagEncoderParams.putObject("turn_costs", false)
     val flagEncoder = new CarFlagEncoder(flagEncoderParams)
@@ -221,15 +219,16 @@ object GraphHopperWrapper {
         new FastestWeighting(flagEncoder),
         transportNetwork,
         osm,
-        directory)
+        directory
+      )
     }
   }
 
   def createWalkGraphDirectoryFromR5(
-                                      transportNetwork: TransportNetwork,
-                                      osm: OSM,
-                                      directory: String
-                                   ): Unit = {
+    transportNetwork: TransportNetwork,
+    osm: OSM,
+    directory: String
+  ): Unit = {
     val flagEncoder = new FootFlagEncoder
     val emBuilder: EncodingManager.Builder = new EncodingManager.Builder
     emBuilder.add(flagEncoder)
@@ -246,13 +245,13 @@ object GraphHopperWrapper {
   }
 
   private def createGraphDirectoryFromR5(
-                                  encodingManager: EncodingManager,
-                                  profile: Profile,
-                                  weighting: Weighting,
-                                  transportNetwork: TransportNetwork,
-                                  osm: OSM,
-                                  directory: String,
-                                ): Unit = {
+    encodingManager: EncodingManager,
+    profile: Profile,
+    weighting: Weighting,
+    transportNetwork: TransportNetwork,
+    osm: OSM,
+    directory: String,
+  ): Unit = {
     val ch = CHConfig.nodeBased(profile.getName, weighting)
     val ghDirectory = new GHDirectory(directory, DAType.RAM_STORE)
     val graphHopperStorage = new GraphHopperStorage(ghDirectory, encodingManager, false)

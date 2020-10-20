@@ -15,10 +15,10 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 
 class WalkGraphHopperWrapper(
-                              graphDir: String,
-                              geo: GeoUtils,
-                              id2Link: Map[Int, (Coord, Coord)]
-                            ) extends GraphHopperWrapper(graphDir, geo, id2Link) {
+  graphDir: String,
+  geo: GeoUtils,
+  id2Link: Map[Int, (Coord, Coord)]
+) extends GraphHopperWrapper(graphDir, geo, id2Link) {
 
   override protected val beamMode: Modes.BeamMode = BeamMode.CAR
 
@@ -33,9 +33,7 @@ class WalkGraphHopperWrapper(
     request.setPathDetails(Seq(Parameters.Details.EDGE_ID, Parameters.Details.TIME).asJava)
   }
 
-  override protected def getLinkTravelTimes(
-                                             responsePath: ResponsePath,
-                                             totalTravelTime: Int): IndexedSeq[Double] = {
+  override protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double] = {
     responsePath.getPathDetails
       .asScala(Parameters.Details.TIME)
       .asScala

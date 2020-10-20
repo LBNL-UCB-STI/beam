@@ -5,7 +5,12 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.graphhopper.CarGraphHopperWrapper.{BEAM_PROFILE, BEAM_PROFILE_NAME, FASTEST_PROFILE, FASTEST_PROFILE_NAME}
+import beam.router.graphhopper.CarGraphHopperWrapper.{
+  BEAM_PROFILE,
+  BEAM_PROFILE_NAME,
+  FASTEST_PROFILE,
+  FASTEST_PROFILE_NAME
+}
 import beam.router.model.BeamLeg
 import beam.sim.common.GeoUtils
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
@@ -16,14 +21,14 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.JavaConverters._
 
 class CarGraphHopperWrapper(
-                             carRouter: String,
-                             graphDir: String,
-                             geo: GeoUtils,
-                             vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-                             fuelTypePrices: FuelTypePrices,
-                             wayId2TravelTime: Map[Long, Double],
-                             id2Link: Map[Int, (Coord, Coord)]
-                           ) extends GraphHopperWrapper(graphDir, geo, id2Link) {
+  carRouter: String,
+  graphDir: String,
+  geo: GeoUtils,
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  fuelTypePrices: FuelTypePrices,
+  wayId2TravelTime: Map[Long, Double],
+  id2Link: Map[Int, (Coord, Coord)]
+) extends GraphHopperWrapper(graphDir, geo, id2Link) {
 
   override protected val beamMode: Modes.BeamMode = BeamMode.CAR
 
@@ -55,9 +60,7 @@ class CarGraphHopperWrapper(
     )
   }
 
-  override protected def getLinkTravelTimes(
-                                             responsePath: ResponsePath,
-                                             totalTravelTime: Int): IndexedSeq[Double] = {
+  override protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double] = {
     val allLinkTravelBeamTimes = responsePath.getPathDetails
       .asScala(BeamTimeDetails.BEAM_TIME)
       .asScala
