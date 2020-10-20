@@ -25,10 +25,13 @@ class PhysSimEventWriter(writers: Array[CommonEventWriter], itNum: Int)
     with EventWriter
     with LazyLogging {
   private val writerExecutor: ExecutorService =
-    Executors.newFixedThreadPool(1, new ThreadFactoryBuilder()
-      .setNameFormat(s"physsim-event-writer-$itNum")
-      .setDaemon(false)
-      .build())
+    Executors.newFixedThreadPool(
+      1,
+      new ThreadFactoryBuilder()
+        .setNameFormat(s"physsim-event-writer-$itNum")
+        .setDaemon(false)
+        .build()
+    )
   private implicit val writerEC: ExecutionContext = ExecutionContext.fromExecutor(writerExecutor)
   private val eventQueue = new LinkedBlockingQueue[Event]()
 

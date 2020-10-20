@@ -11,7 +11,7 @@ object ConcurrentUtils {
   }
 
   // unfortunately call-by-name params don't support varargs
-  def parallelExecution[A](v1: =>A, v2: =>A, v3: =>A, v4: =>A, v5: =>A)(implicit ec: ExecutionContext): Seq[A] = {
+  def parallelExecution[A](v1: => A, v2: => A, v3: => A, v4: => A, v5: => A)(implicit ec: ExecutionContext): Seq[A] = {
     parallelExecution(List(() => v1, () => v2, () => v3, () => v4, () => v5))
   }
 }
