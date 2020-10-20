@@ -1,12 +1,13 @@
 package beam.router.graphhopper
 
+import beam.router.graphhopper.BeamWeighting.NAME
 import com.graphhopper.routing.util.FlagEncoder
 import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider}
 import com.graphhopper.util.EdgeIteratorState
 import com.typesafe.scalalogging.LazyLogging
 
 class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider, wayId2TravelTime: Map[Long, Double])
-    extends FastestWeighting(flagEncoder, turnCostProvider)
+  extends FastestWeighting(flagEncoder, turnCostProvider)
     with LazyLogging {
 
   override def getMinWeight(distance: Double): Double = super.getMinWeight(distance)
@@ -14,14 +15,14 @@ class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider
   override def calcEdgeMillis(edgeState: EdgeIteratorState, reverse: Boolean): Long = {
     calcEdgeTime(edgeState, getReverseFlag(edgeState, reverse)) match {
       case Some(value) => (1000 * value).toLong
-      case None        => super.calcEdgeMillis(edgeState, reverse)
+      case None => super.calcEdgeMillis(edgeState, reverse)
     }
   }
 
   def calcEdgeMillisForDetails(edgeState: EdgeIteratorState, reverse: Boolean): Long = {
     calcEdgeTime(edgeState, getReverseFlag(edgeState, reverse)) match {
       case Some(value) => (1000 * value).toLong
-      case None        => super.calcEdgeMillis(edgeState, false)
+      case None => super.calcEdgeMillis(edgeState, false)
     }
   }
 
@@ -44,5 +45,9 @@ class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider
 
   }
 
-  override def getName = "beam"
+  override def getName = NAME
+}
+
+object BeamWeighting {
+  val NAME = "beam"
 }

@@ -1,50 +1,53 @@
 package beam.router.graphhopper
 
-import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Router
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.{Modes, Router}
 import beam.sim.common.GeoUtils
 import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
-import com.graphhopper.{GHRequest, ResponsePath}
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
 import com.graphhopper.routing.util._
-import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider}
+import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider, Weighting}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
+import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 
-class GraphHopperWrapper(
-  carRouter: String,
-  graphDir: String,
-  geo: GeoUtils,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  fuelTypePrices: FuelTypePrices,
-  wayId2TravelTime: Map[Long, Double],
-  id2Link: Map[Int, (Coord, Coord)]
-) extends Router {
+abstract class GraphHopperWrapper(
+                                   graphDir: String,
+                                   geo: GeoUtils,
+                                   id2Link: Map[Int, (Coord, Coord)]
+                                 ) extends Router {
+
+  protected val beamMode: BeamMode
 
   private val graphHopper = {
-    val profiles = GraphHopperWrapper.getProfiles(carRouter)
-    val graphHopper = new BeamGraphHopper(wayId2TravelTime)
+    val profile = getProfile()
+    val graphHopper = createGraphHopper()
     graphHopper.setPathDetailsBuilderFactory(new BeamPathDetailsBuilderFactory())
     graphHopper.setGraphHopperLocation(graphDir)
-    graphHopper.setProfiles(profiles.asJava)
-    graphHopper.getCHPreparationHandler.setCHProfiles(profiles.map(p => new CHProfile(p.getName)).asJava)
+    graphHopper.setProfiles(profile)
+    graphHopper.getCHPreparationHandler.setCHProfiles(new CHProfile(profile.getName))
     graphHopper.importOrLoad()
     graphHopper
   }
+
+  protected def createGraphHopper(): GraphHopper
+  protected def getProfile(): Profile
+  protected def prepareRequest(request: GHRequest)
+  protected def getLinkTravelTimes(
+                                             responsePath: ResponsePath,
+                                             totalTravelTime: Int): IndexedSeq[Double]
+  protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double
 
   override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
     assert(!routingRequest.withTransit, "Can't route transit yet")
@@ -56,39 +59,7 @@ class GraphHopperWrapper(
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
-
-    val mode = if (routingRequest.streetVehicles.exists(_.mode == CAR)) {
-      Some(CAR)
-    } else if (routingRequest.streetVehicles.exists(_.mode == WALK)) {
-      Some(WALK)
-    } else {
-      None
-    }
-
-    mode match {
-      case Some(CAR) => {
-        if (carRouter == "quasiDynamicGH") {
-          request.setProfile(BeamGraphHopper.profileBeamCar)
-        } else {
-          request.setProfile(BeamGraphHopper.profileFastestCar)
-        }
-
-        request.setPathDetails(
-          Seq(
-            Parameters.Details.EDGE_ID,
-            BeamTimeDetails.BEAM_TIME,
-            BeamTimeReverseDetails.BEAM_REVERSE_TIME
-          ).asJava
-        )
-      }
-
-      case Some(WALK) => {
-        request.setProfile(BeamGraphHopper.profileFastestFoot)
-        request.setPathDetails(Seq(Parameters.Details.EDGE_ID, Parameters.Details.TIME).asJava)
-      }
-
-      case _ => throw new IllegalStateException("Supported modes: CAR, WALK")
-    }
+    prepareRequest(request)
 
     val response = graphHopper.route(request)
     val alternatives = if (response.hasErrors) {
@@ -97,7 +68,7 @@ class GraphHopperWrapper(
       response.getAll.asScala
         .map(responsePath => {
           for {
-            (beamTotalTravelTime, linkIds, linkTravelTimes, distance) <- processResponsePath(responsePath, mode.get)
+            (beamTotalTravelTime, linkIds, linkTravelTimes, distance) <- processResponsePath(responsePath)
             response <- getRouteResponse(
               routingRequest,
               beamTotalTravelTime,
@@ -106,8 +77,7 @@ class GraphHopperWrapper(
               origin,
               destination,
               distance,
-              streetVehicle,
-              mode.get
+              streetVehicle
             )
           } yield {
             response
@@ -119,7 +89,7 @@ class GraphHopperWrapper(
     RoutingResponse(alternatives, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
   }
 
-  private def processResponsePath(responsePath: ResponsePath, mode: Modes.BeamMode) = {
+  private def processResponsePath(responsePath: ResponsePath) = {
     var totalTravelTime = (responsePath.getTime / 1000).toInt
     val ghLinkIds: IndexedSeq[Int] =
       responsePath.getPathDetails
@@ -128,15 +98,15 @@ class GraphHopperWrapper(
         .map(pd => pd.getValue.asInstanceOf[Int])
         .toIndexedSeq
 
-    val allLinkTravelTimes = getLinkTravelTimes(responsePath, totalTravelTime, mode)
+    val allLinkTravelTimes = getLinkTravelTimes(responsePath, totalTravelTime)
 
     val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-    // TODO ask why GH is producing negative travel time
-    //          .map { x =>
-    //            require(x > 0, "GOING BACK IN TIME")
-    //            x
-    //          }
-    //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+      // TODO ask why GH is producing negative travel time
+      //          .map { x =>
+      //            require(x > 0, "GOING BACK IN TIME")
+      //            x
+      //          }
+      //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
       .take(ghLinkIds.size)
 
     if (allLinkTravelTimes.size > ghLinkIds.size) {
@@ -155,58 +125,20 @@ class GraphHopperWrapper(
     }
   }
 
-  private def getLinkTravelTimes(
-    responsePath: ResponsePath,
-    totalTravelTime: Int,
-    mode: Modes.BeamMode
-  ): IndexedSeq[Double] = {
-    mode match {
-      case CAR => {
-        val allLinkTravelBeamTimes = responsePath.getPathDetails
-          .asScala(BeamTimeDetails.BEAM_TIME)
-          .asScala
-          .map(pd => pd.getValue.asInstanceOf[Double])
-          .toIndexedSeq
-
-        val allLinkTravelBeamTimesReverse = responsePath.getPathDetails
-          .asScala(BeamTimeReverseDetails.BEAM_REVERSE_TIME)
-          .asScala
-          .map(pd => pd.getValue.asInstanceOf[Double])
-          .toIndexedSeq
-
-        if (Math.abs(totalTravelTime - allLinkTravelBeamTimes.sum.toInt) <= 2) {
-          allLinkTravelBeamTimes
-        } else {
-          allLinkTravelBeamTimesReverse
-        }
-      }
-
-      case WALK =>
-        responsePath.getPathDetails
-          .asScala(Parameters.Details.TIME)
-          .asScala
-          .map(pd => pd.getValue.asInstanceOf[Long].toDouble / 1000.0)
-          .toIndexedSeq
-
-      case _ => throw new IllegalStateException("Supported modes: CAR, WALK")
-    }
-  }
-
   private def getRouteResponse(
-    routingRequest: RoutingRequest,
-    beamTotalTravelTime: Int,
-    linkIds: IndexedSeq[Int],
-    linkTravelTimes: IndexedSeq[Double],
-    origin: Coord,
-    destination: Coord,
-    distance: Double,
-    streetVehicle: StreetVehicle,
-    mode: Modes.BeamMode
-  ) = {
+                                routingRequest: RoutingRequest,
+                                beamTotalTravelTime: Int,
+                                linkIds: IndexedSeq[Int],
+                                linkTravelTimes: IndexedSeq[Double],
+                                origin: Coord,
+                                destination: Coord,
+                                distance: Double,
+                                streetVehicle: StreetVehicle
+                              ) = {
     try {
       val beamLeg = BeamLeg(
         routingRequest.departureTime,
-        mode,
+        beamMode,
         beamTotalTravelTime,
         BeamPath(
           linkIds,
@@ -225,11 +157,7 @@ class GraphHopperWrapper(
               streetVehicle.id,
               streetVehicle.vehicleTypeId,
               asDriver = true,
-              cost = if (mode == BeamMode.CAR) {
-                DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(streetVehicle.vehicleTypeId), fuelTypePrices)
-              } else {
-                0.0
-              },
+              cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
               unbecomeDriverOnCompletion = true
             )
           )
@@ -256,51 +184,79 @@ class GraphHopperWrapper(
       .toIndexedSeq
 
     linkIds :+ (if (id2Link(linkIds.last)._2 == id2Link(ghLinkIds.last * 2)._1) ghLinkIds.last * 2
-                else ghLinkIds.last * 2 + 1)
+    else ghLinkIds.last * 2 + 1)
   }
 }
 
 object GraphHopperWrapper {
 
-  def createGraphDirectoryFromR5(
-    carRouter: String,
-    transportNetwork: TransportNetwork,
-    osm: OSM,
-    directory: String,
-    wayId2TravelTime: Map[Long, Double]
-  ): Unit = {
-    val carFlagEncoderParams = new PMap
-    carFlagEncoderParams.putObject("turn_costs", false)
-    val carFlagEncoder = new CarFlagEncoder(carFlagEncoderParams)
-//    val bikeFlagEncoder = new BikeFlagEncoder
-    val footFlagEncoder = new FootFlagEncoder
+  def createCarGraphDirectoryFromR5(
+                                     carRouter: String,
+                                     transportNetwork: TransportNetwork,
+                                     osm: OSM,
+                                     directory: String,
+                                     wayId2TravelTime: Map[Long, Double]
+                                   ): Unit = {
+    val flagEncoderParams = new PMap
+    flagEncoderParams.putObject("turn_costs", false)
+    val flagEncoder = new CarFlagEncoder(flagEncoderParams)
 
     val emBuilder: EncodingManager.Builder = new EncodingManager.Builder
-    emBuilder.add(carFlagEncoder)
-//    emBuilder.add(bikeFlagEncoder)
-    emBuilder.add(footFlagEncoder)
+    emBuilder.add(flagEncoder)
     val encodingManager = emBuilder.build
 
-    val carCH = if (carRouter == "quasiDynamicGH") {
-      CHConfig.nodeBased(
-        BeamGraphHopper.profileBeamCar,
-        new BeamWeighting(carFlagEncoder, TurnCostProvider.NO_TURN_COST_PROVIDER, wayId2TravelTime)
+    if (carRouter == "quasiDynamicGH") {
+      createGraphDirectoryFromR5(
+        encodingManager,
+        CarGraphHopperWrapper.BEAM_PROFILE,
+        new BeamWeighting(flagEncoder, TurnCostProvider.NO_TURN_COST_PROVIDER, wayId2TravelTime),
+        transportNetwork,
+        osm,
+        directory
       )
     } else {
-      CHConfig.nodeBased(BeamGraphHopper.profileFastestCar, new FastestWeighting(carFlagEncoder))
+      createGraphDirectoryFromR5(
+        encodingManager,
+        CarGraphHopperWrapper.FASTEST_PROFILE,
+        new FastestWeighting(flagEncoder),
+        transportNetwork,
+        osm,
+        directory)
     }
+  }
 
-//    val bikeCH = CHConfig.nodeBased(
-//      BeamGraphHopper.profileFastestBike,
-//      new PriorityWeighting(bikeFlagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER)
-//    )
-    val footCH = CHConfig.nodeBased(BeamGraphHopper.profileFastestFoot, new FastestWeighting(footFlagEncoder))
+  def createWalkGraphDirectoryFromR5(
+                                      transportNetwork: TransportNetwork,
+                                      osm: OSM,
+                                      directory: String
+                                   ): Unit = {
+    val flagEncoder = new FootFlagEncoder
+    val emBuilder: EncodingManager.Builder = new EncodingManager.Builder
+    emBuilder.add(flagEncoder)
+    val encodingManager = emBuilder.build
 
+    createGraphDirectoryFromR5(
+      encodingManager,
+      WalkGraphHopperWrapper.FASTEST_PROFILE,
+      new FastestWeighting(flagEncoder),
+      transportNetwork,
+      osm,
+      directory
+    )
+  }
+
+  private def createGraphDirectoryFromR5(
+                                  encodingManager: EncodingManager,
+                                  profile: Profile,
+                                  weighting: Weighting,
+                                  transportNetwork: TransportNetwork,
+                                  osm: OSM,
+                                  directory: String,
+                                ): Unit = {
+    val ch = CHConfig.nodeBased(profile.getName, weighting)
     val ghDirectory = new GHDirectory(directory, DAType.RAM_STORE)
     val graphHopperStorage = new GraphHopperStorage(ghDirectory, encodingManager, false)
-    graphHopperStorage.addCHGraph(carCH)
-//    graphHopperStorage.addCHGraph(bikeCH)
-    graphHopperStorage.addCHGraph(footCH)
+    graphHopperStorage.addCHGraph(ch)
     graphHopperStorage.create(1000)
 
     val vertex = transportNetwork.streetLayer.vertexStore.getCursor
@@ -338,48 +294,14 @@ object GraphHopperWrapper {
     graphHopperStorage.freeze()
 
     val handler = new CHPreparationHandler
-    handler.addCHConfig(carCH)
-    handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, carCH))
-//    handler.addCHConfig(bikeCH)
-//    handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, bikeCH))
-    handler.addCHConfig(footCH)
-    handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, footCH))
+    handler.addCHConfig(ch)
+    handler.addPreparation(PrepareContractionHierarchies.fromGraphHopperStorage(graphHopperStorage, ch))
     handler.setPreparationThreads(3)
     handler.prepare(graphHopperStorage.getProperties, false)
 
-    getProfiles(carRouter).foreach(
-      p => graphHopperStorage.getProperties.put("graph.profiles." + p.getName + ".version", p.getVersion)
-    )
+    graphHopperStorage.getProperties.put("graph.profiles." + profile.getName + ".version", profile.getVersion)
     graphHopperStorage.getProperties.put("prepare.ch.done", true)
 
     graphHopperStorage.flush()
-  }
-
-  def getProfiles(carRouter: String) = {
-    val carProfile = if (carRouter == "quasiDynamicGH") {
-      val profile = new Profile(BeamGraphHopper.profileBeamCar)
-      profile.setVehicle("car")
-      profile.setWeighting(BeamGraphHopper.weightingName)
-      profile.setTurnCosts(false)
-      profile
-    } else {
-      val fastestCarProfile = new Profile(BeamGraphHopper.profileFastestCar)
-      fastestCarProfile.setVehicle("car")
-      fastestCarProfile.setWeighting("fastest")
-      fastestCarProfile.setTurnCosts(false)
-      fastestCarProfile
-    }
-
-//    val bestBikeProfile = new Profile(BeamGraphHopper.profileFastestBike)
-//    bestBikeProfile.setVehicle("bike")
-//    bestBikeProfile.setWeighting("fastest")
-//    bestBikeProfile.setTurnCosts(false)
-
-    val fastestFootProfile = new Profile(BeamGraphHopper.profileFastestFoot)
-    fastestFootProfile.setVehicle("foot")
-    fastestFootProfile.setWeighting("fastest")
-    fastestFootProfile.setTurnCosts(false)
-//    List(carProfile, bestBikeProfile, fastestFootProfile)
-    List(carProfile, fastestFootProfile)
   }
 }
