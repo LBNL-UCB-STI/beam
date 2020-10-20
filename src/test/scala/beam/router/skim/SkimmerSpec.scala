@@ -38,6 +38,7 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
     val config = ConfigFactory
       .parseString("""
          |beam.outputs.events.fileOutputFormats = csv
+         |beam.actorSystemName = "SkimmerSpec"
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1
          |beam.router.skim = {

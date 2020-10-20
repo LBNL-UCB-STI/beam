@@ -59,7 +59,7 @@ class ZonalParkingManager(
 
       // a lookup for valid parking types based on this inquiry
       val preferredParkingTypes: Set[ParkingType] =
-        inquiry.activityType.toLowerCase match {
+        inquiry.activityTypeLowerCased match {
           case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
           case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
           case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
@@ -69,7 +69,7 @@ class ZonalParkingManager(
         }
 
       // allow charger ParkingZones
-      val returnSpotsWithChargers: Boolean = inquiry.activityType.toLowerCase match {
+      val returnSpotsWithChargers: Boolean = inquiry.activityTypeLowerCased match {
         case "charge" => true
         case "init"   => false
         case _ =>
@@ -84,7 +84,7 @@ class ZonalParkingManager(
       }
 
       // allow non-charger ParkingZones
-      val returnSpotsWithoutChargers: Boolean = inquiry.activityType.toLowerCase match {
+      val returnSpotsWithoutChargers: Boolean = inquiry.activityTypeLowerCased match {
         case "charge" => false
         case _        => true
       }
@@ -198,7 +198,7 @@ class ZonalParkingManager(
           val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
           val goingHome
-            : Boolean = inquiry.activityType.toLowerCase == "home" && parkingAlternative.parkingType == ParkingType.Residential
+            : Boolean = inquiry.activityTypeLowerCased == "home" && parkingAlternative.parkingType == ParkingType.Residential
           val chargingVehicle: Boolean = inquiry.beamVehicle match {
             case Some(beamVehicle) =>
               beamVehicle.beamVehicleType.primaryFuelType match {
@@ -217,14 +217,18 @@ class ZonalParkingManager(
               if (goingHome) 1.0 else 0.0
             }
 
-          val params: Map[ParkingMNL.Parameters, Double] = Map(
-            ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
-            ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
-            ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
-            ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor
+          val params: Map[ParkingMNL.Parameters, Double] = new scala.collection.immutable.Map.Map4(
+            key1 = ParkingMNL.Parameters.RangeAnxietyCost,
+            value1 = rangeAnxietyFactor,
+            key2 = ParkingMNL.Parameters.WalkingEgressCost,
+            value2 = distanceFactor,
+            key3 = ParkingMNL.Parameters.ParkingTicketCost,
+            value3 = parkingCostsPriceFactor,
+            key4 = ParkingMNL.Parameters.HomeActivityPrefersResidentialParking,
+            value4 = homeActivityPrefersResidentialFactor
           )
 
-          if (log.isDebugEnabled && inquiry.activityType.toLowerCase == "home") {
+          if (log.isDebugEnabled && inquiry.activityTypeLowerCased == "home") {
             log.debug(
               f"tour=${inquiry.remainingTripData.map { _.remainingTourDistance }.getOrElse(0.0)}%.2f ${ParkingMNL.prettyPrintAlternatives(params)}"
             )

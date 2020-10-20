@@ -44,10 +44,13 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
   ): Double = {
     val beamVilleFolder = "test/input/beamville/"
     val config = ConfigFactory
-      .parseString(s"""
-                      |beam.agentsim.lastIteration = $iterationNumber
-                      |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
-                   """.stripMargin)
+      .parseString(
+        s"""
+            |beam.actorSystemName = "BeamIncentiveSpec"
+            |beam.agentsim.lastIteration = $iterationNumber
+            |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
+         """.stripMargin
+      )
       .withFallback(testConfig(s"${beamVilleFolder}beam.conf"))
       .resolve()
 

@@ -4,7 +4,7 @@ import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
 import org.apache.commons.collections4.MultiValuedMap;
-import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
+import org.apache.commons.collections4.multimap.HashSetValuedHashMap;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.utils.io.IOUtils;
@@ -35,7 +35,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private final int currentIterationNumber;
     private final boolean writeGraphs;
     private final OutputDirectoryHierarchy controllerIO;
-    private final MultiValuedMap<Double, Double> caccCapacityIncrease = new ArrayListValuedHashMap<>();
+    private final MultiValuedMap<Double, Double> caccCapacityIncrease = new HashSetValuedHashMap<>();
     private final Map<String, Double> caccLinkCapacityIncrease = new HashMap<>();
     private final Map<String, Double> allLinksCapacityIncrease = new HashMap<>();
     private final Optional<ICsvMapWriter> csvWriter;
@@ -111,7 +111,7 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
             });
 
             double capacityIncreaseForCACCEnabledRoads = (updatedCapacity / initialCapacity) - 1.0;
-            caccCapacityIncrease.put(fractionCACCOnRoad * 100.0, capacityIncreaseForCACCEnabledRoads * 100.0);
+            caccCapacityIncrease.put(round(fractionCACCOnRoad * 100.0), round(capacityIncreaseForCACCEnabledRoads * 100.0));
             caccLinkCapacityIncrease.put(link.getId().toString(), capacityIncreaseForCACCEnabledRoads * 100.0);
 
         } else {
@@ -122,6 +122,11 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
         allLinksCapacityIncrease.put(link.getId().toString(), capacityIncreaseForAllRoads * 100.0);
 
         return updatedCapacity / 3600;
+    }
+
+    private double round(double d) {
+        //we don't need to be too precise so
+        return Math.round(d * 100) / 100.0;
     }
 
     double calculateCapacity(double fractionCACCOnRoad, double initialCapacity) {

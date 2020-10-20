@@ -9,6 +9,7 @@ case class BeamConfig(
 
 object BeamConfig {
   case class Beam(
+    actorSystemName: java.lang.String,
     agentsim: BeamConfig.Beam.Agentsim,
     calibration: BeamConfig.Beam.Calibration,
     cluster: BeamConfig.Beam.Cluster,
@@ -2454,10 +2455,26 @@ object BeamConfig {
       }
 
       case class Network(
+        maxSpeedInference: BeamConfig.Beam.Physsim.Network.MaxSpeedInference,
         overwriteRoadTypeProperties: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties
       )
 
       object Network {
+        case class MaxSpeedInference(
+          enabled: scala.Boolean,
+          `type`: java.lang.String
+        )
+
+        object MaxSpeedInference {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network.MaxSpeedInference = {
+            BeamConfig.Beam.Physsim.Network.MaxSpeedInference(
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              `type` = if (c.hasPathOrNull("type")) c.getString("type") else "MEAN"
+            )
+          }
+        }
+
         case class OverwriteRoadTypeProperties(
           enabled: scala.Boolean,
           livingStreet: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet,
@@ -2808,6 +2825,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network = {
           BeamConfig.Beam.Physsim.Network(
+            maxSpeedInference = BeamConfig.Beam.Physsim.Network.MaxSpeedInference(
+              if (c.hasPathOrNull("maxSpeedInference")) c.getConfig("maxSpeedInference")
+              else com.typesafe.config.ConfigFactory.parseString("maxSpeedInference{}")
+            ),
             overwriteRoadTypeProperties = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
               if (c.hasPathOrNull("overwriteRoadTypeProperties")) c.getConfig("overwriteRoadTypeProperties")
               else com.typesafe.config.ConfigFactory.parseString("overwriteRoadTypeProperties{}")
@@ -3496,6 +3517,7 @@ object BeamConfig {
 
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
+        actorSystemName = if (c.hasPathOrNull("actorSystemName")) c.getString("actorSystemName") else "ClusterSystem",
         agentsim = BeamConfig.Beam.Agentsim(
           if (c.hasPathOrNull("agentsim")) c.getConfig("agentsim")
           else com.typesafe.config.ConfigFactory.parseString("agentsim{}")
