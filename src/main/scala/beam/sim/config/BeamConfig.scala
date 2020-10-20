@@ -9,6 +9,7 @@ case class BeamConfig(
 
 object BeamConfig {
   case class Beam(
+    actorSystemName: java.lang.String,
     agentsim: BeamConfig.Beam.Agentsim,
     calibration: BeamConfig.Beam.Calibration,
     cluster: BeamConfig.Beam.Cluster,
@@ -3512,6 +3513,7 @@ object BeamConfig {
 
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
+        actorSystemName = if (c.hasPathOrNull("actorSystemName")) c.getString("actorSystemName") else "ClusterSystem",
         agentsim = BeamConfig.Beam.Agentsim(
           if (c.hasPathOrNull("agentsim")) c.getConfig("agentsim")
           else com.typesafe.config.ConfigFactory.parseString("agentsim{}")

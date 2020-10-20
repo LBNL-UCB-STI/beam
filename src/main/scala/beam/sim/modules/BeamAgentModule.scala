@@ -16,7 +16,7 @@ class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with Sc
 
   @Provides @Singleton
   def provideActorSystem(injector: Injector, config: Config): ActorSystem = {
-    ActorSystem("ClusterSystem", config)
+    ActorSystem(beamConfig.beam.actorSystemName, config)
   }
 
   @Provides @Singleton

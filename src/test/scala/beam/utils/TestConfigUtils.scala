@@ -10,10 +10,11 @@ object TestConfigUtils {
 
   val minimumValidBeamConfig: Config = {
     ConfigFactory.parseString(
-      """beam.agentsim.agents.vehicles.sharedFleets=[]
-        |beam.debug.stuckAgentDetection.thresholds=[]
-        |matsim.modules.strategy.parameterset=[]
-        |matsim.modules.planCalcScore.parameterset=[]""".stripMargin
+      """|beam.agentsim.agents.vehicles.sharedFleets=[]
+         |beam.debug.stuckAgentDetection.thresholds=[]
+         |matsim.modules.strategy.parameterset=[]
+         |matsim.modules.planCalcScore.parameterset=[]
+         |""".stripMargin
     )
   }
 

@@ -33,15 +33,16 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     val config = ConfigFactory
       .parseString(
         """
-                     |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.collectEvents = true
-                     |beam.agentsim.lastIteration = 0
-                     |beam.agentsim.agents.vehicles.vehicleTypesFilePath = "test/input/beamville/vehicleTypesForMoreFrequentCharges.csv"
-                     |beam.cosim.helics = {
-                     |  timeStep = 300
-                     |  federateName = "BeamFederate"
-                     |}
-        """.stripMargin
+           |beam.actorSystemName = "BeamFederateSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.agentsim.collectEvents = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.vehicles.vehicleTypesFilePath = "test/input/beamville/vehicleTypesForMoreFrequentCharges.csv"
+           |beam.cosim.helics = {
+           |  timeStep = 300
+           |  federateName = "BeamFederate"
+           |}
+        |""".stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()

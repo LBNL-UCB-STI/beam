@@ -20,6 +20,7 @@ class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelpe
   "Running Scenario with non car modes clear" must "result only car modes" in {
     val config = ConfigFactory
       .parseString("""
+           |beam.actorSystemName = "ModeIterationPlanCleanerSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
