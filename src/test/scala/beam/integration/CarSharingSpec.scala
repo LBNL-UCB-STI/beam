@@ -1,4 +1,4 @@
-package beam.integration
+/*package beam.integration
 import beam.agentsim.agents.PersonTestUtil.putDefaultBeamAttributes
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
@@ -315,3 +315,4 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 //  }
 
 }
+*/
