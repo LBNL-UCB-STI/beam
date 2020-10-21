@@ -78,6 +78,8 @@ class JDEQSimRunner(
 
     val maybeEventWriter = if (writeEvents) {
       val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
+      //adding this writer as a BEAM shutdown listener so that it could prevent BEAM from exiting
+      //before the writer writes everything to disk.
       beamServices.matsimServices.addControlerListener(writer)
       jdeqsimEvents.addHandler(writer)
       Some(writer)
