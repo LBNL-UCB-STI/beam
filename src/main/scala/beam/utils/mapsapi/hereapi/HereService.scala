@@ -1,15 +1,11 @@
 package beam.utils.mapsapi.hereapi
 
-import java.io.Closeable
-import java.nio.file.Path
-
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.FileUtils
-import beam.utils.csv.GenericCsvReader
 import beam.utils.mapsapi.Segment
 
 class HereService(adapter: HereAdapter) {
