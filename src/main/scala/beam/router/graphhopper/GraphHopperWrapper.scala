@@ -206,7 +206,7 @@ object GraphHopperWrapper {
     if (carRouter == "quasiDynamicGH") {
       createGraphDirectoryFromR5(
         encodingManager,
-        CarGraphHopperWrapper.BEAM_PROFILE,
+        CarGraphHopperWrapper.BeamProfile,
         new BeamWeighting(flagEncoder, TurnCostProvider.NO_TURN_COST_PROVIDER, wayId2TravelTime),
         transportNetwork,
         osm,
@@ -215,7 +215,7 @@ object GraphHopperWrapper {
     } else {
       createGraphDirectoryFromR5(
         encodingManager,
-        CarGraphHopperWrapper.FASTEST_PROFILE,
+        CarGraphHopperWrapper.FastestProfile,
         new FastestWeighting(flagEncoder),
         transportNetwork,
         osm,
@@ -236,7 +236,7 @@ object GraphHopperWrapper {
 
     createGraphDirectoryFromR5(
       encodingManager,
-      WalkGraphHopperWrapper.FASTEST_PROFILE,
+      WalkGraphHopperWrapper.FastestProfile,
       new FastestWeighting(flagEncoder),
       transportNetwork,
       osm,

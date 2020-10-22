@@ -5,12 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.graphhopper.CarGraphHopperWrapper.{
-  BEAM_PROFILE,
-  BEAM_PROFILE_NAME,
-  FASTEST_PROFILE,
-  FASTEST_PROFILE_NAME
-}
+import beam.router.graphhopper.CarGraphHopperWrapper.{BeamProfile, BeamProfileName, FastestProfile, FastestProfileName}
 import beam.router.model.BeamLeg
 import beam.sim.common.GeoUtils
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
@@ -34,9 +29,9 @@ class CarGraphHopperWrapper(
 
   override protected def getProfile(): Profile = {
     if (carRouter == "quasiDynamicGH") {
-      BEAM_PROFILE
+      BeamProfile
     } else {
-      FASTEST_PROFILE
+      FastestProfile
     }
   }
 
@@ -46,9 +41,9 @@ class CarGraphHopperWrapper(
 
   override protected def prepareRequest(request: GHRequest): Unit = {
     if (carRouter == "quasiDynamicGH") {
-      request.setProfile(BEAM_PROFILE_NAME)
+      request.setProfile(BeamProfileName)
     } else {
-      request.setProfile(FASTEST_PROFILE_NAME)
+      request.setProfile(FastestProfileName)
     }
 
     request.setPathDetails(
@@ -86,22 +81,22 @@ class CarGraphHopperWrapper(
 }
 
 object CarGraphHopperWrapper {
-  val BEAM_PROFILE_NAME = "beam_car"
-  val FASTEST_PROFILE_NAME = "fastest_car"
+  val BeamProfileName = "beam_car"
+  val FastestProfileName = "fastest_car"
 
-  val BEAM_PROFILE = getBeamProfile()
-  val FASTEST_PROFILE = getFastestProfile()
+  val BeamProfile = getBeamProfile()
+  val FastestProfile = getFastestProfile()
 
   private def getBeamProfile() = {
-    val profile = new Profile(BEAM_PROFILE_NAME)
+    val profile = new Profile(BeamProfileName)
     profile.setVehicle("car")
-    profile.setWeighting(BeamWeighting.NAME)
+    profile.setWeighting(BeamWeighting.Name)
     profile.setTurnCosts(false)
     profile
   }
 
   private def getFastestProfile() = {
-    val fastestCarProfile = new Profile(FASTEST_PROFILE_NAME)
+    val fastestCarProfile = new Profile(FastestProfileName)
     fastestCarProfile.setVehicle("car")
     fastestCarProfile.setWeighting("fastest")
     fastestCarProfile.setTurnCosts(false)

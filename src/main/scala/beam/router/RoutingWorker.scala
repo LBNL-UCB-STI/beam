@@ -300,7 +300,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       }
     }
 
+    val s = System.currentTimeMillis()
     binToCarGraphHopper = Await.result(Future.sequence(futures), 20.minutes).toMap
+    val e = System.currentTimeMillis()
+    log.info(s"GH built in ${e - s} ms")
   }
 
   private def calcCarGhRoute(request: RoutingRequest): Option[RoutingResponse] = {

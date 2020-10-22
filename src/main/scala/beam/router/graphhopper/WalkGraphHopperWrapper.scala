@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.router.Modes
 import beam.router.Modes.BeamMode
-import beam.router.graphhopper.WalkGraphHopperWrapper.{FASTEST_PROFILE, FASTEST_PROFILE_NAME}
+import beam.router.graphhopper.WalkGraphHopperWrapper.{FastestProfile, FastestProfileName}
 import beam.router.model.BeamLeg
 import beam.sim.common.GeoUtils
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
@@ -22,14 +22,14 @@ class WalkGraphHopperWrapper(
 
   override protected val beamMode: Modes.BeamMode = BeamMode.CAR
 
-  override def getProfile(): Profile = FASTEST_PROFILE
+  override def getProfile(): Profile = FastestProfile
 
   override def createGraphHopper(): GraphHopper = {
     new GraphHopper()
   }
 
   override def prepareRequest(request: GHRequest): Unit = {
-    request.setProfile(FASTEST_PROFILE_NAME)
+    request.setProfile(FastestProfileName)
     request.setPathDetails(Seq(Parameters.Details.EDGE_ID, Parameters.Details.TIME).asJava)
   }
 
@@ -45,11 +45,11 @@ class WalkGraphHopperWrapper(
 }
 
 object WalkGraphHopperWrapper {
-  val FASTEST_PROFILE_NAME = "fastest_foot"
-  val FASTEST_PROFILE = getFastestProfile()
+  val FastestProfileName = "fastest_foot"
+  val FastestProfile = getFastestProfile()
 
   private def getFastestProfile() = {
-    val fastestFootProfile = new Profile(FASTEST_PROFILE_NAME)
+    val fastestFootProfile = new Profile(FastestProfileName)
     fastestFootProfile.setVehicle("foot")
     fastestFootProfile.setWeighting("fastest")
     fastestFootProfile.setTurnCosts(false)
