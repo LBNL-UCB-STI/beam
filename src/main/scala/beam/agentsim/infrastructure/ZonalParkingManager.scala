@@ -5,6 +5,7 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
   ParkingZoneSearchConfiguration,
@@ -12,21 +13,25 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ZoneSearchTree
 }
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.{Failure, Random, Success, Try}
 
-class ZonalParkingManager(
-  tazTreeMap: TAZTreeMap,
+class ZonalParkingManager[GEO: GeoLevel](
+  geoQuadTree: QuadTree[GEO],
+  idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+  geoToTAZ: GEO => TAZ,
   geo: GeoUtils,
-  parkingZones: Array[ParkingZone],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ],
-  emergencyTAZId: Id[TAZ],
+  parkingZones: Array[ParkingZone[GEO]],
+  zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO],
+  emergencyGeoId: Id[GEO],
+  defaultGeoId: Id[GEO],
   rand: Random,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -37,7 +42,7 @@ class ZonalParkingManager(
 
   if (maxSearchRadius < minSearchRadius) {
     log.warning(
-      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of ${minSearchRadius}; no searches will occur with these settings."
+      s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of $minSearchRadius; no searches will occur with these settings."
     )
   }
 
@@ -51,6 +56,9 @@ class ZonalParkingManager(
       boundingBox,
       geo.distUTMInMeters
     )
+
+  val DefaultParkingZone: ParkingZone[GEO] =
+    ParkingZone(DefaultParkingZoneId, defaultGeoId, ParkingType.Public, UbiqiutousParkingAvailability, None, None)
 
   override def receive: Receive = {
 
@@ -103,21 +111,21 @@ class ZonalParkingManager(
       //     based on this.
       // ---------------------------------------------------------------------------------------------
 
-      val parkingZoneSearchParams: ParkingZoneSearchParams =
+      val parkingZoneSearchParams: ParkingZoneSearchParams[GEO] =
         ParkingZoneSearchParams(
           inquiry.destinationUtm,
           inquiry.parkingDuration,
           mnlMultiplierParameters,
           zoneSearchTree,
           parkingZones,
-          tazTreeMap.tazQuadTree,
+          geoQuadTree,
           rand
         )
 
       // filters out ParkingZones which do not apply to this agent
       // TODO: check for conflicts between variables here - is it always false?
-      val parkingZoneFilterFunction: ParkingZone => Boolean =
-        (zone: ParkingZone) => {
+      val parkingZoneFilterFunction: ParkingZone[GEO] => Boolean =
+        (zone: ParkingZone[GEO]) => {
 
           val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
@@ -143,20 +151,20 @@ class ZonalParkingManager(
         }
 
       // generates a coordinate for an embodied ParkingStall from a ParkingZone
-      val parkingZoneLocSamplingFunction: ParkingZone => Coord =
-        (zone: ParkingZone) => {
-          tazTreeMap.getTAZ(zone.tazId) match {
+      val parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord =
+        (zone: ParkingZone[GEO]) => {
+          idToGeoMapping.get(zone.geoId) match {
             case None =>
-              log.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
-              TAZ.DefaultTAZ.coord
+              log.error(s"somehow have a ParkingZone with tazId ${zone.geoId} which is not found in the TAZTreeMap")
+              new Coord()
             case Some(taz) =>
-              ParkingStallSampling.availabilityAwareSampling(rand, inquiry.destinationUtm, taz, zone.availability)
+              GeoLevel[GEO].geoSampling(rand, inquiry.destinationUtm, taz, zone.availability)
           }
         }
 
       // adds multinomial logit parameters to a ParkingAlternative
-      val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
-        (parkingAlternative: ParkingAlternative) => {
+      val parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double] =
+        (parkingAlternative: ParkingAlternative[GEO]) => {
 
           val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
 
@@ -251,15 +259,16 @@ class ZonalParkingManager(
           parkingZoneSearchParams,
           parkingZoneFilterFunction,
           parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction
+          parkingZoneMNLParamsFunction,
+          geoToTAZ,
         ) match {
           case Some(result) =>
             result
           case None =>
             inquiry.activityType match {
               case "init" | "home" =>
-                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
-                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm, defaultGeoId)
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
               case _ =>
                 // didn't find any stalls, so, as a last resort, create a very expensive stall
                 val boxAroundRequest = new Envelope(
@@ -268,8 +277,14 @@ class ZonalParkingManager(
                   inquiry.destinationUtm.getY + 2000,
                   inquiry.destinationUtm.getY - 2000
                 )
-                val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
-                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+                val newStall =
+                  ParkingStall.lastResortStall(
+                    boxAroundRequest,
+                    rand,
+                    tazId = TAZ.EmergencyTAZId,
+                    geoId = emergencyGeoId
+                  )
+                ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
             }
         }
 
@@ -375,16 +390,19 @@ object ZonalParkingManager extends LazyLogging {
     *
     * @return an instance of the ZonalParkingManager class
     */
-  def apply(
+  def apply[GEO: GeoLevel](
     beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    parkingZones: Array[ParkingZone],
-    searchTree: ZoneSearchTree[TAZ],
-    emergencyTAZId: Id[TAZ],
+    geoQuadTree: QuadTree[GEO],
+    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+    geoToTAZ: GEO => TAZ,
+    parkingZones: Array[ParkingZone[GEO]],
+    searchTree: ZoneSearchTree[GEO],
+    emergencyGeoId: Id[GEO],
+    defaultGeoId: Id[GEO],
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope
-  ): ZonalParkingManager = {
+  ): ZonalParkingManager[GEO] = {
 
     val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
@@ -407,11 +425,14 @@ object ZonalParkingManager extends LazyLogging {
     )
 
     new ZonalParkingManager(
-      tazTreeMap,
+      geoQuadTree,
+      idToGeoMapping,
+      geoToTAZ,
       geo,
       parkingZones,
       searchTree,
-      emergencyTAZId,
+      emergencyGeoId,
+      defaultGeoId,
       random,
       minSearchRadius,
       maxSearchRadius,
@@ -425,12 +446,14 @@ object ZonalParkingManager extends LazyLogging {
     *
     * @return an instance of the ZonalParkingManager class
     */
-  def apply(
+  def apply[GEO: GeoLevel](
     beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
+    geoQuadTree: QuadTree[GEO],
+    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+    geoToTAZ: GEO => TAZ,
     geo: GeoUtils,
     boundingBox: Envelope
-  ): ZonalParkingManager = {
+  ): ZonalParkingManager[GEO] = {
 
     // generate or load parking
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
@@ -448,25 +471,37 @@ object ZonalParkingManager extends LazyLogging {
 
     ZonalParkingManager(
       beamConfig,
-      tazTreeMap,
+      geoQuadTree,
+      idToGeoMapping,
+      geoToTAZ,
       stalls,
       searchTree,
-      TAZ.EmergencyTAZId,
+      GeoLevel[GEO].emergencyGeoId,
+      GeoLevel[GEO].defaultGeoId,
       geo,
       random,
       boundingBox,
     )
   }
 
-  def loadParkingZones(
+  def getSpecialGeoIds(geoLevel: String): (Id[_], Id[_]) = {
+    geoLevel match {
+      case "TAZ"     => (TAZ.EmergencyTAZId, TAZ.DefaultTAZId)
+      case "Link"    => (LinkLevelOperations.EmergencyLinkId, LinkLevelOperations.DefaultLinkId)
+      case wrong @ _ => throw new IllegalArgumentException(s"Unsupported parking level type $wrong")
+    }
+  }
+
+  def loadParkingZones[GEO: GeoLevel](
     parkingFilePath: String,
     tazFilePath: String,
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
     random: Random
-  ): (Array[ParkingZone], ZoneSearchTree[TAZ]) = {
+  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
-      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(tazFilePath, random)
+      throw new IllegalArgumentException(s"Parking file $parkingFilePath is empty") //todo generate for link level
+//      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(tazFilePath, random)
     } else {
       Try {
         ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor, parkingCostScalingFactor)
@@ -474,7 +509,8 @@ object ZonalParkingManager extends LazyLogging {
         case Success((s, t)) => (s, t)
         case Failure(e) =>
           logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(tazFilePath, random)
+          throw new IllegalArgumentException(s"Cannot load parking zones from $parkingFilePath", e) //todo generate for link level
+//          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(tazFilePath, random)
       }
     }
     (stalls, searchTree)
@@ -488,23 +524,28 @@ object ZonalParkingManager extends LazyLogging {
     * @param includesHeader     true if the parkingDescription includes a csv-style header
     * @return
     */
-  def apply(
+  def apply[GEO: GeoLevel](
     parkingDescription: Iterator[String],
-    tazTreeMap: TAZTreeMap,
+    geoQuadTree: QuadTree[GEO],
+    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+    geoToTAZ: GEO => TAZ,
     geo: GeoUtils,
     random: Random,
     minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true
-  ): ZonalParkingManager = {
+  ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, random, 1.0, 1.0, true)
     new ZonalParkingManager(
-      tazTreeMap,
+      geoQuadTree,
+      idToGeoMapping,
+      geoToTAZ,
       geo,
       parking.zones,
       parking.tree,
-      TAZ.EmergencyTAZId,
+      GeoLevel[GEO].emergencyGeoId,
+      GeoLevel[GEO].defaultGeoId,
       random,
       minSearchRadius,
       maxSearchRadius,
@@ -519,9 +560,11 @@ object ZonalParkingManager extends LazyLogging {
     * @param beamRouter Actor responsible for routing decisions (deprecated/previously unused)
     * @return
     */
-  def props(
+  def props[GEO: GeoLevel](
     beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
+    geoQuadTree: QuadTree[GEO],
+    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+    geoToTAZ: GEO => TAZ,
     geo: GeoUtils,
     beamRouter: ActorRef,
     boundingBox: Envelope
@@ -530,7 +573,9 @@ object ZonalParkingManager extends LazyLogging {
     Props(
       ZonalParkingManager(
         beamConfig,
-        tazTreeMap,
+        geoQuadTree,
+        idToGeoMapping,
+        geoToTAZ,
         geo,
         boundingBox
       )
@@ -542,12 +587,15 @@ object ZonalParkingManager extends LazyLogging {
     *
     * @return
     */
-  def props(
+  def props[GEO: GeoLevel](
     beamConfig: BeamConfig,
-    tazTreeMap: TAZTreeMap,
-    parkingZones: Array[ParkingZone],
-    searchTree: ZoneSearchTree[TAZ],
-    emergencyTAZId: Id[TAZ],
+    geoQuadTree: QuadTree[GEO],
+    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+    geoToTAZ: GEO => TAZ,
+    parkingZones: Array[ParkingZone[GEO]],
+    searchTree: ZoneSearchTree[GEO],
+    emergencyGeoId: Id[GEO],
+    defaultGeoId: Id[GEO],
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope
@@ -556,10 +604,13 @@ object ZonalParkingManager extends LazyLogging {
     Props(
       ZonalParkingManager(
         beamConfig,
-        tazTreeMap,
+        geoQuadTree,
+        idToGeoMapping,
+        geoToTAZ,
         parkingZones,
         searchTree,
-        emergencyTAZId,
+        emergencyGeoId,
+        defaultGeoId,
         geo,
         random,
         boundingBox,

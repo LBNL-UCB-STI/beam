@@ -36,7 +36,7 @@ class RideHailDepotParkingManager(
 
   // load parking from a parking file, or generate it using the TAZ beam input
   val (
-    rideHailParkingStalls: Array[ParkingZone],
+    rideHailParkingStalls: Array[ParkingZone[TAZ]],
     rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ]
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
@@ -48,7 +48,7 @@ class RideHailDepotParkingManager(
       )
   } else {
     Try {
-      ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor)
+      ParkingZoneFileUtils.fromFile[TAZ](parkingFilePath, random, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
         logger.info(s"generating ride hail parking from file $parkingFilePath")
@@ -91,7 +91,7 @@ class RideHailDepotParkingManager(
     parkingDuration: Double
   ): Option[ParkingStall] = {
 
-    val parkingZoneSearchParams: ParkingZoneSearchParams =
+    val parkingZoneSearchParams: ParkingZoneSearchParams[TAZ] =
       ParkingZoneSearchParams(
         locationUtm,
         parkingDuration,
@@ -104,15 +104,15 @@ class RideHailDepotParkingManager(
 
     // current implementation here expects all RHA depot stalls are charging-capable
     // and all inquiries are for the purpose of fast charging
-    val parkingZoneFilterFunction: ParkingZone => Boolean = (zone: ParkingZone) => true
+    val parkingZoneFilterFunction: ParkingZone[TAZ] => Boolean = (zone: ParkingZone[TAZ]) => true
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone,
     // treating the TAZ centroid as a "depot" location
-    val parkingZoneLocSamplingFunction: ParkingZone => Location =
-      (zone: ParkingZone) => {
-        tazTreeMap.getTAZ(zone.tazId) match {
+    val parkingZoneLocSamplingFunction: ParkingZone[TAZ] => Location =
+      (zone: ParkingZone[TAZ]) => {
+        tazTreeMap.getTAZ(zone.geoId) match {
           case None =>
-            logger.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
+            logger.error(s"somehow have a ParkingZone with tazId ${zone.geoId} which is not found in the TAZTreeMap")
             TAZ.DefaultTAZ.coord
           case Some(taz) =>
             taz.coord
@@ -120,8 +120,8 @@ class RideHailDepotParkingManager(
       }
 
     // adds multinomial logit parameters to a ParkingAlternative
-    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
-      (parkingAlternative: ParkingAlternative) => {
+    val parkingZoneMNLParamsFunction: ParkingAlternative[TAZ] => Map[ParkingMNL.Parameters, Double] =
+      (parkingAlternative: ParkingAlternative[TAZ]) => {
 
         val distance: Double = distFunction(locationUtm, parkingAlternative.coord)
 
@@ -141,12 +141,13 @@ class RideHailDepotParkingManager(
 
     for {
       ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, parkingZonesSampled, iterations) <- ParkingZoneSearch
-        .incrementalParkingZoneSearch(
+        .incrementalParkingZoneSearch[TAZ](
           parkingZoneSearchConfiguration,
           parkingZoneSearchParams,
           parkingZoneFilterFunction,
           parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction
+          parkingZoneMNLParamsFunction,
+          identity,
         )
       taz <- tazTreeMap.getTAZ(parkingStall.tazId)
     } yield {
@@ -174,7 +175,7 @@ class RideHailDepotParkingManager(
   def findAndClaimStallAtDepot(parkingStall: ParkingStall): Option[ParkingStall] = {
     if (parkingStall.parkingZoneId < 0 || rideHailParkingStalls.length <= parkingStall.parkingZoneId) None
     else {
-      val parkingZone: ParkingZone = rideHailParkingStalls(parkingStall.parkingZoneId)
+      val parkingZone: ParkingZone[TAZ] = rideHailParkingStalls(parkingStall.parkingZoneId)
       if (parkingZone.stallsAvailable == 0) {
         None
       } else {
@@ -201,7 +202,7 @@ class RideHailDepotParkingManager(
   def releaseStall(parkingStall: ParkingStall): Option[Unit] = {
     if (parkingStall.parkingZoneId < 0 || rideHailParkingStalls.length <= parkingStall.parkingZoneId) None
     else {
-      val parkingZone: ParkingZone = rideHailParkingStalls(parkingStall.parkingZoneId)
+      val parkingZone: ParkingZone[TAZ] = rideHailParkingStalls(parkingStall.parkingZoneId)
       val success = ParkingZone.releaseStall(parkingZone).value
       if (!success) None
       else

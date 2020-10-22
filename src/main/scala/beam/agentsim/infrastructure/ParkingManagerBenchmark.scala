@@ -108,7 +108,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       val tazTreeMap = TAZTreeMap.fromCsv(pathToTAZ)
       logger.info(s"TAZTreeMap size: ${tazTreeMap.getTAZs.size}")
 
-      val (zones, searchTree: ZoneSearchTree[TAZ]) = ZonalParkingManager.loadParkingZones(
+      val (zones, searchTree: ZoneSearchTree[TAZ]) = ZonalParkingManager.loadParkingZones[TAZ](
         pathToParking,
         "",
         parkingStallCountScalingFactor,
@@ -146,9 +146,12 @@ object ParkingManagerBenchmark extends StrictLogging {
             Props(
               ZonalParkingManager(
                 beamConfg,
-                tazTreeMap,
+                tazTreeMap.tazQuadTree,
+                tazTreeMap.idToTAZMapping,
+                identity[TAZ],
                 copyOfZones,
                 searchTree,
+                TAZ.EmergencyTAZId,
                 TAZ.EmergencyTAZId,
                 geoUtils,
                 new Random(seed),

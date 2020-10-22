@@ -33,6 +33,7 @@ import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
 import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -372,7 +373,7 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
   )
 
-  val stalls: Array[ParkingZone] = rideHailDepotParkingManager.rideHailParkingStalls
+  val stalls: Array[ParkingZone[TAZ]] = rideHailDepotParkingManager.rideHailParkingStalls
 
   private var cntEVCAV = 0
   private var cntEVnCAV = 0

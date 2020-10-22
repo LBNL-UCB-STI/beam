@@ -11,6 +11,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
+import beam.agentsim.infrastructure.parking.LinkLevelOperations
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -349,16 +351,39 @@ class BeamMobsimIteration(
     log.info(s"Starting parking manager: $managerName")
     val pmProps = managerName match {
       case "DEFAULT" =>
-        ZonalParkingManager
-          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, beamRouter, envelopeInUTM)
-          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
+        val geoLevel = beamConfig.beam.agentsim.taz.parkingManager.level
+        geoLevel match {
+          case "TAZ" =>
+            ZonalParkingManager.props(
+              beamScenario.beamConfig,
+              beamScenario.tazTreeMap.tazQuadTree,
+              beamScenario.tazTreeMap.idToTAZMapping,
+              identity[TAZ],
+              geo,
+              beamRouter,
+              envelopeInUTM
+            )
+          case "Link" =>
+            val linkQuadTree = LinkLevelOperations.getLinkTreeMap(beamScenario.network)
+            val linkIdMapping = LinkLevelOperations.getLinkIdMapping(beamScenario.network)
+            val linkToTAZMapping =
+              LinkLevelOperations.getLinkToTazMapping(beamScenario.network, beamScenario.tazTreeMap)
+            ZonalParkingManager.props(
+              beamScenario.beamConfig,
+              linkQuadTree,
+              linkIdMapping,
+              linkToTAZMapping,
+              geo,
+              beamRouter,
+              envelopeInUTM
+            )
+        }
       case "PARALLEL" =>
         ParallelParkingManager
           .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
-          .withDispatcher("zonal-parking-manager-pinned-dispatcher")
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
-    context.actorOf(pmProps, "ParkingManager")
+    context.actorOf(pmProps.withDispatcher("zonal-parking-manager-pinned-dispatcher"), "ParkingManager")
   }
 
   context.watch(parkingManager)

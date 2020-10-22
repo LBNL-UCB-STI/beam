@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
   val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
+  val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
@@ -25,6 +26,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
   for (taz: TAZ <- tazQuadTree.values().asScala) {
     stringIdToTAZMapping.put(taz.tazId.toString, taz)
+    idToTAZMapping.put(taz.tazId, taz)
   }
 
   def getTAZ(loc: Coord): TAZ = {

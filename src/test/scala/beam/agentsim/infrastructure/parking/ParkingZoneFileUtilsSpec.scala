@@ -12,7 +12,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         "a row contains all valid entries" should {
           "construct a ParkingZone collection and random lookup tree" in new ParkingZoneFileUtilsSpec.PositiveTestData {
             val ParkingZoneFileUtils.ParkingLoadingAccumulator(collection, lookupTree, totalRows, failedRows) =
-              ParkingZoneFileUtils.fromIterator(validRow)
+              ParkingZoneFileUtils.fromIterator[TAZ](validRow)
             totalRows should equal(1)
             failedRows should equal(0)
             lookupTree.get(Id.create("1", classOf[TAZ])) match {
@@ -28,7 +28,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
 
                     // extract parking zone based on discovered zone id
                     val foundParkingZoneId: Int = listOfParkingZones.head
-                    val parkingZone: ParkingZone = collection(foundParkingZoneId)
+                    val parkingZone: ParkingZone[TAZ] = collection(foundParkingZoneId)
 
                     // confirm parking zone has correct attributes
                     parkingZone.parkingZoneId should equal(foundParkingZoneId)
@@ -56,7 +56,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
       "negative tests" when {
         "parking type doesn't exist" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator =
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] =
               ParkingZoneFileUtils.fromIterator(badParkingType)
             result.failedRows should equal(1)
           }
@@ -66,7 +66,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         }
         "pricing model doesn't exist" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator =
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] =
               ParkingZoneFileUtils.fromIterator(badPricingModel)
             result.failedRows should equal(1)
           }
@@ -76,7 +76,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         }
         "charging type doesn't exist" ignore {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator =
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] =
               ParkingZoneFileUtils.fromIterator(badChargingType)
             result.failedRows should equal(1)
           }
@@ -86,7 +86,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         }
         "non-numeric number of stalls" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator = ParkingZoneFileUtils.fromIterator(badNumStalls)
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] = ParkingZoneFileUtils.fromIterator(badNumStalls)
             result.failedRows should equal(1)
           }
 //          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
@@ -95,7 +95,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         }
         "invalid (negative) number of stalls" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator =
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] =
               ParkingZoneFileUtils.fromIterator(invalidNumStalls)
             result.failedRows should equal(1)
           }
@@ -105,7 +105,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         }
         "non-numeric fee in cents" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator =
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] =
               ParkingZoneFileUtils.fromIterator(badFeeInCents)
             result.failedRows should equal(1)
           }
