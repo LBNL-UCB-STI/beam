@@ -1,7 +1,5 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.locks.ReentrantReadWriteLock
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -58,13 +56,13 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
       log.debug("PlanningTimeOutTrigger, tick: {}", tick)
       // Update physical bounds either via the Grid or use the default physical bounds
-      sitePowerManager.updatePhysicalBounds(
-        if (isConnectedToTheGrid) {
-          powerController.obtainPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
-        } else {
-          powerController.defaultPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
-        }
-      )
+//      sitePowerManager.updatePhysicalBounds(
+//        if (isConnectedToTheGrid) {
+//          powerController.obtainPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
+//        } else {
+//          powerController.defaultPowerPhysicalBounds(tick, sitePowerManager.getPowerOverNextPlanningHorizon(tick))
+//        }
+//      )
 
       // Plan a ChargingTimeOutTrigger. Charging occurs at the end of each charging session.
       // If charging session is 300, then charging occurs at time 300
@@ -120,7 +118,7 @@ class ChargingNetworkManager(
             )(vehicle.id)
 
           // Collect data on unconstrained load demand (not the constrained demand)
-          collectDataOnLoadDemand(tick, vehicle.stall.get, chargeDurationAtTick, unconstrainedEnergy)
+          // collectDataOnLoadDemand(tick, vehicle.stall.get, chargeDurationAtTick, unconstrainedEnergy)
 
           // Refuel the vehicle
           vehicle.addFuel(constrainedEnergyToCharge)
@@ -162,10 +160,10 @@ class ChargingNetworkManager(
         .flatMap {
           case (vehicleId, (chargingDuration, constrainedEnergyToCharge, unconstrainedEnergy)) =>
             // Get vehicle charging status
-            val ChargingVehicle(vehicle, agent, totalChargingSession, test) = vehiclesToCharge(vehicleId)
+            val ChargingVehicle(vehicle, agent, totalChargingSession, _) = vehiclesToCharge(vehicleId)
 
             // Collect data on load demand
-            collectDataOnLoadDemand(tick, vehicle.stall.get, chargingDuration, unconstrainedEnergy)
+            // collectDataOnLoadDemand(tick, vehicle.stall.get, chargingDuration, unconstrainedEnergy)
 
             // Refuel the vehicle
             log.debug("Charging vehicle {}. Energy to charge = {}", vehicle, constrainedEnergyToCharge)

@@ -5,10 +5,16 @@ import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.TAZSkims
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import spray.json.{DefaultJsonProtocol, DeserializationException, JsNumber, JsObject, JsString, JsValue, RootJsonFormat}
 
-class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizonInSec: Int, tazSkimmer: TAZSkims) {
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.duration._
+
+class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizonInSec: Int, tazSkimmer: TAZSkims)
+    extends LazyLogging {
   import SitePowerManager._
 
   private val unlimitedPhysicalBounds: Map[ZoneId, PhysicalBounds] =
@@ -23,6 +29,11 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     )
 
   private var physicalBoundsInternal: Map[ZoneId, PhysicalBounds] = unlimitedPhysicalBounds
+
+  /**
+    *
+    * @return Physical bounds
+    */
   private def physicalBounds: Map[ZoneId, PhysicalBounds] = physicalBoundsInternal
 
   /**
@@ -30,9 +41,7 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     *
     * @param physicalBounds Physical bounds from the Power Controller
     */
-  def updatePhysicalBounds(physicalBounds: Map[ZoneId, PhysicalBounds]): Unit = {
-    physicalBoundsInternal = physicalBounds
-  }
+  def updatePhysicalBounds(physicalBounds: Map[ZoneId, PhysicalBounds]): Unit = physicalBoundsInternal = physicalBounds
 
   /**
     * Get required power for electrical vehicles
@@ -56,7 +65,43 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
   }
 
   /**
-    * Replans horizon per electrical vehicles
+    * Replan horizon per electrical vehicles
+    *
+    * @param vehicles beam vehicles
+    * @param chargingSessionInSec duration of charging
+    * @return a future of map of electrical vehicles with required amount of energy in joules
+    */
+  private def replanHorizonAndGetChargingPlanPerVehicleHelper(
+    vehicles: Iterable[BeamVehicle],
+    chargingSessionInSec: Int
+  ): Future[Map[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)]] = {
+    val timeInterval = Math.min(planningHorizonInSec, chargingSessionInSec)
+    Future
+      .sequence(
+        vehicles.map { v =>
+          Future {
+            val stall = v.stall.get
+            val maxZoneLoad = physicalBounds(stall.parkingZoneId).maxLoad
+            val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(stall.parkingZoneId).maxLoad
+            val chargingPointLoad = ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
+            val chargingPowerLimit = maxZoneLoad * chargingPointLoad / maxUnlimitedZoneLoad
+            val (chargingDuration, energyToCharge) =
+              v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval), Some(chargingPowerLimit))
+            val (_, unconstrainedEnergy) = v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval))
+            v.id -> (chargingDuration, energyToCharge, unconstrainedEnergy)
+          }
+        }
+      )
+      .map(result => result.toMap)
+      .recover {
+        case e =>
+          logger.warn(s"Charging Replan did not produce allocations: $e")
+          Map.empty[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)]
+      }
+  }
+
+  /**
+    * Wait for futureChargingReplanPerVehicleBis to terminate before returning the charging plans per vehicle
     *
     * @param vehicles beam vehicles
     * @param chargingSessionInSec duration of charging
@@ -66,18 +111,13 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     vehicles: Iterable[BeamVehicle],
     chargingSessionInSec: Int
   ): Map[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)] = {
-    val timeInterval = Math.min(planningHorizonInSec, chargingSessionInSec)
-    vehicles.map { v =>
-      val stall = v.stall.get
-      val maxZoneLoad = physicalBounds(stall.parkingZoneId).maxLoad
-      val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(stall.parkingZoneId).maxLoad
-      val chargingPointLoad = ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
-      val chargingPowerLimit = maxZoneLoad * chargingPointLoad / maxUnlimitedZoneLoad
-      val (chargingDuration, energyToCharge) =
-        v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval), Some(chargingPowerLimit))
-      val (_, unconstrainedEnergy) = v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval))
-      v.id -> (chargingDuration, energyToCharge, unconstrainedEnergy)
-    }.toMap
+    try {
+      Await.result(replanHorizonAndGetChargingPlanPerVehicleHelper(vehicles, chargingSessionInSec), atMost = 1.minutes)
+    } catch {
+      case e: TimeoutException =>
+        logger.error(s"timeout of Charging Replan with no allocations made: $e")
+        Map.empty[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)]
+    }
   }
 
   /**
