@@ -40,13 +40,13 @@ class HereService(adapter: HereAdapter) {
             Segment(
               coordinates = coordinates,
               lengthInMeters = span.lengthInMeters,
-              speedLimitInKph = span.speedLimitInKph
+              speedLimitInMetersPerSecond = span.speedLimitInMetersPerSecond
             )
         }
       }
   }
 
-  case class TmpSpan(startIndex: Int, endIndex: Int, lengthInMeters: Int, speedLimitInKph: Option[Int])
+  case class TmpSpan(startIndex: Int, endIndex: Int, lengthInMeters: Int, speedLimitInMetersPerSecond: Option[Int])
 }
 
 object HereService {
