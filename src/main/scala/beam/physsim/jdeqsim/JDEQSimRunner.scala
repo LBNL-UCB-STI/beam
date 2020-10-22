@@ -126,8 +126,8 @@ class JDEQSimRunner(
         eventToHourFrequency.notifyIterationEnds(
           new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
         ),
-        linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes),
         physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
+        (),
       )(concurrent.ExecutionContext.global)
     }
     SimulationResult(
