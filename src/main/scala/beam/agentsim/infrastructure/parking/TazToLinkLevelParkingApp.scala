@@ -87,7 +87,6 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
         .groupBy(zone => zone.parkingType)
         .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toList)
     }
-//  type ZoneSearchTree[A] = Map[Id[A], Map[ParkingType, List[Int]]]
 
   logger.info("Generated {} zones", zoneArrayLink.length)
   ParkingZoneFileUtils.writeParkingZoneFile(zoneSearchTreeLink, zoneArrayLink, argsMap("out"))
@@ -110,7 +109,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     }
 
     links.flatMap { link =>
-      tazParkingZones.map { zone =>
+      //take random n zones for each link
+      val randomZones = Random.shuffle(tazParkingZones).take(3)
+      randomZones.map { zone =>
         val zonesPerMeter = zone.maxStalls / totalLength
         val numZones = Math.round(zonesPerMeter * link.getLength).toInt
         new ParkingZone[Link](
