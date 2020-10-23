@@ -52,4 +52,16 @@ object GeoLevel {
     override def geoSampling: GeoSampling[Link] = (_: Random, _: Location, link: Link, _: Double) => link.getCoord
   }
 
+  /**
+    * This method can be used to get the special geo ids at runtime
+    * @param geoLevel the geo level ("TAZ", "Link")
+    * @return a tuple (emergency id, default id)
+    */
+  def getSpecialGeoIds(geoLevel: String): (Id[_], Id[_]) = {
+    geoLevel match {
+      case "TAZ"     => (TAZ.EmergencyTAZId, TAZ.DefaultTAZId)
+      case "Link"    => (LinkLevelOperations.EmergencyLinkId, LinkLevelOperations.DefaultLinkId)
+      case wrong @ _ => throw new IllegalArgumentException(s"Unsupported parking level type $wrong")
+    }
+  }
 }

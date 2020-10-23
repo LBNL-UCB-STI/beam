@@ -30,7 +30,7 @@ import org.matsim.core.utils.misc.Time
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingMNL}
 import beam.router.RoutingWorker
 
 /**
@@ -40,7 +40,7 @@ trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
   private val emergencyGeoId =
-    ZonalParkingManager.getSpecialGeoIds(beamServices.beamConfig.beam.agentsim.taz.parkingManager.level)._1
+    GeoLevel.getSpecialGeoIds(beamServices.beamConfig.beam.agentsim.taz.parkingManager.level)._1
 
   val dummyRHVehicle: StreetVehicle =
     StreetVehicle(

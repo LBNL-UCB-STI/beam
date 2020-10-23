@@ -484,14 +484,6 @@ object ZonalParkingManager extends LazyLogging {
     )
   }
 
-  def getSpecialGeoIds(geoLevel: String): (Id[_], Id[_]) = {
-    geoLevel match {
-      case "TAZ"     => (TAZ.EmergencyTAZId, TAZ.DefaultTAZId)
-      case "Link"    => (LinkLevelOperations.EmergencyLinkId, LinkLevelOperations.DefaultLinkId)
-      case wrong @ _ => throw new IllegalArgumentException(s"Unsupported parking level type $wrong")
-    }
-  }
-
   def loadParkingZones[GEO: GeoLevel](
     parkingFilePath: String,
     geoQuadTree: QuadTree[GEO],
