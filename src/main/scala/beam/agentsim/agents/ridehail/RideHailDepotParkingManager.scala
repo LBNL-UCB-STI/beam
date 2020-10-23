@@ -24,7 +24,6 @@ import com.vividsolutions.jts.geom.Envelope
 
 class RideHailDepotParkingManager(
   parkingFilePath: String,
-  tazFilePath: String,
   valueOfTime: Double,
   tazTreeMap: TAZTreeMap,
   random: Random,
@@ -41,8 +40,8 @@ class RideHailDepotParkingManager(
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
     ParkingZoneFileUtils
-      .generateDefaultParkingFromTazfile(
-        tazFilePath,
+      .generateDefaultParkingFromGeoObjects(
+        tazTreeMap.getTAZs,
         random,
         Seq(ParkingType.Workplace)
       )
@@ -57,8 +56,8 @@ class RideHailDepotParkingManager(
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
         logger.info(s"generating ubiquitous ride hail parking")
         ParkingZoneFileUtils
-          .generateDefaultParkingFromTazfile(
-            tazFilePath,
+          .generateDefaultParkingFromGeoObjects(
+            tazTreeMap.getTAZs,
             random,
             Seq(ParkingType.Workplace)
           )
@@ -235,7 +234,6 @@ object RideHailDepotParkingManager {
   ): RideHailDepotParkingManager = {
     new RideHailDepotParkingManager(
       parkingFilePath,
-      tazFilePath,
       valueOfTime,
       tazTreeMap,
       random,

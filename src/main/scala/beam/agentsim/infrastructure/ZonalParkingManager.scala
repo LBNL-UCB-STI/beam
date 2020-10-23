@@ -22,6 +22,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.{Failure, Random, Success, Try}
+import scala.collection.JavaConverters._
 
 class ZonalParkingManager[GEO: GeoLevel](
   geoQuadTree: QuadTree[GEO],
@@ -457,7 +458,6 @@ object ZonalParkingManager extends LazyLogging {
 
     // generate or load parking
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
-    val filePath: String = beamConfig.beam.agentsim.taz.filePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
 
@@ -467,7 +467,7 @@ object ZonalParkingManager extends LazyLogging {
     }
 
     val (stalls, searchTree) =
-      loadParkingZones(parkingFilePath, filePath, parkingStallCountScalingFactor, parkingCostScalingFactor, random)
+      loadParkingZones(parkingFilePath, geoQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, random)
 
     ZonalParkingManager(
       beamConfig,
@@ -494,14 +494,13 @@ object ZonalParkingManager extends LazyLogging {
 
   def loadParkingZones[GEO: GeoLevel](
     parkingFilePath: String,
-    tazFilePath: String,
+    geoQuadTree: QuadTree[GEO],
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
     random: Random
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
-      throw new IllegalArgumentException(s"Parking file $parkingFilePath is empty") //todo generate for link level
-//      ParkingZoneFileUtils.generateDefaultParkingFromTazfile(tazFilePath, random)
+      ParkingZoneFileUtils.generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random)
     } else {
       Try {
         ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor, parkingCostScalingFactor)
@@ -509,8 +508,7 @@ object ZonalParkingManager extends LazyLogging {
         case Success((s, t)) => (s, t)
         case Failure(e) =>
           logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-          throw new IllegalArgumentException(s"Cannot load parking zones from $parkingFilePath", e) //todo generate for link level
-//          ParkingZoneFileUtils.generateDefaultParkingFromTazfile(tazFilePath, random)
+          ParkingZoneFileUtils.generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random)
       }
     }
     (stalls, searchTree)
@@ -583,7 +581,7 @@ object ZonalParkingManager extends LazyLogging {
   }
 
   /**
-    * builds a ZonalParkingManager Actor with provided parkingZones and taz tree map
+    * builds a ZonalParkingManager Actor with provided parkingZones and geoQuadTree
     *
     * @return
     */

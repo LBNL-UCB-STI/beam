@@ -2,18 +2,15 @@ package beam.agentsim.infrastructure.parking
 
 import java.io.{BufferedReader, File, IOException}
 
-import beam.agentsim.infrastructure.GeoLevel
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.util.matching.{Regex, UnanchoredRegex}
+import scala.util.matching.Regex
 import scala.util.{Failure, Random, Success, Try}
 
 // utilities to read/write parking zone information from/to a file
@@ -33,18 +30,18 @@ object ParkingZoneFileUtils extends LazyLogging {
   /**
     * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
     * this should consider charging when it is implemented as well.
-    * @param tazId a valid id for a TAZ
+    * @param geoId a valid id for a geo object
     * @param parkingType the parking type we are using to generate a row
     * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow(
-    tazId: String,
+  def defaultParkingRow[GEO](
+    geoId: Id[GEO],
     parkingType: ParkingType,
     maybeChargingPoint: Option[ChargingPointType]
   ): String = {
     val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
-    s"$tazId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,unused"
   }
 
   /**
@@ -346,62 +343,48 @@ object ParkingZoneFileUtils extends LazyLogging {
 
   /**
     * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
-    * @param tazFilePath path to the taz-centers file
+    * @param geoObjects geo objects that should be used to hold parking stalls
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return
     */
-  def generateDefaultParkingFromTazfile(
-    tazFilePath: String,
+  def generateDefaultParkingFromGeoObjects[GEO: GeoLevel](
+    geoObjects: Iterable[GEO],
     random: Random,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-  ): (Array[ParkingZone[TAZ]], ZoneSearchTree[TAZ]) = {
-    Try {
-      IOUtils.getBufferedReader(tazFilePath)
-    } match {
-      case Success(reader) =>
-        val result = generateDefaultParking(reader.lines.iterator.asScala, random, header = true, parkingTypes)
-        logger.info(
-          s"generated ${result.totalRows} parking zones,one for each geo level in $tazFilePath, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
-        )
-        if (result.someRowsFailed) {
-          logger.warn(s"${result.failedRows} rows of parking data failed to load")
-        }
-        (result.zones, result.tree)
-      case Failure(e) =>
-        throw new java.io.IOException(s"Unable to load taz file with path $tazFilePath.\n$e")
+  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+    val result = generateDefaultParking(geoObjects, random, parkingTypes)
+    logger.info(
+      s"generated ${result.totalRows} parking zones,one for each provided geo level, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
+    )
+    if (result.someRowsFailed) {
+      logger.warn(s"${result.failedRows} rows of parking data failed to load")
     }
+    (result.zones, result.tree)
   }
 
   /**
-    * the first column of the taz-centers file is an Id[Taz], which we extract. it can be alphanumeric.
-    */
-  val TazFileRegex: UnanchoredRegex = """^(\w+),""".r.unanchored
-
-  /**
     * generates ubiquitous parking from the contents of a TAZ centers file
-    * @param tazFileContents an iterator of lines from the TAZ centers file
-    * @param header if the header row exists
+    * @param geoObjects an iterable of geo objects
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return parking zones and parking search tree
     */
-  def generateDefaultParking(
-    tazFileContents: Iterator[String],
+  def generateDefaultParking[GEO: GeoLevel](
+    geoObjects: Iterable[GEO],
     random: Random,
-    header: Boolean,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-  ): ParkingLoadingAccumulator[TAZ] = {
-    val tazRows = if (header) tazFileContents.drop(1) else tazFileContents
+  ): ParkingLoadingAccumulator[GEO] = {
 
-    val rows: Iterator[String] = for {
-      TazFileRegex(tazId) <- tazRows
-      parkingType         <- parkingTypes
+    val rows: Iterable[String] = for {
+      geoObj      <- geoObjects
+      parkingType <- parkingTypes
       // We have to pass parking types: Some(CustomChargingPoint) and None
       // None is `NoCharger` which will allow non-charger ParkingZones. Check `returnSpotsWithoutChargers` in `ZonalParkingManager`
       maybeChargingPoint <- Seq(Some(ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")), None) // NoCharger
     } yield {
-      defaultParkingRow(tazId, parkingType, maybeChargingPoint)
+      import GeoLevel.ops._
+      defaultParkingRow(geoObj.getId, parkingType, maybeChargingPoint)
     }
 
-    fromIterator(rows, random, header = false)
+    fromIterator(rows.iterator, random, header = false)
   }
 }

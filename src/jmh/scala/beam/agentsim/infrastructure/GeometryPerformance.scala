@@ -72,7 +72,7 @@ object GeometryPerformance {
     val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
     val (zones, _) = ZonalParkingManager.loadParkingZones[TAZ](
       s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
-      "/not_set",
+      tazMap.tazQuadTree,
       1.0,
       1.0,
       new Random(18389),

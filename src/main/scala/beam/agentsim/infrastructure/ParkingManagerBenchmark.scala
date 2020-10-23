@@ -110,7 +110,7 @@ object ParkingManagerBenchmark extends StrictLogging {
 
       val (zones, searchTree: ZoneSearchTree[TAZ]) = ZonalParkingManager.loadParkingZones[TAZ](
         pathToParking,
-        "",
+        tazTreeMap.tazQuadTree,
         parkingStallCountScalingFactor,
         parkingCostScalingFactor,
         new Random(seed)

@@ -327,7 +327,7 @@ class ParallelParkingManagerSpec
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
         "test/input/beamville/parking/taz-parking.csv",
-        "/not_set",
+        tazMap.tazQuadTree,
         1.0,
         1.0,
         new Random(randomSeed),

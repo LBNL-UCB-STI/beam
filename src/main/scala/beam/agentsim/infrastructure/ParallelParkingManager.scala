@@ -154,7 +154,7 @@ object ParallelParkingManager extends LazyLogging {
     val seed = beamConfig.matsim.modules.global.randomSeed
     val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
       parkingFilePath,
-      filePath,
+      tazTreeMap.tazQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,
       random

@@ -1,6 +1,5 @@
-package beam.agentsim.infrastructure
+package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.infrastructure.parking.{LinkLevelOperations, ParkingStallSampling}
 import beam.agentsim.infrastructure.parking.ParkingStallSampling.GeoSampling
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location

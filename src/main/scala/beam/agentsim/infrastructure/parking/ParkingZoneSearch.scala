@@ -12,7 +12,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.annotation.tailrec
-import beam.agentsim.infrastructure.{GeoLevel, ParkingStall}
+import beam.agentsim.infrastructure.ParkingStall
 
 object ParkingZoneSearch {
 
