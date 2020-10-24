@@ -4,7 +4,7 @@
 
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>ERROR</level>
+            <level>DEBUG</level>
         </filter>
         <layout class="ch.qos.logback.classic.PatternLayout">
             <Pattern>
@@ -15,6 +15,9 @@
 
     <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <File>${log-path}/beamLog.out</File>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>DEBUG</level>
+        </filter>
         <layout class="ch.qos.logback.classic.PatternLayout">
             <Pattern>
                 %d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
@@ -35,5 +38,9 @@
 
     <Logger name="org.reflections" level="ERROR" />
     <Logger name="org.matsim.core.controler.corelisteners.DumpDataAtEndImpl" level="OFF" />
+
+    <Logger name="beam.agentsim.infrastructure.ChargingNetworkManager" level="DEBUG" />
+    <Logger name="beam.agentsim.agents.modalbehaviors" level="DEBUG" />
+    <Logger name="beam.agentsim.agents" level="DEBUG" />
 
 </configuration>
