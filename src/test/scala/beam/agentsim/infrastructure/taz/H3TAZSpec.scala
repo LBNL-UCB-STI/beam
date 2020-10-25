@@ -18,14 +18,17 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
 
   "test demand inferred H3 Index set" must "H3 Indexes" in {
     val config = ConfigFactory
-      .parseString("""
-                     |beam.agentsim.h3taz = {
-                     |  lowerBoundResolution = 6
-                     |  upperBoundResolution = 9
-                     |}
-                     |beam.physsim.skipPhysSim = true
-                     |beam.agentsim.lastIteration = 0
-        """.stripMargin)
+      .parseString(
+        """
+           |beam.actorSystemName = "H3TAZSpec"
+           |beam.agentsim.h3taz = {
+           |  lowerBoundResolution = 6
+           |  upperBoundResolution = 9
+           |}
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
       .resolve()
     runGetDemandInferredH3IndexSet(config)

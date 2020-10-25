@@ -65,43 +65,46 @@ trait NetworkCoordinator extends LazyLogging {
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
     val graphPath = Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE)
-    FileUtils
-      .readOrCreateFile(graphPath) { path =>
-        logger.info(
-          s"Initializing router by reading network from: ${path.toAbsolutePath}"
-        )
-        transportNetwork = KryoNetworkSerializer.read(path.toFile)
+    try {
+      FileUtils
+        .readOrCreateFile(graphPath) { path =>
+          logger.info(
+            s"Initializing router by reading network from: ${path.toAbsolutePath}"
+          )
+          transportNetwork = KryoNetworkSerializer.read(path.toFile)
 
-        network = FileUtils
-          .readOrCreateFile(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)) { _ =>
-            val network = NetworkUtils.createNetwork()
-            new MatsimNetworkReader(network)
-              .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
-            network
-          } { _ =>
-            createPhyssimNetwork()
-            network
-          }
-          .get
-      } { path =>
-        logger.info(
-          s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
-        )
-        transportNetwork = TransportNetwork.fromDirectory(
-          Paths.get(beamConfig.beam.routing.r5.directory).toFile,
-          true,
-          false
-        )
+          network = FileUtils
+            .readOrCreateFile(Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)) { _ =>
+              val network = NetworkUtils.createNetwork()
+              new MatsimNetworkReader(network)
+                .readFile(beamConfig.matsim.modules.network.inputNetworkFile)
+              network
+            } { _ =>
+              createPhyssimNetwork()
+              network
+            }
+            .get
+        } { path =>
+          logger.info(
+            s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
+          )
+          transportNetwork = TransportNetwork.fromDirectory(
+            Paths.get(beamConfig.beam.routing.r5.directory).toFile,
+            true,
+            false
+          )
 
-        // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
-        // Please, fix me in the future
-        createPhyssimNetwork()
+          // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
+          // Please, fix me in the future
+          createPhyssimNetwork()
 
-        KryoNetworkSerializer.write(transportNetwork, path.toFile)
-        // Needed because R5 closes DB on write
-        transportNetwork = KryoNetworkSerializer.read(path.toFile)
-      }
-      .get
+          KryoNetworkSerializer.write(transportNetwork, path.toFile)
+          // Needed because R5 closes DB on write
+          transportNetwork = KryoNetworkSerializer.read(path.toFile)
+        }
+    } catch {
+      case e: Exception => logger.error(s"Error in router initialization ${e.getMessage}")
+    }
   }
 
   def overwriteLinkParams(

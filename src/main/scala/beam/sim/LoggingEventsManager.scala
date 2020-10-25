@@ -11,8 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.Config
-import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
+import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.EventHandler
 import org.matsim.core.scoring.{EventsToActivities, EventsToLegs}
 
@@ -27,7 +26,9 @@ class LoggingEventsManager @Inject()(
   private val sequentialEventManager = new EventsManagerImpl()
   private val defaultEventManager = eventManager
 
-  logger.info(s"Created sequential ${sequentialEventManager.getClass} with hashcode: ${sequentialEventManager.hashCode()}")
+  logger.info(
+    s"Created sequential ${sequentialEventManager.getClass} with hashcode: ${sequentialEventManager.hashCode()}"
+  )
   logger.info(s"Created default ${defaultEventManager.getClass} with hashcode: ${defaultEventManager.hashCode()}")
 
   private val numOfEvents: AtomicInteger = new AtomicInteger(0)

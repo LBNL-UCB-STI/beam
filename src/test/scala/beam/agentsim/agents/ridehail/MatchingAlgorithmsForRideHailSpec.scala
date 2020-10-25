@@ -26,6 +26,7 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
+           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
@@ -44,13 +45,14 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
-          |beam.outputs.events.fileOutputFormats = xml
-          |beam.physsim.skipPhysSim = true
-          |beam.agentsim.lastIteration = 0
-          |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
-          |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-          |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
+           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
+           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -62,13 +64,14 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
-          |beam.outputs.events.fileOutputFormats = xml
-          |beam.physsim.skipPhysSim = true
-          |beam.agentsim.lastIteration = 0
-          |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
-          |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-          |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
+           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))

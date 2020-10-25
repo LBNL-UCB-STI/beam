@@ -587,7 +587,7 @@ trait BeamHelper extends LazyLogging {
     beamScenario: BeamScenario,
     outputDir: String
   ): Unit = {
-    if (beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity != 0.0) {
+    if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0D)) {
       applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
 

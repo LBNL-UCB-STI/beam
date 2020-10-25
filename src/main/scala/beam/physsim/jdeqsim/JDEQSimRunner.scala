@@ -2,7 +2,6 @@ package beam.physsim.jdeqsim
 
 import scala.collection.JavaConverters._
 import scala.util.Try
-
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
@@ -14,6 +13,7 @@ import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
+import beam.utils.ConcurrentUtils.parallelExecution
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
@@ -23,7 +23,7 @@ import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.events.EventsManagerImpl
+import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -41,7 +41,7 @@ class JDEQSimRunner(
 ) extends StrictLogging {
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
-    val jdeqsimEvents = new EventsManagerImpl
+    val jdeqsimEvents = new ParallelEventsManagerImpl(10)
     val travelTimeCalculator =
       new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
     val legHistogram = new LegHistogram(
@@ -78,6 +78,9 @@ class JDEQSimRunner(
 
     val maybeEventWriter = if (writeEvents) {
       val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
+      //adding this writer as a BEAM shutdown listener so that it could prevent BEAM from exiting
+      //before the writer writes everything to disk.
+      beamServices.matsimServices.addControlerListener(writer)
       jdeqsimEvents.addHandler(writer)
       Some(writer)
     } else None
@@ -85,7 +88,7 @@ class JDEQSimRunner(
     val maybeCaccSettings = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) Some(createCaccSettings()) else None
 
     val simName = beamConfig.beam.physsim.name
-
+    jdeqsimEvents.initProcessing()
     try {
       ProfilingUtils.timed(
         s"PhysSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",
@@ -107,23 +110,25 @@ class JDEQSimRunner(
       }
       maybeCaccSettings.foreach(_.roadCapacityAdjustmentFunction.reset())
 
-      legHistogram.getLegModes.forEach(mode => {
-        new PlotGraph().writeGraphic(
-          legHistogram,
-          controlerIO,
-          s"$currentPhysSimIter.physsimTripHistogram",
-          "time (binSize=<?> sec)",
-          mode,
-          agentSimIterationNumber,
-          beamConfig.beam.outputs.stats.binSize
-        )
-      })
-      linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes);
-      eventToHourFrequency.notifyIterationEnds(
-        new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
-      );
-      linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes)
-      physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber)
+      parallelExecution(
+        legHistogram.getLegModes.forEach(mode => {
+          new PlotGraph().writeGraphic(
+            legHistogram,
+            controlerIO,
+            s"$currentPhysSimIter.physsimTripHistogram",
+            "time (binSize=<?> sec)",
+            mode,
+            agentSimIterationNumber,
+            beamConfig.beam.outputs.stats.binSize
+          )
+        }),
+        linkStatsGraph.notifyIterationEnds(agentSimIterationNumber, travelTimeCalculator.getLinkTravelTimes),
+        eventToHourFrequency.notifyIterationEnds(
+          new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
+        ),
+        physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
+        (),
+      )(concurrent.ExecutionContext.global)
     }
     SimulationResult(
       iteration = currentPhysSimIter,
