@@ -35,7 +35,11 @@ class MyDebugRoutingVisitor extends RoutingVisitor {
 
 // You can run it as:
 //  - App with Main method in IntelliJ IDEA. You need to provide config as Program Arguments: `--config test/input/texas/austin-prod-100k.conf`
-//  - Run it from gradle: `./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=4 -PappArgs="['--config', 'test/input/texas/austin-prod-100k.conf']"`
+//  - Run it from gradle:
+/*
+./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=24 -PappArgs="['--config', 'test/input/newyork/new-york-PROD-baseline-one-r5.conf']" \
+	-PlogbackCfg=logback.xml -Dplans=test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz -DconvertToWgs=false
+*/
 object R5Requester extends BeamHelper {
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:32118"
@@ -80,12 +84,17 @@ object R5Requester extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
-    val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
-
-    val r5Wrapper = createR5Wrapper(cfg)
     val pathToPlans = System.getProperty("plans")
     val shouldConvertToWgs = System.getProperty("convertToWgs").toBoolean
     val nSampleSize = Option(System.getProperty("sampleSize")).map(_.toInt).getOrElse(10000)
+    logger.info(s"pathToPlans: $pathToPlans")
+    logger.info(s"shouldConvertToWgs: $shouldConvertToWgs")
+    logger.info(s"nSampleSize: $nSampleSize")
+
+    val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
+
+    val r5Wrapper = createR5Wrapper(cfg)
+
     val workWithHome = CsvPlanElementReader
       .read(pathToPlans)
       .filter(x => x.planElementType.equalsIgnoreCase("activity"))
