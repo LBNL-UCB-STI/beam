@@ -15,7 +15,9 @@ object RunBeam extends BeamHelper {
 
     println(s"Received ${args.length} arguments: ${args.toList}")
     println(s"Java version: ${System.getProperty("java.version")}")
-    println("JVM args: " + java.lang.management.ManagementFactory.getRuntimeMXBean.getInputArguments.asScala.toList.toString())
+    println(
+      "JVM args: " + java.lang.management.ManagementFactory.getRuntimeMXBean.getInputArguments.asScala.toList.toString()
+    )
     println(s"Heap size: ${MathUtils.formatBytes(Runtime.getRuntime.totalMemory())}")
     println(s"Heap max memory: ${MathUtils.formatBytes(Runtime.getRuntime.maxMemory())}")
     println(s"Heap free memory: ${MathUtils.formatBytes(Runtime.getRuntime.freeMemory())}")
