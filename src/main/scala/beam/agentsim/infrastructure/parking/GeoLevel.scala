@@ -3,13 +3,14 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.infrastructure.parking.ParkingStallSampling.GeoSampling
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
 
 import scala.util.Random
 
 trait GeoLevel[A] {
   def getId(a: A): Id[A]
+  def centroidLocation(a: A): Coord
   def parseId(strId: String): Id[A]
   def emergencyGeoId: Id[A]
   def defaultGeoId: Id[A]
@@ -23,8 +24,9 @@ object GeoLevel {
   object ops {
     def getId[A: GeoLevel](a: A): Id[A] = GeoLevel[A].getId(a)
 
-    implicit class GeoLevelOps[A: GeoLevel](a: A) {
-      def getId: Id[A] = GeoLevel[A].getId(a)
+    implicit class GeoLevelOps[A](val a: A) extends AnyVal {
+      def getId(implicit gl: GeoLevel[A]): Id[A] = gl.getId(a)
+      def centroidLocation(implicit gl: GeoLevel[A]): Coord = gl.centroidLocation(a)
     }
   }
 
@@ -38,6 +40,8 @@ object GeoLevel {
     override def defaultGeoId: Id[TAZ] = TAZ.DefaultTAZId
 
     override def geoSampling: GeoSampling[TAZ] = ParkingStallSampling.availabilityAwareSampling
+
+    override def centroidLocation(a: TAZ): Location = a.coord
   }
 
   implicit val linkGeoLevel: GeoLevel[Link] = new GeoLevel[Link] {
@@ -50,6 +54,8 @@ object GeoLevel {
     override def defaultGeoId: Id[Link] = LinkLevelOperations.DefaultLinkId
 
     override def geoSampling: GeoSampling[Link] = (_: Random, _: Location, link: Link, _: Double) => link.getCoord
+
+    override def centroidLocation(a: Link): Location = a.getCoord
   }
 
   /**

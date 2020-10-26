@@ -364,15 +364,11 @@ class BeamMobsimIteration(
               envelopeInUTM
             )
           case "Link" =>
-            val linkQuadTree = LinkLevelOperations.getLinkTreeMap(beamScenario.network)
-            val linkIdMapping = LinkLevelOperations.getLinkIdMapping(beamScenario.network)
-            val linkToTAZMapping =
-              LinkLevelOperations.getLinkToTazMapping(beamScenario.network, beamScenario.tazTreeMap)
             ZonalParkingManager.props(
               beamScenario.beamConfig,
-              linkQuadTree,
-              linkIdMapping,
-              linkToTAZMapping,
+              beamScenario.linkQuadTree,
+              beamScenario.linkIdMapping,
+              beamScenario.linkToTAZMapping,
               geo,
               beamRouter,
               envelopeInUTM

@@ -32,8 +32,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -361,19 +360,7 @@ class RideHailManager(
   )
 
   // provides tracking of parking/charging alternatives and their availability
-  val rideHailDepotParkingManager: RideHailDepotParkingManager = RideHailDepotParkingManager(
-    parkingFilePath,
-    beamServices.beamConfig.beam.agentsim.taz.filePath,
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
-    beamServices.beamScenario.tazTreeMap,
-    rand,
-    boundingBox,
-    beamServices.geo.distUTMInMeters,
-    mnlMultiplierParameters,
-    beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-  )
-
-  val stalls: Array[ParkingZone[TAZ]] = rideHailDepotParkingManager.rideHailParkingStalls
+  val rideHailDepotParkingManager: RideHailDepotParkingManager[_] = createDepotParkingManager
 
   private var cntEVCAV = 0
   private var cntEVnCAV = 0
@@ -514,6 +501,36 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
   )
+
+  private def createDepotParkingManager: RideHailDepotParkingManager[_] = {
+    beamServices.beamConfig.beam.agentsim.taz.parkingManager.level match {
+      case "TAZ" =>
+        RideHailDepotParkingManager(
+          parkingFilePath,
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
+          beamServices.beamScenario.tazTreeMap,
+          rand,
+          boundingBox,
+          beamServices.geo.distUTMInMeters,
+          mnlMultiplierParameters,
+          beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+        )
+      case "Link" =>
+        RideHailDepotParkingManager(
+          parkingFilePath,
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
+          beamServices.beamScenario.linkQuadTree,
+          beamServices.beamScenario.linkIdMapping,
+          beamServices.beamScenario.linkToTAZMapping,
+          rand,
+          boundingBox,
+          beamServices.geo.distUTMInMeters,
+          mnlMultiplierParameters,
+          beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+        )
+      case wrong @ _ => throw new IllegalArgumentException(s"Unsupported parking level type $wrong")
+    }
+  }
 
   def storeRoutes(responses: Seq[RoutingResponse]): Unit = {
     responses.foreach {

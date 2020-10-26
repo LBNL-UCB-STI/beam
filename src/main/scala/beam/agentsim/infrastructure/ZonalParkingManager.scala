@@ -156,7 +156,7 @@ class ZonalParkingManager[GEO: GeoLevel](
         (zone: ParkingZone[GEO]) => {
           idToGeoMapping.get(zone.geoId) match {
             case None =>
-              log.error(s"somehow have a ParkingZone with tazId ${zone.geoId} which is not found in the TAZTreeMap")
+              log.error(s"somehow have a ParkingZone with geoId ${zone.geoId} which is not found in the idToGeoMapping")
               new Coord()
             case Some(taz) =>
               GeoLevel[GEO].geoSampling(rand, inquiry.destinationUtm, taz, zone.availability)
