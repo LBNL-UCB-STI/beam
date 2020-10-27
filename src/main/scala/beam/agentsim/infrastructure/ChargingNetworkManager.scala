@@ -150,7 +150,7 @@ class ChargingNetworkManager(
           // Preparing EndRefuelSessionTrigger to notify the driver
           val updatedChargingVehicle =
             ChargingVehicle(vehicle, agent, totalChargingSession.combine(currentSession), currentSession)
-        //scheduler ! getEndRefuelSessionScheduleTrigger(tick, updatedChargingVehicle)
+          scheduler ! getEndRefuelSessionScheduleTrigger(tick, updatedChargingVehicle)
 
         case _ =>
           log.warning(
