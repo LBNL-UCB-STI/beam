@@ -1157,7 +1157,7 @@ class PersonAgent(
         _
         ) =>
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle)
+        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>

@@ -23,12 +23,6 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
 import scala.concurrent.duration.Duration
-import akka.actor._
-import akka.pattern.ask
-import akka.util.Timeout
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.concurrent.duration._
-import scala.language.postfixOps
 
 /**
   * BEAM
@@ -81,13 +75,12 @@ trait ChoosesParking extends {
       val (tick, _) = releaseTickAndTriggerId()
 
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
-        val future = chargingNetworkManager ? ChargingUnplugRequest(currentBeamVehicle, tick)
-        Await.result(future, 5.seconds)
-        handleEndCharging(tick, currentBeamVehicle)
+        chargingNetworkManager ! ChargingUnplugRequest(currentBeamVehicle, tick)
+        goto(WaitingEndRefuelSession) using data
+      } else {
+        handleReleaseParking(tick, data)
+        goto(WaitingToDrive) using data
       }
-
-      handleReleaseParking(tick, data)
-      goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
       val stall = currentBeamVehicle.stall.get
@@ -95,6 +88,21 @@ trait ChoosesParking extends {
       currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
+  }
+
+  when(WaitingEndRefuelSession) {
+    case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
+      stash()
+      stay using data
+    case Event(
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
+        data
+        ) =>
+      if (vehicle.isConnectedToChargingPoint()) {
+        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
+      }
+      handleReleaseParking(tick, data)
+      goto(WaitingToDrive) using data replying CompletionNotice(triggerId)
   }
 
   private def handleReleaseParking(tick: Int, data: PersonData) {
