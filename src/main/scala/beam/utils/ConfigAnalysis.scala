@@ -7,6 +7,7 @@ import scala.collection.JavaConverters._
 //Run application by providing 2 config file
 // args(0) - Existing config file
 // args(1) - Beam template config file
+// ./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['test/input/beamville/beam.conf','src/main/resources/beam-template.conf']"
 object ConfigAnalysis {
 
   val skipKeys = Seq(
