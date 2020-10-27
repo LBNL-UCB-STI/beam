@@ -209,7 +209,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     pastSkims
       .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
       .headOption
-      .getOrElse(aggregatedSkim.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+      .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
       .map(_.asInstanceOf[ODSkimmerInternal])
   }
 

@@ -30,7 +30,7 @@ class TransitCrowdingSkimmer @Inject()(
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     super.notifyIterationStarts(event)
     //we need to put the aggregated result into the first iteration
-    readOnlySkim.pastSkims.prepend(readOnlySkim.aggregatedSkim)
+    readOnlySkim.pastSkims.prepend(readOnlySkim.aggregatedFromPastSkims)
   }
 
   override protected def fromCsv(

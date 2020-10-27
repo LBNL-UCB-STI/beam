@@ -116,26 +116,30 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
     val sitePowerManager = new SitePowerManager(
       Map[Int, ChargingZone](1 -> dummyChargingZone),
-      beamServices.beamConfig.beam.agentsim.chargingNetworkManager.planningHorizonInSeconds,
+      beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
       beamServices.skims.taz_skimmer
     )
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
-        dummyChargingZone -> ChargingPointType.getChargingPointInstalledPowerInKw(dummyChargingZone.chargingPointType)
+        dummyChargingZone.parkingZoneId -> 0.0
       )
     }
     "get power over planning horizon greater than 0.0 for discharged vehicles" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
       sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
-        dummyChargingZone -> ChargingPointType.getChargingPointInstalledPowerInKw(dummyChargingZone.chargingPointType)
+        dummyChargingZone.parkingZoneId -> 0.0
       )
     }
     "replan horizon and get charging plan per vehicle" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
-      sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(vehiclesMap.values, 300) shouldBe Map(
+      sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(
+        vehiclesMap.values,
+        sitePowerManager.unlimitedPhysicalBounds,
+        300
+      ) shouldBe Map(
         Id.createVehicleId("id1") -> (1, 7200.0, 7200.0),
         Id.createVehicleId("id2") -> (1, 7200.0, 7200.0)
       )

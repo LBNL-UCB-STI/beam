@@ -11,7 +11,6 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
-import beam.agentsim.infrastructure.ChargingNetworkManager.PlanningTimeOutTrigger
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -372,7 +371,7 @@ class BeamMobsimIteration(
     "ChargingNetworkManager"
   )
   context.watch(chargingNetworkManager)
-  scheduler ! ScheduleTrigger(PlanningTimeOutTrigger(0), chargingNetworkManager)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
   private val rideHailManager = context.actorOf(
     Props(

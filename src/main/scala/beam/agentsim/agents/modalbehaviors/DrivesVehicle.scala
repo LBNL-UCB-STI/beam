@@ -836,7 +836,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         _
         ) =>
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
+        handleEndCharging(tick, vehicle)
       }
       stay() replying CompletionNotice(triggerId)
   }
@@ -881,12 +881,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
     * @param currentTick
     * @param vehicle
     */
-  def handleEndCharging(
-    currentTick: Int,
-    vehicle: BeamVehicle,
-    chargingDuration: Long,
-    energyInJoules: Double
-  ): Unit = {
+  def handleEndCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
+    val chargingDuration = vehicle.getChargerConnectedTick() - currentTick
+    val energyInJoules = vehicle.primaryFuelLevelInJoules - vehicle.getChargerConnectedPrimaryFuel()
     log.debug(
       "Ending refuel session for {} in tick {}. Provided {} J. during {}",
       vehicle.id,

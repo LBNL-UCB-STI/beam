@@ -169,7 +169,7 @@ object SkimmerSpec extends LazyLogging {
           beamServices.skims.taz_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.TAZ_SKIMMER} collected"
         )
-        beamServices.skims.taz_skimmer.aggregatedSkim.foreach {
+        beamServices.skims.taz_skimmer.aggregatedFromPastSkims.foreach {
           case (key, value) =>
             assume(
               value == beamServices.skims.taz_skimmer.pastSkims.head(key),
@@ -182,7 +182,7 @@ object SkimmerSpec extends LazyLogging {
           beamServices.skims.od_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.OD_SKIMMER} collected"
         )
-        beamServices.skims.od_skimmer.aggregatedSkim.foreach {
+        beamServices.skims.od_skimmer.aggregatedFromPastSkims.foreach {
           case (key, value) =>
             assume(
               value == beamServices.skims.od_skimmer.pastSkims.head(key),
@@ -195,7 +195,7 @@ object SkimmerSpec extends LazyLogging {
           beamServices.skims.dt_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.DT_SKIMMER} collected"
         )
-        beamServices.skims.dt_skimmer.aggregatedSkim.foreach {
+        beamServices.skims.dt_skimmer.aggregatedFromPastSkims.foreach {
           case (key, value) =>
             assume(
               value == beamServices.skims.dt_skimmer.pastSkims.head(key),
@@ -218,9 +218,9 @@ object SkimmerSpec extends LazyLogging {
         SkimType.TAZ_SKIMMER,
         event.getServices.getControlerIO.getIterationFilename(1, "skimsTAZ_Aggregated.csv.gz")
       )
-      skimsMap.put(SkimType.DT_SKIMMER, beamServices.skims.dt_skimmer.aggregatedSkim)
-      skimsMap.put(SkimType.OD_SKIMMER, beamServices.skims.od_skimmer.aggregatedSkim)
-      skimsMap.put(SkimType.TAZ_SKIMMER, beamServices.skims.taz_skimmer.aggregatedSkim)
+      skimsMap.put(SkimType.DT_SKIMMER, beamServices.skims.dt_skimmer.aggregatedFromPastSkims)
+      skimsMap.put(SkimType.OD_SKIMMER, beamServices.skims.od_skimmer.aggregatedFromPastSkims)
+      skimsMap.put(SkimType.TAZ_SKIMMER, beamServices.skims.taz_skimmer.aggregatedFromPastSkims)
     }
   }
 

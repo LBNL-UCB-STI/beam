@@ -1496,21 +1496,18 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        chargingSessionInSeconds: scala.Int,
         gridConnectionEnabled: scala.Boolean,
         helicsBufferSize: scala.Int,
         helicsDataInStreamPoint: java.lang.String,
         helicsDataOutStreamPoint: java.lang.String,
         helicsFederateName: java.lang.String,
-        planningHorizonInSeconds: scala.Int
+        timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            chargingSessionInSeconds =
-              if (c.hasPathOrNull("chargingSessionInSeconds")) c.getInt("chargingSessionInSeconds") else 300,
             gridConnectionEnabled = c.hasPathOrNull("gridConnectionEnabled") && c.getBoolean("gridConnectionEnabled"),
             helicsBufferSize = if (c.hasPathOrNull("helicsBufferSize")) c.getInt("helicsBufferSize") else 1000,
             helicsDataInStreamPoint =
@@ -1520,9 +1517,8 @@ object BeamConfig {
               if (c.hasPathOrNull("helicsDataOutStreamPoint")) c.getString("helicsDataOutStreamPoint")
               else "PowerDemand",
             helicsFederateName =
-              if (c.hasPathOrNull("helicsFederateName")) c.getString("helicsFederateName") else "BeamCNM",
-            planningHorizonInSeconds =
-              if (c.hasPathOrNull("planningHorizonInSeconds")) c.getInt("planningHorizonInSeconds") else 300
+              if (c.hasPathOrNull("helicsFederateName")) c.getString("helicsFederateName") else "CNMFederate",
+            timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
       }
@@ -3204,8 +3200,7 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
-          name: java.lang.String,
-          timeBin: scala.Int
+          name: java.lang.String
         )
 
         object TazSkimmer {
@@ -3213,8 +3208,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer",
-              timeBin = if (c.hasPathOrNull("timeBin")) c.getInt("timeBin") else 300
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
             )
           }
         }

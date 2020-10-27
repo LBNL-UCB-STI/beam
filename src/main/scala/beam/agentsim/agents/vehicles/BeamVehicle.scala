@@ -92,6 +92,7 @@ class BeamVehicle(
 
   private var connectedToCharger: Boolean = false
   private var chargerConnectedTick: Option[Long] = None
+  private var chargerConnectedPrimaryFuel: Option[Double] = None
 
   /**
     * Called by the driver.
@@ -148,6 +149,7 @@ class BeamVehicle(
       chargerRWLock.write {
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
+        chargerConnectedPrimaryFuel = Some(primaryFuelLevelInJoules)
       }
     } else
       logger.warn(
@@ -159,6 +161,7 @@ class BeamVehicle(
     chargerRWLock.write {
       connectedToCharger = false
       chargerConnectedTick = None
+      chargerConnectedPrimaryFuel = None
     }
   }
 
@@ -171,6 +174,12 @@ class BeamVehicle(
   def getChargerConnectedTick(): Long = {
     chargerRWLock.read {
       chargerConnectedTick.getOrElse(0L)
+    }
+  }
+
+  def getChargerConnectedPrimaryFuel(): Double = {
+    chargerRWLock.read {
+      chargerConnectedPrimaryFuel.getOrElse(0L)
     }
   }
 

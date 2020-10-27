@@ -4,7 +4,7 @@ import java.io.BufferedWriter
 import java.nio.file.Paths
 
 import beam.agentsim.events.ScalaEvent
-import beam.sim.{BeamServices, BeamWarmStart}
+import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -32,18 +32,18 @@ trait AbstractSkimmerInternal {
 
 abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected val skimName: String
-
   def getKey: AbstractSkimmerKey
-
   def getSkimmerInternal: AbstractSkimmerInternal
-
   def getEventType: String = skimName + "-event"
 }
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
+  protected[skim] var partialFromCurrentSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    immutable.Map()
+  protected[skim] var aggregatedFromPastSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    immutable.Map()
   protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
     mutable.ListBuffer()
-  protected[skim] var aggregatedSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = immutable.Map()
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)
@@ -76,7 +76,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
       val filePath = beamConfig.beam.warmStart.skimsFilePath
       val file = File(filePath)
-      readOnlySkim.aggregatedSkim = if (file.isFile) {
+      readOnlySkim.aggregatedFromPastSkims = if (file.isFile) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
         val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
@@ -99,8 +99,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       readOnlySkim.pastSkims.prepend(currentSkim.toMap)
     }
     // aggregate
-    readOnlySkim.aggregatedSkim = (readOnlySkim.aggregatedSkim.keySet ++ currentSkim.keySet).map { key =>
-      key -> aggregateOverIterations(readOnlySkim.aggregatedSkim.get(key), currentSkim.get(key))
+    readOnlySkim.aggregatedFromPastSkims = (readOnlySkim.aggregatedFromPastSkims.keySet ++ currentSkim.keySet).map {
+      key =>
+        key -> aggregateOverIterations(readOnlySkim.aggregatedFromPastSkims.get(key), currentSkim.get(key))
     }.toMap
     // write
     writeToDisk(event)
@@ -112,6 +113,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     event match {
       case e: AbstractSkimmerEvent if e.getEventType == eventType =>
         currentSkim.update(e.getKey, aggregateWithinIteration(currentSkim.get(e.getKey), e.getSkimmerInternal))
+        readOnlySkim.partialFromCurrentSkim = currentSkim.toMap
       case _ =>
     }
   }
@@ -135,7 +137,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         val filePath =
           ioController
             .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "_Aggregated.csv.gz")
-        writeSkim(readOnlySkim.aggregatedSkim, filePath)
+        writeSkim(readOnlySkim.aggregatedFromPastSkims, filePath)
       }
     }
   }
