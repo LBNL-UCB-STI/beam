@@ -89,6 +89,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     }
 
   logger.info("Generated {} zones", zoneArrayLink.length)
+  logger.info("with {} parking stalls", zoneArrayLink.map(_.stallsAvailable).sum)
   ParkingZoneFileUtils.writeParkingZoneFile(zoneSearchTreeLink, zoneArrayLink, argsMap("out"))
 
   private def distributeParking(
@@ -109,10 +110,12 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     }
 
     links.flatMap { link =>
-      //take random n zones for each link
-      val randomZones = Random.shuffle(tazParkingZones).take(3)
+//      take random n zones for each link and scale their parking slot number
+      val n = 3
+      val randomZones = Random.shuffle(tazParkingZones).take(n)
+      val multiplier = randomZones.size.toDouble / tazParkingZones.size
       randomZones.map { zone =>
-        val zonesPerMeter = zone.maxStalls / totalLength
+        val zonesPerMeter = zone.maxStalls * multiplier / totalLength
         val numZones = Math.round(zonesPerMeter * link.getLength).toInt
         new ParkingZone[Link](
           -1,

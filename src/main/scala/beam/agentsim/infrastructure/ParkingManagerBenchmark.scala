@@ -6,10 +6,10 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Random
-
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
+import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingZone}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -19,11 +19,12 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
+import org.matsim.core.utils.collections.QuadTree
 
 class ParkingManagerBenchmark(val possibleParkingLocations: Array[(Coord, String)], val parkingManagerActor: ActorRef)(
   implicit val actorSystem: ActorSystem,
@@ -95,11 +96,25 @@ object ParkingManagerBenchmark extends StrictLogging {
 
   val seed: Int = 42
 
-  val nTimes: Int = 5
+  val nTimes: Int = 1
   val fractionToBench: Double = 0.3
 
   def main(args: Array[String]): Unit = {
     implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
+
+    def loadZones[GEO: GeoLevel](quadTree: QuadTree[GEO]): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[GEO](
+        pathToParking,
+        quadTree,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor,
+        new Random(seed)
+      )
+      logger.info(s"Number of zones: ${zones.length}")
+      logger.info(s"Number of parking stalls: ${zones.map(_.stallsAvailable).sum}")
+      logger.info(s"SearchTree size: ${searchTree.size}")
+      (zones, searchTree)
+    }
 
     try {
       val scenario = readScenario(pathToPlans)
@@ -108,15 +123,6 @@ object ParkingManagerBenchmark extends StrictLogging {
       val tazTreeMap = TAZTreeMap.fromCsv(pathToTAZ)
       logger.info(s"TAZTreeMap size: ${tazTreeMap.getTAZs.size}")
 
-      val (zones, searchTree: ZoneSearchTree[TAZ]) = ZonalParkingManager.loadParkingZones[TAZ](
-        pathToParking,
-        tazTreeMap.tazQuadTree,
-        parkingStallCountScalingFactor,
-        parkingCostScalingFactor,
-        new Random(seed)
-      )
-      logger.info(s"Number of zones: ${zones.length}")
-      logger.info(s"SearchTree size: ${searchTree.size}")
       val network = NetworkUtilsExtensions.readNetwork(pathToNetwork)
       logger.info(s"Network contains ${network.getLinks.size()} links")
 
@@ -134,29 +140,55 @@ object ParkingManagerBenchmark extends StrictLogging {
       }
       val allActivityLocations: Array[(Coord, String)] = activities.map(act => (act.getCoord, act.getType)).toArray
 
+      def createZonalParkingManager(isLink: Boolean): ZonalParkingManager[_] = {
+        if (isLink) {
+          val linkQuadTree: QuadTree[Link] = LinkLevelOperations.getLinkTreeMap(network)
+          val linkIdMapping: scala.collection.Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(network)
+          val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
+          val (zones, searchTree: ZoneSearchTree[Link]) = loadZones(linkQuadTree)
+          logger.info(s"linkQuadTree size = ${linkQuadTree.size()}")
+          ZonalParkingManager[Link](
+            beamConfg,
+            linkQuadTree,
+            linkIdMapping,
+            linkToTAZMapping,
+            zones,
+            searchTree,
+            LinkLevelOperations.EmergencyLinkId,
+            LinkLevelOperations.DefaultLinkId,
+            geoUtils,
+            new Random(seed),
+            boundingBox
+          )
+        } else {
+          val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree)
+          ZonalParkingManager[TAZ](
+            beamConfg,
+            tazTreeMap.tazQuadTree,
+            tazTreeMap.idToTAZMapping,
+            identity[TAZ](_),
+            zones,
+            searchTree,
+            TAZ.EmergencyTAZId,
+            TAZ.DefaultTAZId,
+            geoUtils,
+            new Random(seed),
+            boundingBox
+          )
+        }
+      }
+
       def runBench(activityLocations: Array[(Coord, String)], isParallel: Boolean): List[ParkingInquiryResponse] = {
         // This is important! because `ParkingZone` is mutable class
-        val copyOfZones = zones.map(_.makeCopy())
         val parkingManagerActor = if (isParallel) {
+          val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree)
           actorSystem.actorOf(
-            ParallelParkingManager.props(beamConfg, tazTreeMap, copyOfZones, searchTree, 32, geoUtils, 42, boundingBox)
+            ParallelParkingManager.props(beamConfg, tazTreeMap, zones, searchTree, 10, geoUtils, 42, boundingBox)
           )
         } else {
           actorSystem.actorOf(
             Props(
-              ZonalParkingManager(
-                beamConfg,
-                tazTreeMap.tazQuadTree,
-                tazTreeMap.idToTAZMapping,
-                identity[TAZ],
-                copyOfZones,
-                searchTree,
-                TAZ.EmergencyTAZId,
-                TAZ.EmergencyTAZId,
-                geoUtils,
-                new Random(seed),
-                boundingBox
-              )
+              createZonalParkingManager(isLink = true)
             )
           )
         }
@@ -194,11 +226,11 @@ object ParkingManagerBenchmark extends StrictLogging {
       }
 
       val seqResult = benchmark(isParallel = false, nTimes, parkingLocations)
-      val parResult = benchmark(isParallel = true, nTimes, parkingLocations)
+//      val parResult = benchmark(isParallel = true, nTimes, parkingLocations)
 
       logger.info("#####################################################################")
       logger.info(seqResult)
-      logger.info(parResult)
+//      logger.info(parResult)
       logger.info("#####################################################################")
 
       // analyzeResult(parallelParkingResponses, sequentialParkingResponses)
