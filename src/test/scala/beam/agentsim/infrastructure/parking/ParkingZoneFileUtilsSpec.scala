@@ -86,7 +86,8 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         }
         "non-numeric number of stalls" should {
           "have one failed row" in new ParkingZoneFileUtilsSpec.NegativeTestData {
-            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] = ParkingZoneFileUtils.fromIterator(badNumStalls)
+            val result: ParkingZoneFileUtils.ParkingLoadingAccumulator[TAZ] =
+              ParkingZoneFileUtils.fromIterator(badNumStalls)
             result.failedRows should equal(1)
           }
 //          "throw an error" in new ParkingZoneFileUtilsSpec.NegativeTestData {
