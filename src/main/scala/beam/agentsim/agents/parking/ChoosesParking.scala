@@ -98,6 +98,9 @@ trait ChoosesParking extends {
         TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
         data
         ) =>
+
+      log.info(s"ChoosesParking: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
+
       if (vehicle.isConnectedToChargingPoint()) {
         handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
       }

@@ -835,6 +835,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
         _
         ) =>
+      log.info(s"DrivesVehicle: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
         handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
       }

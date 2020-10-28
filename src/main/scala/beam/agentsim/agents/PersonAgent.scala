@@ -24,7 +24,7 @@ import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
-import beam.agentsim.scheduler.Trigger
+import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
@@ -293,7 +293,7 @@ class PersonAgent(
 
   def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
-  override def logDepth: Int = 30
+  override def logDepth: Int = 3000
 
   /**
     * identifies agents with remaining range which is smaller than their remaining tour
@@ -1056,6 +1056,10 @@ class PersonAgent(
   }
 
   val myUnhandled: StateFunction = {
+    case Event(BeamAgentSchedulerTimer, _) =>
+      // Put a breakpoitn here to see an internal state of the actor
+      log.info(s"Received message from ${sender()}")
+      stay
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Status.Failure(reason), _) =>
@@ -1156,6 +1160,7 @@ class PersonAgent(
         TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
         _
         ) =>
+      log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
         handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
       }
