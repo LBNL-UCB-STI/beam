@@ -122,7 +122,6 @@ object BeamAgentScheduler {
 
 }
 
-
 case object BeamAgentSchedulerTimer
 
 class BeamAgentScheduler(

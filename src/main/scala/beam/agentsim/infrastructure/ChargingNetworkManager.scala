@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import akka.actor.Status.{Failure, Success}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
@@ -62,10 +61,9 @@ class ChargingNetworkManager(
         .pipeTo(sender())
 
     case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
-      log.info(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$tick")
-
+      log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$tick")
       val estimatedLoad = sitePowerManager.getPowerOverNextPlanningHorizon(tick)
-      log.info("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, tick)
+      log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, tick)
       val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, chargingStationsMap, Some(estimatedLoad))
 
       // Calculate the energy to charge each vehicle connected to the a charging station
@@ -131,7 +129,7 @@ class ChargingNetworkManager(
       sender ! CompletionNotice(triggerId)
 
     case ChargingPlugRequest(tick, vehicle, agent) =>
-      if (vehicle.isBEV | vehicle.isPHEV) {
+      val result = if (vehicle.isBEV | vehicle.isPHEV) {
         log.debug(
           "ChargingPlugRequest for vehicle {} by agent {} on stall {}",
           vehicle,
@@ -147,6 +145,7 @@ class ChargingNetworkManager(
           )
         )
         handleStartCharging(tick, vehicle)
+        Some(vehicle.id)
       } else {
         log.error(
           "ChargingPlugRequest for non BEV/PHEV vehicle {} by agent {} on stall {}",
@@ -154,14 +153,15 @@ class ChargingNetworkManager(
           agent.path.name,
           vehicle.stall
         )
+        None
       }
-      sender ! StartRefuelSession(tick)
+      sender ! StartRefuelSession(tick, result)
 
     case ChargingUnplugRequest(tick, vehicle, _) =>
       log.debug("ChargingUnplugRequest for vehicle {} at {}", vehicle, tick)
       val chargingVehicles = vehicles.values.toList
       val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, chargingStationsMap, None)
-      unplugVehicle(
+      val result = unplugVehicle(
         tick,
         vehicle.id,
         Some((chargingVehicle: ChargingVehicle) => {
@@ -186,7 +186,7 @@ class ChargingNetworkManager(
           )
         })
       )
-      sender ! EndRefuelSessionUponRequest(tick, vehicle)
+      sender ! EndRefuelSessionUponRequest(tick, result)
 
     case Finish =>
       powerController.close()
@@ -198,7 +198,7 @@ class ChargingNetworkManager(
     tick: Int,
     vehicleId: Id[BeamVehicle],
     callbackMaybe: Option[ChargingVehicle => ChargingVehicle] = None
-  ): Unit = {
+  ): Option[Id[BeamVehicle]] = {
     vehiclesToCharge.remove(vehicleId) match {
       case Some(chargingVehicle) =>
         val ChargingVehicle(vehicle, totalChargingSession, _) =
@@ -210,12 +210,14 @@ class ChargingNetworkManager(
           totalChargingSession.energy
         )
         handleEndCharging(tick, vehicle, totalChargingSession.duration, totalChargingSession.energy)
+        Some(vehicle.id)
       case _ =>
         log.debug(
           "At tick {} the vehicle {} cannot be Unplugged. Either the vehicle had already been unplugged or something is widely wrong",
           tick,
           vehicleId
         )
+        None
     }
   }
 
@@ -360,8 +362,8 @@ object ChargingNetworkManager {
   final case class ChargingTimeOutTrigger(tick: Int, vehicleId: Id[BeamVehicle]) extends Trigger
   final case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, drivingAgent: ActorRef)
   final case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, drivingAgent: ActorRef)
-  final case class EndRefuelSessionUponRequest(tick: Int, vehicle: BeamVehicle)
-  final case class StartRefuelSession(tick: Int)
+  final case class EndRefuelSessionUponRequest(tick: Int, vehicleMaybe: Option[Id[BeamVehicle]])
+  final case class StartRefuelSession(tick: Int, vehicleMaybe: Option[Id[BeamVehicle]])
 
   type PowerInKW = Double
   type EnergyInJoules = Double
