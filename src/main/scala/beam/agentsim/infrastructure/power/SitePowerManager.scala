@@ -4,7 +4,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.router.skim.TAZSkims
+import beam.router.skim.TAZSkimmerEvent
+import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
@@ -12,8 +13,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
-class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizonInSec: Int, tazSkimmer: TAZSkims)
-    extends LazyLogging {
+class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: BeamServices) extends LazyLogging {
+
+  private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
+  private val tazSkimmer = beamServices.skims.taz_skimmer
 
   val unlimitedPhysicalBounds: Map[ZoneId, PhysicalBounds] =
     ChargingNetworkManager.unlimitedPhysicalBounds(chargingStations).value
@@ -43,8 +46,13 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     */
   private def getPowerFromSkim(tick: Int, zone: ChargingZone): Option[Double] = {
     if (!tazSkimmer.isLatestSkimEmpty) {
-      val currentTimeBin = planningHorizonInSec * (tick / planningHorizonInSec)
-      tazSkimmer.getLatestSkim(currentTimeBin, zone.tazId, SKIM_ACTOR, SKIM_VAR_PREFIX + zone.parkingZoneId) match {
+      val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
+      beamServices.skims.taz_skimmer.getLatestSkim(
+        currentTimeBin,
+        zone.tazId,
+        SKIM_ACTOR,
+        SKIM_VAR_PREFIX + zone.parkingZoneId
+      ) match {
         case Some(skim) => Some(skim.value * skim.observations)
         case None       => Some(0.0)
       }
@@ -60,7 +68,7 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     * @return
     */
   private def estimatePowerDemand(tick: Int, zone: ChargingZone): Double = {
-    val previousTimeBin = planningHorizonInSec * ((tick / planningHorizonInSec) - 1)
+    val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
     tazSkimmer.getPartialSkim(previousTimeBin, zone.tazId, SKIM_ACTOR, SKIM_VAR_PREFIX + zone.parkingZoneId) match {
       case Some(skim) => skim.value * skim.observations
       case None       => 0.0
@@ -75,11 +83,12 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     * @return a future of map of electrical vehicles with required amount of energy in joules
     */
   private def replanHorizonAndGetChargingPlanPerVehicleHelper(
+    tick: Int,
     vehicles: Iterable[BeamVehicle],
     physicalBounds: Map[Int, PhysicalBounds],
     chargingSessionInSec: Int
-  ): Future[Map[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)]] = {
-    val timeInterval = Math.min(planningHorizonInSec, chargingSessionInSec)
+  ): Future[Map[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules)]] = {
+    val timeInterval = Math.min(cnmConfig.timeStepInSeconds, chargingSessionInSec)
     Future
       .sequence(
         vehicles.map { v =>
@@ -91,8 +100,8 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
             val chargingPowerLimit = maxZoneLoad * chargingPointLoad / maxUnlimitedZoneLoad
             val (chargingDuration, energyToCharge) =
               v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval), Some(chargingPowerLimit))
-            val (_, unconstrainedEnergy) = v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval))
-            v.id -> (chargingDuration, energyToCharge, unconstrainedEnergy)
+            collectDataOnLoadDemand(tick, v, chargingDuration)
+            v.id -> (chargingDuration, energyToCharge)
           }
         }
       )
@@ -100,7 +109,7 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
       .recover {
         case e =>
           logger.warn(s"Charging Replan did not produce allocations: $e")
-          Map.empty[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)]
+          Map.empty[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules)]
       }
   }
 
@@ -112,19 +121,43 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], planningHorizon
     * @return map of electrical vehicles with required amount of energy in joules
     */
   def replanHorizonAndGetChargingPlanPerVehicle(
+    tick: Int,
     vehicles: Iterable[BeamVehicle],
     physicalBounds: Map[Int, PhysicalBounds],
     chargingSessionInSec: Int
-  ): Map[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)] = {
+  ): Map[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules)] = {
     try {
       Await.result(
-        replanHorizonAndGetChargingPlanPerVehicleHelper(vehicles, physicalBounds, chargingSessionInSec),
+        replanHorizonAndGetChargingPlanPerVehicleHelper(tick, vehicles, physicalBounds, chargingSessionInSec),
         atMost = 1.minutes
       )
     } catch {
       case e: TimeoutException =>
         logger.error(s"timeout of Charging Replan with no allocations made: $e")
-        Map.empty[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules, EnergyInJoules)]
+        Map.empty[Id[BeamVehicle], (ChargingDurationInSec, EnergyInJoules)]
     }
+  }
+
+  /**
+    * Collect rough power demand per vehicle
+    * @param tick current time
+    * @param veh vehicle that needs to be recharged
+    * @param maxChargingDuration maximum Charging duration for the current session
+    */
+  private def collectDataOnLoadDemand(tick: Int, veh: BeamVehicle, maxChargingDuration: Long): Unit = {
+    // Collect data on load demand
+    val currentBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
+    val (chargingDuration, requiredEnergy) = veh.refuelingSessionDurationAndEnergyInJoules(Some(maxChargingDuration))
+    val chargingDurationBis = Math.min(chargingDuration, maxChargingDuration)
+    beamServices.matsimServices.getEvents.processEvent(
+      TAZSkimmerEvent(
+        currentBin,
+        veh.stall.get.locationUTM,
+        SKIM_VAR_PREFIX + veh.stall.get.parkingZoneId,
+        if (chargingDurationBis == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDurationBis / 3600.0),
+        beamServices,
+        SKIM_ACTOR
+      )
+    )
   }
 }

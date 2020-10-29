@@ -40,6 +40,7 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
       }
 
     case Finish =>
+      context.stop(self)
   }
 }
 

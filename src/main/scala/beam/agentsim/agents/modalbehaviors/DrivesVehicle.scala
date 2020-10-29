@@ -1,21 +1,22 @@
 package beam.agentsim.agents.modalbehaviors
 
-import scala.collection.mutable
-import akka.actor.{ActorRef, Stash}
 import akka.actor.FSM.Failure
+import akka.actor.{ActorRef, Stash}
+import akka.pattern.ask
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
-import beam.agentsim.agents.{BeamAgent, PersonAgent}
+import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
-import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, StartRefuelSession}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerMessage}
+import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
@@ -23,9 +24,9 @@ import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
 import beam.router.skim.TransitCrowdingSkimmerEvent
-import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamConfigChangesObservable, BeamScenario}
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -38,6 +39,11 @@ import org.matsim.api.core.v01.events.{
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.concurrent.{Await, TimeoutException}
+import scala.language.postfixOps
 
 /**
   * DrivesVehicle
@@ -148,10 +154,6 @@ object DrivesVehicle {
   case class BoardVehicleTrigger(tick: Int, vehicleId: Id[BeamVehicle]) extends Trigger
 
   case class StopDriving(tick: Int)
-
-  case class ChargingPlugRequest(vehicle: BeamVehicle, drivingAgent: ActorRef)
-
-  case class ChargingUnplugRequest(vehicle: BeamVehicle, tick: Int)
 
   case class StartRefuelSessionTrigger(tick: Int) extends Trigger
 
@@ -366,10 +368,20 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                 case Some(_) =>
                   if (ChargingPointType
                         .getChargingPointInstalledPowerInKw(currentBeamVehicle.stall.get.chargingPointType.get) > 20.0) {
-
                     log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
-                    chargingNetworkManager ! ChargingPlugRequest(currentBeamVehicle, self)
-                    handleStartCharging(tick, currentBeamVehicle)
+                    try {
+                      Await
+                        .result(
+                          chargingNetworkManager ? ChargingPlugRequest(tick, currentBeamVehicle, self),
+                          atMost = 1.seconds
+                        )
+                        .asInstanceOf[StartRefuelSession]
+                    } catch {
+                      case _: TimeoutException =>
+                        log.error(
+                          "timeout of StartRefuelSession. No response received so far from the ChargingNetworkManager"
+                        )
+                    }
                   }
                 case None => // this should only happen rarely
                   log.debug(
@@ -832,11 +844,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
         )
       )
     case Event(
-        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
         _
         ) =>
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
+        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)
   }
@@ -860,6 +872,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
       0.0
   }
 
+  /**
+    * process the event ChargingPlugInEvent
+    * !!!!! This is temporary and needs to be deleted
+    * @param currentTick current time
+    * @param vehicle vehicle to be charged
+    */
   def handleStartCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
     log.debug("Starting refuel session for {} in tick {}.", vehicle.id, currentTick)
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
@@ -877,9 +895,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
 
   /**
     * Calculates the duration of the refuel session, the provided energy and throws corresponding events
-    *
-    * @param currentTick
-    * @param vehicle
+    * !!!!! This is temporary and needs to be deleted
+    * @param currentTick current time
+    * @param vehicle vehicle to end charging
+    * @param chargingDuration the duration of charging session
+    * @param energyInJoules the energy in joules
     */
   def handleEndCharging(
     currentTick: Int,

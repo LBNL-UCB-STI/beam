@@ -79,7 +79,6 @@ class FastHouseholdCAVSchedulingSpec
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 1
       schedules foreach (_.schedulesMap(cavs.head).schedule should have length 6)
-      println(s"*** scenario 1 *** ${schedules.size} combinations")
     }
 
     it("pool two persons for both trips") {
@@ -108,7 +107,6 @@ class FastHouseholdCAVSchedulingSpec
       val schedules = alg.getAllFeasibleSchedules
       schedules should have length 3
       schedules foreach (_.schedulesMap(cavs.head).schedule should (have length 1 or (have length 6 or have length 10)))
-      println(s"*** scenario 2 *** ${schedules.size} combinations")
     }
 
     it("pool both agents in different CAVs") {
@@ -138,7 +136,6 @@ class FastHouseholdCAVSchedulingSpec
       val schedules1 = alg.getAllFeasibleSchedules
       schedules1 should have length 3
       schedules1 foreach (_.schedulesMap(cavs.head).schedule should (have length 1 or (have length 6 or have length 10)))
-      println(s"*** scenario 5 *** ${schedules1.size} combinations")
       // second check
       val schedules2 = alg.getBestProductiveSchedule
       schedules2.foldLeft(0)(_ + _.schedule.size) shouldBe 10

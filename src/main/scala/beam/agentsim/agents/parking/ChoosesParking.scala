@@ -5,15 +5,12 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{
-  ChargingUnplugRequest,
-  EndRefuelSessionTrigger,
-  StartLegTrigger
-}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingUnplugRequest, EndRefuelSessionUponRequest}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -22,7 +19,9 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
-import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * BEAM
@@ -30,12 +29,11 @@ import scala.concurrent.duration.Duration
 object ChoosesParking {
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState
-  case object WaitingEndRefuelSession extends BeamAgentState
+  case object ReleasingChargingPlug extends BeamAgentState
 }
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-
   onTransition {
     case ReadyToChooseParking -> ChoosingParkingSpot =>
       val personData = stateData.asInstanceOf[BasePersonData]
@@ -67,20 +65,30 @@ trait ChoosesParking extends {
         parkingDuration
       )
   }
+
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
-
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
-        chargingNetworkManager ! ChargingUnplugRequest(currentBeamVehicle, tick)
-        goto(WaitingEndRefuelSession) using data
-      } else {
-        handleReleaseParking(tick, data)
-        goto(WaitingToDrive) using data
-      }
+        try {
+          Await
+            .result(
+              chargingNetworkManager ? ChargingUnplugRequest(tick, currentBeamVehicle, self),
+              atMost = 1.seconds
+            )
+            .asInstanceOf[EndRefuelSessionUponRequest]
+        } catch {
+          case _: TimeoutException =>
+            log.error(
+              "timeout of EndRefuelSessionUponRequest. No response received so far from the ChargingNetworkManager"
+            )
+            handleReleaseParking(tick, data)
+        }
+      } else handleReleaseParking(tick, data)
+      goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
       val stall = currentBeamVehicle.stall.get
@@ -88,21 +96,6 @@ trait ChoosesParking extends {
       currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
-  }
-
-  when(WaitingEndRefuelSession) {
-    case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
-      stash()
-      stay using data
-    case Event(
-        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
-        data
-        ) =>
-      if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
-      }
-      handleReleaseParking(tick, data)
-      goto(WaitingToDrive) using data replying CompletionNotice(triggerId)
   }
 
   private def handleReleaseParking(tick: Int, data: PersonData) {
@@ -226,9 +219,9 @@ trait ChoosesParking extends {
             nextLeg,
             data.currentVehicle.head,
             body.beamVehicleType.id,
-            true,
+            asDriver = true,
             0.0,
-            true
+            unbecomeDriverOnCompletion = true
           ),
           routingResponse2.itineraries.head.legs.head
         )

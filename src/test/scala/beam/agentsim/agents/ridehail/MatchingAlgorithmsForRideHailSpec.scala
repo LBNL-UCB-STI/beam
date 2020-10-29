@@ -3,7 +3,6 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
-import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, Geofence}
 import beam.utils.FileUtils

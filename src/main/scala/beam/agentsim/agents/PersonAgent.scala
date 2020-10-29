@@ -1075,7 +1075,7 @@ class PersonAgent(
         logger.debug(s"$id is performing Activity at end of simulation")
         logger.warn("Performing Activity at end of simulation")
       } else {
-        logger.warn(s"$id has received Finish while in state: ${stateName}")
+        logger.warn(s"$id has received Finish while in state: $stateName")
       }
       stop
     case Event(
@@ -1153,11 +1153,11 @@ class PersonAgent(
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(
-        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, fuelAddedInJoule, vehicle), triggerId),
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
         _
         ) =>
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, (tick - sessionStart), fuelAddedInJoule)
+        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _), _) =>

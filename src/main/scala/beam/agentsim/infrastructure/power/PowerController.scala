@@ -16,32 +16,27 @@ class PowerController(beamConfig: BeamConfig) {
   private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
   private val cnmCfg = beamConfig.beam.agentsim.chargingNetworkManager
 
-  private[power] lazy val beamFederateOption: Option[BeamFederate] = Try {
-    logger.debug("Init PowerController resources...")
-    getFederateInstance(
-      cnmCfg.helicsFederateName,
-      cnmCfg.helicsDataOutStreamPoint match {
-        case s: String if s.nonEmpty => Some(s)
-        case _                       => None
-      },
-      cnmCfg.helicsDataInStreamPoint match {
-        case s: String if s.nonEmpty => Some((s, cnmCfg.helicsBufferSize))
-        case _                       => None
-      }
-    )
-  }.recoverWith {
-    case e =>
-      logger.error("Cannot init BeamFederate: {}", e.getMessage)
-      Failure(e)
-  }.toOption
-
-  if (cnmCfg.gridConnectionEnabled) {
-    logger.info("ChargingNetworkManager should be connected to grid...")
-    if (beamFederateOption.isDefined)
-      logger.info("ChargingNetworkManager is connected to grid")
-    else
-      logger.error("ChargingNetworkManager failed to connect to the grid")
-  }
+  private[power] lazy val beamFederateOption: Option[BeamFederate] = if (cnmCfg.gridConnectionEnabled) {
+    logger.info("ChargingNetworkManager should be connected to a grid model...")
+    Try {
+      logger.debug("Init PowerController resources...")
+      getFederateInstance(
+        cnmCfg.helicsFederateName,
+        cnmCfg.helicsDataOutStreamPoint match {
+          case s: String if s.nonEmpty => Some(s)
+          case _                       => None
+        },
+        cnmCfg.helicsDataInStreamPoint match {
+          case s: String if s.nonEmpty => Some((s, cnmCfg.helicsBufferSize))
+          case _                       => None
+        }
+      )
+    }.recoverWith {
+      case e =>
+        logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
+        Failure(e)
+    }.toOption
+  } else None
 
   private var physicalBounds = Map.empty[Int, PhysicalBounds]
   private var currentBin = -1
@@ -107,13 +102,13 @@ class PowerController(beamConfig: BeamConfig) {
     beamFederateOption
       .fold(logger.debug("Not connected to grid, just releasing helics resources")) { beamFederate =>
         beamFederate.close()
+        try {
+          logger.debug("Destroying BeamFederate")
+          unloadHelics()
+        } catch {
+          case NonFatal(ex) =>
+            logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
+        }
       }
-    try {
-      logger.debug("Destroying BeamFederate")
-      unloadHelics()
-    } catch {
-      case NonFatal(ex) =>
-        logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
-    }
   }
 }

@@ -6,11 +6,11 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.EndRefuelSessionTrigger
 import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, InterruptedWhileOffline}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
-import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse}
+import beam.agentsim.infrastructure.ChargingNetworkManager.EndRefuelSessionUponRequest
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, WorkAvailable}
-import beam.router.Modes.BeamMode.TRANSIT
 
 /**
   * @author sid.feygin
@@ -41,6 +41,9 @@ class ErrorListener() extends Actor with ActorLogging {
         case TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), triggerId) =>
           // Can be safely skipped, happens when a person ends the day before the charging session is over
           d.sender ! CompletionNotice(triggerId)
+        case EndRefuelSessionUponRequest(tick, vehicle: BeamVehicle) =>
+          // Can be safely skipped, happens when a person ends the day before the charging session is over
+          log.warning(s"DeadLetter received EndRefuelSession for vehicle ${vehicle.id} at tick $tick")
         case TriggerWithId(trigger, triggerId) =>
           log.warning("Trigger id {} sent to dead letters: {}", triggerId, trigger)
           d.sender ! CompletionNotice(triggerId)

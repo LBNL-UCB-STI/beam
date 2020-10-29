@@ -366,7 +366,7 @@ class BeamMobsimIteration(
   context.watch(parkingManager)
 
   private val chargingNetworkManager = context.actorOf(
-    Props(new ChargingNetworkManager(beamServices, beamScenario, scheduler))
+    Props(new ChargingNetworkManager(beamServices, beamScenario, parkingManager, scheduler))
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
@@ -506,12 +506,11 @@ class BeamMobsimIteration(
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
+      chargingNetworkManager ! Finish
       context.stop(scheduler)
       context.stop(errorListener)
       context.stop(parkingManager)
       sharedVehicleFleets.foreach(context.stop)
-      context.stop(tazSkimmer)
-      context.stop(chargingNetworkManager)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)

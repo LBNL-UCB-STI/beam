@@ -86,18 +86,7 @@ class SitePowerManagerSpec
   when(parkingStall2.parkingZoneId).thenReturn(1)
 
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
-
-  val dummyChargingZone: ChargingZone = ChargingZone(
-    1,
-    Id.create("Dummy", classOf[TAZ]),
-    ParkingType.Public,
-    1,
-    1,
-    ChargingPointType.ChargingStationType1,
-    PricingModel.FlatFee(0.0)
-  )
-
-  private def vehiclesList = {
+  private val vehiclesList = {
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
@@ -114,11 +103,17 @@ class SitePowerManagerSpec
   }
 
   "SitePowerManager" should {
-    val sitePowerManager = new SitePowerManager(
-      Map[Int, ChargingZone](1 -> dummyChargingZone),
-      beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
-      beamServices.skims.taz_skimmer
+    val dummyChargingZone: ChargingZone = ChargingZone(
+      1,
+      Id.create("Dummy", classOf[TAZ]),
+      ParkingType.Public,
+      1,
+      1,
+      ChargingPointType.ChargingStationType1,
+      PricingModel.FlatFee(0.0)
     )
+    val stations: Map[Int, ChargingZone] = Map[Int, ChargingZone](1 -> dummyChargingZone)
+    val sitePowerManager = new SitePowerManager(stations, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
@@ -136,12 +131,13 @@ class SitePowerManagerSpec
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
       sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(
+        0,
         vehiclesMap.values,
         sitePowerManager.unlimitedPhysicalBounds,
         300
       ) shouldBe Map(
-        Id.createVehicleId("id1") -> (1, 7200.0, 7200.0),
-        Id.createVehicleId("id2") -> (1, 7200.0, 7200.0)
+        Id.createVehicleId("id1") -> (3, 21600.0),
+        Id.createVehicleId("id2") -> (3, 21600.0)
       )
     }
   }
