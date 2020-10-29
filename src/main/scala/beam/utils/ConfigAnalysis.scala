@@ -7,10 +7,18 @@ import com.typesafe.scalalogging.StrictLogging
 
 import scala.collection.JavaConverters._
 
-//Run application by providing 2 config file
-// args(0) - directory for config files
-// args(1) - Beam template config file
-// ./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['test/input/beamville','src/main/resources/beam-template.conf']"
+/*
+Run application by providing 2 config file
+args(0) - directory for config files
+args(1) - Beam template config file
+args(2) - Optional param for comparing existing config with template
+if args(2) is 0 => give existing config files keys only(Default)
+if args(2) is 1 => give template keys only
+if args(2) is 2 => give keys for both existing config and beam template
+./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['test/input/beamville','src/main/resources/beam-template.conf']"
+or
+./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['test/input/beamville','src/main/resources/beam-template.conf', '2']"
+ */
 object ConfigAnalysis extends App with StrictLogging {
 
   val skipKeys = Seq(
@@ -22,7 +30,10 @@ object ConfigAnalysis extends App with StrictLogging {
     "my-custom-mailbox"
   )
 
-  if (args.length < 2) {
+  var mode = 1
+  if (args.length == 3) {
+    mode = args(2).toInt
+  } else if (args.length < 2) {
     throw new RuntimeException("Either template or beam config file not provided")
   }
   val options = ConfigResolveOptions.defaults()
@@ -40,10 +51,15 @@ object ConfigAnalysis extends App with StrictLogging {
       val existingConfig = BeamConfigUtils.parseFileSubstitutingInputDirectory(path)
       logger.info("######################################################################################")
       logger.info(s"Start analysis on $path")
-      logger.info(s"----------------Keys in config $path but not in beam template-----------------")
-      compareExistingKeys(existingConfig.resolve(options), templateConfig)
-      logger.info(s"----------------Keys in beam template but not in beam config ${path}-----------------")
-      compareTemplateKeysPath(existingConfig, templateConfig)
+      if (mode == 1 || mode == 3) {
+        logger.info(s"----------------Keys in config $path but not in beam template-----------------")
+        compareExistingKeys(existingConfig.resolve(options), templateConfig)
+      }
+
+      if (mode == 2 || mode == 3) {
+        logger.info(s"----------------Keys in beam template but not in beam config ${path}-----------------")
+        compareTemplateKeysPath(existingConfig, templateConfig)
+      }
       logger.info(s"End analysis on $path")
       logger.info("######################################################################################")
 
