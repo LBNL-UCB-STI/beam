@@ -158,7 +158,7 @@ class ParallelParkingManagerSpec
           ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
-            parking.zones,
+            parking.zones.toArray,
             parking.tree,
             8,
             geo,
@@ -218,7 +218,7 @@ class ParallelParkingManagerSpec
           ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
-            parking.zones,
+            parking.zones.toArray,
             parking.tree,
             8,
             geo,
@@ -292,7 +292,7 @@ class ParallelParkingManagerSpec
           ParallelParkingManager.props(
             beamConfig,
             tazTreeMap,
-            parking.zones,
+            parking.zones.toArray,
             parking.tree,
             1, // this test will work only in a single cluster because clusters are fully separated
             geo,

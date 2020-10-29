@@ -23,7 +23,7 @@ object ParkingZoneSearch {
     * with the matching attributes. type parameter A is a tag from a graph partitioning, such as a TAZ,
     * or possibly an h3 key.
     */
-  type ZoneSearchTree[A] = Map[Id[A], Map[ParkingType, List[Int]]]
+  type ZoneSearchTree[A] = scala.collection.Map[Id[A], Map[ParkingType, Vector[Int]]]
 
   // increases search radius by this factor at each iteration
   val SearchFactor: Double = 2.0

@@ -10,6 +10,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
 import scala.annotation.tailrec
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.util.matching.Regex
 import scala.util.{Failure, Random, Success, Try}
 
@@ -52,8 +54,9 @@ object ParkingZoneFileUtils extends LazyLogging {
     * @param failedRows number of rows which failed to parse
     */
   case class ParkingLoadingAccumulator[GEO](
-    zones: Array[ParkingZone[GEO]] = Array.empty[ParkingZone[GEO]],
-    tree: ZoneSearchTree[GEO] = Map.empty[Id[GEO], Map[ParkingType, List[Int]]],
+    zones: ArrayBuffer[ParkingZone[GEO]] = ArrayBuffer.empty[ParkingZone[GEO]],
+    tree: mutable.Map[Id[GEO], Map[ParkingType, Vector[Int]]] =
+      mutable.Map.empty[Id[GEO], Map[ParkingType, Vector[Int]]],
     totalRows: Int = 0,
     failedRows: Int = 0
   ) {
@@ -171,7 +174,7 @@ object ParkingZoneFileUtils extends LazyLogging {
         if (parkingLoadingAccumulator.someRowsFailed) {
           logger.warn(s"${parkingLoadingAccumulator.failedRows} rows of parking data failed to load")
         }
-        (parkingLoadingAccumulator.zones, parkingLoadingAccumulator.tree)
+        (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
       case Failure(e) =>
         throw new java.io.IOException(s"Unable to load parking configuration file with path $filePath.\n$e")
     }
@@ -323,22 +326,21 @@ object ParkingZoneFileUtils extends LazyLogging {
 
     // find any data stored already within this TAZ and with this ParkingType
     val parkingTypes = accumulator.tree.getOrElse(row.tazId, Map())
-    val parkingZoneIds: List[Int] = parkingTypes.getOrElse(row.parkingType, List.empty[Int])
+    val parkingZoneIds: Vector[Int] = parkingTypes.getOrElse(row.parkingType, Vector.empty[Int])
 
     // create new ParkingZone in array with new parkingZoneId. should this be an ArrayBuilder?
-    val updatedStalls = accumulator.zones :+ row.parkingZone
+    accumulator.zones.append(row.parkingZone)
 
     // update the tree with the id of this ParkingZone
-    val updatedTree =
-      accumulator.tree.updated(
-        row.tazId,
-        parkingTypes.updated(
-          row.parkingType,
-          parkingZoneIds :+ row.parkingZone.parkingZoneId
-        )
+    accumulator.tree.put(
+      row.tazId,
+      parkingTypes.updated(
+        row.parkingType,
+        parkingZoneIds :+ row.parkingZone.parkingZoneId
       )
+    )
 
-    ParkingLoadingAccumulator(updatedStalls, updatedTree, accumulator.totalRows + 1, accumulator.failedRows)
+    ParkingLoadingAccumulator(accumulator.zones, accumulator.tree, accumulator.totalRows + 1, accumulator.failedRows)
   }
 
   /**
@@ -359,7 +361,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     if (result.someRowsFailed) {
       logger.warn(s"${result.failedRows} rows of parking data failed to load")
     }
-    (result.zones, result.tree)
+    (result.zones.toArray, result.tree)
   }
 
   /**

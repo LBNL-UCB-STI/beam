@@ -85,7 +85,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     .mapValues { zones =>
       zones
         .groupBy(zone => zone.parkingType)
-        .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toList)
+        .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toVector)
     }
 
   logger.info("Generated {} zones", zoneArrayLink.length)

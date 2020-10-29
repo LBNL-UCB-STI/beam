@@ -532,7 +532,7 @@ object ZonalParkingManager extends LazyLogging {
       idToGeoMapping,
       geoToTAZ,
       geo,
-      parking.zones,
+      parking.zones.toArray,
       parking.tree,
       GeoLevel[GEO].emergencyGeoId,
       GeoLevel[GEO].defaultGeoId,
