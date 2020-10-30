@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig

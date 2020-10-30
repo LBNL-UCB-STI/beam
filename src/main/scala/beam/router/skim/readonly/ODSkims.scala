@@ -1,4 +1,4 @@
-package beam.router.skim
+package beam.router.skim.readonly
 
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
@@ -16,8 +16,9 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.router.model.{BeamLeg, BeamPath}
-import beam.router.skim.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
+import beam.router.skim.core.AbstractSkimmerReadOnly
+import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -207,8 +208,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
     pastSkims
+      .get(currentIteration - 1)
       .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
-      .headOption
       .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
       .map(_.asInstanceOf[ODSkimmerInternal])
   }

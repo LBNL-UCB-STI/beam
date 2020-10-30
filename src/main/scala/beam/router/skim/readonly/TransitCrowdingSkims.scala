@@ -1,10 +1,11 @@
-package beam.router.skim
+package beam.router.skim.readonly
 
 import java.math.RoundingMode
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.TransitCrowdingSkimmer.{TransitCrowdingSkimmerInternal, TransitCrowdingSkimmerKey}
+import beam.router.skim.core.TransitCrowdingSkimmer.{TransitCrowdingSkimmerInternal, TransitCrowdingSkimmerKey}
+import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
 import com.google.common.math.IntMath
 import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.Id
@@ -56,15 +57,15 @@ class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleTyp
   ): TransitCrowdingSkimmerInternal = {
     val key = TransitCrowdingSkimmerKey(vehicleId, fromStopIdx)
 
-    def getValueFrom(x: Map[AbstractSkimmerKey, AbstractSkimmerInternal]) = {
+    def getValueFrom(x: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]) = {
       x.get(key).asInstanceOf[Option[TransitCrowdingSkimmerInternal]]
     }
 
-    pastSkims match {
-      case Seq(x)          => average(getValueFrom(x), None, vehicleTypeId)
-      case Seq(x, xs @ _*) => average(getValueFrom(x), getValueFrom(xs.head), vehicleTypeId)
-      case Seq()           => average(None, None, vehicleTypeId)
-    }
+    average(
+      getValueFrom(aggregatedFromPastSkims),
+      pastSkims.get(currentIteration - 1).flatMap(getValueFrom),
+      vehicleTypeId
+    )
   }
 
   private def average(

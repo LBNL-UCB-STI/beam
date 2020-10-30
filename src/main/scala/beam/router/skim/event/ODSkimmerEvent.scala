@@ -1,8 +1,10 @@
-package beam.router.skim
+package beam.router.skim.event
 
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
+import beam.router.skim.SkimsUtils
+import beam.router.skim.core.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.BeamServices
 
 case class ODSkimmerEvent(

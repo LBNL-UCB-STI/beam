@@ -23,7 +23,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.osm.TollCalculator
-import beam.router.skim.TransitCrowdingSkimmerEvent
+import beam.router.skim.event.TransitCrowdingSkimmerEvent
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamScenario}

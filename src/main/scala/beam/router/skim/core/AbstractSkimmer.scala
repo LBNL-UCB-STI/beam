@@ -1,9 +1,10 @@
-package beam.router.skim
+package beam.router.skim.core
 
 import java.io.BufferedWriter
 import java.nio.file.Paths
 
 import beam.agentsim.events.ScalaEvent
+import beam.router.skim.CsvSkimReader
 import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
@@ -14,7 +15,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
 
-import scala.collection.{immutable, mutable}
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal
@@ -26,7 +27,6 @@ trait AbstractSkimmerKey {
 trait AbstractSkimmerInternal {
   val observations: Int
   val iterations: Int
-
   def toCsv: String
 }
 
@@ -38,12 +38,22 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 }
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
-  protected[skim] var partialFromCurrentSkim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
-    immutable.Map()
-  protected[skim] var aggregatedFromPastSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
-    immutable.Map()
-  protected[skim] val pastSkims: mutable.ListBuffer[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
-    mutable.ListBuffer()
+  private[core] var currentIterationInternal: Int = -1
+  private[core] val currentSkimInternal: TrieMap[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    TrieMap.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] var aggregatedFromPastSkimsInternal =
+    collection.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] val pastSkimsInternal: TrieMap[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
+    TrieMap.empty[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
+
+  def currentIteration: Int = currentIterationInternal
+  def currentSkim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.readOnlySnapshot()
+
+  def aggregatedFromPastSkims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    aggregatedFromPastSkimsInternal
+
+  def pastSkims: collection.Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
+    pastSkimsInternal.readOnlySnapshot()
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)
@@ -56,10 +66,11 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimFileBaseName: String
   protected val skimFileHeader: String
   protected val skimName: String
-  protected lazy val currentSkim = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private lazy val eventType = skimName + "-event"
-
   private val awaitSkimLoading = 20.minutes
+  private val skimCfg = beamConfig.beam.router.skim
+
+  import readOnlySkim._
 
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
   protected def aggregateOverIterations(
@@ -73,10 +84,11 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   ): AbstractSkimmerInternal
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    if (event.getIteration == 0 && beamConfig.beam.warmStart.enabled) {
+    currentIterationInternal = event.getIteration
+    if (currentIterationInternal == 0 && beamConfig.beam.warmStart.enabled) {
       val filePath = beamConfig.beam.warmStart.skimsFilePath
       val file = File(filePath)
-      readOnlySkim.aggregatedFromPastSkims = if (file.isFile) {
+      aggregatedFromPastSkimsInternal = if (file.isFile) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
       } else {
         val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
@@ -91,58 +103,58 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     // keep in memory
-    if (beamConfig.beam.router.skim.keepKLatestSkims > 0) {
-      if (readOnlySkim.pastSkims.size >= beamConfig.beam.router.skim.keepKLatestSkims) {
-        val toBeRemoved = readOnlySkim.pastSkims.size - beamConfig.beam.router.skim.keepKLatestSkims + 1
-        readOnlySkim.pastSkims.remove(beamConfig.beam.router.skim.keepKLatestSkims - 1, toBeRemoved)
-      }
-      readOnlySkim.pastSkims.prepend(currentSkim.toMap)
-    }
+    if (skimCfg.keepKLatestSkims > 0) {
+      if (pastSkimsInternal.size >= skimCfg.keepKLatestSkims)
+        pastSkimsInternal.remove(currentIterationInternal - skimCfg.keepKLatestSkims)
+      pastSkimsInternal.put(currentIterationInternal, currentSkim)
+    } else logger.warn("keepKLatestSkims is negative!")
     // aggregate
-    readOnlySkim.aggregatedFromPastSkims = (readOnlySkim.aggregatedFromPastSkims.keySet ++ currentSkim.keySet).map {
+    aggregatedFromPastSkimsInternal = (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.keySet).map {
       key =>
-        key -> aggregateOverIterations(readOnlySkim.aggregatedFromPastSkims.get(key), currentSkim.get(key))
+        key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), currentSkimInternal.get(key))
     }.toMap
     // write
     writeToDisk(event)
     // clear
-    currentSkim.clear()
+    currentSkimInternal.clear()
   }
 
   override def handleEvent(event: Event): Unit = {
     event match {
       case e: AbstractSkimmerEvent if e.getEventType == eventType =>
-        currentSkim.update(e.getKey, aggregateWithinIteration(currentSkim.get(e.getKey), e.getSkimmerInternal))
-        readOnlySkim.partialFromCurrentSkim = currentSkim.toMap
+        currentSkimInternal.update(
+          e.getKey,
+          aggregateWithinIteration(currentSkimInternal.get(e.getKey), e.getSkimmerInternal)
+        )
       case _ =>
     }
   }
 
   protected def writeToDisk(event: IterationEndsEvent): Unit = {
-    if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
+    if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
       ProfilingUtils.timed(
-        s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}",
+        s"beam.router.skim.writeSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)
       ) {
         val filePath =
-          ioController.getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + ".csv.gz")
-        writeSkim(currentSkim.toMap, filePath)
+          ioController.getIterationFilename(currentIterationInternal, skimFileBaseName + ".csv.gz")
+        writeSkim(currentSkim, filePath)
       }
 
-    if (beamConfig.beam.router.skim.writeAggregatedSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeAggregatedSkimsInterval == 0) {
+    if (skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0) {
       ProfilingUtils.timed(
-        s"beam.router.skim.writeAggregatedSkimsInterval on iteration ${event.getIteration}",
+        s"beam.router.skim.writeAggregatedSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)
       ) {
         val filePath =
           ioController
             .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "_Aggregated.csv.gz")
-        writeSkim(readOnlySkim.aggregatedFromPastSkims, filePath)
+        writeSkim(aggregatedFromPastSkimsInternal, filePath)
       }
     }
   }
 
-  private def writeSkim(skim: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
+  private def writeSkim(skim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal], filePath: String): Unit = {
     var writer: BufferedWriter = null
     try {
       writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)

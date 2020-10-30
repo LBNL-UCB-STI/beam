@@ -40,12 +40,12 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse, _}
 import beam.router.Modes.BeamMode
-import beam.router.skim.{Skims, SkimsUtils, TAZSkimmerEvent}
+import beam.router.skim.{event, Skims, SkimsUtils}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.TAZSkimmerEvent
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
+import beam.router.skim.event.TAZSkimmerEvent
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInputData
 import beam.sim._
@@ -554,7 +554,8 @@ class RideHailManager(
       vehicleManager.idleRideHailVehicles.foreach {
         case (_, y) =>
           beamServices.matsimServices.getEvents.processEvent(
-            TAZSkimmerEvent(tick, y.currentLocationUTM.loc, "idleRHVehicles", 1.0, beamServices, "RideHailManager")
+            event
+              .TAZSkimmerEvent(tick, y.currentLocationUTM.loc, "idleRHVehicles", 1.0, beamServices, "RideHailManager")
           )
       }
 

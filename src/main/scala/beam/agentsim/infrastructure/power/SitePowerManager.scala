@@ -4,7 +4,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.router.skim.TAZSkimmerEvent
+import beam.router.skim.event
+import beam.router.skim.event.TAZSkimmerEvent
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -150,7 +151,7 @@ class SitePowerManager(chargingStations: Map[Int, ChargingZone], beamServices: B
     val (chargingDuration, requiredEnergy) = veh.refuelingSessionDurationAndEnergyInJoules(Some(maxChargingDuration))
     val chargingDurationBis = Math.min(chargingDuration, maxChargingDuration)
     beamServices.matsimServices.getEvents.processEvent(
-      TAZSkimmerEvent(
+      event.TAZSkimmerEvent(
         currentBin,
         veh.stall.get.locationUTM,
         SKIM_VAR_PREFIX + veh.stall.get.parkingZoneId,

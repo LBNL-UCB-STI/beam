@@ -21,7 +21,7 @@ import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.skim.AbstractSkimmerEvent
+import beam.router.skim.core.AbstractSkimmerEvent
 import beam.sim.common.GeoUtilsImpl
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}

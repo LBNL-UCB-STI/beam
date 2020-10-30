@@ -8,7 +8,8 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.skim.{ODSkimmer, Skims, SkimsUtils}
+import beam.router.skim.core.ODSkimmer
+import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence}
 import com.typesafe.scalalogging.LazyLogging
@@ -19,6 +20,7 @@ import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
+
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
