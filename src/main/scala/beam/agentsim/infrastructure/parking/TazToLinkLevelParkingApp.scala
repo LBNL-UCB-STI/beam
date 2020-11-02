@@ -111,8 +111,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
 
     links.flatMap { link =>
 //      take random n zones for each link and scale their parking slot number
-      val n = 3
-      val randomZones = Random.shuffle(tazParkingZones).take(n)
+//      val n = 3
+//      val randomZones = Random.shuffle(tazParkingZones).take(n)
+      val randomZones = tazParkingZones
       val multiplier = randomZones.size.toDouble / tazParkingZones.size
       randomZones.map { zone =>
         val zonesPerMeter = zone.maxStalls * multiplier / totalLength

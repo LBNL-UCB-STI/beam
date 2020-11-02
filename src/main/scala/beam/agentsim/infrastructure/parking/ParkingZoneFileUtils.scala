@@ -262,6 +262,28 @@ object ParkingZoneFileUtils extends LazyLogging {
   }
 
   /**
+    * Creating search tree to find stalls from a sequence of Parking zones
+    *
+    * @param zones each line from a file to be read
+    * @return table and search tree
+    */
+  def createZoneSearchTree[GEO](zones: Seq[ParkingZone[GEO]]): ZoneSearchTree[GEO] = {
+
+    zones.foldLeft(Map.empty: ZoneSearchTree[GEO]) { (accumulator, zone) =>
+      val parkingTypes = accumulator.getOrElse(zone.geoId, Map())
+      val parkingZoneIds: Vector[Int] = parkingTypes.getOrElse(zone.parkingType, Vector.empty[Int])
+
+      accumulator.updated(
+        zone.geoId,
+        parkingTypes.updated(
+          zone.parkingType,
+          parkingZoneIds :+ zone.parkingZoneId
+        )
+      )
+    }
+  }
+
+  /**
     * parses a row of parking configuration into the data structures used to represent it
     * @param csvRow the comma-separated parking attributes
     * @return a ParkingZone and it's corresponding ParkingType and Taz Id

@@ -46,13 +46,13 @@ class ParkingZone[GEO](
     s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString)"
   }
 
-  def makeCopy(): ParkingZone[GEO] = {
+  def makeCopy(maxStalls: Int = -1): ParkingZone[GEO] = {
     new ParkingZone(
       this.parkingZoneId,
       this.geoId,
       this.parkingType,
       this.stallsAvailable,
-      this.maxStalls,
+      if (maxStalls == -1) this.maxStalls else maxStalls,
       this.chargingPointType,
       this.pricingModel
     )

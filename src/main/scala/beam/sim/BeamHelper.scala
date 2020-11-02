@@ -272,7 +272,8 @@ trait BeamHelper extends LazyLogging {
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    val linkQuadTree: QuadTree[Link] = LinkLevelOperations.getLinkTreeMap(networkCoordinator.network)
+    val linkQuadTree: QuadTree[Link] =
+      LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
     val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
 
