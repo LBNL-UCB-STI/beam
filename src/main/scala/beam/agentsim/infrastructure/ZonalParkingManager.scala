@@ -82,7 +82,7 @@ class ZonalParkingManager[GEO: GeoLevel](
         )
 
         // update the parking stall data
-        val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
+        val claimed: Boolean = ParkingZone.claimStall(parkingZone)
         if (claimed) {
           totalStallsInUse += 1
           totalStallsAvailable -= 1
@@ -107,7 +107,7 @@ class ZonalParkingManager[GEO: GeoLevel](
         }
       } else {
 
-        val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId)).value
+        val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId))
         if (released) {
           totalStallsInUse -= 1
           totalStallsAvailable += 1

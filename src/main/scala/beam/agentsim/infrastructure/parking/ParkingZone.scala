@@ -1,9 +1,5 @@
 package beam.agentsim.infrastructure.parking
 
-import scala.language.higherKinds
-
-import cats.Eval
-
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -93,18 +89,16 @@ object ParkingZone extends LazyLogging {
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
     */
-  def releaseStall[GEO](parkingZone: ParkingZone[GEO]): Eval[Boolean] =
-    Eval.later {
-      if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
-        // this zone does not exist in memory but it has infinitely many stalls to release
-        true
-      } else if (parkingZone.stallsAvailable + 1 > parkingZone.maxStalls) {
+  def releaseStall[GEO](parkingZone: ParkingZone[GEO]): Boolean =
+    if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
+      // this zone does not exist in memory but it has infinitely many stalls to release
+      true
+    } else if (parkingZone.stallsAvailable + 1 > parkingZone.maxStalls) {
 //        log.debug(s"Attempting to release a parking stall when ParkingZone is already full.")
-        false
-      } else {
-        parkingZone.stallsAvailable += 1
-        true
-      }
+      false
+    } else {
+      parkingZone.stallsAvailable += 1
+      true
     }
 
   /**
@@ -113,18 +107,16 @@ object ParkingZone extends LazyLogging {
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
     */
-  def claimStall[GEO](parkingZone: ParkingZone[GEO]): Eval[Boolean] =
-    Eval.later {
-      if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
-        // this zone does not exist in memory but it has infinitely many stalls to release
-        true
-      } else if (parkingZone.stallsAvailable - 1 >= 0) {
-        parkingZone.stallsAvailable -= 1
-        true
-      } else {
-        // log debug that we tried to claim a stall when there were no free stalls
-        false
-      }
+  def claimStall[GEO](parkingZone: ParkingZone[GEO]): Boolean =
+    if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
+      // this zone does not exist in memory but it has infinitely many stalls to release
+      true
+    } else if (parkingZone.stallsAvailable - 1 >= 0) {
+      parkingZone.stallsAvailable -= 1
+      true
+    } else {
+      // log debug that we tried to claim a stall when there were no free stalls
+      false
     }
 
   /**

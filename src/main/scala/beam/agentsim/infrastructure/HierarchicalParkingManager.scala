@@ -131,8 +131,8 @@ class HierarchicalParkingManager(
           s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
         )
 
-        ParkingZone.claimStall(parkingZone).value
-        ParkingZone.claimStall(tazParkingZone).value
+        ParkingZone.claimStall(parkingZone)
+        ParkingZone.claimStall(tazParkingZone)
       }
 
       sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
@@ -151,8 +151,8 @@ class HierarchicalParkingManager(
         val linkZone = actualParkingZones(parkingZoneId)
         val tazZoneId = linkZoneToTazZoneMap(parkingZoneId)
         val tazZone = tazParkingZones(tazZoneId)
-        ParkingZone.releaseStall(linkZone).value
-        ParkingZone.releaseStall(tazZone).value
+        ParkingZone.releaseStall(linkZone)
+        ParkingZone.releaseStall(tazZone)
       }
   }
 
