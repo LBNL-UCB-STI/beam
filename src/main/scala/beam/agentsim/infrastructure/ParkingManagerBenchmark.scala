@@ -205,10 +205,10 @@ object ParkingManagerBenchmark extends StrictLogging {
             actorSystem.actorOf(
               HierarchicalParkingManager.props(
                 tazTreeMap,
-                geoUtils,
                 linkToTAZMapping,
                 zones,
                 new Random(seed),
+                geoUtils,
                 beamConfig.beam.agentsim.agents.parking.minSearchRadius,
                 beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
                 boundingBox,

@@ -11,9 +11,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
-import beam.agentsim.infrastructure.parking.LinkLevelOperations
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.agentsim.infrastructure.{ParallelParkingManager, ZonalParkingManager}
+import beam.agentsim.infrastructure.{HierarchicalParkingManager, ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
@@ -374,6 +373,16 @@ class BeamMobsimIteration(
               envelopeInUTM
             )
         }
+      case "HIERARCHICAL" =>
+        HierarchicalParkingManager
+          .props(
+            beamConfig,
+            beamScenario.tazTreeMap,
+            beamScenario.linkQuadTree,
+            beamScenario.linkToTAZMapping,
+            geo,
+            envelopeInUTM
+          )
       case "PARALLEL" =>
         ParallelParkingManager
           .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)

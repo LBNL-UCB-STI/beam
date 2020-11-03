@@ -12,6 +12,7 @@ import org.scalatest.{Matchers, WordSpec}
 
 import scala.collection.immutable.HashMap
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.util.Random
 
 /**
   * @author Dmitry Openkov
@@ -43,21 +44,37 @@ class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
         joinZone shouldBe defined
         joinZone.get.maxStalls should be(1100)
         tazZones.count(_.geoId.toString == "100100") should be(2)
-
-        /*        val res =
-          Array(
-            ParkingZone(parkingZoneId = 0, numStalls = 1100, chargingType = dcfast(50.0 | DC), pricingModel = Block),
-            ParkingZone(parkingZoneId = 1, numStalls = 10, chargingType = level1(2.3 | AC), pricingModel = FlatFee),
-            ParkingZone(parkingZoneId = 2, numStalls = 100, chargingType = None, pricingModel = FlatFee),
-            ParkingZone(parkingZoneId = 3, numStalls = 100, chargingType = ultrafast(250.0 | DC), pricingModel = FlatFee),
-            ParkingZone(parkingZoneId = 4, numStalls = 10, chargingType = level2(7.2 | AC), pricingModel = Block),
-            ParkingZone(parkingZoneId = 5, numStalls = 10, chargingType = dcfast(50.0 | DC), pricingModel = FlatFee),
-            ParkingZone(parkingZoneId = 6, numStalls = 2000, chargingType = level2(7.2 | AC), pricingModel = FlatFee),
-            ParkingZone(parkingZoneId = 7, numStalls = 10000, chargingType = ultrafast(250.0 | DC), pricingModel = FlatFee),
-            ParkingZone(parkingZoneId = 8, numStalls = 10000, chargingType = level2(7.2 | AC), pricingModel = FlatFee)
-          )*/
       }
 
+      "produce correct zones on a bigger data" ignore { //this is a bigger test for sf-light
+        val network = NetworkUtilsExtensions.readNetwork("output/sf-light/sf-light-25k/outputNetwork.xml.gz")
+
+        val tazTreeMap = TAZTreeMap.fromCsv("test/input/sf-light/taz-centers.csv.gz")
+        val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
+        val (linkZones, lookupTree) =
+          ParkingZoneFileUtils.fromFile[Link]("test/input/sf-light/link-parking.csv.gz", new Random(42), 1.0)
+
+        val ltzIds: Map[Id[Link], Id[TAZ]] = linkToTAZMapping.map {
+          case (link, taz) => link.getId -> taz.tazId
+        }
+        val tuple = HierarchicalParkingManager.convertToTazParkingZones(linkZones.toArray, ltzIds)
+        val tazZones: Array[ParkingZone[TAZ]] = tuple._1
+        val linkToTaz: Map[Int, Int] = tuple._2
+        val tree = ParkingZoneFileUtils.createZoneSearchTree(tazZones)
+        val myTazId: Id[TAZ] = Id.create(100026, classOf[TAZ])
+        val myZones = tazZones.filter(_.geoId == myTazId)
+        val myZones2 = tree(myTazId).mapValues(_.map(tazZones))
+
+        println(myZones)
+        println(myZones2)
+
+        println(tazZones.length)
+        println(tree.size)
+
+        tazTreeMap.getTAZs.map { taz =>
+
+        }
+      }
     }
     "creates taz link quad tree mapping" should {
       "correct quad tree" ignore {

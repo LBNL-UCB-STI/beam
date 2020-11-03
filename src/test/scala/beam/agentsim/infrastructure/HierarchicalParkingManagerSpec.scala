@@ -76,14 +76,14 @@ class HierarchicalParkingManagerSpec
         parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             tazTreeMap,
-            geo,
             HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             Array.empty[ParkingZone[Link]],
             new Random(randomSeed),
+            geo,
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
           )
         )
       } {
@@ -116,14 +116,14 @@ class HierarchicalParkingManagerSpec
       val parkingManager = system.actorOf(
         HierarchicalParkingManager.props(
           tazTreeMap,
-          geo,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
           Array.empty[ParkingZone[Link]],
           new Random(randomSeed),
+          geo,
           250.0,
           8000.0,
           boundingBox,
-          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
         )
       )
 
@@ -167,14 +167,14 @@ class HierarchicalParkingManagerSpec
         parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             tazTreeMap,
-            geo,
             HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             parking.zones.toArray,
             new Random(randomSeed),
+            geo,
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
           )
         )
       } {
@@ -228,14 +228,14 @@ class HierarchicalParkingManagerSpec
         parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             tazTreeMap,
-            geo,
             HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             parking.zones.toArray,
             new Random(randomSeed),
+            geo,
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
           )
         )
       } {
@@ -303,14 +303,14 @@ class HierarchicalParkingManagerSpec
         parkingManager = system.actorOf(
           HierarchicalParkingManager.props(
             tazTreeMap,
-            geo,
             HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             parking.zones.toArray,
             new Random(randomSeed),
+            geo,
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
           )
         )
       } {
@@ -348,14 +348,14 @@ class HierarchicalParkingManagerSpec
       val zpm = system.actorOf(
         HierarchicalParkingManager.props(
           scenario.tazTreeMap,
-          geo,
           scenario.linkToTAZMapping,
           zones,
           new Random(randomSeed),
+          geo,
           250.0,
           8000.0,
           boundingBox,
-          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
         )
       )
 

@@ -3,12 +3,15 @@ package beam.agentsim.infrastructure
 import akka.actor.{ActorLogging, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
+import beam.agentsim.infrastructure.ZonalParkingManager.{loadParkingZones, mnlMultiplierParametersFromConfig}
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingMNL.ParkingMNLConfig
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
@@ -17,26 +20,32 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 /**
+  * This class accepts link mapping and makes TAZ level mapping out of the link mapping.
+  * During handling a parking inquiry it search TAZ level first. Then it takes a similar parking zone from the links
+  * that belong to the TAZ where appropriate parking stall is found.
+  * Links are searched from starting point (the nearest link to inquiry location) withing TAZ.
   * @author Dmitry Openkov
   */
 class HierarchicalParkingManager(
   tazMap: TAZTreeMap,
-  geo: GeoUtils,
   linkToTAZMapping: Map[Link, TAZ],
   parkingZones: Array[ParkingZone[Link]],
   rand: Random,
+  geo: GeoUtils,
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
+  mnlMultiplierParameters: ParkingMNLConfig
 ) extends beam.utils.CriticalActor
     with ActorLogging {
 
-  private val actualParkingZones: Array[ParkingZone[Link]] = HierarchicalParkingManager.collapse(parkingZones)
+  private val actualLinkParkingZones: Array[ParkingZone[Link]] = HierarchicalParkingManager.collapse(parkingZones)
 
   private val tazLinks: Map[Id[TAZ], QuadTree[Link]] = createTazLinkQuadTreeMapping(linkToTAZMapping)
   private val (tazParkingZones, linkZoneToTazZoneMap) =
-    convertToTazParkingZones(actualParkingZones, linkToTAZMapping.map { case (link, taz) => link.getId -> taz.tazId })
+    convertToTazParkingZones(actualLinkParkingZones, linkToTAZMapping.map {
+      case (link, taz) => link.getId -> taz.tazId
+    })
   private val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones)
 
   private val tazSearchFunctions: ZonalParkingManagerFunctions[TAZ] = new ZonalParkingManagerFunctions[TAZ](
@@ -64,7 +73,7 @@ class HierarchicalParkingManager(
     )
 
   private val linkZoneSearchMap: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] =
-    createLinkZoneSearchMap(actualParkingZones)
+    createLinkZoneSearchMap(actualLinkParkingZones)
 
   override def receive: Receive = {
 
@@ -141,17 +150,49 @@ class HierarchicalParkingManager(
           // this is an infinitely available resource; no update required
           log.debug("Releasing a stall in the default/emergency zone")
         }
-      } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || actualParkingZones.length <= parkingZoneId) {
+      } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || actualLinkParkingZones.length <= parkingZoneId) {
         if (log.isDebugEnabled) {
           log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
         }
       } else {
-        val linkZone = actualParkingZones(parkingZoneId)
+        val linkZone = actualLinkParkingZones(parkingZoneId)
         val tazZoneId = linkZoneToTazZoneMap(parkingZoneId)
         val tazZone = tazParkingZones(tazZoneId)
         ParkingZone.releaseStall(linkZone)
         ParkingZone.releaseStall(tazZone)
       }
+  }
+
+  /**
+    * This method can be used for validating that stallsAvailable is the same for each TAZ and sum of all the links that
+    * belongs to this TAZ
+    */
+  //noinspection ScalaUnusedSymbol
+  private def stallsInfo(): Unit = {
+    val notMatch = tazMap.getTAZs
+      .map { taz =>
+        val linkStalls = tazLinks
+          .get(taz.tazId)
+          .map { linkTree =>
+            import scala.collection.JavaConverters._
+            val links = linkTree.values().asScala
+            links.flatMap { link =>
+              for {
+                map  <- linkZoneSearchMap.get(link.getId).toIterable
+                zone <- map.values
+              } yield zone.stallsAvailable.toLong
+            }.sum
+          }
+          .getOrElse(0L)
+        val tazStalls = (for {
+          map     <- tazZoneSearchTree.get(taz.tazId).toIterable
+          zoneIds <- map.values
+          zoneId  <- zoneIds
+        } yield tazParkingZones(zoneId).stallsAvailable.toLong).sum
+        if (tazStalls != linkStalls) Some(taz.tazId) else None
+      }
+      .count(_.nonEmpty)
+    log.warning(s"Num non matched $notMatch")
   }
 
   private def lastResortStallAndZone(location: Location) = {
@@ -196,27 +237,85 @@ object HierarchicalParkingManager {
 
   def props(
     tazMap: TAZTreeMap,
-    geo: GeoUtils,
     linkToTAZMapping: Map[Link, TAZ],
     parkingZones: Array[ParkingZone[Link]],
     rand: Random,
+    geo: GeoUtils,
     minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
-    mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
+    mnlMultiplierParameters: ParkingMNLConfig
   ): Props = {
     Props(
       new HierarchicalParkingManager(
         tazMap,
-        geo,
         linkToTAZMapping,
         parkingZones,
         rand,
+        geo,
         minSearchRadius,
         maxSearchRadius,
         boundingBox,
-        mnlMultiplierParameters,
+        mnlMultiplierParameters
       )
+    )
+  }
+
+  def props(
+    beamConfig: BeamConfig,
+    tazMap: TAZTreeMap,
+    linkQuadTree: QuadTree[Link],
+    linkToTAZMapping: Map[Link, TAZ],
+    geo: GeoUtils,
+    boundingBox: Envelope
+  ): Props = {
+    Props(
+      HierarchicalParkingManager(
+        beamConfig,
+        tazMap,
+        linkQuadTree,
+        linkToTAZMapping,
+        geo,
+        boundingBox,
+      )
+    )
+  }
+
+  def apply(
+    beamConfig: BeamConfig,
+    tazMap: TAZTreeMap,
+    linkQuadTree: QuadTree[Link],
+    linkToTAZMapping: Map[Link, TAZ],
+    geo: GeoUtils,
+    boundingBox: Envelope
+  ): HierarchicalParkingManager = {
+
+    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
+    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
+
+    val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
+    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+    val mnlMultiplierParameters = mnlMultiplierParametersFromConfig(beamConfig)
+
+    val rand = {
+      val seed = beamConfig.matsim.modules.global.randomSeed
+      new Random(seed)
+    }
+
+    val (parkingZones, _) =
+      loadParkingZones(parkingFilePath, linkQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, rand)
+
+    new HierarchicalParkingManager(
+      tazMap,
+      linkToTAZMapping,
+      parkingZones,
+      rand,
+      geo,
+      minSearchRadius,
+      maxSearchRadius,
+      boundingBox,
+      mnlMultiplierParameters
     )
   }
 
