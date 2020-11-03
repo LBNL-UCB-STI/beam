@@ -72,7 +72,8 @@ class ParallelParkingManager(
     "emergency-worker"
   )
 
-  private val tazToWorker: Map[Id[_], Worker] = mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker)
+  private val tazToWorker: Map[Id[_], Worker] =
+    mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   private def createWorker(cluster: ParkingCluster, workerId: String): Worker = {
     val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)

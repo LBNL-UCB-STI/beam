@@ -503,8 +503,8 @@ class RideHailManager(
   )
 
   private def createDepotParkingManager: RideHailDepotParkingManager[_] = {
-    beamServices.beamConfig.beam.agentsim.taz.parkingManager.level match {
-      case "TAZ" =>
+    beamServices.beamConfig.beam.agentsim.taz.parkingManager.level.toLowerCase match {
+      case "taz" =>
         RideHailDepotParkingManager(
           parkingFilePath,
           beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
@@ -515,7 +515,7 @@ class RideHailManager(
           mnlMultiplierParameters,
           beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
         )
-      case "Link" =>
+      case "link" =>
         RideHailDepotParkingManager(
           parkingFilePath,
           beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,

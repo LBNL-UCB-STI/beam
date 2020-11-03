@@ -89,7 +89,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     }
 
   logger.info("Generated {} zones", zoneArrayLink.length)
-  logger.info("with {} parking stalls", zoneArrayLink.map(_.stallsAvailable).sum)
+  logger.info("with {} parking stalls", zoneArrayLink.map(_.stallsAvailable.toLong).sum)
   ParkingZoneFileUtils.writeParkingZoneFile(zoneSearchTreeLink, zoneArrayLink, argsMap("out"))
 
   private def distributeParking(

@@ -351,8 +351,8 @@ class BeamMobsimIteration(
     val pmProps = managerName match {
       case "DEFAULT" =>
         val geoLevel = beamConfig.beam.agentsim.taz.parkingManager.level
-        geoLevel match {
-          case "TAZ" =>
+        geoLevel.toLowerCase match {
+          case "taz" =>
             ZonalParkingManager.props(
               beamScenario.beamConfig,
               beamScenario.tazTreeMap.tazQuadTree,
@@ -362,7 +362,7 @@ class BeamMobsimIteration(
               beamRouter,
               envelopeInUTM
             )
-          case "Link" =>
+          case "link" =>
             ZonalParkingManager.props(
               beamScenario.beamConfig,
               beamScenario.linkQuadTree,
@@ -372,6 +372,7 @@ class BeamMobsimIteration(
               beamRouter,
               envelopeInUTM
             )
+          case _ => throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel")
         }
       case "HIERARCHICAL" =>
         HierarchicalParkingManager
