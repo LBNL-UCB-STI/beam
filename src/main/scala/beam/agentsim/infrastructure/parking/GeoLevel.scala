@@ -65,9 +65,9 @@ object GeoLevel {
     */
   def getSpecialGeoIds(geoLevel: String): (Id[_], Id[_]) = {
     geoLevel.toLowerCase match {
-      case "taz"     => (TAZ.EmergencyTAZId, TAZ.DefaultTAZId)
-      case "link"    => (LinkLevelOperations.EmergencyLinkId, LinkLevelOperations.DefaultLinkId)
-      case _ => throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel")
+      case "taz"  => (TAZ.EmergencyTAZId, TAZ.DefaultTAZId)
+      case "link" => (LinkLevelOperations.EmergencyLinkId, LinkLevelOperations.DefaultLinkId)
+      case _      => throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel")
     }
   }
 }
