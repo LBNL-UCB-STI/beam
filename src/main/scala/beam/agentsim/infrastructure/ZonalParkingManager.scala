@@ -31,8 +31,6 @@ class ZonalParkingManager[GEO: GeoLevel](
   geo: GeoUtils,
   parkingZones: Array[ParkingZone[GEO]],
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO],
-  emergencyGeoId: Id[GEO],
-  defaultGeoId: Id[GEO],
   rand: Random,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -57,8 +55,6 @@ class ZonalParkingManager[GEO: GeoLevel](
     geo,
     parkingZones,
     zoneSearchTree,
-    emergencyGeoId,
-    defaultGeoId,
     rand,
     minSearchRadius,
     maxSearchRadius,
@@ -126,8 +122,6 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
   geo: GeoUtils,
   parkingZones: Array[ParkingZone[GEO]],
   zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO],
-  emergencyGeoId: Id[GEO],
-  defaultGeoId: Id[GEO],
   rand: Random,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -144,7 +138,14 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
     )
 
   val DefaultParkingZone: ParkingZone[GEO] =
-    ParkingZone(DefaultParkingZoneId, defaultGeoId, ParkingType.Public, UbiqiutousParkingAvailability, None, None)
+    ParkingZone(
+      DefaultParkingZoneId,
+      GeoLevel[GEO].defaultGeoId,
+      ParkingType.Public,
+      UbiqiutousParkingAvailability,
+      None,
+      None
+    )
 
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult[GEO] = {
     // a lookup for valid parking types based on this inquiry
@@ -355,7 +356,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         case None =>
           inquiry.activityType match {
             case "init" | "home" =>
-              val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm, defaultGeoId)
+              val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm, GeoLevel[GEO].defaultGeoId)
               ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
             case _ =>
               // didn't find any stalls, so, as a last resort, create a very expensive stall
@@ -370,7 +371,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
                   boxAroundRequest,
                   rand,
                   tazId = TAZ.EmergencyTAZId,
-                  geoId = emergencyGeoId
+                  geoId = GeoLevel[GEO].emergencyGeoId
                 )
               ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           }
@@ -444,8 +445,6 @@ object ZonalParkingManager extends LazyLogging {
     geoToTAZ: GEO => TAZ,
     parkingZones: Array[ParkingZone[GEO]],
     searchTree: ZoneSearchTree[GEO],
-    emergencyGeoId: Id[GEO],
-    defaultGeoId: Id[GEO],
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope
@@ -463,8 +462,6 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       parkingZones,
       searchTree,
-      emergencyGeoId,
-      defaultGeoId,
       random,
       minSearchRadius,
       maxSearchRadius,
@@ -527,8 +524,6 @@ object ZonalParkingManager extends LazyLogging {
       geoToTAZ,
       stalls,
       searchTree,
-      GeoLevel[GEO].emergencyGeoId,
-      GeoLevel[GEO].defaultGeoId,
       geo,
       random,
       boundingBox,
@@ -585,8 +580,6 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       parking.zones.toArray,
       parking.tree,
-      GeoLevel[GEO].emergencyGeoId,
-      GeoLevel[GEO].defaultGeoId,
       random,
       minSearchRadius,
       maxSearchRadius,
@@ -635,8 +628,6 @@ object ZonalParkingManager extends LazyLogging {
     geoToTAZ: GEO => TAZ,
     parkingZones: Array[ParkingZone[GEO]],
     searchTree: ZoneSearchTree[GEO],
-    emergencyGeoId: Id[GEO],
-    defaultGeoId: Id[GEO],
     geo: GeoUtils,
     random: Random,
     boundingBox: Envelope
@@ -650,8 +641,6 @@ object ZonalParkingManager extends LazyLogging {
         geoToTAZ,
         parkingZones,
         searchTree,
-        emergencyGeoId,
-        defaultGeoId,
         geo,
         random,
         boundingBox,

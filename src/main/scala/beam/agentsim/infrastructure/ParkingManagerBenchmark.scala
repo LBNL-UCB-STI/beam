@@ -162,8 +162,6 @@ object ParkingManagerBenchmark extends StrictLogging {
             linkToTAZMapping,
             zones,
             searchTree,
-            LinkLevelOperations.EmergencyLinkId,
-            LinkLevelOperations.DefaultLinkId,
             geoUtils,
             new Random(seed),
             boundingBox
@@ -177,8 +175,6 @@ object ParkingManagerBenchmark extends StrictLogging {
             identity[TAZ](_),
             zones,
             searchTree,
-            TAZ.EmergencyTAZId,
-            TAZ.DefaultTAZId,
             geoUtils,
             new Random(seed),
             boundingBox
@@ -252,8 +248,13 @@ object ParkingManagerBenchmark extends StrictLogging {
       val parkingLocations = (1 to nTimes).map { _ =>
         rnd.shuffle(allActivityLocations.toList).take(nToTake).toArray
       }
+      CsvWriter("./parking_inquiries.csv.gz", "activity-type", "x", "y")
+        .writeAllAndClose(parkingLocations.flatten.map {
+          case (coord, actType) => List(actType, coord.getX, coord.getY)
+        })
+      logger.info("activities written")
 
-      val (result, responses) = benchmark("hierarchical", nTimes, parkingLocations)
+      val (result, responses) = benchmark("parallel", nTimes, parkingLocations)
       val (zonalResult, zonalResponses) = benchmark("zonal", nTimes, parkingLocations)
 
       logger.info("#####################################################################")
@@ -261,10 +262,10 @@ object ParkingManagerBenchmark extends StrictLogging {
       logger.info(zonalResult)
       logger.info("#####################################################################")
 
-//      writeToCsv(responses, "./parking_coords.csv")
-//      writeToCsv(zonalResponses, "./zonal_parking.csv")
+      writeToCsv(responses, "./par_parking.csv")
+      writeToCsv(zonalResponses, "./zonal_parking.csv")
 
-//      analyzeResult(responses.head.groupBy(_.stall.tazId), zonalResponses.head.groupBy(_.stall.tazId))
+      analyzeResult(responses.head.groupBy(_.stall.tazId), zonalResponses.head.groupBy(_.stall.tazId))
     } finally {
       actorSystem.terminate()
     }
@@ -315,7 +316,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       val benchResp = benchParkingResponses(tazId)
       IndexedSeq(tazId, resp.size, benchResp.size)
     }
-    new CsvWriter("./parking_manager_benchmark.csv", "taz_id", "resp", "bench")
+    CsvWriter("./parking_manager_benchmark.csv", "taz_id", "resp", "bench")
       .writeAllAndClose(dataSet)
   }
 }

@@ -54,6 +54,7 @@ class CsvWriter(
 }
 
 object CsvWriter {
+  def apply(path: String, headers: String*) = new CsvWriter(path, headers)
 
   def writeColumnValue(
     value: Any,

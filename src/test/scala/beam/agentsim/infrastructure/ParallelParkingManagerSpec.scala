@@ -51,8 +51,6 @@ class ParallelParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  val emergencyId0: Id[TAZ] = Id.create("emergency-0", classOf[TAZ])
-
   describe("ParallelParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
@@ -89,7 +87,7 @@ class ParallelParkingManagerSpec
           ),
           new Random(randomSeed),
           tazId = TAZ.EmergencyTAZId,
-          geoId = emergencyId0,
+          geoId = TAZ.EmergencyTAZId,
         )
 
         parkingManager ! inquiry
@@ -127,7 +125,7 @@ class ParallelParkingManagerSpec
         ),
         new Random(randomSeed),
         tazId = TAZ.EmergencyTAZId,
-        geoId = emergencyId0,
+        geoId = TAZ.EmergencyTAZId,
       )
 
       parkingManager ! inquiry
@@ -189,7 +187,7 @@ class ParallelParkingManagerSpec
         parkingManager ! secondInquiry
         expectMsgPF() {
           case res @ ParkingInquiryResponse(stall, responseId)
-              if stall.geoId == emergencyId0 && responseId == secondInquiry.requestId =>
+              if stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
             res
         }
       }
@@ -308,7 +306,7 @@ class ParallelParkingManagerSpec
           _ = parkingManager ! req
           counted = expectMsgPF[Int]() {
             case res: ParkingInquiryResponse =>
-              if (res.stall.geoId != emergencyId0) 1 else 0
+              if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
           }
         } yield {
           counted

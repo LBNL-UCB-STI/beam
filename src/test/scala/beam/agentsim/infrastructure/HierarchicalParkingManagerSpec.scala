@@ -380,7 +380,7 @@ class HierarchicalParkingManagerSpec
     val rsp = expectMsgClass(classOf[ParkingInquiryResponse])
     rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
     val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
-    dist should be <= 00.0
+    dist should be <= 400.0
   }
 
   override def afterAll: Unit = {

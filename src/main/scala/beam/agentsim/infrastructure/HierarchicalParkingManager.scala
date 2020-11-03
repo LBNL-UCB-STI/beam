@@ -46,8 +46,6 @@ class HierarchicalParkingManager(
     geo,
     tazParkingZones,
     tazZoneSearchTree,
-    TAZ.EmergencyTAZId,
-    TAZ.DefaultTAZId,
     rand,
     minSearchRadius,
     maxSearchRadius,
