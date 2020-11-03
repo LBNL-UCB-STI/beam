@@ -12,11 +12,11 @@ import beam.utils.FileUtils
 object BingExampleOfUsage extends App {
   if (args.length != 2) {
     println("Expected arguments: [API-KEY] [lat1,long1;lat2,long2;lat3,long3]")
-    println("Example: KqkuBonCHeDLytZwdGfKcUH9N287H-lOdqu 37.705687,-122.461096 37.724113,-122.447652")
+    println("Example: KqkuBonCHeDLytZwdGfKcUH9N287H-lOdqu 37.705687,-122.461096;37.724113,-122.447652")
     System.exit(1)
   }
 
-  private val timeout = FiniteDuration(10, TimeUnit.SECONDS)
+  private val timeout = FiniteDuration(20, TimeUnit.SECONDS)
   private val apiKey = args(0)
   private val points: Array[WgsCoordinate] = args(1).split(";").flatMap { latLong =>
     Try {
