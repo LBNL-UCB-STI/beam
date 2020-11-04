@@ -397,6 +397,7 @@ object ChargingNetworkManager {
       duration = this.duration + other.duration
     )
   }
+
   final case class ChargingZone(
     parkingZoneId: Int,
     tazId: Id[TAZ],
@@ -406,12 +407,23 @@ object ChargingNetworkManager {
     chargingPointType: ChargingPointType,
     pricingModel: PricingModel
   )
+
   final case class ChargingStation(zone: ChargingZone, locationUTM: Location, costInDollars: Double)
+
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
     totalChargingSession: ChargingSession,
     lastChargingSession: ChargingSession
   )
+
+  final case class ChargingNetwork(fleetManager: FleetManagerID, chargingStationsQTree: QuadTree[ChargingZone]) {
+
+    val chargingStationsMap: Map[Int, ChargingZone] =
+      chargingStationsQTree.values().asScala.map(s => s.parkingZoneId -> s).toMap
+    private val vehiclesToCharge: TrieMap[Id[BeamVehicle], ChargingVehicle] = new TrieMap()
+    def vehicles: Map[Id[BeamVehicle], BeamVehicle] = vehiclesToCharge.mapValues(_.vehicle).toMap
+
+  }
 
   object ChargingSession {
     val Empty: ChargingSession = ChargingSession(0.0, 0)
