@@ -58,6 +58,7 @@ object ParkingManagerBenchmark extends StrictLogging {
 //  val pathToTazParking: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv"
   val pathToTazParking: String =
     "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
+
 //  val pathToLinkParking: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/parking/link-parking-unlimited-fast-limited-l2-150-baseline.csv"
   val pathToLinkParking: String =
     "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/link-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
