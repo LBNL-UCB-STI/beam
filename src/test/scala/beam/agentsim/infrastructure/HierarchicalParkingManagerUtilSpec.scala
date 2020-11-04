@@ -72,29 +72,36 @@ class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
         println(tree.size)
 
         tazTreeMap.getTAZs.map { taz =>
-
-        }
+          }
       }
     }
     "creates taz link quad tree mapping" should {
-      "correct quad tree" ignore {
-        //todo implement test without loading the network
-        val network = NetworkUtilsExtensions.readNetwork("output/sf-light/sf-light-25k/outputNetwork.xml.gz")
-        val tazTreeMap = TAZTreeMap.fromCsv("test/input/sf-light/taz-centers.csv.gz")
-        val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
-        val tazToLinkQuads = HierarchicalParkingManager.createTazLinkQuadTreeMapping(linkToTAZMapping)
-        val myTazId: Id[TAZ] = Id.create(100026, classOf[TAZ])
-        val myZonesTree = tazToLinkQuads(myTazId)
-        myZonesTree.values().size() should be(6)
-        myZonesTree.values().asScala.map(_.getId.toString).toList should contain allElementsOf (List(
-          "49577",
-          "49576",
-          "83660",
-          "83661",
-          "83658",
-          "83659"
-        ))
+      "correct quad tree" in {
+        val network =
+          NetworkUtilsExtensions.readNetwork("test/test-resources/beam/physsim/beamville-network-output.xml")
+        val totalNumberOfLinks = network.getLinks.size()
+        val tazTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+        val totalNumberOfTAZes = tazTreeMap.tazQuadTree.size()
 
+        val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
+        linkToTAZMapping.size should be(totalNumberOfLinks)
+        linkToTAZMapping.values.toSet.size should be(totalNumberOfTAZes)
+
+        val tazToLinkQuads = HierarchicalParkingManager.createTazLinkQuadTreeMapping(linkToTAZMapping)
+        tazToLinkQuads.values.map(_.size()).sum should be(totalNumberOfLinks)
+
+        //get certain TAZ links and validate that it contains the right ones.
+        val myTazId: Id[TAZ] = Id.create(1, classOf[TAZ])
+        val myZonesTree = tazToLinkQuads(myTazId)
+        myZonesTree.values().size() should be(130)
+        myZonesTree.values().asScala.map(_.getId.toString).toList should contain allElementsOf List(
+          "2",
+          "3",
+          "6",
+          "7",
+          "322",
+          "323"
+        )
       }
 
     }
