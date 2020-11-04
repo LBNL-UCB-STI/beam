@@ -366,23 +366,21 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
                 case Some(_) =>
-                  if (ChargingPointType
-                        .getChargingPointInstalledPowerInKw(currentBeamVehicle.stall.get.chargingPointType.get) > 20.0) {
-                    log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
-                    try {
-                      Await
-                        .result(
-                          chargingNetworkManager ? ChargingPlugRequest(tick, currentBeamVehicle, self),
-                          atMost = 1.seconds
-                        )
-                        .asInstanceOf[StartRefuelSession]
-                    } catch {
-                      case _: TimeoutException =>
-                        log.error(
-                          "timeout of StartRefuelSession. No response received so far from the ChargingNetworkManager"
-                        )
-                    }
+                  log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
+                  try {
+                    Await
+                      .result(
+                        chargingNetworkManager ? ChargingPlugRequest(tick, currentBeamVehicle, self),
+                        atMost = 1.seconds
+                      )
+                      .asInstanceOf[StartRefuelSession]
+                  } catch {
+                    case _: TimeoutException =>
+                      log.error(
+                        "timeout of StartRefuelSession. No response received so far from the ChargingNetworkManager"
+                      )
                   }
+
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
