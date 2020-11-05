@@ -13,9 +13,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, StartRefuelSession}
-import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -370,10 +369,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                   try {
                     Await
                       .result(
-                        chargingNetworkManager ? ChargingPlugRequest(tick, currentBeamVehicle, self),
+                        chargingNetworkManager ? ChargingPlugRequest(
+                          tick,
+                          currentBeamVehicle,
+                          stall,
+                          ChargingNetworkManager.defaultVehicleManager
+                        ),
                         atMost = 1.seconds
                       )
-                      .asInstanceOf[StartRefuelSession]
                   } catch {
                     case _: TimeoutException =>
                       log.error(

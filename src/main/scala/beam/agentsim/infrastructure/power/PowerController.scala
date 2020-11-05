@@ -1,19 +1,21 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.infrastructure.ChargingNetworkManager
-import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.ChargingNetwork
+import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
-import org.matsim.api.core.v01.Id
-import org.slf4j.{Logger, LoggerFactory}
+import com.typesafe.scalalogging.LazyLogging
 
+import scala.collection.concurrent.TrieMap
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(beamConfig: BeamConfig) {
+class PowerController(chargingNetworkMap: TrieMap[String, ChargingNetwork], beamConfig: BeamConfig)
+    extends LazyLogging {
+  import ChargingZone._
+  import SitePowerManager._
 
-  private val logger: Logger = LoggerFactory.getLogger(classOf[PowerController])
   private val cnmCfg = beamConfig.beam.agentsim.chargingNetworkManager
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = if (cnmCfg.gridConnectionEnabled) {
@@ -38,7 +40,9 @@ class PowerController(beamConfig: BeamConfig) {
     }.toOption
   } else None
 
-  private var physicalBounds = Map.empty[Int, PhysicalBounds]
+  private var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
+  private val chargingStationsMap = chargingNetworkMap.flatMap(_._2.chargingStationsMap)
+  private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(chargingStationsMap.values.toList.distinct).value
   private var currentBin = -1
 
   /**
@@ -50,44 +54,27 @@ class PowerController(beamConfig: BeamConfig) {
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    chargingStationsMap: Map[Int, ChargingZone],
-    estimatedLoad: Option[Map[Int, PowerInKW]]
-  ): Map[Int, PhysicalBounds] = {
+    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+  ): Map[ChargingStation, PhysicalBounds] = {
     if (physicalBounds.isEmpty || currentBin < currentTime / cnmCfg.timeStepInSeconds) {
       physicalBounds = beamFederateOption match {
         case Some(beamFederate) if cnmCfg.gridConnectionEnabled && estimatedLoad.isDefined =>
           logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
           beamFederate.publishJSON(
-            estimatedLoad.get
-              .map(
-                x =>
-                  Map(
-                    "tazId"   -> chargingStationsMap(x._1).tazId.toString,
-                    "zoneId"  -> chargingStationsMap(x._1).parkingZoneId,
-                    "minLoad" -> x._2,
-                    "maxLoad" -> x._2
-                )
-              )
-              .toList
+            estimatedLoad.get.map {
+              case (station, powerInKW) =>
+                toStringMap(station.zone) ++ Map("estimatedLoad" -> powerInKW)
+            }.toList
           )
           val (_, gridBounds) = beamFederate.syncAndCollectJSON(currentTime)
           logger.debug("Obtained power from the grid {}...", gridBounds)
-          gridBounds
-            .map(
-              x =>
-                x("zoneId").asInstanceOf[Int] ->
-                PhysicalBounds(
-                  Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
-                  x("zoneId").asInstanceOf[Int],
-                  x("minLoad").asInstanceOf[Double],
-                  x("maxLoad").asInstanceOf[Double]
-              )
-            )
-            .toMap
+          gridBounds.map { x =>
+            val station = chargingStationsMap(toChargingZoneInstance(x))
+            station -> PhysicalBounds(station, x("maxLoad").asInstanceOf[PowerInKW])
+          }.toMap
         case _ =>
           logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
-          // estimatedLoad.map { case (k, v) => k.parkingZoneId -> PhysicalBounds(k.tazId, k.parkingZoneId, v, v) }
-          ChargingNetworkManager.unlimitedPhysicalBounds(chargingStationsMap).value
+          unlimitedPhysicalBounds
       }
       currentBin = currentTime / cnmCfg.timeStepInSeconds
     }

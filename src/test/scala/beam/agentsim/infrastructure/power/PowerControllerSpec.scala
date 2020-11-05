@@ -42,7 +42,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
 
   val dummyPhysicalBounds = Map(
     "tazId"   -> dummyChargingZone.tazId.toString,
-    "zoneId"  -> dummyChargingZone.parkingZoneId,
+    "zoneId"  -> dummyChargingZone.chargingZoneId,
     "minLoad" -> 5678.90,
     "maxLoad" -> 5678.90
   )
@@ -61,13 +61,13 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       val bounds =
         powerController.obtainPowerPhysicalBounds(
           300,
-          Map[Int, ChargingZone](dummyChargingZone.parkingZoneId -> dummyChargingZone),
-          Some(Map[Int, Double](dummyChargingZone.parkingZoneId -> 5678.90))
+          Map[Int, ChargingZone](dummyChargingZone.chargingZoneId -> dummyChargingZone),
+          Some(Map[Int, Double](dummyChargingZone.chargingZoneId -> 5678.90))
         )
       bounds shouldBe Map(
-        dummyChargingZone.parkingZoneId -> PhysicalBounds(
+        dummyChargingZone.chargingZoneId -> PhysicalBounds(
           dummyChargingZone.tazId,
-          dummyChargingZone.parkingZoneId,
+          dummyChargingZone.chargingZoneId,
           7.2,
           7.2
         )
@@ -83,13 +83,13 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     "obtain default (0.0) power physical bounds" in {
       val bounds = powerController.obtainPowerPhysicalBounds(
         300,
-        Map[Int, ChargingZone](dummyChargingZone.parkingZoneId -> dummyChargingZone),
-        Some(Map[Int, Double](dummyChargingZone.parkingZoneId -> 0.0))
+        Map[Int, ChargingZone](dummyChargingZone.chargingZoneId -> dummyChargingZone),
+        Some(Map[Int, Double](dummyChargingZone.chargingZoneId -> 0.0))
       )
       bounds shouldBe Map(
-        dummyChargingZone.parkingZoneId -> PhysicalBounds(
+        dummyChargingZone.chargingZoneId -> PhysicalBounds(
           dummyChargingZone.tazId,
-          dummyChargingZone.parkingZoneId,
+          dummyChargingZone.chargingZoneId,
           7.2,
           7.2
         )

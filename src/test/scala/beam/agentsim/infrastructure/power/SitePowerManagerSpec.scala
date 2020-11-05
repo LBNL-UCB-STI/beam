@@ -117,20 +117,20 @@ class SitePowerManagerSpec
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
-        dummyChargingZone.parkingZoneId -> 0.0
+        dummyChargingZone.chargingZoneId -> 0.0
       )
     }
     "get power over planning horizon greater than 0.0 for discharged vehicles" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
       sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
-        dummyChargingZone.parkingZoneId -> 0.0
+        dummyChargingZone.chargingZoneId -> 0.0
       )
     }
     "replan horizon and get charging plan per vehicle" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
-      sitePowerManager.replanHorizonAndGetChargingPlanPerVehicle(
+      sitePowerManager.dispatchEnergy(
         0,
         vehiclesMap.values,
         sitePowerManager.unlimitedPhysicalBounds,
