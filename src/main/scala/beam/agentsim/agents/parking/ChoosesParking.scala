@@ -10,7 +10,7 @@ import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingUnplugRequest, EndRefuelSessionUponRequest}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingUnplugRequest
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -83,7 +83,6 @@ trait ChoosesParking extends {
               ),
               atMost = 1.seconds
             )
-            .asInstanceOf[EndRefuelSessionUponRequest]
         } catch {
           case _: TimeoutException =>
             log.error(

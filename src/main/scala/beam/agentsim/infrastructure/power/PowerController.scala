@@ -41,7 +41,7 @@ class PowerController(chargingNetworkMap: TrieMap[String, ChargingNetwork], beam
   } else None
 
   private var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
-  private val chargingStationsMap = chargingNetworkMap.flatMap(_._2.chargingStationsMap)
+  private val chargingStationsMap = chargingNetworkMap.flatMap(_._2.lookupStations).map(s => s.zone -> s).toMap
   private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(chargingStationsMap.values.toList.distinct).value
   private var currentBin = -1
 

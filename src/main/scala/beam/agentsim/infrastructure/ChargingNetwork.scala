@@ -10,87 +10,125 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-class ChargingNetwork(vehicleManager: VehicleManager, chargingStationsQTree: QuadTree[ChargingZone])
+class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
   import ChargingNetwork._
   import ChargingStatus._
 
-  val chargingStationsMap: Map[ChargingZone, ChargingStation] =
+  private val chargingVehicleMap: TrieMap[Id[BeamVehicle], ChargingVehicle] = new TrieMap()
+
+  private val chargingStationMap: Map[ChargingZone, ChargingStation] =
     chargingStationsQTree.values().asScala.map(z => z -> ChargingStation(z)).toMap
 
-  private val vehiclesToCharge: TrieMap[Id[BeamVehicle], ChargingVehicle] = new TrieMap()
-
+  /**
+    * lookup a station from a parking stall
+    * @param stall the parking stall
+    * @return charging station
+    */
   def lookupStation(stall: ParkingStall): Option[ChargingStation] =
-    lookupStation(ChargingZone.toChargingZoneInstance(stall, vehicleManager))
-
-  def lookupStation(chargingZone: ChargingZone): Option[ChargingStation] = chargingStationsMap.get(chargingZone)
-
-  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehiclesToCharge.get(vehicleId)
-
-  def lookupAllVehicles(): List[ChargingVehicle] = vehiclesToCharge.values.toList
-
-  def getVehicleManager: VehicleManager = vehicleManager
+    chargingStationMap.get(ChargingZone.toChargingZoneInstance(stall, vehicleManager))
 
   /**
-    *
-    * @param vehicleId
-    * @param latestChargingSession
-    * @return
+    * lookup information about charging vehicle
+    * @param vehicleId vehicle Id
+    * @return charging vehicle
     */
-  def update(vehicleId: Id[BeamVehicle], latestChargingSession: ChargingSession): ChargingVehicle = {
-    val temp = vehiclesToCharge(vehicleId)
-    val updated = temp.copy(
-      totalChargingSession = temp.totalChargingSession.combine(latestChargingSession),
-      lastChargingSession = latestChargingSession
+  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+    chargingVehicleMap.get(vehicleId)
+
+  /**
+    * get all stations
+    * @return list of station
+    */
+  def lookupStations: List[ChargingStation] =
+    chargingStationMap.values.toList
+
+  /**
+    * get all vehicles
+    * @return map of vehicles -> stations
+    */
+  def lookupConnectedVehicles: List[ChargingVehicle] =
+    chargingStationMap.flatMap(_._2.connectedVehicles.map(v => chargingVehicleMap(v.id))).toList
+
+  /**
+    * get name of the vehicle manager
+    * @return VehicleManager
+    */
+  def vehicleManager: VehicleManager = vehicleManagerName
+
+  /**
+    * clear charging vehicle map
+    */
+  def clear(): Unit = chargingVehicleMap.clear()
+
+  /**
+    * combine charging vehicle information
+    * @param vehicleId vehicle Id
+    * @param latestChargingSession latest session of charging
+    * @return charging vehicle information
+    */
+  def combine(vehicleId: Id[BeamVehicle], latestChargingSession: ChargingSession): ChargingVehicle = {
+    val prev = chargingVehicleMap(vehicleId)
+    val updated = prev.copy(
+      cumulatedChargingSession = prev.cumulatedChargingSession.combine(prev.latestChargingSession),
+      latestChargingSession = latestChargingSession
     )
-    vehiclesToCharge.update(vehicleId, updated)
+    chargingVehicleMap.update(vehicleId, updated)
     updated
   }
 
-  def clear(): Unit = vehiclesToCharge.clear()
+  /**
+    * update charging vehicle information
+    * @param vehicleId vehicle Id
+    * @param latestChargingSession latest session of charging
+    * @return charging vehicle information
+    */
+  def update(vehicleId: Id[BeamVehicle], latestChargingSession: ChargingSession): ChargingVehicle = {
+    val prev = chargingVehicleMap(vehicleId)
+    val updated = prev.copy(
+      cumulatedChargingSession = prev.cumulatedChargingSession.combine(latestChargingSession),
+      latestChargingSession = latestChargingSession
+    )
+    chargingVehicleMap.update(vehicleId, updated)
+    updated
+  }
 
   /**
-    *
-    * @param tick
-    * @param vehicle
-    * @param stall
-    * @return
+    * Connect to charging point or add to waiting line
+    * @param tick current time
+    * @param vehicle vehicle to charge
+    * @param stall the correspondant parking stall
+    * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def connectVehicle(
-    tick: Int,
-    vehicle: BeamVehicle,
-    stall: ParkingStall
-  ): (ChargingVehicle, ChargingStatus) = {
+  def connectVehicle(tick: Int, vehicle: BeamVehicle, stall: ParkingStall): (ChargingVehicle, ConnectionStatus) = {
     val station = lookupStation(stall).get
     val chargingVehicle = ChargingVehicle(
       vehicle,
       vehicleManager,
       stall,
       station,
-      totalChargingSession = ChargingSession(),
-      lastChargingSession = ChargingSession()
+      cumulatedChargingSession = ChargingSession(tick),
+      latestChargingSession = ChargingSession(tick)
     )
-    vehiclesToCharge.put(vehicle.id, chargingVehicle)
+    chargingVehicleMap.put(vehicle.id, chargingVehicle)
     chargingVehicle -> station.connectVehicle(tick, vehicle)
   }
 
   /**
-    *
-    * @param tick
-    * @param vehicleId
-    * @return
+    * Disconnect the vehicle for the charging point/station
+    * @param vehicleId vehicle to disconnect
+    * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def disconnectVehicle(tick: Int, vehicleId: Id[BeamVehicle]): Option[(ChargingVehicle, ChargingStatus)] = {
-    vehiclesToCharge
-      .remove(vehicleId)
-      .map(
-        chargingVehicle =>
-          chargingVehicle -> lookupStation(chargingVehicle.stall).get.disconnectVehicle(tick, vehicleId)
-      )
-  }
+  def disconnectVehicle(vehicleId: Id[BeamVehicle]): Option[(ChargingVehicle, ConnectionStatus)] =
+    chargingVehicleMap.remove(vehicleId).map(x => x -> lookupStation(x.stall).get.disconnectVehicle(vehicleId))
 
-  def processWaitingLine(tick: Int): Map[Id[BeamVehicle], ChargingStatus] =
-    chargingStationsMap.flatMap(_._2.processWaitingLine(tick))
+  /**
+    * Process the waiting line by connecting vehicles that are still in the queue
+    * @param tick current time
+    * @return a map of vehicle and its corresponding connection status
+    */
+  def processWaitingLine(tick: Int): Map[Id[BeamVehicle], ConnectionStatus] =
+    chargingStationMap.flatMap(_._2.processWaitingLine(tick))
 }
 
 object ChargingNetwork {
@@ -107,12 +145,12 @@ object ChargingNetwork {
     def waitingLine: List[BeamVehicle] = waitingLineInternal.toList.map(_._2)
 
     /**
-      *
-      * @param tick
-      * @param vehicle
-      * @return
+      * add vehicle to connected list and connect to charging point
+      * @param tick current time
+      * @param vehicle vehicle to connect
+      * @return status of connection
       */
-    private[ChargingNetwork] def connectVehicle(tick: Int, vehicle: BeamVehicle): ChargingStatus = {
+    private[ChargingNetwork] def connectVehicle(tick: Int, vehicle: BeamVehicle): ConnectionStatus = {
       if (numAvailableChargers > 0) {
         connectedVehiclesInternal.put(vehicle.id, vehicle)
         vehicle.connectToChargingPoint(tick)
@@ -124,22 +162,26 @@ object ChargingNetwork {
     }
 
     /**
-      *
-      * @param tick
-      * @param vehicleId
-      * @return
+      * remove vehicle from connected list and disconnect from charging point
+      * @param vehicleId vehicle to disconnect
+      * @return status of connection
       */
-    private[ChargingNetwork] def disconnectVehicle(tick: Int, vehicleId: Id[BeamVehicle]): ChargingStatus = {
+    private[ChargingNetwork] def disconnectVehicle(vehicleId: Id[BeamVehicle]): ConnectionStatus = {
       connectedVehiclesInternal
         .remove(vehicleId)
         .map { vehicle =>
           vehicle.disconnectFromChargingPoint()
           ChargingStatus.Disconnected
         }
-        .getOrElse[ChargingStatus](ChargingStatus.NotConnected)
+        .getOrElse[ConnectionStatus](ChargingStatus.NotConnected)
     }
 
-    private[ChargingNetwork] def processWaitingLine(tick: Int): Map[Id[BeamVehicle], ChargingStatus] = {
+    /**
+      * process waiting line by removing vehicle from waiting line and adding it to the connected list
+      * @param tick current time
+      * @return map of vehicles that got connected
+      */
+    private[ChargingNetwork] def processWaitingLine(tick: Int): Map[Id[BeamVehicle], ConnectionStatus] = {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
         val (_, vehicle) = waitingLineInternal.dequeue()
         connectedVehiclesInternal.put(vehicle.id, vehicle)
@@ -149,16 +191,19 @@ object ChargingNetwork {
     }
   }
 
-  final case class ChargingSession(energy: Double = 0.0, duration: Long = 0) {
+  final case class ChargingSession(startTime: Int, energy: Double = 0.0, duration: Long = 0) {
 
-    def combine(other: ChargingSession): ChargingSession = ChargingSession(
-      energy = this.energy + other.energy,
-      duration = this.duration + other.duration
-    )
+    def combine(other: ChargingSession): ChargingSession = {
+      ChargingSession(
+        startTime = Math.min(this.startTime, other.startTime),
+        energy = this.energy + other.energy,
+        duration = this.duration + other.duration
+      )
+    }
   }
 
   object ChargingStatus extends Enumeration {
-    type ChargingStatus = Value
+    type ConnectionStatus = Value
     val Waiting, Connected, Disconnected, NotConnected = Value
   }
 
@@ -167,7 +212,9 @@ object ChargingNetwork {
     vehicleManager: VehicleManager,
     stall: ParkingStall,
     chargingStation: ChargingStation,
-    totalChargingSession: ChargingSession,
-    lastChargingSession: ChargingSession
-  )
+    cumulatedChargingSession: ChargingSession,
+    latestChargingSession: ChargingSession
+  ) {
+    def totalChargingSession: ChargingSession = cumulatedChargingSession.combine(latestChargingSession)
+  }
 }

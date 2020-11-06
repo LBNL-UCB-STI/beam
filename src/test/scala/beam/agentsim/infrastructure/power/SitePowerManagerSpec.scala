@@ -132,14 +132,14 @@ class SitePowerManagerSpec
     val sitePowerManager = new SitePowerManager(trieMap, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
-      sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
+      sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
         ChargingStation(dummyChargingZone) -> 0.0
       )
     }
     "get power over planning horizon greater than 0.0 for discharged vehicles" in {
       val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
-      sitePowerManager.getPowerOverNextPlanningHorizon(300) shouldBe Map(
+      sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
         ChargingStation(dummyChargingZone) -> 0.0
       )
     }
@@ -153,18 +153,16 @@ class SitePowerManagerSpec
           defaultVehicleManager,
           v.stall.get,
           dummyStation,
-          ChargingSession(),
-          ChargingSession()
+          ChargingSession(0),
+          ChargingSession(0)
         )
+        sitePowerManager.dispatchEnergy(
+          300,
+          300,
+          chargingVehicle,
+          SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
+        ) should (be((1, 250000.0)) or be((300, 7.5E7)))
       }
-      sitePowerManager.dispatchEnergy(
-        0,
-        SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value,
-        Some(300)
-      ) shouldBe Map(
-        Id.createVehicleId("id1") -> (defaultVehicleManager, 1, 250000.0),
-        Id.createVehicleId("id2") -> (defaultVehicleManager, 300, 7.5E7)
-      )
     }
   }
 
