@@ -19,8 +19,8 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
@@ -31,7 +31,6 @@ import scala.util.Random
 
 class ChargingNetworkManager(
   beamServices: BeamServices,
-  beamScenario: BeamScenario,
   parkingManager: ActorRef,
   scheduler: ActorRef
 ) extends Actor
@@ -47,14 +46,13 @@ class ChargingNetworkManager(
 
   private val chargingNetworkMap = TrieMap.empty[String, ChargingNetwork]
   private val chargingZoneList: QuadTree[ChargingZone] = loadChargingZones(beamServices)
-  private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
-  private val powerController = new PowerController(chargingNetworkMap, beamConfig)
+  private lazy val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
+  private lazy val powerController = new PowerController(chargingNetworkMap, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
   override def receive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      chargingNetworkMap.put(defaultVehicleManager, new ChargingNetwork(chargingZoneList, defaultVehicleManager))
-
+      chargingNetworkMap.put(defaultVehicleManager, new ChargingNetwork(defaultVehicleManager, chargingZoneList))
       Future(scheduler ? ScheduleTrigger(PlanningTimeOutTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
@@ -69,7 +67,9 @@ class ChargingNetworkManager(
       val triggers = sitePowerManager
         .dispatchEnergy(tick, physicalBounds)
         .flatMap {
-          case (vehicleId, (chargingNetwork, chargingDuration, energyToCharge)) =>
+          case (vehicleId, (vehicleManager, chargingDuration, energyToCharge)) =>
+            val chargingNetwork = chargingNetworkMap(vehicleManager)
+
             // lookup charging information
             val Some(ChargingVehicle(vehicle, _, _, _, _, _)) = chargingNetwork.lookupVehicle(vehicleId)
 
@@ -129,31 +129,32 @@ class ChargingNetworkManager(
         }
       )
 
-    case TriggerWithId(ChargingTimeOutTrigger(tick, chargingVehicle), triggerId) =>
-      disconnectFromChargingPoint(tick, chargingVehicle.vehicle.id, chargingVehicle.vehicleManager)
+    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle, vehicleManager), triggerId) =>
+      disconnectFromChargingPoint(tick, vehicle.id, vehicleManager)
       sender ! CompletionNotice(triggerId)
 
     case ChargingPlugRequest(tick, vehicle, stall, vehicleManager) =>
       if (vehicle.isBEV | vehicle.isPHEV) {
         log.debug(s"agent ${sender.path.name} sent charging request for vehicle $vehicle at stall $stall")
         connectToChargingPoint(tick, vehicle, stall, vehicleManager)
-        sender ! Success
+        sender ! Success(s"vehicle $vehicle was added to the queue for charging")
       } else {
         log.error(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name} at stall $stall")
-        sender ! Failure
+        sender ! Failure(new RuntimeException(s"vehicle $vehicle cannot be added to chargign queue"))
       }
 
     case ChargingUnplugRequest(tick, vehicle, vehicleManager) =>
       log.debug(s"ChargingUnplugRequest for vehicle $vehicle at $tick")
       val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
-      val result = disconnectFromChargingPoint(
+      // Calculate the energy to charge the vehicle
+      val energyToChargeOption =
+        sitePowerManager.dispatchEnergy(tick, physicalBounds, Some(tick % cnmConfig.timeStepInSeconds)).get(vehicle.id)
+      val disconnectedVehicleOption = disconnectFromChargingPoint(
         tick,
         vehicle.id,
         vehicleManager,
         Some((chargingVehicle: ChargingVehicle) => {
-          // Calculate the energy to charge the vehicle
-          val (_, chargeDurationAtTick, energyToCharge) =
-            sitePowerManager.dispatchEnergy(tick, physicalBounds, Some(tick % cnmConfig.timeStepInSeconds))(vehicle.id)
+          val Some((_, chargeDurationAtTick, energyToCharge)) = energyToChargeOption
           // Refuel the vehicle
           val currentSession = ChargingSession(energyToCharge, chargeDurationAtTick)
           log.debug(s"Charging vehicle $vehicle. Energy to charge = ${currentSession.energy}")
@@ -165,9 +166,10 @@ class ChargingNetworkManager(
           )
         })
       )
-      sender ! EndRefuelSessionUponRequest(tick, result)
+      sender ! EndRefuelSessionUponRequest(tick, disconnectedVehicleOption)
 
     case Finish =>
+      chargingNetworkMap.clear()
       powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
@@ -186,7 +188,7 @@ class ChargingNetworkManager(
     stall: ParkingStall,
     vehicleManager: VehicleManager
   ): Unit = {
-    chargingNetworkMap(vehicleManager).connectVehicle(tick, vehicle, vehicleManager, stall) match {
+    chargingNetworkMap(vehicleManager).connectVehicle(tick, vehicle, stall) match {
       case (_, _ @Connected) =>
         log.debug(s"vehicle ${vehicle.id} is connected to charging point at stall $stall")
         handleStartCharging(tick, vehicle)
@@ -304,14 +306,14 @@ class ChargingNetworkManager(
       nextTick,
       chargingVehicle.totalChargingSession.energy
     )
-    ScheduleTrigger(ChargingTimeOutTrigger(nextTick, chargingVehicle), self)
+    ScheduleTrigger(ChargingTimeOutTrigger(nextTick, chargingVehicle.vehicle, chargingVehicle.vehicleManager), self)
   }
 
 }
 
 object ChargingNetworkManager {
   case class PlanningTimeOutTrigger(tick: Int) extends Trigger
-  case class ChargingTimeOutTrigger(tick: Int, chargingVehicle: ChargingVehicle) extends Trigger
+  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle, vehicleManager: VehicleManager) extends Trigger
   case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, stall: ParkingStall, vehicleManager: VehicleManager)
   case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, vehicleManager: VehicleManager)
   case class EndRefuelSessionUponRequest(tick: Int, vehicleMaybe: Option[Id[BeamVehicle]])

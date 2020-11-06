@@ -72,10 +72,10 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
                 case ChargingPlugInEvent(_, _, _, `vehicleId`, fuelLevel, _) => chargingPlugInEvents += fuelLevel
                 case ChargingPlugOutEvent(_, _, `vehicleId`, fuelLevel, _)   => chargingPlugOutEvents += fuelLevel
                 case RefuelSessionEvent(
-                    tick,
+                    _,
                     stall,
                     energyInJoules,
-                    sessionStartingFuelLevelInJoules,
+                    _,
                     sessionDuration,
                     `vehicleId`,
                     _

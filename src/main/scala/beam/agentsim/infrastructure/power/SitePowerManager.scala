@@ -105,7 +105,7 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
     tick: Int,
     physicalBounds: Map[ChargingStation, PhysicalBounds],
     chargingSessionLimiterInSec: Option[Int] = None
-  ): Map[Id[BeamVehicle], (ChargingNetwork, ChargingDurationInSec, EnergyInJoules)] = {
+  ): Map[Id[BeamVehicle], (VehicleManager, ChargingDurationInSec, EnergyInJoules)] = {
     val timeInterval =
       chargingSessionLimiterInSec.map(Math.min(cnmConfig.timeStepInSeconds, _)).getOrElse(cnmConfig.timeStepInSeconds)
     val vehicles =
@@ -115,7 +115,7 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
     val future = Future
       .sequence(
         vehicles.map {
-          case (v, (s, cn)) =>
+          case (v, (s, cn: ChargingNetwork)) =>
             Future {
               val maxZoneLoad = physicalBounds(s).maxLoad
               val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(s).maxLoad
@@ -124,8 +124,8 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
               val (chargingDuration, energyToCharge) =
                 v.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval), Some(chargingPowerLimit))
               val chargingVehicle = cn.lookupVehicle(v.id).get
-              collectDataOnLoadDemand(tick, chargingVehicle, chargingDuration)
-              v.id -> (cn, chargingDuration, energyToCharge)
+              collectDataOnLoadDemand(tick, chargingVehicle, timeInterval)
+              v.id -> (cn.getVehicleManager, chargingDuration, energyToCharge)
             }
         }
       )
@@ -133,14 +133,14 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
       .recover {
         case e =>
           logger.warn(s"Charging Replan did not produce allocations: $e")
-          Map.empty[Id[BeamVehicle], (ChargingNetwork, ChargingDurationInSec, EnergyInJoules)]
+          Map.empty[Id[BeamVehicle], (VehicleManager, ChargingDurationInSec, EnergyInJoules)]
       }
     try {
       Await.result(future, atMost = 1.minutes)
     } catch {
       case e: TimeoutException =>
         logger.error(s"timeout of Charging Replan with no allocations made: $e")
-        Map.empty[Id[BeamVehicle], (ChargingNetwork, ChargingDurationInSec, EnergyInJoules)]
+        Map.empty[Id[BeamVehicle], (VehicleManager, ChargingDurationInSec, EnergyInJoules)]
     }
   }
 
@@ -153,13 +153,13 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
   private def collectDataOnLoadDemand(
     tick: Int,
     chargingVehicle: ChargingVehicle,
-    maxChargingDuration: Long
+    timeInterval: Long
   ): Unit = {
     // Collect data on load demand
     val currentBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
     val veh = chargingVehicle.vehicle
-    val (chargingDuration, requiredEnergy) = veh.refuelingSessionDurationAndEnergyInJoules(Some(maxChargingDuration))
-    val chargingDurationBis = Math.min(chargingDuration, maxChargingDuration)
+    val (chargingDuration, requiredEnergy) = veh.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval))
+    val chargingDurationBis = Math.min(chargingDuration, timeInterval)
     beamServices.matsimServices.getEvents.processEvent(
       event.TAZSkimmerEvent(
         currentBin,

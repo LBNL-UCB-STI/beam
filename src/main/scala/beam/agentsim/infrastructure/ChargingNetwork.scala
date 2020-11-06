@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 
-class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleManager: VehicleManager)
+class ChargingNetwork(vehicleManager: VehicleManager, chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
   import ChargingNetwork._
   import ChargingStatus._
@@ -28,6 +28,8 @@ class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleMana
   def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehiclesToCharge.get(vehicleId)
 
   def lookupAllVehicles(): List[ChargingVehicle] = vehiclesToCharge.values.toList
+
+  def getVehicleManager: VehicleManager = vehicleManager
 
   /**
     *
@@ -51,14 +53,12 @@ class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleMana
     *
     * @param tick
     * @param vehicle
-    * @param vehicleManager
     * @param stall
     * @return
     */
   def connectVehicle(
     tick: Int,
     vehicle: BeamVehicle,
-    vehicleManager: VehicleManager,
     stall: ParkingStall
   ): (ChargingVehicle, ChargingStatus) = {
     val station = lookupStation(stall).get
