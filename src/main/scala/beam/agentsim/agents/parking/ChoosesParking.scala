@@ -81,7 +81,7 @@ trait ChoosesParking extends {
                 currentBeamVehicle,
                 ChargingNetworkManager.defaultVehicleManager
               ),
-              atMost = 1.seconds
+              atMost = 1.minute
             )
         } catch {
           case _: TimeoutException =>

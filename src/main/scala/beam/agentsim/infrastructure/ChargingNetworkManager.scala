@@ -46,8 +46,8 @@ class ChargingNetworkManager(
   private lazy val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
   private lazy val powerController = new PowerController(chargingNetworkMap, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
-  private var currentTick: Int = 0
-  private def nextTick: Int = currentTick + cnmConfig.timeStepInSeconds
+  private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
+  private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
   override def receive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -59,17 +59,16 @@ class ChargingNetworkManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case TriggerWithId(PlanningTimeOutTrigger(tick), triggerId) =>
-      currentTick = tick
+    case TriggerWithId(PlanningTimeOutTrigger(timeBin), triggerId) =>
       import scala.concurrent.ExecutionContext.Implicits.global
       import scala.concurrent.duration._
       import scala.concurrent.{Await, Future, TimeoutException}
-      log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$tick")
-      val estimatedLoad = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(tick)
-      log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, tick)
+      log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
+      val estimatedLoad = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
+      log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
-      val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, Some(estimatedLoad))
+      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
       val futures = Future
         .sequence(chargingNetworkMap.flatMap {
@@ -82,12 +81,14 @@ class ChargingNetworkManager(
 
                   // Calculate the energy to charge each vehicle connected to the a charging station
                   val (chargingDuration, energyToCharge) =
-                    sitePowerManager.dispatchEnergy(tick, nextTick - tick, chargingVehicle, physicalBounds)
+                    sitePowerManager
+                      .dispatchEnergy(timeBin, cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
 
                   // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
-                  chargingNetwork.combine(vehicle.id, ChargingSession(tick, energyToCharge, chargingDuration)) match {
+                  chargingNetwork
+                    .combine(vehicle.id, ChargingSession(timeBin, energyToCharge, chargingDuration)) match {
                     case _ if chargingDuration < cnmConfig.timeStepInSeconds =>
-                      val endRefuelTime = tick + chargingDuration
+                      val endRefuelTime = timeBin + chargingDuration
                       log.debug(
                         "Ending refuel session for vehicle {}. Provided energy of {} J during {} seconds",
                         vehicle.id,
@@ -127,8 +128,8 @@ class ChargingNetworkManager(
       // rescheduling the PlanningTimeOutTrigger
       sender ! CompletionNotice(
         triggerId,
-        if (nextTick <= endOfSimulationTime) {
-          triggers ++ Vector(ScheduleTrigger(PlanningTimeOutTrigger(nextTick), self))
+        if (nextTimeBin(timeBin) <= endOfSimulationTime) {
+          triggers ++ Vector(ScheduleTrigger(PlanningTimeOutTrigger(nextTimeBin(timeBin)), self))
         } else {
           // if we still have a BEV/PHEV that is connected to a charging point,
           // we assume that they will charge until the end of the simulation and throwing events accordingly
@@ -136,7 +137,7 @@ class ChargingNetworkManager(
             .flatMap(_._2.lookupConnectedVehicles)
             .map {
               case ChargingVehicle(vehicle, vehicleManager, _, _, totChargingSession, lastChargingSession) =>
-                val endRefuelTime = tick + lastChargingSession.duration
+                val endRefuelTime = timeBin + lastChargingSession.duration
                 log.debug(
                   "Ending refuel session for vehicle {}. Provided total energy of {} J over {} seconds",
                   vehicle.id,
@@ -172,7 +173,7 @@ class ChargingNetworkManager(
             log.debug(s"vehicle ${vehicle.id} is connected to charging point at stall $stall")
             handleStartCharging(tick, chargingVehicle)
             val (chargeDurationAtTick, energyToChargeAtTick) =
-              sitePowerManager.dispatchEnergy(tick, nextTick - tick, chargingVehicle, physicalBounds)
+              sitePowerManager.dispatchEnergy(tick, nextTimeBin(tick) - tick, chargingVehicle, physicalBounds)
             chargingNetwork.combine(vehicle.id, ChargingSession(tick, energyToChargeAtTick, chargeDurationAtTick))
           case _ =>
             log.debug(s"vehicle ${vehicle.id} is waiting in line for charging point at stall $stall")
@@ -193,10 +194,15 @@ class ChargingNetworkManager(
         .lookupVehicle(vehicle.id)
         .map {
           case chargingVehicle @ ChargingVehicle(_, _, _, _, _, ChargingSession(startTime, _, _)) =>
+            val realStartTime = Math.min(tick, startTime)
+            val realDuration = Math.abs(tick - startTime)
             val (chargeDurationAtTick, energyToChargeAtTick) =
-              sitePowerManager.dispatchEnergy(startTime, tick - startTime, chargingVehicle, physicalBounds)
-            chargingNetwork.update(vehicle.id, ChargingSession(startTime, energyToChargeAtTick, chargeDurationAtTick))
-            self ! TriggerWithId(ChargingTimeOutTrigger(tick, vehicle.id, vehicleManager), 0)
+              sitePowerManager.dispatchEnergy(realStartTime, realDuration, chargingVehicle, physicalBounds)
+            chargingNetwork.update(
+              vehicle.id,
+              ChargingSession(realStartTime, energyToChargeAtTick, chargeDurationAtTick)
+            )
+            self ! TriggerWithId(ChargingTimeOutTrigger(realStartTime + realDuration, vehicle.id, vehicleManager), 0)
             Success(s"vehicle $vehicle was disconnected upon request")
         }
         .getOrElse(Failure(new RuntimeException(s"vehicle $vehicle cannot be disconnected.")))

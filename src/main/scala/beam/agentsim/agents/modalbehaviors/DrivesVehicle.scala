@@ -375,7 +375,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                           stall,
                           ChargingNetworkManager.defaultVehicleManager
                         ),
-                        atMost = 1.seconds
+                        atMost = 1.minute
                       )
                   } catch {
                     case _: TimeoutException =>
