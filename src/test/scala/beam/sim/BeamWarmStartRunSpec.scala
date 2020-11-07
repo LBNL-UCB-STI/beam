@@ -22,7 +22,6 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
                        |beam.agentsim.lastIteration = 1
                        |beam.warmStart.enabled = true
                        |beam.warmStart.path = test/input/sf-light/warmstart
-                       |beam.debug.debugEnabled = true
                      """.stripMargin)
         .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
         .resolve()
