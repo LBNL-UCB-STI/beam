@@ -63,13 +63,13 @@ class PowerController(chargingNetworkMap: TrieMap[String, ChargingNetwork], beam
           beamFederate.publishJSON(
             estimatedLoad.get.map {
               case (station, powerInKW) =>
-                toStringMap(station.zone) ++ Map("estimatedLoad" -> powerInKW)
+                from(station.zone) ++ Map("estimatedLoad" -> powerInKW)
             }.toList
           )
           val (_, gridBounds) = beamFederate.syncAndCollectJSON(currentTime)
           logger.debug("Obtained power from the grid {}...", gridBounds)
           gridBounds.map { x =>
-            val station = chargingStationsMap(toChargingZoneInstance(x))
+            val station = chargingStationsMap(to(x))
             station -> PhysicalBounds(station, x("maxLoad").asInstanceOf[PowerInKW])
           }.toMap
         case _ =>

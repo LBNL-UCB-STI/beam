@@ -313,7 +313,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar, defaultVehicleManager)
-      expectMsgType[Failure]
+      expectMsgType[Success]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
     }
