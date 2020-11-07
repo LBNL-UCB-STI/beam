@@ -97,7 +97,7 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
     physicalBounds: Map[ChargingStation, PhysicalBounds]
   ): (ChargingDurationInSec, EnergyInJoules) = {
     assume(timeInterval >= 0, "timeInterval should not be negative!")
-    val ChargingVehicle(vehicle, _, _, station, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, _, station, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).maxLoad
     val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).maxLoad

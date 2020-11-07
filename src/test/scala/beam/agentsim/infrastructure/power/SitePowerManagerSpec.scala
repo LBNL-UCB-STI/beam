@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.power
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -146,7 +146,7 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        dummyNetwork.connectVehicle(0, v, v.stall.get).foreach {
+        dummyNetwork.connectVehicle(0, v, v.stall.get, ActorRef.noSender).foreach {
           case (chargingVehicle, chargingStatus) =>
             chargingStatus shouldBe ChargingStatus.Connected
             chargingVehicle shouldBe ChargingVehicle(
@@ -155,7 +155,8 @@ class SitePowerManagerSpec
               v.stall.get,
               dummyStation,
               ChargingSession(0),
-              ChargingSession(0)
+              ChargingSession(0),
+              ActorRef.noSender
             )
             sitePowerManager.dispatchEnergy(
               300,

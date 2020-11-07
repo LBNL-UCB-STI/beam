@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure
 
+import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingZone, VehicleManager}
 import com.typesafe.scalalogging.LazyLogging
@@ -9,6 +10,10 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+
+/**
+  * Created by haitamlaarabi
+  */
 
 class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
@@ -108,7 +113,12 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
     * @param stall the correspondant parking stall
     * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def connectVehicle(tick: Int, vehicle: BeamVehicle, stall: ParkingStall): Map[ChargingVehicle, ConnectionStatus] = {
+  def connectVehicle(
+    tick: Int,
+    vehicle: BeamVehicle,
+    stall: ParkingStall,
+    theSender: ActorRef
+  ): Map[ChargingVehicle, ConnectionStatus] = {
     val station = lookupStation(stall).get
     val chargingVehicle = ChargingVehicle(
       vehicle,
@@ -116,7 +126,8 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
       stall,
       station,
       cumulatedChargingSession = ChargingSession(tick),
-      latestChargingSession = ChargingSession(tick)
+      latestChargingSession = ChargingSession(tick),
+      theSender
     )
     chargingVehicleMap.put(vehicle.id, chargingVehicle)
     processWaitingLine(station) + (chargingVehicle -> station.connectVehicle(tick, vehicle))
@@ -136,7 +147,7 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
 
   /**
     * Process the waiting line by connecting vehicles that are still in the queue
-    * @param tick current time
+    * @param station ChargingStation
     * @return a map of vehicle and its corresponding connection status
     */
   def processWaitingLine(station: ChargingStation): Map[ChargingVehicle, ConnectionStatus] =
@@ -186,7 +197,6 @@ object ChargingNetwork {
 
     /**
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
-      * @param tick current time
       * @return map of vehicles that got connected
       */
     private[ChargingNetwork] def processWaitingLine(): Map[Id[BeamVehicle], ConnectionStatus] = {
@@ -220,7 +230,8 @@ object ChargingNetwork {
     stall: ParkingStall,
     chargingStation: ChargingStation,
     cumulatedChargingSession: ChargingSession,
-    latestChargingSession: ChargingSession
+    latestChargingSession: ChargingSession,
+    theSender: ActorRef
   ) {
     def totalChargingSession: ChargingSession = cumulatedChargingSession.combine(latestChargingSession)
   }

@@ -1,6 +1,7 @@
 package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
+import akka.actor.Status.Success
 import akka.actor.{ActorRef, Stash}
 import akka.pattern.ask
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
@@ -13,7 +14,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, StartingRefuelSession, WaitingInLine}
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -376,12 +377,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                           ChargingNetworkManager.defaultVehicleManager
                         ),
                         atMost = 1.minute
-                      )
+                      ) match {
+                      case StartingRefuelSession(tick, vehicleId) =>
+                        log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
+                      case WaitingInLine(tick, vehicleId) =>
+                        log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
+                    }
                   } catch {
                     case _: TimeoutException =>
-                      log.error(
-                        "timeout of StartRefuelSession. No response received so far from the ChargingNetworkManager"
-                      )
+                      log.error("ChargingPlugRequest timeout. No response from the ChargingNetworkManager")
                   }
 
                 case None => // this should only happen rarely

@@ -56,7 +56,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
         }
     } catch {
       case e: ClassCastException =>
-        println(e)
+        logger.error(s"$e")
         None
     }
   }

@@ -1,5 +1,6 @@
 package beam.agentsim.agents.parking
 
+import akka.actor.Status.Success
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
@@ -10,7 +11,11 @@ import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingUnplugRequest
+import beam.agentsim.infrastructure.ChargingNetworkManager.{
+  ChargingUnplugRequest,
+  EndingRefuelSession,
+  UnhandledVehicle
+}
 import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -73,6 +78,7 @@ trait ChoosesParking extends {
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
+        log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
         try {
           Await
             .result(
@@ -82,15 +88,18 @@ trait ChoosesParking extends {
                 ChargingNetworkManager.defaultVehicleManager
               ),
               atMost = 1.minute
-            )
+            ) match {
+            case EndingRefuelSession(tick, vehicleId) =>
+              log.debug(s"Vehicle $vehicleId ended charging and it is not handled by the CNM at tick $tick")
+            case UnhandledVehicle(tick, vehicleId) =>
+              log.debug(s"Vehicle $vehicleId is not handled by the CNM at tick $tick")
+          }
         } catch {
           case _: TimeoutException =>
-            log.error(
-              "timeout of EndRefuelSessionUponRequest. No response received so far from the ChargingNetworkManager"
-            )
-            handleReleaseParking(tick, data)
+            log.error("ChargingUnplugRequest timeout. No response from the ChargingNetworkManager")
         }
-      } else handleReleaseParking(tick, data)
+      }
+      handleReleaseParking(tick, data)
       goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
