@@ -38,9 +38,7 @@ class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEnd
     val max = if (analysis.nonEmpty) {
       analysis.values.map(_.size).max
     } else {
-      logger.warning(
-        "No Transit PathTraversal event was captured. Either transit is deactivated or something is broken"
-      )
+      logger.warn("No Transit PathTraversal event was captured. Either transit is deactivated or something is broken")
       0
     }
     val resultData = analysis.map { case (k, v) => k -> getList(max, v) }
