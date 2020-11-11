@@ -231,18 +231,18 @@ class ChargingNetworkManagerSpec
       chargingNetworkManager ! ChargingUnplugRequest(35, beamVilleCar, defaultVehicleManager)
       expectMsgType[EndingRefuelSession]
       expectNoMessage()
-      beamVilleCar.primaryFuelLevelInJoules should be(2.075E8)
+      beamVilleCar.primaryFuelLevelInJoules should be(1.4125E8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(35, beamVilleCar.id, defaultVehicleManager), 0)
       expectMsgType[CompletionNotice]
-      beamVilleCar.primaryFuelLevelInJoules should be(2.075E8)
+      beamVilleCar.primaryFuelLevelInJoules should be(1.4125E8)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(300), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
         ScheduleTrigger(PlanningTimeOutTrigger(600), chargingNetworkManager)
       )
       expectNoMessage()
-      beamVilleCar.primaryFuelLevelInJoules should be(2.075E8)
+      beamVilleCar.primaryFuelLevelInJoules should be(1.4125E8)
     }
 
     "add a vehicle to charging queue with a lot fuel required but unplug event happens after 1st cycle" in {
