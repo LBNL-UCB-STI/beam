@@ -1,7 +1,6 @@
 package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
-import akka.actor.Status.Success
 import akka.actor.{ActorRef, Stash}
 import akka.pattern.ask
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
@@ -373,7 +372,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
                         chargingNetworkManager ? ChargingPlugRequest(
                           tick,
                           currentBeamVehicle,
-                          stall,
                           ChargingNetworkManager.defaultVehicleManager
                         ),
                         atMost = 1.minute

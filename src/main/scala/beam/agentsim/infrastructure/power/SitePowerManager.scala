@@ -1,8 +1,7 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetwork
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingSession, ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.skim.event
@@ -85,19 +84,17 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
 
   /**
     *
-    * @param tick current time
     * @param chargingVehicle the vehicle being charging
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
     */
   def dispatchEnergy(
-    tick: Int,
     timeInterval: Int,
     chargingVehicle: ChargingVehicle,
     physicalBounds: Map[ChargingStation, PhysicalBounds]
   ): (ChargingDurationInSec, EnergyInJoules) = {
     assume(timeInterval >= 0, "timeInterval should not be negative!")
-    val ChargingVehicle(vehicle, _, _, station, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, _, station, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).maxLoad
     val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).maxLoad
@@ -112,9 +109,9 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
     * @param chargingVehicle vehicle charging information
     * @param chargingSession latest charging sessions to collect
     */
-  def collectObservedLoadInKW(chargingVehicle: ChargingVehicle, chargingSession: ChargingSession): Unit = {
-    import chargingVehicle._
+  def collectObservedLoadInKW(chargingVehicle: ChargingVehicle, chargingSession: ChargingCycle): Unit = {
     import chargingSession._
+    import chargingVehicle._
     // Collect data on load demand
     val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(Some(duration))
     beamServices.matsimServices.getEvents.processEvent(

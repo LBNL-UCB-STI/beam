@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingSession, ChargingStation, ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.{defaultVehicleManager, ChargingZone}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
@@ -146,24 +146,21 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        dummyNetwork.connectVehicle(0, v, v.stall.get, ActorRef.noSender).foreach {
-          case (chargingVehicle, chargingStatus) =>
-            chargingStatus shouldBe ChargingStatus.Connected
-            chargingVehicle shouldBe ChargingVehicle(
-              v,
-              defaultVehicleManager,
-              v.stall.get,
-              dummyStation,
-              ChargingSession(0),
-              ChargingSession(0),
-              ActorRef.noSender
-            )
-            sitePowerManager.dispatchEnergy(
-              300,
-              300,
-              chargingVehicle,
-              SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-            ) should (be((1, 250000.0)) or be((300, 7.5E7)))
+        dummyNetwork.connectVehicle(0, v, ActorRef.noSender).foreach { chargingVehicle =>
+          chargingVehicle.status shouldBe ConnectionStatus.Connected
+          chargingVehicle shouldBe ChargingVehicle(
+            v,
+            defaultVehicleManager,
+            v.stall.get,
+            dummyStation,
+            0,
+            ActorRef.noSender
+          )
+          sitePowerManager.dispatchEnergy(
+            300,
+            chargingVehicle,
+            SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
+          ) should (be((1, 250000.0)) or be((300, 7.5E7)))
         }
       }
     }
