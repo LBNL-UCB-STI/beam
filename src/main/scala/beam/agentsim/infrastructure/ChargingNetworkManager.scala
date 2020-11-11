@@ -166,9 +166,23 @@ class ChargingNetworkManager(
       log.debug(s"ChargingPlugRequest for vehicle $vehicle at $tick")
       if (vehicle.isBEV | vehicle.isPHEV) {
         val chargingNetwork = chargingNetworkMap(vehicleManager)
-        val results = chargingNetwork.connectVehicle(tick, vehicle, sender)
-        results.filter(_.status == Waiting).foreach(v => v.theSender ! WaitingInLine(tick, v.vehicle.id))
-        results.filter(_.status == Connected).foreach(v => handleStartCharging(tick, v))
+        if (vehicle.stall.isEmpty && vehicle.reservedStall.isEmpty) {
+          throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
+        }
+        // processing waiting line
+        val stall = vehicle.stall.getOrElse(vehicle.reservedStall.get)
+        val waitingInLine = chargingNetwork
+          .lookupStation(stall)
+          .map(chargingNetwork.processWaitingLine)
+          .getOrElse(List.empty[ChargingVehicle])
+        waitingInLine.foreach(handleStartCharging(tick, _))
+        // connecting the current vehicle
+        chargingNetwork.connectVehicle(tick, vehicle, sender) match {
+          case chargingVehicle: ChargingVehicle if chargingVehicle.status == Waiting =>
+            sender ! WaitingInLine(tick, chargingVehicle.vehicle.id)
+          case chargingVehicle: ChargingVehicle =>
+            handleStartCharging(tick, chargingVehicle)
+        }
       } else {
         sender ! Failure(
           new RuntimeException(
@@ -231,26 +245,24 @@ class ChargingNetworkManager(
     chargingVehicle: ChargingVehicle,
     currentSenderMaybe: Option[ActorRef] = None
   ): Unit = {
-    val ChargingVehicle(vehicle, vehicleManager, _, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, vehicleManager, _, station, _, _) = chargingVehicle
     val chargingNetwork = chargingNetworkMap(vehicleManager)
-    chargingNetwork.disconnectVehicle(vehicle).foreach {
-      case cv: ChargingVehicle if cv.status == Connected =>
-        handleStartCharging(tick, cv)
-      case cv: ChargingVehicle if cv.status == Disconnected =>
-        handleRefueling(cv)
-        handleEndChargingHelper(tick, cv)
-        vehicle.disconnectFromChargingPoint()
-        vehicle.stall match {
-          case Some(stall) =>
-            parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
-            vehicle.unsetParkingStall()
-          case None =>
-            log.error(s"Vehicle $vehicle has no stall while ending charging event")
-        }
-        currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
-      case cv: ChargingVehicle =>
-        log.error(s"This is not supposed to occur when disconnecting a vehicle: $cv")
+    if (chargingNetwork.disconnectVehicle(vehicle)) {
+      handleRefueling(chargingVehicle)
+      handleEndChargingHelper(tick, chargingVehicle)
+      vehicle.disconnectFromChargingPoint()
+      vehicle.stall match {
+        case Some(stall) =>
+          parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
+          vehicle.unsetParkingStall()
+        case None =>
+          log.error(s"Vehicle $vehicle has no stall while ending charging event")
+      }
+      currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
+    } else {
+      log.debug(s"Vehicle $vehicle is already disconnected at $tick")
     }
+    chargingNetwork.processWaitingLine(station).foreach(handleStartCharging(tick, _))
   }
 
   /**

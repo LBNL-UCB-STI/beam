@@ -146,23 +146,23 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        dummyNetwork.connectVehicle(0, v, ActorRef.noSender).foreach { chargingVehicle =>
-          chargingVehicle.status shouldBe ConnectionStatus.Connected
-          chargingVehicle shouldBe ChargingVehicle(
-            v,
-            defaultVehicleManager,
-            v.stall.get,
-            dummyStation,
-            0,
-            ActorRef.noSender
-          )
-          sitePowerManager.dispatchEnergy(
-            300,
-            chargingVehicle,
-            SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-          ) should (be((1, 250000.0)) or be((300, 7.5E7)))
-        }
+        val chargingVehicle = dummyNetwork.connectVehicle(0, v, ActorRef.noSender)
+        chargingVehicle.status shouldBe ConnectionStatus.Connected
+        chargingVehicle shouldBe ChargingVehicle(
+          v,
+          defaultVehicleManager,
+          v.stall.get,
+          dummyStation,
+          0,
+          ActorRef.noSender
+        )
+        sitePowerManager.dispatchEnergy(
+          300,
+          chargingVehicle,
+          SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
+        ) should (be((1, 250000.0)) or be((300, 7.5E7)))
       }
+
     }
   }
 

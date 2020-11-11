@@ -77,34 +77,35 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
     * @param vehicle vehicle to charge
     * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def connectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): List[ChargingVehicle] = {
+  def connectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): ChargingVehicle = {
     if (vehicle.stall.isEmpty && vehicle.reservedStall.isEmpty) {
       throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
     } else {
       val stall = vehicle.stall.getOrElse(vehicle.reservedStall.get)
-      lookupStation(stall)
-        .map(station => station.processWaitingLine() :+ station.connect(tick, vehicle, stall, theSender))
-        .toList
-        .flatten
+      lookupStation(stall).map(station => station.connect(tick, vehicle, stall, theSender)).get
     }
   }
 
   /**
-    * Disconnect the vehicle for the charging point/station then process waiting line
+    * Disconnect the vehicle for the charging point/station
     * @param vehicle vehicle to disconnect
     * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def disconnectVehicle(vehicle: BeamVehicle): List[ChargingVehicle] = {
+  def disconnectVehicle(vehicle: BeamVehicle): Boolean = {
     if (vehicle.stall.isEmpty && vehicle.reservedStall.isEmpty) {
       throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
     } else {
       val stall = vehicle.stall.getOrElse(vehicle.reservedStall.get)
-      lookupStation(stall)
-        .map(station => station.disconnect(vehicle.id).toList ++ station.processWaitingLine())
-        .toList
-        .flatten
+      lookupStation(stall).flatMap(station => station.disconnect(vehicle.id)).isDefined
     }
   }
+
+  /**
+    * transfer vehciles from waiting line to connected
+    * @param station the corresponding station
+    * @return list of vehicle that connected
+    */
+  def processWaitingLine(station: ChargingStation): List[ChargingVehicle] = station.connectFromWaitingLine()
 }
 
 object ChargingNetwork {
@@ -170,7 +171,7 @@ object ChargingNetwork {
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
-    private[ChargingNetwork] def processWaitingLine(): List[ChargingVehicle] = this.synchronized {
+    private[ChargingNetwork] def connectFromWaitingLine(): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
         val v = waitingLineInternal.dequeue()
         v.updateStatus(Connected)
