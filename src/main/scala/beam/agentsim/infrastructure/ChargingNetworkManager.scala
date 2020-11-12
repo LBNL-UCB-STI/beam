@@ -163,23 +163,23 @@ class ChargingNetworkManager(
       sender ! CompletionNotice(triggerId)
 
     case ChargingPlugRequest(tick, vehicle, vehicleManager) =>
-      log.debug(
-        s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall {} / reserved stall {}",
-        vehicle.stall,
-        vehicle.reservedStall
-      )
+      log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV | vehicle.isPHEV) {
         val chargingNetwork = chargingNetworkMap(vehicleManager)
         // connecting the current vehicle
         chargingNetwork.connectVehicle(tick, vehicle, sender) match {
-          case chargingVehicle: ChargingVehicle if chargingVehicle.status == Waiting =>
-            log.debug(s"Vehicle ${chargingVehicle.vehicle} is moved to waiting line at $tick")
-            sender ! WaitingInLine(tick, chargingVehicle.vehicle.id)
+          case chargingVehicle @ ChargingVehicle(vehicle, _, _, station, _, _) if chargingVehicle.status == Waiting =>
+            log.debug(
+              s"Vehicle $vehicle is moved to waiting line at $tick in station $station, with {}/{} vehicles connected and {} in waiting line",
+              station.connectedVehicles.size,
+              station.zone.numChargers,
+              station.waitingLineVehicles.size
+            )
+            log.debug(s"connected vehicles: ${station.connectedVehicles.keys.mkString(",")}")
+            log.debug(s"waiting vehicles: ${station.waitingLineVehicles.keys.mkString(",")}")
+            sender ! WaitingInLine(tick, vehicle.id)
           case chargingVehicle: ChargingVehicle =>
             handleStartCharging(tick, chargingVehicle)
-            val endTime = chargingVehicle.computeSessionEndTime
-            if (endTime < nextTimeBin(tick))
-              scheduler ! ScheduleTrigger(ChargingTimeOutTrigger(endTime, vehicle.id, vehicleManager), self)
         }
       } else {
         sender ! Failure(
@@ -221,14 +221,18 @@ class ChargingNetworkManager(
     * @param chargingVehicle charging vehicle information
     */
   private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    log.debug(s"Starting charging for vehicle ${chargingVehicle.vehicle} at $tick")
+    val ChargingVehicle(vehicle, vehicleManager, _, _, _, theSender) = chargingVehicle
+    log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
-    chargingVehicle.vehicle.connectToChargingPoint(tick)
-    chargingVehicle.theSender ! StartingRefuelSession(tick, chargingVehicle.vehicle.id)
+    vehicle.connectToChargingPoint(tick)
+    theSender ! StartingRefuelSession(tick, vehicle.id)
     handleStartChargingHelper(tick, chargingVehicle)
     val (chargeDurationAtTick, energyToChargeAtTick) =
       dispatchEnergy(nextTimeBin(tick) - tick, chargingVehicle, physicalBounds)
     chargingVehicle.processChargingCycle(tick, energyToChargeAtTick, chargeDurationAtTick)
+    val endTime = chargingVehicle.computeSessionEndTime
+    if (endTime < nextTimeBin(tick))
+      scheduler ! ScheduleTrigger(ChargingTimeOutTrigger(endTime, vehicle.id, vehicleManager), self)
   }
 
   /**
