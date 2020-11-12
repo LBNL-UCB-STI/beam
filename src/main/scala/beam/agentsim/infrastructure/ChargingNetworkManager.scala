@@ -163,19 +163,13 @@ class ChargingNetworkManager(
       sender ! CompletionNotice(triggerId)
 
     case ChargingPlugRequest(tick, vehicle, vehicleManager) =>
-      log.debug(s"ChargingPlugRequest for vehicle $vehicle at $tick")
+      log.debug(
+        s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall {} / reserved stall {}",
+        vehicle.stall,
+        vehicle.reservedStall
+      )
       if (vehicle.isBEV | vehicle.isPHEV) {
         val chargingNetwork = chargingNetworkMap(vehicleManager)
-        if (vehicle.stall.isEmpty && vehicle.reservedStall.isEmpty) {
-          throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
-        }
-        // processing waiting line
-        val stall = vehicle.stall.getOrElse(vehicle.reservedStall.get)
-        val waitingInLine = chargingNetwork
-          .lookupStation(stall)
-          .map(chargingNetwork.processWaitingLine)
-          .getOrElse(List.empty[ChargingVehicle])
-        waitingInLine.foreach(handleStartCharging(tick, _))
         // connecting the current vehicle
         chargingNetwork.connectVehicle(tick, vehicle, sender) match {
           case chargingVehicle: ChargingVehicle if chargingVehicle.status == Waiting =>
@@ -192,7 +186,7 @@ class ChargingNetworkManager(
       }
 
     case ChargingUnplugRequest(tick, vehicle, vehicleManager) =>
-      log.debug(s"ChargingUnplugRequest for vehicle $vehicle at $tick")
+      log.debug(s"ChargingUnplugRequest received for vehicle $vehicle at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicle.id) match {

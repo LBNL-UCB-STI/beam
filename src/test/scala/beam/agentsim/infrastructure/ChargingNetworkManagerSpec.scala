@@ -46,26 +46,27 @@ class ChargingNetworkManagerSpec
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
-                                               |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
-                                               |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
-                                               |beam.router.skim = {
-                                               |  keepKLatestSkims = 1
-                                               |  writeSkimsInterval = 1
-                                               |  writeAggregatedSkimsInterval = 1
-                                               |  taz-skimmer {
-                                               |    name = "taz-skimmer"
-                                               |    fileBaseName = "skimsTAZ"
-                                               |  }
-                                               |}
-                                               |beam.agentsim.chargingNetworkManager {
-                                               |  gridConnectionEnabled = false
-                                               |  timeStepInSeconds = 300
-                                               |  helicsFederateName = "CNMFederate"
-                                               |  helicsDataOutStreamPoint = ""
-                                               |  helicsDataInStreamPoint = ""
-                                               |  helicsBufferSize = 1000
-                                               |}
-                                               |""".stripMargin))
+     |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
+     |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
+     |beam.agentsim.taz.parkingFilePath = "test/input/beamville/parking/taz-parking-limited.csv"
+     |beam.router.skim = {
+     |  keepKLatestSkims = 1
+     |  writeSkimsInterval = 1
+     |  writeAggregatedSkimsInterval = 1
+     |  taz-skimmer {
+     |    name = "taz-skimmer"
+     |    fileBaseName = "skimsTAZ"
+     |  }
+     |}
+     |beam.agentsim.chargingNetworkManager {
+     |  gridConnectionEnabled = false
+     |  timeStepInSeconds = 300
+     |  helicsFederateName = "CNMFederate"
+     |  helicsDataOutStreamPoint = ""
+     |  helicsDataInStreamPoint = ""
+     |  helicsBufferSize = 1000
+     |}
+     |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
 
   import ChargingNetworkManager._
@@ -81,8 +82,12 @@ class ChargingNetworkManagerSpec
 
   val timeStepInSeconds: Int = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
 
-  def getBeamVilleCar(parkingStall: ParkingStall, fuelToSubtractInPercent: Double = 0.0): BeamVehicle = {
-    val beamVilleCar = beamScenario.privateVehicles(Id.create(2, classOf[BeamVehicle]))
+  def getBeamVilleCar(
+    vehicleId: String,
+    parkingStall: ParkingStall,
+    fuelToSubtractInPercent: Double = 0.0
+  ): BeamVehicle = {
+    val beamVilleCar = beamScenario.privateVehicles(Id.create(vehicleId, classOf[BeamVehicle]))
     val fuelToSubtract = beamVilleCar.primaryFuelLevelInJoules * fuelToSubtractInPercent
     beamVilleCar.addFuel(-1 * fuelToSubtract)
     beamVilleCar.connectToChargingPoint(0)
@@ -102,15 +107,12 @@ class ChargingNetworkManagerSpec
     }
   }
 
-  val parkingStall: ParkingStall = ParkingStall(
-    beamServices.beamScenario.tazTreeMap.getTAZs.head.tazId,
-    0,
-    beamServices.beamScenario.tazTreeMap.getTAZs.head.coord,
-    0.0,
-    Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
-    Some(PricingModel.FlatFee(0.0)),
-    ParkingType.Workplace
-  )
+  private val taz2 = beamServices.beamScenario.tazTreeMap.getTAZ("2").get
+  private val chargingType = ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")
+  private val pricingModel = PricingModel.Block(0.0, 0)
+
+  val parkingStall: ParkingStall =
+    ParkingStall(taz2.tazId, 0, taz2.coord, 0.0, Some(chargingType), Some(pricingModel), ParkingType.Public)
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _
   var personAgent: TestProbe = _
@@ -132,7 +134,7 @@ class ChargingNetworkManagerSpec
     }
 
     "add a vehicle to charging queue with full fuel level but ends up with no fuel added" in {
-      val beamVilleCar = getBeamVilleCar(parkingStall)
+      val beamVilleCar = getBeamVilleCar("2", parkingStall)
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(0), 0)
@@ -147,14 +149,17 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(0, beamVilleCar.id, defaultVehicleManager), 0)
-      expectMsgType[CompletionNotice].newTriggers shouldBe Vector()
+      chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(300), 0)
+      expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
+        ScheduleTrigger(PlanningTimeOutTrigger(600), chargingNetworkManager)
+      )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
+      beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
     "add a vehicle to charging queue with some fuel required and will charge" in {
-      val beamVilleCar = getBeamVilleCar(parkingStall, 0.6)
+      val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.6)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(0), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
@@ -184,7 +189,7 @@ class ChargingNetworkManagerSpec
     }
 
     "add a vehicle to charging queue with a lot fuel required and will charge in 2 cycles" in {
-      val beamVilleCar = getBeamVilleCar(parkingStall, 0.5)
+      val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.5)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(0), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
@@ -214,7 +219,7 @@ class ChargingNetworkManagerSpec
     }
 
     "add a vehicle to charging queue with a lot fuel required but unplug event happens before 1st cycle" in {
-      val beamVilleCar = getBeamVilleCar(parkingStall, 0.5)
+      val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.5)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(0), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
@@ -246,7 +251,7 @@ class ChargingNetworkManagerSpec
     }
 
     "add a vehicle to charging queue with a lot fuel required but unplug event happens after 1st cycle" in {
-      val beamVilleCar = getBeamVilleCar(parkingStall, 0.8)
+      val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(0), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
@@ -286,7 +291,7 @@ class ChargingNetworkManagerSpec
         ScheduleTrigger(PlanningTimeOutTrigger(300), chargingNetworkManager)
       )
 
-      val beamVilleCar = getBeamVilleCar(parkingStall, 0.8)
+      val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
       chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, defaultVehicleManager)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -308,12 +313,69 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(748, beamVilleCar.id, defaultVehicleManager), 0)
       expectMsgType[CompletionNotice]
+      expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar, defaultVehicleManager)
       expectMsgType[UnhandledVehicle]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
+    }
+
+    "add two vehicles to charging queue and ends both charged" in {
+      val beamVilleCar2 = getBeamVilleCar("2", parkingStall, 0.6)
+      val beamVilleCar3 = getBeamVilleCar("3", parkingStall, 0.6)
+
+      chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(0), 0)
+      expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
+        ScheduleTrigger(PlanningTimeOutTrigger(300), chargingNetworkManager)
+      )
+      expectNoMessage()
+      beamVilleCar2.primaryFuelLevelInJoules should be(1.08E8)
+      beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
+
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, defaultVehicleManager)
+      expectMsgType[StartingRefuelSession]
+      expectNoMessage()
+      beamVilleCar2.primaryFuelLevelInJoules should be(1.08E8)
+
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, defaultVehicleManager)
+      expectMsgType[WaitingInLine] should be(WaitingInLine(10, beamVilleCar3.id))
+      expectNoMessage()
+      beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
+
+      chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(300), 0)
+      expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
+        ScheduleTrigger(ChargingTimeOutTrigger(442, beamVilleCar2.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(PlanningTimeOutTrigger(600), chargingNetworkManager)
+      )
+      expectNoMessage()
+      beamVilleCar2.primaryFuelLevelInJoules should be(1.805E8)
+      beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
+
+      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2.id, defaultVehicleManager), 0)
+      expectMsgType[StartingRefuelSession] should be(StartingRefuelSession(442, beamVilleCar3.id))
+      expectMsgType[CompletionNotice]
+      expectNoMessage()
+      beamVilleCar2.primaryFuelLevelInJoules should be(2.16E8)
+      beamVilleCar2.isConnectedToChargingPoint() should be(false)
+      beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
+
+      chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(600), 0)
+      expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
+        ScheduleTrigger(ChargingTimeOutTrigger(874, beamVilleCar3.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(PlanningTimeOutTrigger(900), chargingNetworkManager)
+      )
+      expectNoMessage()
+      beamVilleCar2.primaryFuelLevelInJoules should be(2.16E8)
+      beamVilleCar3.primaryFuelLevelInJoules should be(1.475E8)
+
+      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(874, beamVilleCar3.id, defaultVehicleManager), 0)
+      expectMsgType[CompletionNotice]
+      expectNoMessage()
+      beamVilleCar2.primaryFuelLevelInJoules should be(2.16E8)
+      beamVilleCar3.primaryFuelLevelInJoules should be(2.16E8)
+      beamVilleCar3.isConnectedToChargingPoint() should be(false)
     }
   }
 
