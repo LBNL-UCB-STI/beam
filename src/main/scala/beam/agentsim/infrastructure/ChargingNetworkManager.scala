@@ -173,6 +173,7 @@ class ChargingNetworkManager(
         // connecting the current vehicle
         chargingNetwork.connectVehicle(tick, vehicle, sender) match {
           case chargingVehicle: ChargingVehicle if chargingVehicle.status == Waiting =>
+            log.debug(s"Vehicle ${chargingVehicle.vehicle} is moved to waiting line at $tick")
             sender ! WaitingInLine(tick, chargingVehicle.vehicle.id)
           case chargingVehicle: ChargingVehicle =>
             handleStartCharging(tick, chargingVehicle)
@@ -220,8 +221,8 @@ class ChargingNetworkManager(
     * @param chargingVehicle charging vehicle information
     */
   private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     log.debug(s"Starting charging for vehicle ${chargingVehicle.vehicle} at $tick")
+    val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     chargingVehicle.vehicle.connectToChargingPoint(tick)
     chargingVehicle.theSender ! StartingRefuelSession(tick, chargingVehicle.vehicle.id)
     handleStartChargingHelper(tick, chargingVehicle)
