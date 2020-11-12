@@ -176,6 +176,9 @@ class ChargingNetworkManager(
             sender ! WaitingInLine(tick, chargingVehicle.vehicle.id)
           case chargingVehicle: ChargingVehicle =>
             handleStartCharging(tick, chargingVehicle)
+            val endTime = chargingVehicle.computeSessionEndTime
+            if (endTime < nextTimeBin(tick))
+              scheduler ! ScheduleTrigger(ChargingTimeOutTrigger(endTime, vehicle.id, vehicleManager), self)
         }
       } else {
         sender ! Failure(
@@ -225,7 +228,6 @@ class ChargingNetworkManager(
     val (chargeDurationAtTick, energyToChargeAtTick) =
       dispatchEnergy(nextTimeBin(tick) - tick, chargingVehicle, physicalBounds)
     chargingVehicle.processChargingCycle(tick, energyToChargeAtTick, chargeDurationAtTick)
-    if (chargeDurationAtTick == 0) handleEndCharging(tick, chargingVehicle)
   }
 
   /**

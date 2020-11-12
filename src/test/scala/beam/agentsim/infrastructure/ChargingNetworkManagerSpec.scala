@@ -146,6 +146,9 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, defaultVehicleManager)
       expectMsgType[StartingRefuelSession]
+      expectMsgType[ScheduleTrigger] should be(
+        ScheduleTrigger(ChargingTimeOutTrigger(10, beamVilleCar.id, defaultVehicleManager), chargingNetworkManager)
+      )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
 
