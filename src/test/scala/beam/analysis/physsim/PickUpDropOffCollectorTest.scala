@@ -13,7 +13,7 @@ class PickUpDropOffCollectorTest extends FunSuite with Matchers {
     ttcc.getClosestTimeIndex(42) shouldBe None
     ttcc.getClosestValue(42, 100000) shouldBe None
 
-    ttcc.addTimeToValue(100,3)
+    ttcc.addTimeToValue(100, 3)
     ttcc.getClosestTimeIndex(42) shouldBe Some(0)
     ttcc.getClosestValue(42, 100 - 42) shouldBe Some(3)
     ttcc.getClosestValue(42, 100 - 43) shouldBe None
