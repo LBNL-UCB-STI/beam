@@ -1,5 +1,6 @@
 package beam.physsim.jdeqsim
 
+import beam.physsim.PickUpDropOffCollector
 import beam.router.r5.R5Parameters
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
@@ -31,7 +32,8 @@ class ApproxPhysSim(
   val agentSimIterationNumber: Int,
   val shouldWritePhysSimEvents: Boolean,
   val javaRnd: java.util.Random,
-  val percentToSimulate: Array[Double]
+  val percentToSimulate: Array[Double],
+  val maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends StrictLogging {
   val totalSum: Double = percentToSimulate.sum
   if (Math.abs(totalSum - 100) >= 0.01)
@@ -150,7 +152,8 @@ class ApproxPhysSim(
         controllerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
-        agentSimIterationNumber
+        agentSimIterationNumber,
+        maybePickUpDropOffCollector
       )
       val simulationResult =
         jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)

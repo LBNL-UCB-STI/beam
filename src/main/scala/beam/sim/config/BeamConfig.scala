@@ -2323,6 +2323,7 @@ object BeamConfig {
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
       parbprsim: BeamConfig.Beam.Physsim.Parbprsim,
+      pickUpDropOffAnalysis: BeamConfig.Beam.Physsim.PickUpDropOffAnalysis,
       ptSampleSize: scala.Double,
       quick_fix_minCarSpeedInMetersPerSecond: scala.Double,
       relaxation: BeamConfig.Beam.Physsim.Relaxation,
@@ -2848,6 +2849,28 @@ object BeamConfig {
         }
       }
 
+      case class PickUpDropOffAnalysis(
+        additionalTravelTimeMultiplier: scala.Double,
+        enabled: scala.Boolean,
+        secondsFromPickUpPropOffToAffectTravelTime: scala.Int
+      )
+
+      object PickUpDropOffAnalysis {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.PickUpDropOffAnalysis = {
+          BeamConfig.Beam.Physsim.PickUpDropOffAnalysis(
+            additionalTravelTimeMultiplier =
+              if (c.hasPathOrNull("additionalTravelTimeMultiplier")) c.getDouble("additionalTravelTimeMultiplier")
+              else 1.0,
+            enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+            secondsFromPickUpPropOffToAffectTravelTime =
+              if (c.hasPathOrNull("secondsFromPickUpPropOffToAffectTravelTime"))
+                c.getInt("secondsFromPickUpPropOffToAffectTravelTime")
+              else 600
+          )
+        }
+      }
+
       case class Relaxation(
         experiment2_0: BeamConfig.Beam.Physsim.Relaxation.Experiment20,
         experiment2_1: BeamConfig.Beam.Physsim.Relaxation.Experiment21,
@@ -3063,6 +3086,10 @@ object BeamConfig {
           parbprsim = BeamConfig.Beam.Physsim.Parbprsim(
             if (c.hasPathOrNull("parbprsim")) c.getConfig("parbprsim")
             else com.typesafe.config.ConfigFactory.parseString("parbprsim{}")
+          ),
+          pickUpDropOffAnalysis = BeamConfig.Beam.Physsim.PickUpDropOffAnalysis(
+            if (c.hasPathOrNull("pickUpDropOffAnalysis")) c.getConfig("pickUpDropOffAnalysis")
+            else com.typesafe.config.ConfigFactory.parseString("pickUpDropOffAnalysis{}")
           ),
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
           quick_fix_minCarSpeedInMetersPerSecond =

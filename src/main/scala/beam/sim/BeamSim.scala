@@ -21,6 +21,7 @@ import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis._
+import beam.physsim.PickUpDropOffCollector
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -155,6 +156,13 @@ class BeamSim @Inject()(
     beamServices.matsimServices.getControlerIO
   );
 
+  val maybePickUpDropOffCollector =
+    if (beamServices.beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled) {
+      Some(new PickUpDropOffCollector(beamServices.beamScenario.vehicleTypes))
+    } else {
+      None
+    }
+
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
   override def notifyStartup(event: StartupEvent): Unit = {
@@ -176,6 +184,7 @@ class BeamSim @Inject()(
     eventsManager.addHandler(transitOccupancyByStop)
     eventsManager.addHandler(modeChoiceAlternativesCollector)
     eventsManager.addHandler(rideHailUtilizationCollector)
+    maybePickUpDropOffCollector.foreach(eventsManager.addHandler(_))
     carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     eventsManager.addHandler(travelTimeGoogleStatistic)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
@@ -214,7 +223,8 @@ class BeamSim @Inject()(
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamConfigChangesObservable
+        beamConfigChangesObservable,
+        maybePickUpDropOffCollector
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -307,6 +317,8 @@ class BeamSim @Inject()(
     if (isFirstIteration(iterationNumber)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
+
+    maybePickUpDropOffCollector.foreach(_.notifyIterationStarts(event))
     rideHailUtilizationCollector.reset(event.getIteration)
     travelTimeGoogleStatistic.reset(event.getIteration)
     startAndEndEventListeners.foreach(_.notifyIterationStarts(event))
