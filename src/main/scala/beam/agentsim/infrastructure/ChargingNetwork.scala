@@ -78,10 +78,10 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def connectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): ChargingVehicle = {
-    if (vehicle.stall.isEmpty && vehicle.reservedStall.isEmpty) {
+    if (vehicle.stall.isEmpty) {
       throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
     } else {
-      val stall = vehicle.stall.getOrElse(vehicle.reservedStall.get)
+      val stall = vehicle.stall.get
       lookupStation(stall).map(station => station.connect(tick, vehicle, stall, theSender)).get
     }
   }
@@ -92,10 +92,10 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def disconnectVehicle(vehicle: BeamVehicle): Boolean = {
-    if (vehicle.stall.isEmpty && vehicle.reservedStall.isEmpty) {
+    if (vehicle.stall.isEmpty) {
       throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
     } else {
-      val stall = vehicle.stall.getOrElse(vehicle.reservedStall.get)
+      val stall = vehicle.stall.get
       lookupStation(stall).flatMap(station => station.disconnect(vehicle.id)).isDefined
     }
   }
