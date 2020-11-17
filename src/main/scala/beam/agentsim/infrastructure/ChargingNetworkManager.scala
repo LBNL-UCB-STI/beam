@@ -13,15 +13,16 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType, PricingModel}
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.DateUtils
+import beam.utils.{DateUtils, ParkingManagerIdGenerator}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
@@ -437,8 +438,9 @@ object ChargingNetworkManager {
       beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
       new Random(beamConfig.matsim.modules.global.randomSeed)
     )
-    val zonesWithCharger = zones.filter(_.chargingPointType.isDefined)
-    val coordinates = zonesWithCharger.flatMap(z => beamScenario.tazTreeMap.getTAZ(z.tazId)).map(_.coord)
+    val zonesWithCharger =
+      zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.tazId).get))
+    val coordinates = zonesWithCharger.map(_._2.coord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
     val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
@@ -452,24 +454,21 @@ object ChargingNetworkManager {
       envelopeInUTM.getMaxX,
       envelopeInUTM.getMaxY
     )
-    zones.filter(_.chargingPointType.isDefined).foreach { zone =>
-      beamScenario.tazTreeMap.getTAZ(zone.tazId) match {
-        case Some(taz) =>
-          stationsQuadTree.put(
-            taz.coord.getX,
-            taz.coord.getY,
-            ChargingZone(
-              zone.parkingZoneId,
-              zone.tazId,
-              zone.parkingType,
-              zone.maxStalls,
-              zone.chargingPointType.get,
-              zone.pricingModel.get,
-              defaultVehicleManager
-            )
+    zonesWithCharger.foreach {
+      case (zone, taz) =>
+        stationsQuadTree.put(
+          taz.coord.getX,
+          taz.coord.getY,
+          ChargingZone(
+            zone.parkingZoneId,
+            zone.tazId,
+            zone.parkingType,
+            zone.maxStalls,
+            zone.chargingPointType.get,
+            zone.pricingModel.get,
+            defaultVehicleManager
           )
-        case _ =>
-      }
+        )
     }
     stationsQuadTree
   }

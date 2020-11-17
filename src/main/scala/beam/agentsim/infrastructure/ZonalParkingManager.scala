@@ -63,15 +63,15 @@ class ZonalParkingManager(
           case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
           case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
           case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
-          case act if act.equalsIgnoreCase("charge") =>
+          case act if act.equalsIgnoreCase("fast-charge") =>
             Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
           case _ => Set(ParkingType.Public)
         }
 
       // allow charger ParkingZones
       val returnSpotsWithChargers: Boolean = inquiry.activityTypeLowerCased match {
-        case "charge" => true
-        case "init"   => false
+        case "fast-charge" => true
+        case "init"        => false
         case _ =>
           inquiry.beamVehicle match {
             case Some(vehicleType) =>
@@ -85,8 +85,8 @@ class ZonalParkingManager(
 
       // allow non-charger ParkingZones
       val returnSpotsWithoutChargers: Boolean = inquiry.activityTypeLowerCased match {
-        case "charge" => false
-        case _        => true
+        case "fast-charge" => false
+        case _             => true
       }
 
       // ---------------------------------------------------------------------------------------------
@@ -121,8 +121,8 @@ class ZonalParkingManager(
 
           val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
-          val rideHailFastChargingOnly: Boolean =
-            ParkingSearchFilterPredicates.rideHailFastChargingOnly(
+          val fastChargingOnly: Boolean =
+            ParkingSearchFilterPredicates.fastChargingOnly(
               zone,
               inquiry.activityType
             )
@@ -137,7 +137,7 @@ class ZonalParkingManager(
           val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
           hasAvailability &&
-          rideHailFastChargingOnly &&
+          fastChargingOnly &&
           validParkingType &&
           canThisCarParkHere
         }
@@ -240,70 +240,72 @@ class ZonalParkingManager(
       ///////////////////////////////////////////
       // run ParkingZoneSearch for a ParkingStall
       ///////////////////////////////////////////
-      val ParkingZoneSearch.ParkingZoneSearchResult(
-        parkingStall,
-        parkingZone,
-        parkingZonesSeen,
-        parkingZonesSampled,
-        iterations
-      ) =
-        ParkingZoneSearch.incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction
-        ) match {
-          case Some(result) =>
-            result
-          case None =>
-            inquiry.activityType match {
-              case "init" | "home" =>
-                val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
-                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
-              case _ =>
-                // didn't find any stalls, so, as a last resort, create a very expensive stall
-                val boxAroundRequest = new Envelope(
-                  inquiry.destinationUtm.getX + 2000,
-                  inquiry.destinationUtm.getX - 2000,
-                  inquiry.destinationUtm.getY + 2000,
-                  inquiry.destinationUtm.getY - 2000
-                )
-                val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
-                ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
-            }
-        }
-
-      log.debug(
-        s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
-      )
-      log.debug(
-        "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
-        chargingTypeToNo(parkingZonesSampled),
-        parkingTypeToNo(parkingZonesSampled),
-        listOfCosts(parkingZonesSampled)
-      )
-
-      // reserveStall is false when agent is only seeking pricing information
-      if (inquiry.reserveStall) {
+      var parkingStallMaybe: Option[ParkingStall] = None
+      do {
+        val ParkingZoneSearch.ParkingZoneSearchResult(
+          parkingStall,
+          parkingZone,
+          parkingZonesSeen,
+          parkingZonesSampled,
+          iterations
+        ) =
+          ParkingZoneSearch.incrementalParkingZoneSearch(
+            parkingZoneSearchConfiguration,
+            parkingZoneSearchParams,
+            parkingZoneFilterFunction,
+            parkingZoneLocSamplingFunction,
+            parkingZoneMNLParamsFunction
+          ) match {
+            case Some(result) =>
+              result
+            case None =>
+              inquiry.activityType match {
+                case "init" | "home" =>
+                  val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm)
+                  ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+                case _ =>
+                  // didn't find any stalls, so, as a last resort, create a very expensive stall
+                  val boxAroundRequest = new Envelope(
+                    inquiry.destinationUtm.getX + 2000,
+                    inquiry.destinationUtm.getX - 2000,
+                    inquiry.destinationUtm.getY + 2000,
+                    inquiry.destinationUtm.getY - 2000
+                  )
+                  val newStall = ParkingStall.lastResortStall(boxAroundRequest, rand, tazId = emergencyTAZId)
+                  ParkingZoneSearch.ParkingZoneSearchResult(newStall, ParkingZone.DefaultParkingZone)
+              }
+          }
 
         log.debug(
-          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+          s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
+        )
+        log.debug(
+          "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
+          chargingTypeToNo(parkingZonesSampled),
+          parkingTypeToNo(parkingZonesSampled),
+          listOfCosts(parkingZonesSampled)
         )
 
-        // update the parking stall data
-        val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
-        if (claimed) {
-          totalStallsInUse += 1
-          totalStallsAvailable -= 1
+        // reserveStall is false when agent is only seeking pricing information
+        if (inquiry.reserveStall) {
+          log.debug(
+            s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+          )
+          // update the parking stall data
+          val claimed: Boolean = ParkingZone.claimStall(parkingZone).value
+          if (claimed) {
+            totalStallsInUse += 1
+            totalStallsAvailable -= 1
+            log.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
+            if (totalStallsInUse % 1000 == 0) log.debug("Parking stalls in use: {}", totalStallsInUse)
+            parkingStallMaybe = Some(parkingStall)
+          }
+        } else {
+          parkingStallMaybe = Some(parkingStall)
         }
+      } while (parkingStallMaybe.isEmpty)
 
-        log.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
-
-        if (totalStallsInUse % 1000 == 0) log.debug("Parking stalls in use: {}", totalStallsInUse)
-      }
-
-      sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
+      sender() ! ParkingInquiryResponse(parkingStallMaybe.get, inquiry.requestId)
 
     case ReleaseParkingStall(parkingZoneId, _) =>
       if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {

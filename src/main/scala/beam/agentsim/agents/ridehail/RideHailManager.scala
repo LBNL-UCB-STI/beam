@@ -1140,7 +1140,7 @@ class RideHailManager(
 
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
     val destinationUtm: Coord = rideHailAgentLocation.currentLocationUTM.loc
-    val inquiry = ParkingInquiry(destinationUtm, "charge", Some(beamVehicle), None)
+    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", Some(beamVehicle), None)
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
   }
