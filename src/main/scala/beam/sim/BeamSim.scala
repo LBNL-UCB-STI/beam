@@ -163,23 +163,7 @@ class BeamSim @Inject()(
     eventsManager
   )
 
-  val backgroundSkimsCreator: Option[BackgroundSkimsCreator] =
-    if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
-      val h3Clustering: H3Clustering =
-        new H3Clustering(beamServices.matsimServices.getScenario.getPopulation, beamServices.geo, 1000)
-      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, h3Clustering)
-      val skimCreator = new BackgroundSkimsCreator(
-        beamServices,
-        beamScenario,
-        h3Clustering,
-        odSkimmer,
-        new FreeFlowTravelTime,
-        Array(BeamMode.WALK, BeamMode.BIKE),
-        withTransit = true
-      )(actorSystem)
-      skimCreator.start()
-      Some(skimCreator)
-    } else None
+  var backgroundSkimsCreator: Option[BackgroundSkimsCreator] = None
 
   override def notifyStartup(event: StartupEvent): Unit = {
     maybeConsecutivePopulationLoader =
@@ -284,6 +268,23 @@ class BeamSim @Inject()(
     // These metric are used to display all other metrics in Grafana.
     // For example take a look to `run_name` variable in the dashboard
     BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
+
+    if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
+      val h3Clustering: H3Clustering =
+        new H3Clustering(beamServices.matsimServices.getScenario.getPopulation, beamServices.geo, 1000)
+      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, h3Clustering)
+      val skimCreator = new BackgroundSkimsCreator(
+        beamServices,
+        beamScenario,
+        h3Clustering,
+        odSkimmer,
+        new FreeFlowTravelTime,
+        Array(BeamMode.WALK, BeamMode.BIKE),
+        withTransit = true
+      )(actorSystem)
+      skimCreator.start()
+      backgroundSkimsCreator = Some(skimCreator)
+    }
 
     FailFast.run(beamServices)
   }
