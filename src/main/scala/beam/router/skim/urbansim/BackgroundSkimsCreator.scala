@@ -106,7 +106,7 @@ object BackgroundSkimsCreator {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,
-            skimFileBaseName + additionalSkimFileNamePart + ".Full.csv.gz"
+            skimFileBaseName + additionalSkimFileNamePart + ".TAZ.Full.csv.gz"
           )
           val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
           val uniqueTimeBins: Seq[Int] = hour to hour
@@ -125,7 +125,7 @@ object BackgroundSkimsCreator {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
             event.getServices.getIterationNumber,
-            skimFileBaseName + additionalSkimFileNamePart + ".Full.csv.gz"
+            skimFileBaseName + additionalSkimFileNamePart + ".H3.Full.csv.gz"
           )
 
           val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
