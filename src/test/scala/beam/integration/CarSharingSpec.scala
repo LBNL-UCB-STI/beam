@@ -26,6 +26,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
+        |beam.actorSystemName = "CarSharingSpec"
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
@@ -55,6 +56,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
+        |beam.actorSystemName = "CarSharingSpec"
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
@@ -151,6 +153,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   "Reposition scenario" must "results at least a person driving in the second iteration" in {
     val config = ConfigFactory
       .parseString("""
+         |beam.actorSystemName = "CarSharingSpec"
          |beam.outputs.events.fileOutputFormats = xml
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1

@@ -9,6 +9,7 @@ import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -308,6 +309,12 @@ object RideHailResourceAllocationManager {
         }
     }
   }
+
+  def requiredRideHailIterationsStatsCollector(rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail): Boolean =
+    rideHailConfig.repositioningManager.name match {
+      case "REPOSITIONING_LOW_WAITING_TIMES" => true
+      case _                                 => false
+    }
 }
 
 /*

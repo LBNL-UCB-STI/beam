@@ -31,15 +31,19 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
 
   "Running a beamville scenario with cosimulation" must "result event being published and read" in {
     val config = ConfigFactory
-      .parseString("""
-                     |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.collectEvents = true
-                     |beam.agentsim.lastIteration = 0
-                     |beam.cosim.helics = {
-                     |  timeStep = 300
-                     |  federateName = "BeamFederate"
-                     |}
-        """.stripMargin)
+      .parseString(
+        """
+           |beam.actorSystemName = "BeamFederateSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.agentsim.collectEvents = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.vehicles.vehicleTypesFilePath = "test/input/beamville/vehicleTypesForMoreFrequentCharges.csv"
+           |beam.cosim.helics = {
+           |  timeStep = 300
+           |  federateName = "BeamFederate"
+           |}
+        |""".stripMargin
+      )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     val chargingPlugInEvents = new AtomicInteger(0)
@@ -53,8 +57,8 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     } yield (f1Result, f2Result)
     try {
       Await.result(aggregatedFuture, 5.minutes)
-      require(chargingPlugInEvents.get() > 0)
-      require(chargingPlugOutEvents.get() > 0)
+      chargingPlugInEvents.get() should be > 0
+      chargingPlugOutEvents.get() should be > 0
     } catch {
       case _: TimeoutException =>
         fail("something went wrong with the cosimulation")
@@ -88,6 +92,9 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     chargingPlugOutEvents: AtomicInteger
   ): Unit = {
     val broker = helics.helicsCreateBroker("zmq", "", s"-f 2 --name=BeamBrokerTemp")
+    val isHelicsBrokerConnected = helics.helicsBrokerIsConnected(broker)
+    isHelicsBrokerConnected should be > 0
+
     val fedName = "BeamFederateTemp"
     val fedInfo = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)

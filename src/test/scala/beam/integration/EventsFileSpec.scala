@@ -106,7 +106,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
 
     val stopTimes = for (line <- maybeLines.get)
       yield line.split(",")
-    val stopTimesByTrip = stopTimes.toList.groupBy(_(0))
+    val stopTimesByTrip = stopTimes.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
   }
 

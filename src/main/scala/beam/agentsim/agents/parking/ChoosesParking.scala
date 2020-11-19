@@ -159,6 +159,7 @@ trait ChoosesParking extends {
           stall.locationUTM,
           currentPoint.time,
           withTransit = false,
+          Some(id),
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes)
         )
@@ -170,6 +171,7 @@ trait ChoosesParking extends {
           beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
           withTransit = false,
+          Some(id),
           Vector(
             StreetVehicle(
               body.id,
@@ -200,7 +202,7 @@ trait ChoosesParking extends {
 
       // If no car leg returned, use previous route to destination (i.e. assume parking is at dest)
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
-        logDebug(s"no CAR leg returned by router, assuming parking spot is at destination")
+        logDebug("no CAR leg returned by router, assuming parking spot is at destination")
         (
           EmbodiedBeamLeg(
             nextLeg,

@@ -37,6 +37,7 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
@@ -248,14 +249,12 @@ class BeamRouter(
   }
 
   private def processByEventsManagerIfNeeded(work: Any): Unit = {
-    if (shouldWriteR5Routes(currentIteration)) {
-      work match {
-        case e: EmbodyWithCurrentTravelTime =>
-          eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
-        case req: RoutingRequest =>
-          eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
-        case _ =>
-      }
+    work match {
+      case e: EmbodyWithCurrentTravelTime if (shouldWriteR5Routes(currentIteration)) =>
+        eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
+      case req: RoutingRequest =>
+        eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
+      case _ =>
     }
   }
 
@@ -397,11 +396,7 @@ class BeamRouter(
   }
 
   private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
-    Try(Await.result(resolveAddress(addr, d), d)).recover {
-      case t: Throwable =>
-        log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
-        None
-    }.get
+    Await.result(resolveAddress(addr, d), d)
   }
 
   private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {
@@ -456,6 +451,7 @@ object BeamRouter {
     destinationUTM: Location,
     departureTime: Int,
     withTransit: Boolean,
+    personId: Option[Id[Person]] = None,
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
@@ -604,7 +600,7 @@ object BeamRouter {
           dates.localBaseDateTime
         )) {
       throw new RuntimeException(
-        s"Time Zone Mismatch\n\n" +
+        "Time Zone Mismatch\n\n" +
         s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(dates.localBaseDateTime)}\n" +
         s"\tZone offset specified in Beam config file: ${dates.zonedBaseDateTime.getOffset}\n\n" +
         "Detailed Explanation:\n\n" +

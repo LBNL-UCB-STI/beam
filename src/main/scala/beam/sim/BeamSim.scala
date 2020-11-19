@@ -9,6 +9,7 @@ import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
 import beam.agentsim.events.handling.TravelTimeGoogleStatistic
 import beam.analysis.cartraveltime.{
@@ -102,7 +103,12 @@ class BeamSim @Inject()(
     beamServices
   )
 
-  private var tncIterationsStatsCollector: RideHailIterationsStatsCollector = _
+  private val maybeRealizedModeChoiceWriter: Option[RealizedModeChoiceWriter] =
+    Option(beamServices.beamConfig.beam.debug.writeRealizedModeChoiceFile).collect {
+      case true => new RealizedModeChoiceWriter(beamServices)
+    }
+
+  private var tncIterationsStatsCollector: Option[RideHailIterationsStatsCollector] = None
   val iterationStatsProviders: ListBuffer[IterationStatsProvider] = new ListBuffer()
   val iterationSummaryStats: ListBuffer[Map[java.lang.String, java.lang.Double]] = ListBuffer()
   val graphFileNameDirectory: mutable.Map[String, Int] = mutable.Map[String, Int]()
@@ -187,6 +193,7 @@ class BeamSim @Inject()(
     carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     eventsManager.addHandler(travelTimeGoogleStatistic)
     startAndEndEventListeners.foreach(eventsManager.addHandler)
+    maybeRealizedModeChoiceWriter.foreach(eventsManager.addHandler(_))
 
     beamServices.beamRouter = actorSystem.actorOf(
       BeamRouter.props(
@@ -240,12 +247,18 @@ class BeamSim @Inject()(
       event.getServices.getControlerIO
     )
 
-    tncIterationsStatsCollector = new RideHailIterationsStatsCollector(
-      eventsManager,
-      beamServices,
-      rideHailIterationHistory,
-      transportNetwork
-    )
+    if (RideHailResourceAllocationManager.requiredRideHailIterationsStatsCollector(
+          beamServices.beamConfig.beam.agentsim.agents.rideHail
+        )) {
+      tncIterationsStatsCollector = Some(
+        new RideHailIterationsStatsCollector(
+          eventsManager,
+          beamServices,
+          rideHailIterationHistory,
+          transportNetwork
+        )
+      )
+    }
 
     delayMetricAnalysis = new DelayMetricAnalysis(
       eventsManager,
@@ -315,6 +328,8 @@ class BeamSim @Inject()(
       modeChoiceAlternativesCollector.notifyIterationStarts(event)
     }
 
+    maybeRealizedModeChoiceWriter.foreach(_.notifyIterationStarts(event))
+
     beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       beamServices,
@@ -372,6 +387,8 @@ class BeamSim @Inject()(
       modeChoiceAlternativesCollector.notifyIterationEnds(event)
     }
 
+    maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
+
     val outputGraphsFuture = Future {
       if ("ModeChoiceLCCM".equals(beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass)) {
         modalityStyleStats.processData(scenario.getPopulation, event)
@@ -414,8 +431,7 @@ class BeamSim @Inject()(
       graphFileNameDirectory.clear()
 
       // rideHailIterationHistoryActor ! CollectRideHailStats
-      tncIterationsStatsCollector
-        .tellHistoryToRideHailIterationHistoryActorAndReset()
+      tncIterationsStatsCollector.foreach(_.tellHistoryToRideHailIterationHistoryActorAndReset())
 
       if (beamConfig.beam.replanning.Module_2.equalsIgnoreCase("ClearRoutes")) {
         routeHistory.expireRoutes(beamConfig.beam.replanning.ModuleProbability_2)
@@ -502,7 +518,7 @@ class BeamSim @Inject()(
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
     ProfilingUtils.timed(
-      s"dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
+      "dumpMatsimStuffAtTheBeginningOfSimulation in the beginning of simulation",
       x => logger.info(x)
     ) {
       // `DumpDataAtEnd` during `notifyShutdown` dumps network, plans, person attributes and other things.
@@ -535,7 +551,7 @@ class BeamSim @Inject()(
     }
   }
 
-  private def isFirstIteration(currentIteration: Integer): Boolean = {
+  private def isFirstIteration(currentIteration: Int): Boolean = {
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     currentIteration == firstIteration
   }
@@ -719,7 +735,7 @@ class BeamSim @Inject()(
     val filesToBeRenamed: Array[File] = event match {
       case _ if event.isInstanceOf[IterationEndsEvent] =>
         val iterationEvent = event.asInstanceOf[IterationEndsEvent]
-        val outputIterationFileNameRegex = List(s"legHistogram(.*)", "experienced(.*)")
+        val outputIterationFileNameRegex = List("legHistogram(.*)", "experienced(.*)")
         // filter files that match output file name regex and are to be renamed
         FileUtils
           .getFile(new File(event.getServices.getControlerIO.getIterationPath(iterationEvent.getIteration)))

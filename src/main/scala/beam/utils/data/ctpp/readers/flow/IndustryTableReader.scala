@@ -17,7 +17,7 @@ class IndustryTableReader(
     readRaw()
       .filter(x => x.lineNumber != 1) // lineNumber == 1 is Total
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         val industry = Industry(entry.lineNumber).get
         OD(fromGeoId, toGeoId, industry, entry.estimate)
       }

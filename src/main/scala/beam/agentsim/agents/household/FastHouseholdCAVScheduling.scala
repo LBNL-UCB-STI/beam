@@ -302,6 +302,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 dest.activity.getCoord,
                 origin.time,
                 withTransit = false,
+                personId = orig.person.map(_.personId),
                 IndexedSeq(
                   StreetVehicle(
                     cav.id,
@@ -477,13 +478,13 @@ object HouseholdTripsHelper {
     val startTime = prevTrip.activity.getEndTime.toInt
     val arrivalTime = startTime + skim.time
 
-    val nextTripStartTime = curTrip.activity.getEndTime
-    if (nextTripStartTime != Double.NegativeInfinity && startTime >= nextTripStartTime.toInt) {
+    val nextTripStartTime: Double = curTrip.activity.getEndTime
+    if (!nextTripStartTime.isNegInfinity && startTime >= nextTripStartTime.toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
       break
-    } else if (nextTripStartTime != Double.NegativeInfinity && arrivalTime > nextTripStartTime.toInt) {
+    } else if (!nextTripStartTime.isNegInfinity && arrivalTime > nextTripStartTime.toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )

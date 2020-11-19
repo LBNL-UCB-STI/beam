@@ -147,7 +147,6 @@ object ParkingManagerBenchmark extends StrictLogging {
               ZonalParkingManager(
                 beamConfg,
                 tazTreeMap,
-                None,
                 copyOfZones,
                 searchTree,
                 TAZ.EmergencyTAZId,

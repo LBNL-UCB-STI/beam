@@ -449,7 +449,7 @@ case class TNCIterationStats(
       updatedRadius = updatedRadius * 2
     }
 
-    if (circleRadiusInMeters != updatedRadius) {
+    if (!circleRadiusInMeters.equals(updatedRadius)) {
       logger.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
     }
 
@@ -465,7 +465,7 @@ case class TNCIterationStats(
     import scala.collection.JavaConverters._
     val startTime = tick
 
-    if (circleSize == Double.PositiveInfinity) {
+    if (circleSize.isPosInfinity) {
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 

@@ -82,10 +82,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   override val bikeLanesAdjustment: BikeLanesAdjustment = injector.getInstance(classOf[BikeLanesAdjustment])
 
-  def beamConfig: BeamConfig = {
-    val inst = injector.getInstance(classOf[BeamConfigChangesObservable])
-    inst.lastBeamConfig
-  }
+  private val beamConfigChangesObservable: BeamConfigChangesObservable =
+    injector.getInstance(classOf[BeamConfigChangesObservable])
+
+  def beamConfig: BeamConfig = beamConfigChangesObservable.lastBeamConfig
+
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
@@ -94,10 +95,11 @@ class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
 
   override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
-  override def networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
-  override def fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
-  override def tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
-  override def skims = injector.getInstance(classOf[Skims])
+  override lazy val networkHelper: NetworkHelper = injector.getInstance(classOf[NetworkHelper])
+  override lazy val fareCalculator: FareCalculator = injector.getInstance(classOf[FareCalculator])
+  override lazy val tollCalculator: TollCalculator = injector.getInstance(classOf[TollCalculator])
+  override lazy val skims: Skims = injector.getInstance(classOf[Skims])
 
-  override def simMetricCollector: SimulationMetricCollector = injector.getInstance(classOf[SimulationMetricCollector])
+  override lazy val simMetricCollector: SimulationMetricCollector =
+    injector.getInstance(classOf[SimulationMetricCollector])
 }

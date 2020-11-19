@@ -29,7 +29,7 @@ public class PhyssimCalcLinkSpeedDistributionStatsTest {
 
     private static PhyssimCalcLinkSpeedDistributionStats physsimCalcLinkSpeedDistributionStats;
     private static Network network;
-    private int binCount = 10;
+    private final int binCount = 10;
 
     @BeforeClass
     public static void createDummySimWithXML() {

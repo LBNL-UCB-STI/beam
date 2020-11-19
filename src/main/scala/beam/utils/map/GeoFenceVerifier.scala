@@ -13,7 +13,7 @@ import org.matsim.api.core.v01.events.Event
 import scala.util.Try
 
 case class PointInfo(offset: Double, geofenceRadius: Double) {
-  val ratio: Double = if (geofenceRadius == 0.0) Double.NaN else offset / geofenceRadius
+  val ratio: Double = if (geofenceRadius.equals(0D)) Double.NaN else offset / geofenceRadius
 }
 
 object GeoFenceVerifier extends LazyLogging {

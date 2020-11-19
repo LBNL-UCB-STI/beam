@@ -36,7 +36,7 @@ class TimeLeavingHomeTableReader(
     readRaw()
       .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         OD(fromGeoId, toGeoId, toRange(entry.lineNumber), entry.estimate)
       }
   }
@@ -112,7 +112,7 @@ object TimeLeavingHomeTableReader {
       new TimeLeavingHomeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
     val readData = timeLeavingHomeReader.read()
 
-    val nonZeros = readData.filter(x => x.value != 0.0)
+    val nonZeros = readData.filterNot(x => x.value.equals(0D))
     val sum = readData.map(_.value).sum.toInt
     println(s"Read ${readData.size} OD pairs. ${nonZeros.size} is non-zero")
     println(s"Sum: $sum")

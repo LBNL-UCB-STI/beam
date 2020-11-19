@@ -82,8 +82,6 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
 
-  sealed trait RideHailServiceStatus
-
   case object NotifyIterationEnds
   case class RecoverFromStuckness(tick: Int)
 
@@ -878,6 +876,7 @@ class RideHailManager(
         destinationUTM = stall.locationUTM,
         departureTime = agentLocation.currentLocationUTM.time,
         withTransit = false,
+        personId = None,
         streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
@@ -972,8 +971,6 @@ class RideHailManager(
   }
 
   def throwRideHailFleetStateEvent(tick: Int): Unit = {
-    val tick = modifyPassengerScheduleManager.getCurrentTick.get
-
     val inServiceRideHailVehicles = vehicleManager.inServiceRideHailVehicles.values
     val inServiceRideHailStateEvents = calculateCavEvs(inServiceRideHailVehicles, "InService", tick)
     eventsManager.processEvent(inServiceRideHailStateEvents)
@@ -1321,6 +1318,7 @@ class RideHailManager(
       request.pickUpLocationUTM,
       requestTime,
       withTransit = false,
+      Some(request.customer.personId),
       Vector(rideHailVehicleAtOrigin)
     )
 // route from customer to destination
@@ -1329,6 +1327,7 @@ class RideHailManager(
       request.destinationUTM,
       requestTime,
       withTransit = false,
+      Some(request.customer.personId),
       Vector(rideHailVehicleAtPickup)
     )
 
@@ -1855,6 +1854,7 @@ class RideHailManager(
           destinationUTM = destinationLocation,
           departureTime = tick,
           withTransit = false,
+          personId = None,
           streetVehicles = Vector(rideHailVehicleAtOrigin)
         )
         val futureRideHailAgent2CustomerResponse = router ? routingRequest
