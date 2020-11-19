@@ -12,6 +12,7 @@ import beam.router.r5.{R5Parameters, R5Wrapper, WorkerParameters}
 import beam.router.skim.urbansim.MasterActor.Response
 import beam.router.skim.{GeoUnit, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.ProfilingUtils
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.router.util.TravelTime
 
@@ -20,7 +21,7 @@ import scala.concurrent.Future
 class BackgroundSkimsCreator(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
-  val h3Clustering: H3Clustering,
+  val geoClustering: GeoClustering,
   val odSkimmer: ODSkimmer,
   val travelTime: TravelTime,
   val beamModes: Array[BeamMode],
@@ -49,7 +50,7 @@ class BackgroundSkimsCreator(
   private val masterActorRef: ActorRef = {
     val actorName = s"Modes-${beamModes.mkString("_")}-with-transit-${withTransit}-${UUID.randomUUID()}"
     val masterProps = MasterActor.props(
-      h3Clustering,
+      geoClustering,
       odSkimmer,
       // Array(BeamMode.WALK, BeamMode.WALK_TRANSIT, BeamMode.BIKE)
       new ODR5Requester(
@@ -90,26 +91,56 @@ class BackgroundSkimsCreator(
 
 object BackgroundSkimsCreator {
 
-  def createODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer = {
-    new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
-      override def writeToDisk(event: IterationEndsEvent): Unit = {
-        val filePath = event.getServices.getControlerIO.getIterationFilename(
-          event.getServices.getIterationNumber,
-          skimFileBaseName + ".UrbanSim.Full.csv.gz"
-        )
-        val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
-        val uniqueTimeBins: Seq[Int] = hour to hour
-        val origins = h3Clustering.h3Indexes.map { h3Index =>
-          val wgsCenter = H3Wrapper.wgsCoordinate(h3Index.index).coord
-          val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
-          val areaInSquareMeters = H3Wrapper.hexAreaM2(h3Index.index.resolution)
-          GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
-        }
-        writeFullSkims(origins, origins, uniqueTimeBins, filePath)
-        logger.info(
-          s"Written UrbanSim peak skims for hour ${beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour} to ${filePath}"
-        )
-      }
+  def createODSkimmer(beamServices: BeamServices, clustering: GeoClustering): ODSkimmer = {
+    clustering match {
+      case tazClustering: TAZClustering => createTAZOdSkimmer(beamServices, tazClustering)
+      case h3Clustering: H3Clustering   => createH3ODSkimmer(beamServices, h3Clustering)
     }
   }
+
+  private val additionalSkimFileNamePart = ".UrbanSim"
+
+  private def createTAZOdSkimmer(beamServices: BeamServices, tazClustering: TAZClustering): ODSkimmer =
+    new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+      override def writeToDisk(event: IterationEndsEvent): Unit = {
+        ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
+          val filePath = event.getServices.getControlerIO.getIterationFilename(
+            event.getServices.getIterationNumber,
+            skimFileBaseName + additionalSkimFileNamePart + ".Full.csv.gz"
+          )
+          val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
+          val uniqueTimeBins: Seq[Int] = hour to hour
+          val origins = tazClustering.tazTreeMap.getTAZs
+            .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
+            .toSeq
+          writeFullSkims(origins, origins, uniqueTimeBins, filePath)
+          logger.info(s"Written UrbanSim peak skims for hour $hour to $filePath")
+        }
+      }
+    }
+
+  private def createH3ODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer =
+    new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+      override def writeToDisk(event: IterationEndsEvent): Unit = {
+        ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
+          val filePath = event.getServices.getControlerIO.getIterationFilename(
+            event.getServices.getIterationNumber,
+            skimFileBaseName + additionalSkimFileNamePart + ".Full.csv.gz"
+          )
+
+          val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
+          val uniqueTimeBins: Seq[Int] = hour to hour
+          val origins: Seq[GeoUnit.H3] = h3Clustering.h3Indexes.map { h3Index =>
+            val wgsCenter = H3Wrapper.wgsCoordinate(h3Index.index).coord
+            val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
+            val areaInSquareMeters = H3Wrapper.hexAreaM2(h3Index.index.resolution)
+            GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
+          }
+
+          writeFullSkims(origins, origins, uniqueTimeBins, filePath)
+          logger.info(s"Written UrbanSim peak skims for hour $hour to $filePath")
+        }
+      }
+    }
+
 }

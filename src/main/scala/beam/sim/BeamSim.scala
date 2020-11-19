@@ -25,7 +25,7 @@ import beam.router.BeamRouter.UpdateTravelTimeLocal
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.skim.urbansim.{BackgroundSkimsCreator, H3Clustering}
+import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
 import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
@@ -165,13 +165,22 @@ class BeamSim @Inject()(
 
   val backgroundSkimsCreator: Option[BackgroundSkimsCreator] =
     if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
-      val h3Clustering: H3Clustering =
-        new H3Clustering(beamServices.matsimServices.getScenario.getPopulation, beamServices.geo, 1000)
-      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, h3Clustering)
+      val geoClustering: GeoClustering =
+        beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsGeoType match {
+          case "h3" =>
+            new H3Clustering(
+              beamServices.matsimServices.getScenario.getPopulation,
+              beamServices.geo,
+              beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.numberOfH3Indexes
+            )
+          case "taz" => new TAZClustering(beamScenario.tazTreeMap)
+        }
+
+      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, geoClustering)
       val skimCreator = new BackgroundSkimsCreator(
         beamServices,
         beamScenario,
-        h3Clustering,
+        geoClustering,
         odSkimmer,
         new FreeFlowTravelTime,
         Array(BeamMode.WALK, BeamMode.BIKE),
@@ -765,7 +774,7 @@ class BeamSim @Inject()(
           .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
-        val h3Clustering = skimCreator.h3Clustering
+        val h3Clustering = skimCreator.geoClustering
         val carAndDriveTransitSkimCrator = new BackgroundSkimsCreator(
           beamServices,
           beamScenario,

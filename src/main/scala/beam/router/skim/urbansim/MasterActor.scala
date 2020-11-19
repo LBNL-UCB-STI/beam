@@ -3,7 +3,7 @@ package beam.router.skim.urbansim
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props, Terminated}
-import beam.agentsim.infrastructure.geozone.{GeoZoneSummaryItem, H3Index}
+import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, TAZIndex}
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.ODSkimmer
@@ -12,13 +12,13 @@ import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 class MasterActor(
-  val h3Clustering: H3Clustering,
+  val geoClustering: GeoClustering,
   val odSkimmer: ODSkimmer,
   val odR5Requester: ODR5Requester
 ) extends Actor
@@ -30,18 +30,33 @@ class MasterActor(
   }
 
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
-  private val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
 
-  private val allODs: Array[(H3Index, H3Index)] = h3Indexes.flatMap { srcGeo =>
-    h3Indexes.map { dstGeo =>
-      (srcGeo.index, dstGeo.index)
+  private val allODs: Array[(GeoIndex, GeoIndex)] = {
+    geoClustering match {
+      case h3Clustering: H3Clustering =>
+        val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
+        log.info(s"Number of h3Indexes: ${h3Indexes.size}")
+
+        h3Indexes.flatMap { srcGeo =>
+          h3Indexes.map { dstGeo =>
+            (srcGeo.index, dstGeo.index)
+          }
+        }.toArray
+
+      case tazClustering: TAZClustering =>
+        val tazs = tazClustering.tazTreeMap.getTAZs
+        log.info(s"Number of TAZs: ${tazs.size}")
+        tazs.flatMap { srcTAZ =>
+          tazs.map { destTAZ =>
+            (TAZIndex(srcTAZ), TAZIndex(destTAZ))
+          }
+        }.toArray
     }
-  }.toArray
+  }
+
   private var currentIdx: Int = 0
 
-  log.info(
-    s"Number of h3Indexes: ${h3Indexes.size}, total number of OD pairs: ${allODs.length}, maxWorkers: $maxWorkers"
-  )
+  log.info(s"Total number of OD pairs: ${allODs.length}, maxWorkers: $maxWorkers")
 
   private var workers: Set[ActorRef] = Set.empty
   private var workerToEc: Map[ActorRef, ExecutionContextExecutorService] = Map.empty
@@ -136,7 +151,7 @@ class MasterActor(
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
             if (currentIdx < allODs.length) {
-              val (srcIndex, dstIndex) = getNextOD()
+              val (srcIndex, dstIndex) = getNextOD
               nRouteSent += 1
               worker ! Response.Work(srcIndex, dstIndex)
             } else {
@@ -162,7 +177,7 @@ class MasterActor(
     workerToEc += worker -> ec
   }
 
-  private def getNextOD(): (H3Index, H3Index) = {
+  private def getNextOD: (GeoIndex, GeoIndex) = {
     val result = allODs(currentIdx)
     currentIdx += 1
     result
@@ -223,17 +238,17 @@ object MasterActor {
   sealed trait Response
 
   object Response {
-    case class Work(srcIndex: H3Index, dstIndex: H3Index) extends Response
+    case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex) extends Response
     case object NoWork extends Response
 
     case class PopulatedSkimmer(odSkimmer: ODSkimmer) extends Response
   }
 
   def props(
-    h3Clustering: H3Clustering,
+    geoClustering: GeoClustering,
     odSkimmer: ODSkimmer,
     odR5Requester: ODR5Requester,
   ): Props = {
-    Props(new MasterActor(h3Clustering, odSkimmer, odR5Requester: ODR5Requester))
+    Props(new MasterActor(geoClustering, odSkimmer, odR5Requester: ODR5Requester))
   }
 }

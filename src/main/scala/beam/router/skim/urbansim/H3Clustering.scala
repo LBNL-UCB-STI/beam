@@ -1,6 +1,7 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.infrastructure.geozone._
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Coord
@@ -8,9 +9,39 @@ import org.matsim.api.core.v01.population.{Activity, Population}
 
 import scala.collection.JavaConverters._
 
-class H3Clustering(val population: Population, val geoUtils: GeoUtils, val nZones: Int) extends StrictLogging {
+trait GeoClustering
 
-  private val wgsCoordinates = getAllActivitiesLocations.map(geoUtils.utm2Wgs(_)).map(WgsCoordinate.apply).toSet
+class TAZClustering(val tazTreeMap: TAZTreeMap) extends GeoClustering {}
+
+object TAZClustering {
+
+  def getGeoIndexCenters(src: TAZIndex, dst: TAZIndex): (Coord, Coord) = {
+    val srcGeoCenter = src.taz.coord
+    val dstGeoCenter = dst.taz.coord
+    val srcCoord = if (src == dst) {
+      new Coord(srcGeoCenter.getX + Math.sqrt(src.taz.areaInSquareMeters) / 3.0, srcGeoCenter.getY)
+    } else {
+      srcGeoCenter
+    }
+    val dstCoord = if (src == dst) {
+      new Coord(
+        dstGeoCenter.getX - Math.sqrt(dst.taz.areaInSquareMeters) / 3.0,
+        dstGeoCenter.getY
+      )
+    } else {
+      dstGeoCenter
+    }
+
+    (srcCoord, dstCoord)
+  }
+}
+
+class H3Clustering(val population: Population, val geoUtils: GeoUtils, val nZones: Int)
+    extends GeoClustering
+    with StrictLogging {
+
+  private val wgsCoordinates: Set[WgsCoordinate] =
+    getAllActivitiesLocations.map(geoUtils.utm2Wgs(_)).map(WgsCoordinate.apply).toSet
 
   private val summary: GeoZoneSummary =
     TopDownEqualDemandH3IndexMapper.from(new GeoZone(wgsCoordinates).includeBoundBoxPoints, nZones).generateSummary()

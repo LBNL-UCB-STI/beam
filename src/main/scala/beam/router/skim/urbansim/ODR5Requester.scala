@@ -5,7 +5,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalcul
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.geozone.H3Index
+import beam.agentsim.infrastructure.geozone.{GeoIndex, H3Index, TAZIndex}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
@@ -47,8 +47,18 @@ class ODR5Requester(
 
   private val thresholdDistanceForBikeMeteres: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
 
-  def route(srcIndex: H3Index, dstIndex: H3Index): ODR5Requester.Response = {
-    val (srcCoord, dstCoord) = H3Clustering.getGeoIndexCenters(geoUtils, srcIndex, dstIndex)
+  def route(srcIndex: GeoIndex, dstIndex: GeoIndex): ODR5Requester.Response = {
+    val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
+      case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
+        H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
+      case (tazSrcIndex: TAZIndex, tazDestIndex: TAZIndex) =>
+        TAZClustering.getGeoIndexCenters(tazSrcIndex, tazDestIndex)
+      case _ =>
+        throw new MatchError(
+          s"The type of src index (${srcIndex.getClass}) does not match the type of dst index (${dstIndex.getClass})."
+        )
+    }
+
     val dist = distanceWithMargin(srcCoord, dstCoord)
     val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist))
     val maybeResponse = Try {
@@ -67,8 +77,8 @@ class ODR5Requester(
   }
 
   def createSkimEvent(
-    origin: H3Index,
-    destination: H3Index,
+    origin: GeoIndex,
+    destination: GeoIndex,
     beamMode: BeamMode,
     trip: EmbodiedBeamTrip
   ): ODSkimmerEvent = {
@@ -196,8 +206,8 @@ class ODR5Requester(
 
 object ODR5Requester {
   case class Response(
-    srcIndex: H3Index,
-    dstIndex: H3Index,
+    srcIndex: GeoIndex,
+    dstIndex: GeoIndex,
     considerModes: Array[BeamMode],
     maybeRoutingResponse: Try[RoutingResponse]
   )
