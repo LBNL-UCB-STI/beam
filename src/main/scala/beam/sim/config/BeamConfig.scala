@@ -3444,10 +3444,30 @@ object BeamConfig {
     }
 
     case class Urbansim(
+      backgroundODSkimsCreator: BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator,
       fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
     )
 
     object Urbansim {
+      case class BackgroundODSkimsCreator(
+        enabled: scala.Boolean,
+        numberOfH3Indexes: scala.Int,
+        peakHour: scala.Double,
+        skimsGeoType: java.lang.String
+      )
+
+      object BackgroundODSkimsCreator {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator = {
+          BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
+            enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+            numberOfH3Indexes = if (c.hasPathOrNull("numberOfH3Indexes")) c.getInt("numberOfH3Indexes") else 1000,
+            peakHour = if (c.hasPathOrNull("peakHour")) c.getDouble("peakHour") else 8.5,
+            skimsGeoType = if (c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "taz"
+          )
+        }
+      }
+
       case class FractionOfModesToClear(
         allModes: scala.Double,
         bike: scala.Double,
@@ -3473,6 +3493,10 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
         BeamConfig.Beam.Urbansim(
+          backgroundODSkimsCreator = BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
+            if (c.hasPathOrNull("backgroundODSkimsCreator")) c.getConfig("backgroundODSkimsCreator")
+            else com.typesafe.config.ConfigFactory.parseString("backgroundODSkimsCreator{}")
+          ),
           fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
             if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
             else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")

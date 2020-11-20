@@ -22,12 +22,17 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.analysis._
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
+import beam.router.BeamRouter.UpdateTravelTimeLocal
+import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
+import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.watcher.MethodWatcher
+
+import scala.util.control.NonFatal
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -157,6 +162,15 @@ class BeamSim @Inject()(
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
+  beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
+    beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
+    beamServices,
+    configHolder,
+    eventsManager
+  )
+
+  var backgroundSkimsCreator: Option[BackgroundSkimsCreator] = None
+
   override def notifyStartup(event: StartupEvent): Unit = {
     maybeConsecutivePopulationLoader =
       if (beamServices.beamConfig.beam.physsim.relaxation.`type` == "consecutive_increase_of_population") {
@@ -268,10 +282,37 @@ class BeamSim @Inject()(
     // For example take a look to `run_name` variable in the dashboard
     BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
+    if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
+      val geoClustering: GeoClustering =
+        beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsGeoType match {
+          case "h3" =>
+            new H3Clustering(
+              beamServices.matsimServices.getScenario.getPopulation,
+              beamServices.geo,
+              beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.numberOfH3Indexes
+            )
+          case "taz" => new TAZClustering(beamScenario.tazTreeMap)
+        }
+
+      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, geoClustering)
+      val skimCreator = new BackgroundSkimsCreator(
+        beamServices,
+        beamScenario,
+        geoClustering,
+        odSkimmer,
+        new FreeFlowTravelTime,
+        Array(BeamMode.WALK, BeamMode.BIKE),
+        withTransit = true
+      )(actorSystem)
+      skimCreator.start()
+      backgroundSkimsCreator = Some(skimCreator)
+    }
+
     FailFast.run(beamServices)
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     if (event.getIteration > 0) {
       maybeConsecutivePopulationLoader.foreach { cpl =>
         cpl.load()
@@ -322,6 +363,8 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    backgroundSkimsCreator.foreach(_.increaseParallelismTo(Runtime.getRuntime.availableProcessors() - 1))
+
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
@@ -513,7 +556,10 @@ class BeamSim @Inject()(
     currentIteration == firstIteration
   }
 
+  import scala.concurrent.duration._
+
   override def notifyShutdown(event: ShutdownEvent): Unit = {
+    finalizeUrbanSimSkims()
     carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
@@ -733,5 +779,45 @@ class BeamSim @Inject()(
             file
         }
       }
+  }
+
+  private def finalizeUrbanSimSkims(): Unit = {
+    val timeoutForSkimmer = 6.hours
+    backgroundSkimsCreator match {
+      case Some(skimCreator) =>
+        val odSkimmer = Await.result(skimCreator.getResult, timeoutForSkimmer).odSkimmer
+        skimCreator.stop()
+        val currentTravelTime = Await
+          .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
+          .asInstanceOf[UpdateTravelTimeLocal]
+          .travelTime
+        val h3Clustering = skimCreator.geoClustering
+        val carAndDriveTransitSkimCrator = new BackgroundSkimsCreator(
+          beamServices,
+          beamScenario,
+          h3Clustering,
+          odSkimmer,
+          currentTravelTime,
+          Array(BeamMode.CAR, BeamMode.WALK),
+          withTransit = true
+        )(actorSystem)
+        carAndDriveTransitSkimCrator.start()
+        carAndDriveTransitSkimCrator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
+        try {
+          val finalOdSkimmer = Await.result(carAndDriveTransitSkimCrator.getResult, timeoutForSkimmer).odSkimmer
+          carAndDriveTransitSkimCrator.stop()
+          finalOdSkimmer.writeToDisk(
+            new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
+          )
+        } catch {
+          case NonFatal(ex) =>
+            logger.error(
+              s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
+              ex
+            )
+            None
+        }
+      case None =>
+    }
   }
 }

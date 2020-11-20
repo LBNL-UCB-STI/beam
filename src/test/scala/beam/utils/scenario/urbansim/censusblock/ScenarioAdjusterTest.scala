@@ -3,7 +3,9 @@ package beam.utils.scenario.urbansim.censusblock
 import java.util.UUID
 
 import beam.router.Modes.BeamMode
+import beam.sim.config.BeamConfig.Beam
 import beam.sim.config.BeamConfig.Beam.Urbansim
+import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
 import org.matsim.core.config.ConfigUtils
@@ -17,6 +19,7 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
   test("adjust should work properly when allModes = 0") {
     val peoplePerNode: Int = 1000
     val cfg = Urbansim(
+      BackgroundODSkimsCreator(enabled = false, 1000, 8.5, "h3"),
       Urbansim.FractionOfModesToClear(
         allModes = 0.0,
         bike = 0.2,
@@ -54,6 +57,7 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
   test("adjust should work properly when allModes > 0, but all other modes are set to 0.0") {
     val peoplePerNode: Int = 1000
     val cfg = Urbansim(
+      BackgroundODSkimsCreator(enabled = false, 1000, 8.5, "h3"),
       Urbansim.FractionOfModesToClear(
         allModes = 0.5,
         bike = 0.0,
