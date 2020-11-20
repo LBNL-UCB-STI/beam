@@ -1,10 +1,12 @@
 package beam.agentsim.agents
 
-import akka.actor.SupervisorStrategy.Stop
+import scala.util.{Random, Try}
+
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
+import akka.actor.SupervisorStrategy.Stop
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.{BeamRouter, Modes, TransitInitializer}
@@ -14,15 +16,12 @@ import beam.router.osm.TollCalculator
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.utils.NetworkHelper
+import beam.utils.{FileUtils, NetworkHelper}
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
-
-import scala.io.Source
-import scala.util.{Random, Try}
 
 class TransitSystem(
   val beamScenario: BeamScenario,
@@ -162,13 +161,10 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
     }
   }
 
-  private def loadTransitVehicleTypesMap() = {
+  private def loadTransitVehicleTypesMap(): Map[String, Map[String, String]] = {
+    val file = beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile
     Try(
-      Source
-        .fromFile(beamConfig.beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile)
-        .getLines()
-        .toList
-        .tail
+      FileUtils.readAllLines(file).toList.tail
     ).getOrElse(List())
       .map(_.trim.split(","))
       .filter(_.length > 2)

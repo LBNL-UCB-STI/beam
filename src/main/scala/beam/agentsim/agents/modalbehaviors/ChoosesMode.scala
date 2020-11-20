@@ -13,13 +13,12 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.R5RoutingWorker
 import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.plan.sampling.AvailableModeUtils._
@@ -28,19 +27,19 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
+
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.router.RoutingWorker
 
 /**
   * BEAM
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-  private implicit val executionContext: ExecutionContext = context.dispatcher
 
-  val dummyRHVehicle =
+  val dummyRHVehicle: StreetVehicle =
     StreetVehicle(
       Id.create("dummyRH", classOf[BeamVehicle]),
       Id.create(
@@ -52,7 +51,7 @@ trait ChoosesMode {
       asDriver = false
     )
 
-  def bodyVehiclePersonId = PersonIdWithActorRef(id, self)
+  def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   def boundingBox: Envelope
 
@@ -238,6 +237,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           departTime,
           withTransit,
+          Some(id),
           vehicles,
           Some(attributes),
           streetVehiclesIntermodalUse
@@ -266,7 +266,7 @@ trait ChoosesMode {
         rideHailManager ! inquiry
       }
 
-      def makeRideHailTransitRoutingRequest(bodyStreetVehicle: StreetVehicle): Option[Int] = {
+      def makeRideHailTransitRoutingRequest(bodyStreetVehicleRequestParam: StreetVehicle): Option[Int] = {
         //TODO make ride hail wait buffer config param
         val startWithWaitBuffer = 900 + departTime
         val currentSpaceTime =
@@ -276,7 +276,8 @@ trait ChoosesMode {
           nextAct.getCoord,
           startWithWaitBuffer,
           withTransit = true,
-          Vector(bodyStreetVehicle, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
+          Some(id),
+          Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
           streetVehiclesUseIntermodalUse = AccessAndEgress
         )
         router ! theRequest
@@ -325,7 +326,7 @@ trait ChoosesMode {
             requestId = None
           }
           parkingRequestId = makeRequestWith(
-            withTransit = true,
+            withTransit = availableModes.exists(_.isTransit),
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             withParking = willRequestDrivingRoute
           )
@@ -452,7 +453,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId),
+        theRouterResult @ RoutingResponse(_, requestId, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -642,10 +643,12 @@ trait ChoosesMode {
     val secondDuration = Math.min(math.round(secondTravelTimes.tail.sum.toFloat), leg.beamLeg.duration)
     val firstDuration = leg.beamLeg.duration - secondDuration
     val secondDistance = Math.min(secondPathLinkIds.tail.map(lengthOfLink).sum, leg.beamLeg.travelPath.distanceInM)
-    val firstPathEndpoint = SpaceTime(
-      beamServices.geo.coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(indexFromBeg)),
-      leg.beamLeg.startTime + firstDuration
-    )
+    val firstPathEndpoint =
+      SpaceTime(
+        beamServices.geo
+          .coordOfR5Edge(transportNetwork.streetLayer, theLinkIds(math.min(theLinkIds.size - 1, indexFromBeg))),
+        leg.beamLeg.startTime + firstDuration
+      )
     val secondPath = leg.beamLeg.travelPath.copy(
       linkIds = secondPathLinkIds,
       linkTravelTime = secondTravelTimes,
@@ -676,7 +679,7 @@ trait ChoosesMode {
       ),
       cost = 0
     )
-    assert(firstLeg.cost + secondLeg.cost == leg.cost)
+    assert((firstLeg.cost + secondLeg.cost).equals(leg.cost))
     assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
     assert(
       Math.abs(
@@ -795,6 +798,13 @@ trait ChoosesMode {
             case (leg, i) =>
               if (i == 2) {
                 leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
+              } else if (i == 3) {
+                val dist = geo.distUTMInMeters(
+                  geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
+                  parkingResponse.stall.locationUTM
+                )
+                val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
+                leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
               } else {
                 leg
               }
@@ -994,7 +1004,7 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               } else {
-                val bushwhackingTrip = R5RoutingWorker.createBushwackingTrip(
+                val bushwhackingTrip = RoutingWorker.createBushwackingTrip(
                   choosesModeData.currentLocation.loc,
                   nextActivity(choosesModeData.personData).get.getCoord,
                   _currentTick.get,
@@ -1013,10 +1023,10 @@ trait ChoosesMode {
                   case Some(originalWalkTrip) =>
                     originalWalkTrip.legs.head
                   case None =>
-                    R5RoutingWorker
+                    RoutingWorker
                       .createBushwackingTrip(
-                        beamServices.geo.utm2Wgs(currentPersonLocation.loc),
-                        beamServices.geo.utm2Wgs(nextAct.getCoord),
+                        currentPersonLocation.loc,
+                        nextAct.getCoord,
                         _currentTick.get,
                         body.toStreetVehicle,
                         beamServices.geo

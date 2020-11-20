@@ -21,7 +21,7 @@ object GeoJsonReader extends LazyLogging {
       }
       val features = it.map(mapper).toArray
       val end = System.currentTimeMillis()
-      logger.info(s"Read ${features.size} features from '$geoJsonPath' in ${end - start} ms")
+      logger.info(s"Read ${features.length} features from '$geoJsonPath' in ${end - start} ms")
       features
     } finally {
       fileIn.close()

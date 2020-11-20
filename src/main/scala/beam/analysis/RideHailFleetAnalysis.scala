@@ -1,11 +1,12 @@
 package beam.analysis
 
+import java.util.concurrent.atomic.DoubleAdder
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ParkingEvent, PathTraversalEvent, RefuelSessionEvent}
 import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
-import beam.sim.metrics.SimulationMetricCollector
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -18,10 +19,26 @@ case class EventStatus(start: Double, end: Double, eventType: String, nextType: 
 
 class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
+  val rhFleetAnalysis = new RideHailFleetAnalysisInternal(
+    beamServices.beamScenario.vehicleTypes,
+    beamServices.simMetricCollector.writeIteration
+  )
+
+  override def createGraph(event: IterationEndsEvent): Unit = rhFleetAnalysis.createGraph()
+  override def processStats(event: Event): Unit = rhFleetAnalysis.processStats(event)
+  override def resetStats(): Unit = rhFleetAnalysis.resetStats()
+}
+
+class RideHailFleetAnalysisInternal(
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  writeIteration: (String, SimulationTime, Double, Map[String, String], Boolean) => Unit
+) {
   private val metersInMile: Double = 1609.34
   private val resolutionInSeconds = 60
   private val lastHour = 25
-  private val timeBins = 0 until lastHour * 3600 by resolutionInSeconds
+  private val secondsInHour = 60 * 60
+  private val timeBins = 0 until lastHour * secondsInHour by resolutionInSeconds
+  private val timeBinsWithIndex = timeBins.zipWithIndex
   private var processedHour = 0
 
   private val states = List(
@@ -38,14 +55,12 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   private val keys = states.zipWithIndex.toMap
 
-  import RefuelSessionEvent._
-
   private val rideHailEvCav = mutable.Map[String, ArrayBuffer[Event]]()
   private val ridehailEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
   private val rideHailNonEvCav = mutable.Map[String, ArrayBuffer[Event]]()
   private val rideHailNonEvNonCav = mutable.Map[String, ArrayBuffer[Event]]()
 
-  override def processStats(event: Event): Unit = {
+  def processStats(event: Event): Unit = {
     event match {
       case refuelSessionEvent: RefuelSessionEvent =>
         if (refuelSessionEvent.energyInJoules > 0.0) {
@@ -86,7 +101,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
       case pathTraversalEvent: PathTraversalEvent =>
         if (pathTraversalEvent.mode == BeamMode.CAR) {
           val vehicleTypeId = Id.create(pathTraversalEvent.vehicleType, classOf[BeamVehicleType])
-          val isCAV = beamServices.beamScenario.vehicleTypes(vehicleTypeId).automationLevel > 3
+          val isCAV = vehicleTypes(vehicleTypeId).automationLevel > 3
           val vehicle = pathTraversalEvent.vehicleId.toString
           val rideHail = vehicle.contains("rideHail")
           val ev = pathTraversalEvent.primaryFuelType == "Electricity"
@@ -139,7 +154,7 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     }
   }
 
-  override def createGraph(event: IterationEndsEvent): Unit = {
+  def createGraph(): Unit = {
     processedHour = lastHour
     processVehicleStates()
   }
@@ -148,12 +163,12 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     vehicleEventTypeMap: mutable.Map[String, ArrayBuffer[Event]],
     event: Event,
     vehicle: String,
-    eventHour: Double
+    eventTimeInSeconds: Double
   ): Unit = {
     val events = vehicleEventTypeMap.getOrElse(vehicle, new ArrayBuffer[Event]())
     events += event
     vehicleEventTypeMap(vehicle) = events.sortBy(_.getTime)
-    val hour = (eventHour / 3600).toInt
+    val hour = (eventTimeInSeconds / secondsInHour).toInt
     if (hour > processedHour) {
       processVehicleStates()
       processedHour = hour
@@ -161,10 +176,10 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   }
 
   private def processVehicleStates() {
-    processEvents(rideHailEvCav, true, true, "rh-ev-cav")
-    processEvents(ridehailEvNonCav, true, false, "rh-ev-nocav")
-    processEvents(rideHailNonEvCav, true, true, "rh-noev-cav")
-    processEvents(rideHailNonEvNonCav, true, false, "rh-noev-nocav")
+    processEvents(rideHailEvCav, isRH = true, isCAV = true, "rh-ev-cav")
+    processEvents(ridehailEvNonCav, isRH = true, isCAV = false, "rh-ev-nocav")
+    processEvents(rideHailNonEvCav, isRH = true, isCAV = true, "rh-noev-cav")
+    processEvents(rideHailNonEvNonCav, isRH = true, isCAV = false, "rh-noev-nocav")
   }
 
   private def processEvents(
@@ -173,36 +188,63 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     isCAV: Boolean,
     graphName: String
   ) {
-    var timeUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    var distanceUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    vehicleEventTypeMap.values.foreach(now => {
-      val timesDistances = assignVehicleDayToLocationMatrix(now, isRH, isCAV)
-      timeUtilization = timesDistances._1.zip(timeUtilization).map(time => (time._1, time._2).zipped.map(_ + _))
-      distanceUtilization = timesDistances._2
-        .zip(distanceUtilization)
-        .map(distance => (distance._1, distance._2).zipped.map(_ + _))
-    })
+    class Utilization(
+      ) {
+      // DoubleAdder here allows for effective adding values into the array during parallel computation.
+      private val timeInternal: Array[Array[DoubleAdder]] =
+        Array.fill[DoubleAdder](timeBins.size, keys.values.max + 1) {
+          new DoubleAdder()
+        }
+      private val distanceInternal: Array[Array[DoubleAdder]] =
+        Array.fill[DoubleAdder](timeBins.size, keys.values.max + 1) {
+          new DoubleAdder()
+        }
 
-    timeUtilization.transpose.zipWithIndex.foreach {
+      def calculateTime: Array[Array[Double]] =
+        timeInternal.map(arrayAdder => arrayAdder.map(adder => adder.doubleValue()))
+
+      def calculateDistance: Array[Array[Double]] =
+        distanceInternal.map(arrayAdder => arrayAdder.map(adder => adder.doubleValue()))
+
+      def add(time: Array[Array[Double]], distance: Array[Array[Double]]): Unit = {
+        for (idx1 <- timeBins.indices;
+             idx2 <- 0 until keys.values.max + 1) {
+          timeInternal(idx1)(idx2).add(time(idx1)(idx2))
+          distanceInternal(idx1)(idx2).add(distance(idx1)(idx2))
+        }
+      }
+    }
+
+    val utilization: Utilization = new Utilization()
+
+    // 'par' - is a scala built-in way to process collection in a parallel way.
+    vehicleEventTypeMap.values.par.foreach { vehicleEvents =>
+      val (timeUtilization, distanceUtilization) = assignVehicleDayToLocationMatrix(vehicleEvents, isRH, isCAV)
+      utilization.add(timeUtilization, distanceUtilization)
+    }
+
+    utilization.calculateTime.transpose.zipWithIndex.foreach {
       case (row, index) =>
         val key = states(index)
-        row.grouped(resolutionInSeconds).zipWithIndex.foreach {
+        val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
+        row.grouped(amountOfBinsPerHour).zipWithIndex.foreach {
           case (result, hour) =>
             if (hour <= processedHour)
-              write(s"$graphName-count", result.sum / resolutionInSeconds, hour, key)
+              write(s"$graphName-count", result.sum / amountOfBinsPerHour, hour, key)
             else
               write(s"$graphName-count", 0, hour, key)
           case _ =>
         }
     }
 
-    distanceUtilization.transpose.zipWithIndex.foreach {
+    utilization.calculateDistance.transpose.zipWithIndex.foreach {
       case (row, index) =>
         val key = states(index)
-        row.grouped(resolutionInSeconds).zipWithIndex.foreach {
+        val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
+        row.grouped(amountOfBinsPerHour).zipWithIndex.foreach {
           case (result, hour) =>
             if (hour <= processedHour)
-              write(s"$graphName-distance", (result.sum / resolutionInSeconds) * 12, hour, key)
+              write(s"$graphName-distance", (result.sum / amountOfBinsPerHour) * 12, hour, key)
             else
               write(s"$graphName-distance", 0, hour, key)
           case _ =>
@@ -212,16 +254,16 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
 
   private def write(metric: String, value: Double, time: Int, key: String): Unit = {
     val tags = Map("vehicle-state" -> key)
-    beamServices.simMetricCollector.writeIteration(
+    writeIteration(
       metric,
       SimulationTime(time * 60 * 60),
       value,
       tags,
-      overwriteIfExist = true
+      true
     )
   }
 
-  override def resetStats(): Unit = {
+  def resetStats(): Unit = {
     rideHailEvCav.clear()
     ridehailEvNonCav.clear()
     rideHailNonEvCav.clear()
@@ -229,6 +271,9 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     processedHour = 0
   }
 
+  // The efficiency of the function is important
+  // because it is called up to 24 times for events of every RH vehicle during a BEAM iteration.
+  // This is especially important for bigger BEAM runs.
   private def assignVehicleDayToLocationMatrix(
     days: ArrayBuffer[Event],
     isRH: Boolean,
@@ -236,88 +281,106 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
   ): (Array[Array[Double]], Array[Array[Double]]) = {
     val timeUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
     val distanceUtilization = Array.ofDim[Double](timeBins.size, keys.values.max + 1)
-    if (isRH) {
-      if (isCAV)
-        timeBins.indices.foreach(timeUtilization(_)(keys("idle")) += 1)
-      else
-        timeBins.indices.foreach(timeUtilization(_)(keys("offline")) += 1)
-    } else {
-      timeBins.indices.foreach(timeUtilization(_)(keys("parked")) += 1)
-    }
 
-    days.zipWithIndex.foreach(eventIndex => {
-      val event = eventIndex._1
-      val idx = eventIndex._2
-      val lastEvent = idx == days.size - 1
+    val idleActionIndex: Int =
+      if (isRH) {
+        if (isCAV) keys("idle")
+        else keys("offline")
+      } else {
+        keys("parked")
+      }
+
+    timeBins.indices.foreach(timeUtilization(_)(idleActionIndex) += 1)
+
+    // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+    var dayIndex = 0
+    days.foreach { event =>
+      val lastEvent = dayIndex == days.size - 1
+
       var chargingNext = false
       var pickupNext = false
 
       if (!lastEvent) {
-        val chargingDirectlyNext = days(idx + 1).getEventType == "RefuelSessionEvent"
+        val chargingDirectlyNext = days(dayIndex + 1).getEventType == "RefuelSessionEvent"
 
         val chargingOneAfter =
-          if (idx == days.size - 2)
+          if (dayIndex == days.size - 2)
             false
           else
-            days(idx + 1).getEventType == "ParkEvent" && days(idx + 2).getEventType == "RefuelSessionEvent"
+            days(dayIndex + 1).getEventType == "ParkEvent" && days(dayIndex + 2).getEventType == "RefuelSessionEvent"
 
         chargingNext = chargingDirectlyNext || chargingOneAfter
-        pickupNext = days(idx + 1).getEventType == "PathTraversal" && days(idx + 1).getAttributes
-          .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
-          .toInt >= 1
+        pickupNext = days(dayIndex + 1) match {
+          case pte: PathTraversalEvent => pte.numberOfPassengers >= 1
+          case _                       => false
+        }
       }
 
       val eventCharacteristics = classifyEventLocation(event, lastEvent, chargingNext, pickupNext, isRH, isCAV)
-      val eventIdx = keys(eventCharacteristics.eventType)
 
-      val afterDurationEventStart = timeBins
-        .map(timeBin => {
-          val eventStart = timeBin >= eventCharacteristics.start
-          val duringEvent = eventStart && timeBin < eventCharacteristics.end
-          (eventStart, duringEvent)
-        })
-        .unzip
+      val afterEventStart = Array.ofDim[Boolean](timeBins.size)
+      val duringEvent = Array.ofDim[Boolean](timeBins.size)
 
-      val afterEventStart = afterDurationEventStart._1
-      val duringEvent = afterDurationEventStart._2
+      timeBinsWithIndex.foreach {
+        case (timeBin, index) =>
+          afterEventStart(index) = timeBin >= eventCharacteristics.start
+          duringEvent(index) = afterEventStart(index) && timeBin < eventCharacteristics.end
+      }
 
-      afterEventStart.zipWithIndex.foreach(indexValue => {
-        if (indexValue._1)
-          timeUtilization(indexValue._2).indices.foreach(timeUtilization(indexValue._2)(_) = 0.0)
-      })
-
-      duringEvent.zipWithIndex.foreach(indexValue => {
-        if (indexValue._1) {
-          timeUtilization(indexValue._2)(eventIdx) += 1.0
+      // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+      var eventIndex = 0
+      afterEventStart.foreach { eventWasStarted =>
+        if (eventWasStarted) {
+          timeUtilization(eventIndex).indices.foreach(actionIndex => timeUtilization(eventIndex)(actionIndex) = 0.0)
         }
-      })
+        eventIndex += 1
+      }
 
-      if (event.getEventType == "PathTraversal") {
-        val sum = duringEvent.count(during => during)
-        val legLength = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH).toDouble
-        if (sum > 0) {
-          val meanDistancePerTime = legLength / sum
-          duringEvent.zipWithIndex.foreach(indexValue => {
-            if (indexValue._1) {
-              distanceUtilization(indexValue._2)(eventIdx) += meanDistancePerTime / metersInMile
+      // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+      eventIndex = 0
+      val eventTypeIdx = keys(eventCharacteristics.eventType)
+      duringEvent.foreach { eventIsContinuous =>
+        if (eventIsContinuous) {
+          timeUtilization(eventIndex)(eventTypeIdx) += 1.0
+        }
+        eventIndex += 1
+      }
+
+      event match {
+        case pte: PathTraversalEvent =>
+          val sum = duringEvent.count(during => during)
+          val legLength = pte.legLength
+          if (sum > 0) {
+            val meanDistancePerTime = legLength / sum
+
+            // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
+            eventIndex = 0
+            duringEvent.foreach { eventIsContinuous =>
+              if (eventIsContinuous) {
+                distanceUtilization(eventIndex)(eventTypeIdx) += meanDistancePerTime / metersInMile
+              }
+              eventIndex += 1
             }
-          })
-        } else {
-          val firstIndex = afterEventStart.indexOf(true)
-          if (firstIndex > 0)
-            distanceUtilization(firstIndex)(eventIdx) += legLength / metersInMile
+
+          } else {
+            val firstIndex = afterEventStart.indexOf(true)
+            if (firstIndex > 0)
+              distanceUtilization(firstIndex)(eventTypeIdx) += legLength / metersInMile
+          }
+        case _ =>
+      }
+
+      eventCharacteristics.nextType.foreach { nextType =>
+        timeBinsWithIndex.foreach {
+          case (timeBin, index) =>
+            if (timeBin >= eventCharacteristics.end) {
+              timeUtilization(index)(keys(nextType)) += 1.0
+            }
         }
       }
 
-      eventCharacteristics.nextType.foreach(nextType => {
-        val afterEventEnd = timeBins.map(_ >= eventCharacteristics.end)
-        afterEventEnd.zipWithIndex.foreach(indexValue => {
-          if (indexValue._1) {
-            timeUtilization(indexValue._2)(keys(nextType)) += 1.0
-          }
-        })
-      })
-    })
+      dayIndex += 1
+    }
 
     (timeUtilization, distanceUtilization)
   }
@@ -331,63 +394,68 @@ class RideHailFleetAnalysis(beamServices: BeamServices) extends GraphAnalysis {
     isCAV: Boolean
   ): EventStatus = {
     event match {
-      case event: PathTraversalEvent =>
+      case pte: PathTraversalEvent =>
         if (isRH) {
-          if (event.numberOfPassengers >= 1) {
+          if (pte.numberOfPassengers >= 1) {
             if (lastEvent) {
               if (isCAV)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("idle"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("offline"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("offline"))
             } else {
               if (chargingNext)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("queuing"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("queuing"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("idle"))
             }
           } else {
             if (lastEvent) {
               if (isCAV)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-reposition", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-reposition", Some("idle"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-reposition", Some("offline"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-reposition", Some("offline"))
             } else {
               if (chargingNext)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-tocharger", Some("queuing"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-tocharger", Some("queuing"))
               else if (pickupNext)
-                EventStatus(event.departureTime, event.arrivalTime, "driving-topickup", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-topickup", Some("idle"))
               else
-                EventStatus(event.departureTime, event.arrivalTime, "driving-reposition", Some("idle"))
+                EventStatus(pte.departureTime, pte.arrivalTime, "driving-reposition", Some("idle"))
             }
           }
         } else {
           if (chargingNext)
-            EventStatus(event.departureTime, event.arrivalTime, "driving-tocharger", Some("queuing"))
+            EventStatus(pte.departureTime, pte.arrivalTime, "driving-tocharger", Some("queuing"))
           else {
-            if (event.numberOfPassengers >= 1)
-              EventStatus(event.departureTime, event.arrivalTime, "driving-full", Some("queuing"))
+            if (pte.numberOfPassengers >= 1)
+              EventStatus(pte.departureTime, pte.arrivalTime, "driving-full", Some("queuing"))
             else
-              EventStatus(event.departureTime, event.arrivalTime, "driving-topickup", Some("idle"))
+              EventStatus(pte.departureTime, pte.arrivalTime, "driving-topickup", Some("idle"))
           }
         }
-      case event: RefuelSessionEvent =>
-        val duration = event.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_SESSION_DURATION).toDouble
+      case refuelSessionEvent: RefuelSessionEvent =>
+        val duration = refuelSessionEvent.sessionDuration
         if (isRH) {
           if (lastEvent) {
             if (isCAV)
-              EventStatus(event.getTime, event.getTime + duration, "charging", Some("idle"))
+              EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("idle"))
             else
-              EventStatus(event.getTime, event.getTime + duration, "charging", Some("offline"))
+              EventStatus(
+                refuelSessionEvent.getTime,
+                refuelSessionEvent.getTime + duration,
+                "charging",
+                Some("offline")
+              )
           } else
-            EventStatus(event.getTime, event.getTime + duration, "charging", Some("idle"))
+            EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("idle"))
         } else {
-          EventStatus(event.getTime, event.getTime + duration, "charging", Some("parked"))
+          EventStatus(refuelSessionEvent.getTime, refuelSessionEvent.getTime + duration, "charging", Some("parked"))
         }
-      case event: ParkingEvent =>
+      case parkingEvent: ParkingEvent =>
         if (isRH)
-          EventStatus(event.getTime, 30 * 3600, "idle")
+          EventStatus(parkingEvent.getTime, lastHour * secondsInHour, "idle")
         else
-          EventStatus(event.getTime, 30 * 3600, "parked")
+          EventStatus(parkingEvent.getTime, lastHour * secondsInHour, "parked")
       case _ =>
         EventStatus(0.0, 0.0, "Unknown")
     }

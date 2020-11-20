@@ -7,6 +7,7 @@ import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVe
 import beam.utils.beam_to_matsim.via_event.ViaEvent
 
 import scala.collection.mutable
+import scala.xml.XML
 
 object EventsByVehicleMode extends App {
 
@@ -89,7 +90,7 @@ object EventsByVehicleMode extends App {
   }
 
   def buildViaFile(eventsFile: String, outputFile: String, filter: MutableSamplingFilter): Unit = {
-    Console.println(s"reading events with vehicles sampling ...")
+    Console.println("reading events with vehicles sampling ...")
 
     def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
     def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
@@ -111,7 +112,7 @@ object EventsByVehicleMode extends App {
     circleR: Double
   ): MutableSamplingFilter = {
 
-    val networkXml = xml.XML.loadFile(networkPath)
+    val networkXml = XML.loadFile(networkPath)
     val nodes = LinkCoordinate.parseNodes(networkXml)
 
     case class Circle(x: Double, y: Double, r: Double) {

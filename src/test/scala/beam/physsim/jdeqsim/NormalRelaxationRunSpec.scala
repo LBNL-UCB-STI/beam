@@ -18,7 +18,7 @@ class NormalRelaxationRunSpec extends WordSpecLike with Matchers with BeamHelper
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
 
-      val (_, output) = runBeamWithConfig(baseConf)
+      runBeamWithConfig(baseConf)
     }
   }
 }

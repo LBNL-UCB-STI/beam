@@ -14,9 +14,9 @@ import java.util.LinkedList;
 public class BeamDominatingList implements DominatingList {
     private final int maxFare;
     private final int maxClockTime;
-    private InRoutingFareCalculator fareCalculator;
+    private final InRoutingFareCalculator fareCalculator;
 
-    private LinkedList<McRaptorSuboptimalPathProfileRouter.McRaptorState> states = new LinkedList<>();
+    private final LinkedList<McRaptorSuboptimalPathProfileRouter.McRaptorState> states = new LinkedList<>();
 
     public BeamDominatingList(InRoutingFareCalculator fareCalculator, int maxFare, int maxClockTime) {
         this.fareCalculator = fareCalculator;

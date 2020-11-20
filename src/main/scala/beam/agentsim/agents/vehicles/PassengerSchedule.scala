@@ -3,7 +3,7 @@ package beam.agentsim.agents.vehicles
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.PassengerSchedule.Manifest
 import beam.router.BeamRouter.Location
-import beam.router.model.BeamLeg
+import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -67,13 +67,13 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
 
   def passengersWhoNeverBoard: Set[PersonIdWithActorRef] = {
     val allBoarders = schedule.values.flatMap(_.boarders).toSet
-    uniquePassengers.filterNot(allBoarders.contains(_))
+    uniquePassengers.diff(allBoarders)
   }
 
   def numUniquePassengers: Int = schedule.values.flatMap(_.riders).toSet.size
 
   def numLegsWithPassengersAfter(legIndex: Int): Int =
-    schedule.slice(legIndex, schedule.size).values.filter(_.riders.size > 0).size
+    schedule.slice(legIndex, schedule.size).values.count(_.riders.nonEmpty)
 
   def linkAtTime(tick: Int): Int = {
     if (tick < schedule.keys.head.startTime) {
@@ -104,9 +104,7 @@ object BeamLegOrdering extends Ordering[BeamLeg] {
       val compare2 = java.lang.Long.compare(a.duration, b.duration)
       if (compare2 != 0) compare2
       else {
-        val compare3 = a.travelPath == b.travelPath
-        if (!compare3) 1
-        else 0
+        BeamPath.compare(a.travelPath, b.travelPath)
       }
     }
   }

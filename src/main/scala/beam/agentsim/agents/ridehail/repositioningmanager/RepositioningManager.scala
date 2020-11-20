@@ -5,7 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocatio
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.reflect.ClassTag
 
@@ -13,6 +13,9 @@ abstract class RepositioningManager(
   private val beamServices: BeamServices,
   private val rideHailManager: RideHailManager
 ) {
+
+  val repositionTimeout: Int =
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
 
   def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
@@ -53,3 +56,5 @@ class TheSameLocationRepositioningManager(val beamServices: BeamServices, val ri
     }.toVector
   }
 }
+
+case class ClusterInfo(size: Int, coord: Coord, activitiesLocation: IndexedSeq[Coord])

@@ -62,8 +62,8 @@ object CoordInBoundsUtil extends App {
   filteredCoords.take(10).foreach(println)
 
   def containsOrEqualsCoords(boundingBox: QuadTreeBounds, coord: Coord): Boolean = {
-    (boundingBox.minx <= coord.getX && coord.getX <= boundingBox.maxx &&
-    boundingBox.miny <= coord.getY && coord.getY <= boundingBox.maxy)
+    boundingBox.minx <= coord.getX && coord.getX <= boundingBox.maxx &&
+    boundingBox.miny <= coord.getY && coord.getY <= boundingBox.maxy
   }
 
   private def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
@@ -83,13 +83,12 @@ object CoordInBoundsUtil extends App {
   def sampleCoords(): ListBuffer[Coord] = {
     val coords = new ListBuffer[Coord]()
 
-    coords += (new Coord(-121.88562672146001, 37.336730003490004))
-    coords += (new Coord(-121.92953484746799, 37.3827565381698))
-    coords += (new Coord(-121.88562672146001, 37.336730003490004))
-    coords.foreach {
-      case coord: Coord => println(coord.toString() + " -> " + wgs2Utm.transform(coord))
+    coords += new Coord(-121.88562672146001, 37.336730003490004)
+    coords += new Coord(-121.92953484746799, 37.3827565381698)
+    coords += new Coord(-121.88562672146001, 37.336730003490004)
+    coords.foreach { coord: Coord =>
+      println(coord.toString() + " -> " + wgs2Utm.transform(coord))
     }
-
     coords
   }
 

@@ -4,6 +4,7 @@ import java.util
 
 import beam.sim.OutputDataDescription
 import beam.utils.OutputDataDescriptor
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object RideHailWaitingAnalysisObject extends OutputDataDescriptor {
 
@@ -16,12 +17,11 @@ object RideHailWaitingAnalysisObject extends OutputDataDescriptor {
     *
     * @return list of data description objects
     */
-  def getOutputDataDescriptions: util.List[OutputDataDescription] = {
-    val rideHailWaitingStatsOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-      .getIterationFilename(0, fileName + ".csv")
-    val rideHailIndividualWaitingTimesOutputFilePath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO
+  def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
+    val rideHailWaitingStatsOutputFilePath: String = ioController.getIterationFilename(0, fileName + ".csv")
+    val rideHailIndividualWaitingTimesOutputFilePath: String = ioController
       .getIterationFilename(0, rideHailIndividualWaitingTimesFileBaseName + ".csv")
-    val outputDirPath: String = GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputPath
+    val outputDirPath: String = ioController.getOutputPath
     val rideHailWaitingStatsRelativePath: String = rideHailWaitingStatsOutputFilePath.replace(outputDirPath, "")
     val rideHailIndividualWaitingTimesRelativePath: String = rideHailIndividualWaitingTimesOutputFilePath
       .replace(outputDirPath, "")

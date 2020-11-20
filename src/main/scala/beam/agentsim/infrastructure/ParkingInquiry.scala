@@ -28,13 +28,15 @@ case class ParkingInquiry(
   parkingDuration: Double = 0,
   reserveStall: Boolean = true,
   requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-)
+) {
+  val activityTypeLowerCased: String = activityType.toLowerCase
+}
 
 object ParkingInquiry {
 
 //  val simpleDistanceAndParkingTicketEqualUtilityFunction
 //    : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
+//    MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
 //      Map.empty,
 //      Map(
 //        "distanceFactor"          -> UtilityFunctionOperation.Multiplier(-1),
@@ -43,7 +45,7 @@ object ParkingInquiry {
 //    )
 //
 //  val simpleDistanceEqualUtilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    new MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
+//    MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
 //      Map.empty,
 //      Map(
 //        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1)

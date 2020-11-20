@@ -48,19 +48,41 @@ object ParkingStall {
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    costInDollars: Double = CostOfEmergencyStallInDollars
+    costInDollars: Double = CostOfEmergencyStallInDollars,
+    tazId: Id[TAZ] = TAZ.EmergencyTAZId,
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
 
     ParkingStall(
-      tazId = TAZ.EmergencyTAZId,
+      tazId = tazId,
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,
       chargingPointType = None,
-      pricingModel = Some { PricingModel.FlatFee((costInDollars).toInt) },
+      pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public
     )
   }
+
+  /**
+    * take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
+    * This should only kick in when all other (potentially non-free, non-colocated) stalls in the search area are
+    * exhausted
+    *
+    * @param locationUTM request location (home)
+    *
+    * @return a stall that is free and located at the person's home.
+    */
+  def defaultResidentialStall(
+    locationUTM: Location
+  ): ParkingStall = ParkingStall(
+    tazId = TAZ.DefaultTAZId,
+    parkingZoneId = ParkingZone.DefaultParkingZoneId,
+    locationUTM = locationUTM,
+    costInDollars = 0.0,
+    chargingPointType = None,
+    pricingModel = Some { PricingModel.FlatFee(0) },
+    parkingType = ParkingType.Residential
+  )
 }

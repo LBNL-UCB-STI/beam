@@ -2,22 +2,24 @@ package beam.agentsim.infrastructure.parking
 
 import java.io.{BufferedReader, File, IOException}
 
-import scala.annotation.tailrec
-import scala.util.{Failure, Random, Success, Try}
-import scala.util.matching.Regex
-import scala.collection.JavaConverters._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
+
+import scala.annotation.tailrec
+import scala.collection.JavaConverters._
+import scala.util.matching.{Regex, UnanchoredRegex}
+import scala.util.{Failure, Random, Success, Try}
 
 // utilities to read/write parking zone information from/to a file
 object ParkingZoneFileUtils extends LazyLogging {
 
   /**
-    * used to parse a row of the parking file
+    * used to parse a row ofParkingGeoIndexConverterSpec the parking file
     * last row (ReservedFor) is ignored
     */
   val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*).*""".r.unanchored
@@ -32,10 +34,17 @@ object ParkingZoneFileUtils extends LazyLogging {
     * this should consider charging when it is implemented as well.
     * @param tazId a valid id for a TAZ
     * @param parkingType the parking type we are using to generate a row
+    * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow(tazId: String, parkingType: ParkingType): String =
-    s"$tazId,$parkingType,${PricingModel.FlatFee(0)},${ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+  def defaultParkingRow(
+    tazId: String,
+    parkingType: ParkingType,
+    maybeChargingPoint: Option[ChargingPointType]
+  ): String = {
+    val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
+    s"$tazId,$parkingType,${PricingModel.FlatFee(0)},${chargingPointStr},${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+  }
 
   /**
     * used to build up parking alternatives from a file
@@ -150,13 +159,14 @@ object ParkingZoneFileUtils extends LazyLogging {
     header: Boolean = true
   ): (Array[ParkingZone], ZoneSearchTree[TAZ]) =
     Try {
-      val reader = IOUtils.getBufferedReader(filePath)
+      val reader = FileUtils.getReader(filePath)
       if (header) reader.readLine()
       reader
     } match {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator =
           fromBufferedReader(reader, rand, parkingStallCountScalingFactor, parkingCostScalingFactor)
+        reader.close()
         logger.info(
           s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
         )
@@ -364,7 +374,7 @@ object ParkingZoneFileUtils extends LazyLogging {
   /**
     * the first column of the taz-centers file is an Id[Taz], which we extract. it can be alphanumeric.
     */
-  val TazFileRegex = """^(\w+),""".r.unanchored
+  val TazFileRegex: UnanchoredRegex = """^(\w+),""".r.unanchored
 
   /**
     * generates ubiquitous parking from the contents of a TAZ centers file
@@ -384,8 +394,11 @@ object ParkingZoneFileUtils extends LazyLogging {
     val rows: Iterator[String] = for {
       TazFileRegex(tazId) <- tazRows
       parkingType         <- parkingTypes
+      // We have to pass parking types: Some(CustomChargingPoint) and None
+      // None is `NoCharger` which will allow non-charger ParkingZones. Check `returnSpotsWithoutChargers` in `ZonalParkingManager`
+      maybeChargingPoint <- Seq(Some(ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")), None) // NoCharger
     } yield {
-      defaultParkingRow(tazId, parkingType)
+      defaultParkingRow(tazId, parkingType, maybeChargingPoint)
     }
 
     fromIterator(rows, random, header = false)

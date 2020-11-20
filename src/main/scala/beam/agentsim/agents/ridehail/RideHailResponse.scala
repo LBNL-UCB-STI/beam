@@ -20,9 +20,9 @@ case class RideHailResponse(
 case class RideHailResponseTrigger(tick: Int, rideHailResponse: RideHailResponse) extends Trigger
 
 object RideHailResponse {
-  val DUMMY = RideHailResponse(RideHailRequest.DUMMY, None, None)
+  val DUMMY: RideHailResponse = RideHailResponse(RideHailRequest.DUMMY, None, None)
 
-  def dummyWithError(error: ReservationError) =
+  def dummyWithError(error: ReservationError): RideHailResponse =
     RideHailResponse(RideHailRequest.DUMMY, None, Some(error))
 
 }

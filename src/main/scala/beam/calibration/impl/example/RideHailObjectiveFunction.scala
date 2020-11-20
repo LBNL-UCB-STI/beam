@@ -1,9 +1,6 @@
 package beam.calibration.impl.example
 
-import scala.io.Source
-
-import beam.calibration.api.ObjectiveFunction
-import beam.utils.FileUtils.using
+import beam.utils.FileUtils
 
 object RideHailObjectiveFunction {
 
@@ -14,7 +11,7 @@ object RideHailObjectiveFunction {
   }
 
   def getStatsFromFile(fileLoc: String): Map[String, Double] = {
-    val lines = Source.fromFile(fileLoc).getLines().toArray
+    val lines = FileUtils.readAllLines(fileLoc).toArray
     val header = lines.head.split(",").tail
     val lastIter = lines.reverse.head.split(",").tail.map(_.toDouble)
     val total = lastIter.sum

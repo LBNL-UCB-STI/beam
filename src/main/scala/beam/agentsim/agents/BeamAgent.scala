@@ -53,19 +53,27 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTick
   def logPrefix(): String
 
   def logInfo(msg: => String): Unit = {
-    log.info("{} {}", getPrefix, msg)
+    if (log.isInfoEnabled) {
+      log.info("{} {}", getPrefix, msg)
+    }
   }
 
   def logWarn(msg: => String): Unit = {
-    log.warning("{} {}", getPrefix, msg)
+    if (log.isWarningEnabled) {
+      log.warning("{} {}", getPrefix, msg)
+    }
   }
 
   def logError(msg: => String): Unit = {
-    log.error("{} {}", getPrefix, msg)
+    if (log.isErrorEnabled) {
+      log.error("{} {}", getPrefix, msg)
+    }
   }
 
   def logDebug(msg: => String): Unit = {
-    log.debug("{} {}", getPrefix, msg)
+    if (log.isDebugEnabled) {
+      log.debug("{} {}", () => getPrefix, msg)
+    }
   }
 
   def getPrefix: String = {

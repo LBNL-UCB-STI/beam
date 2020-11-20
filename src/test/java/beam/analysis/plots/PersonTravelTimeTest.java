@@ -9,7 +9,7 @@ import org.matsim.core.events.handler.BasicEventHandler;
 
 public class PersonTravelTimeTest {
 
-    private class PersonTravelTimeHandler implements BasicEventHandler {
+    private static class PersonTravelTimeHandler implements BasicEventHandler {
 
         private final PersonTravelTimeAnalysis personTravelTimeStats;
 
@@ -27,9 +27,9 @@ public class PersonTravelTimeTest {
         }
     }
 
-    private PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(NoOpSimulationMetricCollector$.MODULE$,
+    private final PersonTravelTimeAnalysis personTravelTimeStats = new PersonTravelTimeAnalysis(NoOpSimulationMetricCollector$.MODULE$,
             new PersonTravelTimeAnalysis.PersonTravelTimeComputation() {
-            }, true);
+            }, true, null);
 
     @Before
     public void setUpClass() {

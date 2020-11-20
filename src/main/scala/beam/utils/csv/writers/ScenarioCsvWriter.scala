@@ -18,10 +18,17 @@ trait ScenarioCsvWriter {
 
   def contentIterator(scenario: Scenario): Iterator[String]
 
+  def contentIterator[A](elements: Iterator[A]): Iterator[String]
+
   def toCsv(scenario: Scenario): Iterator[String] = header ++ contentIterator(scenario)
 
   def toCsv(scenario: Scenario, outputFile: String): File = {
     FileUtils.writeToFile(outputFile, toCsv(scenario))
+    new File(outputFile)
+  }
+
+  final def toCsv[A](elements: Iterator[A], outputFile: String): File = {
+    FileUtils.writeToFile(outputFile, contentIterator(elements))
     new File(outputFile)
   }
 

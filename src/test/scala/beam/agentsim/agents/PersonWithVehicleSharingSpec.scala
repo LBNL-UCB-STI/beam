@@ -167,7 +167,7 @@ class PersonWithVehicleSharingSpec
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = mockRouter.expectMsgType[EmbodyWithCurrentTravelTime]
       mockRouter.lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             legs = Vector(
               EmbodiedBeamLeg(
@@ -187,7 +187,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -344,8 +346,8 @@ class PersonWithVehicleSharingSpec
                     linkIds = Vector(3, 4),
                     linkTravelTime = Vector(50, 50),
                     transitStops = None,
-                    startPoint = SpaceTime(0.01, 0.0, 28950),
-                    endPoint = SpaceTime(0.01, 0.01, 29000),
+                    startPoint = SpaceTime(-1.4887439, 0.0, 28950),
+                    endPoint = SpaceTime(-1.4887438, 0.01, 29000),
                     distanceInM = 1000D
                   )
                 ),
@@ -358,7 +360,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -427,8 +431,8 @@ class PersonWithVehicleSharingSpec
                     linkIds = Vector(4, 3, 2, 1),
                     linkTravelTime = Vector(10, 10, 10, 10),
                     transitStops = None,
-                    startPoint = SpaceTime(0.01, 0.01, 61200),
-                    endPoint = SpaceTime(0.0, 0.0, 61230),
+                    startPoint = SpaceTime(-1.4887438, 0.0, 61200),
+                    endPoint = SpaceTime(-1.4887439, 0.0, 61230),
                     distanceInM = 1000D
                   )
                 ),
@@ -441,7 +445,9 @@ class PersonWithVehicleSharingSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -553,8 +559,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -591,8 +599,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -613,7 +623,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
+        case RoutingRequest(_, _, _, _, _, streetVehicles, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(
@@ -629,8 +639,10 @@ class PersonWithVehicleSharingSpec
             unbecomeDriverOnCompletion = true
           )
           mockRouter.lastSender ! RoutingResponse(
-            Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-            requestId = 1
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false
           )
       }
 
@@ -686,7 +698,7 @@ class PersonWithVehicleSharingSpec
     person
   }
 
-  def parkingInquiry(whenWhere: SpaceTime) = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def afterAll(): Unit = {
     shutdown()

@@ -37,6 +37,7 @@ class UrbanSimScenarioSource(
         householdId = HouseholdId(person.householdId),
         rank = person.rank,
         age = person.age,
+        excludedModes = person.excludedModes.split(","),
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime
       )
@@ -53,24 +54,7 @@ class UrbanSimScenarioSource(
     }
 
     planElements.map { plan: DataExchange.PlanElement =>
-      val coord = (plan.x, plan.y) match {
-        case (Some(x), Some(y)) =>
-          val c =
-            if (shouldConvertWgs2Utm)
-              geoUtils.wgs2Utm(new Coord(x, y))
-            else
-              new Coord(x, y)
-          Some(c)
-        case (Some(x), None) =>
-          logger.warn(s"Plan with PersonId[${plan.personId}] has X coordinate [$x], but has not Y")
-          None
-        case (None, Some(y)) =>
-          logger.warn(s"Plan with PersonId[${plan.personId}] has Y coordinate [$y], but has not X")
-          None
-        case _ =>
-          None
-      }
-
+      val coord = convertLocation(plan)
       PlanElement(
         personId = PersonId(plan.personId),
         planIndex = 0, // TODO FIXME!
@@ -91,7 +75,8 @@ class UrbanSimScenarioSource(
         legRouteEndLink = None,
         legRouteTravelTime = None,
         legRouteDistance = None,
-        legRouteLinks = Seq.empty
+        legRouteLinks = Seq.empty,
+        geoId = None
       )
     }
   }
@@ -101,7 +86,7 @@ class UrbanSimScenarioSource(
     val householdIdToCoord = getHouseholdIdToCoord(householdInfo)
     householdInfo.map { householdInfo =>
       val coord = householdIdToCoord.getOrElse(householdInfo.householdId, {
-        logger.warn(s"Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
+        logger.warn("Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
         new Coord(0, 0)
       })
       HouseholdInfo(
@@ -178,5 +163,26 @@ class UrbanSimScenarioSource(
       .flatMap { case (k, v) => v.sortBy(x => x.planElementIndex) }
       .toArray
     correctPlanElements
+  }
+
+  private def convertLocation(plan: DataExchange.PlanElement): Option[Coord] = {
+    val coord = (plan.x, plan.y) match {
+      case (Some(x), Some(y)) =>
+        val c =
+          if (shouldConvertWgs2Utm)
+            geoUtils.wgs2Utm(new Coord(x, y))
+          else
+            new Coord(x, y)
+        Some(c)
+      case (Some(x), None) =>
+        logger.warn(s"Plan with PersonId[${plan.personId}] has X coordinate [$x], but has not Y")
+        None
+      case (None, Some(y)) =>
+        logger.warn(s"Plan with PersonId[${plan.personId}] has Y coordinate [$y], but has not X")
+        None
+      case _ =>
+        None
+    }
+    coord
   }
 }

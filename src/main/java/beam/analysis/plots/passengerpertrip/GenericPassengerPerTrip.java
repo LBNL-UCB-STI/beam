@@ -1,9 +1,10 @@
 package beam.analysis.plots.passengerpertrip;
 
 import beam.agentsim.events.PathTraversalEvent;
+import beam.analysis.plots.GraphUtils;
+import beam.analysis.plots.GraphsStatsAgentSimEventsListener;
 import com.google.common.base.CaseFormat;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
@@ -14,7 +15,6 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
-    private static double[][] matrixDataSet;
     int eventCounter = 0;
     int maxHour = 0;
 
@@ -34,7 +34,6 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public void collectEvent(PathTraversalEvent event) {
-
         eventCounter++;
 
         int hour = getEventHour(event.getTime());
@@ -46,29 +45,19 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
         updateNumPassengerInDeadHeadingsMap(hour, graphName, _num_passengers);
     }
 
-
     @Override
     public void process(IterationEndsEvent event) throws IOException {
+        double[][] matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
 
-        CategoryDataset dataSet = getCategoryDataSet();
-        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle);
-        writeCSV(matrixDataSet,dataSet.getRowCount(),event.getIteration());
-    }
+        CategoryDataset dataSet = GraphUtils.createCategoryDataset("Mode ", "", matrixDataSet);
+        draw(dataSet, event.getIteration(), xAxisTitle, yAxisTitle, event.getServices().getControlerIO());
 
-    @Override
-    public CategoryDataset getCategoryDataSet() {
-
-        matrixDataSet = buildDeadHeadingDataSet(deadHeadingsMap.get(graphName), graphName);
-
-        return DatasetUtilities.createCategoryDataset("Mode ", "", matrixDataSet);
+        writeCSV(matrixDataSet, event.getIteration(), event.getServices().getControlerIO());
     }
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {
-
-        Integer maxPassengers = maxPassengersSeenOnGenericCase;
-
+        int maxPassengers = maxPassengersSeenOnGenericCase;
         double[][] dataSet;
-
 
         // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
         // In this case we have to group 0, 1 to 5, 6 to 10

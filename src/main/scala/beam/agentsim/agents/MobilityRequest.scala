@@ -29,7 +29,7 @@ case class MobilityRequest(
   vehicleOccupancy: Option[Int] = None,
   beamLegAfterTag: Option[EmbodiedBeamLeg] = None // In other words, this leg is traversed **after** the action described in "tag" so if tag is a dropoff, we do the dropoff first then complete the beamLeg
 ) {
-  val nextActivity = Some(trip.activity)
+  val nextActivity: Some[Activity] = Some(trip.activity)
 
   def isPickup: Boolean = tag == Pickup
   def isDropoff: Boolean = tag == Dropoff
@@ -67,7 +67,7 @@ object MobilityRequest {
       person,
       act,
       -1,
-      new Trip(act, None, new Tour()),
+      Trip(act, None, new Tour()),
       BeamMode.CAR,
       requestType,
       -1,

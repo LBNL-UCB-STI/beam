@@ -21,11 +21,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = new BeamRouter.Location(572710.8214231567, 4142569.0802786923)
       val time = 25740
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -46,11 +46,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = true,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -78,11 +78,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = origin
       val time = 25740
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = true,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("116378-2"),
             Id.create("Car", classOf[BeamVehicleType]),
@@ -113,11 +113,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = true,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=17673-0"),
             Id.create("Car", classOf[BeamVehicleType]),
@@ -149,11 +149,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = services.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("0"),
             fastBike.id,
@@ -177,11 +177,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         new BeamRouter.Location(607385.7148858022, 4172426.3760835854)
       val time = 25860
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-56658-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -202,11 +202,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         new BeamRouter.Location(579985.712067158, 4167298.6137483735)
       val time = 20460
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-80672-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -226,11 +226,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         new BeamRouter.Location(552065.6882372601, 4180855.582994787)
       val time = 19740
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("rideHailVehicle-person=17673-0"),
             Id.create("Car", classOf[BeamVehicleType]),
@@ -256,11 +256,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = services.geo.wgs2Utm(new Coord(-122.3712, 37.815819))
       val time = 27840
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = false,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("116378-2"),
             Id.create("Car", classOf[BeamVehicleType]),
@@ -306,11 +306,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = new Coord(544417.3891361314, 4177016.733758491)
       val time = 64080
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = true,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -332,11 +332,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = services.geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
       val time = 51840
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = true,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
@@ -350,7 +350,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
             asDriver = true
-          ),
+          )
         )
       )
       val response = expectMsgType[RoutingResponse]
@@ -365,11 +365,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       val destination = services.geo.wgs2Utm(new Coord(-122.40686, 37.784992)) // Powell St.
       val time = 51840
       router ! RoutingRequest(
-        origin,
-        destination,
-        time,
+        originUTM = origin,
+        destinationUTM = destination,
+        departureTime = time,
         withTransit = true,
-        Vector(
+        streetVehicles = Vector(
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),

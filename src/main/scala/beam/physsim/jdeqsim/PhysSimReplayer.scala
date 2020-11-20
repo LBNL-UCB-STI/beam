@@ -6,27 +6,20 @@ import java.nio.file.Files
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
-import beam.sim.config.BeamConfig
 import beam.utils.{BeamConfigUtils, EventReader}
 import com.typesafe.config.{Config, ConfigFactory, ConfigResolveOptions, ConfigValueFactory}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.EventsManagerImpl
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 import scala.io.Source
 import scala.util.Try
 
-class PhysSimReplayer {}
-
 object PhysSimReplayer extends StrictLogging {
 
   def eventsFilter(event: Event): Boolean = {
-    val attribs = event.getAttributes
-    // We need only PathTraversal
-    val isNeededEvent = event.getEventType == "PathTraversal"
-    isNeededEvent
+    event.getEventType == "PathTraversal"
   }
 
   def main(args: Array[String]): Unit = {
@@ -127,7 +120,7 @@ object PhysSimReplayer extends StrictLogging {
           "beam.routing.r5.osmMapdbFile",
           ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/osm.mapdb""")
         )
-        .withValue("beam.exchange.scenario.source", ConfigValueFactory.fromAnyRef(s"""Beam"""))
+        .withValue("beam.exchange.scenario.source", ConfigValueFactory.fromAnyRef("Beam"))
         .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
         .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(pathToWarmStartZip))
         .withValue("beam.agentsim.taz.filePath", ConfigValueFactory.fromAnyRef(s"""$pwd/taz-centers.csv"""))

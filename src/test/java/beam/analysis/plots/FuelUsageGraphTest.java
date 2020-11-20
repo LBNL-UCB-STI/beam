@@ -39,7 +39,7 @@ public class FuelUsageGraphTest {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    }, true);
+    }, true, null);
 
     @Before
     public void setUpClass() {

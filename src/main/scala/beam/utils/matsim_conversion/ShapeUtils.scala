@@ -3,7 +3,7 @@ package beam.utils.matsim_conversion
 import java.io._
 import java.util
 
-import com.vividsolutions.jts.geom.Geometry
+import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
@@ -11,14 +11,45 @@ import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
-
 import scala.collection.JavaConverters._
+
+import beam.agentsim.infrastructure.taz.CsvTaz
 
 object ShapeUtils {
 
   case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
-  case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
+  trait HasQuadBounds[A] {
+    def getMinX(a: A): Double
+    def getMaxX(a: A): Double
+    def getMinY(a: A): Double
+    def getMaxY(a: A): Double
+  }
+
+  object HasQuadBounds {
+    import scala.language.implicitConversions
+
+    implicit val coord: HasQuadBounds[Coord] = new HasQuadBounds[Coord] {
+      override def getMinX(coord: Coord): Double = coord.getX
+
+      override def getMaxX(coord: Coord): Double = coord.getX
+
+      override def getMinY(coord: Coord): Double = coord.getY
+
+      override def getMaxY(coord: Coord): Double = coord.getY
+    }
+
+    implicit val envelope: HasQuadBounds[Envelope] = new HasQuadBounds[Envelope] {
+      override def getMinX(envelope: Envelope): Double = envelope.getMinX
+
+      override def getMaxX(envelope: Envelope): Double = envelope.getMaxX
+
+      override def getMinY(envelope: Envelope): Double = envelope.getMinY
+
+      override def getMaxY(envelope: Envelope): Double = envelope.getMaxY
+    }
+
+  }
 
   private def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
@@ -124,4 +155,19 @@ object ShapeUtils {
     }
   }
 
+  def quadTreeBounds[A: HasQuadBounds](elements: Iterable[A]): QuadTreeBounds = {
+    val A = implicitly[HasQuadBounds[A]]
+    var minX: Double = Double.MaxValue
+    var maxX: Double = Double.MinValue
+    var minY: Double = Double.MaxValue
+    var maxY: Double = Double.MinValue
+
+    for (a <- elements) {
+      minX = Math.min(minX, A.getMinX(a))
+      minY = Math.min(minY, A.getMinY(a))
+      maxX = Math.max(maxX, A.getMaxX(a))
+      maxY = Math.max(maxY, A.getMaxY(a))
+    }
+    QuadTreeBounds(minX, minY, maxX, maxY)
+  }
 }

@@ -1,5 +1,8 @@
 package beam.analysis;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
@@ -10,6 +13,7 @@ import java.util.Map;
  * @author rwaraich
  */
 public class PathTraversalEventGenerationFromCsv {
+    private static final Logger log = LoggerFactory.getLogger(PathTraversalEventGenerationFromCsv.class);
 
     public static void main(String[] args) {
 
@@ -63,9 +67,8 @@ public class PathTraversalEventGenerationFromCsv {
                     //   r5NetworkLinks.put(r5NetworkLink.linkId, r5NetworkLink);
                 }
             }
-
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 }

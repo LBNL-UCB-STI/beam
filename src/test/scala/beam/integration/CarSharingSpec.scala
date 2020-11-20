@@ -22,12 +22,16 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
   private val sharedCarTypeId = org.matsim.api.core.v01.Id.create("sharedCar", classOf[BeamVehicleType])
 
+  //clearModes is required for clearing modes defined in population.xml
   "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
+        |beam.actorSystemName = "CarSharingSpec"
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
+        |beam.replanning.clearModes.iteration = 0
+        |beam.replanning.clearModes.modes = ["walk", "bike", "car"]
         |beam.agentsim.agents.vehicles.sharedFleets = [
         | {
         |    name = "inexhaustible-reserving"
@@ -52,9 +56,12 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
     val config = ConfigFactory
       .parseString("""
+        |beam.actorSystemName = "CarSharingSpec"
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
+        |beam.replanning.clearModes.iteration = 0
+        |beam.replanning.clearModes.modes = ["walk", "bike", "car"]
         |beam.agentsim.agents.vehicles.sharedFleets = [
         | {
         |    name = "fixed-non-reserving"
@@ -146,6 +153,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   "Reposition scenario" must "results at least a person driving in the second iteration" in {
     val config = ConfigFactory
       .parseString("""
+         |beam.actorSystemName = "CarSharingSpec"
          |beam.outputs.events.fileOutputFormats = xml
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 1

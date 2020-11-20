@@ -55,9 +55,8 @@ class ParkingTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLa
   }
 
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {
-
     val chart =
-      ChartFactory.createLineChart(title, "Hour", "#Count", dataSet, PlotOrientation.VERTICAL, true, true, false)
+      GraphUtils.createLineChartWithDefaultSettings(dataSet, title, "Hour", "#Count", true, true)
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,

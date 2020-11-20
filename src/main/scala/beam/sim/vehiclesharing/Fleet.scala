@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.log4j.Logger
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -27,8 +28,9 @@ case class FixedNonReservingFleetByTAZ(
   managerId: Id[VehicleManager],
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
-) extends FleetType {
-  private val logger = Logger.getLogger(classOf[FixedNonReservingFleetByTAZ])
+) extends FleetType
+    with LazyLogging {
+
   case class FixedNonReservingFleetByTAZException(message: String, cause: Throwable = null)
       extends Exception(message, cause)
   override def props(
@@ -73,14 +75,14 @@ case class FixedNonReservingFleetByTAZ(
     )
     Props(
       new FixedNonReservingFleetManager(
-        managerId,
-        parkingManager,
-        initialLocation,
-        vehicleType,
-        beamScheduler,
-        beamServices,
-        config.maxWalkingDistance,
-        repConfig.map(RepositionAlgorithms.lookup(_))
+        id = managerId,
+        parkingManager = parkingManager,
+        locations = initialLocation,
+        vehicleType = vehicleType,
+        mainScheduler = beamScheduler,
+        beamServices = beamServices,
+        maxWalkingDistance = config.maxWalkingDistance,
+        repositionAlgorithmType = repConfig.map(RepositionAlgorithms.lookup)
       )
     )
   }

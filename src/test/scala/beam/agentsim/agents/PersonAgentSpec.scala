@@ -34,7 +34,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.FunSpecLike
+import org.scalatest.{BeforeAndAfter, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
@@ -43,6 +43,7 @@ class PersonAgentSpec
     extends FunSpecLike
     with TestKitBase
     with SimRunnerForTest
+    with BeforeAndAfter
     with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
@@ -68,6 +69,9 @@ class PersonAgentSpec
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
+
+  private var maybeIteration: Option[ActorRef] = None
+  private val terminationProbe = TestProbe()
 
   describe("A PersonAgent") {
 
@@ -202,7 +206,9 @@ class PersonAgentSpec
       assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
       lastSender ! RoutingResponse(
         itineraries = Vector(),
-        requestId = request1.requestId
+        requestId = request1.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       // This is the regular routing request.
@@ -236,7 +242,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = request2.requestId
+        requestId = request2.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -261,22 +269,25 @@ class PersonAgentSpec
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
+      maybeIteration = Some(
+        TestActorRef(
+          Props(new Actor() {
+            context.actorOf(
+              Props(new Actor() {
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
 
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
+                override def receive: Receive = Actor.emptyBehavior
+              }),
+              "transit-system"
+            )
 
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
+            override def receive: Receive = Actor.emptyBehavior
+          }),
+          "BeamMobsim.iteration"
+        )
       )
+      terminationProbe.watch(maybeIteration.get)
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -442,7 +453,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -514,7 +527,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-      iteration ! PoisonPill
     }
 
     it("should also work when the first bus is late") {
@@ -532,22 +544,25 @@ class PersonAgentSpec
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
-      val iteration: ActorRef = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
+      maybeIteration = Some(
+        TestActorRef(
+          Props(new Actor() {
+            context.actorOf(
+              Props(new Actor() {
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
+                context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
 
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
+                override def receive: Receive = Actor.emptyBehavior
+              }),
+              "transit-system"
+            )
 
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
+            override def receive: Receive = Actor.emptyBehavior
+          }),
+          "BeamMobsim.iteration"
+        )
       )
+      terminationProbe.watch(maybeIteration.get)
 
       val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -731,7 +746,9 @@ class PersonAgentSpec
             )
           )
         ),
-        requestId = 1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -760,7 +777,7 @@ class PersonAgentSpec
       events.expectMsgType[ReplanningEvent]
       expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
-        Vector(
+        itineraries = Vector(
           EmbodiedBeamTrip(
             Vector(
               replannedTramLeg,
@@ -787,7 +804,9 @@ class PersonAgentSpec
             )
           )
         ),
-        1
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false
       )
       events.expectMsgType[ModeChoiceEvent]
 
@@ -836,7 +855,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
 
       expectMsgType[CompletionNotice]
-      iteration ! PoisonPill
     }
 
   }
@@ -844,6 +862,20 @@ class PersonAgentSpec
   override def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  after {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    maybeIteration.foreach { iteration =>
+      iteration ! PoisonPill
+      terminationProbe.expectTerminated(iteration, 60 seconds)
+    }
+    maybeIteration = None
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    receiveWhile(1000 millis) {
+      case _: CompletionNotice =>
+    }
   }
 
 }

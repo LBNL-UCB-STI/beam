@@ -100,7 +100,6 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
       graphTitleName,
       xAxisTitle,
       yAxisTitle,
-      fileName,
       legend
     )
     val plot: CategoryPlot = chart.getCategoryPlot

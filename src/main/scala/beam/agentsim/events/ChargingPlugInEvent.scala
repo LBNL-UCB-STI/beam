@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
 
-class ChargingPlugInEvent(
+case class ChargingPlugInEvent(
   tick: Double,
   stall: ParkingStall,
   locationWGS: Coord,
@@ -25,8 +25,8 @@ class ChargingPlugInEvent(
   override def getEventType: String = EVENT_TYPE
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
-  val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
+  val pricingModelString: String = stall.pricingModel.map { _.toString }.getOrElse("None")
+  val chargingPointString: String = stall.chargingPointType.map { _.toString }.getOrElse("None")
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes

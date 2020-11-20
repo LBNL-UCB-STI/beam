@@ -9,6 +9,7 @@ import beam.agentsim.agents.{Dropoff, MobilityRequest, Pickup, Relocation}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -55,31 +56,31 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    *
    * See Pooling for an example of an algorithm that uses removeRequestFromBuffer
    */
-  def addRequestToBuffer(request: RideHailRequest) = {
+  def addRequestToBuffer(request: RideHailRequest): Unit = {
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> List())
   }
 
-  def addRequestToSecondaryBuffer(request: RideHailRequest) = {
+  def addRequestToSecondaryBuffer(request: RideHailRequest): Unit = {
     secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
   }
 
-  def clearPrimaryBufferAndFillFromSecondary = {
+  def clearPrimaryBufferAndFillFromSecondary: Unit = {
     bufferedRideHailRequests = secondaryBufferedRideHailRequests
     secondaryBufferedRideHailRequests = Map()
   }
 
-  def getBufferSize = bufferedRideHailRequests.size
+  def getBufferSize: Int = bufferedRideHailRequests.size
 
-  def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse) = {
+  def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse): Unit = {
     if (awaitingRoutes.contains(request)) awaitingRoutes -= request
     if (!bufferedRideHailRequests.contains(request)) addRequestToBuffer(request)
     bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
 
-  def removeRequestFromBuffer(request: RideHailRequest) = {
+  def removeRequestFromBuffer(request: RideHailRequest): Unit = {
     bufferedRideHailRequests -= request
   }
-  def isBufferEmpty = bufferedRideHailRequests.isEmpty
+  def isBufferEmpty: Boolean = bufferedRideHailRequests.isEmpty
 
   def allocateVehiclesToCustomers(tick: Int, beamServices: BeamServices): AllocationResponse = {
     var allocationResponse =
@@ -150,7 +151,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             NoVehicleAllocated(requestWithUpdatedLoc)
         }
       // The following if condition ensures we actually got routes back in all cases
-      case (request, routingResponses) if routingResponses.find(_.itineraries.isEmpty).isDefined =>
+      case (request, routingResponses) if routingResponses.exists(_.itineraries.isEmpty) =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         val requestUpdated = RideHailRequest.handleImpression(request, beamServices)
@@ -253,6 +254,11 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
           RepositioningManager[DefaultRepositioningManager](rideHailManager.beamServices, rideHailManager)
         case "DEMAND_FOLLOWING_REPOSITIONING_MANAGER" =>
           RepositioningManager[DemandFollowingRepositioningManager](rideHailManager.beamServices, rideHailManager)
+        case "INVERSE_SQUARE_DISTANCE_REPOSITIONING_FACTOR" =>
+          RepositioningManager[InverseSquareDistanceRepositioningFactor](
+            rideHailManager.beamServices,
+            rideHailManager
+          )
         case "REPOSITIONING_LOW_WAITING_TIMES" =>
           RepositioningManager[RepositioningLowWaitingTimes](rideHailManager.beamServices, rideHailManager)
         case "THE_SAME_LOCATION_REPOSITIONING_MANAGER" =>
@@ -303,6 +309,12 @@ object RideHailResourceAllocationManager {
         }
     }
   }
+
+  def requiredRideHailIterationsStatsCollector(rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail): Boolean =
+    rideHailConfig.repositioningManager.name match {
+      case "REPOSITIONING_LOW_WAITING_TIMES" => true
+      case _                                 => false
+    }
 }
 
 /*

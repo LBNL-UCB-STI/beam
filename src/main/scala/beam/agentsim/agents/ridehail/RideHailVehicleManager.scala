@@ -44,7 +44,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   val vehicleState: mutable.Map[Id[BeamVehicle], BeamVehicleState] =
     mutable.Map[Id[BeamVehicle], BeamVehicleState]()
 
-  val idleRideHailAgentSpatialIndex = {
+  val idleRideHailAgentSpatialIndex: QuadTree[RideHailAgentLocation] = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -53,7 +53,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     )
   }
 
-  val inServiceRideHailAgentSpatialIndex = {
+  val inServiceRideHailAgentSpatialIndex: QuadTree[RideHailAgentLocation] = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -62,7 +62,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     )
   }
 
-  val outOfServiceRideHailAgentSpatialIndex = {
+  val outOfServiceRideHailAgentSpatialIndex: QuadTree[RideHailAgentLocation] = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -70,9 +70,15 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
       boundingBox.getMaxY
     )
   }
-  val idleRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val outOfServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val inServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+
+  val idleRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+
+  val outOfServiceRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+
+  val inServiceRideHailVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
 
   def getVehicleState(vehicleId: Id[BeamVehicle]): BeamVehicleState =
     vehicleState(vehicleId)
@@ -213,7 +219,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     vehicleId: Id[BeamVehicle],
     whenWhere: SpaceTime,
     serviceStatus: RideHailVehicleManager.RideHailServiceStatus
-  ) = {
+  ): Any = {
     serviceStatus match {
       case Available =>
         idleRideHailVehicles.get(vehicleId) match {
@@ -285,7 +291,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     this.makeAvailable(getRideHailAgentLocation(vehicleId))
   }
 
-  def makeAvailable(agentLocation: RideHailAgentLocation) = {
+  def makeAvailable(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Making vehicle '${agentLocation.vehicleId}' Idle/Available; Full list before: ${idleRideHailVehicles.keys.mkString(";")}"
     )
@@ -321,7 +327,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     this.putIntoService(getRideHailAgentLocation(vehicleId))
   }
 
-  def putIntoService(agentLocation: RideHailAgentLocation) = {
+  def putIntoService(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Removing vehicle '${agentLocation.vehicleId}' from Idle/Available since will be InService; Full list before: ${idleRideHailVehicles.keys
         .mkString(";")}"
@@ -357,7 +363,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     this.putOutOfService(getRideHailAgentLocation(vehicleId))
   }
 
-  def putOutOfService(agentLocation: RideHailAgentLocation) = {
+  def putOutOfService(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Removing vehicle '${agentLocation.vehicleId}' from Idle/Available since will be OutOfService; Full list before: ${idleRideHailVehicles.keys
         .mkString(";")}"

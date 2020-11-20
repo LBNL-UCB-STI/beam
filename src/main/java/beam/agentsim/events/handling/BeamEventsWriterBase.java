@@ -13,28 +13,37 @@ import java.io.BufferedWriter;
  */
 public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
     protected final BufferedWriter outWriter;
-    protected final BeamEventsLogger beamEventLogger;
+    protected final BeamEventsLoggingSettings settings;
     protected final BeamServices beamServices;
     protected final Class<?> eventTypeToLog;
 
-
-    public BeamEventsWriterBase(String outfilename, BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
-        this.beamEventLogger = beamEventLogger;
+    public BeamEventsWriterBase(final BufferedWriter outWriter,
+                                final BeamEventsLoggingSettings settings,
+                                final BeamServices beamServices,
+                                final Class<?> eventTypeToLog) {
+        this.outWriter = outWriter;
+        this.settings = settings;
         this.beamServices = beamServices;
-        this.outWriter = IOUtils.getBufferedWriter(outfilename);
         this.eventTypeToLog = eventTypeToLog;
     }
 
-    public BeamEventsWriterBase(BeamEventsLogger beamEventLogger, BeamServices beamServices, Class<?> eventTypeToLog) {
-        this.beamEventLogger = beamEventLogger;
-        this.beamServices = beamServices;
-        this.eventTypeToLog = eventTypeToLog;
-        this.outWriter = null;
+    public BeamEventsWriterBase(final String outfilename,
+                                final BeamEventsLoggingSettings settings,
+                                final BeamServices beamServices,
+                                final Class<?> eventTypeToLog) {
+        this(IOUtils.getBufferedWriter(outfilename), settings, beamServices, eventTypeToLog);
+    }
+
+    public BeamEventsWriterBase(final BeamEventsLoggingSettings settings,
+                                final BeamServices beamServices,
+                                final Class<?> eventTypeToLog) {
+        this((BufferedWriter) null, settings, beamServices, eventTypeToLog);
     }
 
     @Override
     public void handleEvent(final Event event) {
-        if ((eventTypeToLog == null && beamEventLogger.shouldLogThisEventType(event.getClass())) || eventTypeToLog == event.getClass()) {
+        if ((eventTypeToLog == null && settings.shouldLogThisEventType(event.getClass()))
+                || eventTypeToLog == event.getClass()) {
             writeEvent(event);
         }
     }
@@ -48,7 +57,7 @@ public class BeamEventsWriterBase implements EventWriter, BasicEventHandler {
     public void reset(final int iter) {
     }
 
-    protected void writeEvent(final Event event) {
+    public void writeEvent(final Event event) {
     }
 
     public void writeHeaders() {
