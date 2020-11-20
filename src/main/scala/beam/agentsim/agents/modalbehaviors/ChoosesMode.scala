@@ -31,7 +31,7 @@ import org.matsim.core.utils.misc.Time
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.router.RoutingWorker
+import beam.router.{Modes, RoutingWorker}
 
 /**
   * BEAM
@@ -383,6 +383,7 @@ trait ChoosesMode {
                 makeResponsePlaceholders(boundingBox, withRouting = true, withParking = mode == CAR)
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
+          val vehicleMode = Modes.getAccessVehicleMode(mode)
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           (
             currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
@@ -394,7 +395,8 @@ trait ChoosesMode {
               // actual location of transit station
               makeRequestWith(
                 withTransit = true,
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode) :+ bodyStreetVehicle,
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), vehicleMode)
+                :+ bodyStreetVehicle,
                 withParking = false
               )
               responsePlaceholders = makeResponsePlaceholders(boundingBox, withRouting = true, withParking = false)

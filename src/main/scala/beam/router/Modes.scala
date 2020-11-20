@@ -218,4 +218,13 @@ object Modes {
     case _                      => throw new IllegalArgumentException
   }
 
+  def getAccessVehicleMode(mode: BeamMode): BeamMode = mode match {
+    case BeamMode.TRANSIT           => throw new IllegalArgumentException("access vehicle is unknown")
+    case BeamMode.WALK_TRANSIT      => BeamMode.WALK
+    case BeamMode.DRIVE_TRANSIT     => BeamMode.CAR
+    case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
+    case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE
+    case _                          => throw new IllegalArgumentException("not a transit mode: " + mode.value)
+  }
+
 }

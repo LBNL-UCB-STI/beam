@@ -128,7 +128,7 @@ class JDEQSimRunner(
         ),
         physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
         (),
-      )(concurrent.ExecutionContext.global)
+      )(scala.concurrent.ExecutionContext.global)
     }
     SimulationResult(
       iteration = currentPhysSimIter,

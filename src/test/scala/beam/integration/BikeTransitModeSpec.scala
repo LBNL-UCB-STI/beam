@@ -5,6 +5,7 @@ import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sflight.RouterForTest
@@ -91,6 +92,7 @@ class BikeTransitModeSpec
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
+        new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper
       )
       mobsim.run()
@@ -146,6 +148,7 @@ class BikeTransitModeSpec
         new RideHailIterationHistory(),
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
+        new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper
       )
       mobsim.run()
