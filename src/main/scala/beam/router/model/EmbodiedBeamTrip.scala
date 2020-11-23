@@ -92,10 +92,10 @@ object EmbodiedBeamTrip {
     }
     if (theMode == TRANSIT && hasUsedRideHail) {
       RIDE_HAIL_TRANSIT
-    } else if (theMode == TRANSIT && hasUsedBike) {
-      BIKE_TRANSIT
     } else if (theMode == TRANSIT && hasUsedCar) {
       DRIVE_TRANSIT
+    } else if (theMode == TRANSIT && hasUsedBike) {
+      BIKE_TRANSIT
     } else if (theMode == TRANSIT && !hasUsedCar) {
       WALK_TRANSIT
     } else {
