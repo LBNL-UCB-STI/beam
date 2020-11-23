@@ -83,7 +83,8 @@ class HierarchicalParkingManagerSpec
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -123,7 +124,8 @@ class HierarchicalParkingManagerSpec
           250.0,
           8000.0,
           boundingBox,
-          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          checkThatNumberOfStallsMatch = true,
         )
       )
 
@@ -174,7 +176,8 @@ class HierarchicalParkingManagerSpec
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -235,7 +238,8 @@ class HierarchicalParkingManagerSpec
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -310,7 +314,8 @@ class HierarchicalParkingManagerSpec
             250.0,
             8000.0,
             boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -355,7 +360,10 @@ class HierarchicalParkingManagerSpec
           250.0,
           8000.0,
           boundingBox,
-          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          // the number of stalls on TAZ and link levels will not match because of big number of stalls
+          // which don't fit into Int precision
+          checkThatNumberOfStallsMatch = false,
         )
       )
 

@@ -528,7 +528,8 @@ class RideHailManager(
           mnlMultiplierParameters,
           beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
         )
-      case wrong @ _ => throw new IllegalArgumentException(s"Unsupported parking level type $wrong")
+      case wrong @ _ =>
+        throw new IllegalArgumentException(s"Unsupported parking level type $wrong, only TAZ | Link are supported")
     }
   }
 

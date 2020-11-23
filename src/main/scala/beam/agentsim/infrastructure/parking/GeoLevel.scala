@@ -67,7 +67,8 @@ object GeoLevel {
     geoLevel.toLowerCase match {
       case "taz"  => (TAZ.EmergencyTAZId, TAZ.DefaultTAZId)
       case "link" => (LinkLevelOperations.EmergencyLinkId, LinkLevelOperations.DefaultLinkId)
-      case _      => throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel")
+      case _ =>
+        throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel, only TAZ | Link are supported")
     }
   }
 }

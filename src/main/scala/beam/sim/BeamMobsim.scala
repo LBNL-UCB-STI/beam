@@ -372,7 +372,10 @@ class BeamMobsimIteration(
               beamRouter,
               envelopeInUTM
             )
-          case _ => throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel")
+          case _ =>
+            throw new IllegalArgumentException(
+              s"Unsupported parking level type $geoLevel, only TAZ | Link are supported"
+            )
         }
       case "HIERARCHICAL" =>
         HierarchicalParkingManager

@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.{ActorLogging, Props}
+import akka.event.Logging
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.ZonalParkingManager.{loadParkingZones, mnlMultiplierParametersFromConfig}
@@ -35,7 +36,8 @@ class HierarchicalParkingManager(
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNLConfig
+  mnlMultiplierParameters: ParkingMNLConfig,
+  checkThatNumberOfStallsMatch: Boolean = false,
 ) extends beam.utils.CriticalActor
     with ActorLogging {
 
@@ -74,6 +76,10 @@ class HierarchicalParkingManager(
 
   private val linkZoneSearchMap: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] =
     createLinkZoneSearchMap(actualLinkParkingZones)
+
+  if (checkThatNumberOfStallsMatch) {
+    stallsInfo()
+  }
 
   override def receive: Receive = {
 
@@ -167,9 +173,8 @@ class HierarchicalParkingManager(
     * This method can be used for validating that stallsAvailable is the same for each TAZ and sum of all the links that
     * belongs to this TAZ
     */
-  //noinspection ScalaUnusedSymbol
   private def stallsInfo(): Unit = {
-    val notMatch = tazMap.getTAZs
+    val notMatchedTazIds = tazMap.getTAZs
       .map { taz =>
         val linkStalls = tazLinks
           .get(taz.tazId)
@@ -191,8 +196,9 @@ class HierarchicalParkingManager(
         } yield tazParkingZones(zoneId).stallsAvailable.toLong).sum
         if (tazStalls != linkStalls) Some(taz.tazId) else None
       }
-      .count(_.nonEmpty)
-    log.warning(s"Num non matched $notMatch")
+    val notMatch = notMatchedTazIds.count(_.nonEmpty)
+    val logLevel = if (notMatch == 0) Logging.InfoLevel else Logging.WarningLevel
+    log.log(logLevel, s"Number of non matched stalls on TAZ and link level: $notMatch")
   }
 
   private def lastResortStallAndZone(location: Location) = {
@@ -244,8 +250,9 @@ object HierarchicalParkingManager {
     minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
-    mnlMultiplierParameters: ParkingMNLConfig
-  ): Props = {
+    mnlMultiplierParameters: ParkingMNLConfig,
+    checkThatNumberOfStallsMatch: Boolean = false,
+  ): Props =
     Props(
       new HierarchicalParkingManager(
         tazMap,
@@ -256,10 +263,10 @@ object HierarchicalParkingManager {
         minSearchRadius,
         maxSearchRadius,
         boundingBox,
-        mnlMultiplierParameters
+        mnlMultiplierParameters,
+        checkThatNumberOfStallsMatch,
       )
     )
-  }
 
   def props(
     beamConfig: BeamConfig,
