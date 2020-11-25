@@ -51,6 +51,8 @@ trait ChoosesMode {
     BIKE -> createDummyVehicle("dummySharedBike", "sharedBike", BIKE, asDriver = true),
   )
 
+  val dummySharedVehicleIds: Seq[Id[BeamVehicle]] = dummySharedVehicles.values.map(_.id).toSeq
+
   private def createDummyVehicle(id: String, vehicleTypeId: String, mode: BeamMode, asDriver: Boolean) =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
@@ -624,8 +626,8 @@ trait ChoosesMode {
       val mobilityStatuses = mobStatuses.responses.map {
         case (trip, leg, response) => (trip, leg, response.streetVehicle.collect { case token: Token => token })
       }
-      val tripsToDelete = mobilityStatuses.filter(_._3.isEmpty).map(_._1).toSet
-      val tripsToModify = mobilityStatuses.map(_._1).toSet -- tripsToDelete
+      val tripsToDelete = mobilityStatuses.collect { case (trip, _, tokens) if tokens.isEmpty  => trip }.toSet
+      val tripsToModify = mobilityStatuses.collect { case (trip, _, tokens) if tokens.nonEmpty => trip }.toSet
       val legMap = mobilityStatuses
         .filter { case (trip, _, _) => tripsToModify.contains(trip) }
         .map { case (_, leg, response) => leg -> response }
@@ -636,17 +638,26 @@ trait ChoosesMode {
         .filterNot(tripsToDelete.contains)
         .map {
           case trip if tripsToModify.contains(trip) =>
-            val newLegs = trip.legs.map {
+            //find nearest provided vehicle for each leg
+            val legVehicles: Map[EmbodiedBeamLeg, Token] = trip.legs.collect {
               case leg if legMap.contains(leg) =>
                 val nearestVehicle = legMap(leg)
                   .minBy(
                     token =>
                       geo.distUTMInMeters(leg.beamLeg.travelPath.startPoint.loc, token.streetVehicle.locationUTM.loc)
                   )
-                beamVehicles += nearestVehicle.id -> nearestVehicle
-                leg.copy(beamVehicleId = nearestVehicle.id);
+                leg -> nearestVehicle
+            }.toMap
+            //replace the dummy vehicle with the provided token for each leg
+            val newLegs = trip.legs.map {
+              case leg if legVehicles.contains(leg) =>
+                leg.copy(beamVehicleId = legVehicles(leg).id)
+              //parking leg uses the same vehicle as the previos leg
+              case nextLeg if mobStatuses.splitLegs.contains(nextLeg) =>
+                nextLeg.copy(beamVehicleId = legVehicles(mobStatuses.splitLegs(nextLeg)).id)
               case leg => leg
             }
+            beamVehicles ++= legVehicles.values.map(token => token.id -> token)
             trip.copy(legs = newLegs)
           case trip => trip
         }
@@ -681,23 +692,46 @@ trait ChoosesMode {
 
   private def makeVehicleRequestsForSharedVehicles(trips: Seq[EmbodiedBeamTrip]): Unit = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
+    //we need not request another vehicle if we have a split leg for parking. We have the same vehicle for both legs.
+    //so looking for subsequent shared vehicles and map one to another
+    val splitLegs: Map[EmbodiedBeamLeg, EmbodiedBeamLeg] = trips.flatMap { trip =>
+      trip.legs.zip(trip.legs.tail).flatMap {
+        case (leg, nextLeg) =>
+          if (isLegOnDummySharedVehicle(leg) && isLegOnDummySharedVehicle(nextLeg)) {
+            Some(nextLeg -> leg)
+          } else {
+            None
+          }
+      }
+    }.toMap
+    //get all the shared vehicles to request tokens for them
     val tripLegPairs = trips.flatMap(
       trip =>
         trip.legs
-          .filter(_.beamVehicleId.toString.startsWith("dummyShared"))
+          .filter(legs => isLegOnDummySharedVehicle(legs))
           .map(leg => (trip, leg))
     )
     if (tripLegPairs.nonEmpty) {
       Future
         .sequence(
-          tripLegPairs.map {
-            case (trip, leg) =>
-              requestAvailableVehicles(geo.wgs2Utm(leg.beamLeg.travelPath.startPoint), null) //todo get current activity
+          tripLegPairs.collect {
+            case (trip, leg) if !splitLegs.contains(leg) =>
+              requestAvailableVehicles(geo.wgs2Utm(leg.beamLeg.travelPath.startPoint), null)
                 .map((trip, leg, _))
           }
         )
-        .map(MobilityStatusWithLegs) pipeTo self
+        .map { responses: Seq[(EmbodiedBeamTrip, EmbodiedBeamLeg, MobilityStatusResponse)] =>
+          MobilityStatusWithLegs(responses, splitLegs)
+        } pipeTo self
     }
+  }
+
+  private def isLegOnDummySharedVehicle(beamLeg: EmbodiedBeamLeg): Boolean = {
+    isDummySharedVehicle(beamLeg.beamVehicleId)
+  }
+
+  private def isDummySharedVehicle(beamVehicleId: Id[BeamVehicle]): Boolean = {
+    dummySharedVehicleIds.contains(beamVehicleId)
   }
 
   case object FinishingModeChoice extends BeamAgentState
@@ -957,7 +991,7 @@ trait ChoosesMode {
         _,
         _,
         _
-        ) if !routingResponse.itineraries.exists(_.legs.exists(_.beamVehicleId.toString.startsWith("dummyShared"))) =>
+        ) if !routingResponse.itineraries.exists(_.legs.exists(isLegOnDummySharedVehicle)) =>
       val currentPersonLocation = choosesModeData.currentLocation
       val nextAct = nextActivity(choosesModeData.personData).get
       val rideHail2TransitIinerary = createRideHail2TransitItin(
@@ -1282,7 +1316,10 @@ object ChoosesMode {
 
   }
 
-  case class MobilityStatusWithLegs(responses: Seq[(EmbodiedBeamTrip, EmbodiedBeamLeg, MobilityStatusResponse)])
+  case class MobilityStatusWithLegs(
+    responses: Seq[(EmbodiedBeamTrip, EmbodiedBeamLeg, MobilityStatusResponse)],
+    splitLegs: Map[EmbodiedBeamLeg, EmbodiedBeamLeg]
+  )
 
   case class ChoosesModeResponsePlaceholders(
     routingResponse: Option[RoutingResponse] = None,
