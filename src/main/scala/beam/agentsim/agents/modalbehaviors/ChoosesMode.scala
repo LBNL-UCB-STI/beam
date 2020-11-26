@@ -47,8 +47,18 @@ trait ChoosesMode {
   )
 
   val dummySharedVehicles: Map[BeamMode, StreetVehicle] = Map(
-    CAR  -> createDummyVehicle("dummySharedCar", "sharedCar", CAR, asDriver = true),
-    BIKE -> createDummyVehicle("dummySharedBike", "sharedBike", BIKE, asDriver = true),
+    CAR -> createDummyVehicle(
+      "dummySharedCar",
+      beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+      CAR,
+      asDriver = true
+    ),
+    BIKE -> createDummyVehicle(
+      "dummySharedBike",
+      beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+      BIKE,
+      asDriver = true
+    ),
   )
 
   val dummySharedVehicleIds: Seq[Id[BeamVehicle]] = dummySharedVehicles.values.map(_.id).toSeq

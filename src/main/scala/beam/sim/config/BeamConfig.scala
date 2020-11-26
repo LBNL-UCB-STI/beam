@@ -1233,6 +1233,8 @@ object BeamConfig {
 
         case class Vehicles(
           downsamplingMethod: java.lang.String,
+          dummySharedBike: BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike,
+          dummySharedCar: BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar,
           fractionOfInitialVehicleFleet: scala.Double,
           fractionOfPeopleWithBicycle: scala.Double,
           fuelTypesFilePath: java.lang.String,
@@ -1247,6 +1249,32 @@ object BeamConfig {
         )
 
         object Vehicles {
+          case class DummySharedBike(
+            vehicleTypeId: java.lang.String
+          )
+
+          object DummySharedBike {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike = {
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike(
+                vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedBike"
+              )
+            }
+          }
+
+          case class DummySharedCar(
+            vehicleTypeId: java.lang.String
+          )
+
+          object DummySharedCar {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar = {
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar(
+                vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar"
+              )
+            }
+          }
+
           case class SharedFleets$Elm(
             fixed_non_reserving: scala.Option[
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving
@@ -1404,6 +1432,14 @@ object BeamConfig {
               downsamplingMethod =
                 if (c.hasPathOrNull("downsamplingMethod")) c.getString("downsamplingMethod")
                 else "SECONDARY_VEHICLES_FIRST",
+              dummySharedBike = BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike(
+                if (c.hasPathOrNull("dummySharedBike")) c.getConfig("dummySharedBike")
+                else com.typesafe.config.ConfigFactory.parseString("dummySharedBike{}")
+              ),
+              dummySharedCar = BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar(
+                if (c.hasPathOrNull("dummySharedCar")) c.getConfig("dummySharedCar")
+                else com.typesafe.config.ConfigFactory.parseString("dummySharedCar{}")
+              ),
               fractionOfInitialVehicleFleet =
                 if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
                 else 1.0,
