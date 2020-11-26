@@ -97,8 +97,9 @@ class ChargingNetworkManager(
                       None
                     case cycle if cycle.duration >= cnmConfig.timeStepInSeconds =>
                       log.debug(
-                        "Ending refuel cycle for vehicle {}. Provided energy of {} J. Remaining {} J",
+                        "Ending refuel cycle of vehicle {}. Stall: {}. Provided energy: {} J. Remaining: {} J",
                         vehicle.id,
+                        vehicle.stall,
                         cycle.energy,
                         energyToCharge
                       )
@@ -191,7 +192,7 @@ class ChargingNetworkManager(
       }
 
     case ChargingUnplugRequest(tick, vehicle, vehicleManager) =>
-      log.debug(s"ChargingUnplugRequest received for vehicle $vehicle at $tick")
+      log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicle.id) match {
@@ -273,9 +274,10 @@ class ChargingNetworkManager(
     */
   private def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
     chargingVehicle.latestChargingCycle.foreach { cycle =>
-      chargingVehicle.vehicle.addFuel(cycle.energy)
+      val vehicle = chargingVehicle.vehicle
+      vehicle.addFuel(cycle.energy)
       collectObservedLoadInKW(chargingVehicle, cycle)
-      log.debug(s"Charging vehicle ${chargingVehicle.vehicle}. Provided energy of = ${cycle.energy} J")
+      log.debug(s"Charging vehicle $vehicle. Stall ${vehicle.stall}. Provided energy of = ${cycle.energy} J")
     }
   }
 
