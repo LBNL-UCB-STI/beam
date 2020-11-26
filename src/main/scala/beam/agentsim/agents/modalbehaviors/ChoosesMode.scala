@@ -121,7 +121,9 @@ trait ChoosesMode {
             _,
             _,
             _,
-            _
+            _,
+            _,
+            _,
             ) =>
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles if our mode requires such a vehicle
@@ -159,7 +161,9 @@ trait ChoosesMode {
             _,
             _,
             _,
-            _
+            _,
+            _,
+            _,
             ) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           requestAvailableVehicles(currentLocation, _experiencedBeamPlan.activities(currentActivityIndex)) pipeTo self
@@ -217,13 +221,7 @@ trait ChoosesMode {
           None
       }
 
-      val bodyStreetVehicle = StreetVehicle(
-        body.id,
-        body.beamVehicleType.id,
-        currentPersonLocation,
-        WALK,
-        asDriver = true
-      )
+      val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
       val nextAct = nextActivity(choosesModeData.personData).get
       val departTime = _currentTick.get
 
@@ -474,12 +472,39 @@ trait ChoosesMode {
         rideHailResult = responsePlaceholders.rideHailResult,
         rideHail2TransitAccessResult = responsePlaceholders.rideHail2TransitAccessResult,
         rideHail2TransitEgressResult = responsePlaceholders.rideHail2TransitEgressResult,
-        cavTripLegs = responsePlaceholders.cavTripLegs
+        cavTripLegs = responsePlaceholders.cavTripLegs,
+        routingFinished = choosesModeData.routingFinished
+        || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse,
       )
       stay() using newPersonData
     /*
      * Receive and store data needed for choice.
      */
+    case Event(
+        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        choosesModeData: ChoosesModeData
+        ) if choosesModeData.routingRequestToLegMap.contains(requestId) =>
+      //handling router responses for shared vehicles
+      val routingResponse = choosesModeData.routingResponse.get
+      val tripIdx = choosesModeData.routingRequestToLegMap(requestId)
+      val trip = routingResponse.itineraries(tripIdx)
+      val tripWithVehicle = theRouterResult.itineraries.find(_.legs.size == 3)
+      val newTrips: Seq[EmbodiedBeamTrip] =
+        if (tripWithVehicle.isEmpty) {
+          //need to delete this trip: not found the right way to the shared vehicle or destination
+          routingResponse.itineraries.patch(tripIdx, Nil, 0)
+        } else {
+          val appendedEgressLegs = trip.legs ++ tripWithVehicle.get.legs
+          routingResponse.itineraries.patch(tripIdx, Seq(trip.copy(legs = appendedEgressLegs)), 1)
+        }
+      val newMap = choosesModeData.routingRequestToLegMap - requestId
+      val routingFinished = newMap.isEmpty
+      val rr = routingResponse.copy(itineraries = newTrips)
+      stay() using choosesModeData.copy(
+        routingResponse = Some(if (routingFinished) correctRoutingResponse(rr) else rr),
+        routingFinished = routingFinished,
+        routingRequestToLegMap = newMap,
+      )
     case Event(
         theRouterResult @ RoutingResponse(_, requestId, _, _),
         choosesModeData: ChoosesModeData
@@ -560,44 +585,13 @@ trait ChoosesMode {
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
-      val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
-        it.copy(
-          it.legs.flatMap(
-            embodiedLeg =>
-              if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg)
-              else Vector(embodiedLeg)
-          )
-        )
-      })
-      val correctedItins = theRouterResult.itineraries
-        .map { trip =>
-          if (trip.legs.head.beamLeg.mode != WALK) {
-            val startLeg = EmbodiedBeamLeg(
-              BeamLeg.dummyLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc),
-              body.id,
-              body.beamVehicleType.id,
-              asDriver = true,
-              0,
-              unbecomeDriverOnCompletion = false
-            )
-            trip.copy(legs = startLeg +: trip.legs)
-          } else trip
-        }
-        .map { trip =>
-          if (trip.legs.last.beamLeg.mode != WALK) {
-            val endLeg = EmbodiedBeamLeg(
-              BeamLeg.dummyLeg(trip.legs.last.beamLeg.endTime, trip.legs.last.beamLeg.travelPath.endPoint.loc),
-              body.id,
-              body.beamVehicleType.id,
-              asDriver = true,
-              0,
-              unbecomeDriverOnCompletion = true
-            )
-            trip.copy(legs = trip.legs :+ endLeg)
-          } else trip
-        }
-      makeVehicleRequestsForSharedVehicles(correctedItins)
-      stay() using choosesModeData.copy(routingResponse = Some(theRouterResult.copy(itineraries = correctedItins)))
+      val dummyVehiclesPresented = makeVehicleRequestsForDummySharedVehicles(response.itineraries)
+      val newData = if (dummyVehiclesPresented) {
+        choosesModeData.copy(routingResponse = Some(response))
+      } else {
+        choosesModeData.copy(routingResponse = Some(correctRoutingResponse(response)), routingFinished = true)
+      }
+      stay() using newData
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
       //      println(s"receiving response: ${theRideHailResult}")
       val newPersonData = Some(theRideHailResult.request.requestId) match {
@@ -644,7 +638,10 @@ trait ChoosesMode {
                 val nearestVehicle = legMap(leg)
                   .minBy(
                     token =>
-                      geo.distUTMInMeters(leg.beamLeg.travelPath.startPoint.loc, token.streetVehicle.locationUTM.loc)
+                      geo.distUTMInMeters(
+                        geo.wgs2Utm(leg.beamLeg.travelPath.startPoint.loc),
+                        token.streetVehicle.locationUTM.loc
+                    )
                   )
                 leg -> nearestVehicle
             }.toMap
@@ -652,17 +649,120 @@ trait ChoosesMode {
             val newLegs = trip.legs.map {
               case leg if legVehicles.contains(leg) =>
                 leg.copy(beamVehicleId = legVehicles(leg).id)
-              //parking leg uses the same vehicle as the previos leg
-              case nextLeg if mobStatuses.splitLegs.contains(nextLeg) =>
-                nextLeg.copy(beamVehicleId = legVehicles(mobStatuses.splitLegs(nextLeg)).id)
               case leg => leg
             }
             beamVehicles ++= legVehicles.values.map(token => token.id -> token)
             trip.copy(legs = newLegs)
           case trip => trip
         }
-      stay using choosesModeData.copy(routingResponse = Some(rr.copy(itineraries = newTrips)))
+      //issue routing request for egress legs:
+      // final transit stop -> destination
+      val (routingRequestMap, updatedTrips) = cutTripsAfterTransitsIfSharedVehicle(newTrips)
+      routingRequestMap.keys.foreach(routingRequest => router ! routingRequest)
+      val newRoutingResponse = rr.copy(itineraries = updatedTrips)
+      stay using choosesModeData
+        .copy(
+          routingResponse =
+            Some(if (routingRequestMap.isEmpty) correctRoutingResponse(newRoutingResponse) else newRoutingResponse),
+          routingFinished = routingRequestMap.isEmpty,
+          routingRequestToLegMap = routingRequestMap.map {
+            case (request, tripIdx) => request.requestId -> tripIdx
+          }
+        )
   } using completeChoiceIfReady)
+
+  private def cutTripsAfterTransitsIfSharedVehicle(
+    newTrips: Seq[EmbodiedBeamTrip]
+  ): (Map[RoutingRequest, Int], Seq[EmbodiedBeamTrip]) = {
+
+    //we saving in the map routing request for egress part -> trip index
+    newTrips.zipWithIndex.foldLeft((Map.empty[RoutingRequest, Int], Seq.empty[EmbodiedBeamTrip])) {
+      case ((tripMap, tripAcc), (trip, tripIdx)) =>
+        val pairOfLegsWithIndex = trip.legs.zip(trip.legs.tail).zipWithIndex.find {
+          case ((leg, nextLeg), _) if leg.beamLeg.mode.isTransit && isDriveVehicleLeg(nextLeg) =>
+            val vehicleLocation = beamVehicles(nextLeg.beamVehicleId).streetVehicle.locationUTM.loc
+            val walkDistance = geo.distUTMInMeters(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), vehicleLocation)
+            walkDistance > beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+          case _ => false
+        }
+        pairOfLegsWithIndex match {
+          case Some(((transitLeg, sharedVehicleLeg), transitLegIndex)) =>
+            val bodyLocationAfterTransit = geo.wgs2Utm(transitLeg.beamLeg.travelPath.endPoint)
+            val bodyVehicle = createBodyStreetVehicle(bodyLocationAfterTransit)
+            val finalDestination = geo.wgs2Utm(trip.legs.last.beamLeg.travelPath.endPoint.loc)
+            val egressRequest = RoutingRequest(
+              bodyLocationAfterTransit.loc,
+              finalDestination,
+              bodyLocationAfterTransit.time,
+              withTransit = false,
+              Some(id),
+              IndexedSeq(bodyVehicle, beamVehicles(sharedVehicleLeg.beamVehicleId).streetVehicle),
+              Some(attributes),
+            )
+            if (!sharedVehicleLeg.beamVehicleId.toString.toLowerCase.contains("fleet")) {
+              System.currentTimeMillis()
+            }
+            val newMap = tripMap + (egressRequest -> tripIdx)
+            //cut the trip right after the transit so that we append a corrected legs to that trip
+            (newMap, tripAcc :+ trip.copy(legs = trip.legs.take(transitLegIndex + 1)))
+          case None =>
+            (tripMap, tripAcc :+ trip)
+        }
+    }
+  }
+
+  private def createBodyStreetVehicle(locationUTM: SpaceTime): StreetVehicle = {
+    StreetVehicle(
+      body.id,
+      body.beamVehicleType.id,
+      locationUTM,
+      WALK,
+      asDriver = true
+    )
+  }
+
+  private def correctRoutingResponse(response: RoutingResponse) = {
+    val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
+      it.copy(
+        it.legs.flatMap(
+          embodiedLeg =>
+            if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg)
+            else Vector(embodiedLeg)
+        )
+      )
+    })
+    val correctedItins = theRouterResult.itineraries
+      .map { trip =>
+        if (trip.legs.head.beamLeg.mode != WALK) {
+          val startLeg =
+            dummyWalkLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc)
+          trip.copy(legs = startLeg +: trip.legs)
+        } else trip
+      }
+      .map { trip =>
+        if (trip.legs.last.beamLeg.mode != WALK) {
+          val endLeg = dummyWalkLeg(trip.legs.last.beamLeg.endTime, trip.legs.last.beamLeg.travelPath.endPoint.loc)
+          trip.copy(legs = trip.legs :+ endLeg)
+        } else trip
+      }
+    val responseCopy = theRouterResult.copy(itineraries = correctedItins)
+    responseCopy
+  }
+
+  private def dummyWalkLeg(time: Int, location: Location) = {
+    EmbodiedBeamLeg(
+      BeamLeg.dummyLeg(time, location),
+      body.id,
+      body.beamVehicleType.id,
+      asDriver = true,
+      0,
+      unbecomeDriverOnCompletion = true
+    )
+  }
+
+  private def isDriveVehicleLeg(leg: EmbodiedBeamLeg) = {
+    leg.asDriver && leg.beamLeg.mode != BeamMode.WALK
+  }
 
   def isRideHailToTransitResponse(response: RoutingResponse): Boolean = {
     response.itineraries.exists(_.vehiclesInTrip.contains(dummyRHVehicle.id))
@@ -690,20 +790,8 @@ trait ChoosesMode {
     Some(inquiry.requestId)
   }
 
-  private def makeVehicleRequestsForSharedVehicles(trips: Seq[EmbodiedBeamTrip]): Unit = {
+  private def makeVehicleRequestsForDummySharedVehicles(trips: Seq[EmbodiedBeamTrip]): Boolean = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
-    //we need not request another vehicle if we have a split leg for parking. We have the same vehicle for both legs.
-    //so looking for subsequent shared vehicles and map one to another
-    val splitLegs: Map[EmbodiedBeamLeg, EmbodiedBeamLeg] = trips.flatMap { trip =>
-      trip.legs.zip(trip.legs.tail).flatMap {
-        case (leg, nextLeg) =>
-          if (isLegOnDummySharedVehicle(leg) && isLegOnDummySharedVehicle(nextLeg)) {
-            Some(nextLeg -> leg)
-          } else {
-            None
-          }
-      }
-    }.toMap
     //get all the shared vehicles to request tokens for them
     val tripLegPairs = trips.flatMap(
       trip =>
@@ -715,14 +803,17 @@ trait ChoosesMode {
       Future
         .sequence(
           tripLegPairs.collect {
-            case (trip, leg) if !splitLegs.contains(leg) =>
+            case (trip, leg) =>
               requestAvailableVehicles(geo.wgs2Utm(leg.beamLeg.travelPath.startPoint), null)
                 .map((trip, leg, _))
           }
         )
         .map { responses: Seq[(EmbodiedBeamTrip, EmbodiedBeamLeg, MobilityStatusResponse)] =>
-          MobilityStatusWithLegs(responses, splitLegs)
+          MobilityStatusWithLegs(responses)
         } pipeTo self
+      true
+    } else {
+      false
     }
   }
 
@@ -986,12 +1077,14 @@ trait ChoosesMode {
           _,
           Some(cavTripLegs),
           _,
-          _
+          _,
+          true,
+          _,
         ),
         _,
         _,
         _
-        ) if !routingResponse.itineraries.exists(_.legs.exists(isLegOnDummySharedVehicle)) =>
+        ) =>
       val currentPersonLocation = choosesModeData.currentLocation
       val nextAct = nextActivity(choosesModeData.personData).get
       val rideHail2TransitIinerary = createRideHail2TransitItin(
@@ -1288,7 +1381,9 @@ object ChoosesMode {
     isWithinTripReplanning: Boolean = false,
     cavTripLegs: Option[CavTripLegsResponse] = None,
     excludeModes: Vector[BeamMode] = Vector(),
-    availableAlternatives: Option[String] = None
+    availableAlternatives: Option[String] = None,
+    routingFinished: Boolean = false,
+    routingRequestToLegMap: Map[Int, Int] = Map.empty,
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 
@@ -1318,7 +1413,6 @@ object ChoosesMode {
 
   case class MobilityStatusWithLegs(
     responses: Seq[(EmbodiedBeamTrip, EmbodiedBeamLeg, MobilityStatusResponse)],
-    splitLegs: Map[EmbodiedBeamLeg, EmbodiedBeamLeg]
   )
 
   case class ChoosesModeResponsePlaceholders(
