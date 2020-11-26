@@ -293,7 +293,7 @@ class PersonAgent(
 
   def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
-  override def logDepth: Int = 3000
+  override def logDepth: Int = beamScenario.beamConfig.beam.debug.actor.logDepth
 
   /**
     * identifies agents with remaining range which is smaller than their remaining tour
@@ -1057,8 +1057,8 @@ class PersonAgent(
 
   val myUnhandled: StateFunction = {
     case Event(BeamAgentSchedulerTimer, _) =>
-      // Put a breakpoitn here to see an internal state of the actor
-      log.info(s"Received message from ${sender()}")
+      // Put a breakpoint here to see an internal state of the actor
+      log.debug(s"Received message from ${sender()}")
       stay
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
