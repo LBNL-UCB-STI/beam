@@ -96,8 +96,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
         if (onlyOneCarRoad()) {
             double lastTimeLEavingPlusInverseCapacity = timeOfLastLeavingVehicle + getInverseCapacity(vehicle, simTime);
-            nextAvailableTimeForLeavingStreet = Math.max(nextAvailableTimeForLeavingStreet, lastTimeLEavingPlusInverseCapacity)
-                    + getAdditionalTravelTime(simTime);
+            nextAvailableTimeForLeavingStreet = Math.max(nextAvailableTimeForLeavingStreet, lastTimeLEavingPlusInverseCapacity);
+
+            nextAvailableTimeForLeavingStreet += getAdditionalTravelTime(simTime);
 
             vehicle.scheduleEndRoadMessage(nextAvailableTimeForLeavingStreet, this);
         }

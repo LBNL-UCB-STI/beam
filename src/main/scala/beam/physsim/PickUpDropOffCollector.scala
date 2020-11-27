@@ -27,7 +27,7 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
   private val vehiclesToIgnore: mutable.HashSet[Id[Vehicle]] = mutable.HashSet.empty
   private val vehicleTypeToCAV: mutable.HashMap[String, Boolean] = mutable.HashMap.empty
 
-  private def isRH(vehicleId: Id[Vehicle]): Boolean = vehicleId.toString.startsWith("rideHailVehicle")
+  private def isRideHail(vehicleId: Id[Vehicle]): Boolean = vehicleId.toString.startsWith("rideHailVehicle")
 
   private var maybePickUpDropOffHolder: Option[PickUpDropOffHolder] = None
 
@@ -47,26 +47,26 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
     }
   }
 
-  private def pteIsSelected(pte: PathTraversalEvent): Boolean = {
+  private def isRideHailOrCAV(pte: PathTraversalEvent): Boolean = {
     val mode = pte.mode
     mode match {
-      case Modes.BeamMode.CAR if isRH(pte.vehicleId) || isCAV(pte.vehicleType) => true
-      case Modes.BeamMode.CAV                                                  => true
-      case Modes.BeamMode.RIDE_HAIL                                            => true
-      case Modes.BeamMode.RIDE_HAIL_POOLED                                     => true
-      case Modes.BeamMode.RIDE_HAIL_TRANSIT                                    => true
-      case _                                                                   => false
+      case Modes.BeamMode.CAR if isRideHail(pte.vehicleId) || isCAV(pte.vehicleType) => true
+      case Modes.BeamMode.CAV                                                        => true
+      case Modes.BeamMode.RIDE_HAIL                                                  => true
+      case Modes.BeamMode.RIDE_HAIL_POOLED                                           => true
+      case Modes.BeamMode.RIDE_HAIL_TRANSIT                                          => true
+      case _                                                                         => false
     }
   }
 
   override def handleEvent(event: Event): Unit = {
-    def notIgnored(vehicleId: Id[Vehicle]): Boolean = {
+    def vehicleNotIgnored(vehicleId: Id[Vehicle]): Boolean = {
       val isIgnored = vehiclesToIgnore.contains(vehicleId)
       !isIgnored
     }
 
     event match {
-      case pte: PathTraversalEvent if pteIsSelected(pte) && notIgnored(pte.vehicleId) =>
+      case pte: PathTraversalEvent if isRideHailOrCAV(pte) && vehicleNotIgnored(pte.vehicleId) =>
         vehicleToPickUpsDropOffs.get(pte.vehicleId) match {
           case Some(pickUpsDropOffs) => pickUpsDropOffs.addPickUpDropOff(pte)
           case None =>
@@ -76,9 +76,9 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
         }
       case pte: PathTraversalEvent => vehiclesToIgnore.add(pte.vehicleId)
 
-      case plv: PersonLeavesVehicleEvent if plv.getTime > 0 && notIgnored(plv.getVehicleId) =>
+      case plv: PersonLeavesVehicleEvent if plv.getTime > 0 && vehicleNotIgnored(plv.getVehicleId) =>
         personsDropOffs += PersonDropOff(plv)
-      case pev: PersonEntersVehicleEvent if pev.getTime > 0 && notIgnored(pev.getVehicleId) =>
+      case pev: PersonEntersVehicleEvent if pev.getTime > 0 && vehicleNotIgnored(pev.getVehicleId) =>
         personsPickUps += PersonPickUp(pev)
 
       case _ =>
@@ -198,10 +198,17 @@ class TimeToValueCollection() {
   val times: mutable.ListBuffer[Double] = mutable.ListBuffer.empty
   val values: mutable.ListBuffer[Int] = mutable.ListBuffer.empty
 
-  // I assume time will be added already in sorted order
   def addTimeToValue(time: Double, value: Int): Unit = {
-    times.append(time)
-    values.append(value)
+    if (times.isEmpty || times.last < time) {
+      times.append(time)
+      values.append(value)
+    } else {
+      var idx = times.length - 1
+      while (idx > 0 && times(idx) > time) { idx -= 1 }
+      if (times(idx) < time) { idx += 1 }
+      times.insert(idx, time)
+      values.insert(idx, value)
+    }
   }
 
   @tailrec

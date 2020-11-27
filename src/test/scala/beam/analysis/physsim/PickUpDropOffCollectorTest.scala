@@ -31,6 +31,17 @@ class PickUpDropOffCollectorTest extends FunSuite with Matchers {
     ttcc.getClosestValue(251, 48) shouldBe None
   }
 
+  test("TimeToValueCollection should add pairs and store them sorted independently if they were sorted before or not") {
+    val collector = new TimeToValueCollection()
+    collector.addTimeToValue(10.0, 1)
+    collector.addTimeToValue(5.0, 2)
+    collector.addTimeToValue(20.0, 3)
+    collector.addTimeToValue(15.0, 4)
+
+    collector.times.toSet shouldBe Set(5.0, 10.0, 15.0, 20.0)
+    collector.values.toSet shouldBe Set(2, 1, 4, 3)
+  }
+
   test("BEAMVILLE. Should read expected link pick-ups and drop-offs") {
     val eventsFilePath = "test/test-resources/PickUpsDropOffsCollectorTestData/beamville.events.xml"
     val vehicleTypeFilePath = "test/test-resources/PickUpsDropOffsCollectorTestData/beamville.vehicleTypes.csv"
@@ -60,6 +71,8 @@ class PickUpDropOffCollectorTest extends FunSuite with Matchers {
     dropOffs shouldBe (19 + 20)
 
     /*
+      The PYTHON script to produce test data from events file.
+
       import pandas as pd
       pd.set_option('display.max_rows', 500)
       pd.set_option('display.max_columns', 500)
