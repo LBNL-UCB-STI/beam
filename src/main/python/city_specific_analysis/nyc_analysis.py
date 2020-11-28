@@ -29,6 +29,81 @@ def get_output_path_from_s3_url(s3_url):
         .replace("s3.us-east-2.amazonaws.com/beam-outputs/index.html#", "beam-outputs.s3.amazonaws.com/")
 
 
+def parse_config(s3url, complain=True):
+    """
+    parse beam config of beam run.
+
+    :param s3url: url to s3 output
+    :param complain: it will complain if there are many config values found with the same name
+    :return: dictionary config key -> config value
+    """
+
+    s3path = get_output_path_from_s3_url(s3url)
+    url = s3path + "/fullBeamConfig.conf"
+    config = urllib.request.urlopen(url)
+
+    config_keys = ["flowCapacityFactor", "speedScalingFactor", "quick_fix_minCarSpeedInMetersPerSecond",
+                   "activitySimEnabled", "transitCapacity",
+                   "minimumRoadSpeedInMetersPerSecond", "fractionOfInitialVehicleFleet",
+                   "agentSampleSizeAsFractionOfPopulation",
+                   "simulationName", "directory", "generate_secondary_activities", "lastIteration",
+                   "fractionOfPeopleWithBicycle",
+                   "parkingStallCountScalingFactor", "parkingPriceMultiplier", "parkingCostScalingFactor", "queryDate",
+                   "transitPrice", "transit_crowding", "transit_crowding_percentile",
+                   "maxLinkLengthToApplySpeedScalingFactor", "max_destination_distance_meters",
+                   "max_destination_choice_set_size",
+                   "transit_crowding_VOT_multiplier", "transit_crowding_VOT_threshold",
+                   "activity_file_path", "intercept_file_path", "additional_trip_utility",
+                   "ModuleProbability_1", "ModuleProbability_2", "ModuleProbability_3", "ModuleProbability_4",
+                   "BUS-DEFAULT", "RAIL-DEFAULT", "SUBWAY-DEFAULT"]
+    intercept_keys = ["bike_intercept", "car_intercept", "drive_transit_intercept", "ride_hail_intercept",
+                      "ride_hail_pooled_intercept", "ride_hail_transit_intercept", "walk_intercept",
+                      "walk_transit_intercept", "transfer"]
+
+    config_map = {}
+    default_value = ""
+
+    for conf_key in config_keys:
+        config_map[conf_key] = default_value
+
+    def set_value(key, line_value):
+        value = line_value.strip().replace("\"", "")
+
+        if key not in config_map:
+            config_map[key] = value
+        else:
+            old_val = config_map[key]
+            if old_val == default_value or old_val.strip() == value.strip():
+                config_map[key] = value
+            else:
+                if complain:
+                    print("an attempt to rewrite config value with key:", key)
+                    print("   value in the map  \t", old_val)
+                    print("   new rejected value\t", value)
+
+    physsim_names = ['JDEQSim', 'BPRSim', 'PARBPRSim', 'CCHRoutingAssignment']
+
+    def look_for_physsim_type(config_line):
+        for physsim_name in physsim_names:
+            if 'name={}'.format(physsim_name) in config_line:
+                set_value("physsim_type", "physsim_type = {}".format(physsim_name))
+
+    for b_line in config.readlines():
+        line = b_line.decode("utf-8").strip()
+
+        look_for_physsim_type(line)
+
+        for ckey in config_keys:
+            if ckey + "=" in line or ckey + "\"=" in line or '"' + ckey + ":" in line:
+                set_value(ckey, line)
+
+        for ikey in intercept_keys:
+            if ikey in line:
+                set_value(ikey, line)
+
+    return config_map
+
+
 def get_from_s3(s3url, file_name,
                 s3_additional_output='scripts_output'):
     s3path = get_output_path_from_s3_url(s3url)
@@ -623,7 +698,7 @@ def read_bus_ridership_by_route_and_hour(s3url, gtfs_trip_id_to_route_id=None, i
     return bus_to_agency_to_trip_to_hour
 
 
-def plot_nyc_ridership(s3url_to_ridership, function_get_run_name_from_s3url, multiplier=20, figsize=(20, 7)):
+def plot_nyc_ridership(s3url_to_ridership, function_get_run_name_from_s3url, names_to_plot_separately=None, multiplier=20, figsize=(20, 7)):
     columns = ['date', 'subway', 'bus', 'rail', 'car', 'transit (bus + subway)']
 
     suffix = '\n  mta.info'
@@ -633,7 +708,7 @@ def plot_nyc_ridership(s3url_to_ridership, function_get_run_name_from_s3url, mul
                           ['06 2020' + suffix, 681714, 741200, 56000, 582624, 1422914],
                           ['05 2020' + suffix, 509871, 538800, 29200, 444179, 1048671],
                           ['04 2020' + suffix, 516174, 495400, 24100, 342222, 1011574],
-                          ['00 2019' + suffix, 5491213, 2153913, 622000, 929951, 7645126]]
+                          [' 2019' + suffix, 5491213, 2153913, 622000, 929951, 7645126]]
 
     def get_graph_data_row_from_dataframe(triptype_to_count_df, run_name, agency_column='index', value_column='0'):
 
@@ -673,21 +748,45 @@ def plot_nyc_ridership(s3url_to_ridership, function_get_run_name_from_s3url, mul
 
     result = pd.DataFrame(graph_data, columns=columns)
     reference_df = pd.DataFrame(reference_mta_info, columns=columns)
-    result = result.append(reference_df)
+    result = result.append(reference_df).groupby('date').sum()
 
     def plot_bars(df, ax, ax_title, columns_to_plot):
-        df.groupby('date').sum()[columns_to_plot].plot(kind='bar', ax=ax)
-        ax.grid('on', which='major', axis='y')
+        df[columns_to_plot].plot(kind='bar', ax=ax)
+        # ax.grid('on', which='major', axis='y')
         ax.set_title(ax_title)
         ax.legend(loc='center left', bbox_to_anchor=(1, 0.7))
 
-    fig, axs = plt.subplots(1, 1, sharey='all', figsize=figsize)
+    fig, axs = plt.subplots(1, 1, sharex='all', figsize=figsize)
     ax_main = axs
 
     plot_bars(result, ax_main,
               'reference from mta.info vs BEAM simulation\nrun data multiplied by {}'.format(multiplier),
               ['subway', 'bus', 'rail', 'car', 'transit (bus + subway)'])
 
+    if names_to_plot_separately:
+        def plot_bars_2(df, ax, ax_title, columns_to_plot):
+            df[columns_to_plot].plot(kind='bar', ax=ax)
+            ax.set_title(ax_title)
+            # ax.legend(loc='upper right')
+            ax.legend(loc='center left', bbox_to_anchor=(1, 0.7))
+
+        result_t = result[['subway', 'bus', 'rail', 'car']].transpose()
+
+        fig, axs = plt.subplots(1, len(names_to_plot_separately), sharey='all', figsize=figsize)
+        fig.subplots_adjust(wspace=0.3, hspace=0.3)
+
+        if len(names_to_plot_separately) == 1:
+            axs = [axs]
+
+        for (name, ax) in zip(names_to_plot_separately, axs):
+            selected_columns = []
+            for column in result_t.columns:
+                if str(column).startswith(name):
+                    selected_columns.append(column)
+
+            plot_bars_2(result_t, ax, "", selected_columns)
+
+        plt.suptitle('reference from mta.info vs BEAM simulation\nrun data multiplied by {}'.format(20))
 
 def read_ridership_from_s3_output(s3url, iteration):
     ridership = None
@@ -994,3 +1093,54 @@ def diff_people_in(current, base):
 
     result.plot(kind='bar', title="Diff current - reference, %", figsize=(10, 10), legend=True, fontsize=12)
     return result
+
+
+def plot_calibration_parameters(title_to_s3url,
+                                suptitle="", figsize=(23, 6), rot=70,
+                                calibration_parameters=None,
+                                removal_probabilities=None):
+    if calibration_parameters is None:
+        calibration_parameters = ['additional_trip_utility', 'walk_transit_intercept']
+
+    calibration_values = []
+
+    for (title, s3url) in title_to_s3url:
+        s3path = get_output_path_from_s3_url(s3url)
+        config = parse_config(s3path + "/fullBeamConfig.conf", complain=False)
+
+        def get_config_value(conf_value_name, split_character="="):
+            return config.get(conf_value_name, '=default').split(split_character)[-1]
+
+        param_values = [title]
+        for param in calibration_parameters:
+            param_value = get_config_value(param)
+            if not param_value:
+                param_value = get_config_value(param, ":")
+            if not param_value:
+                param_value = 0
+
+            param_values.append(float(param_value))
+
+        calibration_values.append(param_values)
+
+    calibration_parameters.insert(0, 'name')
+    result = pd.DataFrame(calibration_values, columns=calibration_parameters)
+
+    linewidth = 4
+    removal_probabilities_color = 'black'
+
+    ax = result.plot(x='name', figsize=figsize, rot=rot, linewidth=linewidth)
+
+    if removal_probabilities:
+        ax.plot(np.NaN, np.NaN, '--', label='removal probabilities (right scale)',
+                color=removal_probabilities_color, linewidth=linewidth)
+
+    ax.set_title('calibration parameters {}'.format(suptitle))
+    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    ax.grid('on', which='major', axis='y')
+
+    if removal_probabilities:
+        ax2 = ax.twinx()
+        ax2.plot(range(len(removal_probabilities)), removal_probabilities, '--',
+                 color=removal_probabilities_color, alpha=0.5, linewidth=linewidth)
