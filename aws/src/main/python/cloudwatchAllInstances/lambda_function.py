@@ -3,21 +3,24 @@ import json
 import boto3
 import logging
 import os
+import dateutil.relativedelta
 from datetime import datetime, timezone
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 class EC2Instance:
-    def __init__(self, instance_id, monitoring_state, launch_datetime):
+    def __init__(self, instance_id, monitoring_state, launch_datetime, owner_email):
         self.instance_id = instance_id
         self.monitoring_state = monitoring_state
         self.launch_datetime = launch_datetime
+        self.owner_email = owner_email
 
     def __str__(self):
-        return 'InstanceId: ' + self.instance_id + '; MonitoringState: ' + self.monitoring_state + '; LaunchTime: ' + str(self.launch_datetime)
+        return 'InstanceId: ' + self.instance_id + '; MonitoringState: ' + self.monitoring_state + '; LaunchTime: ' + str(self.launch_datetime)+ '; OwnerEmail: ' + str(self.owner_email)
 
-#Expected format: {"regions": ["us-east-1", "us-west-1"], "run_frequency_in_minutes": 30}
+    #Expected format: {"regions": ["us-east-1", "us-west-1"], "run_frequency_in_minutes": 30}
 #This requires pre-setup: SNS Topic named EC2-Idle-Notifier with a Subscription created pointing to lambda = idleNotifier
 def lambda_handler(event, context):
     uptime_interval_to_trigger_notification_in_days = int(os.environ['UPTIME_INTERVAL_TO_TRIGGER_NOTIFICATION_IN_DAYS'])
@@ -58,7 +61,7 @@ def notify_if_instance_up_multiple_of(time_interval_in_days, ec2_instance, regio
     if instance_launch_timedelta.days != 0 and instance_launch_timedelta.days % time_interval_in_days == 0 and instance_launch_timedelta.seconds - run_frequency_in_seconds <= 0:
         logger.info('Notifying of long running instance = ' + str(ec2_instance))
         fake_alarm_name = ec2_instance.instance_id + '_' + region + '_' + "PSEUDOALARM"
-        payload = {'Records':[{'Sns':{'Message':'{"AlarmName":"' + fake_alarm_name + '"}','Subject':f'Generated Notification: Instance \'{ec2_instance.instance_id}\' running since {str(instance_launch_datetime)}'}}]}
+        payload = {'Records':[{'Sns':{'Message':'{"AlarmName":"' + fake_alarm_name + '"}', 'OwnerEmail': ec2_instance.owner_email, 'Subject':f'Generated Notification: Instance \'{ec2_instance.instance_id}\' running since {str(instance_launch_datetime)}'}}]}
         aws_lambda.invoke(
             FunctionName='idleNotifier',
             InvocationType='Event',
@@ -100,15 +103,40 @@ def get_running_instance_for(region):
         instance_list = []
         for reservation in reservations:
             instances = safe_get(reservation, 'Instances')
-            instance_list += [convert_to_ec2_instance_from(instance) for instance in instances]
+            instance_list += [convert_to_ec2_instance_from(instance, region) for instance in instances]
         return instance_list
     else:
         logger.info('0 running instances found in ' + region)
         return []
 
-def convert_to_ec2_instance_from(response_instance):
+def convert_to_ec2_instance_from(response_instance, region):
     logger.info('Convert to EC2Instance from ' + str(response_instance))
-    return EC2Instance(safe_get(response_instance, 'InstanceId'), safe_get(safe_get(response_instance, 'Monitoring'),'State'), safe_get(response_instance, 'LaunchTime'))
+    email = None
+    tags = response_instance.get('Tags')
+    if tags is not None:
+        for tag in tags:
+            if tag['Key'] == 'GitUserEmail':
+                email = tag['Value']
+    instance_id = safe_get(response_instance, 'InstanceId')
+    #Email not found in tags, so now check instance in directly started instances
+    username=None
+    if email is None:
+        cloudtrail = boto3.client('cloudtrail', region_name=region)
+        today=datetime.now()
+        responses = cloudtrail.lookup_events(LookupAttributes=[ { 'AttributeKey': 'ResourceName','AttributeValue': instance_id }],
+                                             StartTime=today - dateutil.relativedelta.relativedelta(months=1),
+                                             EndTime=today
+                                             )
+        for event in responses['Events']:
+            if event['EventName'] == 'RunInstances':
+                username=event['Username']
+
+    if username is not None:
+        user_email_ids=os.environ['USER_EMAIL_MAPPER']
+        user_ids_as_dict = json.loads(user_email_ids)
+        email=safe_value_with_default(user_ids_as_dict, username, None)
+
+    return EC2Instance(instance_id, safe_get(safe_get(response_instance, 'Monitoring'),'State'), safe_get(response_instance, 'LaunchTime'), email)
 
 def safe_get(dict_obj, key):
     if dict_obj is not None:
@@ -120,3 +148,10 @@ def safe_index(list_obj, index):
         if len(list_obj) >= index + 1:
             return list_obj[index]
     return None
+
+def safe_value_with_default(list_obj, key, default):
+    for item in list_obj:
+        value = safe_get(item, key)
+        if value is not None:
+            return value
+    return default
