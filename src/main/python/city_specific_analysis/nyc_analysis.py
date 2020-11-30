@@ -559,9 +559,9 @@ def read_nyc_ridership_counts_absolute_numbers_for_mta_comparison(s3url, iterati
 def calculate_nyc_ridership_and_save_to_s3_if_not_calculated(s3url, iteration, aws_access_key_id, aws_secret_access_key,
                                                              force=False, output_bucket='beam-outputs'):
     if force:
-        print('"force" set to True, so, ridership will be recalculated independant of it existence in s3')
+        print('"force" set to True, so, ridership will be recalculated independent of it existence in s3')
     else:
-        print('"forse" set to False (by default) so, ridership will be calculated only if it does not exist in s3')
+        print('"force" set to False (by default) so, ridership will be calculated only if it does not exist in s3')
 
     import boto3
     s3 = boto3.resource('s3', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
