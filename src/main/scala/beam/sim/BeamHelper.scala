@@ -503,6 +503,13 @@ trait BeamHelper extends LazyLogging {
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
     )
+    logger.info(s"Java version: ${System.getProperty("java.version")}")
+    logger.info(
+      "JVM args: " + java.lang.management.ManagementFactory.getRuntimeMXBean.getInputArguments.asScala.toList.toString()
+    )
+    logger.info(s"Heap size: ${MathUtils.formatBytes(Runtime.getRuntime.totalMemory())}")
+    logger.info(s"Heap max memory: ${MathUtils.formatBytes(Runtime.getRuntime.maxMemory())}")
+    logger.info(s"Heap free memory: ${MathUtils.formatBytes(Runtime.getRuntime.freeMemory())}")
 
     val logStart = {
       val populationSize = scenario.getPopulation.getPersons.size()
