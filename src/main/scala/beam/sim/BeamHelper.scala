@@ -532,7 +532,7 @@ trait BeamHelper extends LazyLogging {
     }
     logger.warn(logStart)
 
-    val injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    val injector: inject.Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
 
     val services = injector.getInstance(classOf[BeamServices])
     (beamExecutionConfig, scenario, beamScenario, services)
