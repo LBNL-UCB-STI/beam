@@ -745,13 +745,14 @@ trait ChoosesMode {
       .map { trip =>
         if (trip.legs.head.beamLeg.mode != WALK) {
           val startLeg =
-            dummyWalkLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc)
+            dummyWalkLeg(trip.legs.head.beamLeg.startTime, trip.legs.head.beamLeg.travelPath.startPoint.loc, false)
           trip.copy(legs = startLeg +: trip.legs)
         } else trip
       }
       .map { trip =>
         if (trip.legs.last.beamLeg.mode != WALK) {
-          val endLeg = dummyWalkLeg(trip.legs.last.beamLeg.endTime, trip.legs.last.beamLeg.travelPath.endPoint.loc)
+          val endLeg =
+            dummyWalkLeg(trip.legs.last.beamLeg.endTime, trip.legs.last.beamLeg.travelPath.endPoint.loc, true)
           trip.copy(legs = trip.legs :+ endLeg)
         } else trip
       }
@@ -759,14 +760,14 @@ trait ChoosesMode {
     responseCopy
   }
 
-  private def dummyWalkLeg(time: Int, location: Location) = {
+  private def dummyWalkLeg(time: Int, location: Location, unbecomeDriverOnCompletion: Boolean) = {
     EmbodiedBeamLeg(
       BeamLeg.dummyLeg(time, location),
       body.id,
       body.beamVehicleType.id,
       asDriver = true,
       0,
-      unbecomeDriverOnCompletion = true
+      unbecomeDriverOnCompletion = unbecomeDriverOnCompletion
     )
   }
 
