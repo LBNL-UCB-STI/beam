@@ -1012,7 +1012,7 @@ trait ChoosesMode {
         case CAR =>
           val newLegs = itin.legs.zipWithIndex.map {
             case (leg, i) =>
-              if (i == 2) {
+              if (i == 2 && beamVehicles(leg.beamVehicleId).isInstanceOf[ActualVehicle]) {
                 leg.copy(cost = leg.cost + parkingResponse.stall.costInDollars)
               } else if (i == 3) {
                 val dist = geo.distUTMInMeters(
@@ -1027,19 +1027,11 @@ trait ChoosesMode {
           }
           itin.copy(legs = newLegs)
         case DRIVE_TRANSIT | BIKE_TRANSIT =>
-          val newLegs = if (itin.legs.size > 2 && itin.legs(2).beamLeg.mode == CAR) {
+          val newLegs = if (itin.legs.size > 2) {
             itin.legs.zipWithIndex.map {
               case (leg, i) =>
-                if (i == 2) {
-                  leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.costInDollars)
-                } else {
-                  leg
-                }
-            }
-          } else if (itin.legs.size > 2 && itin.legs.takeRight(2).head.beamLeg.mode == CAR) {
-            itin.legs.zipWithIndex.map {
-              case (leg, i) =>
-                if (i == itin.legs.size - 2) {
+                if ((i == 2 || i == itin.legs.size - 2) && leg.beamLeg.mode == BeamMode.CAR
+                    && beamVehicles(leg.beamVehicleId).isInstanceOf[ActualVehicle]) {
                   leg.copy(cost = leg.cost + driveTransitParkingResponse.stall.costInDollars)
                 } else {
                   leg
