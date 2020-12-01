@@ -195,8 +195,8 @@ case class VehiclePickUpsDropOffs(
 }
 
 class TimeToValueCollection() {
-  val times: mutable.ListBuffer[Double] = mutable.ListBuffer.empty
-  val values: mutable.ListBuffer[Int] = mutable.ListBuffer.empty
+  val times: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty
+  val values: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
 
   def addTimeToValue(time: Double, value: Int): Unit = {
     if (times.isEmpty || times.last < time) {
