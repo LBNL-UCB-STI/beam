@@ -5,7 +5,6 @@ import java.util
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
@@ -15,9 +14,12 @@ import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
 
+import scala.annotation.tailrec
+
 class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
   val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
+  val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
@@ -25,6 +27,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
   for (taz: TAZ <- tazQuadTree.values().asScala) {
     stringIdToTAZMapping.put(taz.tazId.toString, taz)
+    idToTAZMapping.put(taz.tazId, taz)
   }
 
   def getTAZ(loc: Coord): TAZ = {
@@ -191,6 +194,40 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  /**
+    * performs a concentric ring search from the present location to find elements up to the SearchMaxRadius
+    * @param quadTree tree to search
+    * @param searchCenter central location from which concentric discs will be built with an expanding radius
+    * @param startRadius the beginning search radius
+    * @param maxRadius search constrained to this maximum search radius
+    * @param f function to check the elements. It must return Some if found an appropriate element and None otherwise.
+    * @return the result of function f applied to the found element. None if there's no appropriate elements.
+    */
+  def ringSearch[A, B](
+    quadTree: QuadTree[A],
+    searchCenter: Coord,
+    startRadius: Double,
+    maxRadius: Double,
+    radiusMultiplication: Double
+  )(f: A => Option[B]): Option[B] = {
+
+    @tailrec
+    def _find(innerRadius: Double, outerRadius: Double): Option[B] = {
+      if (innerRadius > maxRadius) None
+      else {
+        val elementStream = quadTree
+          .getRing(searchCenter.getX, searchCenter.getY, innerRadius, outerRadius)
+          .asScala
+          .toStream
+        val result = elementStream.flatMap(f(_)).headOption
+        if (result.isDefined) result
+        else _find(outerRadius, outerRadius * radiusMultiplication)
+      }
+    }
+
+    _find(0.0, startRadius)
   }
 
 }

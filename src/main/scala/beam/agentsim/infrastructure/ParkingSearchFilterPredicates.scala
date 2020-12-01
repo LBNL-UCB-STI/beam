@@ -21,8 +21,8 @@ object ParkingSearchFilterPredicates {
     * @param beamVehicleOption
     * @return
     */
-  def testPEVChargeWhenHeadedHome(
-    zone: ParkingZone,
+  def testPEVChargeWhenHeadedHome[GEO](
+    zone: ParkingZone[GEO],
     isPEVAndNeedsToChargeAtHome: Option[Boolean],
     beamVehicleOption: Option[BeamVehicle]
   ): Boolean =
@@ -41,8 +41,8 @@ object ParkingSearchFilterPredicates {
           }
     }
 
-  def rideHailFastChargingOnly(
-    zone: ParkingZone,
+  def rideHailFastChargingOnly[GEO](
+    zone: ParkingZone[GEO],
     activityTypeLowerCased: String
   ): Boolean =
     activityTypeLowerCased match {
@@ -72,8 +72,8 @@ object ParkingSearchFilterPredicates {
         }
     }
 
-  def canThisCarParkHere(
-    parkingZone: ParkingZone,
+  def canThisCarParkHere[GEO](
+    parkingZone: ParkingZone[GEO],
     returnSpotsWithChargers: Boolean,
     returnSpotsWithoutChargers: Boolean
   ): Boolean = {
