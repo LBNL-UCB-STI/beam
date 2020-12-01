@@ -551,9 +551,17 @@ class RideHailManager(
 
     case TAZSkimsCollectionTrigger(tick) =>
       vehicleManager.idleRideHailVehicles.foreach {
-        case (_, y) =>
+        case (vehicleId, y) =>
           beamServices.matsimServices.getEvents.processEvent(
-            TAZSkimmerEvent(tick, y.currentLocationUTM.loc, "idleRHVehicles", 1.0, beamServices, "RideHailManager")
+            TAZSkimmerEvent(
+              vehicleId,
+              tick,
+              y.currentLocationUTM.loc,
+              "idleRHVehicles",
+              1.0,
+              beamServices,
+              "RideHailManager"
+            )
           )
       }
 

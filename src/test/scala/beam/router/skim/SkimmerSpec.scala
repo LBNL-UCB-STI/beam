@@ -151,6 +151,7 @@ object SkimmerSpec extends LazyLogging {
         case e: PathTraversalEvent if e.mode == BeamMode.CAR =>
           beamServices.matsimServices.getEvents.processEvent(
             TAZSkimmerEvent(
+              e.vehicleId,
               event.getTime.toInt,
               new Coord(e.startX, e.startY),
               e.mode.toString,

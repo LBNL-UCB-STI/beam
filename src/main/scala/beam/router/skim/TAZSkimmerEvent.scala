@@ -2,9 +2,11 @@ package beam.router.skim
 
 import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 case class TAZSkimmerEvent(
+  vehicleId: Id[Vehicle],
   time: Int,
   coord: Coord,
   key: String,
