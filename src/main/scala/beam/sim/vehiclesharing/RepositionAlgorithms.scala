@@ -12,6 +12,8 @@ object RepositionAlgorithms {
     config.name match {
       case "min-availability-undersupply-algorithm" =>
         AvailabilityBasedRepositioningType(config)
+      case "random-algorithm" =>
+        RandomRepositioningType(config)
       case _ =>
         throw new RuntimeException("Unknown reposition algorithm type")
     }
@@ -36,6 +38,25 @@ case class AvailabilityBasedRepositioningType(
     beamServices: BeamServices
   ): RepositionAlgorithm = {
     AvailabilityBasedRepositioning(
+      params.repositionTimeBin,
+      params.statTimeBin,
+      params.min_availability_undersupply_algorithm.get.matchLimit,
+      managerId,
+      beamServices
+    )
+  }
+  def getRepositionTimeBin: Int = params.repositionTimeBin
+  def getStatTimeBin: Int = params.statTimeBin
+}
+
+case class RandomRepositioningType(
+  params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
+) extends RepositionAlgorithmType {
+  override def getInstance(
+    managerId: Id[VehicleManager],
+    beamServices: BeamServices
+  ): RepositionAlgorithm = {
+    RandomRepositioning(
       params.repositionTimeBin,
       params.statTimeBin,
       params.min_availability_undersupply_algorithm.get.matchLimit,

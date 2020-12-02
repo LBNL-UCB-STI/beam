@@ -94,14 +94,15 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle.toStreetVehicle)
       })
-      collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
+      //We are just enquiring vehicles, vehicle not performing any movement, hence setting dummy vehicle id
+      collectData(Id.createVehicleId("dummy"), whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who) =>
       makeUnavailable(token.id, token.streetVehicle) match {
         case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
           log.debug("Checked out " + vehicle.id)
           who ! Boarded(vehicle)
-          collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
+          collectData(vehicle.id, vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ =>
           who ! NotAvailable
       }
@@ -111,12 +112,12 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
     case ReleaseVehicle(vehicle) =>
       makeAvailable(vehicle.id)
-      collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
+      collectData(vehicle.id, vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
 
     case ReleaseVehicleAndReply(vehicle, _) =>
       makeAvailable(vehicle.id)
       sender() ! Success
-      collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
+      collectData(vehicle.id, vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
   def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")

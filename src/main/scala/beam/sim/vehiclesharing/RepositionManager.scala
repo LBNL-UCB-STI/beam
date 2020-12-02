@@ -11,6 +11,7 @@ import beam.router.skim.TAZSkimmerEvent
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 trait RepositionManager extends Actor with ActorLogging {
 
@@ -43,7 +44,7 @@ trait RepositionManager extends Actor with ActorLogging {
   // ***
   override def receive: Receive = {
     case TAZSkimsCollectionTrigger(tick) =>
-      queryAvailableVehicles.foreach(v => collectData(tick, v.spaceTime.loc, RepositionManager.availability))
+      queryAvailableVehicles.foreach(v => collectData(v.id, tick, v.spaceTime.loc, RepositionManager.availability))
 
     case TriggerWithId(REPVehicleRepositionTrigger(tick), triggerId) =>
       val nextTick = tick + repTime
@@ -54,7 +55,7 @@ trait RepositionManager extends Actor with ActorLogging {
           .filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined)
           .map {
             case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
-              collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
+              collectData(vehicle.id, vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
               ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
           }
           .toVector
@@ -66,13 +67,13 @@ trait RepositionManager extends Actor with ActorLogging {
     case TriggerWithId(REPVehicleTeleportTrigger(_, whereWhen, vehicle, _), triggerId) =>
       makeTeleport(vehicle.id, whereWhen)
       makeAvailable(vehicle.id)
-      collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.dropoff)
+      collectData(vehicle.id, vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.dropoff)
       sender ! CompletionNotice(triggerId)
   }
 
-  protected def collectData(time: Int, loc: Coord, varLabel: String): Unit = {
+  protected def collectData(vehicleId: Id[Vehicle], time: Int, loc: Coord, varLabel: String): Unit = {
     getServices.matsimServices.getEvents.processEvent(
-      TAZSkimmerEvent(time, loc, varLabel, 1.0, getServices, "RepositionManager")
+      TAZSkimmerEvent(vehicleId, time, loc, varLabel, 1.0, getServices, "RepositionManager")
     )
   }
 }
