@@ -1,6 +1,5 @@
 package beam.sim.vehiclesharing
 import java.util.concurrent.TimeUnit
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.pattern.ask
 import akka.pattern.pipe
@@ -8,7 +7,13 @@ import akka.pattern.pipe
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
+import beam.agentsim.agents.household.HouseholdActor.{
+  GetVehicleTypes,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle,
+  VehicleTypesResponse
+}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -35,6 +40,9 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
   override def receive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId)
+
+    case GetVehicleTypes() =>
+      sender() ! VehicleTypesResponse(Set(vehicleType))
 
     case MobilityStatusInquiry(_, whenWhere, _) =>
       // Create a vehicle out of thin air

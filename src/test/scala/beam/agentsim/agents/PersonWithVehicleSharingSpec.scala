@@ -137,6 +137,7 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -284,6 +285,7 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -525,6 +527,7 @@ class PersonWithVehicleSharingSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
+          Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
           new RouteHistory(beamConfig),
           boundingBox
         )

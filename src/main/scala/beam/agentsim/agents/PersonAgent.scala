@@ -69,6 +69,7 @@ object PersonAgent {
     householdRef: ActorRef,
     plan: Plan,
     sharedVehicleFleets: Seq[ActorRef],
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -88,6 +89,7 @@ object PersonAgent {
         tollCalculator,
         householdRef,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
         boundingBox
       )
@@ -245,6 +247,7 @@ class PersonAgent(
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
   val vehicleFleets: Seq[ActorRef] = Vector(),
+  val possibleSharedVehicleTypes: Set[BeamVehicleType] = Set.empty,
   val routeHistory: RouteHistory,
   val boundingBox: Envelope
 ) extends DrivesVehicle[PersonData]

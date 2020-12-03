@@ -1,10 +1,14 @@
 package beam.agentsim.agents
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.household.HouseholdActor.{GetVehicleTypes, VehicleTypesResponse}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.replanning.AddSupplementaryTrips
@@ -44,11 +48,24 @@ class Population(
       case _: Exception      => Stop
       case _: AssertionError => Stop
     }
-  initHouseholds()
 
   override def receive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      sender ! CompletionNotice(triggerId, Vector())
+      implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
+      sharedVehicleFleets.foreach(_ ! GetVehicleTypes())
+      context.become(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
+  }
+
+  def getVehicleTypes(triggerId: Long, responsesLeft: Int, vehicleTypes: Set[BeamVehicleType]): Receive = {
+    case VehicleTypesResponse(sharedVehicleTypes) if responsesLeft > 1 =>
+      context.become(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
+    case VehicleTypesResponse(sharedVehicleTypes) =>
+      initHouseholds(vehicleTypes ++ sharedVehicleTypes)
+      scheduler ! CompletionNotice(triggerId, Vector())
+      context.become(waitingForFinish)
+  }
+
+  def waitingForFinish: Receive = {
     case Terminated(_) =>
     // Do nothing
     case Finish =>
@@ -68,7 +85,7 @@ class Population(
     }
   }
 
-  private def initHouseholds(iterId: Option[String] = None): Unit = {
+  private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
       if (scenario.getHouseholds.getHouseholdAttributes
@@ -116,6 +133,7 @@ class Population(
           householdVehicles,
           homeCoord,
           sharedVehicleFleets,
+          sharedVehicleTypes,
           routeHistory,
           boundingBox
         ),

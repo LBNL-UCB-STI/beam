@@ -49,22 +49,30 @@ trait ChoosesMode {
     asDriver = false
   )
 
-  val dummySharedVehicles: Map[BeamMode, StreetVehicle] = Map(
-    CAR -> createDummyVehicle(
-      "dummySharedCar",
-      beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
-      CAR,
-      asDriver = true
-    ),
-    BIKE -> createDummyVehicle(
-      "dummySharedBike",
-      beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
-      BIKE,
-      asDriver = true
-    ),
-  )
-
-  val dummySharedVehicleIds: Seq[Id[BeamVehicle]] = dummySharedVehicles.values.map(_.id).toSeq
+  //this dummy shared vehicles is used in R5 requests on egress side
+  private val dummySharedVehicles: IndexedSeq[StreetVehicle] = possibleSharedVehicleTypes
+    .map(_.vehicleCategory)
+    .map {
+      case VehicleCategory.Car =>
+        createDummyVehicle(
+          "dummySharedCar",
+          beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+          CAR,
+          asDriver = true
+        )
+      case VehicleCategory.Bike =>
+        createDummyVehicle(
+          "dummySharedBike",
+          beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
+          BIKE,
+          asDriver = true
+        )
+      case category @ _ =>
+        throw new IllegalArgumentException(
+          s"Unsupported shared vehicle category $category. Only CAR | BIKE are supported."
+        )
+    }
+    .toIndexedSeq
 
   private def createDummyVehicle(id: String, vehicleTypeId: String, mode: BeamMode, asDriver: Boolean) =
     StreetVehicle(
@@ -361,16 +369,11 @@ trait ChoosesMode {
             )
             requestId = None
           }
-          val egressVehicles = newlyAvailableBeamVehicles
-            .collect { case token: Token => token }
-            .map(_.streetVehicle.mode)
-            .toSet
-            .flatMap(dummySharedVehicles.get)
           parkingRequestId = makeRequestWith(
             withTransit = availableModes.exists(_.isTransit),
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             withParking = willRequestDrivingRoute,
-            possibleEgressVehicles = egressVehicles.toIndexedSeq
+            possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>
           responsePlaceholders =
@@ -880,9 +883,8 @@ trait ChoosesMode {
     isDummySharedVehicle(beamLeg.beamVehicleId)
   }
 
-  private def isDummySharedVehicle(beamVehicleId: Id[BeamVehicle]): Boolean = {
-    dummySharedVehicleIds.contains(beamVehicleId)
-  }
+  private def isDummySharedVehicle(beamVehicleId: Id[BeamVehicle]): Boolean =
+    dummySharedVehicles.exists(_.id == beamVehicleId)
 
   case object FinishingModeChoice extends BeamAgentState
 

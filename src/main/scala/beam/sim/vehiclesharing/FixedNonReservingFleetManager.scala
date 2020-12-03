@@ -9,10 +9,12 @@ import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor.{
+  GetVehicleTypes,
   MobilityStatusInquiry,
   MobilityStatusResponse,
   ReleaseVehicle,
-  ReleaseVehicleAndReply
+  ReleaseVehicleAndReply,
+  VehicleTypesResponse
 }
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -84,6 +86,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
+    case GetVehicleTypes() =>
+      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet)
     case MobilityStatusInquiry(_, whenWhere, _) =>
       // Search box: maxWalkingDistance meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
