@@ -265,7 +265,8 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    managerInfo = VehicleManagerInfo.create(id.toString, bodyType)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))

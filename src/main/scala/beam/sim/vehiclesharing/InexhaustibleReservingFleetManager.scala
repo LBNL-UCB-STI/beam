@@ -16,7 +16,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 }
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -26,6 +26,7 @@ import org.matsim.api.core.v01.Id
 import scala.util.Random
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
+  managerId: Id[VehicleManager],
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long
@@ -50,6 +51,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
+        managerInfo = VehicleManagerInfo(managerId, vehicleType, isShared = true),
         rand.nextInt()
       )
       nextVehicleIndex += 1

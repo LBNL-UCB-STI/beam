@@ -1,11 +1,10 @@
 package beam.agentsim.agents
 
 import scala.util.{Random, Try}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import akka.actor.SupervisorStrategy.Stop
 import beam.agentsim.agents.BeamAgent.Finish
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -16,6 +15,7 @@ import beam.router.osm.TollCalculator
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.vehiclesharing.VehicleManager
 import beam.utils.{FileUtils, NetworkHelper}
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
@@ -103,6 +103,10 @@ class TransitSystem(
   }
 }
 
+object TransitSystem {
+  val VEHICLE_MANAGER_ID: Id[VehicleManager] = Id.create("transit-system", classOf[VehicleManager])
+}
+
 class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType])
     extends ExponentialLazyLogging {
 
@@ -128,6 +132,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
           beamVehicleId,
           powertrain,
           vehicleType,
+          managerInfo = VehicleManagerInfo(TransitSystem.VEHICLE_MANAGER_ID, vehicleType),
           randomSeed
         ) // TODO: implement fuel level later as needed
         Some(vehicle)

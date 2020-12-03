@@ -53,6 +53,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.sim.vehiclesharing.VehicleManager
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -81,6 +82,8 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
+
+  val RIDE_HAIL_VEHICLE_MANAGER_ID: Id[VehicleManager] = Id.create("private-vehicle", classOf[VehicleManager])
 
   case object NotifyIterationEnds
   case class RecoverFromStuckness(tick: Int)
@@ -1542,6 +1545,7 @@ class RideHailManager(
       rideHailVehicleId,
       powertrain,
       rideHailBeamVehicleType,
+      managerInfo = VehicleManagerInfo(RIDE_HAIL_VEHICLE_MANAGER_ID, rideHailBeamVehicleType, isRideHail = true),
       rand.nextInt()
     )
     rideHailBeamVehicle.initializeFuelLevels(

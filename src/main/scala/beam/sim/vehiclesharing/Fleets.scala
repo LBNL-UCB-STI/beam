@@ -13,7 +13,7 @@ object Fleets {
         FixedNonReservingFleetByTAZ(vehicleManagerId, value, config.reposition)
       case "inexhaustible-reserving" =>
         val value: SharedFleets$Elm.InexhaustibleReserving = config.inexhaustible_reserving.get
-        InexhaustibleReservingFleet(value)
+        InexhaustibleReservingFleet(vehicleManagerId, value)
       case "fixed-non-reserving" =>
         val value: SharedFleets$Elm.FixedNonReserving = config.fixed_non_reserving.get
         FixedNonReservingFleet(vehicleManagerId, value)

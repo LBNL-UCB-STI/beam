@@ -1,7 +1,6 @@
 package beam.sim.vehiclesharing
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import akka.pattern.{ask, pipe}
@@ -19,7 +18,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -60,6 +59,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
         vehicleType,
+        managerInfo = VehicleManagerInfo(id, vehicleType, isShared = true),
         rand.nextInt()
       )
       vehicle.setManager(Some(self))

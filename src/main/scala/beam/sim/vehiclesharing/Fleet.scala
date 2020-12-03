@@ -118,7 +118,8 @@ case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedF
   }
 }
 
-case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleReserving) extends FleetType {
+case class InexhaustibleReservingFleet(managerId: Id[VehicleManager], config: SharedFleets$Elm.InexhaustibleReserving)
+    extends FleetType {
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
@@ -130,6 +131,7 @@ case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleRes
     )
     Props(
       new InexhaustibleReservingFleetManager(
+        managerId,
         parkingManager,
         vehicleType,
         beamServices.beamConfig.matsim.modules.global.randomSeed
