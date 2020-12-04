@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import java.io.{BufferedReader, File, IOException}
-
+import beam.agentsim.agents.vehicles.VehicleManagerType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.utils.FileUtils
@@ -22,7 +22,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     * used to parse a row ofParkingGeoIndexConverterSpec the parking file
     * last row (ReservedFor) is ignored
     */
-  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*).*""".r.unanchored
+  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*)(.*)""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)
@@ -43,7 +43,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     maybeChargingPoint: Option[ChargingPointType]
   ): String = {
     val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
-    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,"
   }
 
   /**
@@ -70,7 +70,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     def someRowsFailed: Boolean = failedRows > 0
 
     def totalParkingStalls: Long =
-      if (zones.length == 0) 0
+      if (zones.isEmpty) 0
       else zones.map { _.maxStalls.toLong }.sum
 
     def parkingStallsPlainEnglish: String = {
@@ -302,7 +302,8 @@ object ParkingZoneFileUtils extends LazyLogging {
           pricingModelString,
           chargingTypeString,
           numStallsString,
-          feeInCentsString
+          feeInCentsString,
+          theRest,
           ) =>
         Try {
           val newCostInDollarsString = (feeInCentsString.toDouble * parkingCostScalingFactor / 100.0).toString
@@ -313,13 +314,34 @@ object ParkingZoneFileUtils extends LazyLogging {
           } else {
             floorNumberOfStalls
           }
+          val vehicleManagerType: Option[VehicleManagerType] = theRest.split(',').toList match {
+            case _ :: nextColumnValue :: _ =>
+              nextColumnValue.trim match {
+                //we had Any and RideHailManager in the taz-parking.csv files
+                //allow the users not to modify existing files
+                case "" | "Any"        => None
+                case "RideHailManager" => Some(VehicleManagerType.Ridehail)
+                case trimmed @ _       => Some(VehicleManagerType.withNameInsensitive(trimmed))
+              }
+            case _ => None
+          }
+
           // parse this row from the source file
           val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)
           val parkingType = ParkingType(parkingTypeString)
           val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
           val chargingPoint = ChargingPointType(chargingTypeString)
           val numStalls = numberOfStallsToCreate
-          val parkingZone = ParkingZone(nextParkingZoneId, taz, parkingType, numStalls, chargingPoint, pricingModel)
+          val parkingZone = ParkingZone(
+            nextParkingZoneId,
+            taz,
+            parkingType,
+            numStalls,
+            vehicleManagerType,
+            None,
+            chargingPoint,
+            pricingModel
+          )
 
           ParkingLoadingDataRow(taz, parkingType, parkingZone)
 

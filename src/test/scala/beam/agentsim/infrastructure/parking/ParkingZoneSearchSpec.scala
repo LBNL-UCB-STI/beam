@@ -296,8 +296,8 @@
 //
 //    val sourceData: Iterator[String] =
 //      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-//        |A,Public,FlatFee,none,7,1000,unused
-//        |B,Public,Block,none,18,100,unused
+//        |A,Public,FlatFee,none,7,1000,
+//        |B,Public,Block,none,18,100,
 //        |
 //      """.stripMargin.split("\n").toIterator
 //

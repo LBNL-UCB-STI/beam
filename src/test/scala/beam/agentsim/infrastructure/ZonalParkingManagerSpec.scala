@@ -122,7 +122,7 @@ class ZonalParkingManagerSpec
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,unused
+            |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -176,7 +176,7 @@ class ZonalParkingManagerSpec
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,unused
+          |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -411,7 +411,7 @@ object ZonalParkingManagerSpec {
     val result = split.zipWithIndex
       .map {
         case (stalls, i) =>
-          s"${i + 1},Workplace,FlatFee,None,$stalls,0,unused"
+          s"${i + 1},Workplace,FlatFee,None,$stalls,0,"
       }
       .mkString(s"$header\n", "\n", "")
       .split("\n")
@@ -425,7 +425,9 @@ object ZonalParkingManagerSpec {
       .foldLeft(List.empty[ParkingZone[TAZ]]) {
         case (acc, (taz, numZones)) =>
           val parkingZones = (0 until numZones)
-            .map(i => ParkingZone(acc.size + i, taz.tazId, ParkingType.Workplace, 5, None, Some(FlatFee(3.0))))
+            .map(
+              i => ParkingZone(acc.size + i, taz.tazId, ParkingType.Workplace, 5, None, None, None, Some(FlatFee(3.0)))
+            )
           acc ++ parkingZones
       }
     result.toArray

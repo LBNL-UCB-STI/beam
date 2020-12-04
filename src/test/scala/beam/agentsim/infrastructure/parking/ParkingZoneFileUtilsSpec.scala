@@ -149,12 +149,12 @@ object ParkingZoneFileUtilsSpec {
 
     val validRow: Iterator[String] =
       s"""taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,unused
+         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,
       """.stripMargin.split("\n").toIterator
 
     val validRowWithEmpties: Iterator[String] =
       s"""taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-         |1,Residential,,,$testNumStalls,$testFeeInCents,unused
+         |1,Residential,,,$testNumStalls,$testFeeInCents,
       """.stripMargin.split("\n").toIterator
 
     val linkLevelData: Iterator[String] =
@@ -178,43 +178,43 @@ object ParkingZoneFileUtilsSpec {
 
     val badParkingType: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-        |1,Foo,FlatFee,TeslaSuperCharger,7,0,unused
-        |2,Public,Block,TeslaSuperCharger,18,0,unused
+        |1,Foo,FlatFee,TeslaSuperCharger,7,0,
+        |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badPricingModel: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-        |1,Workplace,Foo,TeslaSuperCharger,7,0,unused
-        |2,Public,Block,TeslaSuperCharger,18,0,unused
+        |1,Workplace,Foo,TeslaSuperCharger,7,0,
+        |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badChargingType: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-        |1,Workplace,FlatFee,Foo,7,0,unused
-        |2,Public,Block,TeslaSuperCharger,18,0,unused
+        |1,Workplace,FlatFee,Foo,7,0,
+        |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badNumStalls: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-        |1,Workplace,FlatFee,TeslaSuperCharger,Foo,0,unused
-        |2,Public,Block,TeslaSuperCharger,18,0,unused
+        |1,Workplace,FlatFee,TeslaSuperCharger,Foo,0,
+        |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val invalidNumStalls: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-        |1,Workplace,FlatFee,TeslaSuperCharger,-1,0,unused
-        |2,Public,Block,TeslaSuperCharger,18,0,unused
+        |1,Workplace,FlatFee,TeslaSuperCharger,-1,0,
+        |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badFeeInCents: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-        |1,Workplace,FlatFee,TeslaSuperCharger,7,Foo,unused
-        |2,Public,Block,TeslaSuperCharger,18,0,unused
+        |1,Workplace,FlatFee,TeslaSuperCharger,7,Foo,
+        |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
   }

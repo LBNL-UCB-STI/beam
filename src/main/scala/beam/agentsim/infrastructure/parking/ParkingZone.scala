@@ -1,6 +1,8 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.agents.vehicles.VehicleManagerType
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.sim.vehiclesharing.VehicleManager
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
@@ -19,6 +21,8 @@ class ParkingZone[GEO](
   val parkingType: ParkingType,
   var stallsAvailable: Int,
   val maxStalls: Int,
+  val reservedFor: Option[VehicleManagerType],
+  val vehicleManagerId: Option[Id[VehicleManager]],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel]
 ) {
@@ -49,6 +53,8 @@ class ParkingZone[GEO](
       this.parkingType,
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
+      this.reservedFor,
+      this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel
     )
@@ -78,10 +84,22 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     numStalls: Int = 0,
+    reservedFor: Option[VehicleManagerType],
+    vehicleManagerId: Option[Id[VehicleManager]],
     chargingType: Option[ChargingPointType] = None,
-    pricingModel: Option[PricingModel] = None,
+    pricingModel: Option[PricingModel] = None
   ): ParkingZone[GEO] =
-    new ParkingZone(parkingZoneId, geoId, parkingType, numStalls, numStalls, chargingType, pricingModel)
+    new ParkingZone(
+      parkingZoneId,
+      geoId,
+      parkingType,
+      numStalls,
+      numStalls,
+      reservedFor,
+      vehicleManagerId,
+      chargingType,
+      pricingModel
+    )
 
   /**
     * increment the count of stalls in use
