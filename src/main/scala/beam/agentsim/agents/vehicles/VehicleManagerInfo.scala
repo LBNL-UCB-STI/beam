@@ -57,6 +57,7 @@ object VehicleManagerType extends Enum[VehicleManagerType] {
       case VehicleCategory.Bike if isShared => SharedMicromobility
       case VehicleCategory.Bike             => Bikes
       case VehicleCategory.Car if isShared  => Carsharing
+      case VehicleCategory.Car              => Cars
       case _                                => Freight
     }
   }
