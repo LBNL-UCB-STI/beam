@@ -1287,6 +1287,7 @@ object BeamConfig {
             ],
             managerType: java.lang.String,
             name: java.lang.String,
+            parkingFilePath: java.lang.String,
             reposition: scala.Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
           )
 
@@ -1417,6 +1418,7 @@ object BeamConfig {
                   else None,
                 managerType = if (c.hasPathOrNull("managerType")) c.getString("managerType") else "fixed-non-reserving",
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "my-fixed-non-reserving-fleet",
+                parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
                 reposition =
                   if (c.hasPathOrNull("reposition"))
                     scala.Some(

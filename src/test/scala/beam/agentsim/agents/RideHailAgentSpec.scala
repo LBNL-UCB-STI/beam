@@ -70,7 +70,8 @@ class RideHailAgentSpec
         identity[TAZ],
         services.geo,
         services.beamRouter,
-        boundingBox
+        boundingBox,
+        ZonalParkingManager.getDefaultParkingZones(beamConfig),
       ),
     "ParkingManager"
   )

@@ -284,7 +284,8 @@ object HierarchicalParkingManager {
     linkQuadTree: QuadTree[Link],
     linkToTAZMapping: Map[Link, TAZ],
     geo: GeoUtils,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingFilePaths: Map[Id[VehicleManager], String],
   ): Props = {
     Props(
       HierarchicalParkingManager(
@@ -294,6 +295,7 @@ object HierarchicalParkingManager {
         linkToTAZMapping,
         geo,
         boundingBox,
+        parkingFilePaths,
       )
     )
   }
@@ -304,10 +306,10 @@ object HierarchicalParkingManager {
     linkQuadTree: QuadTree[Link],
     linkToTAZMapping: Map[Link, TAZ],
     geo: GeoUtils,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingFilePaths: Map[Id[VehicleManager], String],
   ): HierarchicalParkingManager = {
 
-    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
 
@@ -321,7 +323,7 @@ object HierarchicalParkingManager {
     }
 
     val (parkingZones, _) =
-      loadParkingZones(parkingFilePath, linkQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, rand)
+      loadParkingZones(parkingFilePaths, linkQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, rand)
 
     new HierarchicalParkingManager(
       tazMap,

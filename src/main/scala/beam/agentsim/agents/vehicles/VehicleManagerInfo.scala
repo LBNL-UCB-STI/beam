@@ -32,18 +32,18 @@ object VehicleManagerInfo {
     VehicleManagerInfo(managerId, VehicleManagerType.getManagerType(vehicleType.vehicleCategory, isRideHail, isShared))
 }
 
-sealed trait VehicleManagerType extends EnumEntry
+sealed abstract class VehicleManagerType(val isPrivate: Boolean, val isShared: Boolean = false) extends EnumEntry
 
 object VehicleManagerType extends Enum[VehicleManagerType] {
   val values: immutable.IndexedSeq[VehicleManagerType] = findValues
 
-  case object Bodies extends VehicleManagerType //for human bodies
-  case object Cars extends VehicleManagerType //for private cars
-  case object Bikes extends VehicleManagerType //for private bikes
-  case object Carsharing extends VehicleManagerType //for shared fleet of type car
-  case object SharedMicromobility extends VehicleManagerType //for shared bikes and scooters
-  case object Ridehail extends VehicleManagerType //for ridehail
-  case object Freight extends VehicleManagerType
+  case object Bodies extends VehicleManagerType(isPrivate = true) //for human bodies
+  case object Cars extends VehicleManagerType(isPrivate = true) //for private cars
+  case object Bikes extends VehicleManagerType(isPrivate = true) //for private bikes
+  case object Carsharing extends VehicleManagerType(isPrivate = false, isShared = true) //for shared fleet of type car
+  case object SharedMicromobility extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
+  case object Ridehail extends VehicleManagerType(isPrivate = false) //for ridehail
+  case object Freight extends VehicleManagerType(isPrivate = false)
 
   def getManagerType(
     vehicleCategory: VehicleCategory,

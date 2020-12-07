@@ -345,6 +345,13 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
+  private val parkingFilePaths = {
+    val sharedVehicleFleetTypes = config.agents.vehicles.sharedFleets.map(Fleets.lookup)
+    ZonalParkingManager.getDefaultParkingZones(beamConfig) ++ sharedVehicleFleetTypes.map(
+      fleetType => fleetType.managerId -> fleetType.parkingFilePath
+    )
+  }
+
   private val parkingManager = {
     val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
     log.info(s"Starting parking manager: $managerName")
@@ -360,7 +367,8 @@ class BeamMobsimIteration(
               identity[TAZ],
               geo,
               beamRouter,
-              envelopeInUTM
+              envelopeInUTM,
+              parkingFilePaths,
             )
           case "link" =>
             ZonalParkingManager.props(
@@ -370,7 +378,8 @@ class BeamMobsimIteration(
               beamScenario.linkToTAZMapping,
               geo,
               beamRouter,
-              envelopeInUTM
+              envelopeInUTM,
+              parkingFilePaths,
             )
           case _ =>
             throw new IllegalArgumentException(
@@ -385,11 +394,12 @@ class BeamMobsimIteration(
             beamScenario.linkQuadTree,
             beamScenario.linkToTAZMapping,
             geo,
-            envelopeInUTM
+            envelopeInUTM,
+            parkingFilePaths,
           )
       case "PARALLEL" =>
         ParallelParkingManager
-          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM)
+          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM, parkingFilePaths)
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
     context.actorOf(pmProps.withDispatcher("zonal-parking-manager-pinned-dispatcher"), "ParkingManager")

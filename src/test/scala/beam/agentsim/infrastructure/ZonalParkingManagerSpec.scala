@@ -1,20 +1,26 @@
 package beam.agentsim.infrastructure
 
 import java.util.concurrent.TimeUnit
-
 import scala.annotation.tailrec
 import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.BeamvilleFixtures
+import beam.agentsim.agents.{BeamvilleFixtures, TransitSystem}
+import beam.agentsim.agents.household.HouseholdFleetManager
+import beam.agentsim.agents.ridehail.RideHailManager
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo, VehicleManagerType}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleManagerType.{Cars, Ridehail}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
+import beam.sim.vehiclesharing.VehicleManager
+import beam.utils.{SimRunnerForTest, TestConfigUtils}
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -25,22 +31,28 @@ import scala.io.Source
 import scala.util.Random
 
 class ZonalParkingManagerSpec
-    extends TestKit(
-      ActorSystem(
-        "ZonalParkingManagerSpec",
-        ConfigFactory.parseString("""
-  akka.log-dead-letters = 10
-  akka.actor.debug.fsm = true
-  akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-      )
-    )
-    with FunSpecLike
-    with BeforeAndAfterAll
+    extends FunSpecLike
+    with TestKitBase
+    with SimRunnerForTest
     with MockitoSugar
     with ImplicitSender
     with Matchers
     with BeamvilleFixtures {
+
+  lazy val config: Config = ConfigFactory
+    .parseString(
+      """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        akka.test.timefactor = 2
+        """
+    )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
+
+  lazy implicit val system: ActorSystem = ActorSystem("PersonAndTransitDriverSpec", config)
+  override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
@@ -49,7 +61,6 @@ class ZonalParkingManagerSpec
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
 
-  val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
   describe("ZonalParkingManager with no parking") {
@@ -309,19 +320,87 @@ class ZonalParkingManagerSpec
     }
   }
 
+  describe("ZonalParkingManager with multiple parking files loaded") {
+    it("should return the correct stall corresponding with the request (reservedFor, vehicleManagerId)") {
+      val sharedFleet1 = Id.create("shared-fleet-1", classOf[VehicleManager])
+      val sharedFleet2 = Id.create("shared-fleet-2", classOf[VehicleManager])
+      val parkingFilePaths = Map(
+        HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
+        sharedFleet1                                     -> "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
+        sharedFleet2                                     -> "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv",
+      )
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val zpm = system.actorOf(
+        Props(
+          ZonalParkingManager(
+            beamConfig,
+            tazMap.tazQuadTree,
+            tazMap.idToTAZMapping,
+            identity[TAZ](_),
+            geo,
+            boundingBox,
+            parkingFilePaths,
+          )
+        )
+      )
+
+      assertParkingResponse(
+        zpm,
+        new Coord(170308.0, 2964.0),
+        "4",
+        73,
+        FlatFee(1.99),
+        ParkingType.Residential,
+      )
+
+      assertParkingResponse(
+        zpm,
+        new Coord(166321.0, 1568.0),
+        "1",
+        148,
+        Block(2.88, 3600),
+        ParkingType.Public,
+        vehicleManagerId = sharedFleet1,
+        vehicleManagerType = VehicleManagerType.Carsharing
+      )
+
+      assertParkingResponse(
+        zpm,
+        new Coord(166500.0, 1500.0),
+        "1",
+        169,
+        Block(77.1 / 100, 3600),
+        ParkingType.Public,
+        vehicleManagerId = sharedFleet2,
+        vehicleManagerType = VehicleManagerType.Carsharing
+      )
+
+    }
+  }
+
   private def assertParkingResponse(
     zpm: ActorRef,
     coord: Coord,
     tazId: String,
     parkingZoneId: Int,
     pricingModel: PricingModel,
-    parkingType: ParkingType
+    parkingType: ParkingType,
+    vehicleManagerId: Id[VehicleManager] = HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID,
+    vehicleManagerType: VehicleManagerType = Cars,
   ) = {
-    val inquiry = ParkingInquiry(coord, "init")
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+    val vehicle = new BeamVehicle(
+      id = Id.createVehicleId("car-01"),
+      powerTrain = new Powertrain(0.0),
+      beamVehicleType = vehicleType,
+      managerInfo = VehicleManagerInfo(vehicleManagerId, vehicleManagerType),
+    )
+    val inquiry = ParkingInquiry(coord, "init", Some(vehicle))
     zpm ! inquiry
     val tazId1 = Id.create(tazId, classOf[TAZ])
+    val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0
     val expectedStall =
-      ParkingStall(tazId1, tazId1, parkingZoneId, coord, 0.0, None, Some(pricingModel), parkingType)
+      ParkingStall(tazId1, tazId1, parkingZoneId, coord, costInDollars, None, Some(pricingModel), parkingType)
     expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
   }
 

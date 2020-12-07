@@ -43,7 +43,11 @@ class ParkingZone[GEO](
       case None    => "pricingModel = None"
       case Some(p) => s" pricingModel = $p"
     }
-    s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString)"
+    val additionalInfo = reservedFor match {
+      case None    => ""
+      case Some(r) => s", reservedFor = $r"
+    }
+    s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString$additionalInfo)"
   }
 
   def makeCopy(maxStalls: Int = -1): ParkingZone[GEO] = {
