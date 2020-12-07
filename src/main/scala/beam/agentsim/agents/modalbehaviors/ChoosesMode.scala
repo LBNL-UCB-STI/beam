@@ -787,7 +787,10 @@ trait ChoosesMode {
       it.copy(
         it.legs.flatMap(
           embodiedLeg =>
-            if (embodiedLeg.beamLeg.mode == CAR) splitLegForParking(embodiedLeg)
+            if (embodiedLeg.beamLeg.mode == CAR
+                //we need to park the shared bike
+                || embodiedLeg.beamLeg.mode == BIKE && beamVehicles(embodiedLeg.beamVehicleId).isInstanceOf[Token])
+              splitLegForParking(embodiedLeg)
             else Vector(embodiedLeg)
         )
       )

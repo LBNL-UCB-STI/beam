@@ -123,8 +123,9 @@ object ParkingZoneFileUtils extends LazyLogging {
           case None     => "NoCharger"
           case Some(cp) => s"$cp"
         }
+        val reservedFor = parkingZone.reservedFor.map(_.toString).getOrElse("")
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$reservedFor"
       }
     } match {
       case Failure(e) =>
