@@ -352,13 +352,15 @@ object HierarchicalParkingManager {
       case ((tazId, description, linkZones), id) =>
         val numStalls = Math.min(linkZones.map(_.maxStalls.toLong).sum, Int.MaxValue).toInt
         new ParkingZone[TAZ](
-          id,
-          tazId,
-          description.parkingType,
-          numStalls,
-          numStalls,
-          description.chargingPointType,
-          description.pricingModel
+          parkingZoneId = id,
+          geoId = tazId,
+          parkingType = description.parkingType,
+          stallsAvailable = numStalls,
+          maxStalls = numStalls,
+          chargingPointType = description.chargingPointType,
+          pricingModel = description.pricingModel,
+          parkingZoneName = None, // FIXME ?!
+          landCostInUSDPerSqft = None // FIXME ?!
         )
     }
     //link zone to taz zone map
@@ -412,13 +414,15 @@ object HierarchicalParkingManager {
         case ((linkId, description, maxStalls), id) =>
           val numStalls = Math.min(maxStalls, Int.MaxValue).toInt
           new ParkingZone[Link](
-            id,
-            linkId,
-            description.parkingType,
-            numStalls,
-            numStalls,
-            description.chargingPointType,
-            description.pricingModel
+            parkingZoneId = id,
+            geoId = linkId,
+            parkingType = description.parkingType,
+            stallsAvailable = numStalls,
+            maxStalls = numStalls,
+            chargingPointType = description.chargingPointType,
+            pricingModel = description.pricingModel,
+            parkingZoneName = None, // FIXME ?!
+            landCostInUSDPerSqft = None // FIXME ?!
           )
       }
       .toArray

@@ -3,6 +3,7 @@ package beam.utils.map
 import java.io.{BufferedWriter, Closeable, Writer}
 import java.util.concurrent.TimeUnit
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.common.GeoUtils
 import beam.utils.scenario.{PersonId, PlanElement}
@@ -15,7 +16,7 @@ import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
-case class VehicleLocation(vehicleId: Id[Vehicle], x: Double, y: Double, time: Int, numOfPassangers: Int)
+case class VehicleLocation(vehicleId: Id[BeamVehicle], x: Double, y: Double, time: Int, numOfPassangers: Int)
 
 object RepositioningAnalyzer extends LazyLogging {
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {

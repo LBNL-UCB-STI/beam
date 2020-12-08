@@ -115,6 +115,10 @@ object PassengerSchedule {
   def apply(): PassengerSchedule =
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 
+  def newFromMap(beamLegToManifest: Map[BeamLeg, Manifest]): PassengerSchedule = {
+    new PassengerSchedule(TreeMap(beamLegToManifest.toArray: _*)(BeamLegOrdering))
+  }
+
   case class Manifest(
     riders: Set[PersonIdWithActorRef] = Set.empty,
     boarders: Set[PersonIdWithActorRef] = Set.empty,

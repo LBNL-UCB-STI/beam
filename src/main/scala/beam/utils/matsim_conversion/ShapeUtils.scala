@@ -20,6 +20,14 @@ object ShapeUtils {
 
   case class QuadTreeBounds(minx: Double, miny: Double, maxx: Double, maxy: Double)
 
+  object QuadTreeBounds {
+
+    def apply(bbox: Envelope): QuadTreeBounds =
+      new QuadTreeBounds(bbox.getMinX, bbox.getMinY, bbox.getMaxX, bbox.getMaxY)
+  }
+
+  case class CsvTaz(id: String, coordX: Double, coordY: Double, area: Double)
+
   trait HasQuadBounds[A] {
     def getMinX(a: A): Double
     def getMaxX(a: A): Double

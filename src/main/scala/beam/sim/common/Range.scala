@@ -22,6 +22,8 @@ case class Range(lowerBound: Int, upperBound: Int) {
   def hasOrEmpty(value: Int): Boolean = {
     isEmpty || has(value)
   }
+
+  override def toString: String = s"{${lowerBound}:${upperBound}}"
 }
 
 object Range {

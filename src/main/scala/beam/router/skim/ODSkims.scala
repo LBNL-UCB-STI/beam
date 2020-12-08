@@ -65,7 +65,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       travelDistance,
       travelCost,
       0,
-      0.0 // TODO get default energy information
+      0.0, // TODO get default energy information
+      1.0
     )
   }
 
@@ -92,6 +93,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           distanceInM = travelDistance.toDouble,
           cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
           energy = 0.0,
+          level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
@@ -100,13 +102,21 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
+        val poolingTravelTimeOveheadFactor =
+          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOveheadFactor
         ODSkimmerInternal(
-          travelTimeInS = solo.travelTimeInS * 1.1,
+          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOveheadFactor,
           generalizedTimeInS = 0,
           generalizedCost = 0,
           distanceInM = solo.distanceInM,
-          cost = getRideHailCost(RIDE_HAIL_POOLED, solo.distanceInM, solo.travelTimeInS, beamConfig),
+          cost = getRideHailCost(
+            RIDE_HAIL_POOLED,
+            solo.distanceInM,
+            solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+            beamConfig
+          ),
           energy = 0.0,
+          level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
@@ -122,13 +132,24 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     departureTime: Int,
     mode: BeamMode,
     vehicleTypeId: Id[BeamVehicleType],
-    beamScenario: BeamScenario
+    beamScenario: BeamScenario,
+    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] = None, //If multiple times the same origin/destination is used, it
+    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] = None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
   ): Skim = {
-    val origTaz = beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
-    val destTaz = beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
+    val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
+      beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
+    )
+    val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
+      beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
+    )
     getSkimValue(departureTime, mode, origTaz, destTaz) match {
       case Some(skimValue) =>
-        skimValue.toSkimExternal
+        beamScenario.vehicleTypes.get(vehicleTypeId) match {
+          case Some(vehicleType) if vehicleType.automationLevel == 4 =>
+            skimValue.toSkimExternalForLevel4CAV
+          case _ =>
+            skimValue.toSkimExternal
+        }
       case None =>
         getSkimDefaultValue(
           mode,
@@ -189,6 +210,11 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       .map(tup => tup._1 * tup._2)
       .sum / sumWeights
     val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedTravelTimeScaleFactor = individualSkims
+      .map(_.level4CavTravelTimeScalingFactor)
+      .zip(weights)
+      .map(tup => tup._1 * tup._2)
+      .sum / sumWeights
 
     ExcerptData(
       timePeriodString = timePeriodString,
@@ -201,7 +227,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       weightedGeneralizedCost = weightedGeneralizedCost,
       weightedDistance = weightedDistance,
       sumWeights = sumWeights,
-      weightedEnergy = weightedEnergy
+      weightedEnergy = weightedEnergy,
+      weightedLevel4TravelTimeScaleFactor = weightedTravelTimeScaleFactor
     )
   }
 

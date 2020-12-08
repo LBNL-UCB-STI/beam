@@ -85,7 +85,7 @@ class InverseSquareDistanceRepositioningFactor(
       }
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
         wantToRepos.flatMap { rha =>
-          findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId, clusters).map { loc =>
+          findWhereToReposition(tick, rha.latestUpdatedLocationUTM.loc, rha.vehicleId, clusters).map { loc =>
             rha -> loc
           }
         }
@@ -99,7 +99,7 @@ class InverseSquareDistanceRepositioningFactor(
         .filter { vehAndNewLoc =>
           beamServices.skims.od_skimmer
             .getTimeDistanceAndCost(
-              vehAndNewLoc._1.currentLocationUTM.loc,
+              vehAndNewLoc._1.latestUpdatedLocationUTM.loc,
               vehAndNewLoc._2,
               tick,
               CAR,

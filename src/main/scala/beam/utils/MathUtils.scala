@@ -111,4 +111,6 @@ object MathUtils {
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
+
+  def nanToZero(x: Double) = if (x.isNaN) { 0.0 } else { x }
 }
