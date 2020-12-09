@@ -208,14 +208,8 @@ class UrbanSimScenarioLoader(
           )
           .toBuffer
 
-        beamScenario.vehicleTypes.values
-          .find(_.vehicleCategory == VehicleCategory.Bike) match {
-          case Some(vehType) =>
-            vehiclesAdjustment.sampleVehicleTypes(1, VehicleCategory.Bike, realDistribution).foreach { bikeType =>
-              vehicleTypes.append(bikeType)
-            }
-          case None =>
-            throw new RuntimeException("Bike not found in vehicle types.")
+        if (rand.nextDouble() <= beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle) {
+          vehicleTypes.append(bikeVehicleType)
         }
 
         initialVehicleCounter += householdInfo.cars
