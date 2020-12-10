@@ -58,7 +58,7 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
       )
     } else {
       Try {
-        val dataStore: ShapefileDataStore = initDataStore(featureFactory)
+        val dataStore: ShapefileDataStore = ShapeWriter.initDataStore(featureFactory, path)
         val featureStore = dataStore.getFeatureSource.asInstanceOf[SimpleFeatureStore]
         val featureCollection = DataUtilities.collection(features)
         val fIterator = featureCollection.features()
@@ -96,11 +96,6 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
     featureFactory.buildFeature(id)
   }
 
-  private def initDataStore(featureFactory: GenericFeatureBuilder[A]): ShapefileDataStore = {
-    val dataStore = new ShapefileDataStore(new File(path).toURI.toURL)
-    dataStore.createSchema(featureFactory.getFeatureType)
-    dataStore
-  }
 }
 
 object ShapeWriter {
@@ -113,4 +108,14 @@ object ShapeWriter {
     // WGS84 is the same as EPSG:4326 https://epsg.io/4326
     new ShapeWriter[G, A](DefaultGeographicCRS.WGS84, path)
   }
+
+  private def initDataStore(
+    featureFactory: GenericFeatureBuilder[_],
+    path: String
+  ): ShapefileDataStore = {
+    val dataStore = new ShapefileDataStore(new File(path).toURI.toURL)
+    dataStore.createSchema(featureFactory.getFeatureType)
+    dataStore
+  }
+
 }

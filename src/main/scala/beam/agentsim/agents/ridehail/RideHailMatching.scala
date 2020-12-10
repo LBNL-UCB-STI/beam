@@ -8,7 +8,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.skim.{Skims, SkimsUtils}
+import beam.router.skim.{ODSkimmer, Skims, SkimsUtils}
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamServices, Geofence}
 import com.typesafe.scalalogging.LazyLogging
@@ -19,7 +19,6 @@ import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
-
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -84,12 +83,14 @@ object RideHailMatching {
       s"${requests.size} requests and this schedule: ${schedule.map(_.toString).mkString("\n")}"
   }
 
+  val geodeticCalculatorPerThread: ThreadLocal[GeodeticCalculator] =
+    ThreadLocal.withInitial[GeodeticCalculator](() => new GeodeticCalculator(DefaultGeographicCRS.WGS84))
+
   def checkAngle(origin: Coord, dest1: Coord, dest2: Coord)(implicit services: BeamServices): Boolean = {
-    val crs = DefaultGeographicCRS.WGS84
+    val calc = geodeticCalculatorPerThread.get()
     val orgWgs = services.geo.utm2Wgs.transform(origin)
     val dst1Wgs = services.geo.utm2Wgs.transform(dest1)
     val dst2Wgs = services.geo.utm2Wgs.transform(dest2)
-    val calc = new GeodeticCalculator(crs)
     val gf = new GeometryFactory()
     val point1 = gf.createPoint(new Coordinate(orgWgs.getX, orgWgs.getY))
     calc.setStartingGeographicPoint(point1.getX, point1.getY)
@@ -107,7 +108,7 @@ object RideHailMatching {
     schedule.exists(s => GeoUtils.distFormula(r.activity.getCoord, s.activity.getCoord) <= searchRadius)
   }
 
-  def getRequestsWithinGeofence(v: VehicleAndSchedule, demand: List[CustomerRequest]) = {
+  def getRequestsWithinGeofence(v: VehicleAndSchedule, demand: List[CustomerRequest]): List[CustomerRequest] = {
     // get all customer requests located at a proximity to the vehicle
     v.geofence match {
       case Some(gf) =>
@@ -121,8 +122,8 @@ object RideHailMatching {
     }
   }
 
-  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices) = {
-    Skims.od_skimmer.getTimeDistanceAndCost(
+  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices): ODSkimmer.Skim = {
+    beamServices.skims.od_skimmer.getTimeDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
       src.baselineNonPooledTime,
@@ -131,7 +132,7 @@ object RideHailMatching {
         beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
         classOf[BeamVehicleType]
       ),
-      beamServices
+      beamServices.beamScenario
     )
   }
 
@@ -243,7 +244,7 @@ object RideHailMatching {
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
-    val skim = Skims.od_skimmer
+    val skim = beamServices.skims.od_skimmer
       .getTimeDistanceAndCost(
         p1Act1.getCoord,
         p1Act2.getCoord,
@@ -253,7 +254,7 @@ object RideHailMatching {
           beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
         ),
-        beamServices
+        beamServices.beamScenario
       )
     CustomerRequest(
       vehiclePersonId,

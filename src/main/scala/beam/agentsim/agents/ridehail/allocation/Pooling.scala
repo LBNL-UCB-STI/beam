@@ -54,7 +54,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       val routeResponses = vehicleAllocationRequest.requests(request)
 
       // First check for broken route responses (failed routing attempt)
-      if (routeResponses.find(_.itineraries.isEmpty).isDefined) {
+      if (routeResponses.exists(_.itineraries.isEmpty)) {
         allocResponses = allocResponses :+ NoVehicleAllocated(request)
       } else {
         // Make sure vehicle still available
@@ -146,6 +146,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         req.pickUpLocationUTM,
         startTime,
         withTransit = false,
+        Some(req.customer.personId),
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Pickup
@@ -167,6 +168,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         req.destinationUTM,
         startTime,
         withTransit = false,
+        Some(req.customer.personId),
         Vector(rideHailVehicleAtOrigin)
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
@@ -209,7 +211,7 @@ object Pooling {
     alreadyAllocated: Set[Id[BeamVehicle]],
     rideHailManager: RideHailManager,
     beamServices: BeamServices
-  ) = {
+  ): VehicleAllocation = {
     val requestUpdated = RideHailRequest.handleImpression(request, beamServices)
     rideHailManager.vehicleManager
       .getClosestIdleVehiclesWithinRadiusByETA(

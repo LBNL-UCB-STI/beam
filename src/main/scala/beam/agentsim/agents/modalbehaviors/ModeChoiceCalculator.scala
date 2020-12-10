@@ -6,10 +6,12 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -61,7 +63,13 @@ trait ModeChoiceCalculator {
     destinationActivity: Option[Activity]
   ): Double
 
-  def utilityOf(mode: BeamMode, cost: Double, time: Double, numTransfers: Int = 0): Double
+  def utilityOf(
+    mode: BeamMode,
+    cost: Double,
+    time: Double,
+    numTransfers: Int = 0,
+    transitOccupancyLevel: Double = 0.0
+  ): Double
 
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
@@ -115,7 +123,8 @@ object ModeChoiceCalculator {
   def apply(
     classname: String,
     beamServices: BeamServices,
-    configHolder: BeamConfigHolder
+    configHolder: BeamConfigHolder,
+    eventsManager: EventsManager
   ): ModeChoiceCalculatorFactory = {
     classname match {
       case "ModeChoiceLCCM" =>
@@ -123,10 +132,14 @@ object ModeChoiceCalculator {
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+              val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
               new ModeChoiceMultinomialLogit(
                 beamServices,
-                lccm.modeChoiceModels(Mandatory)(modalityStyle),
-                configHolder
+                model,
+                modeModel,
+                configHolder,
+                beamServices.skims.tc_skimmer,
+                eventsManager
               )
             case _ =>
               throw new RuntimeException("LCCM needs people to have modality styles")
@@ -144,9 +157,16 @@ object ModeChoiceCalculator {
         _ =>
           new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
-        val logit = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+        val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>
-          new ModeChoiceMultinomialLogit(beamServices, logit, configHolder)
+          new ModeChoiceMultinomialLogit(
+            beamServices,
+            routeLogit,
+            modeLogit,
+            configHolder,
+            beamServices.skims.tc_skimmer,
+            eventsManager
+          )
     }
   }
   sealed trait ModeVotMultiplier

@@ -100,12 +100,14 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       val value = Try(getIfNotNull(rec, "sex").asInstanceOf[Long]).getOrElse(1L)
       value == 2L
     }
+    val excludedModes: String = Try(getIfNotNull(rec, "excludedModes").toString).getOrElse("")
     val rank: Int = 0
     PersonInfo(
       personId = personId,
       householdId = householdId,
       rank = rank,
       age = age,
+      excludedModes = excludedModes,
       isFemale = isFemaleValue,
       valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D)
     )

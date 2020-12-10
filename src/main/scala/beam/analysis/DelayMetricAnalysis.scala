@@ -52,7 +52,7 @@ class DelayMetricAnalysis @Inject()(
   private val networkUtilizedGraphTitle = "Physsim Network Utilization"
   private val xAxisName_NetworkUtilized = "hour"
   private val yAxisName_NetworkUtilized = "Network Percent Used"
-  private val linkUtilization = scala.collection.mutable.SortedMap[Int, Set[Int]]()
+  private val linkUtilization = scala.collection.mutable.SortedMap[Int, collection.mutable.Set[Int]]()
 
   var totalTravelTime = 0.0
 
@@ -126,10 +126,10 @@ class DelayMetricAnalysis @Inject()(
   }
 
   def calculateNetworkUtilization(pathTraversalEvent: PathTraversalEvent): Unit = {
-
     val time = pathTraversalEvent.time / 3600
-    val utilizedLinks = pathTraversalEvent.linkIds.toSet
-    linkUtilization += time.toInt -> (linkUtilization.getOrElse(time.toInt, Set[Int]()) ++ utilizedLinks)
+    val setToUpdate = linkUtilization.getOrElse(time.toInt, collection.mutable.Set[Int]())
+    pathTraversalEvent.linkIds.foreach(setToUpdate += _)
+    linkUtilization += time.toInt -> setToUpdate
   }
 
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
@@ -183,15 +183,13 @@ class DelayMetricAnalysis @Inject()(
       graphTitle,
       xAxisName,
       yAxisName,
-      fileName + ".png",
       true
     )
 
     val plot: CategoryPlot = chart.getCategoryPlot
     GraphUtils.plotLegendItems(plot, legends.toList.asJava, delayTotalByLinkCapacityDataset.getRowCount)
 
-    val graphImageFile =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename(fileName + ".png")
+    val graphImageFile = controlerIO.getOutputFilename(fileName + ".png")
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       graphImageFile,
@@ -207,7 +205,6 @@ class DelayMetricAnalysis @Inject()(
       averageGraphTitle,
       xAxisName,
       yAxisAverageGraphName,
-      fileName,
       false
     )
     GraphUtils.saveJFreeChartAsPNG(
@@ -221,20 +218,17 @@ class DelayMetricAnalysis @Inject()(
   def createNetworkUtilizationGraph(iterationNumber: Int): Unit = {
     val dataset = new DefaultCategoryDataset
     val totalLink = networkHelper.allLinks.length
-    for (hour <- 1 to linkUtilization.keysIterator.max) {
+    for (hour <- 0 to linkUtilization.keysIterator.max) {
       dataset.addValue((linkUtilization.getOrElse(hour, Set()).size * 100).toDouble / totalLink, 0, hour)
     }
 
-    val graphImageFile: String =
-      GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-        .getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
+    val graphImageFile: String = controlerIO.getIterationFilename(iterationNumber, "physsimNetworkUtilization.png")
 
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
       dataset,
       networkUtilizedGraphTitle,
       xAxisName_NetworkUtilized,
       yAxisName_NetworkUtilized,
-      graphImageFile,
       false
     )
 

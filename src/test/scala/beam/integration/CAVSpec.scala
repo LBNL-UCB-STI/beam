@@ -23,12 +23,15 @@ class CAVSpec extends FlatSpec with Matchers with BeamHelper {
 
   "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
     val config = ConfigFactory
-      .parseString("""
-        |beam.outputs.events.fileOutputFormats = xml
-        |beam.physsim.skipPhysSim = true
-        |beam.agentsim.lastIteration = 0
-        |beam.agentsim.agents.vehicles.sharedFleets = []
-        """.stripMargin)
+      .parseString(
+        """
+           |beam.actorSystemName = "CAVSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.vehicles.sharedFleets = []
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
     runCAVTest(config)

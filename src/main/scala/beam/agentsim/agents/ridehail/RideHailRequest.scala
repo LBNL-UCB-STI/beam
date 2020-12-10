@@ -21,7 +21,7 @@ case class RideHailRequest(
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
-  override def equals(that: Any) = this.requestId == that.asInstanceOf[RideHailRequest].requestId
+  override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
   override def toString: String =
     s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
@@ -29,7 +29,7 @@ case class RideHailRequest(
 
 object RideHailRequest {
 
-  val DUMMY = RideHailRequest(
+  val DUMMY: RideHailRequest = RideHailRequest(
     RideHailInquiry,
     PersonIdWithActorRef(Id.create("dummy", classOf[Person]), ActorRef.noSender),
     new Coord(Double.NaN, Double.NaN),
@@ -42,7 +42,7 @@ object RideHailRequest {
     * @param request ridehail request
     * @param beamServices an instance of beam services
     */
-  def handleImpression(request: RideHailRequest, beamServices: BeamServices) = {
+  def handleImpression(request: RideHailRequest, beamServices: BeamServices): RideHailRequest = {
     val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
       beamServices.geo.snapToR5Edge(
         beamServices.beamScenario.transportNetwork.streetLayer,

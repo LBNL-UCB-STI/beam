@@ -28,7 +28,7 @@ class AlonsoMoraMatchingWithMIPAssignment(
 
   AlonsoMoraMatchingWithMIPAssignment.initialize
 
-  private implicit val services = beamServices
+  private implicit val services: BeamServices = beamServices
 
   // a greedy assignment using a cost function
   override def matchAndAssign(tick: Int): Future[List[RideHailTrip]] = {

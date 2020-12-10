@@ -2,13 +2,14 @@ package json.converter
 
 import java.io.PrintWriter
 
+import com.typesafe.scalalogging.LazyLogging
 import play.api.libs.json._
 
 import scala.util.Try
 
 //Converter from https://geo.nyu.edu/catalog/stanford-hq850hh1120 to expected format for
 // https://github.com/sfcta/tncstoday
-object NyuDataTazConverter extends App {
+object NyuDataTazConverter extends App with LazyLogging {
 
   import TazOutput._
 
@@ -46,12 +47,12 @@ object NyuDataTazConverter extends App {
       JsSuccess(features)
     } catch {
       case e: Exception =>
-        e.printStackTrace()
+        logger.error("exception occurred due to ", e)
         JsError()
     }
   }
 
-  println(s"Taz Converter")
+  println("Taz Converter")
 
   def parseArgs() = {
     args
@@ -93,7 +94,7 @@ object NyuDataTazConverter extends App {
       TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
 
-    println(s"Res:")
+    println("Res:")
     println(s"$featuresRes")
 
     val tazVizJson = Json.toJson(tazVizArray.filter(_.taz > 0l))

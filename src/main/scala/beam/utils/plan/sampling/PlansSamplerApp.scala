@@ -3,7 +3,7 @@ package beam.utils.plan.sampling
 import java.util
 
 import beam.router.Modes.BeamMode.CAR
-import beam.utils.matsim_conversion.MatsimConversionTool
+import beam.utils.matsim_conversion.{MatsimConversionTool, ShapeUtils}
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.scripts.PopulationWriterCSV
@@ -224,24 +224,14 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   private def quadTreeExtentFromShapeFile(
     features: util.Collection[SimpleFeature]
   ): QuadTreeExtent = {
-    var minX: Double = Double.MaxValue
-    var maxX: Double = Double.MinValue
-    var minY: Double = Double.MaxValue
-    var maxY: Double = Double.MinValue
-
-    import scala.collection.JavaConverters._
-    for (f <- features.asScala) {
-      f.getDefaultGeometry match {
+    val envelopes = features.asScala
+      .map(_.getDefaultGeometry)
+      .collect {
         case g: Geometry =>
-          val ca = wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
-          minX = Math.min(minX, ca.getMinX)
-          minY = Math.min(minY, ca.getMinY)
-          maxX = Math.max(maxX, ca.getMaxX)
-          maxY = Math.max(maxY, ca.getMaxY)
-        case _ =>
+          wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
       }
-    }
-    QuadTreeExtent(minX, minY, maxX, maxY)
+    val bounds = ShapeUtils.quadTreeBounds(envelopes)
+    QuadTreeExtent(bounds.minx, bounds.miny, bounds.maxx, bounds.maxy)
   }
 
   // Returns a single geometry that is the union of all the polgyons in a shapefile
@@ -375,9 +365,9 @@ object PlansSampler {
 
     synthHouseholds ++=
       filterSynthHouseholds(
-        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
-        shapeFileReader.getFeatureSet,
-        sourceCrs
+        synthHouseholdsToFilter = new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
+        aoiFeatures = shapeFileReader.getFeatureSet,
+        sourceCRS = sourceCrs
       )
 
     planQt = Some(
@@ -428,7 +418,7 @@ object PlansSampler {
   }
 
   private def filterSynthHouseholds(
-    synthHouseholds: Vector[SynthHousehold],
+    synthHouseholdsToFilter: Vector[SynthHousehold],
     aoiFeatures: util.Collection[SimpleFeature],
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
@@ -436,11 +426,11 @@ object PlansSampler {
     if (spatialSampler == null) {
       val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
         .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
-      synthHouseholds
+      synthHouseholdsToFilter
         .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
         .take(sampleNumber)
     } else {
-      val tract2HH = synthHouseholds.groupBy(f => f.tract)
+      val tract2HH = synthHouseholdsToFilter.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
       (0 to sampleNumber).foreach { _ =>
         {

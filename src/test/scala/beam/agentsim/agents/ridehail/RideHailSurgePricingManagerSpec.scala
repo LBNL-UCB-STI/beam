@@ -1,5 +1,5 @@
 package beam.agentsim.agents.ridehail
-import beam.sim.BeamHelper
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
@@ -7,9 +7,11 @@ import org.matsim.core.utils.misc.Time
 import org.mockito.Mockito._
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
-
 import scala.collection.JavaConverters._
 import scala.util.Random
+
+import com.google.inject.Injector
+import org.matsim.core.scenario.MutableScenario
 
 class RideHailSurgePricingManagerSpec
     extends WordSpecLike
@@ -22,10 +24,10 @@ class RideHailSurgePricingManagerSpec
   val config: Config = testConfig(testConfigFileName).resolve()
   lazy val beamConfig: BeamConfig = BeamConfig(config)
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)
-  lazy val beamScenario = loadScenario(beamExecConfig.beamConfig)
-  lazy val scenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
-  lazy val injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
-  lazy val beamServices = buildBeamServices(injector, scenario)
+  lazy val beamScenario: BeamScenario = loadScenario(beamExecConfig.beamConfig)
+  lazy val scenario: MutableScenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
+  lazy val injector: Injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
+  lazy val beamServices: BeamServices = buildBeamServices(injector, scenario)
 
   override def afterAll(): Unit = {
     injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats]).close()

@@ -74,17 +74,17 @@ class ConsumptionRateFilterStoreImpl(
   private val secondaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
     beginLoadingConsumptionRateFiltersFor(secondaryConsumptionRateFilePathsByVehicleType, _.secondaryFuelType)
 
-  def getPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
+  def getPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Option[Future[ConsumptionRateFilter]] =
     primaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
-  def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType) =
+  def getSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Option[Future[ConsumptionRateFilter]] =
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
   def hasPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =
-    primaryConsumptionRateFiltersByVehicleType.keySet.exists(_ == vehicleType)
+    primaryConsumptionRateFiltersByVehicleType.keySet.contains(vehicleType)
 
   def hasSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =
-    secondaryConsumptionRateFiltersByVehicleType.keySet.exists(_ == vehicleType)
+    secondaryConsumptionRateFiltersByVehicleType.keySet.contains(vehicleType)
 
   private def beginLoadingConsumptionRateFiltersFor(
     files: IndexedSeq[(BeamVehicleType, Option[String])],
@@ -128,7 +128,7 @@ class ConsumptionRateFilterStoreImpl(
             "Erroring early to bring attention and get it fixed."
           )
         val rate =
-          if (fuelTypeOption.exists(_ == FuelType.Electricity)) convertFromKwhPer100MilesToJoulesPerMeter(rawRate)
+          if (fuelTypeOption.contains(FuelType.Electricity)) convertFromKwhPer100MilesToJoulesPerMeter(rawRate)
           else convertFromGallonsPer100MilesToJoulesPerMeter(rawRate)
 
         currentRateFilter.get(speedInMilesPerHourBin) match {
@@ -138,7 +138,7 @@ class ConsumptionRateFilterStoreImpl(
                 numberOfLanesFilter.get(numberOfLanesBin) match {
                   case Some(firstRate) =>
                     val rawFirstRate =
-                      if (fuelTypeOption.exists(_ == FuelType.Electricity))
+                      if (fuelTypeOption.contains(FuelType.Electricity))
                         convertFromJoulesPerMeterToKwhPer100Miles(firstRate)
                       else convertFromJoulesPerMeterToGallonsPer100Miles(firstRate)
                     log.error(

@@ -29,9 +29,8 @@ __author__ = "Carlos Caldas"
 def main(args):
     program_arguments = parse_parameters(args)
     input_file_location = search_argument("--inputFile", program_arguments)
-    output_file_path = generate_output_file_path(input_file_location)
+    output_file_path = generate_output_file_path(program_arguments)
     convert_file(input_file_location, output_file_path, program_arguments)
-
 
 def search_argument(argument_name, arguments):
     the_tuple = filter(lambda x: x[0] == argument_name, arguments)
@@ -69,8 +68,15 @@ def parse_parameters(args):
         sys.exit(2)
 
 
-def generate_output_file_path(input_file_arg):
-    result_file_name = extract_name(input_file_arg)
+def generate_output_file_path(program_arguments):
+    departure_time_range = search_argument("--departureTimeIntervalInSeconds", program_arguments)
+    departure_time_range = departure_time_range[1:-1]
+    departure_time_start = int(departure_time_range.split(",")[0])
+    departure_time_end = int(departure_time_range.split(",")[1])
+    input_file_arg = search_argument("--inputFile", program_arguments)
+    file_name_without_ext = Path(extract_name(input_file_arg)).stem
+    result_file_name = '%s_%d_%d.csv' % (file_name_without_ext, departure_time_start, departure_time_end)
+
     if is_url(input_file_arg):
         url = urlparse(input_file_arg)
         parent_path = Path(url.path[1:]).parent
@@ -101,7 +107,6 @@ def google_link(row, timeEpochSeconds):
 
 def convert_file(input_file_location, output_file_path, program_arguments):
     df = read_csv_as_dataframe(input_file_location, program_arguments)
-
     departure_time_range = search_argument("--departureTimeIntervalInSeconds", program_arguments)
     departure_time_range = departure_time_range[1:-1]
     departure_time_start = int(departure_time_range.split(",")[0])
@@ -110,6 +115,9 @@ def convert_file(input_file_location, output_file_path, program_arguments):
     start_of_the_day = 1571184000
     google_departure_time = start_of_the_day + int((departure_time_end + departure_time_start) / 2)
     df['google_link'] = df.apply(lambda x: google_link(x, google_departure_time), axis=1)
+
+    add_metadata(df, program_arguments)
+
     print(tabulate(df.head(), headers='keys', tablefmt='psql'))
     print(df.info())
     output_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -140,13 +148,11 @@ def select_file(test_output_folder):
     except IndexError:
         print(f"You did not entered a valid integer in the range [0, {len(found_files)}]")
 
-
 def find_output_test_directory(execution_file):
     all_parents_as_path = list(Path(execution_file).parents)
     all_parents_as_str = list(map(lambda x: str(x.absolute()), all_parents_as_path))
     src_folder = list(filter(lambda x: x.endswith("src/main"), all_parents_as_str))[0]
     return Path(src_folder).joinpath("../../output/test").resolve()
-
 
 def read_csv_as_dataframe(file_path, program_arguments):
     columns = ["vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time", "start_x",
@@ -205,6 +211,13 @@ def read_csv_as_dataframe(file_path, program_arguments):
 
     return original_df
 
+def add_metadata(df, program_arguments):
+    df['input_param_inputFile'] = search_argument("--inputFile", program_arguments)
+    df['input_param_travelDistanceIntervalInMeters'] = search_argument("--departureTimeIntervalInSeconds", program_arguments)
+    df['input_param_areaBoundBox'] = search_argument("--areaBoundBox", program_arguments)
+    df['input_param_sampleSize'] = search_argument("--sampleSize", program_arguments)
+    df['input_param_sampleSeed'] = search_argument("--sampleSeed", program_arguments)
+    df['input_param_departureTimeIntervalInSeconds'] = search_argument("--departureTimeIntervalInSeconds", program_arguments)
 
 class Point:
     def __init__(self, x, y):
@@ -239,4 +252,5 @@ class BoundBox:
 
 
 if __name__ == "__main__":
+    print(sys.argv)
     main(sys.argv)

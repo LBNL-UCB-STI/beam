@@ -74,7 +74,7 @@ class RideHailModifyPassengerScheduleManager(
         )
     }
   }
-  def allInterruptConfirmationsReceived = numInterruptRepliesPending == 0
+  def allInterruptConfirmationsReceived: Boolean = numInterruptRepliesPending == 0
 
   private def sendModifyPassengerScheduleMessage(
     modifyStatus: RideHailModifyPassengerScheduleStatus,
@@ -143,7 +143,7 @@ class RideHailModifyPassengerScheduleManager(
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
     }
-    if (allTriggersInWave.size > 0)
+    if (allTriggersInWave.nonEmpty)
       rideHailManager.log.debug(
         "Earliest tick in triggers to schedule is {} and latest is {}",
         allTriggersInWave.map(_.trigger.tick).min,
@@ -156,11 +156,11 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = Vector()
   }
 
-  def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger) = {
+  def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger): Unit = {
     allTriggersInWave = allTriggersInWave :+ newTrigger
   }
 
-  def addTriggersToSendWithCompletion(newTriggers: Vector[ScheduleTrigger]) = {
+  def addTriggersToSendWithCompletion(newTriggers: Vector[ScheduleTrigger]): Unit = {
     allTriggersInWave = allTriggersInWave ++ newTriggers
   }
 
@@ -332,7 +332,7 @@ class RideHailModifyPassengerScheduleManager(
     interruptedVehicleIds.add(rideHailModifyPassengerScheduleStatus.vehicleId)
   }
 
-  def setStatusToIdle(vehicleId: Id[BeamVehicle]) = {
+  def setStatusToIdle(vehicleId: Id[BeamVehicle]): Any = {
     vehicleIdToModifyPassengerScheduleStatus.get(vehicleId) match {
       case Some(status) =>
         val newStatus =
@@ -343,7 +343,7 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def cleanUpCaches = {
+  def cleanUpCaches: Unit = {
     interruptIdToModifyPassengerScheduleStatus.values.foreach { status =>
       status.status match {
         case ModifyPassengerScheduleSent =>
@@ -373,7 +373,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def isPendingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).map(_.interruptOrigin == SingleReservation).getOrElse(false)
+    vehicleIdToModifyPassengerScheduleStatus.get(vehicleId).exists(_.interruptOrigin == SingleReservation)
   }
 
   private def sendInterruptMessage(
@@ -390,11 +390,10 @@ class RideHailModifyPassengerScheduleManager(
   ): Boolean = {
     vehicleIdToModifyPassengerScheduleStatus
       .get(vehicleId)
-      .map(
+      .exists(
         stat =>
           stat.interruptOrigin == SingleReservation && stat.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
       )
-      .getOrElse(false)
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {

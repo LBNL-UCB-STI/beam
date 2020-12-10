@@ -34,9 +34,9 @@ object VehiclesAdjustment {
 
   def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
     beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod match {
-      case UNIFORM_ADJUSTMENT      => new UniformVehiclesAdjustment(beamScenario)
-      case INCOME_BASED_ADJUSTMENT => new IncomeBasedVehiclesAdjustment(beamScenario)
-      case _                       => new UniformVehiclesAdjustment(beamScenario)
+      case UNIFORM_ADJUSTMENT      => UniformVehiclesAdjustment(beamScenario)
+      case INCOME_BASED_ADJUSTMENT => IncomeBasedVehiclesAdjustment(beamScenario)
+      case _                       => UniformVehiclesAdjustment(beamScenario)
     }
 
   }

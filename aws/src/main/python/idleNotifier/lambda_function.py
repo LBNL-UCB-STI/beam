@@ -24,13 +24,18 @@ def lambda_handler(event, context):
         instance_name = "NA"
     subject = get_subject_from(event)
     logger.info('instance: ' + instance + '; region: ' + region + '; subject:' + subject)
+    email=get_email_from(event)
+    user_slacks_ids=os.environ['USER_SLACK_IDS']
+    slack_ids_as_dict = json.loads(user_slacks_ids)
+    channel_id=safe_value_with_default(slack_ids_as_dict, email, 'channel')
+
     payload = {
         "blocks": [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*EC2 Idle Alarm Triggered*\n> *Alarm Name*\n> {alarm_name}\n> *Instance Name*\n> {instance_name}\n> *Trigger Subject*\n> {subject}\n> *Link to Alarm*\n> https://console.aws.amazon.com/cloudwatch/home?region={region}#alarmsV2:alarm/{alarm_name}\n> *Link to Instance*\n> https://console.aws.amazon.com/ec2/home?region={region}#Instances:instanceId={instance}"
+                    "text": f"*<@{channel_id}|cal> EC2 Idle Alarm Triggered*\n> *Alarm Name*\n> {alarm_name}\n> *Instance Name*\n> {instance_name}\n> *Trigger Subject*\n> {subject}\n> *Link to Alarm*\n> https://console.aws.amazon.com/cloudwatch/home?region={region}#alarmsV2:alarm/{alarm_name}\n> *Link to Instance*\n> https://console.aws.amazon.com/ec2/home?region={region}#Instances:instanceId={instance}"
                 }
             }
         ]
@@ -109,3 +114,16 @@ def safe_index_with_default(list_obj, index, default):
     if value is None:
         return default
     return value
+
+def get_email_from(event):
+    records = safe_get(event, 'Records')
+    first_record = safe_index(records, 0)
+    sns = safe_get(first_record, 'Sns')
+    return safe_get_with_default(sns, 'OwnerEmail', None)
+
+def safe_value_with_default(list_obj, key, default):
+    for item in list_obj:
+        value = safe_get(item, key)
+        if value is not None:
+            return value
+    return default

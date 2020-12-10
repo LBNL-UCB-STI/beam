@@ -1,6 +1,6 @@
 package beam.utils.scenario.urbansim
 
-private[urbansim] object DataExchange {
+object DataExchange {
   case class UnitInfo(unitId: String, buildingId: String)
 
   case class ParcelAttribute(primaryId: String, x: Double, y: Double)
@@ -12,6 +12,7 @@ private[urbansim] object DataExchange {
     householdId: String,
     rank: Int,
     age: Int,
+    excludedModes: String,
     isFemale: Boolean,
     valueOfTime: Double
   )

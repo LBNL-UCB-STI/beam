@@ -9,10 +9,12 @@ case class LineSeparator(value: String = System.lineSeparator())
 
 class CsvWriter(
   path: String,
-  headers: IndexedSeq[String],
+  headers: Seq[String],
   implicit val delimiter: Delimiter = Delimiter(),
   implicit val lineSeparator: LineSeparator = LineSeparator()
 ) extends AutoCloseable {
+  def this(path: String, headers: String*) = this(path, headers)
+
   implicit val writer: Writer = IOUtils.getBufferedWriter(path)
   CsvWriter.writeHeader(headers)
 
@@ -24,7 +26,7 @@ class CsvWriter(
     writeRow(xs.toVector)
   }
 
-  def writeRow(values: IndexedSeq[Any]): Unit = {
+  def writeRow(values: Seq[Any]): Unit = {
     values.zipWithIndex.foreach {
       case (value, idx) =>
         val shouldAddDelimiter = idx != values.length - 1
@@ -44,9 +46,15 @@ class CsvWriter(
   override def close(): Unit = {
     Try(writer.close())
   }
+
+  def writeAllAndClose(rows: Iterable[Seq[Any]]): Unit = {
+    rows.foreach(writeRow)
+    close()
+  }
 }
 
 object CsvWriter {
+  def apply(path: String, headers: String*) = new CsvWriter(path, headers)
 
   def writeColumnValue(
     value: Any,
@@ -64,7 +72,7 @@ object CsvWriter {
   }
 
   def writeHeader(
-    headers: IndexedSeq[String]
+    headers: Seq[String]
   )(implicit wrt: Writer, delimiter: Delimiter, lineSeparator: LineSeparator): Unit = {
     headers.zipWithIndex.foreach {
       case (header, idx) =>

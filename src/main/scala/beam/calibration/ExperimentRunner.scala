@@ -15,6 +15,7 @@ import beam.utils.reflection.ReflectionUtils
 import com.sigopt.model.{Observation, Suggestion}
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.core.config.{Config => MatsimConfig}
+import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -49,7 +50,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
         )
       )
 
-      val ((matsimConfig, _), execTimeInMillis) = timed {
+      val ((matsimConfig, _, services), execTimeInMillis) = timed {
         runBeamWithConfig(modedConfig.resolve())
       }
 
@@ -59,7 +60,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
         )
       )
 
-      val x = getRunValue(matsimConfig)
+      val x = getRunValue(matsimConfig, services.matsimServices.getControlerIO)
 
       val obs = new Observation.Builder()
         .suggestion(suggestion.getId)
@@ -78,7 +79,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
 
   }
 
-  def getRunValue(runConfig: MatsimConfig): Double = {
+  def getRunValue(runConfig: MatsimConfig, ioController: OutputDirectoryHierarchy): Double = {
     val benchmarkData = Paths.get(experimentData.benchmarkFileLoc).toAbsolutePath
     val benchmarkFileExists = Files.exists(benchmarkData)
     if (!benchmarkFileExists) {
@@ -86,22 +87,21 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     }
     if (objectiveFunctionClassName.equals("CountsObjectiveFunction")) {
       val outpath = Paths.get(
-        GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-          .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
+        ioController.getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
       )
       CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
     } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_RMSPE") && benchmarkFileExists) {
-      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.RMSPE)
     } else if (objectiveFunctionClassName.equals("ModeChoiceObjectiveFunction_AbsolutError") && benchmarkFileExists) {
-      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.AbsoluteError)
     } else if (objectiveFunctionClassName.equals(
                  "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
                ) && benchmarkFileExists) {
-      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(
           outpath.toAbsolutePath.toString,
@@ -110,7 +110,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     } else if (objectiveFunctionClassName.equals(
                  "ModeChoiceObjectiveFunction_AbsoluteErrorWithMinLevelRepresentationOfMode"
                ) && benchmarkFileExists) {
-      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(
           outpath.toAbsolutePath.toString,
@@ -118,12 +118,11 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
         )
     } else if (objectiveFunctionClassName.equals("ModeChoiceAndCountsObjectiveFunction") && benchmarkFileExists) {
       var outpath = Paths.get(
-        GraphsStatsAgentSimEventsListener.CONTROLLER_IO
-          .getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
+        ioController.getIterationFilename(runConfig.controler().getLastIteration, "countscompare.txt")
       )
       val countsObjVal = CountsObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
 
-      outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("modeChoice.csv"))
+      outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       val modesObjVal = new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.RMSPE)
 
@@ -138,7 +137,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     } else if (objectiveFunctionClassName.equals(
                  "RideHail_maximizeReservationCount"
                )) {
-      val outpath = Paths.get(GraphsStatsAgentSimEventsListener.CONTROLLER_IO.getOutputFilename("ridehailStats.csv"))
+      val outpath = Paths.get(ioController.getOutputFilename("ridehailStats.csv"))
       RideHailObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
     } else {
       logger.error("objectiveFunctionClassName not set")

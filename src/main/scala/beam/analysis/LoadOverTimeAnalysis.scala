@@ -134,7 +134,7 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
     hourlyLoadData: mutable.Map[String, mutable.Map[Int, (Double, Int)]]
   ): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
-    val allHours = hourlyLoadData.map(tup => tup._2.map(_._1)).flatten.toList.distinct.sorted
+    val allHours = hourlyLoadData.flatMap(tup => tup._2.keys).toList.distinct.sorted
     hourlyLoadData.foreach {
       case (loadType, hourlyLoadMap) =>
         allHours.foreach { hour =>
@@ -150,17 +150,14 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
   }
 
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {
-    val chart =
-      ChartFactory.createLineChart(
-        title,
-        "Hour",
-        "Avg. Power (kW)",
-        dataSet,
-        PlotOrientation.VERTICAL,
-        true,
-        true,
-        false
-      )
+    val chart = GraphUtils.createLineChartWithDefaultSettings(
+      dataSet,
+      title,
+      "Hour",
+      "Avg. Power (kW)",
+      true,
+      true
+    )
 
     GraphUtils.saveJFreeChartAsPNG(
       chart,

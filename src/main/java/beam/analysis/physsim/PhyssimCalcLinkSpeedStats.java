@@ -1,29 +1,27 @@
 package beam.analysis.physsim;
 
+import beam.analysis.plots.GraphUtils;
 import beam.sim.config.BeamConfig;
+import com.google.common.base.Suppliers;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
-import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.router.util.TravelTime;
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
 import org.matsim.core.utils.misc.Time;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -32,6 +30,7 @@ import java.util.stream.IntStream;
  * This class computes the percentage of average speed over free speed for the network within a day.
  */
 public class PhyssimCalcLinkSpeedStats {
+    private final Logger log = LoggerFactory.getLogger(PhyssimCalcLinkSpeedStats.class);
 
     static final String OUTPUT_FILE_NAME = "physsimLinkAverageSpeedPercentage";
     private static final int BIN_SIZE = 3600;
@@ -63,13 +62,13 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
-        Map<Integer, Double> processedData = generateInputDataForGraph(travelTime);
-        CategoryDataset dataSet = generateGraphCategoryDataSet(processedData);
+        Supplier<Map<Integer, Double>> processedData = Suppliers.memoize(() -> generateInputDataForGraph(travelTime));
         if (this.outputDirectoryHierarchy != null) {
             if (!isTestMode()) {
-                this.writeCSV(processedData, outputDirectoryHierarchy.getIterationFilename(iteration, OUTPUT_FILE_NAME + ".csv"));
+                this.writeCSV(processedData.get(), outputDirectoryHierarchy.getIterationFilename(iteration, OUTPUT_FILE_NAME + ".csv"));
             }
             if (beamConfig.beam().outputs().writeGraphs()) {
+                CategoryDataset dataSet = generateGraphCategoryDataSet(processedData.get());
                 generateAverageLinkSpeedGraph(dataSet, iteration);
             }
         }
@@ -86,7 +85,7 @@ public class PhyssimCalcLinkSpeedStats {
             }
             bw.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -119,14 +118,14 @@ public class PhyssimCalcLinkSpeedStats {
     }
 
     private CategoryDataset generateGraphCategoryDataSet(Map<Integer, Double> processedData) {
-        double[][] dataSet = buildDataSetFromProcessedData(processedData);
-        return DatasetUtilities.createCategoryDataset("Relative Speed", "", dataSet);
+        double[] dataSet = buildDataSetFromProcessedData(processedData);
+        return GraphUtils.createCategoryDataset("Relative Speed", "", dataSet);
     }
 
-    private double[][] buildDataSetFromProcessedData(Map<Integer, Double> processedData) {
-        double[][] dataSet = new double[100][numOfBins];
+    private double[] buildDataSetFromProcessedData(Map<Integer, Double> processedData) {
+        double[] dataSet = new double[numOfBins];
         for (int i = 0; i < processedData.size(); i++) {
-            dataSet[0][i] = processedData.get(i);
+            dataSet[i] = processedData.get(i);
         }
         return dataSet;
     }
@@ -139,12 +138,7 @@ public class PhyssimCalcLinkSpeedStats {
         int width = 800;
         int height = 600;
 
-        PlotOrientation orientation = PlotOrientation.VERTICAL;
-
-        final JFreeChart chart = ChartFactory
-                .createStackedBarChart(plotTitle, x_axis, y_axis, dataSet, orientation, false, true, true);
-        chart.setBackgroundPaint(new Color(255, 255, 255));
-
+        final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(dataSet, plotTitle, x_axis, y_axis, false);
         CategoryPlot plot = chart.getCategoryPlot();
 
         //add the sorted frequencies to the legend
@@ -155,10 +149,9 @@ public class PhyssimCalcLinkSpeedStats {
         //Save the chart as image
         String graphImageFile = outputDirectoryHierarchy.getIterationFilename(iterationNumber, OUTPUT_FILE_NAME + ".png");
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
-                    height);
+            GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, width, height);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 
@@ -183,19 +176,17 @@ public class PhyssimCalcLinkSpeedStats {
     public double getAverageSpeedPercentageOfBin(int bin, TravelTime travelTime) {
         try {
             Map<Integer, Double> processedData = generateInputDataForGraph(travelTime);
-            double[][] dataSet = buildDataSetFromProcessedData(processedData);
-            double[] averageSpeedPercentages = dataSet[0];
-            return averageSpeedPercentages[bin];
+            double[] dataSet = buildDataSetFromProcessedData(processedData);
+            return dataSet[bin];
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
             return 0;
         }
     }
 
     public double[] getAverageSpeedPercentagesOfAllBins(TravelTime travelTime) {
         Map<Integer, Double> processedData = generateInputDataForGraph(travelTime);
-        double[][] dataSet = buildDataSetFromProcessedData(processedData);
-        return dataSet[0];
+        return buildDataSetFromProcessedData(processedData);
     }
 
     public int getNumberOfBins() {

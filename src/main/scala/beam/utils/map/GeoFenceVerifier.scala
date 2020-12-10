@@ -13,12 +13,12 @@ import org.matsim.api.core.v01.events.Event
 import scala.util.Try
 
 case class PointInfo(offset: Double, geofenceRadius: Double) {
-  val ratio: Double = if (geofenceRadius == 0.0) Double.NaN else offset / geofenceRadius
+  val ratio: Double = if (geofenceRadius.equals(0D)) Double.NaN else offset / geofenceRadius
 }
 
 object GeoFenceVerifier extends LazyLogging {
 
-  val geoUtils = new beam.sim.common.GeoUtils {
+  val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:26910"
   }
 
@@ -69,7 +69,7 @@ object GeoFenceVerifier extends LazyLogging {
       }
       val errors = geofenceErrorPerPte.flatten.flatten.filter(p => p.offset > 0)
       logger.info(
-        s"Number of PTE for ride-hail is ${pathTraversalEvents.size}. There are ${errors.length} points which violate geofence"
+        s"Number of PTE for ride-hail is ${pathTraversalEvents.length}. There are ${errors.length} points which violate geofence"
       )
       logger.info("Stats about violations:")
       logger.info(s"Distance: ${Statistics(errors.map(_.offset))}")

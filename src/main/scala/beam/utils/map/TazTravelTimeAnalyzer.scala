@@ -115,7 +115,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
         }
         .filter(x => x.observedTravelTime.isDefined)
 
-      logger.info(s"withObservedTravelTimes size: ${withObservedTravelTimes.size}")
+      logger.info(s"withObservedTravelTimes size: ${withObservedTravelTimes.length}")
 
       val writer =
         IOUtils.getBufferedWriter("c:/temp/travel_time_investigation/tazODTravelTimeObservedVsSimulated_derived.csv")

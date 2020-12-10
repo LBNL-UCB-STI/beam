@@ -11,7 +11,6 @@ import org.matsim.core.events.handler.BasicEventHandler;
 import org.matsim.core.utils.collections.Tuple;
 
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,14 +40,14 @@ public class RealizedModeGraphTest {
     private Map<Integer, Map<String, Double>> stats;
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
     private static final String EVENT_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/replanning.event.xml";
-    private RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModeAnalysis.RealizedModesStatsComputation() {
+    private final RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModesStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
             stats = stat.getFirst();
             return super.compute(stat);
         }
 
-    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()));
+    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()), null);
 
     @Before
     public void setUpCRC() {

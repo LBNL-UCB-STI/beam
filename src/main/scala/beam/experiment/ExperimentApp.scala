@@ -29,7 +29,7 @@ class ExperimentApp extends App {
 
   // Validate existence of experiments tag here:
 
-  if (argsMap.get(EXPERIMENTS_TAG).isEmpty) {
+  if (!argsMap.contains(EXPERIMENTS_TAG)) {
     throw new IllegalArgumentException(s"$EXPERIMENTS_TAG param is missing")
   }
 

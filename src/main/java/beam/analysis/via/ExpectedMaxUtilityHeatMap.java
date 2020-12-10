@@ -9,12 +9,15 @@ import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.events.handler.BasicEventHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.Map;
 
 public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
+    private final Logger log = LoggerFactory.getLogger(ExpectedMaxUtilityHeatMap.class);
 
     private final String SEPERATOR = ",";
     private final OutputDirectoryHierarchy controlerIO;
@@ -22,7 +25,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
     static final String fileBaseName = "expectedMaxUtilityHeatMap";
     private BufferedWriter bufferedWriter;
     private boolean writeDataInThisIteration = false;
-    private BeamServices beamServices;
+    private final BeamServices beamServices;
 
     private NetworkHelper networkHelper() {
         return beamServices.networkHelper();
@@ -57,7 +60,7 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
                     bufferedWriter.append("\n");
                     csvWriter.flushBuffer();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log.error("exception occurred due to ", e);
                 }
             }
         }
@@ -90,9 +93,8 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
             bufferedWriter.append("expectedMaximumUtility\n");
             csvWriter.flushBuffer();
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
-
     }
 
 }
