@@ -250,7 +250,7 @@ public class RideHailWaitingAnalysis implements GraphAnalysis, IterationSummaryA
                 rideHailWaitingIndividualStat.personId = pId;
                 rideHailWaitingIndividualStat.vehicleId = vehicleId;
                 rideHailWaitingIndividualStat.waitingTime = difference;
-                rideHailWaitingIndividualStat.modeChoice=modeChoiceEvent.mode;
+                rideHailWaitingIndividualStat.modeChoice = modeChoiceEvent.mode;
                 rideHailWaitingIndividualStatList.add(rideHailWaitingIndividualStat);
 
 

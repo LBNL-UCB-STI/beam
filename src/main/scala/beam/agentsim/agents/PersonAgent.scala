@@ -45,6 +45,7 @@ import org.matsim.core.utils.misc.Time
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+
 import beam.sim.common.GeoUtils
 import beam.utils.NetworkHelper
 
