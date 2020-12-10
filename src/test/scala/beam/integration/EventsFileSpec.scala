@@ -2,8 +2,6 @@ package beam.integration
 
 import java.nio.charset.StandardCharsets
 
-import scala.collection.JavaConverters._
-import scala.util.Try
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -23,7 +21,9 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
+import scala.collection.JavaConverters._
 import scala.io.Source
+import scala.util.Try
 
 class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
 

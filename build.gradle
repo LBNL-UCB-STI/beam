@@ -8,6 +8,7 @@ buildscript {
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
+        gradlePluginPortal()
     }
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
@@ -90,6 +91,7 @@ allprojects {
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
+        maven { url "https://central.maven.org/maven2" }
         maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://dl.bintray.com/matsim/matsim" }
         maven { url "https://maven.conveyal.com/" }
@@ -422,7 +424,7 @@ task generateConfig {
                     "--scala",
                     "--pn", "beam.sim.config",
                     "--cn", "BeamConfig",
-                    "--dd", "src/main/scala/beam/sim/" //This is temp location. Actual location will be updated by below copy command
+                    "--dd", "src/main/scala/beam/sim/" //This is temp location. Actual location will be updated by copyConfigWithoutTimeStamp
             ]
         }
     }
@@ -438,6 +440,7 @@ task copyConfigWithoutTimeStamp(type: Copy) {
 task removeTempConfig(type: Delete) {
     delete 'src/main/scala/beam/sim/BeamConfig.scala'
 }
+
 generateConfig.finalizedBy(copyConfigWithoutTimeStamp)
 copyConfigWithoutTimeStamp.finalizedBy(removeTempConfig)
 

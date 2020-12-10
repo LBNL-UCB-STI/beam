@@ -47,7 +47,8 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
       .parseString(
         s"""
             |beam.actorSystemName = "BeamIncentiveSpec"
-            |beam.agentsim.lastIteration = $iterationNumber
+            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
+                      |beam.agentsim.lastIteration = $iterationNumber
             |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
          """.stripMargin
       )

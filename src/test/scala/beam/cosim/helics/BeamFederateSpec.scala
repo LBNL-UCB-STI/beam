@@ -29,7 +29,7 @@ class BeamFederateSpec extends FlatSpec with Matchers with BeamHelper with Befor
     helics.helicsCloseLibrary()
   }
 
-  "Running a beamville scenario with cosimulation" must "result event being published and read" in {
+  "Running a beamville scenario with cosimulation" must "result event being published and read" ignore {
     val config = ConfigFactory
       .parseString(
         """

@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
 import com.typesafe.scalalogging.LazyLogging
@@ -27,7 +28,7 @@ class BeamScenarioLoader(
   var beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
   val geo: GeoUtils
-) extends LazyLogging {
+) extends ExponentialLazyLogging {
 
   import BeamScenarioLoader._
 
@@ -242,6 +243,7 @@ class BeamScenarioLoader(
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
     planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
     planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legMode.foreach(v => leg.setMode(v))
 
     val legRoute: NetworkRoute = {
       val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
@@ -273,7 +275,7 @@ class BeamScenarioLoader(
   }
 }
 
-object BeamScenarioLoader extends LazyLogging {
+object BeamScenarioLoader extends ExponentialLazyLogging {
 
   private[utils] def buildMatsimHouseholds(
     households: Iterable[HouseholdInfo],

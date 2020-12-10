@@ -26,6 +26,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   if (!cfg.enabled) {
     logger.info("StuckFinder is ** DISABLED **")
   } else {
+    logger.info("StuckFinder is ** ENABLED **")
     verifyTypesExist()
   }
 
