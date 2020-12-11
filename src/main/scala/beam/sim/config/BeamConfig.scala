@@ -3148,6 +3148,7 @@ object BeamConfig {
 
     object Router {
       case class Skim(
+        activity_sim_skimmer: BeamConfig.Beam.Router.Skim.ActivitySimSkimmer,
         drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
@@ -3158,6 +3159,21 @@ object BeamConfig {
       )
 
       object Skim {
+        case class ActivitySimSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object ActivitySimSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
+            BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
+              fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
+            )
+          }
+        }
+
         case class DriveTimeSkimmer(
           fileBaseName: java.lang.String,
           name: java.lang.String
@@ -3233,6 +3249,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
           BeamConfig.Beam.Router.Skim(
+            activity_sim_skimmer = BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
+              if (c.hasPathOrNull("activity-sim-skimmer")) c.getConfig("activity-sim-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("activity-sim-skimmer{}")
+            ),
             drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
               if (c.hasPathOrNull("drive-time-skimmer")) c.getConfig("drive-time-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("drive-time-skimmer{}")
@@ -3453,7 +3473,8 @@ object BeamConfig {
         enabled: scala.Boolean,
         numberOfH3Indexes: scala.Int,
         peakHour: scala.Double,
-        skimsGeoType: java.lang.String
+        skimsGeoType: java.lang.String,
+        skimsKind: java.lang.String
       )
 
       object BackgroundODSkimsCreator {
@@ -3463,7 +3484,8 @@ object BeamConfig {
             enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
             numberOfH3Indexes = if (c.hasPathOrNull("numberOfH3Indexes")) c.getInt("numberOfH3Indexes") else 1000,
             peakHour = if (c.hasPathOrNull("peakHour")) c.getDouble("peakHour") else 8.5,
-            skimsGeoType = if (c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "taz"
+            skimsGeoType = if (c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "h3",
+            skimsKind = if (c.hasPathOrNull("skimsKind")) c.getString("skimsKind") else "od"
           )
         }
       }

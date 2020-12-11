@@ -1,0 +1,24 @@
+package beam.router.skim
+import beam.router.model.EmbodiedBeamTrip
+
+class ODSkimmerEventFactory extends AbstractSkimmerEventFactory {
+  override def createEvent(
+    origin: String,
+    destination: String,
+    eventTime: Double,
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): AbstractSkimmerEvent = ODSkimmerEvent(
+    origin,
+    destination,
+    eventTime,
+    trip,
+    generalizedTimeInHours,
+    generalizedCost,
+    energyConsumption,
+    // If you change this name, make sure it is properly reflected in `AbstractSkimmer.handleEvent`
+    skimName = "od-skimmer"
+  )
+}
