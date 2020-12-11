@@ -29,6 +29,8 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
+import scala.concurrent.ExecutionContext
+
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
   val jdeqSimScenario: Scenario,
@@ -128,7 +130,7 @@ class JDEQSimRunner(
         ),
         physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
         (),
-      )(concurrent.ExecutionContext.global)
+      )(ExecutionContext.global)
     }
     SimulationResult(
       iteration = currentPhysSimIter,

@@ -1,10 +1,8 @@
 package beam.router.skim
 
-import java.io.BufferedWriter
-import java.nio.file.Paths
-
 import beam.agentsim.events.ScalaEvent
-import beam.sim.{BeamServices, BeamWarmStart}
+import beam.router.model.EmbodiedBeamTrip
+import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -14,6 +12,8 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
 
+import java.io.BufferedWriter
+import java.nio.file.Paths
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.reflect.io.File
@@ -28,6 +28,19 @@ trait AbstractSkimmerInternal {
   val iterations: Int
 
   def toCsv: String
+}
+
+abstract class AbstractSkimmerEventFactory {
+
+  def createEvent(
+    origin: String,
+    destination: String,
+    eventTime: Double,
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): AbstractSkimmerEvent
 }
 
 abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
@@ -116,7 +129,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     }
   }
 
-  protected def writeToDisk(event: IterationEndsEvent): Unit = {
+  def writeToDisk(event: IterationEndsEvent): Unit = {
     if (beamConfig.beam.router.skim.writeSkimsInterval > 0 && event.getIteration % beamConfig.beam.router.skim.writeSkimsInterval == 0)
       ProfilingUtils.timed(
         s"beam.router.skim.writeSkimsInterval on iteration ${event.getIteration}",

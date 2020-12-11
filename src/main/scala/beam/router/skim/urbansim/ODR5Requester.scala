@@ -11,7 +11,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.R5Wrapper
-import beam.router.skim.ODSkimmerEvent
+import beam.router.skim.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
@@ -28,10 +28,10 @@ class ODR5Requester(
   val beamModes: Array[BeamMode],
   val beamConfig: BeamConfig,
   val modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory,
-  val withTransit: Boolean
+  val withTransit: Boolean,
+  val requestTime: Int,
+  val skimmerEventFactory: AbstractSkimmerEventFactory
 ) {
-  val requestTime: Int = (beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour * 3600).toInt
-
   private val dummyPersonAttributes = createDummyPersonAttribute
 
   private val modeChoiceCalculator: ModeChoiceCalculator = modeChoiceCalculatorFactory(dummyPersonAttributes)
@@ -45,7 +45,7 @@ class ODR5Requester(
   private val dummyBikeVehicleType: BeamVehicleType =
     vehicleTypes.values.find(theType => theType.vehicleCategory == VehicleCategory.Bike).get
 
-  private val thresholdDistanceForBikeMeteres: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
+  private val thresholdDistanceForBikeMeters: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
 
   def route(srcIndex: GeoIndex, dstIndex: GeoIndex): ODR5Requester.Response = {
     val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
@@ -81,7 +81,7 @@ class ODR5Requester(
     destination: GeoIndex,
     beamMode: BeamMode,
     trip: EmbodiedBeamTrip
-  ): ODSkimmerEvent = {
+  ): AbstractSkimmerEvent = {
     // In case of CAR AND BIKE we have to create two dummy legs: walk to the CAR in the beginning and walk when CAR has arrived
     val theTrip = if (beamMode == BeamMode.CAR || beamMode == BeamMode.BIKE) {
       val actualLegs = trip.legs
@@ -107,22 +107,22 @@ class ODR5Requester(
     } else {
       trip
     }
+
     val generalizedTime =
       modeChoiceCalculator.getGeneralizedTimeOfTrip(theTrip, Some(dummyPersonAttributes), None)
     val generalizedCost = modeChoiceCalculator.getNonTimeCost(theTrip) + dummyPersonAttributes.getVOT(generalizedTime)
     val energyConsumption = dummyCarVehicleType.primaryFuelConsumptionInJoulePerMeter * theTrip.legs
       .map(_.beamLeg.travelPath.distanceInM)
       .sum
-    ODSkimmerEvent(
+
+    skimmerEventFactory.createEvent(
       origin = origin.value,
       destination = destination.value,
       eventTime = requestTime,
       trip = theTrip,
       generalizedTimeInHours = generalizedTime,
       generalizedCost = generalizedCost,
-      energyConsumption = energyConsumption,
-      // If you change this name, make sure it is properly reflected in `AbstractSkimmer.handleEvent`
-      skimName = "od-skimmer"
+      energyConsumption = energyConsumption
     )
   }
 
@@ -136,9 +136,8 @@ class ODR5Requester(
       case BeamMode.DRIVE_TRANSIT => true
       case BeamMode.WALK_TRANSIT  => true
       case BeamMode.WALK          => true
-      case BeamMode.BIKE =>
-        dist < thresholdDistanceForBikeMeteres
-      case x => throw new IllegalStateException(s"Don't know what to do with $x")
+      case BeamMode.BIKE          => dist < thresholdDistanceForBikeMeters
+      case x                      => throw new IllegalStateException(s"Don't know what to do with $x")
     }
   }
 

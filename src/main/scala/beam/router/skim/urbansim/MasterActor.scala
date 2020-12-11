@@ -1,17 +1,16 @@
 package beam.router.skim.urbansim
 
-import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props, Terminated}
 import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, TAZIndex}
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.ODSkimmer
+import beam.router.skim.AbstractSkimmer
 import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 import scala.util.control.NonFatal
@@ -19,7 +18,7 @@ import scala.util.{Failure, Success}
 
 class MasterActor(
   val geoClustering: GeoClustering,
-  val odSkimmer: ODSkimmer,
+  val abstractSkimmer: AbstractSkimmer,
   val odR5Requester: ODR5Requester
 ) extends Actor
     with ActorLogging {
@@ -88,7 +87,7 @@ class MasterActor(
             if (!isBikeTransit(trip)) {
               try {
                 val event = odR5Requester.createSkimEvent(resp.srcIndex, resp.dstIndex, trip.tripClassifier, trip)
-                odSkimmer.handleEvent(event)
+                abstractSkimmer.handleEvent(event)
                 nSkimEvents += 1
               } catch {
                 case NonFatal(ex) =>
@@ -186,7 +185,7 @@ class MasterActor(
   private def checkAndGiveTheResult(): Unit = {
     if (totalResponses == allODs.length) {
       replyToWhenFinish.foreach { actorRef =>
-        actorRef ! PopulatedSkimmer(odSkimmer)
+        actorRef ! PopulatedSkimmer(abstractSkimmer)
       }
     }
   }
@@ -241,14 +240,14 @@ object MasterActor {
     case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex) extends Response
     case object NoWork extends Response
 
-    case class PopulatedSkimmer(odSkimmer: ODSkimmer) extends Response
+    case class PopulatedSkimmer(abstractSkimmer: AbstractSkimmer) extends Response
   }
 
   def props(
     geoClustering: GeoClustering,
-    odSkimmer: ODSkimmer,
+    abstractSkimmer: AbstractSkimmer,
     odR5Requester: ODR5Requester,
   ): Props = {
-    Props(new MasterActor(geoClustering, odSkimmer, odR5Requester: ODR5Requester))
+    Props(new MasterActor(geoClustering, abstractSkimmer, odR5Requester: ODR5Requester))
   }
 }

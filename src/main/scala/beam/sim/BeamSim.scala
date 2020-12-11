@@ -294,12 +294,12 @@ class BeamSim @Inject()(
           case "taz" => new TAZClustering(beamScenario.tazTreeMap)
         }
 
-      val odSkimmer = BackgroundSkimsCreator.createODSkimmer(beamServices, geoClustering)
+      val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
       val skimCreator = new BackgroundSkimsCreator(
         beamServices,
         beamScenario,
         geoClustering,
-        odSkimmer,
+        abstractSkimmer,
         new FreeFlowTravelTime,
         Array(BeamMode.WALK, BeamMode.BIKE),
         withTransit = true
@@ -785,28 +785,28 @@ class BeamSim @Inject()(
     val timeoutForSkimmer = 6.hours
     backgroundSkimsCreator match {
       case Some(skimCreator) =>
-        val odSkimmer = Await.result(skimCreator.getResult, timeoutForSkimmer).odSkimmer
+        val abstractSkimmer = Await.result(skimCreator.getResult, timeoutForSkimmer).abstractSkimmer
         skimCreator.stop()
         val currentTravelTime = Await
           .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
         val h3Clustering = skimCreator.geoClustering
-        val carAndDriveTransitSkimCrator = new BackgroundSkimsCreator(
+        val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
           beamServices,
           beamScenario,
           h3Clustering,
-          odSkimmer,
+          abstractSkimmer,
           currentTravelTime,
           Array(BeamMode.CAR, BeamMode.WALK),
           withTransit = true
         )(actorSystem)
-        carAndDriveTransitSkimCrator.start()
-        carAndDriveTransitSkimCrator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
+        carAndDriveTransitSkimCreator.start()
+        carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
         try {
-          val finalOdSkimmer = Await.result(carAndDriveTransitSkimCrator.getResult, timeoutForSkimmer).odSkimmer
-          carAndDriveTransitSkimCrator.stop()
-          finalOdSkimmer.writeToDisk(
+          val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
+          carAndDriveTransitSkimCreator.stop()
+          finalSkimmer.writeToDisk(
             new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
           )
         } catch {
