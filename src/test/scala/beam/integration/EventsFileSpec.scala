@@ -154,7 +154,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   it should "also produce experienced plans which make sense" in {
     val experiencedScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     new PopulationReader(experiencedScenario).readFile(
-      s"${scenario.getConfig.controler().getOutputDirectory}/ITERS/it.0/0.experiencedPlans.xml.gz"
+      s"${scenario.getConfig.controler().getOutputDirectory}/ITERS/it.0/0.experienced_plans.xml.gz"
     )
     assert(experiencedScenario.getPopulation.getPersons.size() == 50)
     var nCarTrips = 0
