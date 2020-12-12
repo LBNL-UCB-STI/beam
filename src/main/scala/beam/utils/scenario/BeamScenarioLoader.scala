@@ -1,8 +1,8 @@
 package beam.utils.scenario
 
 import java.util
-import scala.util.Random
 
+import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode

@@ -183,7 +183,6 @@ object DrivesVehicle {
 }
 
 trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
-
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator

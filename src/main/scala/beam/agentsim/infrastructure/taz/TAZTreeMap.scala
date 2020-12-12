@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure.taz
 
 import java.io._
 import java.util
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import beam.utils.matsim_conversion.ShapeUtils
