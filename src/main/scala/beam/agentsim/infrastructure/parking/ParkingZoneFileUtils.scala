@@ -387,7 +387,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           case Success(updatedAccumulator) =>
             Some { updatedAccumulator }
           case Failure(e) =>
-            throw new java.io.IOException(s"Failed to load parking data from row with contents '$csvRow'.\n$e")
+            throw new java.io.IOException(s"Failed to load parking data from row with contents '$csvRow'.", e)
         }
       case _ =>
         throw new java.io.IOException(s"Failed to match row of parking configuration '$csvRow' to expected schema")
