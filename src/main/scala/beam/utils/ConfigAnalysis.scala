@@ -53,12 +53,14 @@ object ConfigAnalysis extends App with StrictLogging {
       logger.info(s"Start analysis on $path")
       if (mode == 1 || mode == 3) {
         logger.info(s"----------------Keys in config $path but not in beam template-----------------")
-        compareExistingKeys(existingConfig.resolve(options), templateConfig)
+        compareKeysFor(existingConfig.resolve(options), key => {
+          skipKeys.exists(key.startsWith) || templateConfig.hasPathOrNull(key)
+        })
       }
 
       if (mode == 2 || mode == 3) {
         logger.info(s"----------------Keys in beam template but not in beam config ${path}-----------------")
-        compareTemplateKeysPath(existingConfig, templateConfig)
+        compareKeysFor(templateConfig, existingConfig.hasPathOrNull)
       }
       logger.info(s"End analysis on $path")
       logger.info("######################################################################################")
@@ -66,21 +68,13 @@ object ConfigAnalysis extends App with StrictLogging {
     })
   }
 
-  def compareExistingKeys(config: Config, templateConfig: Config): Unit = {
-
+  def compareKeysFor(config: Config, withFilter: String => Boolean): Unit = {
     config
       .entrySet()
       .asScala
       .map(_.getKey)
-      .filterNot(key => {
-        skipKeys.count(key.startsWith) != 0 || templateConfig.hasPathOrNull(key)
-      })
+      .filterNot(withFilter)
       .foreach(x => logger.info(x))
-  }
-
-  def compareTemplateKeysPath(config: Config, templateConfig: Config): Unit = {
-
-    templateConfig.entrySet().asScala.map(_.getKey).filterNot(config.hasPathOrNull).foreach(x => logger.info(x))
   }
 
   final def listFiles(base: File): Seq[File] = {
