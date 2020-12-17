@@ -96,7 +96,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
-        Token(vehicle.id, self, vehicle.toStreetVehicle)
+        Token(vehicle.id, self, vehicle)
       })
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 

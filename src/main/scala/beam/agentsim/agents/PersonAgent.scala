@@ -1122,8 +1122,6 @@ class PersonAgent(
           _,
           _,
           _,
-          _,
-          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
@@ -1131,8 +1129,6 @@ class PersonAgent(
         TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         ChoosesModeData(
           BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-          _,
-          _,
           _,
           _,
           _,

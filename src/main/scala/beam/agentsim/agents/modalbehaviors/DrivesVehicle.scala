@@ -120,7 +120,7 @@ object DrivesVehicle {
 
   sealed trait VehicleOrToken {
     def id: Id[BeamVehicle]
-
+    def vehicle: BeamVehicle
     def streetVehicle: StreetVehicle
   }
 
@@ -132,8 +132,9 @@ object DrivesVehicle {
     override def streetVehicle: StreetVehicle = vehicle.toStreetVehicle
   }
 
-  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, override val streetVehicle: StreetVehicle)
-      extends VehicleOrToken
+  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, vehicle: BeamVehicle) extends VehicleOrToken {
+    override def streetVehicle: StreetVehicle = vehicle.toStreetVehicle
+  }
 
   case class StartLegTrigger(tick: Int, beamLeg: BeamLeg) extends Trigger
 
