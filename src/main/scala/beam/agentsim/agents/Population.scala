@@ -57,24 +57,29 @@ class Population(
   }
 
   def getVehicleTypes(triggerId: Long, responsesLeft: Int, vehicleTypes: Set[BeamVehicleType]): Receive = {
-    case VehicleTypesResponse(sharedVehicleTypes) if responsesLeft > 1 =>
-      context.become(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
-    case VehicleTypesResponse(sharedVehicleTypes) =>
-      initHouseholds(vehicleTypes ++ sharedVehicleTypes)
-      scheduler ! CompletionNotice(triggerId, Vector())
-      context.become(waitingForFinish)
+    if (responsesLeft <= 0) {
+      finishInitialization(triggerId, vehicleTypes)
+    } else {
+      case VehicleTypesResponse(sharedVehicleTypes) =>
+        context.become(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
+    }
   }
 
-  def waitingForFinish: Receive = {
-    case Terminated(_) =>
-    // Do nothing
-    case Finish =>
-      context.children.foreach(_ ! Finish)
-      dieIfNoChildren()
-      context.become {
-        case Terminated(_) =>
-          dieIfNoChildren()
-      }
+  def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
+    initHouseholds(vehicleTypes)
+    scheduler ! CompletionNotice(triggerId, Vector())
+    val awaitFinish: Receive = {
+      case Terminated(_) =>
+      // Do nothing
+      case Finish =>
+        context.children.foreach(_ ! Finish)
+        dieIfNoChildren()
+        context.become {
+          case Terminated(_) =>
+            dieIfNoChildren()
+        }
+    }
+    awaitFinish
   }
 
   def dieIfNoChildren(): Unit = {
