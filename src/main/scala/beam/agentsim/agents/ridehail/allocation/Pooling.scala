@@ -105,8 +105,6 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           val request2 = twoToPool.last
           val request1Utm = RideHailRequest.projectCoordinatesToUtm(request1, beamServices)
           val request2Utm = RideHailRequest.projectCoordinatesToUtm(request2, beamServices)
-          val routingResponses1 = vehicleAllocationRequest.requests(request1Utm)
-          val routingResponses2 = vehicleAllocationRequest.requests(request2Utm)
           rideHailManager.vehicleManager
             .getClosestIdleVehiclesWithinRadiusByETA(
               request1Utm.pickUpLocationUTM,
