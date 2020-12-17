@@ -681,13 +681,13 @@ trait ChoosesMode {
           .map(TripIdentifier(trip) -> _)
       }
 
-    val parkingThatRequested = choosesModeData.parkingRequestIds.map { case (_, vehicleOnTrip) => vehicleOnTrip }.toSet
+    val alreadyRequested = choosesModeData.parkingRequestIds.map { case (_, vehicleOnTrip) => vehicleOnTrip }.toSet
 
     val nextAct = nextActivity(choosesModeData.personData).get
     val (_, parkingInquiries) =
-      parkingLegs.foldLeft((parkingThatRequested, Seq.empty[(VehicleOnTrip, ParkingInquiry)])) {
-        case ((requested, seq), (mode, leg)) =>
-          val vehicleOnTrip = VehicleOnTrip(leg.beamVehicleId, mode)
+      parkingLegs.foldLeft((alreadyRequested, Seq.empty[(VehicleOnTrip, ParkingInquiry)])) {
+        case ((requested, seq), (tripIdentifier, leg)) =>
+          val vehicleOnTrip = VehicleOnTrip(leg.beamVehicleId, tripIdentifier)
           if (requested.contains(vehicleOnTrip)) {
             (requested, seq)
           } else
@@ -1387,25 +1387,28 @@ object ChoosesMode {
 
     def isAppropriateTrip(trip: EmbodiedBeamTrip): Boolean =
       trip.tripClassifier == tripClassifier &&
-      TripIdentifier.filterMainVehilces(trip).map(_.beamLeg.mode) == legModes
+      TripIdentifier.filterMainVehicles(trip).map(_.beamLeg.mode) == legModes
   }
 
   object TripIdentifier {
 
     def apply(trip: EmbodiedBeamTrip): TripIdentifier = {
-      val filteredLegs = filterMainVehilces(trip)
+      val filteredLegs = filterMainVehicles(trip)
       TripIdentifier(trip.tripClassifier, filteredLegs.map(_.beamLeg.mode))
     }
 
-    private def filterMainVehilces(trip: EmbodiedBeamTrip) = {
-      trip.legs
-        .zip(trip.legs.tail)
-        .collect {
-          case (leg1, leg2)
-              if leg1.beamLeg.mode != BeamMode.WALK &&
-              leg1.beamVehicleId != leg2.beamVehicleId =>
-            leg1
-        }
+    private def filterMainVehicles(trip: EmbodiedBeamTrip): IndexedSeq[EmbodiedBeamLeg] = {
+      val (filtered, last) = trip.legs.tail.foldLeft(IndexedSeq.empty[EmbodiedBeamLeg] -> trip.legs.head) {
+        case ((accum, prevLeg), leg) =>
+          if (prevLeg.beamLeg.mode != BeamMode.WALK && prevLeg.beamVehicleId != leg.beamVehicleId)
+            (accum :+ prevLeg) -> leg
+          else
+            accum -> leg
+      }
+      if (last.beamLeg.mode != BeamMode.WALK)
+        filtered :+ last
+      else
+        filtered
     }
   }
 
