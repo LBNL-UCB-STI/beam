@@ -13,6 +13,7 @@ object RunBeam extends BeamHelper {
     System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback.xml")
 
   def main(args: Array[String]): Unit = {
+    System.setProperty("java.io.tmpdir", "/home/crixal/work/tmp")
     println(beamAsciiArt)
 
     println(s"Received ${args.length} arguments: ${args.toList}")
