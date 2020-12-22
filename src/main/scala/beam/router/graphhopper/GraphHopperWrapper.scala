@@ -8,6 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig.Beam.Logger
 import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
 import com.graphhopper.config.{CHProfile, Profile}
@@ -18,6 +19,7 @@ import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider, We
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -26,7 +28,7 @@ abstract class GraphHopperWrapper(
   graphDir: String,
   geo: GeoUtils,
   id2Link: Map[Int, (Coord, Coord)]
-) extends Router {
+) extends LazyLogging with Router {
 
   protected val beamMode: BeamMode
 

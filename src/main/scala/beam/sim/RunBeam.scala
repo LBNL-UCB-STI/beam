@@ -2,7 +2,9 @@ package beam.sim
 
 import beam.utils.MathUtils
 import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
+import beam.sim.config.BeamConfig.Beam.Cosim.Helics
 import ch.qos.logback.classic.util.ContextInitializer
+import com.github.beam.HelicsLoader
 import org.matsim.core.controler.AbstractModule
 
 import scala.collection.JavaConverters._
