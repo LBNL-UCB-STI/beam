@@ -15,9 +15,15 @@ class BeamPathDetailsBuilderFactory extends PathDetailsBuilderFactory {
   ): util.List[PathDetailsBuilder] = {
     val customDetails = List(new BeamTimeDetails(weighting), new BeamTimeReverseDetails(weighting))
     val customDetailAliases = customDetails.map(_.getName)
-    val details = super.createPathDetailsBuilders(requestedPathDetails.stream().filter(!customDetailAliases.contains(_))
-      .collect(Collectors.toList()), evl, weighting)
-    customDetails.foreach(details.add(_))
+    val details = super.createPathDetailsBuilders(
+      requestedPathDetails
+        .stream()
+        .filter(!customDetailAliases.contains(_))
+        .collect(Collectors.toList()),
+      evl,
+      weighting
+    )
+    customDetails.foreach(details.add)
     details
   }
 }
