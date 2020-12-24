@@ -78,10 +78,10 @@ case class ActivitySimSkimmerEvent(
         distanceInM = if (dist > 0.0) { dist } else { 1.0 },
         cost = correctedTrip.costEstimate,
         energy = energyConsumption,
-        walkAccess = walkAccess,
-        walkEgress = walkEgress,
-        walkAuxiliary = walkAuxiliary,
-        totalInVehicleTime = totalInVehicleTime
+        walkAccessInMinutes = walkAccess / 60.0,
+        walkEgressInMinutes = walkEgress / 60.0,
+        walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
+        totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0
       )
     (key, payload)
   }

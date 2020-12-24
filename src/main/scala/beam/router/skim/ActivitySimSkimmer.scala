@@ -25,11 +25,11 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
   override protected val skimFileBaseName: String = config.activity_sim_skimmer.fileBaseName
   override protected val skimFileHeader: String = ExcerptData.csvHeader
 
-  override def writeToDisk(event: IterationEndsEvent): Unit = ???
+  override def writeToDisk(event: IterationEndsEvent): Unit = throw new NotImplementedError("This functionality is unnecessary.")
 
   override def fromCsv(
     row: scala.collection.Map[String, String]
-  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = ??? // ActivitySimSkimmer.fromCsv(row)
+  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = throw new NotImplementedError("This functionality is unnecessary.")
 
   override protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
@@ -57,10 +57,10 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
       distanceInM = aggregatedDoubleSkimValue(_.distanceInM),
       cost = aggregatedDoubleSkimValue(_.cost),
       energy = aggregatedDoubleSkimValue(_.energy),
-      walkAccess = aggregatedDoubleSkimValue(_.walkAccess),
-      walkEgress = aggregatedDoubleSkimValue(_.walkEgress),
-      walkAuxiliary = aggregatedDoubleSkimValue(_.walkAuxiliary),
-      totalInVehicleTime = aggregatedDoubleSkimValue(_.totalInVehicleTime),
+      walkAccessInMinutes = aggregatedDoubleSkimValue(_.walkAccessInMinutes),
+      walkEgressInMinutes = aggregatedDoubleSkimValue(_.walkEgressInMinutes),
+      walkAuxiliaryInMinutes = aggregatedDoubleSkimValue(_.walkAuxiliaryInMinutes),
+      totalInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.totalInVehicleTimeInMinutes),
       observations = aggregatedIntSkimValue(_.observations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
@@ -86,10 +86,10 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
       distanceInM = aggregatedDoubleSkimValue(_.distanceInM),
       cost = aggregatedDoubleSkimValue(_.cost),
       energy = aggregatedDoubleSkimValue(_.energy),
-      walkAccess = aggregatedDoubleSkimValue(_.walkAccess),
-      walkEgress = aggregatedDoubleSkimValue(_.walkEgress),
-      walkAuxiliary = aggregatedDoubleSkimValue(_.walkAuxiliary),
-      totalInVehicleTime = aggregatedDoubleSkimValue(_.totalInVehicleTime),
+      walkAccessInMinutes = aggregatedDoubleSkimValue(_.walkAccessInMinutes),
+      walkEgressInMinutes = aggregatedDoubleSkimValue(_.walkEgressInMinutes),
+      walkAuxiliaryInMinutes = aggregatedDoubleSkimValue(_.walkAuxiliaryInMinutes),
+      totalInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.totalInVehicleTimeInMinutes),
       observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1
     )
@@ -170,27 +170,9 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
       currentSkim
         .get(ActivitySimSkimmerKey(timeBin, pathType, origin.id, destination.id))
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
-        .getOrElse {
-          val adjustedDestCoord = if (origin.equals(destination)) {
-            new Coord(
-              origin.center.getX,
-              origin.center.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-            )
-          } else {
-            destination.center
-          }
-          readOnlySkim
-            .asInstanceOf[ActivitySimSkims]
-            .getSkimDefaultValue(
-              pathType,
-              origin.center,
-              adjustedDestCoord,
-              timeBin * 3600,
-              dummyId,
-              beamScenario
-            )
-        }
+        .getOrElse(ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0, iterations = 0))
     }
+
     val weights = individualSkims.map(sk => Math.max(sk.observations, 1).toDouble)
     val sumWeights = weights.sum
 
@@ -200,10 +182,10 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
     val weightedDistance = getWeightedSkimsValue(_.distanceInM)
     val weightedGeneralizedTime = getWeightedSkimsValue(_.generalizedTimeInMinutes)
     val weightedGeneralizedCost = getWeightedSkimsValue(_.generalizedCost)
-    val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccess)
-    val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgress)
-    val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliary)
-    val weightedTotalInVehicleTime = getWeightedSkimsValue(_.totalInVehicleTime)
+    val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
+    val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
+    val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
+    val weightedTotalInVehicleTime = getWeightedSkimsValue(_.totalInVehicleTimeInMinutes)
 
     ExcerptData(
       timePeriodString = timePeriodString,
@@ -234,10 +216,10 @@ object ActivitySimSkimmer extends LazyLogging {
     distanceInM: Double,
     cost: Double,
     energy: Double,
-    walkAccess: Double,
-    walkEgress: Double,
-    walkAuxiliary: Double,
-    totalInVehicleTime: Double,
+    walkAccessInMinutes: Double,
+    walkEgressInMinutes: Double,
+    walkAuxiliaryInMinutes: Double,
+    totalInVehicleTimeInMinutes: Double,
     observations: Int = 1,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
