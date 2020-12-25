@@ -9,6 +9,7 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 
 case class ParkingStall(
+  geoId: Id[_],
   tazId: Id[TAZ],
   parkingZoneId: Int,
   locationUTM: Location,
@@ -28,6 +29,7 @@ object ParkingStall {
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
   def defaultStall(coord: Coord): ParkingStall = ParkingStall(
+    geoId = TAZ.DefaultTAZId,
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = coord,
@@ -50,11 +52,13 @@ object ParkingStall {
     random: Random = Random,
     costInDollars: Double = CostOfEmergencyStallInDollars,
     tazId: Id[TAZ] = TAZ.EmergencyTAZId,
+    geoId: Id[_],
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
 
     ParkingStall(
+      geoId = geoId,
       tazId = tazId,
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = new Coord(x, y),
@@ -75,8 +79,10 @@ object ParkingStall {
     * @return a stall that is free and located at the person's home.
     */
   def defaultResidentialStall(
-    locationUTM: Location
+    locationUTM: Location,
+    defaultGeoId: Id[_],
   ): ParkingStall = ParkingStall(
+    geoId = defaultGeoId,
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = locationUTM,

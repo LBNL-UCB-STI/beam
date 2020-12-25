@@ -15,6 +15,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -61,7 +62,16 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+    ZonalParkingManager
+      .props(
+        beamConfig,
+        beamScenario.tazTreeMap.tazQuadTree,
+        beamScenario.tazTreeMap.idToTAZMapping,
+        identity[TAZ],
+        services.geo,
+        services.beamRouter,
+        boundingBox
+      ),
     "ParkingManager"
   )
 

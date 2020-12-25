@@ -8,24 +8,33 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, PricingModel}
+import beam.agentsim.infrastructure.parking.{
+  LinkLevelOperations,
+  ParkingType,
+  ParkingZone,
+  ParkingZoneFileUtils,
+  PricingModel
+}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.common.GeoUtilsImpl
+import beam.sim.BeamHelper
+import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+import org.mockito.Mockito.when
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.Random
 
-class ParallelParkingManagerSpec
+class HierarchicalParkingManagerSpec
     extends TestKit(
       ActorSystem(
-        "ParallelParkingManagerSpec",
+        "HierarchicalParkingManagerSpec",
         ConfigFactory
           .parseString("""akka.log-dead-letters = 10
         |akka.actor.debug.fsm = true
@@ -39,6 +48,7 @@ class ParallelParkingManagerSpec
     with MockitoSugar
     with ImplicitSender
     with Matchers
+    with BeamHelper
     with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -51,7 +61,7 @@ class ParallelParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  describe("ParallelParkingManager with no parking") {
+  describe("HierarchicalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
       for {
@@ -64,15 +74,17 @@ class ParallelParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
+          HierarchicalParkingManager.props(
             tazTreeMap,
-            Array.empty[ParkingZone[TAZ]],
-            Map.empty,
-            8,
+            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
+            Array.empty[ParkingZone[Link]],
+            new Random(randomSeed),
             geo,
-            randomSeed,
+            250.0,
+            8000.0,
             boundingBox,
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -87,7 +99,7 @@ class ParallelParkingManagerSpec
           ),
           new Random(randomSeed),
           tazId = TAZ.EmergencyTAZId,
-          geoId = TAZ.EmergencyTAZId,
+          geoId = LinkLevelOperations.EmergencyLinkId,
         )
 
         parkingManager ! inquiry
@@ -97,21 +109,23 @@ class ParallelParkingManagerSpec
     }
   }
 
-  describe("ParallelParkingManager with no taz") {
+  describe("HierarchicalParkingManager with no taz") {
     it("should return a response with an emergency stall") {
 
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
       val parkingManager = system.actorOf(
-        ParallelParkingManager.props(
-          beamConfig,
+        HierarchicalParkingManager.props(
           tazTreeMap,
-          Array.empty[ParkingZone[TAZ]],
-          Map.empty,
-          8,
+          HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
+          Array.empty[ParkingZone[Link]],
+          new Random(randomSeed),
           geo,
-          randomSeed,
+          250.0,
+          8000.0,
           boundingBox,
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          checkThatNumberOfStallsMatch = true,
         )
       )
 
@@ -125,7 +139,7 @@ class ParallelParkingManagerSpec
         ),
         new Random(randomSeed),
         tazId = TAZ.EmergencyTAZId,
-        geoId = TAZ.EmergencyTAZId,
+        geoId = LinkLevelOperations.EmergencyLinkId,
       )
 
       parkingManager ! inquiry
@@ -134,7 +148,7 @@ class ParallelParkingManagerSpec
     }
   }
 
-  describe("ParallelParkingManager with one parking option") {
+  describe("HierarchicalParkingManager with one parking option") {
     it("should first return that only stall, and afterward respond with the default stall") {
 
       for {
@@ -151,17 +165,19 @@ class ParallelParkingManagerSpec
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, random)
+        parking = ParkingZoneFileUtils.fromIterator[Link](oneParkingOption, random)
         parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
+          HierarchicalParkingManager.props(
             tazTreeMap,
+            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             parking.zones.toArray,
-            parking.tree,
-            8,
+            new Random(randomSeed),
             geo,
-            randomSeed,
+            250.0,
+            8000.0,
             boundingBox,
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -187,14 +203,14 @@ class ParallelParkingManagerSpec
         parkingManager ! secondInquiry
         expectMsgPF() {
           case res @ ParkingInquiryResponse(stall, responseId)
-              if stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
+              if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
             res
         }
       }
     }
   }
 
-  describe("ParallelParkingManager with one parking option") {
+  describe("HierarchicalParkingManager with one parking option") {
     it("should allow us to book and then release that stall") {
 
       for {
@@ -211,17 +227,19 @@ class ParallelParkingManagerSpec
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, random)
+        parking = ParkingZoneFileUtils.fromIterator[Link](oneParkingOption, random)
         parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
+          HierarchicalParkingManager.props(
             tazTreeMap,
+            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             parking.zones.toArray,
-            parking.tree,
-            8,
+            new Random(randomSeed),
             geo,
-            randomSeed,
+            250.0,
+            8000.0,
             boundingBox,
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -257,7 +275,7 @@ class ParallelParkingManagerSpec
     }
   }
 
-  describe("ParallelParkingManager with a known set of parking alternatives") {
+  describe("HierarchicalParkingManager with a known set of parking alternatives") {
     it("should allow us to book all of those options and then provide us emergency stalls after that point") {
 
       val random1 = new Random(1)
@@ -285,17 +303,19 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, random)
+        parking = ParkingZoneFileUtils.fromIterator[Link](parkingConfiguration, random)
         parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
+          HierarchicalParkingManager.props(
             tazTreeMap,
+            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
             parking.zones.toArray,
-            parking.tree,
-            1, // this test will work only in a single cluster because clusters are fully separated
+            new Random(randomSeed),
             geo,
-            randomSeed,
+            250.0,
+            8000.0,
             boundingBox,
+            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+            checkThatNumberOfStallsMatch = true,
           )
         )
       } {
@@ -306,7 +326,7 @@ class ParallelParkingManagerSpec
           _ = parkingManager ! req
           counted = expectMsgPF[Int]() {
             case res: ParkingInquiryResponse =>
-              if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
+              if (res.stall.geoId != LinkLevelOperations.EmergencyLinkId) 1 else 0
           }
         } yield {
           counted
@@ -320,30 +340,34 @@ class ParallelParkingManagerSpec
     }
   }
 
-  describe("ParallelParkingManager with loaded common data") {
+  describe("HierarchicalParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
-        "test/input/beamville/parking/taz-parking.csv",
-        tazMap.tazQuadTree,
+      val scenario = loadScenario(beamConfig)
+      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[Link](
+        "test/input/beamville/parking/link-parking.csv",
+        null, //it is required only in case of failures
         1.0,
         1.0,
         new Random(randomSeed),
       )
       val zpm = system.actorOf(
-        ParallelParkingManager.props(
-          beamConfig,
-          tazMap,
+        HierarchicalParkingManager.props(
+          scenario.tazTreeMap,
+          scenario.linkToTAZMapping,
           zones,
-          searchTree,
-          8,
+          new Random(randomSeed),
           geo,
-          randomSeed,
+          250.0,
+          8000.0,
           boundingBox,
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          // the number of stalls on TAZ and link levels will not match because of big number of stalls
+          // which don't fit into Int precision
+          checkThatNumberOfStallsMatch = false,
         )
       )
 
-      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
+      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 4033, Block(0.0, 3600), ParkingType.Residential)
 
       assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
 
@@ -358,16 +382,36 @@ class ParallelParkingManagerSpec
     parkingZoneId: Int,
     pricingModel: PricingModel,
     parkingType: ParkingType
-  ) = {
+  ): Any = {
     val inquiry = ParkingInquiry(coord, "init")
     spm ! inquiry
-    val tazId1 = Id.create(tazId, classOf[TAZ])
-    val expectedStall =
-      ParkingStall(tazId1, tazId1, parkingZoneId, coord, 0.0, None, Some(pricingModel), parkingType)
-    expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+    val rsp = expectMsgClass(classOf[ParkingInquiryResponse])
+    rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
+    val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
+    dist should be <= 400.0
   }
 
   override def afterAll: Unit = {
     shutdown()
+  }
+}
+
+object HierarchicalParkingManagerSpec extends MockitoSugar {
+  private def mockLinks(tazTreeMap: TAZTreeMap): Map[Link, TAZ] = {
+    tazTreeMap.getTAZs
+      .flatMap { taz =>
+        Array.fill(3)(taz)
+      }
+      .zipWithIndex
+      .map { case (taz, i) => mockLink(taz.coord, i, 100) -> taz }
+      .toMap
+  }
+
+  def mockLink(coord: Coord, id: Long, len: Double): Link = {
+    val link = mock[Link]
+    when(link.getCoord).thenReturn(coord)
+    when(link.getId).thenReturn(Id.createLinkId(id))
+    when(link.getLength).thenReturn(len)
+    link
   }
 }
