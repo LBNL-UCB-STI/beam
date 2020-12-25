@@ -222,7 +222,7 @@ object FileUtils extends LazyLogging {
     copyURLToFile(new URL(source), Paths.get(target).toFile)
   }
 
-  def downloadSecureFile(source: String, target: String): Unit = {
+  def downloadS3File(source: String, target: String): Unit = {
     assert(source != null)
     assert(target != null)
     val s3Client = AmazonS3ClientBuilder.standard()
@@ -310,9 +310,9 @@ object FileUtils extends LazyLogging {
         val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
         downloadFile(srcPath, tmpPath)
         tmpPath
-      } else if (isSecureRemote(srcPath, "s3")) {
+      } else if (isS3Remote(srcPath, "s3")) {
         val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
-        downloadSecureFile(srcPath, tmpPath)
+        downloadS3File(srcPath, tmpPath)
         tmpPath
       } else
         srcPath
@@ -348,7 +348,7 @@ object FileUtils extends LazyLogging {
     sourceFilePath.startsWith(remoteIfStartsWith)
   }
 
-  private def isSecureRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
+  private def isS3Remote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
     assert(sourceFilePath != null)
     sourceFilePath.startsWith(remoteIfStartsWith)
   }
