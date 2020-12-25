@@ -24,7 +24,7 @@ import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
 import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router._
-import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.{FareCalculator, GTFSUtils}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{
   BikeLanesAdjustment,
@@ -271,6 +271,8 @@ trait BeamHelper extends LazyLogging {
     )
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
+    val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
+    val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
     val linkQuadTree: QuadTree[Link] =
       LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
@@ -290,6 +292,7 @@ trait BeamHelper extends LazyLogging {
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
       networkCoordinator.network,
+      trainStopQuadTree,
       tazMap,
       linkQuadTree,
       linkIdMapping,
