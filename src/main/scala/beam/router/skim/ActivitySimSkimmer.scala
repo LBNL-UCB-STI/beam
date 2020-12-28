@@ -252,6 +252,6 @@ object ActivitySimSkimmer extends LazyLogging {
   object ExcerptData {
 
     val csvHeader =
-      "timePeriod,pathType,origin,destination,TIME,TOTIVT_IVT,VTOLL_FAR,DIST,WACC,WAUX,WEGR"
+      "timePeriod,pathType,origin,destination,TIME_minutes,TOTIVT_IVT_minutes,VTOLL_FAR,DIST,WACC_minutes,WAUX_minutes,WEGR_minutes"
   }
 }
