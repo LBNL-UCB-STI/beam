@@ -9,8 +9,6 @@ from datetime import datetime, timezone
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-cloudtrail=boto3.client('cloudtrail')
-
 class EC2Instance:
     def __init__(self, instance_id, monitoring_state, launch_datetime, owner_email):
         self.instance_id = instance_id
@@ -105,13 +103,13 @@ def get_running_instance_for(region):
         instance_list = []
         for reservation in reservations:
             instances = safe_get(reservation, 'Instances')
-            instance_list += [convert_to_ec2_instance_from(instance) for instance in instances]
+            instance_list += [convert_to_ec2_instance_from(instance, region) for instance in instances]
         return instance_list
     else:
         logger.info('0 running instances found in ' + region)
         return []
 
-def convert_to_ec2_instance_from(response_instance):
+def convert_to_ec2_instance_from(response_instance, region):
     logger.info('Convert to EC2Instance from ' + str(response_instance))
     email = None
     tags = response_instance.get('Tags')
@@ -123,6 +121,7 @@ def convert_to_ec2_instance_from(response_instance):
     #Email not found in tags, so now check for directly started instances
     username=None
     if email is None:
+        cloudtrail = boto3.client('cloudtrail', region_name=region)
         today=datetime.now()
         responses = cloudtrail.lookup_events(LookupAttributes=[ { 'AttributeKey': 'ResourceName','AttributeValue': instance_id }],
             StartTime=today - dateutil.relativedelta.relativedelta(months=1),
