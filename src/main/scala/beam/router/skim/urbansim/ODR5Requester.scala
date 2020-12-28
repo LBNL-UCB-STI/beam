@@ -29,7 +29,6 @@ class ODR5Requester(
   val beamConfig: BeamConfig,
   val modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory,
   val withTransit: Boolean,
-  val requestTime: Int,
   val skimmerEventFactory: AbstractSkimmerEventFactory
 ) {
   private val dummyPersonAttributes = createDummyPersonAttribute
@@ -47,7 +46,7 @@ class ODR5Requester(
 
   private val thresholdDistanceForBikeMeters: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
 
-  def route(srcIndex: GeoIndex, dstIndex: GeoIndex): ODR5Requester.Response = {
+  def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODR5Requester.Response = {
     val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
       case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
         H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
@@ -73,14 +72,15 @@ class ODR5Requester(
       )
       r5Wrapper.calcRoute(routingReq)
     }
-    ODR5Requester.Response(srcIndex, dstIndex, considerModes, maybeResponse)
+    ODR5Requester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
   }
 
   def createSkimEvent(
     origin: GeoIndex,
     destination: GeoIndex,
     beamMode: BeamMode,
-    trip: EmbodiedBeamTrip
+    trip: EmbodiedBeamTrip,
+    requestTime: Int
   ): AbstractSkimmerEvent = {
     // In case of CAR AND BIKE we have to create two dummy legs: walk to the CAR in the beginning and walk when CAR has arrived
     val theTrip = if (beamMode == BeamMode.CAR || beamMode == BeamMode.BIKE) {
@@ -208,6 +208,7 @@ object ODR5Requester {
     srcIndex: GeoIndex,
     dstIndex: GeoIndex,
     considerModes: Array[BeamMode],
-    maybeRoutingResponse: Try[RoutingResponse]
+    maybeRoutingResponse: Try[RoutingResponse],
+    requestTime: Int
   )
 }

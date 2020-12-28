@@ -19,7 +19,7 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
   test("adjust should work properly when allModes = 0") {
     val peoplePerNode: Int = 1000
     val cfg = Urbansim(
-      BackgroundODSkimsCreator(enabled = false, 1000, 8.5, "h3", "od"),
+      BackgroundODSkimsCreator(enabled = false, 1000, Some(List(8.5)), "h3", "od"),
       Urbansim.FractionOfModesToClear(
         allModes = 0.0,
         bike = 0.2,
@@ -57,7 +57,7 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
   test("adjust should work properly when allModes > 0, but all other modes are set to 0.0") {
     val peoplePerNode: Int = 1000
     val cfg = Urbansim(
-      BackgroundODSkimsCreator(enabled = false, 1000, 8.5, "h3", "od"),
+      BackgroundODSkimsCreator(enabled = false, 1000, Some(List(8.5)), "h3", "od"),
       Urbansim.FractionOfModesToClear(
         allModes = 0.5,
         bike = 0.0,

@@ -25,7 +25,8 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
   override protected val skimFileBaseName: String = config.activity_sim_skimmer.fileBaseName
   override protected val skimFileHeader: String = ExcerptData.csvHeader
 
-  override def writeToDisk(event: IterationEndsEvent): Unit = throw new NotImplementedError("This functionality is unnecessary.")
+  override def writeToDisk(event: IterationEndsEvent): Unit =
+    throw new NotImplementedError("This functionality is unnecessary.")
 
   override def fromCsv(
     row: scala.collection.Map[String, String]

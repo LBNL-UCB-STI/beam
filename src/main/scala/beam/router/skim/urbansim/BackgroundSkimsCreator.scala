@@ -27,6 +27,8 @@ class BackgroundSkimsCreator(
   val withTransit: Boolean
 )(implicit actorSystem: ActorSystem) {
 
+  import BackgroundSkimsCreator._
+
   private implicit val timeout: Timeout = Timeout(6, TimeUnit.HOURS)
 
   private val r5Wrapper: R5Wrapper = new R5Wrapper(
@@ -48,12 +50,12 @@ class BackgroundSkimsCreator(
 
   private val masterActorRef: ActorRef = {
     val actorName = s"Modes-${beamModes.mkString("_")}-with-transit-$withTransit-${UUID.randomUUID()}"
-    val backgroundODSkimsCreator = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
-    val skimmerEventFactory: AbstractSkimmerEventFactory = backgroundODSkimsCreator.skimsKind match {
-      case "od"          => new ODSkimmerEventFactory
-      case "activitySim" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
-      case kind @ _      => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
-    }
+    val skimmerEventFactory: AbstractSkimmerEventFactory =
+      beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
+        case "od"          => new ODSkimmerEventFactory
+        case "activitySim" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
+        case kind @ _      => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
+      }
 
     val masterProps = MasterActor.props(
       geoClustering,
@@ -68,9 +70,11 @@ class BackgroundSkimsCreator(
         beamConfig = beamServices.beamConfig,
         modeChoiceCalculatorFactory = beamServices.modeChoiceCalculatorFactory,
         withTransit = withTransit,
-        requestTime = (backgroundODSkimsCreator.peakHour * 3600).toInt,
         skimmerEventFactory
-      )
+      ),
+      requestTimes = getPeakHoursFromConfig(beamServices).map { hour =>
+        (hour * 3600).toInt
+      }
     )
     actorSystem.actorOf(masterProps, actorName)
   }
@@ -99,6 +103,14 @@ class BackgroundSkimsCreator(
 
 object BackgroundSkimsCreator {
 
+  def getPeakHoursFromConfig(beamServices: BeamServices): List[Double] = {
+    // it seems there is no way to specify default list value in configuration
+    beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHours match {
+      case Some(hours) => hours
+      case _           => List(8.5)
+    }
+  }
+
   def createSkimmer(beamServices: BeamServices, clustering: GeoClustering): AbstractSkimmer = {
     (clustering, beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind) match {
       case (tazClustering: TAZClustering, "od")          => createTAZOdSkimmer(beamServices, tazClustering)
@@ -125,13 +137,12 @@ object BackgroundSkimsCreator {
             event.getServices.getIterationNumber,
             skimFileBaseName + additionalSkimFileNamePart + ".TAZ.Full.csv.gz"
           )
-          val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
           val origins = tazClustering.tazTreeMap.getTAZs
             .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
             .toSeq
 
           writeSkimsForTimePeriods(origins, origins, filePath)
-          logger.info(s"Written UrbanSim peak skims for hour $hour to $filePath")
+          logger.info(s"Written UrbanSim peak skims to $filePath")
         }
       }
     }
@@ -145,7 +156,6 @@ object BackgroundSkimsCreator {
             skimFileBaseName + additionalSkimFileNamePart + ".H3.Full.csv.gz"
           )
 
-          val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
           val origins: Seq[GeoUnit.H3] = h3Clustering.h3Indexes.map { h3Index =>
             val wgsCenter = H3Wrapper.wgsCoordinate(h3Index.index).coord
             val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
@@ -154,7 +164,7 @@ object BackgroundSkimsCreator {
           }
 
           writeSkimsForTimePeriods(origins, origins, filePath)
-          logger.info(s"Written UrbanSim peak skims for hour $hour to $filePath")
+          logger.info(s"Written UrbanSim peak skims to $filePath")
         }
       }
     }
@@ -167,14 +177,14 @@ object BackgroundSkimsCreator {
             event.getServices.getIterationNumber,
             skimFileBaseName + additionalSkimFileNamePart + ".TAZ.Full.csv.gz"
           )
-          val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
-          val uniqueTimeBins: Seq[Int] = hour to hour
+          val hours = getPeakHoursFromConfig(beamServices)
+          val uniqueTimeBins: Seq[Int] = hours.map(_.toInt)
           val origins = tazClustering.tazTreeMap.getTAZs
             .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
             .toSeq
 
           writeFullSkims(origins, origins, uniqueTimeBins, filePath)
-          logger.info(s"Written UrbanSim peak skims for hour $hour to $filePath")
+          logger.info(s"Written UrbanSim peak skims for hours $hours to $filePath")
         }
       }
     }
@@ -188,8 +198,8 @@ object BackgroundSkimsCreator {
             skimFileBaseName + additionalSkimFileNamePart + ".H3.Full.csv.gz"
           )
 
-          val hour = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.peakHour.toInt
-          val uniqueTimeBins: Seq[Int] = hour to hour
+          val hours = getPeakHoursFromConfig(beamServices)
+          val uniqueTimeBins: Seq[Int] = hours.map(_.toInt)
           val origins: Seq[GeoUnit.H3] = h3Clustering.h3Indexes.map { h3Index =>
             val wgsCenter = H3Wrapper.wgsCoordinate(h3Index.index).coord
             val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)
@@ -198,7 +208,7 @@ object BackgroundSkimsCreator {
           }
 
           writeFullSkims(origins, origins, uniqueTimeBins, filePath)
-          logger.info(s"Written UrbanSim peak skims for hour $hour to $filePath")
+          logger.info(s"Written UrbanSim peak skims for hours $hours to $filePath")
         }
       }
     }

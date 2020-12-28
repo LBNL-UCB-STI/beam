@@ -3472,7 +3472,7 @@ object BeamConfig {
       case class BackgroundODSkimsCreator(
         enabled: scala.Boolean,
         numberOfH3Indexes: scala.Int,
-        peakHour: scala.Double,
+        peakHours: scala.Option[scala.List[scala.Double]],
         skimsGeoType: java.lang.String,
         skimsKind: java.lang.String
       )
@@ -3483,7 +3483,7 @@ object BeamConfig {
           BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
             enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
             numberOfH3Indexes = if (c.hasPathOrNull("numberOfH3Indexes")) c.getInt("numberOfH3Indexes") else 1000,
-            peakHour = if (c.hasPathOrNull("peakHour")) c.getDouble("peakHour") else 8.5,
+            peakHours = if (c.hasPathOrNull("peakHours")) scala.Some($_L$_dbl(c.getList("peakHours"))) else None,
             skimsGeoType = if (c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "h3",
             skimsKind = if (c.hasPathOrNull("skimsKind")) c.getString("skimsKind") else "od"
           )

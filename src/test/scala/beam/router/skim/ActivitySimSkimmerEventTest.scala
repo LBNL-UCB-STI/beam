@@ -31,10 +31,10 @@ class ActivitySimSkimmerEventTest extends FlatSpec with Matchers with MockitoSug
       IndexedSeq(walkLeg10, walkLeg15, busLeg10, walkLeg15, busLeg10, walkLeg15, carLeg10, walkLeg10)
     )
     val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
-    event.skimInternal.walkAccessInMinutes shouldBe 25
-    event.skimInternal.walkEgressInMinutes shouldBe 10
-    event.skimInternal.walkAuxiliaryInMinutes shouldBe 30
-    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 30
+    event.skimInternal.walkAccessInMinutes shouldBe 25 / 60.0
+    event.skimInternal.walkEgressInMinutes shouldBe 10 / 60.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 30 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 30 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.WLK_LOC_DRV
   }
   "skimmer event" should "parse trip 2" in {
@@ -42,10 +42,10 @@ class ActivitySimSkimmerEventTest extends FlatSpec with Matchers with MockitoSug
       IndexedSeq(carLeg15, walkLeg15, busLeg10, walkLeg15, carLeg10, walkLeg10)
     )
     val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
-    event.skimInternal.walkAccessInMinutes shouldBe 0
-    event.skimInternal.walkEgressInMinutes shouldBe 10
-    event.skimInternal.walkAuxiliaryInMinutes shouldBe 30
-    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 35
+    event.skimInternal.walkAccessInMinutes shouldBe 0 / 60.0
+    event.skimInternal.walkEgressInMinutes shouldBe 10 / 60.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 30 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 35 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.DRV_LOC_WLK
   }
   "skimmer event" should "parse trip 3" in {
@@ -53,10 +53,10 @@ class ActivitySimSkimmerEventTest extends FlatSpec with Matchers with MockitoSug
       IndexedSeq(busLeg10, walkLeg15, busLeg10, walkLeg10, busLeg10, walkLeg15, walkLeg10, walkLeg15, busLeg15)
     )
     val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
-    event.skimInternal.walkAccessInMinutes shouldBe 0
-    event.skimInternal.walkEgressInMinutes shouldBe 0
-    event.skimInternal.walkAuxiliaryInMinutes shouldBe 65
-    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 45
+    event.skimInternal.walkAccessInMinutes shouldBe 0 / 60.0
+    event.skimInternal.walkEgressInMinutes shouldBe 0 / 60.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 65 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 45 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.WLK_LOC_WLK
   }
   "skimmer event" should "parse trip 4" in {
@@ -64,10 +64,10 @@ class ActivitySimSkimmerEventTest extends FlatSpec with Matchers with MockitoSug
       IndexedSeq(walkLeg15, busLeg10, walkLeg15, walkLeg10)
     )
     val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
-    event.skimInternal.walkAccessInMinutes shouldBe 15
-    event.skimInternal.walkEgressInMinutes shouldBe 25
-    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
-    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10
+    event.skimInternal.walkAccessInMinutes shouldBe 15 / 60.0
+    event.skimInternal.walkEgressInMinutes shouldBe 25 / 60.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.WLK_LOC_WLK
   }
   "skimmer event" should "parse trip 5" in {
@@ -75,10 +75,10 @@ class ActivitySimSkimmerEventTest extends FlatSpec with Matchers with MockitoSug
       IndexedSeq(walkLeg15, walkLeg15, carLeg10)
     )
     val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
-    event.skimInternal.walkAccessInMinutes shouldBe 30
-    event.skimInternal.walkEgressInMinutes shouldBe 0
-    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
-    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10
+    event.skimInternal.walkAccessInMinutes shouldBe 30 / 60.0
+    event.skimInternal.walkEgressInMinutes shouldBe 0 / 60.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.SOV
   }
 }
