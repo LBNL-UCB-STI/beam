@@ -72,6 +72,7 @@ def create_cloudwatch_alarm_for(cloudwatch, instance_id, owner_email, region):
     logger.info('Creating cloudwatch alarm for instance id ' + instance_id)
     account_id=os.environ['AWS_ACCOUNT_ID']
     seconds_to_trigger_idle_notification = int(os.environ['SECONDS_TO_TRIGGER_IDLE_NOTIFICATION'])
+    #https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html#alarm-evaluation
     cloudwatch.put_metric_alarm(
         AlarmName=instance_id + '_' + region + '_Idle_CPU_Notification',
         AlarmDescription='Monitor whether an instance has been running for too long and is idle. DO NOT REMOVE - Meta Information - OwnerEmail:' + str(owner_email) + ';',
@@ -79,10 +80,17 @@ def create_cloudwatch_alarm_for(cloudwatch, instance_id, owner_email, region):
         MetricName='CPUUtilization',
         Namespace='AWS/EC2',
         Statistic='Average',
-        Period=seconds_to_trigger_idle_notification,
-        EvaluationPeriods=1,
+        Period=60, #How often it samples the data
+        EvaluationPeriods=60, #Sliding window of periods for consideration - Do not set below 2 as it is too sensitive - a single dip triggers the warning
+        DatapointsToAlarm=30, #How many of the evaluation periods must meet the threshold to cause an alarm - The above 3 settings mean it will test every 60 seconds and go into alarm if the AvgCPU is less than 1 30 times over the past 60 periods....so 30 minutes of 60 were idle
         Threshold=1.0,
-        ComparisonOperator='LessThanThreshold'
+        ComparisonOperator='LessThanThreshold',
+        Dimensions=[
+        {
+          'Name': 'InstanceId',
+          'Value': instance_id
+        },
+    ]
     )
 
 def get_running_instance_for(region):
