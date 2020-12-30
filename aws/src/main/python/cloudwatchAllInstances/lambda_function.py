@@ -71,7 +71,7 @@ def notify_if_instance_up_multiple_of(time_interval_in_days, ec2_instance, regio
 def create_cloudwatch_alarm_for(cloudwatch, instance_id, owner_email, region):
     logger.info('Creating cloudwatch alarm for instance id ' + instance_id)
     account_id=os.environ['AWS_ACCOUNT_ID']
-    seconds_to_trigger_idle_notification = int(os.environ['SECONDS_TO_TRIGGER_IDLE_NOTIFICATION'])
+
     #https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html#alarm-evaluation
     cloudwatch.put_metric_alarm(
         AlarmName=instance_id + '_' + region + '_Idle_CPU_Notification',
