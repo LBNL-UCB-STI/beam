@@ -65,23 +65,35 @@ case class ActivitySimSkimmerEvent(
     val beamLegs = correctedTrip.beamLegs
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
-    val dist = beamLegs.map(_.travelPath.distanceInM).sum
+    val distInMeters = beamLegs.map(_.travelPath.distanceInM).sum
     val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination)
 
     val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime) = calcTimes(trip)
+    val legsStrRepresentation = trip.legs
+      .map { leg =>
+        val tp = leg.beamLeg.travelPath
+        if (tp.distanceInM > 0) {
+          s"dist:${tp.distanceInM}links:${tp.linkIds.mkString("*")}"
+        } else {
+          ""
+        }
+      }
+      .filter(entry => entry != "")
+      .mkString(";")
 
     val payload =
       ActivitySimSkimmerInternal(
         travelTimeInMinutes = correctedTrip.totalTravelTimeInSecs.toDouble / 60.0,
         generalizedTimeInMinutes = generalizedTimeInHours * 60,
         generalizedCost = generalizedCost,
-        distanceInM = if (dist > 0.0) { dist } else { 1.0 },
+        distanceInMeters = if (distInMeters > 0.0) { distInMeters } else { 1.0 },
         cost = correctedTrip.costEstimate,
         energy = energyConsumption,
-        walkAccess = walkAccess,
-        walkEgress = walkEgress,
-        walkAuxiliary = walkAuxiliary,
-        totalInVehicleTime = totalInVehicleTime
+        walkAccessInMinutes = walkAccess / 60.0,
+        walkEgressInMinutes = walkEgress / 60.0,
+        walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
+        totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
+        debugText = legsStrRepresentation
       )
     (key, payload)
   }

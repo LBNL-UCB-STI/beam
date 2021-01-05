@@ -31,7 +31,7 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(
       nTotalRequests += 1
       Future {
         try {
-          r5Requester.route(work.srcIndex, work.dstIndex)
+          r5Requester.route(work.srcIndex, work.dstIndex, work.requestTime)
         } catch {
           case NonFatal(ex) =>
             log.error(ex, s"route failed: ${ex.getMessage}")

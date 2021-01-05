@@ -19,7 +19,8 @@ import scala.util.{Failure, Success}
 class MasterActor(
   val geoClustering: GeoClustering,
   val abstractSkimmer: AbstractSkimmer,
-  val odR5Requester: ODR5Requester
+  val odR5Requester: ODR5Requester,
+  val requestTimes: Seq[Int]
 ) extends Actor
     with ActorLogging {
   override def postStop(): Unit = {
@@ -54,8 +55,11 @@ class MasterActor(
   }
 
   private var currentIdx: Int = 0
+  private var currentTime: Int = 0
 
-  log.info(s"Total number of OD pairs: ${allODs.length}, maxWorkers: $maxWorkers")
+  log.info(
+    s"Total number of OD pairs: ${allODs.length}, number of request time entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
+  )
 
   private var workers: Set[ActorRef] = Set.empty
   private var workerToEc: Map[ActorRef, ExecutionContextExecutorService] = Map.empty
@@ -86,7 +90,13 @@ class MasterActor(
           routingResponse.itineraries.foreach { trip =>
             if (!isBikeTransit(trip)) {
               try {
-                val event = odR5Requester.createSkimEvent(resp.srcIndex, resp.dstIndex, trip.tripClassifier, trip)
+                val event = odR5Requester.createSkimEvent(
+                  resp.srcIndex,
+                  resp.dstIndex,
+                  trip.tripClassifier,
+                  trip,
+                  resp.requestTime
+                )
                 abstractSkimmer.handleEvent(event)
                 nSkimEvents += 1
               } catch {
@@ -149,10 +159,10 @@ class MasterActor(
           checkAndGiveTheResult()
           checkIfNeedToStop(worker)
           if (workers.contains(worker)) {
-            if (currentIdx < allODs.length) {
-              val (srcIndex, dstIndex) = getNextOD
+            if (moreWorkExist) {
+              val (srcIndex, dstIndex, requestTime) = getNextODTime
               nRouteSent += 1
-              worker ! Response.Work(srcIndex, dstIndex)
+              worker ! Response.Work(srcIndex, dstIndex, requestTime)
             } else {
               worker ! Response.NoWork
             }
@@ -176,14 +186,25 @@ class MasterActor(
     workerToEc += worker -> ec
   }
 
-  private def getNextOD: (GeoIndex, GeoIndex) = {
-    val result = allODs(currentIdx)
-    currentIdx += 1
-    result
+  private def moreWorkExist: Boolean = {
+    currentIdx < allODs.length && currentTime < requestTimes.length
+  }
+
+  private def getNextODTime: (GeoIndex, GeoIndex, Int) = {
+    val requestTime = requestTimes(currentTime)
+    val (o, d) = allODs(currentIdx)
+
+    currentTime += 1
+    if (currentTime >= requestTimes.length) {
+      currentTime = 0
+      currentIdx += 1
+    }
+
+    (o, d, requestTime)
   }
 
   private def checkAndGiveTheResult(): Unit = {
-    if (totalResponses == allODs.length) {
+    if (totalResponses == allODs.length * requestTimes.length) {
       replyToWhenFinish.foreach { actorRef =>
         actorRef ! PopulatedSkimmer(abstractSkimmer)
       }
@@ -237,7 +258,7 @@ object MasterActor {
   sealed trait Response
 
   object Response {
-    case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex) extends Response
+    case class Work(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int) extends Response
     case object NoWork extends Response
 
     case class PopulatedSkimmer(abstractSkimmer: AbstractSkimmer) extends Response
@@ -247,7 +268,8 @@ object MasterActor {
     geoClustering: GeoClustering,
     abstractSkimmer: AbstractSkimmer,
     odR5Requester: ODR5Requester,
+    requestTimes: Seq[Int]
   ): Props = {
-    Props(new MasterActor(geoClustering, abstractSkimmer, odR5Requester: ODR5Requester))
+    Props(new MasterActor(geoClustering, abstractSkimmer, odR5Requester: ODR5Requester, requestTimes))
   }
 }
