@@ -30,6 +30,7 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
   private def isRideHail(vehicleId: Id[Vehicle]): Boolean = vehicleId.toString.startsWith("rideHailVehicle")
 
   private var maybePickUpDropOffHolder: Option[PickUpDropOffHolder] = None
+  logger.info("PickUp DropOff Collector initialized")
 
   private def isCAV(vehicleType: String): Boolean = {
     vehicleTypeToCAV.get(vehicleType) match {
