@@ -121,7 +121,7 @@ def convert_to_ec2_instance_from(response_instance, region):
     logger.info('Convert to EC2Instance from ' + str(response_instance))
     email = None
     tags = response_instance.get('Tags')
-    if tags != None:
+    if tags:
         for tag in tags:
             if tag['Key'] == 'GitUserEmail':
                 email = tag['Value']
