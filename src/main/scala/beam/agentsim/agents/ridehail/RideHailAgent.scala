@@ -29,7 +29,7 @@ import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -263,7 +263,6 @@ class RideHailAgent(
       eventsManager.processEvent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       val isTimeForShift = shifts.isEmpty || shifts.get
         .exists(shift => shift.lowerBound <= tick && shift.upperBound >= tick)
       if (isTimeForShift) {
@@ -276,10 +275,12 @@ class RideHailAgent(
           Some(triggerId)
         )
         holdTickAndTriggerId(tick, triggerId)
+        eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
         goto(Idle) using data
           .copy(currentVehicle = Vector(vehicle.id), remainingShifts = shifts.getOrElse(List()))
       } else {
         val nextShiftStartTime = shifts.get.head.lowerBound
+        eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
         goto(Offline) replying CompletionNotice(
           triggerId,
           Vector(ScheduleTrigger(StartShiftTrigger(nextShiftStartTime), self))
@@ -350,6 +351,7 @@ class RideHailAgent(
         geofence,
         Some(triggerId)
       )
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       goto(Idle)
     case ev @ Event(Interrupt(interruptId, tick), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
@@ -381,6 +383,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Offline.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
       goto(Idle)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
       log.warning(
@@ -392,6 +395,7 @@ class RideHailAgent(
   when(OfflineInterrupted) {
     case Event(Resume, _) =>
       log.debug("state(RideHailingAgent.Offline.Resume)")
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
       goto(Offline)
     case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
       stash()
@@ -428,6 +432,7 @@ class RideHailAgent(
         Vector(ScheduleTrigger(StartShiftTrigger(data.remainingShifts.head.lowerBound), self))
       }
       rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
     case ev @ Event(Interrupt(interruptId, tick), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
@@ -441,6 +446,7 @@ class RideHailAgent(
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
       log.debug("state(RideHailingAgent.Idle.StartRefuelSessionTrigger): {}", ev)
       startRefueling(tick, triggerId)
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
       goto(Offline)
   }
 
@@ -552,6 +558,7 @@ class RideHailAgent(
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       log.debug("state(RideHailingAgent.WaitingToDrive.StartRefuelSessionTrigger): {}", ev)
       stash()
+      eventsManager.processEvent(new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id))
       goto(Offline)
   }
 
@@ -563,6 +570,9 @@ class RideHailAgent(
           currentBeamVehicle.useParkingStall(stall)
           parkAndStartRefueling(stall)
           isOnWayToParkAtStall = None
+          eventsManager.processEvent(
+            new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id)
+          )
           goto(Offline) using data
             .withPassengerSchedule(PassengerSchedule())
             .withCurrentLegPassengerScheduleIndex(0)
@@ -577,6 +587,9 @@ class RideHailAgent(
 
             requestParkingStall()
 
+            eventsManager.processEvent(
+              new PersonLeavesVehicleEvent(latestObservedTick, Id.createPersonId(id), vehicle.id)
+            )
             goto(Offline) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
