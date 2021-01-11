@@ -1,38 +1,44 @@
 package beam.agentsim.events.handling
 
 import java.nio.file.Paths
-import java.time.{DayOfWeek, LocalDate, LocalDateTime, LocalTime}
-import java.util.Objects
+import java.time._
+import java.time.format.DateTimeFormatter
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
 import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.handling.TravelTimeGoogleStatistic._
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils.using
-import beam.utils.csv.CsvWriter
-import beam.utils.mapsapi.googleapi.GoogleAdapter.RouteRequest
+import beam.utils.google_routes_db.GoogleRoutesDB
+import beam.utils.mapsapi.googleapi.{GoogleAdapter, GoogleRoutesResponse}
+import beam.utils.mapsapi.googleapi.GoogleAdapter.{FindRouteRequest, FindRouteResult}
 import beam.utils.mapsapi.googleapi.TravelConstraints.{AvoidTolls, TravelConstraint}
-import beam.utils.mapsapi.googleapi.{GoogleAdapter, Route}
+import com.google.maps.model.DirectionsResult
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Coord
+import javax.sql.DataSource
+import org.apache.commons.dbcp2.BasicDataSource
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.utils.io.IOUtils
 
-import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+import scala.collection.{immutable, mutable}
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
 /**
-  *
-  * @author Dmitry Openkov
+  * TravelTimeGoogleStatistic listens [[PathTraversalEvent]]'s of [[BeamMode.CAR]] mode and
+  * outputs googleTravelTimeEstimation.csv in iteration folder.
+  * It uses a prebuilt database as cache (see [[beam.utils.google_routes_db.build.BuildGoogleRoutesDBApp]] and
+  * Google Maps (Directions) API for missing routes (see [[GoogleAdapter]]).
   */
 class TravelTimeGoogleStatistic(
   cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
@@ -51,6 +57,12 @@ class TravelTimeGoogleStatistic(
   private val enabled = cfg.enable && apiKey != null
   private val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
 
+  private val maybeDataSource: Option[DataSource] =
+    Option(cfg.enable && cfg.googleRoutesDb.enable)
+      .filter(x => x)
+      .flatMap(_ => cfg.googleRoutesDb.postgresql)
+      .map(makeDataSource)
+
   override def handleEvent(event: Event): Unit = {
     if (enabled) {
       event match {
@@ -66,97 +78,162 @@ class TravelTimeGoogleStatistic(
         && cfg.iterationInterval > 0
         && event.getIteration % cfg.iterationInterval == 0) {
       logger.info(
-        "Executing google API call for iteration #{}, query date = {}",
+        "Querying Google DirectionAPI routes for iteration #{}, query date = {}",
         event.getIteration,
         queryDate.toLocalDate
       )
       val numEventsPerHour = Math.max(1, cfg.numDataPointsOver24Hours / 24)
-      val byHour = acc.groupBy(_.departureTime % 3600).filter {
-        case (hour, _) => hour < 24
-      }
-      val events = byHour
+      val byHour: Map[Int, ListBuffer[PathTraversalEvent]] = acc
+        .groupBy(pte => departureHour(pte.departureTime))
+        .filter {
+          case (hour, _) => hour < 24
+        }
+      val events: immutable.Iterable[PathTraversalEvent] = byHour
         .flatMap {
           case (_, events) => getAppropriateEvents(events, numEventsPerHour)
         }
       logger.info("Number of events: {}", events.size)
 
-      val controller = event.getServices.getControlerIO
-      val responsePath = controller.getIterationFilename(event.getIteration, "maps.googleapi.responses.json")
-      val adapter = new GoogleAdapter(apiKey, Some(Paths.get(responsePath)), Some(actorSystem))
-      val result = using(adapter) { adapter =>
-        queryGoogleAPI(events, adapter)
-      }.sortBy(
-        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationInTrafficSeconds)
-      )
-      val filePath = controller.getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
-      val num = writeToCsv(result, filePath)
-      logger.info(s"Saved $num routes to $filePath")
-    }
-  }
-
-  private def queryGoogleAPI(events: Iterable[PathTraversalEvent], adapter: GoogleAdapter): List[EventContainer] = {
-    val futureResult = for {
-      result <- adapter.findRoutes(events.map(e => toRouteRequest(e)))
-      list = result.toList
-      _ = list.collect {
-        case (Left(throwable), uo) => logger.error(s"Error when calling google API for $uo", throwable)
-      }
-    } yield
-      list.collect {
-        case (Right(routes), event) => routes.map(EventContainer(event, _))
-      }.flatten
-    Await.result(futureResult, 10.minutes)
-  }
-
-  private def writeToCsv(seq: List[EventContainer], filePath: String): Int = {
-    import scala.language.implicitConversions
-    val formatter = new java.text.DecimalFormat("#.########")
-    implicit def doubleToString(x: Double): String = formatter.format(x)
-    implicit def intToString(x: Int): String = x.toString
-
-    val headers = Vector(
-      "vehicleId",
-      "vehicleType",
-      "departureTime",
-      "originLat",
-      "originLng",
-      "destLat",
-      "destLng",
-      "simTravelTime",
-      "googleTravelTime",
-      "googleTravelTimeWithTraffic",
-      "euclideanDistanceInMeters",
-      "legLength",
-      "googleDistance"
-    )
-    using(new CsvWriter(filePath, headers)) { csvWriter =>
-      seq
-        .map(
-          ec =>
-            Vector[String](
-              Objects.toString(ec.event.vehicleId),
-              ec.event.vehicleType,
-              ec.event.departureTime,
-              ec.event.startY,
-              ec.event.startX,
-              ec.event.endY,
-              ec.event.endX,
-              ec.event.arrivalTime - ec.event.departureTime,
-              ec.route.durationIntervalInSeconds,
-              ec.route.durationInTrafficSeconds,
-              geoUtils.distLatLon2Meters(
-                new Coord(ec.event.startX, ec.event.startY),
-                new Coord(ec.event.endX, ec.event.endY)
-              ),
-              ec.event.legLength,
-              ec.route.distanceInMeters,
-          )
-        )
-        .foreach { line =>
-          csvWriter.writeRow(line)
+      val entriesFromCache: Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] =
+        queryGoogleRoutesFromDb(events, queryDate, geoUtils).filter {
+          case (_, seq) => seq.nonEmpty
         }
+
+      val missingEvents = events.filterNot(entriesFromCache.keySet.contains)
+
+      val controller = event.getServices.getControlerIO
+      val filePath = controller
+        .getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
+
+      val entriesFromGoogle: Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] =
+        if (missingEvents.isEmpty) {
+          logger.info(
+            "Got {} Google routes from cache",
+            entriesFromCache.values.map(_.size).sum,
+          )
+          Map.empty
+        } else {
+
+          logger.info(
+            "Got {} Google routes from cache, calling Google DirectionsApi for {} routes",
+            entriesFromCache.keySet.size,
+            missingEvents.size
+          )
+
+          val adapter = new GoogleAdapter(
+            apiKey,
+            Some(
+              Paths.get(
+                controller.getIterationFilename(
+                  event.getIteration,
+                  "maps.googleapi.responses.json"
+                )
+              )
+            ),
+            Some(actorSystem)
+          )
+          val eventContainers = using(adapter) { adapter =>
+            queryGoogleAPI(missingEvents, adapter)
+          }
+
+          val googleEntries = makeGTTEEntries(eventContainers)
+
+          val requestIdToDepartureTime: Map[String, Int] =
+            googleEntries.values.flatten.groupBy(_.requestId).mapValues(_.head.departureTime)
+
+          try {
+            insertGoogleRoutesAndLegsInDb(
+              eventContainers.map { ec =>
+                GoogleRoutesResponse(
+                  requestId = ec.requestId,
+                  departureLocalDateTime = makeDepartureLocatDateTime(ec.event.departureTime)
+                    .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                  ec.directionsResult
+                )
+              },
+              requestIdToDepartureTime,
+              filePath,
+              Instant.now()
+            )
+          } catch {
+            case e: Throwable =>
+              logger.warn("Failed to insert Google routes", e)
+          }
+
+          googleEntries
+        }
+
+      val allEntries = (entriesFromCache.values.flatten ++ entriesFromGoogle.values.flatten).toSeq
+        .sortBy { gttee =>
+          (gttee.departureTime, gttee.vehicleId, gttee.googleTravelTimeWithTraffic)
+        }
+
+      GoogleTravelTimeEstimationEntry.Csv.writeEntries(allEntries, filePath)
+      logger.info(s"Saved ${allEntries.size} routes to $filePath")
     }
-    seq.size
+  }
+
+  private def queryGoogleRoutesFromDb(
+    ptes: TraversableOnce[PathTraversalEvent],
+    departureDateTime: LocalDateTime,
+    geoUtils: GeoUtils
+  ): Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] = {
+    maybeDataSource
+      .map { ds =>
+        try {
+          using(ds.getConnection) { con =>
+            GoogleRoutesDB.queryGoogleRoutes(ptes, departureDateTime, geoUtils, con)
+          }
+        } catch {
+          case e: Throwable =>
+            logger.warn("Failed to query GoogleRoutesDB", e)
+            Map.empty[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]]
+        }
+      }
+      .getOrElse(Map.empty)
+  }
+
+  def insertGoogleRoutesAndLegsInDb(
+    grrSeq: Seq[GoogleRoutesResponse],
+    requestIdToDepartureTime: Map[String, Int],
+    googleapiResponsesJsonFileUri: String,
+    timestamp: Instant
+  ): Unit = {
+    maybeDataSource.foreach { ds =>
+      try {
+        using(ds.getConnection) { con =>
+          GoogleRoutesDB.insertGoogleRoutesAndLegs(
+            grrSeq,
+            requestIdToDepartureTime,
+            googleapiResponsesJsonFileUri,
+            timestamp,
+            con
+          )
+        }
+      } catch {
+        case e: Throwable =>
+          logger.warn("Failed to insert GoogleRoutes", e)
+      }
+    }
+  }
+
+  private def queryGoogleAPI(events: Iterable[PathTraversalEvent], adapter: GoogleAdapter): Seq[EventContainer] = {
+    val containersFuture = adapter
+      .findRoutes(events.map(toRouteRequest))
+      .map(_.flatMap { result =>
+        val FindRouteResult(event, requestId, eitherRes) = result
+
+        eitherRes match {
+          case Left(e) =>
+            logger.error(s"Error when calling google API for $event", e)
+            Seq.empty[EventContainer]
+
+          case Right(res) =>
+            Seq(EventContainer(event, requestId, res))
+        }
+      })
+
+    Await.result(containersFuture, 10.minutes)
   }
 
   private def getAppropriateEvents(events: Seq[PathTraversalEvent], numEventsPerHour: Int): Seq[PathTraversalEvent] = {
@@ -194,14 +271,21 @@ class TravelTimeGoogleStatistic(
     findWednesday(LocalDate.now().plusDays(1))
   }
 
-  private def toRouteRequest(event: PathTraversalEvent): RouteRequest[PathTraversalEvent] = {
-    RouteRequest(
+  private def toRouteRequest(event: PathTraversalEvent): FindRouteRequest[PathTraversalEvent] = {
+    val origin = WgsCoordinate(event.startY, event.startX)
+    val destination = WgsCoordinate(event.endY, event.endX)
+    FindRouteRequest(
       userObject = event,
-      origin = WgsCoordinate(event.startY, event.startX),
-      destination = WgsCoordinate(event.endY, event.endX),
-      departureAt = queryDate.plusSeconds(event.departureTime),
+      requestId = UUID.randomUUID().toString,
+      origin = origin,
+      destination = destination,
+      departureAt = makeDepartureLocatDateTime(event.departureTime),
       constraints = constraints
     )
+  }
+
+  private def makeDepartureLocatDateTime(departureTime: Int): LocalDateTime = {
+    queryDate.plusSeconds(departureTime)
   }
 
   def loadedEventNumber: Int = acc.size
@@ -209,6 +293,53 @@ class TravelTimeGoogleStatistic(
   override def reset(iteration: Int): Unit = {
     acc.clear()
   }
+
+  private def makeGTTEEntries(
+    ecs: TraversableOnce[EventContainer]
+  ): Map[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]] = {
+    val result = mutable.Map.empty[PathTraversalEvent, Seq[GoogleTravelTimeEstimationEntry]]
+
+    ecs.foreach { ec =>
+      val gttees = ec.directionsResult.routes.flatMap { route =>
+        route.legs.map { leg =>
+          GoogleTravelTimeEstimationEntry.fromPTE(
+            ec.event,
+            ec.requestId,
+            leg.duration.inSeconds,
+            Option(leg.durationInTraffic).map(_.inSeconds),
+            leg.distance.inMeters,
+            geoUtils
+          )
+        }
+      }
+      result += ec.event -> gttees
+    }
+
+    result.toMap
+  }
+
+  private def departureHour(fromDepartureTime: Int): Int = {
+    fromDepartureTime % 3600
+  }
 }
 
-case class EventContainer(event: PathTraversalEvent, route: Route)
+object TravelTimeGoogleStatistic {
+
+  case class EventContainer(
+    event: PathTraversalEvent,
+    requestId: String,
+    directionsResult: DirectionsResult
+  )
+
+  def makeDataSource(
+    cfg: BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb.Postgresql
+  ): DataSource = {
+    val ds = new BasicDataSource()
+    ds.setDriverClassName("org.postgresql.Driver")
+    ds.setUrl(cfg.url)
+    ds.setUsername(cfg.username)
+    ds.setPassword(cfg.password)
+
+    ds
+  }
+}

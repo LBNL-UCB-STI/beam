@@ -8,6 +8,7 @@ import akka.actor.{
   Actor,
   ActorLogging,
   ActorRef,
+  ActorSelection,
   Address,
   Cancellable,
   ExtendedActorSystem,
@@ -270,7 +271,7 @@ class BeamRouter(
     localNodes.foreach(_ ! WorkAvailable)
   }
 
-  private def workerFrom(workerAddress: Address) =
+  private def workerFrom(workerAddress: Address): ActorSelection =
     context.actorSelection(RootActorPath(workerAddress) / servicePathElements)
 
   private def getCurrentTime: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC)

@@ -1734,6 +1734,7 @@ object BeamConfig {
       object Google {
         case class TravelTimes(
           enable: scala.Boolean,
+          googleRoutesDb: BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb,
           iterationInterval: scala.Int,
           minDistanceInMeters: scala.Double,
           numDataPointsOver24Hours: scala.Int,
@@ -1743,10 +1744,52 @@ object BeamConfig {
         )
 
         object TravelTimes {
+          case class GoogleRoutesDb(
+            enable: scala.Boolean,
+            postgresql: scala.Option[BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb.Postgresql]
+          )
+
+          object GoogleRoutesDb {
+            case class Postgresql(
+              password: java.lang.String,
+              url: java.lang.String,
+              username: java.lang.String
+            )
+
+            object Postgresql {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb.Postgresql = {
+                BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb.Postgresql(
+                  password = c.getString("password"),
+                  url = c.getString("url"),
+                  username = c.getString("username")
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb = {
+              BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb(
+                enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
+                postgresql =
+                  if (c.hasPathOrNull("postgresql"))
+                    scala.Some(
+                      BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb
+                        .Postgresql(c.getConfig("postgresql"))
+                    )
+                  else None
+              )
+            }
+          }
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google.TravelTimes = {
             BeamConfig.Beam.Calibration.Google.TravelTimes(
               enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
+              googleRoutesDb = BeamConfig.Beam.Calibration.Google.TravelTimes.GoogleRoutesDb(
+                if (c.hasPathOrNull("googleRoutesDb")) c.getConfig("googleRoutesDb")
+                else com.typesafe.config.ConfigFactory.parseString("googleRoutesDb{}")
+              ),
               iterationInterval = if (c.hasPathOrNull("iterationInterval")) c.getInt("iterationInterval") else 5,
               minDistanceInMeters =
                 if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
