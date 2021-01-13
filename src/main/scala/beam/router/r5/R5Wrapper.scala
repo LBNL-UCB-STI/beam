@@ -53,6 +53,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     geo,
     dates,
     networkHelper,
+    gtfs,
     fareCalculator,
     tollCalculator
   ) = workerParams
