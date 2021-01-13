@@ -156,7 +156,7 @@ abstract class GraphHopperWrapper(
               streetVehicle.vehicleTypeId,
               asDriver = true,
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
-              unbecomeDriverOnCompletion = true
+              unbecomeDriverOnCompletion = beamMode == BeamMode.CAR
             )
           )
         )

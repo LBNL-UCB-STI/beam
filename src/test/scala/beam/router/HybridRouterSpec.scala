@@ -1,30 +1,34 @@
 package beam.router
 
 import java.nio.file.Paths
-
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{Access, AccessAndEgress, Location, RoutingRequest}
+import beam.router.BeamRouter.{Access, Location, RoutingRequest}
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
+import beam.router.gtfs.GTFSUtils
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.osmlib.OSM
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.WordSpecLike
+import org.scalatest.{Matchers, WordSpecLike}
 
 /**
   * @author Dmitry Openkov
   */
-class HybridRouterSpec extends WordSpecLike with BeamHelper {
+class HybridRouterSpec extends WordSpecLike with BeamHelper with Matchers {
   private val config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()
 
   "CompositeRouter" should {
     "return appropriate routes" in {
       val workerParams: R5Parameters = R5Parameters.fromConfig(config)
+
+      val gtfs = GTFSUtils.loadGTFS(workerParams.beamConfig.beam.routing.r5.directory)
+
       val walkGHDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "walk-gh").toString
       val carGHDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "car-gh").toString
 
@@ -56,9 +60,9 @@ class HybridRouterSpec extends WordSpecLike with BeamHelper {
         id2Link
       )
 
-      val hybridRouter = new HybridRouter(workerParams.transportNetwork, workerParams.geo, r5, carGH, walkGH)
+      val hybridRouter = new HybridRouter(gtfs, workerParams.geo, r5, carGH, walkGH)
 
-      val origin = workerParams.geo.wgs2Utm(new Coord(-122.396944, 37.79288)) // Embarcadero
+      val origin = workerParams.geo.wgs2Utm(new Coord(-122.397357, 37.798083)) // Embarcadero
       val destination = workerParams.geo.wgs2Utm(new Coord(-122.460555, 37.764294)) // Near UCSF medical center
       val time = 25740
       val request = RoutingRequest(
@@ -68,11 +72,11 @@ class HybridRouterSpec extends WordSpecLike with BeamHelper {
         withTransit = true,
         streetVehicles = Vector(
           StreetVehicle(
-            Id.createVehicleId("rideHailVehicle-person=17673-0"),
+            Id.createVehicleId("176-0"),
             Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
-            asDriver = false
+            asDriver = true
           ),
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
@@ -86,6 +90,8 @@ class HybridRouterSpec extends WordSpecLike with BeamHelper {
       )
       val response = hybridRouter.calcRoute(request)
       println(response)
+      response.itineraries.size should be(2)
+      response.itineraries.map(_.tripClassifier) should contain allOf (BeamMode.WALK_TRANSIT, BeamMode.DRIVE_TRANSIT)
     }
   }
 }

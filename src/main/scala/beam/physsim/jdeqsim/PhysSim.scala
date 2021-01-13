@@ -41,6 +41,7 @@ class PhysSim(
     geo = beamServices.geo,
     dates = beamServices.beamScenario.dates,
     networkHelper = beamServices.networkHelper,
+    beamServices.beamScenario.gtfs,
     fareCalculator = beamServices.fareCalculator,
     tollCalculator = beamServices.tollCalculator
   )

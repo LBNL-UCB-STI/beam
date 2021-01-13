@@ -32,6 +32,7 @@ class SfLightRoutePopulationSpec
           services.geo,
           beamScenario.dates,
           services.networkHelper,
+          services.beamScenario.gtfs,
           services.fareCalculator,
           services.tollCalculator
         ),
