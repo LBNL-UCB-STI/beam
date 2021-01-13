@@ -191,6 +191,8 @@ object GeoUtils {
     new Coordinate(coord.getX, coord.getY)
   }
 
+  def fromJtsCoordinate(coordinate: Coordinate): Coord = new Coord(coordinate.x, coordinate.y)
+
   val GeoUtilsWgs: GeoUtils = new GeoUtils {
     override def localCRS: String = "EPSG:4326"
   }
