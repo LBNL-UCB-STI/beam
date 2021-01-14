@@ -7,7 +7,12 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
+import beam.router.graphhopper.{
+  BikeGraphHopperWrapper,
+  CarGraphHopperWrapper,
+  GraphHopperWrapper,
+  WalkGraphHopperWrapper
+}
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
@@ -90,6 +95,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private val carGraphHopperDir: String = Paths.get(graphHopperDir, "car").toString
   private var binToCarGraphHopper: Map[Int, GraphHopperWrapper] = _
   private var walkGraphHopper: GraphHopperWrapper = _
+  private var bikeGraphHopper: GraphHopperWrapper = _
   private var hybridRouter: HybridRouter = _
 
   private val linksBelowMinCarSpeed =
@@ -110,11 +116,19 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
     } else if (carRouter == "hybridGH") {
       createWalkGraphHopper()
+      createBikeGraphHopper()
       createCarGraphHoppers("staticGH")
       val carGraphHopperWrapper = binToCarGraphHopper(0).asInstanceOf[CarGraphHopperWrapper]
       val walkGraphHopperWrapper = walkGraphHopper.asInstanceOf[WalkGraphHopperWrapper]
-      hybridRouter =
-        new HybridRouter(workerParams.gtfs, workerParams.geo, r5, carGraphHopperWrapper, walkGraphHopperWrapper)
+      val bikeGraphHopperWrapper = bikeGraphHopper.asInstanceOf[BikeGraphHopperWrapper]
+      hybridRouter = new HybridRouter(
+        workerParams.gtfs,
+        workerParams.geo,
+        r5,
+        carGraphHopperWrapper,
+        walkGraphHopperWrapper,
+        bikeGraphHopperWrapper,
+      )
     }
   }
 
@@ -263,6 +277,16 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     )
 
     walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+  }
+
+  private def createBikeGraphHopper(): Unit = {
+    GraphHopperWrapper.createBikeGraphDirectoryFromR5(
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
+      graphHopperDir
+    )
+
+    bikeGraphHopper = new BikeGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
   }
 
   private def createCarGraphHoppers(routerType: String, travelTime: Option[TravelTime] = None): Unit = {

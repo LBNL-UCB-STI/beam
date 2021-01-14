@@ -3,7 +3,12 @@ package beam.router
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Access
 import beam.router.Modes.BeamMode.WALK
-import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
+import beam.router.graphhopper.{
+  BikeGraphHopperWrapper,
+  CarGraphHopperWrapper,
+  GraphHopperWrapper,
+  WalkGraphHopperWrapper
+}
 import beam.router.gtfs.GTFSUtils
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.r5.R5Wrapper
@@ -22,7 +27,8 @@ class HybridRouter(
   geo: GeoUtils,
   r5: R5Wrapper,
   ghCar: CarGraphHopperWrapper,
-  ghWalk: WalkGraphHopperWrapper
+  ghWalk: WalkGraphHopperWrapper,
+  ghBike: BikeGraphHopperWrapper,
 ) extends Router
     with StrictLogging {
 
@@ -32,6 +38,7 @@ class HybridRouter(
   private val ghRouters: IndexedSeq[(Modes.BeamMode, GraphHopperWrapper)] = IndexedSeq(
     Modes.BeamMode.CAR  -> ghCar,
     Modes.BeamMode.WALK -> ghWalk,
+    Modes.BeamMode.BIKE -> ghBike,
   )
 
   override def calcRoute(request: BeamRouter.RoutingRequest): BeamRouter.RoutingResponse = {
@@ -98,15 +105,14 @@ class HybridRouter(
     ghRouters
       .flatMap {
         case (mode, wrapper) =>
-          if (originRequest.streetVehicles.exists(_.mode == mode))
-            Some(
+          originRequest.streetVehicles
+            .find(_.mode == mode) //GH supports a single street vehicle only
+            .map { vehicle =>
               mode -> wrapper.calcRoute(
                 originRequest
-                  .copy(streetVehicles = originRequest.streetVehicles.filter(_.mode == mode))
+                  .copy(streetVehicles = IndexedSeq(vehicle))
               )
-            )
-          else
-            None
+            }
       }
       .filter { case (_, response) => response.itineraries.nonEmpty }
   }
