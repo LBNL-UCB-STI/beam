@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, 
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{TrivialParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
@@ -188,6 +189,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -395,6 +397,7 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -657,7 +660,16 @@ class PersonAgentSpec
       )
 
       val parkingManager = system.actorOf(
-        ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+        ZonalParkingManager.props(
+          beamConfig,
+          beamScenario.tazTreeMap.tazQuadTree,
+          beamScenario.tazTreeMap.idToTAZMapping,
+          identity[TAZ],
+          services.geo,
+          services.beamRouter,
+          boundingBox,
+          ZonalParkingManager.getDefaultParkingZones(beamConfig),
+        ),
         "ParkingManager"
       )
 
@@ -678,6 +690,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

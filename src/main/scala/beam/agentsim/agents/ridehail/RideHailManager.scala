@@ -32,7 +32,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -53,6 +53,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.sim.vehiclesharing.VehicleManager
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -81,6 +82,8 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
+
+  val RIDE_HAIL_VEHICLE_MANAGER_ID: Id[VehicleManager] = Id.create("private-vehicle", classOf[VehicleManager])
 
   case object NotifyIterationEnds
   case class RecoverFromStuckness(tick: Int)
@@ -360,19 +363,7 @@ class RideHailManager(
   )
 
   // provides tracking of parking/charging alternatives and their availability
-  val rideHailDepotParkingManager: RideHailDepotParkingManager = RideHailDepotParkingManager(
-    parkingFilePath,
-    beamServices.beamConfig.beam.agentsim.taz.filePath,
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
-    beamServices.beamScenario.tazTreeMap,
-    rand,
-    boundingBox,
-    beamServices.geo.distUTMInMeters,
-    mnlMultiplierParameters,
-    beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-  )
-
-  val stalls: Array[ParkingZone] = rideHailDepotParkingManager.rideHailParkingStalls
+  val rideHailDepotParkingManager: RideHailDepotParkingManager[_] = createDepotParkingManager
 
   private var cntEVCAV = 0
   private var cntEVnCAV = 0
@@ -513,6 +504,37 @@ class RideHailManager(
     beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
     this
   )
+
+  private def createDepotParkingManager: RideHailDepotParkingManager[_] = {
+    beamServices.beamConfig.beam.agentsim.taz.parkingManager.level.toLowerCase match {
+      case "taz" =>
+        RideHailDepotParkingManager(
+          parkingFilePath,
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
+          beamServices.beamScenario.tazTreeMap,
+          rand,
+          boundingBox,
+          beamServices.geo.distUTMInMeters,
+          mnlMultiplierParameters,
+          beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+        )
+      case "link" =>
+        RideHailDepotParkingManager(
+          parkingFilePath,
+          beamServices.beamConfig.beam.agentsim.agents.rideHail.cav.valueOfTime,
+          beamServices.beamScenario.linkQuadTree,
+          beamServices.beamScenario.linkIdMapping,
+          beamServices.beamScenario.linkToTAZMapping,
+          rand,
+          boundingBox,
+          beamServices.geo.distUTMInMeters,
+          mnlMultiplierParameters,
+          beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+        )
+      case wrong @ _ =>
+        throw new IllegalArgumentException(s"Unsupported parking level type $wrong, only TAZ | Link are supported")
+    }
+  }
 
   def storeRoutes(responses: Seq[RoutingResponse]): Unit = {
     responses.foreach {
@@ -1523,6 +1545,7 @@ class RideHailManager(
       rideHailVehicleId,
       powertrain,
       rideHailBeamVehicleType,
+      managerInfo = VehicleManagerInfo(RIDE_HAIL_VEHICLE_MANAGER_ID, rideHailBeamVehicleType, isRideHail = true),
       rand.nextInt()
     )
     rideHailBeamVehicle.initializeFuelLevels(

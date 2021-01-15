@@ -9,12 +9,13 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StopDriving}
-import beam.agentsim.agents.ridehail.RideHailAgent
+import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -61,7 +62,17 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+    ZonalParkingManager
+      .props(
+        beamConfig,
+        beamScenario.tazTreeMap.tazQuadTree,
+        beamScenario.tazTreeMap.idToTAZMapping,
+        identity[TAZ],
+        services.geo,
+        services.beamRouter,
+        boundingBox,
+        ZonalParkingManager.getDefaultParkingZones(beamConfig),
+      ),
     "ParkingManager"
   )
 
@@ -143,11 +154,13 @@ class RideHailAgentSpec
 
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
         )
       beamVehicle.setManager(Some(self))
 
@@ -219,11 +232,13 @@ class RideHailAgentSpec
 
     it("should let me interrupt it and tell it to cancel its job") {
       val vehicleId = Id.createVehicleId(1)
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
         )
       beamVehicle.setManager(Some(self))
 
@@ -289,11 +304,13 @@ class RideHailAgentSpec
 
     it("won't let me cancel its job after it has picked up passengers") {
       val vehicleId = Id.createVehicleId(1)
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
         )
       beamVehicle.setManager(Some(self))
 

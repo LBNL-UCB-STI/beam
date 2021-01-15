@@ -5,7 +5,7 @@ import beam.agentsim.agents.planning.Trip
 import beam.agentsim.agents.ridehail.RideHailMatching.RideHailTrip
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef, VehicleManagerInfo}
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.skim.{ODSkimmer, Skims, SkimsUtils}
@@ -292,7 +292,8 @@ object RideHailMatching {
     val v1 = new BeamVehicle(
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      veh.vehicleType
+      veh.vehicleType,
+      managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, veh.vehicleType, isRideHail = true),
     )
     val vehCurrentLocation =
       veh.currentPassengerSchedule.map(_.locationAtTime(tick, beamServices)).getOrElse(veh.currentLocationUTM.loc)
@@ -416,7 +417,8 @@ object RideHailMatching {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      vehicleType
+      vehicleType,
+      managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
     )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)

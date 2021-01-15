@@ -11,7 +11,7 @@ import org.matsim.api.core.v01.Id
 
 object Resource {
 
-  case class ReleaseParkingStall(stallId: Int, tazId: Id[TAZ])
+  case class ReleaseParkingStall(stallId: Int, geoId: Id[_])
 
   case class NotifyVehicleIdle(
     resourceId: Id[_],

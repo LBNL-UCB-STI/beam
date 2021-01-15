@@ -1,5 +1,6 @@
 package beam.router.graphhopper
 
+import beam.router.graphhopper.BeamWeighting.Name
 import com.graphhopper.routing.util.FlagEncoder
 import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider}
 import com.graphhopper.util.EdgeIteratorState
@@ -44,5 +45,9 @@ class BeamWeighting(flagEncoder: FlagEncoder, turnCostProvider: TurnCostProvider
 
   }
 
-  override def getName = "beam"
+  override def getName = Name
+}
+
+object BeamWeighting {
+  val Name = "beam"
 }
