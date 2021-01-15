@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -82,13 +83,17 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     }
     .toArray
 
-  val zoneSearchTreeLink = zoneArrayLink
-    .groupBy(_.geoId)
-    .mapValues { zones =>
-      zones
-        .groupBy(zone => zone.parkingType)
-        .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toVector)
-    }
+  val zoneSearchTreeLink = toSearchTree(zoneArrayLink)
+
+  def toSearchTree[GEO](zoneArray: Array[ParkingZone[GEO]]): Map[Id[GEO], Map[ParkingType, Vector[Int]]] = {
+    zoneArray
+      .groupBy(_.geoId)
+      .mapValues { zones =>
+        zones
+          .groupBy(zone => zone.parkingType)
+          .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toVector)
+      }
+  }
 
   logger.info("Generated {} zones", zoneArrayLink.length)
   logger.info("with {} parking stalls", zoneArrayLink.map(_.stallsAvailable.toLong).sum)
