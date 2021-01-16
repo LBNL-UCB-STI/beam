@@ -283,6 +283,7 @@ class RideHailAgent(
 
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
       log.debug("myUnhandled state({}): {}", stateName, ev)
+      rideHailManager ! RideHailManager.RideHailAgentFailed(self, id, vehicle, reason)
       stop(Failure(reason))
 
     case Event(Status.Failure(reason), _) =>

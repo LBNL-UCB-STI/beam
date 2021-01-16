@@ -210,6 +210,8 @@ object RideHailManager {
 
   }
 
+  case class RideHailAgentFailed(actorRef: ActorRef, id: Id[RideHailAgent], vehicle: BeamVehicle, reason: String)
+
 }
 
 class RideHailManager(
@@ -407,6 +409,10 @@ class RideHailManager(
   var nRepositioned: Int = 0
 
   override def receive: Receive = BeamLoggingReceive {
+    case rhFailed: RideHailAgentFailed =>
+      log.warning(s"${rhFailed.id} failed with reason: ${rhFailed.reason}, actorRef: ${rhFailed.actorRef}")
+      removeFailedRideHailAgentAndCleanUpState(rhFailed.vehicle.id)
+
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
 
@@ -821,6 +827,18 @@ class RideHailManager(
 
     case msg =>
       ridehailManagerCustomizationAPI.receiveMessageHook(msg, sender())
+  }
+
+  private def removeFailedRideHailAgentAndCleanUpState(id: Id[BeamVehicle]): Unit = {
+    val location = vehicleManager.getRideHailAgentLocation(id)
+    vehicleManager.removeFromIdle(location)
+    vehicleManager.removeFromInService(location)
+    vehicleManager.removeFromOutOfService(location)
+    vehicleManager.removeFromRefueling(location)
+    modifyPassengerScheduleManager.clearModifyStatusFromCacheWithVehicleId(id)
+
+    modifyPassengerScheduleManager.getCurrentTick.foreach(cleanUpBufferedRequestProcessing)
+    ()
   }
 
   def continueProcessingTimeoutIfReady(): Unit = {
