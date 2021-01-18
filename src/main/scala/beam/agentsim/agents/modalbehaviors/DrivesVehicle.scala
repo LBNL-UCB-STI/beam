@@ -27,14 +27,10 @@ import beam.sim.{BeamConfigChangesObservable, BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.NetworkHelper
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  VehicleEntersTrafficEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -182,7 +178,7 @@ object DrivesVehicle {
   }
 }
 
-trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
+trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with ExponentialLazyLogging {
   protected val transportNetwork: TransportNetwork
   protected val parkingManager: ActorRef
   protected val tollCalculator: TollCalculator
@@ -348,11 +344,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash {
             data.passengerSchedule.schedule.keys.view
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
+          val startLegTriggerTick = if (nextLeg.startTime < tick) {
+            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
+            tick
+          } else {
+            nextLeg.startTime
+          }
           goto(WaitingToDrive) using stripLiterallyDrivingData(data)
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T] replying CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+            Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
           )
         }
       } else {
