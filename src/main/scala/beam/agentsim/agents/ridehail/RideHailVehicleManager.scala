@@ -180,7 +180,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     } else {
       idleRideHailAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala
     }
-    val nearbyAvailableRideHailAgents = nearbyRideHailAgents.view
+    val nearbyAvailableRideHailAgents = nearbyRideHailAgents.par
       .filter { x =>
         filteredIdleVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId) &&
         (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
