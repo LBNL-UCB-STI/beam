@@ -193,25 +193,37 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     val diff1 = end - start
 
     start = System.currentTimeMillis()
+    val pickupTazId = rideHailManager.beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY).tazId
+    val dropoffTazId = rideHailManager.beamScenario.tazTreeMap.getTAZ(dropoffLocation.getX, dropoffLocation.getY).tazId
+
     val times2RideHailAgents = nearbyAvailableRideHailAgents
       .map { rideHailAgentLocation =>
+        val fuelPrice = rideHailManager.beamScenario.fuelTypePrices(rideHailAgentLocation.vehicleType.primaryFuelType)
         val skimTimeAndDistanceToCustomer = BeamRouter.computeTravelTimeAndDistanceAndCost(
-          rideHailAgentLocation.getCurrentLocationUTM(customerRequestTime, rideHailManager.beamServices),
-          pickupLocation,
-          customerRequestTime,
-          CAR,
-          rideHailAgentLocation.vehicleType.id,
-          rideHailManager.beamScenario,
-          rideHailManager.beamServices.skims.od_skimmer
+          originUTM = rideHailAgentLocation.getCurrentLocationUTM(customerRequestTime, rideHailManager.beamServices),
+          destinationUTM = pickupLocation,
+          departureTime = customerRequestTime,
+          mode = CAR,
+          vehicleTypeId = rideHailAgentLocation.vehicleType.id,
+          rideHailAgentLocation.vehicleType,
+          fuelPrice,
+          beamScenario = rideHailManager.beamScenario,
+          skimmer = rideHailManager.beamServices.skims.od_skimmer,
+          maybeOrigTazId = None,
+          maybeDestTazId = Some(pickupTazId),
         )
         val skimTimeAndDistanceOfTrip = BeamRouter.computeTravelTimeAndDistanceAndCost(
-          pickupLocation,
-          dropoffLocation,
-          customerRequestTime,
-          CAR,
-          rideHailAgentLocation.vehicleType.id,
-          rideHailManager.beamScenario,
-          rideHailManager.beamServices.skims.od_skimmer
+          originUTM = pickupLocation,
+          destinationUTM = dropoffLocation,
+          departureTime = customerRequestTime,
+          mode = CAR,
+          vehicleTypeId = rideHailAgentLocation.vehicleType.id,
+          rideHailAgentLocation.vehicleType,
+          fuelPrice,
+          beamScenario = rideHailManager.beamScenario,
+          skimmer = rideHailManager.beamServices.skims.od_skimmer,
+          maybeOrigTazId = Some(pickupTazId),
+          maybeDestTazId = Some(dropoffTazId),
         )
         // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
         // already moving or dropping off a customer, etc.)

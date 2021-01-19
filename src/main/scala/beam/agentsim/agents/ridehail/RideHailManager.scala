@@ -593,9 +593,10 @@ class RideHailManager(
             .map(
               leg =>
                 leg.cost - DrivingCost.estimateDrivingCost(
-                  leg.beamLeg,
+                  leg.beamLeg.travelPath.distanceInM,
+                  leg.beamLeg.duration,
                   beamScenario.vehicleTypes(leg.beamVehicleTypeId),
-                  beamScenario.fuelTypePrices
+                  beamScenario.fuelTypePrices(beamScenario.vehicleTypes(leg.beamVehicleTypeId).primaryFuelType)
               )
             )
             .sum
@@ -1518,9 +1519,10 @@ class RideHailManager(
         _.beamLegAfterTag.map(
           leg =>
             leg.cost - DrivingCost.estimateDrivingCost(
-              leg.beamLeg,
+              leg.beamLeg.travelPath.distanceInM,
+              leg.beamLeg.duration,
               beamScenario.vehicleTypes(leg.beamVehicleTypeId),
-              beamScenario.fuelTypePrices
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(leg.beamVehicleTypeId).primaryFuelType)
           )
         )
       )

@@ -131,19 +131,23 @@ object RideHailMatching {
     beamServices: BeamServices,
     beamVehicleType: Option[BeamVehicleType]
   ): ODSkimmer.Skim = {
+    val vehicleTypeId = beamVehicleType
+      .map(_.id)
+      .getOrElse(
+        Id.create(
+          beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          classOf[BeamVehicleType]
+        )
+      )
+    val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
     BeamRouter.computeTravelTimeAndDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
       src.baselineNonPooledTime,
       BeamMode.CAR,
-      beamVehicleType
-        .map(_.id)
-        .getOrElse(
-          Id.create(
-            beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-            classOf[BeamVehicleType]
-          )
-        ),
+      vehicleTypeId,
+      vehicleType,
+      beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType),
       beamServices.beamScenario,
       beamServices.skims.od_skimmer
     )
@@ -256,6 +260,12 @@ object RideHailMatching {
     val travelTimeDelayAsFraction =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime
 
+    val vehicleTypeId = Id.create(
+      beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      classOf[BeamVehicleType]
+    )
+    val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
+
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
@@ -264,10 +274,9 @@ object RideHailMatching {
       p1Act2.getCoord,
       departureTime,
       BeamMode.CAR,
-      Id.create(
-        beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-        classOf[BeamVehicleType]
-      ),
+      vehicleType.id,
+      vehicleType,
+      beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType),
       beamServices.beamScenario,
       beamServices.skims.od_skimmer
     )
