@@ -356,6 +356,8 @@ class PersonAgent(
                       0,
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
+                      currentBeamVehicle.beamVehicleType,
+                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType),
                       beamServices.beamScenario
                     )
                     .distance

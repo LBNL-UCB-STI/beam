@@ -181,6 +181,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
+    val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
+    val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
     var writer: BufferedWriter = null
     try {
@@ -212,6 +214,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             newDestCoord,
                             timeBin * 3600,
                             dummyId,
+                            vehicleType,
+                            fuelPrice,
                             beamScenario
                           )
                       } else {
@@ -223,6 +227,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             destination.coord,
                             timeBin * 3600,
                             dummyId,
+                            vehicleType,
+                            fuelPrice,
                             beamScenario
                           )
                       }
@@ -274,6 +280,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
               adjustedDestCoord,
               timeBin * 3600,
               dummyId,
+              beamScenario.vehicleTypes(dummyId),
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(dummyId).primaryFuelType),
               beamScenario
             )
         }
