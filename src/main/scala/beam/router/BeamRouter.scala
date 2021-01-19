@@ -3,18 +3,7 @@ package beam.router
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import akka.actor.Status.Failure
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  Address,
-  Cancellable,
-  ExtendedActorSystem,
-  Props,
-  RelativeActorPath,
-  RootActorPath,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, Address, Cancellable, ExtendedActorSystem, Props, RelativeActorPath, RootActorPath, Stash}
 import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
@@ -38,6 +27,7 @@ import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
@@ -432,7 +422,7 @@ class BeamRouter(
   }
 }
 
-object BeamRouter {
+object BeamRouter extends StrictLogging {
   type Location = Coord
 
   case class ClearRoutedWorkerTracker(workIdToClear: Int)
@@ -779,8 +769,8 @@ object BeamRouter {
     maybeOrigTazId: Option[Id[TAZ]] = None,
     maybeDestTazId: Option[Id[TAZ]] = None,
   ): ODSkimmer.Skim = {
-    if (cnt.get() % 10000 == 0) {
-      println(s"computeTravelTimeAndDistanceAndCost is called ${cnt.get()} times, totalTime: ${totalTime
+    if (cnt.get() % 1000000 == 0) {
+      logger.info(s"computeTravelTimeAndDistanceAndCost is called ${cnt.get()} times, totalTime: ${totalTime
         .get()}, AVG: ${totalTime.get().toDouble / cnt.get()} ms")
     }
     val s = System.currentTimeMillis()
