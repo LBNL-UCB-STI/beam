@@ -131,6 +131,8 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
         any[Int],
         any[BeamMode],
         any[Id[BeamVehicleType]],
+        any[BeamVehicleType],
+        any[Double],
         any[BeamScenario],
         any[Option[Id[TAZ]]],
         any[Option[Id[TAZ]]]

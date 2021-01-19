@@ -76,7 +76,8 @@ class CarGraphHopperWrapper(
   }
 
   override protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double = {
-    DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
+    val vehicleType = vehicleTypes(vehicleTypeId)
+    DrivingCost.estimateDrivingCost(beamLeg.travelPath.distanceInM, beamLeg.duration, vehicleType, fuelTypePrices(vehicleType.primaryFuelType))
   }
 }
 
