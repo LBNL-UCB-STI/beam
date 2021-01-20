@@ -32,7 +32,7 @@ object GenerateSFBayHubsApp extends App with StrictLogging {
 
   val argsMap = parseArgs(args)
 
-  if (argsMap.size != 4) {
+  if (argsMap.size != 3) {
     println(
       "Usage:" +
       " --station-info ~/Downloads/station_information.json" +
@@ -64,7 +64,8 @@ object GenerateSFBayHubsApp extends App with StrictLogging {
   val geo = SimpleGeoUtils()
   stations.foreach(println)
 
-  val zoneArray: Array[ParkingZone[TAZ]] = stations.zipWithIndex.map {
+  private val randomStations = Random.shuffle(stations).take((stations.size * 0.2).toInt)
+  val zoneArray: Array[ParkingZone[TAZ]] = randomStations.zipWithIndex.map {
     case (station, idx) =>
       val stationCoord = geo.wgs2Utm(new Coord(station.lon, station.lat))
       val taz = tazMap.getTAZ(stationCoord)
