@@ -17,7 +17,7 @@ import beam.router.Modes.BeamMode
 import beam.router.NetworkToOsmConverterFromFile.{Node, OsmNetwork, Way}
 import com.typesafe.scalalogging.StrictLogging
 
-class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
+class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
 
   def build(): OsmNetwork = {
     var nodes: mutable.Map[String, Node] = null
@@ -32,9 +32,11 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
 
     var wayId: String = null
     var wayInnerTags: mutable.Buffer[(String, String)] = null
+    var source_destination: (String, String) = null
 
     val xmlInputFactory: XMLInputFactory = XMLInputFactory.newInstance
-    val reader = xmlInputFactory.createXMLEventReader(new FileInputStream(xmlFile.toFile))
+    logger.info(s"Reading from file [$xmlSourceFile]")
+    val reader = xmlInputFactory.createXMLEventReader(new FileInputStream(xmlSourceFile.toFile))
     while (reader.hasNext) {
       val nextEvent: XMLEvent = reader.nextEvent
       if (nextEvent.isStartElement) {
@@ -52,6 +54,10 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
             links = mutable.ArrayBuffer.empty[Way]
             canProcessLink = true
           case "link" if canProcessLink =>
+            source_destination = (
+              startElement.getAttributeByName(new QName("from")).getValue,
+              startElement.getAttributeByName(new QName("to")).getValue
+            )
             wayInnerTags = buildLinkProps(startElement)
           case "attributes" if canProcessLink =>
             canProcessLinkAttributes = true
@@ -70,7 +76,7 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
         endElement.getName.getLocalPart match {
           case "nodes" => canProcessNode = false
           case "link" if canProcessLink =>
-            links += Way(wayId, wayInnerTags)
+            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
           case "links" if canProcessLink =>
             canProcessLink = false
           case "attributes" if canProcessLinkAttributes => canProcessLinkAttributes = false
@@ -93,6 +99,7 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
         }
       }
     }
+    logger.info("Network loaded")
     new OsmNetwork(nodes.values.toSeq, links)
   }
 
@@ -104,8 +111,6 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
   private def buildLinkProps(startElement: StartElement): mutable.Buffer[(String, String)] = {
     // beam linkId is not used?
     // val id = startElement.getAttributeByName(new QName("id"))
-    val from = startElement.getAttributeByName(new QName("from"))
-    val to = startElement.getAttributeByName(new QName("to"))
 
     // not found where use it
     // val length = startElement.getAttributeByName(new QName("length"))
@@ -116,10 +121,13 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
 
     val modes = startElement.getAttributeByName(new QName("modes")).getValue
 
+    /*
+          "ref" -> from.getValue,
+      "ref"      -> to.getValue,
+
+     */
     val result: Seq[(String, String)] = buildSequenceForNonNullValues(
       attributes =
-      "ref" -> from.getValue,
-      "ref"      -> to.getValue,
       "lanes"    -> permLanes.getValue,
       "oneway"   -> (if (Seq("1", "true").contains(oneway.getValue.toLowerCase)) "yes" else "no"),
       "capacity" -> capacity.getValue,
@@ -179,9 +187,11 @@ class NetworkToOsmConverterFromFile(xmlFile: Path) extends StrictLogging {
 
 import javax.xml.stream.XMLOutputFactory
 
-object NetworkToOsmConverterFromFile {
+object NetworkToOsmConverterFromFile extends StrictLogging {
+
   case class Node(id: String, wgsCoordinate: WgsCoordinate)
-  case class Way(id: String, attributes: Seq[(String, String)])
+  case class Way(id: String, from: String, to: String, attributes: Seq[(String, String)])
+
   class OsmNetwork(nodes: Seq[Node], ways: Seq[Way]) {
     private val breakLine = "\n"
     private val indentation = "  "
@@ -189,6 +199,7 @@ object NetworkToOsmConverterFromFile {
     private val timeStampStr = DateTimeFormatter.ISO_INSTANT.format(zoned)
 
     def writeToFile(path: Path): Unit = {
+      logger.info(s"Writing conversion in the file [$path]")
       val xmlOutputFactory = XMLOutputFactory.newInstance
 
       val xmlStreamWriter: XMLStreamWriter = xmlOutputFactory.createXMLStreamWriter(new FileOutputStream(path.toFile))
@@ -216,9 +227,13 @@ object NetworkToOsmConverterFromFile {
         xmlStreamWriter.writeCharacters(breakLine)
       }
       xmlStreamWriter.writeEndDocument()
+      logger.info(s"Finished conversion. File: [$path]")
     }
 
     private def writeWayTags(xmlStreamWriter: XMLStreamWriter, way: Way): Unit = {
+      writeNd(xmlStreamWriter, way.from)
+      writeNd(xmlStreamWriter, way.to)
+
       way.attributes.foreach {
         case (prop, value) =>
           xmlStreamWriter.writeCharacters(indentation * 2)
@@ -228,6 +243,14 @@ object NetworkToOsmConverterFromFile {
           xmlStreamWriter.writeEndElement()
           xmlStreamWriter.writeCharacters(breakLine)
       }
+    }
+
+    private def writeNd(xmlStreamWriter: XMLStreamWriter, value: String): Unit = {
+      xmlStreamWriter.writeCharacters(indentation * 2)
+      xmlStreamWriter.writeStartElement("nd")
+      xmlStreamWriter.writeAttribute("ref", value)
+      xmlStreamWriter.writeEndElement()
+      xmlStreamWriter.writeCharacters(breakLine)
     }
 
     private def writeXmlNodes(xmlStreamWriter: XMLStreamWriter, nodes: Seq[Node]): Unit = {
