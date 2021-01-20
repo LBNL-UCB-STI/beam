@@ -151,8 +151,8 @@ class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
     val x = startElement.getAttributeByName(new QName("x"))
     val y = startElement.getAttributeByName(new QName("y"))
     val wgsCoordinate = WgsCoordinate.fromUtm(
+      longitude = x.getValue.toDouble,
       latitude = y.getValue.toDouble,
-      longitude = x.getValue.toDouble
     )
     Node(id.getValue, wgsCoordinate)
   }
@@ -196,7 +196,7 @@ object NetworkToOsmConverterFromFile extends StrictLogging {
       xmlStreamWriter.writeStartDocument(StandardCharsets.UTF_8.name(), "1.0")
       xmlStreamWriter.writeCharacters(breakLine)
       xmlStreamWriter.writeStartElement("osm")
-      xmlStreamWriter.writeAttribute("version", "0.1")
+      xmlStreamWriter.writeAttribute("version", "0.6")
       xmlStreamWriter.writeAttribute("generator", "beam")
       xmlStreamWriter.writeCharacters(breakLine)
 
@@ -227,26 +227,31 @@ object NetworkToOsmConverterFromFile extends StrictLogging {
       way.attributes.foreach {
         case (prop, value) =>
           xmlStreamWriter.writeCharacters(indentation * 2)
-          xmlStreamWriter.writeStartElement("tag")
+
+          xmlStreamWriter.writeEmptyElement("tag")
           xmlStreamWriter.writeAttribute("k", prop)
           xmlStreamWriter.writeAttribute("v", value)
-          xmlStreamWriter.writeEndElement()
+
           xmlStreamWriter.writeCharacters(breakLine)
       }
     }
 
     private def writeNd(xmlStreamWriter: XMLStreamWriter, value: String): Unit = {
       xmlStreamWriter.writeCharacters(indentation * 2)
-      xmlStreamWriter.writeStartElement("nd")
+
+      xmlStreamWriter.writeEmptyElement("nd")
       xmlStreamWriter.writeAttribute("ref", value)
-      xmlStreamWriter.writeEndElement()
+
       xmlStreamWriter.writeCharacters(breakLine)
+
     }
 
     private def writeXmlNodes(xmlStreamWriter: XMLStreamWriter, nodes: Seq[Node]): Unit = {
       nodes.foreach { node =>
         xmlStreamWriter.writeCharacters(indentation)
-        xmlStreamWriter.writeStartElement("node")
+
+        xmlStreamWriter.writeEmptyElement("node")
+
         xmlStreamWriter.writeAttribute("id", node.id)
 
         xmlStreamWriter.writeAttribute("version", "1")
@@ -254,8 +259,8 @@ object NetworkToOsmConverterFromFile extends StrictLogging {
 
         xmlStreamWriter.writeAttribute("lat", node.wgsCoordinate.latitude.toString)
         xmlStreamWriter.writeAttribute("lon", node.wgsCoordinate.longitude.toString)
-        xmlStreamWriter.writeEndElement()
-        xmlStreamWriter.writeCharacters("\n")
+
+        xmlStreamWriter.writeCharacters(breakLine)
       }
     }
   }
