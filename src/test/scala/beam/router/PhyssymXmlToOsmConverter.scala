@@ -2,11 +2,11 @@ package beam.router
 
 import java.io.{FileInputStream, FileOutputStream}
 import java.nio.charset.StandardCharsets
-import java.nio.file.Path
-import java.time.format.DateTimeFormatter
+import java.nio.file.{Files, Path, Paths}
 import java.time.{LocalDateTime, ZoneOffset}
+import java.time.format.DateTimeFormatter
 import javax.xml.namespace.QName
-import javax.xml.stream.{XMLInputFactory, XMLStreamWriter}
+import javax.xml.stream.{XMLInputFactory, XMLOutputFactory, XMLStreamWriter}
 import javax.xml.stream.events.{Attribute, Characters, StartElement, XMLEvent}
 
 import scala.collection.mutable
@@ -14,12 +14,13 @@ import scala.collection.mutable.ArrayBuffer
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.router.Modes.BeamMode
-import beam.router.NetworkToOsmConverterFromFile.{Node, OsmNetwork, Way}
 import com.typesafe.scalalogging.StrictLogging
 
-class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
+object PhyssymXmlToOsmConverter extends StrictLogging {
 
-  def build(): OsmNetwork = {
+  def build(xmlSourceFile: Path): OsmNetwork = {
+    require(Files.isRegularFile(xmlSourceFile), s"Path [$xmlSourceFile] is not regular file")
+
     var nodes: mutable.Map[String, Node] = null
     var canProcessNode = false
 
@@ -103,7 +104,7 @@ class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
     new OsmNetwork(nodes.values.toSeq, links)
   }
 
-  def isBlank(str: String): Boolean = {
+  private def isBlank(str: String): Boolean = {
     val allBlank = Seq(' ', '\t', '\r', '\n')
     str == null || str.forall(c => allBlank.contains(c))
   }
@@ -157,7 +158,7 @@ class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
     Node(id.getValue, wgsCoordinate)
   }
 
-  def buildSequenceForNonNullValues(attributes: (String, String)*): Seq[(String, String)] = {
+  private def buildSequenceForNonNullValues(attributes: (String, String)*): Seq[(String, String)] = {
     val result: Seq[(String, String)] = attributes.flatMap { attr =>
       Option(attr._2).map { value =>
         attr._1 -> value
@@ -166,18 +167,10 @@ class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
     Seq(result: _*)
   }
 
-  // check the attribute name of the tag
-  def tagNameHasKind(startElement: StartElement, kind: String): Boolean = {
+  private def tagNameHasKind(startElement: StartElement, kind: String): Boolean = {
     val elementKind = startElement.getAttributeByName(new QName("name"))
-//    Objects.equals(kind, elementKind)
     elementKind != null && elementKind.getValue.equals(kind)
   }
-
-}
-
-import javax.xml.stream.XMLOutputFactory
-
-object NetworkToOsmConverterFromFile extends StrictLogging {
 
   case class Node(id: String, wgsCoordinate: WgsCoordinate)
   case class Way(id: String, from: String, to: String, attributes: Seq[(String, String)])
@@ -263,6 +256,14 @@ object NetworkToOsmConverterFromFile extends StrictLogging {
         xmlStreamWriter.writeCharacters(breakLine)
       }
     }
+  }
+
+  def main(args: Array[String]): Unit = {
+    val sourcePhyssimNetwork = Paths.get(args(0))
+    val targetOsm = Paths.get(args(1))
+
+    val network = build(sourcePhyssimNetwork)
+    network.writeToFile(targetOsm)
   }
 
 }
