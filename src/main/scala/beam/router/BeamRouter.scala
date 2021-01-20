@@ -772,7 +772,7 @@ object BeamRouter extends StrictLogging {
     maybeDestTazId: Option[Id[TAZ]] = None,
   ): ODSkimmer.Skim = {
     if (cnt.get() % 1000000 == 0) {
-      logger.info(s"computeTravelTimeAndDistanceAndCost is called ${cnt.get()} times, totalTime: ${totalTime
+      logger.warn(s"computeTravelTimeAndDistanceAndCost is called ${cnt.get()} times, totalTime: ${totalTime
         .get()}, AVG: ${totalTime.get().toDouble / cnt.get()} ms")
     }
     val s = System.currentTimeMillis()

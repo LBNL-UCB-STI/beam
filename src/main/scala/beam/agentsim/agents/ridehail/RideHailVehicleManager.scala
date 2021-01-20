@@ -269,12 +269,20 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     }
   }
 
+  var nGetIdleAndRepositioningVehiclesAndFilterOutExluded: Int = 0
+  var totalTimeMs: Int = 0
+
   /**
     * Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
     * any that should be excluded according to the doNotUseInAllocation map.
     * @return HashMap from Id[BeamVehicle] to RideHailAgentLocation
     */
   def getIdleAndRepositioningVehiclesAndFilterOutExluded: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
+    if (nGetIdleAndRepositioningVehiclesAndFilterOutExluded % 10000 == 0) {
+      logger.info(s"getIdleAndRepositioningVehiclesAndFilterOutExluded for ${nGetIdleAndRepositioningVehiclesAndFilterOutExluded} took ${totalTimeMs} ms, AVG: ${totalTimeMs.toDouble / nGetIdleAndRepositioningVehiclesAndFilterOutExluded}")
+    }
+
+    val s = System.currentTimeMillis()
     val filteredVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = collection.mutable.HashMap()
 
     def addIfNotInAllocation(
@@ -290,6 +298,11 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
 
     addIfNotInAllocation(idleRideHailVehicles)
     addIfNotInAllocation(getRepositioningVehicles)
+
+    val e = System.currentTimeMillis()
+    val diff = e - s
+    totalTimeMs += diff.toInt
+    nGetIdleAndRepositioningVehiclesAndFilterOutExluded += 1
 
     filteredVehicles
   }
