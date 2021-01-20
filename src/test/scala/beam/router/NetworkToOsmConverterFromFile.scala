@@ -109,11 +109,6 @@ class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
   }
 
   private def buildLinkProps(startElement: StartElement): mutable.Buffer[(String, String)] = {
-    // beam linkId is not used?
-    // val id = startElement.getAttributeByName(new QName("id"))
-
-    // not found where use it
-    // val length = startElement.getAttributeByName(new QName("length"))
     val freeSpeedy = startElement.getAttributeByName(new QName("freespeed"))
     val capacity = startElement.getAttributeByName(new QName("capacity"))
     val permLanes = startElement.getAttributeByName(new QName("permlanes"))
@@ -121,11 +116,6 @@ class NetworkToOsmConverterFromFile(xmlSourceFile: Path) extends StrictLogging {
 
     val modes = startElement.getAttributeByName(new QName("modes")).getValue
 
-    /*
-          "ref" -> from.getValue,
-      "ref"      -> to.getValue,
-
-     */
     val result: Seq[(String, String)] = buildSequenceForNonNullValues(
       attributes =
       "lanes"    -> permLanes.getValue,
