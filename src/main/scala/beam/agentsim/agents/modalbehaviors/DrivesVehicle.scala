@@ -30,7 +30,12 @@ import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent, VehicleEntersTrafficEvent, VehicleLeavesTrafficEvent}
+import org.matsim.api.core.v01.events.{
+  LinkEnterEvent,
+  LinkLeaveEvent,
+  VehicleEntersTrafficEvent,
+  VehicleLeavesTrafficEvent
+}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
@@ -872,40 +877,48 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     val (chargingDuration, energyInJoules) =
       vehicle.refuelingSessionDurationAndEnergyInJoules(Some(currentTick - vehicle.getChargerConnectedTick()))
 
-    log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
-    vehicle.addFuel(energyInJoules)
+    try {
+      log.debug("Ending refuel session for {} in tick {}. Provided {} J.", vehicle.id, currentTick, energyInJoules)
+      vehicle.addFuel(energyInJoules)
 
-    val refuelSessionEvent: RefuelSessionEvent = new RefuelSessionEvent(
-      currentTick,
-      vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-      energyInJoules,
-      vehicle.primaryFuelLevelInJoules - energyInJoules,
-      chargingDuration,
-      vehicle.id,
-      vehicle.beamVehicleType
-    )
-    eventsManager.processEvent(refuelSessionEvent)
-    vehicle.disconnectFromChargingPoint()
-    log.debug(
-      "Vehicle {} disconnected from charger @ stall {}",
-      vehicle.id,
-      vehicle.stall.get
-    )
-    val chargingPlugOutEvent: ChargingPlugOutEvent = new ChargingPlugOutEvent(
-      currentTick,
-      vehicle.stall.get
-        .copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
-      vehicle.id,
-      vehicle.primaryFuelLevelInJoules,
-      Some(vehicle.secondaryFuelLevelInJoules)
-    )
-    eventsManager.processEvent(chargingPlugOutEvent)
+      val refuelSessionEvent: RefuelSessionEvent = new RefuelSessionEvent(
+        currentTick,
+        vehicle.stall.get.copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        energyInJoules,
+        vehicle.primaryFuelLevelInJoules - energyInJoules,
+        chargingDuration,
+        vehicle.id,
+        vehicle.beamVehicleType
+      )
+      eventsManager.processEvent(refuelSessionEvent)
+      vehicle.disconnectFromChargingPoint()
+      log.debug(
+        "Vehicle {} disconnected from charger @ stall {}",
+        vehicle.id,
+        vehicle.stall.get
+      )
+      val chargingPlugOutEvent: ChargingPlugOutEvent = new ChargingPlugOutEvent(
+        currentTick,
+        vehicle.stall.get
+          .copy(locationUTM = geo.utm2Wgs(vehicle.stall.get.locationUTM)),
+        vehicle.id,
+        vehicle.primaryFuelLevelInJoules,
+        Some(vehicle.secondaryFuelLevelInJoules)
+      )
+      eventsManager.processEvent(chargingPlugOutEvent)
+    } catch {
+      case _: NoSuchElementException =>
+        log.error("the vehicle {} might have been disconnected by another agent", vehicle)
+      case e: Exception =>
+        throw e
+    }
+
     vehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.geoId)
         vehicle.unsetParkingStall()
       case None =>
-        log.error("Vehicle has no stall while ending charging event")
+        log.error("Vehicle {} has no stall while ending charging event", vehicle)
     }
 
   }

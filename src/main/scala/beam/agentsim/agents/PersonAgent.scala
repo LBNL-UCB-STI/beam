@@ -451,7 +451,10 @@ class PersonAgent(
               .get(idVehicleOrTokenTuple._1)
               .foreach(beamvehicle => {
                 if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
-                  handleEndCharging(Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt, beamvehicle)
+                  val endOfTime = Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt
+                  val (chargingDuration, _) = beamvehicle
+                    .refuelingSessionDurationAndEnergyInJoules(Some(endOfTime - beamvehicle.getChargerConnectedTick()))
+                  handleEndCharging(beamvehicle.getChargerConnectedTick() + chargingDuration, beamvehicle)
                 }
               })
           })
