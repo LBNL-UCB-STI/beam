@@ -323,7 +323,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getRepositioningVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    inServiceRideHailVehicles.filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false))
+    inServiceRideHailVehicles.par.filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false)).seq
   }
 
   def getVehiclesServingCustomers: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
