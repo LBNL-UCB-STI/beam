@@ -5,6 +5,7 @@ import java.util
 
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
@@ -49,6 +50,10 @@ object ShapeUtils {
       override def getMaxY(envelope: Envelope): Double = envelope.getMaxY
     }
 
+  }
+
+  trait HasCoord[A] {
+    def getCoord(a: A): Coord
   }
 
   private def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
@@ -169,5 +174,17 @@ object ShapeUtils {
       maxY = Math.max(maxY, A.getMaxY(a))
     }
     QuadTreeBounds(minX, minY, maxX, maxY)
+  }
+
+  def quadTree[A: HasCoord](elements: Seq[A]): QuadTree[A] = {
+    val A = implicitly[HasCoord[A]]
+    val coords = elements.map(A.getCoord)
+    val bounds: ShapeUtils.QuadTreeBounds = ShapeUtils.quadTreeBounds(coords)
+    val quadTree: QuadTree[A] = new QuadTree(bounds.minx, bounds.miny, bounds.maxx, bounds.maxy)
+
+    for ((x, coord) <- elements zip coords) {
+      quadTree.put(coord.getX, coord.getY, x)
+    }
+    quadTree
   }
 }
