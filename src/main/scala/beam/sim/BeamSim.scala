@@ -320,6 +320,9 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    BeamRouter.cnt.set(0)
+    BeamRouter.totalTime.set(0)
+
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
         beamServices.beamCustomizationAPI.getEventBuilders(beamServices.matsimServices.getEvents)

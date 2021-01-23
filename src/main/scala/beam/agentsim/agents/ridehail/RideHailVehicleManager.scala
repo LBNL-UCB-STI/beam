@@ -193,25 +193,37 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     val diff1 = end - start
 
     start = System.currentTimeMillis()
+    val pickupTazId = rideHailManager.beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY).tazId
+    val dropoffTazId = rideHailManager.beamScenario.tazTreeMap.getTAZ(dropoffLocation.getX, dropoffLocation.getY).tazId
+
     val times2RideHailAgents = nearbyAvailableRideHailAgents
       .map { rideHailAgentLocation =>
+        val fuelPrice = rideHailManager.beamScenario.fuelTypePrices(rideHailAgentLocation.vehicleType.primaryFuelType)
         val skimTimeAndDistanceToCustomer = BeamRouter.computeTravelTimeAndDistanceAndCost(
-          rideHailAgentLocation.getCurrentLocationUTM(customerRequestTime, rideHailManager.beamServices),
-          pickupLocation,
-          customerRequestTime,
-          CAR,
-          rideHailAgentLocation.vehicleType.id,
-          rideHailManager.beamScenario,
-          rideHailManager.beamServices.skims.od_skimmer
+          originUTM = rideHailAgentLocation.getCurrentLocationUTM(customerRequestTime, rideHailManager.beamServices),
+          destinationUTM = pickupLocation,
+          departureTime = customerRequestTime,
+          mode = CAR,
+          vehicleTypeId = rideHailAgentLocation.vehicleType.id,
+          rideHailAgentLocation.vehicleType,
+          fuelPrice,
+          beamScenario = rideHailManager.beamScenario,
+          skimmer = rideHailManager.beamServices.skims.od_skimmer,
+          maybeOrigTazId = None,
+          maybeDestTazId = Some(pickupTazId),
         )
         val skimTimeAndDistanceOfTrip = BeamRouter.computeTravelTimeAndDistanceAndCost(
-          pickupLocation,
-          dropoffLocation,
-          customerRequestTime,
-          CAR,
-          rideHailAgentLocation.vehicleType.id,
-          rideHailManager.beamScenario,
-          rideHailManager.beamServices.skims.od_skimmer
+          originUTM = pickupLocation,
+          destinationUTM = dropoffLocation,
+          departureTime = customerRequestTime,
+          mode = CAR,
+          vehicleTypeId = rideHailAgentLocation.vehicleType.id,
+          rideHailAgentLocation.vehicleType,
+          fuelPrice,
+          beamScenario = rideHailManager.beamScenario,
+          skimmer = rideHailManager.beamServices.skims.od_skimmer,
+          maybeOrigTazId = Some(pickupTazId),
+          maybeDestTazId = Some(dropoffTazId),
         )
         // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
         // already moving or dropping off a customer, etc.)
@@ -257,12 +269,20 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     }
   }
 
+  var nGetIdleAndRepositioningVehiclesAndFilterOutExluded: Int = 0
+  var totalTimeMs: Int = 0
+
   /**
     * Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
     * any that should be excluded according to the doNotUseInAllocation map.
     * @return HashMap from Id[BeamVehicle] to RideHailAgentLocation
     */
   def getIdleAndRepositioningVehiclesAndFilterOutExluded: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
+    if (nGetIdleAndRepositioningVehiclesAndFilterOutExluded % 10000 == 0) {
+      logger.info(s"getIdleAndRepositioningVehiclesAndFilterOutExluded for ${nGetIdleAndRepositioningVehiclesAndFilterOutExluded} took ${totalTimeMs} ms, AVG: ${totalTimeMs.toDouble / nGetIdleAndRepositioningVehiclesAndFilterOutExluded}")
+    }
+
+    val s = System.currentTimeMillis()
     val filteredVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = collection.mutable.HashMap()
 
     def addIfNotInAllocation(
@@ -278,6 +298,11 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
 
     addIfNotInAllocation(idleRideHailVehicles)
     addIfNotInAllocation(getRepositioningVehicles)
+
+    val e = System.currentTimeMillis()
+    val diff = e - s
+    totalTimeMs += diff.toInt
+    nGetIdleAndRepositioningVehiclesAndFilterOutExluded += 1
 
     filteredVehicles
   }
@@ -298,7 +323,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getRepositioningVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    inServiceRideHailVehicles.filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false))
+    inServiceRideHailVehicles.par.filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false)).seq
   }
 
   def getVehiclesServingCustomers: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {

@@ -104,6 +104,8 @@ class InverseSquareDistanceRepositioningFactor(
               tick,
               CAR,
               vehAndNewLoc._1.vehicleType.id,
+              vehAndNewLoc._1.vehicleType,
+              beamServices.beamScenario.fuelTypePrices(vehAndNewLoc._1.vehicleType.primaryFuelType),
               beamServices.beamScenario
             )
             .distance <= rideHailManager.vehicleManager

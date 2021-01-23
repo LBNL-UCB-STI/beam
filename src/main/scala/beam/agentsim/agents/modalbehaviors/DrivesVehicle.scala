@@ -349,17 +349,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             data.passengerSchedule.schedule.keys.view
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
-//          val startLegTriggerTick = if (nextLeg.startTime < tick) {
-//            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
-//            tick
-//          } else {
-//            nextLeg.startTime
-//          }
+          val startLegTriggerTick = if (nextLeg.startTime < tick) {
+            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
+            tick
+          } else {
+            nextLeg.startTime
+          }
           goto(WaitingToDrive) using stripLiterallyDrivingData(data)
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T] replying CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+            Vector(ScheduleTrigger(StartLegTrigger(startLegTriggerTick, nextLeg), self))
           )
         }
       } else {

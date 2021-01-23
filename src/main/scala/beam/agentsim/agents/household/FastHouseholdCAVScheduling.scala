@@ -162,6 +162,8 @@ class FastHouseholdCAVScheduling(
           prevReq.baselineNonPooledTime,
           BeamMode.CAR,
           cav.beamVehicleType.id,
+          cav.beamVehicleType,
+          beamServices.beamScenario.fuelTypePrices(cav.beamVehicleType.primaryFuelType),
           beamServices.beamScenario
         )
         var serviceTime = prevReq.serviceTime + metric.time
@@ -472,6 +474,8 @@ object HouseholdTripsHelper {
       0,
       defaultMode,
       beamVehicleType.id,
+      beamVehicleType,
+      beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType),
       beamServices.beamScenario
     )
 

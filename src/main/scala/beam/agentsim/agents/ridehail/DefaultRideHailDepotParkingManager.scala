@@ -256,6 +256,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
             currentTick,
             CAR,
             beamVehicle.beamVehicleType.id,
+            beamVehicle.beamVehicleType,
+            beamServices.beamScenario.fuelTypePrices(beamVehicle.beamVehicleType.primaryFuelType),
             beamServices.beamScenario
           )
         val remainingRange = beamVehicle.getTotalRemainingRange

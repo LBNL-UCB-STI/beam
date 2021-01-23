@@ -4,9 +4,8 @@ import java.awt.Color
 import java.io.File
 import java.util
 import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, OneForOneStrategy, Props, Stash, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.Resource._
@@ -21,11 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, Refuelin
 import beam.agentsim.agents.ridehail.allocation.{DispatchProductType, _}
 import beam.agentsim.agents.ridehail.charging.VehicleChargingManager
 import beam.agentsim.agents.ridehail.kpis.RealTimeKpis
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -66,6 +61,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.Random
+import scala.concurrent.duration._
 
 object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
@@ -402,11 +398,19 @@ class RideHailManager(
   var timeSpendForFindAllocationsAndProcessMs: Long = 0
   var nFindAllocationsAndProcess: Int = 0
 
+  val tick = "rhm-tick"
+  val tickTask: Cancellable =
+    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, tick)(context.dispatcher)
+
   var prevReposTick: Int = 0
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
 
   override def receive: Receive = BeamLoggingReceive {
+    case `tick` =>
+      log.info(s"timeSpendForHandleRideHailInquiryMs: ${timeSpendForHandleRideHailInquiryMs} ms, nHandleRideHailInquiry: ${nHandleRideHailInquiry}, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}")
+      log.info(s"timeSpendForFindAllocationsAndProcessMs: ${timeSpendForFindAllocationsAndProcessMs} ms, nFindAllocationsAndProcess: ${nFindAllocationsAndProcess}, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}")
+
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
 
@@ -567,9 +571,10 @@ class RideHailManager(
             .map(
               leg =>
                 leg.cost - DrivingCost.estimateDrivingCost(
-                  leg.beamLeg,
+                  leg.beamLeg.travelPath.distanceInM,
+                  leg.beamLeg.duration,
                   beamScenario.vehicleTypes(leg.beamVehicleTypeId),
-                  beamScenario.fuelTypePrices
+                  beamScenario.fuelTypePrices(beamScenario.vehicleTypes(leg.beamVehicleTypeId).primaryFuelType)
               )
             )
             .sum
@@ -1492,9 +1497,10 @@ class RideHailManager(
         _.beamLegAfterTag.map(
           leg =>
             leg.cost - DrivingCost.estimateDrivingCost(
-              leg.beamLeg,
+              leg.beamLeg.travelPath.distanceInM,
+              leg.beamLeg.duration,
               beamScenario.vehicleTypes(leg.beamVehicleTypeId),
-              beamScenario.fuelTypePrices
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(leg.beamVehicleTypeId).primaryFuelType)
           )
         )
       )
