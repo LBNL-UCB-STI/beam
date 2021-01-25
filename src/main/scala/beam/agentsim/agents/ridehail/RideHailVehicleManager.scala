@@ -268,8 +268,8 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     val filteredVehicles = new java.util.HashMap[Id[BeamVehicle], RideHailAgentLocation](maxSize)
 
     def addIfNotInAllocation(
-                              idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailVehicleManager.RideHailAgentLocation]
-                            ): Unit = {
+      idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailVehicleManager.RideHailAgentLocation]
+    ): Unit = {
       idleOrRepositioning.foreach {
         case (vehicleId, location) =>
           if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
@@ -300,7 +300,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getRepositioningVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    inServiceRideHailVehicles.par.filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false)).seq
+    inServiceRideHailVehicles.par
+      .filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false))
+      .seq
   }
 
   def getVehiclesServingCustomers: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
