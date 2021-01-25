@@ -169,7 +169,8 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
             car.beamVehicleType.id,
             currentPointUTM,
             CAR,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           )
         val streetVehicles = Vector(carStreetVeh)
         val maybeAttributes: Option[AttributesOfIndividual] =

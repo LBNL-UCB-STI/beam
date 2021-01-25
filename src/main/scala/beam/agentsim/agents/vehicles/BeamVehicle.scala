@@ -306,7 +306,8 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || managerInfo.managerType.isShared
+    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
