@@ -1,5 +1,6 @@
 package beam.utils
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 /**
   * Created by sfeygin on 4/10/17.
@@ -105,6 +106,18 @@ object MathUtils {
   }
 
   def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
+
+  /**
+    * Tested with not negative
+    * @param x float to round
+    * @return one of the nearest integers depending on the random value and the fraction of x
+    */
+  def roundUniformly(x: Double): Long = {
+    val floor: Double = Math.floor(x)
+    val diff = x - floor
+    val addition = if (Random.nextDouble() < diff) 1 else 0
+    Math.round(floor + addition)
+  }
 
   def formatBytes(v: Long): String = {
     if (v < 1024) return v + " B"
