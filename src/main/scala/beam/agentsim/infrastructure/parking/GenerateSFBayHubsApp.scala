@@ -65,6 +65,7 @@ object GenerateSFBayHubsApp extends App with StrictLogging {
   stations.foreach(println)
 
   private val randomStations = Random.shuffle(stations).take((stations.size * 0.2).toInt)
+
   val zoneArray: Array[ParkingZone[TAZ]] = randomStations.zipWithIndex.map {
     case (station, idx) =>
       val stationCoord = geo.wgs2Utm(new Coord(station.lon, station.lat))
