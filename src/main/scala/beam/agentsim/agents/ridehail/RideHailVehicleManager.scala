@@ -277,17 +277,14 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     * any that should be excluded according to the doNotUseInAllocation map.
     * @return HashMap from Id[BeamVehicle] to RideHailAgentLocation
     */
-  def getIdleAndRepositioningVehiclesAndFilterOutExluded: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    if (nGetIdleAndRepositioningVehiclesAndFilterOutExluded % 10000 == 0) {
-      logger.info(s"getIdleAndRepositioningVehiclesAndFilterOutExluded for ${nGetIdleAndRepositioningVehiclesAndFilterOutExluded} took ${totalTimeMs} ms, AVG: ${totalTimeMs.toDouble / nGetIdleAndRepositioningVehiclesAndFilterOutExluded}")
-    }
-
-    val s = System.currentTimeMillis()
-    val filteredVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = collection.mutable.HashMap()
+  def getIdleAndRepositioningVehiclesAndFilterOutExluded: mutable.Map[Id[BeamVehicle], RideHailAgentLocation] = {
+    val repositioningVehicles = getRepositioningVehicles
+    val maxSize = idleRideHailVehicles.size + repositioningVehicles.size
+    val filteredVehicles = new java.util.HashMap[Id[BeamVehicle], RideHailAgentLocation](maxSize)
 
     def addIfNotInAllocation(
       idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailVehicleManager.RideHailAgentLocation]
-    ) = {
+    ): Unit = {
       idleOrRepositioning.foreach {
         case (vehicleId, location) =>
           if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
@@ -297,14 +294,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     }
 
     addIfNotInAllocation(idleRideHailVehicles)
-    addIfNotInAllocation(getRepositioningVehicles)
+    addIfNotInAllocation(repositioningVehicles)
 
-    val e = System.currentTimeMillis()
-    val diff = e - s
-    totalTimeMs += diff.toInt
-    nGetIdleAndRepositioningVehiclesAndFilterOutExluded += 1
-
-    filteredVehicles
+    filteredVehicles.asScala
   }
 
   def getIdleAndRepositioningAndOfflineCAVsAndFilterOutExluded
@@ -323,7 +315,9 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
   }
 
   def getRepositioningVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    inServiceRideHailVehicles.par.filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false)).seq
+    inServiceRideHailVehicles.par
+      .filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false))
+      .seq
   }
 
   def getVehiclesServingCustomers: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {

@@ -5,7 +5,17 @@ import java.io.File
 import java.util
 import java.util.concurrent.TimeUnit
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  BeamLoggingReceive,
+  Cancellable,
+  OneForOneStrategy,
+  Props,
+  Stash,
+  Terminated
+}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.Resource._
@@ -206,6 +216,7 @@ object RideHailManager {
 
   }
 
+  case object DebugReport
 }
 
 class RideHailManager(
@@ -389,6 +400,7 @@ class RideHailManager(
     log.info(s"requestedRideHail: $requestedRideHail")
     log.info(s"servedRideHail: $servedRideHail")
     log.info(s"ratio: ${servedRideHail.toDouble / requestedRideHail}")
+    maybeDebugReport.foreach(_.cancel())
     super.postStop()
   }
 
@@ -398,18 +410,24 @@ class RideHailManager(
   var timeSpendForFindAllocationsAndProcessMs: Long = 0
   var nFindAllocationsAndProcess: Int = 0
 
-  val tick = "rhm-tick"
-  val tickTask: Cancellable =
-    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, tick)(context.dispatcher)
+  val maybeDebugReport: Option[Cancellable] = if (beamServices.beamConfig.beam.debug.debugEnabled) {
+    Some(context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, DebugReport)(context.dispatcher))
+  } else {
+    None
+  }
 
   var prevReposTick: Int = 0
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
 
   override def receive: Receive = BeamLoggingReceive {
-    case `tick` =>
-      log.info(s"timeSpendForHandleRideHailInquiryMs: ${timeSpendForHandleRideHailInquiryMs} ms, nHandleRideHailInquiry: ${nHandleRideHailInquiry}, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}")
-      log.info(s"timeSpendForFindAllocationsAndProcessMs: ${timeSpendForFindAllocationsAndProcessMs} ms, nFindAllocationsAndProcess: ${nFindAllocationsAndProcess}, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}")
+    case DebugReport =>
+      log.info(
+        s"timeSpendForHandleRideHailInquiryMs: ${timeSpendForHandleRideHailInquiryMs} ms, nHandleRideHailInquiry: ${nHandleRideHailInquiry}, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"
+      )
+      log.info(
+        s"timeSpendForFindAllocationsAndProcessMs: ${timeSpendForFindAllocationsAndProcessMs} ms, nFindAllocationsAndProcess: ${nFindAllocationsAndProcess}, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
+      )
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
