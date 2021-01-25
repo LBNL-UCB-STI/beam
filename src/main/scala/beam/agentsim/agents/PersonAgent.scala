@@ -68,6 +68,7 @@ object PersonAgent {
     personId: Id[PersonAgent],
     householdRef: ActorRef,
     plan: Plan,
+    fleetManagers: Seq[ActorRef],
     sharedVehicleFleets: Seq[ActorRef],
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
@@ -88,6 +89,7 @@ object PersonAgent {
         parkingManager,
         tollCalculator,
         householdRef,
+        fleetManagers,
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
         routeHistory,
@@ -246,7 +248,8 @@ class PersonAgent(
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
-  val vehicleFleets: Seq[ActorRef] = Vector(),
+  val fleetManagers: Seq[ActorRef] = Vector(),
+  val sharedVehicleFleets: Seq[ActorRef] = Vector(),
   val possibleSharedVehicleTypes: Set[BeamVehicleType] = Set.empty,
   val routeHistory: RouteHistory,
   val boundingBox: Envelope
@@ -270,6 +273,8 @@ class PersonAgent(
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
+
+  val vehicleFleets: Seq[ActorRef] = fleetManagers ++ sharedVehicleFleets
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes

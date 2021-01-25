@@ -299,7 +299,8 @@ object HouseholdActor {
               person.getId,
               self,
               selectedPlan,
-              fleetManagers ++: sharedVehicleFleets,
+              fleetManagers.toSeq,
+              sharedVehicleFleets,
               possibleSharedVehicleTypes,
               routeHistory,
               boundingBox
