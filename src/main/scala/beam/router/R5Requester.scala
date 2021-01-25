@@ -106,7 +106,8 @@ object R5Requester extends BeamHelper {
       vehicleTypeId = Id.create(vehicleTypeId, classOf[BeamVehicleType]),
       locationUTM = SpaceTime(loc = location, time = 30600),
       mode = beamMode,
-      asDriver = true
+      asDriver = true,
+      needsToCalculateCost = beamMode == BeamMode.CAR || beamMode == BeamMode.CAV
     )
   }
 }

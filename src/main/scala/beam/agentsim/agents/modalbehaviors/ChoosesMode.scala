@@ -46,7 +46,8 @@ trait ChoosesMode {
     "dummyRH",
     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
     CAR,
-    asDriver = false
+    asDriver = false,
+    needsToCalculateCost = true
   )
 
   //this dummy shared vehicles is used in R5 requests on egress side
@@ -58,14 +59,16 @@ trait ChoosesMode {
           "dummySharedCar",
           beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
           CAR,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = true
         )
       case VehicleCategory.Bike =>
         createDummyVehicle(
           "dummySharedBike",
           beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
           BIKE,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = true
         )
       case category @ _ =>
         throw new IllegalArgumentException(
@@ -74,7 +77,13 @@ trait ChoosesMode {
     }
     .toIndexedSeq
 
-  private def createDummyVehicle(id: String, vehicleTypeId: String, mode: BeamMode, asDriver: Boolean) =
+  private def createDummyVehicle(
+                                  id: String,
+                                  vehicleTypeId: String,
+                                  mode: BeamMode,
+                                  asDriver: Boolean,
+                                  needsToCalculateCost: Boolean
+  ) =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
       Id.create(
@@ -83,7 +92,8 @@ trait ChoosesMode {
       ),
       SpaceTime(0.0, 0.0, 0),
       mode,
-      asDriver = asDriver
+      asDriver = asDriver,
+      needsToCalculateCost = needsToCalculateCost
     )
 
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
@@ -761,7 +771,8 @@ trait ChoosesMode {
       body.beamVehicleType.id,
       locationUTM,
       WALK,
-      asDriver = true
+      asDriver = true,
+      needsToCalculateCost = false
     )
   }
 

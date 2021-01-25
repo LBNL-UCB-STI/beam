@@ -866,7 +866,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         .toVector
       tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(beamLeg.travelPath)
     } else 0.0
-    val drivingCost = if (segment.mode == LegMode.CAR) {
+    val drivingCost = if (segment.mode == LegMode.CAR || vehicle.needsToCalculateCost) {
       DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
     } else 0.0
     EmbodiedBeamLeg(

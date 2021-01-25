@@ -143,17 +143,26 @@ trait ChoosesParking extends {
         val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
         val finalPoint = nextLeg.travelPath.endPoint
 
+        val streetVehicle = currentBeamVehicle.toStreetVehicle
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
           StreetVehicle(
             currentBeamVehicle.id,
             currentBeamVehicle.beamVehicleType.id,
             currentPointUTM,
-            currentBeamVehicle.toStreetVehicle.mode,
-            asDriver = true
+            streetVehicle.mode,
+            asDriver = true,
+            streetVehicle.needsToCalculateCost
           )
         val bodyStreetVeh =
-          StreetVehicle(body.id, body.beamVehicleType.id, currentPointUTM, WALK, asDriver = true)
+          StreetVehicle(
+            body.id,
+            body.beamVehicleType.id,
+            currentPointUTM,
+            WALK,
+            asDriver = true,
+            needsToCalculateCost = false
+          )
         val veh2StallRequest = RoutingRequest(
           currentLocUTM,
           stall.locationUTM,
@@ -178,7 +187,8 @@ trait ChoosesParking extends {
               body.beamVehicleType.id,
               SpaceTime(stall.locationUTM, currentPoint.time),
               WALK,
-              asDriver = true
+              asDriver = true,
+              needsToCalculateCost = false
             )
           ),
           Some(attributes)
