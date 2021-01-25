@@ -1,6 +1,6 @@
 package beam.agentsim.agents.modalbehaviors
 
-import akka.actor.FSM
+import akka.actor.{ActorRef, FSM}
 import akka.pattern._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
@@ -183,14 +183,22 @@ trait ChoosesMode {
             _,
             ) =>
           implicit val executionContext: ExecutionContext = context.system.dispatcher
-          requestAvailableVehicles(currentLocation, _experiencedBeamPlan.activities(currentActivityIndex)) pipeTo self
+          requestAvailableVehicles(
+            vehicleFleets,
+            currentLocation,
+            _experiencedBeamPlan.activities(currentActivityIndex)
+          ) pipeTo self
         // Otherwise, send empty list to self
         case _ =>
           self ! MobilityStatusResponse(Vector())
       }
   }
 
-  private def requestAvailableVehicles(location: SpaceTime, activity: Activity): Future[MobilityStatusResponse] = {
+  private def requestAvailableVehicles(
+    vehicleFleets: Seq[ActorRef],
+    location: SpaceTime,
+    activity: Activity
+  ): Future[MobilityStatusResponse] = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
     Future
       .sequence(
@@ -855,7 +863,7 @@ trait ChoosesMode {
         .sequence(
           tripLegPairs.collect {
             case (trip, leg) =>
-              requestAvailableVehicles(geo.wgs2Utm(leg.beamLeg.travelPath.startPoint), null)
+              requestAvailableVehicles(sharedVehicleFleets, geo.wgs2Utm(leg.beamLeg.travelPath.startPoint), null)
                 .map((trip, leg, _))
           }
         )
