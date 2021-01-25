@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
+import beam.utils.MathUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -50,7 +51,7 @@ case class FixedNonReservingFleetByTAZ(
         logger.info(s"Reading shared vehicle fleet from file: $fileName")
         FleetUtils.readCSV(fileName).foreach {
           case (idTaz, coord, share) =>
-            val fleetShare: Int = (share * config.fleetSize).toInt
+            val fleetShare: Int = MathUtils.roundUniformly(share * config.fleetSize).toInt
             (0 until fleetShare).foreach(
               _ =>
                 initialLocation
