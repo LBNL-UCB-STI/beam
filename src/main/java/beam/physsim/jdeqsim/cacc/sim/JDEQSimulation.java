@@ -1,7 +1,12 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
+import beam.physsim.AdditionalLinkTravelTimeCalculationFunction;
+import beam.physsim.AdditionalLinkTravelTimeCalculationFunctionMock;
 import beam.physsim.PickUpDropOffHolder;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunction;
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunctionMock;
+import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
@@ -22,18 +27,29 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
     private final static Logger log = LoggerFactory.getLogger(JDEQSimulation.class);
 
     private final Option<CACCSettings> maybeCaccSettings;
+    private final BeamConfig beamConfig;
 
     @Inject
-    public JDEQSimulation(final JDEQSimConfigGroup config, final Scenario scenario, final EventsManager events,
+    public JDEQSimulation(final JDEQSimConfigGroup config, final BeamConfig beamConfig,
+                          final Scenario scenario, final EventsManager events,
                           Option<CACCSettings> maybeCaccSettings,
                           Option<PickUpDropOffHolder> maybePickUpDropOffHolder) {
         super(config, scenario, events);
+        this.beamConfig = beamConfig;
         this.maybeCaccSettings = maybeCaccSettings;
+
         if (maybeCaccSettings.nonEmpty()) {
             Road.setRoadCapacityAdjustmentFunction(maybeCaccSettings.get().roadCapacityAdjustmentFunction());
+        } else {
+            RoadCapacityAdjustmentFunction mock = new RoadCapacityAdjustmentFunctionMock();
+            Road.setRoadCapacityAdjustmentFunction(mock);
         }
+
         if (maybePickUpDropOffHolder.nonEmpty()) {
             Road.setAdditionalLinkTravelTimeCalculationFunction(maybePickUpDropOffHolder.get().additionalLinkTravelTimeCalculationFunction());
+        } else {
+            AdditionalLinkTravelTimeCalculationFunction mock = new AdditionalLinkTravelTimeCalculationFunctionMock();
+            Road.setAdditionalLinkTravelTimeCalculationFunction(mock);
         }
     }
 
@@ -59,7 +75,10 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
             logInitializeVehiclesOutcome(vehicleNotFound, isCACCVehicle);
         } else {
-            super.initializeVehicles();
+            for (Person person : this.scenario.getPopulation().getPersons().values()) {
+                // the vehicle registers itself to the scheduler
+                new Vehicle(getScheduler(), person, activityDurationInterpretation, false, allRoads, messageFactory);
+            }
         }
     }
 
@@ -76,16 +95,25 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
     @Override
     protected void initializeRoads() {
+        Scheduler scheduler = getScheduler();
+        allRoads.clear();
         if (maybeCaccSettings.nonEmpty()) {
             CACCSettings caccSettings = maybeCaccSettings.get();
-            Scheduler scheduler = getScheduler();
-            allRoads.clear();
             for (Link link : scenario.getNetwork().getLinks().values()) {
-                allRoads.put(link.getId(), new Road(scheduler, link, caccSettings.speedAdjustmentFactor(),
-                        caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond(), getConfig(), allRoads));
+                allRoads.put(link.getId(), new Road(scheduler, link,
+                        caccSettings.speedAdjustmentFactor(),
+                        caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond(),
+                        getConfig(), allRoads));
             }
         } else {
-            super.initializeRoads();
+            double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
+            double adjustedMinimumRoadSpeedInMetersPerSecond = beamConfig.beam().physsim().jdeqsim().cacc().adjustedMinimumRoadSpeedInMetersPerSecond();
+            for (Link link : scenario.getNetwork().getLinks().values()) {
+                allRoads.put(link.getId(), new Road(scheduler, link,
+                        speedAdjustmentFactor,
+                        adjustedMinimumRoadSpeedInMetersPerSecond,
+                        getConfig(), allRoads));
+            }
         }
     }
 

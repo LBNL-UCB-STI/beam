@@ -31,6 +31,13 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
 
   val argsMap = parseArgs(args)
 
+  //  val argsMap = Map(
+  //    ("taz-parking", "test/input/sf-light/taz-parking.csv"),
+  //    ("network", "test/input/sf-light/r5/physsim-network.xml"),
+  //    ("taz-centers", "test/input/sf-light/taz-centers.csv"),
+  //    ("out", "test/input/sf-light/link-parking.csv")
+  //  )
+
   if (argsMap.size != 4) {
     println(
       "Usage: --taz-parking test/input/beamville/parking/taz-parking.csv" +

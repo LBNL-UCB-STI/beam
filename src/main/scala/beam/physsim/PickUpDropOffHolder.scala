@@ -18,6 +18,9 @@ class PickUpDropOffHolder(linkToPickUpsDropOffs: mutable.HashMap[Int, LinkPickUp
   val additionalTravelTimeMultiplier: Double =
     beamConfig.beam.physsim.pickUpDropOffAnalysis.additionalTravelTimeMultiplier
 
+  var linkTravelTimeAnalyzed: Long = 0
+  var linkTravelTimeAffected: Long = 0
+
   private val totalPickUpsDropOffs = linkIdToPickUpsDropOffs.map {
     case (_, linkPD) => linkPD.timeToPickUps.times.size + linkPD.timeToDropOffs.times.size
   }.sum
@@ -40,6 +43,11 @@ class PickUpDropOffHolder(linkToPickUpsDropOffs: mutable.HashMap[Int, LinkPickUp
       case None                  => 0.0
     }
 
+    if (additionalTravelTime > 0.0) {
+      linkTravelTimeAffected += 1
+    }
+
+    linkTravelTimeAnalyzed += 1
     additionalTravelTime
   }
 

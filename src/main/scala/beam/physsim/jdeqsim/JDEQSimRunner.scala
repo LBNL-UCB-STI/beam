@@ -1,10 +1,7 @@
 package beam.physsim.jdeqsim
 
-import scala.collection.JavaConverters._
-import scala.util.Try
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
-import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
@@ -12,8 +9,9 @@ import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   RoadCapacityAdjustmentFunction
 }
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
-import beam.sim.{BeamConfigChangesObservable, BeamServices}
+import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
@@ -30,6 +28,9 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
+import scala.collection.JavaConverters._
+import scala.util.Try
+
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
   val jdeqSimScenario: Scenario,
@@ -41,6 +42,8 @@ class JDEQSimRunner(
   val agentSimIterationNumber: Int,
   val maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends StrictLogging {
+
+  import JDEQSimRunner._
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
     val jdeqsimEvents = new ParallelEventsManagerImpl(10)
@@ -112,6 +115,11 @@ class JDEQSimRunner(
         }
         jdeqSimulation.run()
         logger.info(s"PhysSim iteration $currentPhysSimIter finished")
+        maybePickUpDropOffHolder.foreach { holder =>
+          logger.info(
+            s"During PhysSim simulation by PickUpDropOffHolder ${holder.linkTravelTimeAnalyzed} link analyzed, ${holder.linkTravelTimeAffected} links travel time changed."
+          )
+        }
       }
 
     } finally {
@@ -212,7 +220,14 @@ class JDEQSimRunner(
         if (maybeCACCSettings.isEmpty) {
           logger.info("CACC disabled")
         }
-        new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, maybeCACCSettings, maybePickUpDropOffHolder)
+        new JDEQSimulation(
+          config,
+          beamConfig,
+          jdeqSimScenario,
+          jdeqsimEvents,
+          maybeCACCSettings,
+          maybePickUpDropOffHolder
+        )
 
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown physsim: $unknown")
     }
@@ -247,7 +262,18 @@ class JDEQSimRunner(
     )
   }
 
-  private def getTravelTimeFunction(
+  def getNoOfBins(binSize: Int): Int = {
+    val endTimeStr = beamConfig.matsim.modules.qsim.endTime
+    val endTime = Time.parseTime(endTimeStr)
+    var numOfTimeBins = endTime / binSize
+    numOfTimeBins = Math.floor(numOfTimeBins)
+    numOfTimeBins.toInt + 1
+  }
+}
+
+object JDEQSimRunner {
+
+  def getTravelTimeFunction(
     functionName: String,
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
@@ -306,13 +332,5 @@ class JDEQSimRunner(
         }
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
     }
-  }
-
-  def getNoOfBins(binSize: Int): Int = {
-    val endTimeStr = beamConfig.matsim.modules.qsim.endTime
-    val endTime = Time.parseTime(endTimeStr)
-    var numOfTimeBins = endTime / binSize
-    numOfTimeBins = Math.floor(numOfTimeBins)
-    numOfTimeBins.toInt + 1
   }
 }
