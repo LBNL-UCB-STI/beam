@@ -1,6 +1,8 @@
 package beam.analysis;
 
 import org.matsim.api.core.v01.Coord;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -11,6 +13,7 @@ import java.util.HashMap;
  * @author rwaraich
  */
 public class R5NetworkReader {
+    private static final Logger log = LoggerFactory.getLogger(R5NetworkReader.class);
 
     public static HashMap<String, R5NetworkLink> readR5Network(String path, boolean withCounties) {
         HashMap<String, R5NetworkLink> r5NetworkLinks = new HashMap<>();
@@ -29,7 +32,7 @@ public class R5NetworkReader {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
         return r5NetworkLinks;
     }

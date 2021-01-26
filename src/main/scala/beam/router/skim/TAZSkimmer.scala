@@ -1,17 +1,18 @@
 package beam.router.skim
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.sim.BeamServices
+import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
+import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.core.controler.MatsimServices
 
-import scala.collection.immutable
-
-class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim)
-    extends AbstractSkimmer(beamServices, config) {
+class TAZSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
+    extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   import TAZSkimmer._
+  private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
 
-  override lazy val readOnlySkim: AbstractSkimmerReadOnly = TAZSkims(beamServices)
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = TAZSkims(beamScenario)
 
   override protected val skimName: String = config.taz_skimmer.name
   override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
@@ -19,7 +20,7 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
     "time,taz,hex,actor,key,value,observations,iterations"
 
   override def fromCsv(
-    line: immutable.Map[String, String]
+    line: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       TAZSkimmerKey(
@@ -47,7 +48,7 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
     val currSkim = currIteration
       .map(_.asInstanceOf[TAZSkimmerInternal])
       .getOrElse(
-        TAZSkimmerInternal(0, observations = 0, iterations = beamServices.matsimServices.getIterationNumber + 1)
+        TAZSkimmerInternal(0, observations = 0, iterations = matsimServices.getIterationNumber + 1)
       ) // no current skim means 0 observation
     TAZSkimmerInternal(
       value = (prevSkim.value * prevSkim.iterations + currSkim.value * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
@@ -63,7 +64,7 @@ class TAZSkimmer(beamServices: BeamServices, config: BeamConfig.Beam.Router.Skim
     val prevSkim = prevObservation
       .map(_.asInstanceOf[TAZSkimmerInternal])
       .getOrElse(
-        TAZSkimmerInternal(0, observations = 0, iterations = beamServices.matsimServices.getIterationNumber + 1)
+        TAZSkimmerInternal(0, observations = 0, iterations = matsimServices.getIterationNumber + 1)
       )
     val currSkim = currObservation.asInstanceOf[TAZSkimmerInternal]
     TAZSkimmerInternal(

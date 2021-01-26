@@ -7,7 +7,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 class JointDistributionTest extends WordSpecLike with Matchers {
 
-  val jointDistribution = JointDistribution.fromCsvFile(
+  val jointDistribution: JointDistribution = JointDistribution.fromCsvFile(
     pathToCsv = "test/input/beamville/test-data/joint-distribution.csv",
     new MersenneTwister(42),
     columnMapping = Map(

@@ -2,6 +2,8 @@ package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
 import org.matsim.pt.utils.TransitScheduleValidator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -28,6 +30,7 @@ import static beam.utils.gtfs.GtfsFunctions.opNameToPath;
  * Created by sfeygin on 11/8/16.
  */
 public class SFBayPT2MATSim {
+    private final Logger log = LoggerFactory.getLogger(SFBayPT2MATSim.class);
 
     public static final BeamConfig BEAM_CONFIG = null; //FIXME
     private String outputDir;
@@ -58,9 +61,9 @@ public class SFBayPT2MATSim {
                 DOWNLOADER.getGTFSZip(opPathName, opKey).get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                e.printStackTrace();
+                log.error("exception occurred due to ", e);
             } catch(ExecutionException e) {
-                e.printStackTrace();
+                log.error("exception occurred due to ", e);
             }
         }
 
@@ -84,7 +87,7 @@ public class SFBayPT2MATSim {
                     String.format("%s%s/%s_MultiModalNetwork.xml.gz", outputDir, agency, agencyId)
             });
         } catch (IOException | SAXException | ParserConfigurationException e) {
-            e.printStackTrace();
+            log.error("exception occurred due to ", e);
         }
     }
 

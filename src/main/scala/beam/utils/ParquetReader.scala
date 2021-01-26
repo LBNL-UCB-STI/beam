@@ -51,7 +51,7 @@ object ParquetReader {
       val pandasKey = "pandas"
       Option(map.get(pandasKey)) match {
         case Some(json) =>
-          val js = parse(json).map(_.pretty(Printer.spaces2))
+          val js = parse(json).map(_.printWith(Printer.spaces2))
           println(s"$pandasKey => $js")
         case None =>
           println(map)

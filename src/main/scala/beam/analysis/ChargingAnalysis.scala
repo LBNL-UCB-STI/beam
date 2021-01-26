@@ -1,11 +1,13 @@
 package beam.analysis
 
-import beam.agentsim.events._
+import java.{lang, util}
 
+import scala.collection.JavaConverters._
+
+import beam.agentsim.events._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
-
 import scala.collection.mutable
 
 class ChargingAnalysis extends IterationSummaryAnalysis {
@@ -61,26 +63,25 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
     cavChargingStatsPerDriver.clear
   }
 
-  def getSummaryStats() = {
-    import scala.collection.JavaConverters._
+  def getSummaryStats(): util.Map[String, lang.Double] = {
     (
       (cavChargingStatsPerDriver.size match {
         case 0 =>
           Map(
-            (chargingCountFileBaseName + "_CAV", new java.lang.Double(0.0)),
-            (averagekWhFileBaseName + "_CAV", new java.lang.Double(0.0))
+            (chargingCountFileBaseName + "_CAV", java.lang.Double.valueOf(0.0)),
+            (averagekWhFileBaseName + "_CAV", java.lang.Double.valueOf(0.0))
           )
         case _ =>
           Map(
             (
               chargingCountFileBaseName + "_CAV",
-              new java.lang.Double(
+              java.lang.Double.valueOf(
                 cavChargingStatsPerDriver.map(_._2.count).sum / cavChargingStatsPerDriver.size.doubleValue()
               )
             ),
             (
               averagekWhFileBaseName + "_CAV",
-              new java.lang.Double(
+              java.lang.Double.valueOf(
                 cavChargingStatsPerDriver.map(_._2.averageKWh).sum / cavChargingStatsPerDriver.size.doubleValue()
               )
             )
@@ -88,20 +89,20 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
       }) ++ (humanChargingStatsPerDriver.size match {
         case 0 =>
           Map(
-            (chargingCountFileBaseName + "_Human", new java.lang.Double(0.0)),
-            (averagekWhFileBaseName + "_Human", new java.lang.Double(0.0))
+            (chargingCountFileBaseName + "_Human", java.lang.Double.valueOf(0.0)),
+            (averagekWhFileBaseName + "_Human", java.lang.Double.valueOf(0.0))
           )
         case _ =>
           Map(
             (
               chargingCountFileBaseName + "_Human",
-              new java.lang.Double(
+              java.lang.Double.valueOf(
                 humanChargingStatsPerDriver.map(_._2.count).sum / humanChargingStatsPerDriver.size.doubleValue()
               )
             ),
             (
               averagekWhFileBaseName + "_Human",
-              new java.lang.Double(
+              java.lang.Double.valueOf(
                 humanChargingStatsPerDriver.map(_._2.averageKWh).sum / humanChargingStatsPerDriver.size.doubleValue()
               )
             )

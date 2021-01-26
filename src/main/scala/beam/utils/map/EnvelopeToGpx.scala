@@ -1,12 +1,13 @@
 package beam.utils.map
 
+import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 
 class EnvelopeToGpx extends LazyLogging {
 
-  val geoUtils = new beam.sim.common.GeoUtils {
+  val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:26910"
   }
 

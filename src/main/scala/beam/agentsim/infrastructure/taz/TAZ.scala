@@ -1,8 +1,12 @@
 package beam.agentsim.infrastructure.taz
+import scala.annotation.tailrec
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.network.LinkImpl
 import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.JavaConverters._
 
 /**
@@ -39,6 +43,7 @@ object TAZ {
     maxRadius: Double
   ): List[(TAZ, Double)] = {
 
+    @tailrec
     def _find(thisRadius: Double): List[TAZ] = {
       if (thisRadius > maxRadius) List.empty[TAZ]
       else {
@@ -72,6 +77,7 @@ object TAZ {
     maxRadius: Double
   ): List[(TAZ, Double)] = {
 
+    @tailrec
     def _find(innerRadius: Double, outerRadius: Double): List[TAZ] = {
       if (innerRadius > maxRadius) List.empty[TAZ]
       else {

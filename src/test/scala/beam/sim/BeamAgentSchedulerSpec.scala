@@ -26,7 +26,7 @@ class BeamAgentSchedulerSpec
     with MustMatchers
     with ImplicitSender {
 
-  lazy val config = BeamConfig(system.settings.config)
+  lazy val config: BeamConfig = BeamConfig(system.settings.config)
 
   describe("A BEAM Agent Scheduler") {
 

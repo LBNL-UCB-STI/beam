@@ -27,12 +27,12 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
 
     private final scala.collection.Set<Id<BeamVehicleType>> vehicleTypes;
 
-    private Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
-    private Scenario scenario;
-    private NetworkHelper networkHelper;
+    private final Map<String, Double> secondsTraveledByVehicleType = new HashMap<>();
+    private final Scenario scenario;
+    private final NetworkHelper networkHelper;
 
     private double totalVehicleTrafficDelay = 0.0;
-    private Set<String> buses = new HashSet<>();
+    private final Set<String> buses = new HashSet<>();
     private double busCrowding = 0.0;
     private long numOfTimesBusTaken = 0;
 
@@ -44,8 +44,8 @@ public class VehicleTravelTimeAnalysis implements IterationSummaryAnalysis {
     private double totalVehicleDelayHome = 0.0;
     private double totalVehicleDelaySecondary = 0.0;
     private double totalVehicleDelay = 0.0;
-    private Map<String, List<Double>> personIdDelays = new HashMap<>();
-    private Map<String, List<String>> personsByVehicleIds = new HashMap<>();
+    private final Map<String, List<Double>> personIdDelays = new HashMap<>();
+    private final Map<String, List<String>> personsByVehicleIds = new HashMap<>();
 
     public VehicleTravelTimeAnalysis(Scenario scenario, NetworkHelper networkHelper, scala.collection.Set<Id<BeamVehicleType>> vehicleTypes) {
         this.scenario = scenario;

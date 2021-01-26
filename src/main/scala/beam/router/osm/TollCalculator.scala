@@ -4,22 +4,22 @@ import java.io._
 import java.nio.file.{Files, Path, Paths}
 import java.util
 import java.util.Collections
+import javax.inject.Inject
+
+import scala.collection.JavaConverters._
+import scala.util.Try
+import scala.util.control.NonFatal
 
 import beam.router.model.BeamPath
 import beam.router.osm.TollCalculator.Toll
 import beam.sim.common.Range
 import beam.sim.config.BeamConfig
+import beam.utils.FileUtils
 import com.conveyal.osmlib.OSM
 import com.google.common.collect.Maps
 import com.typesafe.scalalogging.LazyLogging
 import gnu.trove.map.hash.TIntObjectHashMap
-import javax.inject.Inject
 import org.apache.commons.collections4.MapUtils
-
-import scala.collection.JavaConverters._
-import scala.io.Source
-import scala.util.Try
-import scala.util.control.NonFatal
 
 class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
   import beam.utils.FileUtils._
@@ -71,9 +71,8 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
 
   private def readTollPrices(tollPricesFile: String): java.util.Map[Int, Array[Toll]] = {
     if (Files.exists(Paths.get(tollPricesFile))) {
-      val rowList = Source
-        .fromFile(tollPricesFile)
-        .getLines()
+      val rowList = FileUtils
+        .readAllLines(tollPricesFile)
         .drop(1) // table header
         .toArray
         .map(_.split(","))

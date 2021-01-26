@@ -13,9 +13,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class NumberOfVehiclesAnalysis implements IterationSummaryAnalysis{
-    private Map<String, Integer> numberOfVehiclesByType = new HashMap<>();
-    private HashSet<String> uniqueVehicleIds = new HashSet<>();
-    private BeamScenario beamScenario;
+    private final Map<String, Integer> numberOfVehiclesByType = new HashMap<>();
+    private final HashSet<String> uniqueVehicleIds = new HashSet<>();
+    private final BeamScenario beamScenario;
 
     public NumberOfVehiclesAnalysis(BeamScenario beamScenario) {
         this.beamScenario = beamScenario;

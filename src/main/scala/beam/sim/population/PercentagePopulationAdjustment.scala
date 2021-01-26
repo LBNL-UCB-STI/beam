@@ -1,5 +1,6 @@
 package beam.sim.population
 
+import beam.router.Modes.BeamMode
 import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.population.Population
 import org.matsim.api.core.v01.Scenario
@@ -12,9 +13,9 @@ case class PercentagePopulationAdjustment(beamServices: BeamServices) extends Po
   override def updatePopulation(scenario: Scenario): Population = {
     val population = scenario.getPopulation
 
-    removeModeAll(population, "car")
+    removeModeAll(population, BeamMode.CAR.value)
 
-    assignModeUniformDistribution(population, "car", 0.5)
+    assignModeUniformDistribution(population, BeamMode.CAR.value, 0.5)
 
     population
   }

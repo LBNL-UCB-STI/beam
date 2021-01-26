@@ -1,15 +1,16 @@
 package beam.utils;
 
-import org.apache.log4j.Logger;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
 public class VolumesAnalyzerFixed extends VolumesAnalyzer {
-    private final static Logger log = Logger.getLogger(VolumesAnalyzerFixed.class);
+    private final static Logger log = LoggerFactory.getLogger(VolumesAnalyzerFixed.class);
 
     private static final int SECONDS_PER_HOUR = (int) TimeUnit.HOURS.toSeconds(1L);
 

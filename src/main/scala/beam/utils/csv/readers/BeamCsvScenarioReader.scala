@@ -85,7 +85,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
       legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
-      legRouteLinks = linkIds
+      legRouteLinks = linkIds,
+      geoId = Option(rec.get("geoId"))
     )
   }
 
@@ -95,12 +96,14 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val age = getIfNotNull(rec, "age").toInt
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
+    val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0D)
     PersonInfo(
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),
       rank = rank,
       age = age,
+      excludedModes = excludedModes,
       isFemale = isFemale,
       valueOfTime = valueOfTime
     )

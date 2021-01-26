@@ -292,7 +292,7 @@ class RideHailIterationsStatsCollector(
       using coord from the PathTraversal event
    */
   private def collectModeChoiceEvents(event: ModeChoiceEvent): Unit = {
-    val mode = event.getMode;
+    val mode = event.getMode
     if (mode.equals("ride_hail")) {
       val personId = event.getPersonId.toString
       rideHailModeChoiceEvents.put(personId, event)

@@ -13,11 +13,11 @@ import org.matsim.vehicles.Vehicle
 case class RefuelSessionEvent(
   tick: Double,
   stall: ParkingStall,
-  val energyInJoules: Double,
-  val sessionStartingFuelLevelInJoules: Double,
-  val sessionDuration: Double,
+  energyInJoules: Double,
+  sessionStartingFuelLevelInJoules: Double,
+  sessionDuration: Double,
   vehId: Id[Vehicle],
-  val vehicleType: BeamVehicleType
+  vehicleType: BeamVehicleType
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
@@ -27,8 +27,8 @@ case class RefuelSessionEvent(
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
   override def getEventType: String = EVENT_TYPE
 
-  val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
+  private val pricingModelString = stall.pricingModel.map(_.toString).getOrElse("None")
+  val chargingPointString: String = stall.chargingPointType.map(_.toString).getOrElse("None")
   val parkingType: String = stall.parkingType.toString
 
   override def getAttributes: util.Map[String, String] = {

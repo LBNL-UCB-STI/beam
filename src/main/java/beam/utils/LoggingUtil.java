@@ -15,13 +15,10 @@ public class LoggingUtil {
 
     public static final String LOG_OUTPUT_DIRECTORY_KEY = "log-path";
 
-    private static boolean keepConsoleAppenderOn = true;
-
     public static void initLogger(String outputDirectory, boolean keepConsoleAppenderOn) throws JoranException, IOException {
         String logbackConfigFile = System.getProperty(ContextInitializer.CONFIG_FILE_PROPERTY);
 
         if (logbackConfigFile != null) {
-            LoggingUtil.keepConsoleAppenderOn = keepConsoleAppenderOn;
             // https://logback.qos.ch/faq.html#sharedConfiguration
             LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
 

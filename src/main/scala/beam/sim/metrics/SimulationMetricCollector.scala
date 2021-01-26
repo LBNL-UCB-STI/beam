@@ -197,9 +197,17 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
     val metrics = beamCfg.beam.sim.metric.collector.metrics
       .split(',')
       .map(entry => entry.trim)
+      .collect {
+        case metricName if metricName.length > 0 => metricName
+      }
 
-    logger.info(s"Enabled metrics: ${metrics.mkString(",")}")
-    scala.collection.immutable.HashSet(metrics: _*)
+    val enabled = scala.collection.immutable.HashSet(metrics: _*)
+    if (enabled.nonEmpty)
+      logger.info(s"Enabled metrics: ${metrics.mkString(",")}")
+    else
+      logger.info("Metrics are disabled.")
+
+    enabled
   }
 
   def metricEnabled(metricName: String): Boolean = {
@@ -219,19 +227,24 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
   }
 
   val maybeInfluxDB: Option[InfluxDB] = {
-    try {
-      val db = InfluxDBFactory.connect(cfg.connectionString)
-      db.setDatabase(cfg.database)
-      db.enableBatch(BatchOptions.DEFAULTS)
-      db.ping()
-      logger.info(s"Connected to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}")
-      Some(db)
-    } catch {
-      case NonFatal(t: Throwable) =>
-        logger.warn(
-          s"Could not connect to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}. Error: ${t.getMessage}"
-        )
-        None
+    if (enabledMetrics.isEmpty) {
+      None
+    } else {
+      try {
+        val db = InfluxDBFactory.connect(cfg.connectionString)
+        db.setDatabase(cfg.database)
+        db.enableBatch(BatchOptions.DEFAULTS)
+        db.ping()
+        logger.info(s"Connected to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}")
+        Some(db)
+      } catch {
+        case NonFatal(t: Throwable) =>
+          logger.warn(
+            s"There are enabled metrics, but InfluxDB is unavailable at ${cfg.connectionString}, database: '${cfg.database}'. Error: ${t.getMessage}"
+          )
+
+          None
+      }
     }
   }
 

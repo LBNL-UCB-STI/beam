@@ -1,11 +1,11 @@
 package beam.utils.csv.writers
 
+import scala.collection.JavaConverters._
+
 import beam.utils.scenario.{PersonId, PlanElement}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
-
-import scala.collection.JavaConverters._
 
 object PlansCsvWriter extends ScenarioCsvWriter {
 
@@ -31,54 +31,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     "legRouteLinks"
   )
 
-  private case class PlanEntry(
-    personId: String,
-    planIndex: Int,
-    planScore: Double,
-    planSelected: Boolean,
-    planElementType: String,
-    planElementIndex: Int,
-    activityType: String,
-    activityLocationX: String,
-    activityLocationY: String,
-    activityEndTime: String,
-    legMode: String,
-    legDepartureTime: String,
-    legTravelTime: String,
-    legRouteType: String,
-    legRouteStartLink: String,
-    legRouteEndLink: String,
-    legRouteTravelTime: Option[Double],
-    legRouteDistance: Option[Double],
-    legRouteLinks: Seq[String]
-  ) {
-    override def toString: String = {
-      Seq(
-        personId,
-        planIndex,
-        planScore,
-        planSelected,
-        planElementType,
-        planElementIndex,
-        activityType,
-        activityLocationX,
-        activityLocationY,
-        activityEndTime,
-        legMode,
-        legDepartureTime,
-        legTravelTime,
-        legRouteType,
-        legRouteStartLink,
-        legRouteEndLink,
-        legRouteTravelTime.map(_.toString).getOrElse(""),
-        legRouteDistance.map(_.toString).getOrElse(""),
-        legRouteLinks.mkString("|")
-      ).mkString("", FieldSeparator, LineSeparator)
-    }
-  }
-
-  private def getPlanInfo(scenario: Scenario): Iterable[PlanElement] = {
-    scenario.getPopulation.getPersons.asScala.flatMap {
+  private def getPlanInfo(scenario: Scenario): Iterator[PlanElement] = {
+    scenario.getPopulation.getPersons.asScala.iterator.flatMap {
       case (_, person) =>
         val selectedPlan = person.getSelectedPlan
         person.getPlans.asScala.zipWithIndex.flatMap {
@@ -140,7 +94,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legRouteEndLink = route.map(_.getEndLinkId.toString),
           legRouteTravelTime = route.map(_.getTravelTime),
           legRouteDistance = route.map(_.getDistance),
-          legRouteLinks = routeLinks
+          legRouteLinks = routeLinks,
+          geoId = None
         )
       case act: Activity =>
         PlanElement(
@@ -162,36 +117,45 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legRouteEndLink = None,
           legRouteTravelTime = None,
           legRouteDistance = None,
-          legRouteLinks = Seq.empty
+          legRouteLinks = Seq.empty,
+          geoId = None
         )
     }
   }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    val plans = getPlanInfo(scenario)
-    plans.toIterator.map { planInfo =>
-      PlanEntry(
-        personId = planInfo.personId.id,
-        planIndex = planInfo.planIndex,
-        planScore = planInfo.planScore,
-        planSelected = planInfo.planSelected,
-        planElementType = planInfo.planElementType,
-        planElementIndex = planInfo.planElementIndex,
-        activityType = planInfo.activityType.getOrElse(""),
-        activityLocationX = planInfo.activityLocationX.map(_.toString).getOrElse(""),
-        activityLocationY = planInfo.activityLocationY.map(_.toString).getOrElse(""),
-        activityEndTime = planInfo.activityEndTime.map(_.toString).getOrElse(""),
-        legMode = planInfo.legMode.getOrElse(""),
-        legDepartureTime = planInfo.legDepartureTime.getOrElse(""),
-        legTravelTime = planInfo.legTravelTime.getOrElse(""),
-        legRouteType = planInfo.legRouteType.getOrElse(""),
-        legRouteStartLink = planInfo.legRouteStartLink.getOrElse(""),
-        legRouteEndLink = planInfo.legRouteEndLink.getOrElse(""),
-        legRouteTravelTime = planInfo.legRouteTravelTime,
-        legRouteDistance = planInfo.legRouteDistance,
-        legRouteLinks = planInfo.legRouteLinks
-      ).toString
+    contentIterator(getPlanInfo(scenario))
+  }
+
+  override def contentIterator[A](elements: Iterator[A]): Iterator[String] = {
+    elements.flatMap {
+      case planInfo: PlanElement => Some(toLine(planInfo))
+      case _                     => None
     }
+  }
+
+  private def toLine(planInfo: PlanElement): String = {
+    Seq(
+      planInfo.personId.id,
+      planInfo.planIndex,
+      planInfo.planScore,
+      planInfo.planSelected,
+      planInfo.planElementType,
+      planInfo.planElementIndex,
+      planInfo.activityType.getOrElse(""),
+      planInfo.activityLocationX.map(_.toString).getOrElse(""),
+      planInfo.activityLocationY.map(_.toString).getOrElse(""),
+      planInfo.activityEndTime.map(_.toString).getOrElse(""),
+      planInfo.legMode.getOrElse(""),
+      planInfo.legDepartureTime.getOrElse(""),
+      planInfo.legTravelTime.getOrElse(""),
+      planInfo.legRouteType.getOrElse(""),
+      planInfo.legRouteStartLink.getOrElse(""),
+      planInfo.legRouteEndLink.getOrElse(""),
+      planInfo.legRouteTravelTime,
+      planInfo.legRouteDistance,
+      planInfo.legRouteLinks
+    ).mkString("", FieldSeparator, LineSeparator)
   }
 
 }

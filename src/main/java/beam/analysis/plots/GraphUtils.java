@@ -2,20 +2,12 @@ package beam.analysis.plots;
 
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
 import org.jfree.chart.*;
-import org.jfree.chart.annotations.XYTextAnnotation;
-import org.jfree.chart.axis.AxisLocation;
-import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.plot.CategoryPlot;
-import org.jfree.chart.plot.CombinedDomainXYPlot;
 import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.category.BarRenderer;
 import org.jfree.chart.renderer.category.StandardBarPainter;
-import org.jfree.chart.renderer.xy.StandardXYItemRenderer;
-import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.jfree.data.xy.XYDataItem;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.data.xy.XYSeries;
@@ -77,7 +69,7 @@ public class GraphUtils {
 
     }
 
-    public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
+    public static JFreeChart createStackedBarChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, boolean legend) {
         PlotOrientation orientation = PlotOrientation.VERTICAL;
         final JFreeChart chart = ChartFactory.createStackedBarChart(
                 graphTitle, xAxisTitle, yAxisTitle,
@@ -86,21 +78,34 @@ public class GraphUtils {
         return chart;
     }
 
-    public static JFreeChart createLineChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, String fileName, boolean legend) {
+    public static JFreeChart createLineChartWithDefaultSettings(CategoryDataset dataset, String graphTitle, String xAxisTitle, String yAxisTitle, boolean legend, boolean tooltips) {
         PlotOrientation orientation = PlotOrientation.VERTICAL;
         final JFreeChart chart = ChartFactory.createLineChart(
                 graphTitle, xAxisTitle, yAxisTitle,
-                dataset, orientation, legend, false, false);
+                dataset, orientation, legend, tooltips, false);
         chart.setBackgroundPaint(DEFAULT_BACK_GROUND);
         return chart;
     }
 
-    public static CategoryDataset createCategoryDatasetForIterationsData(String rowKeyPrefix,
-                                                        String columnKeyPrefix, double[][] data) {
+    public static CategoryDataset createCategoryDataset(Map<Integer, ? extends Number> data) {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        data.entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> dataset.addValue(e.getValue(), 0, e.getKey()));
+        return dataset;
+    }
+
+    public static CategoryDataset createCategoryDataset(String rowKeyPrefix, String columnKeyPrefix, double[] data) {
+        return createCategoryDataset(rowKeyPrefix, columnKeyPrefix, new double[][]{data});
+    }
+
+    public static CategoryDataset createCategoryDataset(
+            String rowKeyPrefix, String columnKeyPrefix, double[][] data) {
 
         DefaultCategoryDataset result = new DefaultCategoryDataset();
         for (int r = 0; r < data.length; r++) {
-            String rowKey = rowKeyPrefix + (r + 1);
+            String rowKey = rowKeyPrefix + r;
             for (int c = 0; c < data[r].length; c++) {
                 String columnKey = columnKeyPrefix + c;
                 result.addValue(new Double(data[r][c]), rowKey, columnKey);

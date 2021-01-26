@@ -10,10 +10,33 @@ import scala.reflect.ClassTag
 
 trait GenericCsvReader {
 
-  def readAs[T](path: String, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
+  def readAs[T](
+    path: String,
+    mapper: java.util.Map[String, String] => T,
+    filterPredicate: T => Boolean,
+    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
+  )(
     implicit ct: ClassTag[T]
   ): (Iterator[T], Closeable) = {
-    val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)
+    val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), preference)
+    read[T](csvRdr, mapper, filterPredicate)
+  }
+
+  def readFromStreamAs[T](
+    stream: java.io.InputStream,
+    mapper: java.util.Map[String, String] => T,
+    filterPredicate: T => Boolean,
+    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
+  )(
+    implicit ct: ClassTag[T]
+  ): (Iterator[T], Closeable) = {
+    val csvRdr = new CsvMapReader(FileUtils.readerFromStream(stream), preference)
+    read[T](csvRdr, mapper, filterPredicate)
+  }
+
+  def read[T](csvRdr: CsvMapReader, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
+    implicit ct: ClassTag[T]
+  ): (Iterator[T], Closeable) = {
     val header = csvRdr.getHeader(true)
     val iterator = Iterator
       .continually(csvRdr.read(header: _*))

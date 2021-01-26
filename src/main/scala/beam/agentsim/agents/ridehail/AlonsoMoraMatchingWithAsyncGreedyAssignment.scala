@@ -19,7 +19,7 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
   beamServices: BeamServices
 ) extends RideHailMatching(beamServices) {
 
-  private implicit val implicitServices = beamServices
+  private implicit val implicitServices: BeamServices = beamServices
 
   override def matchAndAssign(tick: Int): Future[List[RideHailTrip]] = {
     asyncBuildOfRSVGraph().map {

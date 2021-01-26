@@ -144,7 +144,7 @@ class BeamVehicle(
     * @param startTick
     */
   def connectToChargingPoint(startTick: Long): Unit = {
-    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       chargerRWLock.write {
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
@@ -312,12 +312,12 @@ class BeamVehicle(
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
 
   def isBEV: Boolean =
-    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == None
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
 
   def isPHEV: Boolean =
-    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType == Some(Gasoline)
+    beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
 
-  def initializeFuelLevels(meanSOCoption: Option[Double] = None) = {
+  def initializeFuelLevels(meanSOCoption: Option[Double] = None): Unit = {
     val startingSOC: Double = beamVehicleType.primaryFuelType match {
       case Electricity =>
         val meanSOC = math.max(math.min(meanSOCoption.getOrElse(1.0), 1.0), 0.5)
@@ -419,7 +419,7 @@ object BeamVehicle {
   }
 
   def createId[A](id: String, prefix: Option[String]): Id[BeamVehicle] = {
-    Id.create(s"${prefix.map(_ + "-").getOrElse("")}${id}", classOf[BeamVehicle])
+    Id.create(s"${prefix.map(_ + "-").getOrElse("")}$id", classOf[BeamVehicle])
   }
 
   case class BeamVehicleState(
@@ -431,7 +431,7 @@ object BeamVehicle {
     stall: Option[ParkingStall]
   ) {
 
-    def totalRemainingRange = {
+    def totalRemainingRange: Double = {
       remainingPrimaryRangeInM + remainingSecondaryRangeInM.getOrElse(0.0)
     }
   }

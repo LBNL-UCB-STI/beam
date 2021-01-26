@@ -15,6 +15,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -28,7 +29,7 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.FunSpecLike
+import org.scalatest.{BeforeAndAfter, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 class RideHailAgentSpec
@@ -37,6 +38,7 @@ class RideHailAgentSpec
     with SimRunnerForTest
     with MockitoSugar
     with ImplicitSender
+    with BeforeAndAfter
     with BeamvilleFixtures {
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
@@ -60,7 +62,16 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager.props(beamConfig, beamScenario.tazTreeMap, services.geo, services.beamRouter, boundingBox),
+    ZonalParkingManager
+      .props(
+        beamConfig,
+        beamScenario.tazTreeMap.tazQuadTree,
+        beamScenario.tazTreeMap.idToTAZMapping,
+        identity[TAZ],
+        services.geo,
+        services.beamRouter,
+        boundingBox
+      ),
     "ParkingManager"
   )
 
@@ -378,6 +389,15 @@ class RideHailAgentSpec
         self ! event
       }
     })
+  }
+
+  after {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    receiveWhile(1000 millis) {
+      case _: CompletionNotice =>
+    }
   }
 
   override def afterAll(): Unit = {

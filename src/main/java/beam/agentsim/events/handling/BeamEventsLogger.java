@@ -13,7 +13,7 @@ import java.util.*;
 /**
  * Logger class for BEAM events
  */
-public class BeamEventsLogger {
+public class BeamEventsLogger implements BeamEventsLoggingSettings {
 
     private final EventsManager eventsManager;
     private final MatsimServices matsimServices;
@@ -76,12 +76,12 @@ public class BeamEventsLogger {
         return null;
     }
 
-    boolean shouldLogThisEventType(Class<? extends Event> aClass) {
+    public boolean shouldLogThisEventType(Class<? extends Event> aClass) {
         //TODO in future this is where fine tuning logging based on level number could occur (e.g. info versus debug)
         return eventsToLog.contains(aClass);
     }
 
-    Set<Class<?>> getAllEventsToLog() {
+    public Set<Class<?>> getAllEventsToLog() {
         return eventsToLog;
     }
 
@@ -96,7 +96,7 @@ public class BeamEventsLogger {
         }
     }
 
-    Set<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
+    public Set<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
         return eventAttributes.keySet();
     }
 

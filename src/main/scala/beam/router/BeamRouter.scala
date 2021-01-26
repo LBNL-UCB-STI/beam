@@ -28,7 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.r5.{R5RoutingWorker, RouteDumper}
+import beam.router.r5.RouteDumper
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -37,6 +37,7 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
@@ -119,21 +120,18 @@ class BeamRouter(
   val tick = "work-pull-tick"
 
   val tickTask: Cancellable =
-    context.system.scheduler.schedule(10.seconds, 30.seconds, self, tick)(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, tick)(context.dispatcher)
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   if (beamScenario.beamConfig.beam.useLocalWorker) {
     val localWorker = context.actorOf(
-      R5RoutingWorker.props(
+      RoutingWorker.props(
         beamScenario,
         transportNetwork,
-        network,
         networkHelper,
-        scenario,
         fareCalculator,
-        tollCalculator,
-        transitVehicles
+        tollCalculator
       ),
       "router-worker"
     )
@@ -158,7 +156,11 @@ class BeamRouter(
     case t: TryToSerialize =>
       if (log.isDebugEnabled) {
         val byteArray = kryoSerializer.toBinary(t)
-        log.debug("TryToSerialize size in bytes: {}, MBytes: {}", byteArray.size, byteArray.size.toDouble / 1024 / 1024)
+        log.debug(
+          "TryToSerialize size in bytes: {}, MBytes: {}",
+          byteArray.length,
+          byteArray.length.toDouble / 1024 / 1024
+        )
       }
     case msg: UpdateTravelTimeLocal =>
       traveTimeOpt = Some(msg.travelTime)
@@ -247,14 +249,12 @@ class BeamRouter(
   }
 
   private def processByEventsManagerIfNeeded(work: Any): Unit = {
-    if (shouldWriteR5Routes(currentIteration)) {
-      work match {
-        case e: EmbodyWithCurrentTravelTime =>
-          eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
-        case req: RoutingRequest =>
-          eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
-        case _ =>
-      }
+    work match {
+      case e: EmbodyWithCurrentTravelTime if (shouldWriteR5Routes(currentIteration)) =>
+        eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
+      case req: RoutingRequest =>
+        eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
+      case _ =>
     }
   }
 
@@ -396,11 +396,7 @@ class BeamRouter(
   }
 
   private def resolveAddressBlocking(addr: Address, d: FiniteDuration = 60.seconds): Option[ActorRef] = {
-    Try(Await.result(resolveAddress(addr, d), d)).recover {
-      case t: Throwable =>
-        log.error(t, "resolveAddressBlocking failed to resolve '{}' in {}: {}", addr, d, t.getMessage)
-        None
-    }.get
+    Await.result(resolveAddress(addr, d), d)
   }
 
   private def resolveAddress(addr: Address, duration: FiniteDuration = 60.seconds): Future[Option[ActorRef]] = {
@@ -455,6 +451,7 @@ object BeamRouter {
     destinationUTM: Location,
     departureTime: Int,
     withTransit: Boolean,
+    personId: Option[Id[Person]] = None,
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
@@ -487,7 +484,7 @@ object BeamRouter {
 
   object RoutingResponse {
 
-    val dummyRoutingResponse = Some(
+    val dummyRoutingResponse: Some[RoutingResponse] = Some(
       RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
     )
   }
@@ -598,12 +595,12 @@ object BeamRouter {
     )
   }
 
-  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork) = {
+  def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork): Unit = {
     if (dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
           dates.localBaseDateTime
         )) {
       throw new RuntimeException(
-        s"Time Zone Mismatch\n\n" +
+        "Time Zone Mismatch\n\n" +
         s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(dates.localBaseDateTime)}\n" +
         s"\tZone offset specified in Beam config file: ${dates.zonedBaseDateTime.getOffset}\n\n" +
         "Detailed Explanation:\n\n" +
