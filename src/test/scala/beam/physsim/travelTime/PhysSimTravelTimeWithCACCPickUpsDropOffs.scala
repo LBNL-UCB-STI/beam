@@ -51,6 +51,14 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends WordSpecLike with Matcher
       "beam.physsim.flowCapacityFactor",
       ConfigValueFactory.fromAnyRef(0.001)
     )
+    .withValue(
+      "beam.physsim.jdeqsim.cacc.minRoadCapacity",
+      ConfigValueFactory.fromAnyRef(0.0001)
+    )
+    .withValue(
+      "beamConfig.beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec",
+      ConfigValueFactory.fromAnyRef(0.001)
+    )
     .resolve()
 
   val beamConfig: BeamConfig = BeamConfig(config)
@@ -112,36 +120,60 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends WordSpecLike with Matcher
 
   "Different combination of PickUpDropOffHolder and CACCSettings" must {
     "return expected link travel time in JDEQ simulation" in {
-      val withCACC = JDEQSimAvgLinkTravelTime(Some(caccSettings), None)
-      val noPickUpNoCACC = JDEQSimAvgLinkTravelTime(None, None)
-      val withPickUpWithCACC = JDEQSimAvgLinkTravelTime(Some(caccSettings), Some(pickUpDropOffHolder))
-      val withPickUp = JDEQSimAvgLinkTravelTime(None, Some(pickUpDropOffHolder))
+      def calcAverageLinkTravelTime(
+        maybeCaccSettings: Option[CACCSettings],
+        maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+      ): AverageLinkTravelTimeCalculationResults = {
+        JDEQSimAvgLinkTravelTime(maybeCaccSettings, maybePickUpDropOffHolder)
+      }
 
-      withCACC.averageLinkTravelTime should be <= noPickUpNoCACC.averageLinkTravelTime
-      noPickUpNoCACC.averageLinkTravelTime should be < withPickUpWithCACC.averageLinkTravelTime
-      withPickUpWithCACC.averageLinkTravelTime should be < withPickUp.averageLinkTravelTime
+      val noPickUpWithCACC = calcAverageLinkTravelTime(Some(caccSettings), None)
+      val noPickUpNoCACC = calcAverageLinkTravelTime(None, None)
+      val withPickUpWithCACC = calcAverageLinkTravelTime(Some(caccSettings), Some(pickUpDropOffHolder))
+      val withPickUpNoCACC = calcAverageLinkTravelTime(None, Some(pickUpDropOffHolder))
+
+      noPickUpWithCACC.averageLinkTravelTime should be <= noPickUpNoCACC.averageLinkTravelTime
+      noPickUpWithCACC.averageLinkTravelTime should be < withPickUpWithCACC.averageLinkTravelTime
+      noPickUpNoCACC.averageLinkTravelTime should be < withPickUpNoCACC.averageLinkTravelTime
+      withPickUpWithCACC.averageLinkTravelTime should be < withPickUpNoCACC.averageLinkTravelTime
     }
 
     "return expected link travel time in BPR simulation" in {
-      val withCACC = BPRSimAvgLinkTravelTime(Some(caccSettings), None)
-      val noPickUpNoCACC = BPRSimAvgLinkTravelTime(None, None)
-      val withPickUpWithCACC = BPRSimAvgLinkTravelTime(Some(caccSettings), Some(pickUpDropOffHolder))
-      val withPickUp = BPRSimAvgLinkTravelTime(None, Some(pickUpDropOffHolder))
+      def calcAverageLinkTravelTime(
+        maybeCaccSettings: Option[CACCSettings],
+        maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+      ): AverageLinkTravelTimeCalculationResults = {
+        BPRSimAvgLinkTravelTime(maybeCaccSettings, maybePickUpDropOffHolder)
+      }
 
-      withCACC.averageLinkTravelTime should be <= noPickUpNoCACC.averageLinkTravelTime
-      noPickUpNoCACC.averageLinkTravelTime should be < withPickUpWithCACC.averageLinkTravelTime
-      withPickUpWithCACC.averageLinkTravelTime should be <= withPickUp.averageLinkTravelTime
+      val noPickUpWithCACC = calcAverageLinkTravelTime(Some(caccSettings), None)
+      val noPickUpNoCACC = calcAverageLinkTravelTime(None, None)
+      val withPickUpWithCACC = calcAverageLinkTravelTime(Some(caccSettings), Some(pickUpDropOffHolder))
+      val withPickUpNoCACC = calcAverageLinkTravelTime(None, Some(pickUpDropOffHolder))
+
+      noPickUpWithCACC.averageLinkTravelTime should be <= noPickUpNoCACC.averageLinkTravelTime
+      noPickUpWithCACC.averageLinkTravelTime should be < withPickUpWithCACC.averageLinkTravelTime
+      noPickUpNoCACC.averageLinkTravelTime should be < withPickUpNoCACC.averageLinkTravelTime
+      withPickUpWithCACC.averageLinkTravelTime should be <= withPickUpNoCACC.averageLinkTravelTime
     }
 
     "return expected link travel time in ParBPR simulation" in {
-      val withCACC = ParBPRSimAvgLinkTravelTime(Some(caccSettings), None)
-      val noPickUpNoCACC = ParBPRSimAvgLinkTravelTime(None, None)
-      val withPickUpWithCACC = ParBPRSimAvgLinkTravelTime(Some(caccSettings), Some(pickUpDropOffHolder))
-      val withPickUp = ParBPRSimAvgLinkTravelTime(None, Some(pickUpDropOffHolder))
+      def calcAverageLinkTravelTime(
+        maybeCaccSettings: Option[CACCSettings],
+        maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+      ): AverageLinkTravelTimeCalculationResults = {
+        ParBPRSimAvgLinkTravelTime(maybeCaccSettings, maybePickUpDropOffHolder)
+      }
 
-      withCACC.averageLinkTravelTime should be <= noPickUpNoCACC.averageLinkTravelTime
-      noPickUpNoCACC.averageLinkTravelTime should be < withPickUpWithCACC.averageLinkTravelTime
-      withPickUpWithCACC.averageLinkTravelTime should be <= withPickUp.averageLinkTravelTime
+      val noPickUpWithCACC = calcAverageLinkTravelTime(Some(caccSettings), None)
+      val noPickUpNoCACC = calcAverageLinkTravelTime(None, None)
+      val withPickUpWithCACC = calcAverageLinkTravelTime(Some(caccSettings), Some(pickUpDropOffHolder))
+      val withPickUpNoCACC = calcAverageLinkTravelTime(None, Some(pickUpDropOffHolder))
+
+      noPickUpWithCACC.averageLinkTravelTime should be <= noPickUpNoCACC.averageLinkTravelTime
+      noPickUpWithCACC.averageLinkTravelTime should be < withPickUpWithCACC.averageLinkTravelTime
+      noPickUpNoCACC.averageLinkTravelTime should be < withPickUpNoCACC.averageLinkTravelTime
+      withPickUpWithCACC.averageLinkTravelTime should be <= withPickUpNoCACC.averageLinkTravelTime
     }
   }
 
