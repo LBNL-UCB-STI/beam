@@ -195,10 +195,10 @@ case class VehiclePickUpsDropOffs(
   override def toString: String = s"PickUps: $pickUpTimeToLink DropOffs: $dropOffTimeToLink"
 }
 
-class TimeToValueCollection() {
-  val times: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty
+class TimeToValueCollection(
+  val times: mutable.ArrayBuffer[Double] = mutable.ArrayBuffer.empty,
   val values: mutable.ArrayBuffer[Int] = mutable.ArrayBuffer.empty
-
+) {
   def addTimeToValue(time: Double, value: Int): Unit = {
     if (times.isEmpty || times.last < time) {
       times.append(time)
