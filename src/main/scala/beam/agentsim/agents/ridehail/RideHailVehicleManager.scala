@@ -269,9 +269,6 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     }
   }
 
-  var nGetIdleAndRepositioningVehiclesAndFilterOutExluded: Int = 0
-  var totalTimeMs: Int = 0
-
   /**
     * Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
     * any that should be excluded according to the doNotUseInAllocation map.
