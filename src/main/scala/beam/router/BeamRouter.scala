@@ -763,9 +763,6 @@ object BeamRouter {
      }).round.toInt
   }
 
-  val cnt: AtomicInteger = new AtomicInteger(0)
-  val totalTime: AtomicInteger = new AtomicInteger(0)
-
   def computeTravelTimeAndDistanceAndCost(
     originUTM: Coord,
     destinationUTM: Coord,
@@ -779,12 +776,6 @@ object BeamRouter {
     maybeOrigTazId: Option[Id[TAZ]] = None,
     maybeDestTazId: Option[Id[TAZ]] = None,
   ): ODSkimmer.Skim = {
-    if (cnt.get() % 10000 == 0) {
-      println(s"computeTravelTimeAndDistanceAndCost is called ${cnt.get()} times, totalTime: ${totalTime
-        .get()}, AVG: ${totalTime.get().toDouble / cnt.get()} ms")
-    }
-    val s = System.currentTimeMillis()
-
     val origTazId = Some(maybeOrigTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId))
     val destTazId = Some(
       maybeDestTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId)
@@ -844,10 +835,6 @@ object BeamRouter {
         )
         .intValue()
     }
-    val e = System.currentTimeMillis()
-    val diff = e - s
-    totalTime.getAndAdd(diff.toInt)
-    cnt.incrementAndGet()
     ODSkimmer.Skim(time = travelTimeInS, distance = skimResult.distance, cost = skimResult.cost)
   }
 
