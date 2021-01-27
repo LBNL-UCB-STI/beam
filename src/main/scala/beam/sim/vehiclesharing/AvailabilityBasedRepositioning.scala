@@ -81,10 +81,11 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val vehicleTypeId = Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
-          beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-          classOf[BeamVehicleType]
-        )
+        val vehicleTypeId =
+          Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
         val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
 
         val skim = BeamRouter.computeTravelTimeAndDistanceAndCost(

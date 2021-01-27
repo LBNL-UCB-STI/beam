@@ -30,7 +30,11 @@ import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, Refuelin
 import beam.agentsim.agents.ridehail.allocation.{DispatchProductType, _}
 import beam.agentsim.agents.ridehail.charging.VehicleChargingManager
 import beam.agentsim.agents.ridehail.kpis.RealTimeKpis
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
