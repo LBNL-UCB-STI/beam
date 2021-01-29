@@ -69,13 +69,15 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     .map {
       case (zone, idx) =>
         new ParkingZone[Link](
-          idx,
-          zone.geoId,
-          zone.parkingType,
-          zone.stallsAvailable,
-          zone.maxStalls,
-          zone.chargingPointType,
-          zone.pricingModel
+          parkingZoneId = idx,
+          geoId = zone.geoId,
+          parkingType = zone.parkingType,
+          stallsAvailable = zone.stallsAvailable,
+          maxStalls = zone.maxStalls,
+          chargingPointType = zone.chargingPointType,
+          pricingModel = zone.pricingModel,
+          parkingZoneName = None, // FIXME?
+          landCostInUSDPerSqft = None // FIXME?
         )
     }
     .toArray
@@ -119,13 +121,15 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
         val zonesPerMeter = zone.maxStalls * multiplier / totalLength
         val numZones = Math.round(zonesPerMeter * link.getLength).toInt
         new ParkingZone[Link](
-          -1,
-          link.getId,
-          zone.parkingType,
-          numZones,
-          numZones,
-          zone.chargingPointType,
-          zone.pricingModel
+          parkingZoneId = -1,
+          geoId = link.getId,
+          parkingType = zone.parkingType,
+          stallsAvailable = numZones,
+          maxStalls = numZones,
+          chargingPointType = zone.chargingPointType,
+          pricingModel = zone.pricingModel,
+          parkingZoneName = None, // FIXME ?
+          landCostInUSDPerSqft = None // FIXME ?
         )
       }
     }

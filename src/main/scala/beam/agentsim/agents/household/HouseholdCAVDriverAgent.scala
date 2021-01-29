@@ -37,6 +37,7 @@ class HouseholdCAVDriverAgent(
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
+  override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 

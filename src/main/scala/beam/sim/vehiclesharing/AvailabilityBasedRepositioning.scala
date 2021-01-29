@@ -2,10 +2,12 @@ package beam.sim.vehiclesharing
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
 import beam.router.skim.{ODSkims, Skims, TAZSkimmer, TAZSkims}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
+
 import scala.collection.mutable
 
 case class AvailabilityBasedRepositioning(
@@ -79,16 +81,23 @@ case class AvailabilityBasedRepositioning(
       val org = topOversuppliedTAZ.head
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
-        val skim = beamServices.skims.od_skimmer.getTimeDistanceAndCost(
+        val vehicleTypeId =
+          Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            classOf[BeamVehicleType]
+          )
+        val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
+
+        val skim = BeamRouter.computeTravelTimeAndDistanceAndCost(
           org.taz.coord,
           dst.taz.coord,
           now,
           BeamMode.CAR,
-          Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-            classOf[BeamVehicleType]
-          ),
-          beamServices.beamScenario
+          vehicleTypeId,
+          vehicleType,
+          beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType),
+          beamServices.beamScenario,
+          beamServices.skims.od_skimmer
         )
         if (destTimeOpt.isEmpty || (destTimeOpt.isDefined && skim.time < destTimeOpt.get._2)) {
           destTimeOpt = Some((dst, skim.time))

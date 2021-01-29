@@ -10,7 +10,7 @@ import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamHelper, BeamMobsim}
+import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -79,7 +79,8 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
@@ -131,7 +132,8 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
       )
       mobsim.run()
 
@@ -202,7 +204,8 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
       )
       mobsim.run()
 
@@ -279,7 +282,8 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
       )
       mobsim.run()
 
