@@ -349,10 +349,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             data.passengerSchedule.schedule.keys.view
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
-          val timeDiff = tick - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
-          if (nextLeg.startTime < timeDiff) {
+          if (nextLeg.startTime < tick - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
             logger.info(
-              s"**** BEYOND Parallelism Window. ID: ${this.id}. currentVehicle: ${currentBeamVehicle.id}. isCAV: ${currentBeamVehicle.isCAV}. timeDifference: $timeDiff"
+              s"**** BEYOND Parallelism Window. ID: ${this.id}. currentVehicle: ${currentBeamVehicle.id}. isCAV: ${currentBeamVehicle.isCAV}. timeDifference: ${tick-nextLeg.startTime}"
             )
           }
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
