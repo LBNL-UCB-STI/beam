@@ -21,6 +21,8 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils._
 import com.conveyal.osmlib.OSM

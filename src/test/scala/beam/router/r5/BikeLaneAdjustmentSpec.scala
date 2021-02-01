@@ -102,7 +102,7 @@ private object BikeLaneAdjustmentSpec extends MockitoSugar {
   def minimumBikeLaneConfig(filePathLinkIds: Path, scaleFactor: Double): Config = {
     val bikeLanesConfig =
       s"""beam.routing.r5.bikeLaneScaleFactor = $scaleFactor
-         |beam.routing.r5.bikeLaneLinkIdsFilePath = "$filePathLinkIds"""".stripMargin
+         |beam.routing.r5.bikeLaneLinkIdsFilePath = "${filePathLinkIds.toString.replace('\\', '/')}"""".stripMargin
     ConfigFactory.parseString(bikeLanesConfig).withFallback(TestConfigUtils.minimumValidBeamConfig)
   }
 

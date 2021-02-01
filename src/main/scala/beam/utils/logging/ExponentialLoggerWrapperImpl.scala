@@ -46,7 +46,7 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
   private def processMessage(messageTemplate: String, args: Any*)(func: Func): Unit = {
     // by focusing on first 20 characters, we allow people to avoid verbose messages
     // while keeping some unique info in the message. just put that info at the end
-    val first20Characters = messageTemplate.substring(0, 19)
+    val first20Characters = messageTemplate.substring(0, Math.min(19, messageTemplate.length - 1))
     val newValue = messages.merge(first20Characters, 1, (counter, incValue) => counter + incValue)
     if (isNumberPowerOfTwo(newValue)) {
       val newMessage = "[" + newValue + "] " + messageTemplate

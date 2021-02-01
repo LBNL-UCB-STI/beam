@@ -59,7 +59,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     }.toList
   }
 
-  override def sampleRideHailVehicleTypes(
+  override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution
