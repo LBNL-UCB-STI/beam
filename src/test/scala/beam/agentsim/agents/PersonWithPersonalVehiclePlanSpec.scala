@@ -739,7 +739,6 @@ class PersonWithPersonalVehiclePlanSpec
   }
 
   override def afterAll(): Unit = {
-    shutdown()
     super.afterAll()
   }
 

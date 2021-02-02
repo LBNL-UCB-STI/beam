@@ -3,7 +3,7 @@ package beam.agentsim.scheduler
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -196,7 +196,7 @@ class BeamAgentScheduler(
     super.aroundPostStop()
   }
 
-  def receive: Receive = LoggingReceive {
+  def receive: Receive = BeamLoggingReceive {
     case StartSchedule(it) =>
       log.info(s"starting scheduler at iteration $it")
       this.startSender = sender()
@@ -442,7 +442,7 @@ class BeamAgentScheduler(
     if (awaitingResponse.keySet().isEmpty) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(10)}"
+      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(3)}"
     }
   }
 

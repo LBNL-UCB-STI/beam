@@ -109,10 +109,14 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       pastSkimsInternal.put(currentIterationInternal, currentSkim)
     } else logger.warn("keepKLatestSkims is negative!")
     // aggregate
-    aggregatedFromPastSkimsInternal = (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.keySet).map {
-      key =>
-        key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), currentSkimInternal.get(key))
-    }.toMap
+    if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
+      logger.warn("skim aggregation is skipped as 'overrideNetworkTravelTimesUsingSkims' enabled")
+    } else {
+      aggregatedFromPastSkimsInternal = (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.keySet).map {
+        key =>
+          key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), currentSkimInternal.get(key))
+      }.toMap
+    }
     // write
     writeToDisk(event)
     // clear

@@ -87,6 +87,5 @@ case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
   tick: Int,
-  vehicleId: Id[Vehicle],
-  stall: ParkingStall
+  vehicleId: Id[Vehicle]
 )

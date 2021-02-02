@@ -129,10 +129,12 @@ object Modes {
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {
-      if (stringMode.equals("")) {
+      if (stringMode.equals("") || stringMode.equals("other")) {
         None
       } else if (stringMode.equalsIgnoreCase("drive")) {
         Some(CAR)
+      } else if (stringMode.equalsIgnoreCase("transit_walk")) {
+        Some(WALK_TRANSIT)
       } else {
         Some(BeamMode.withValue(stringMode))
       }

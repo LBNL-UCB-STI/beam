@@ -1,7 +1,5 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.pattern.{ask, pipe}
@@ -13,20 +11,21 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingType, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.utils.{DateUtils, ParkingManagerIdGenerator}
+import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
+import java.util.concurrent.TimeUnit
 import scala.collection.concurrent.TrieMap
+import scala.language.postfixOps
 import scala.util.Random
 
 /**
@@ -338,11 +337,11 @@ class ChargingNetworkManager(
 }
 
 object ChargingNetworkManager {
+  case class ChargingZonesInquiry()
   case class PlanningTimeOutTrigger(tick: Int) extends Trigger
-  case class ChargingTimeOutTrigger(tick: Int, vehicleId: Id[BeamVehicle], vehicleManager: VehicleManager)
-      extends Trigger
-  case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, vehicleManager: VehicleManager)
-  case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, vehicleManager: VehicleManager)
+  case class ChargingTimeOutTrigger(tick: Int, vehicleId: Id[BeamVehicle], vehManager: VehicleManager) extends Trigger
+  case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, vehManager: VehicleManager)
+  case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, vehManager: VehicleManager)
   case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
   case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle])
@@ -433,15 +432,19 @@ object ChargingNetworkManager {
     */
   private def loadChargingZones(beamServices: BeamServices): QuadTree[ChargingZone] = {
     import beamServices._
-    val (zones, _) = ZonalParkingManager.loadParkingZones(
-      beamConfig.beam.agentsim.taz.parkingFilePath,
-      beamConfig.beam.agentsim.taz.filePath,
-      beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
-      beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
-      new Random(beamConfig.matsim.modules.global.randomSeed)
+    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
+    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
+    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
+    val random = new Random(beamConfig.matsim.modules.global.randomSeed)
+    val (zones, _) = ZonalParkingManager.loadParkingZones[TAZ](
+      parkingFilePath,
+      beamScenario.tazTreeMap.tazQuadTree,
+      parkingStallCountScalingFactor,
+      parkingCostScalingFactor,
+      random
     )
     val zonesWithCharger =
-      zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.tazId).get))
+      zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.geoId).get))
     val coordinates = zonesWithCharger.map(_._2.coord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
@@ -463,7 +466,7 @@ object ChargingNetworkManager {
           taz.coord.getY,
           ChargingZone(
             zone.parkingZoneId,
-            zone.tazId,
+            zone.geoId,
             zone.parkingType,
             zone.maxStalls,
             zone.chargingPointType.get,

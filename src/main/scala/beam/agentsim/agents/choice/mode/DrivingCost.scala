@@ -9,11 +9,13 @@ import beam.router.model.BeamLeg
   */
 object DrivingCost {
 
-  def estimateDrivingCost(leg: BeamLeg, vehicleType: BeamVehicleType, fuelTypePrices: Map[FuelType, Double]): Double = {
-    val distance = leg.travelPath.distanceInM
-    val travelTime = leg.duration
-    val consumption = vehicleType.primaryFuelConsumptionInJoulePerMeter
-    val fuelPrice = fuelTypePrices(vehicleType.primaryFuelType)
+  def estimateDrivingCost(
+    distance: Double,
+    travelTime: Int,
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double
+  ): Double = {
+    val consumption: Double = vehicleType.primaryFuelConsumptionInJoulePerMeter
     (distance * consumption * fuelPrice) / 1000000 + distance * vehicleType.monetaryCostPerMeter + travelTime * vehicleType.monetaryCostPerSecond
   }
 

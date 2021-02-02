@@ -130,7 +130,7 @@ class SitePowerManager(chargingNetworkMap: TrieMap[String, ChargingNetwork], bea
 object SitePowerManager {
   type PowerInKW = Double
   type EnergyInJoules = Double
-  type ChargingDurationInSec = Long
+  type ChargingDurationInSec = Int
 
   case class PhysicalBounds(station: ChargingStation, maxLoad: PowerInKW)
 

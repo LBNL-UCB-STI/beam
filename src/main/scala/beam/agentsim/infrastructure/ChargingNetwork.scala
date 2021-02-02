@@ -186,7 +186,7 @@ object ChargingNetwork {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, energy: Double, duration: Long)
+  final case class ChargingCycle(startTime: Int, energy: Double, duration: Int)
 
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
@@ -211,7 +211,7 @@ object ChargingNetwork {
       * @param duration duration of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processChargingCycle(startTime: Int, energy: Double, duration: Long): Option[ChargingCycle] =
+    def processChargingCycle(startTime: Int, energy: Double, duration: Int): Option[ChargingCycle] =
       this.synchronized {
         chargingSessionInternal.lastOption match {
           case Some(cycle: ChargingCycle) if cycle.startTime == startTime && cycle.duration > duration =>

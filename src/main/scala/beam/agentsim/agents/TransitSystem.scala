@@ -13,7 +13,7 @@ import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.BeamScenario
+import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, NetworkHelper}
@@ -24,6 +24,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 class TransitSystem(
+  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val scenario: Scenario,
   val transportNetwork: TransportNetwork,
@@ -85,6 +86,7 @@ class TransitSystem(
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
+            beamServices,
             beamScenario,
             transportNetwork,
             tollCalculator,
