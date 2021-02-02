@@ -14,7 +14,8 @@ object DrivingCost {
     val travelTime = leg.duration
     val consumption = vehicleType.primaryFuelConsumptionInJoulePerMeter
     val fuelPrice = fuelTypePrices(vehicleType.primaryFuelType)
-    (distance * consumption * fuelPrice) / 1000000 + distance * vehicleType.monetaryCostPerMeter + travelTime * vehicleType.monetaryCostPerSecond
+    (distance * consumption * fuelPrice) / 1000000 + distance * vehicleType.monetaryCostPerMeter +
+    travelTime * vehicleType.monetaryCostPerSecond + vehicleType.monetaryCostPerUsage
   }
 
 }

@@ -14,6 +14,7 @@ case class BeamVehicleType(
   primaryFuelCapacityInJoule: Double,
   monetaryCostPerMeter: Double = 0.0,
   monetaryCostPerSecond: Double = 0.0,
+  monetaryCostPerUsage: Double = 0.0,
   secondaryFuelType: Option[FuelType] = None,
   secondaryFuelConsumptionInJoulePerMeter: Option[Double] = None,
   secondaryFuelCapacityInJoule: Option[Double] = None,
