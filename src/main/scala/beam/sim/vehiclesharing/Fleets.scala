@@ -5,13 +5,22 @@ import org.matsim.api.core.v01.Id
 
 object Fleets {
 
-  def lookup(config: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm): FleetType = {
+  def lookup(
+    config: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm,
+    agentSampleSizeAsFractionOfPopulation: Double
+  ): FleetType = {
     val vehicleManagerId = Id.create(config.name, classOf[VehicleManager])
     val parkingFilePath = config.parkingFilePath
     config.managerType match {
       case "fixed-non-reserving-fleet-by-taz" =>
         val value: SharedFleets$Elm.FixedNonReservingFleetByTaz = config.fixed_non_reserving_fleet_by_taz.get
-        FixedNonReservingFleetByTAZ(vehicleManagerId, parkingFilePath, value, config.reposition)
+        FixedNonReservingFleetByTAZ(
+          vehicleManagerId,
+          parkingFilePath,
+          value,
+          agentSampleSizeAsFractionOfPopulation,
+          config.reposition
+        )
       case "inexhaustible-reserving" =>
         val value: SharedFleets$Elm.InexhaustibleReserving = config.inexhaustible_reserving.get
         InexhaustibleReservingFleet(vehicleManagerId, parkingFilePath, value)

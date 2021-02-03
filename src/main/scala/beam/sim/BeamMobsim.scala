@@ -346,7 +346,8 @@ class BeamMobsimIteration(
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
   private val parkingFilePaths = {
-    val sharedVehicleFleetTypes = config.agents.vehicles.sharedFleets.map(Fleets.lookup)
+    val sharedVehicleFleetTypes =
+      config.agents.vehicles.sharedFleets.map(cfg => Fleets.lookup(cfg, config.agentSampleSizeAsFractionOfPopulation))
     ZonalParkingManager.getDefaultParkingZones(beamConfig) ++ sharedVehicleFleetTypes.map(
       fleetType => fleetType.managerId -> fleetType.parkingFilePath
     )
@@ -449,7 +450,9 @@ class BeamMobsimIteration(
 
   private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
     context.actorOf(
-      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingManager),
+      Fleets
+        .lookup(fleetConfig, config.agentSampleSizeAsFractionOfPopulation)
+        .props(beamServices, scheduler, parkingManager),
       fleetConfig.name
     )
   }

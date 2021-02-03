@@ -30,6 +30,7 @@ case class FixedNonReservingFleetByTAZ(
   managerId: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
+  agentSampleSizeAsFractionOfPopulation: Double,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
 ) extends FleetType
     with LazyLogging {
@@ -51,7 +52,8 @@ case class FixedNonReservingFleetByTAZ(
         logger.info(s"Reading shared vehicle fleet from file: $fileName")
         FleetUtils.readCSV(fileName).foreach {
           case (idTaz, coord, share) =>
-            val fleetShare: Int = MathUtils.roundUniformly(share * config.fleetSize).toInt
+            val fleetShare =
+              MathUtils.roundUniformly(share * config.fleetSize * agentSampleSizeAsFractionOfPopulation).toInt
             (0 until fleetShare).foreach(
               _ =>
                 initialLocation
@@ -66,7 +68,7 @@ case class FixedNonReservingFleetByTAZ(
         // fall back to a uniform distribution
         initialLocation.clear()
         val tazArray = beamServices.beamScenario.tazTreeMap.getTAZs.toArray
-        (1 to config.fleetSize).foreach { _ =>
+        (1 to Math.round(config.fleetSize * agentSampleSizeAsFractionOfPopulation).toInt).foreach { _ =>
           val taz = tazArray(rand.nextInt(tazArray.length))
           initialLocation.prepend(TAZTreeMap.randomLocationInTAZ(taz, rand))
         }
