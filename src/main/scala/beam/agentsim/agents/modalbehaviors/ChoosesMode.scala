@@ -78,11 +78,11 @@ trait ChoosesMode {
     .toIndexedSeq
 
   private def createDummyVehicle(
-                                  id: String,
-                                  vehicleTypeId: String,
-                                  mode: BeamMode,
-                                  asDriver: Boolean,
-                                  needsToCalculateCost: Boolean
+    id: String,
+    vehicleTypeId: String,
+    mode: BeamMode,
+    asDriver: Boolean,
+    needsToCalculateCost: Boolean
   ) =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
