@@ -24,12 +24,13 @@ object ParkingZoneFileUtils extends LazyLogging {
     * last row (ReservedFor) is ignored
     */
   val ParkingFileRowRegex: Regex =
-    """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*),?(\w+)?,?(\d+\.{0,1}\d*)?(.*)""".r.unanchored
+    """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*),?([\w\-]+)?,?(\d+\.{0,1}\d*)?,?([\w\-]+)?""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)
     */
-  val ParkingFileHeader: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
+  val ParkingFileHeader: String =
+    "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
 
   /**
     * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
@@ -124,9 +125,11 @@ object ParkingZoneFileUtils extends LazyLogging {
           case None     => "NoCharger"
           case Some(cp) => s"$cp"
         }
-        val reservedFor = parkingZone.reservedFor.map(_.toString).getOrElse("")
+        val parkingZoneName = parkingZone.parkingZoneName.getOrElse("")
+        val landCostInUSDPerSqft = parkingZone.landCostInUSDPerSqft.getOrElse("")
+        val reservedFor = parkingZone.reservedFor.getOrElse("")
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$reservedFor"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft,$reservedFor"
       }
     } match {
       case Failure(e) =>
@@ -344,7 +347,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           feeInCentsString,
           parkingZoneNameString,
           landCostInUSDPerSqftString,
-          theRest,
+          reservedForString,
           ) =>
         Try {
           val newCostInDollarsString = (feeInCentsString.toDouble * parkingCostScalingFactor / 100.0).toString
@@ -355,17 +358,14 @@ object ParkingZoneFileUtils extends LazyLogging {
           } else {
             floorNumberOfStalls
           }
-          val vehicleManagerType: Option[VehicleManagerType] = theRest.split(',').toList match {
-            case _ :: nextColumnValue :: _ =>
-              nextColumnValue.trim match {
-                //we had Any and RideHailManager in the taz-parking.csv files
-                //allow the users not to modify existing files
-                case "" | "Any"        => None
-                case "RideHailManager" => Some(VehicleManagerType.Ridehail)
-                case trimmed @ _       => Some(VehicleManagerType.withNameInsensitive(trimmed))
-              }
-            case _ => None
-          }
+          val vehicleManagerType: Option[VehicleManagerType] =
+            (if (reservedForString == null) "" else reservedForString).trim match {
+              //we had Any and RideHailManager in the taz-parking.csv files
+              //allow the users not to modify existing files
+              case "" | "Any"        => None
+              case "RideHailManager" => Some(VehicleManagerType.Ridehail)
+              case trimmed @ _       => Some(VehicleManagerType.withNameInsensitive(trimmed))
+            }
 
           // parse this row from the source file
           val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)
