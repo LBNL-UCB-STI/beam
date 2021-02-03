@@ -314,7 +314,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(carOption.legs(1).unbecomeDriverOnCompletion)
     }
 
-    "respond with a unlimited transfer route having cost 2.75 USD." in {
+    "respond with an unlimited transfer route having cost 2.75 USD." in {
       val origin = new Coord(549598.9574660371, 4176177.2431860007)
       val destination = new Coord(544417.3891361314, 4177016.733758491)
       val time = 64080

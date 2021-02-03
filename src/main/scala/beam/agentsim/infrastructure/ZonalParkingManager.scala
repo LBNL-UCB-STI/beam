@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure
 
+import scala.util.{Failure, Random, Success, Try}
+import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Props}
 import akka.actor.{ActorLogging, ActorRef, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
@@ -66,7 +68,7 @@ class ZonalParkingManager[GEO: GeoLevel](
     mnlMultiplierParameters,
   )
 
-  override def receive: Receive = {
+  override def receive: Receive = BeamLoggingReceive {
 
     case inquiry: ParkingInquiry =>
       log.debug("Received parking inquiry: {}", inquiry)
@@ -269,9 +271,9 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
 
         // end-of-day parking durations are set to zero, which will be mis-interpreted here
-        val parkingDuration: Option[Long] =
-          if (inquiry.parkingDuration.toLong <= 0L) None
-          else Some(inquiry.parkingDuration.toLong)
+        val parkingDuration: Option[Int] =
+          if (inquiry.parkingDuration <= 0) None
+          else Some(inquiry.parkingDuration.toInt)
 
         val addedEnergy: Double =
           inquiry.beamVehicle match {

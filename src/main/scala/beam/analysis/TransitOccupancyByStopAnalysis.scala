@@ -22,9 +22,12 @@ class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEnd
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val filePath = event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, fileName)
-    writeCSVRows(filePath)
-    pathTraversalEvents.clear()
+    if (pathTraversalEvents.nonEmpty) {
+      val filePath =
+        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, fileName)
+      writeCSVRows(filePath)
+      pathTraversalEvents.clear()
+    }
   }
 
   def writeCSVRows(path: String): Unit = {

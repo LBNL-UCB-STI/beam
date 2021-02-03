@@ -1,5 +1,9 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.infrastructure.ParkingStall
+
+import scala.language.higherKinds
+import cats.Eval
 import beam.agentsim.agents.vehicles.VehicleManagerType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.vehiclesharing.VehicleManager
@@ -24,7 +28,9 @@ class ParkingZone[GEO](
   val reservedFor: Option[VehicleManagerType],
   val vehicleManagerId: Option[Id[VehicleManager]],
   val chargingPointType: Option[ChargingPointType],
-  val pricingModel: Option[PricingModel]
+  val pricingModel: Option[PricingModel],
+  val parkingZoneName: Option[String],
+  val landCostInUSDPerSqft: Option[Double]
 ) {
 
   /**
@@ -60,7 +66,9 @@ class ParkingZone[GEO](
       this.reservedFor,
       this.vehicleManagerId,
       this.chargingPointType,
-      this.pricingModel
+      this.pricingModel,
+      this.parkingZoneName,
+      this.landCostInUSDPerSqft
     )
   }
 }
@@ -91,7 +99,9 @@ object ParkingZone extends LazyLogging {
     reservedFor: Option[VehicleManagerType],
     vehicleManagerId: Option[Id[VehicleManager]],
     chargingType: Option[ChargingPointType] = None,
-    pricingModel: Option[PricingModel] = None
+    pricingModel: Option[PricingModel] = None,
+    parkingZoneName: Option[String] = None,
+    landCostInUSDPerSqft: Option[Double] = None
   ): ParkingZone[GEO] =
     new ParkingZone(
       parkingZoneId,
@@ -102,7 +112,9 @@ object ParkingZone extends LazyLogging {
       reservedFor,
       vehicleManagerId,
       chargingType,
-      pricingModel
+      pricingModel,
+      parkingZoneName,
+      landCostInUSDPerSqft
     )
 
   /**

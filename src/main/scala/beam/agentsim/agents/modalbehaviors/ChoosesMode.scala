@@ -1123,10 +1123,11 @@ trait ChoosesMode {
         rideHail2TransitRoutingResponse
       )
       val rideHailItinerary = rideHailResult.travelProposal match {
-        case Some(travelProposal) =>
+        case Some(travelProposal)
+            if travelProposal.timeToCustomer(bodyVehiclePersonId) <= beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec =>
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
-            case Some(poolingInfo) =>
+            case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.equals(Some(RIDE_HAIL)) =>
               val pooledLegs = origLegs.map { origLeg =>
                 origLeg.copy(
                   cost = origLeg.cost * poolingInfo.costFactor,
@@ -1135,7 +1136,7 @@ trait ChoosesMode {
                 )
               }
               Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
-            case None =>
+            case _ =>
               Vector(origLegs)
           }).map { partialItin =>
             EmbodiedBeamTrip(
@@ -1158,7 +1159,7 @@ trait ChoosesMode {
               )
             )
           }
-        case None =>
+        case _ =>
           Vector()
       }
       val combinedItinerariesForChoice = rideHailItinerary ++ addParkingCostToItins(

@@ -6,11 +6,13 @@ import beam.agentsim.agents.ridehail.RideHailMatching.RideHailTrip
 import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef, VehicleManagerInfo}
+import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.skim.{ODSkimmer, Skims, SkimsUtils}
 import beam.sim.common.GeoUtils
-import beam.sim.{BeamServices, Geofence}
+import beam.sim.{BeamServices, CircularGeofence, Geofence, TAZGeofence}
+import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
 import org.geotools.referencing.GeodeticCalculator
@@ -19,6 +21,8 @@ import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedWeightedGraph}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.utils.collections.QuadTree
+
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -34,6 +38,7 @@ abstract class RideHailMatching(services: BeamServices) extends LazyLogging {
 }
 
 object RideHailMatching {
+
   // ***** Graph Structure *****
   sealed trait RTVGraphNode {
     def getId: String
@@ -110,29 +115,41 @@ object RideHailMatching {
 
   def getRequestsWithinGeofence(v: VehicleAndSchedule, demand: List[CustomerRequest]): List[CustomerRequest] = {
     // get all customer requests located at a proximity to the vehicle
+
     v.geofence match {
-      case Some(gf) =>
-        val gfCenter = new Coord(gf.geofenceX, gf.geofenceY)
+      case Some(geofence) =>
         demand.filter(
-          r =>
-            GeoUtils.distFormula(r.pickup.activity.getCoord, gfCenter) <= gf.geofenceRadius &&
-            GeoUtils.distFormula(r.dropoff.activity.getCoord, gfCenter) <= gf.geofenceRadius
+          r => geofence.contains(r.pickup.activity.getCoord) && geofence.contains(r.dropoff.activity.getCoord)
         )
       case _ => demand
     }
   }
 
-  def getTimeDistanceAndCost(src: MobilityRequest, dst: MobilityRequest, beamServices: BeamServices): ODSkimmer.Skim = {
-    beamServices.skims.od_skimmer.getTimeDistanceAndCost(
+  def getTimeDistanceAndCost(
+    src: MobilityRequest,
+    dst: MobilityRequest,
+    beamServices: BeamServices,
+    beamVehicleType: Option[BeamVehicleType]
+  ): ODSkimmer.Skim = {
+    val vehicleTypeId = beamVehicleType
+      .map(_.id)
+      .getOrElse(
+        Id.create(
+          beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          classOf[BeamVehicleType]
+        )
+      )
+    val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
+    BeamRouter.computeTravelTimeAndDistanceAndCost(
       src.activity.getCoord,
       dst.activity.getCoord,
       src.baselineNonPooledTime,
       BeamMode.CAR,
-      Id.create(
-        beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-        classOf[BeamVehicleType]
-      ),
-      beamServices.beamScenario
+      vehicleTypeId,
+      vehicleType,
+      beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType),
+      beamServices.beamScenario,
+      beamServices.skims.od_skimmer
     )
   }
 
@@ -182,7 +199,8 @@ object RideHailMatching {
       newRequests,
       remainingVehicleRangeInMeters,
       vehicle.getRequestWithCurrentVehiclePosition,
-      beamServices
+      beamServices,
+      Some(vehicle.vehicle.beamVehicleType)
     ).map(newSchedule => RideHailTrip(customers, newSchedule, Some(vehicle)))
   }
 
@@ -191,7 +209,8 @@ object RideHailMatching {
     newRequests: List[MobilityRequest],
     remainingVehicleRangeInMeters: Int,
     currentPosition: MobilityRequest,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    beamVehicleType: Option[BeamVehicleType]
   ): Option[List[MobilityRequest]] = {
     val reversedSchedule = schedule.reverse
     val newSchedule = ListBuffer(currentPosition)
@@ -212,7 +231,7 @@ object RideHailMatching {
       val prevReq = newSchedule.last
       val (curReqIndex, curReq, skim) = processedRequests.zipWithIndex
         .filter(r => r._1.tag == Pickup || agentsPooled.contains(r._1.person.get))
-        .map(r => (r._2, r._1, getTimeDistanceAndCost(prevReq, r._1, beamServices)))
+        .map(r => (r._2, r._1, getTimeDistanceAndCost(prevReq, r._1, beamServices, beamVehicleType)))
         .minBy(_._3.time)
       val serviceTime = Math.max(prevReq.serviceTime + skim.time, curReq.serviceTime)
       val serviceDistance = prevReq.serviceDistance + skim.distance
@@ -241,21 +260,26 @@ object RideHailMatching {
     val travelTimeDelayAsFraction =
       beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime
 
+    val vehicleTypeId = Id.create(
+      beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      classOf[BeamVehicleType]
+    )
+    val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
+
     val p1Act1: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act1", src)
     p1Act1.setEndTime(departureTime)
     val p1Act2: Activity = PopulationUtils.createActivityFromCoord(s"${vehiclePersonId.personId}Act2", dst)
-    val skim = beamServices.skims.od_skimmer
-      .getTimeDistanceAndCost(
-        p1Act1.getCoord,
-        p1Act2.getCoord,
-        departureTime,
-        BeamMode.CAR,
-        Id.create(
-          beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-          classOf[BeamVehicleType]
-        ),
-        beamServices.beamScenario
-      )
+    val skim = BeamRouter.computeTravelTimeAndDistanceAndCost(
+      p1Act1.getCoord,
+      p1Act2.getCoord,
+      departureTime,
+      BeamMode.CAR,
+      vehicleType.id,
+      vehicleType,
+      beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType),
+      beamServices.beamScenario,
+      beamServices.skims.od_skimmer
+    )
     CustomerRequest(
       vehiclePersonId,
       MobilityRequest(
@@ -283,6 +307,59 @@ object RideHailMatching {
     )
   }
 
+  def createSpatialPooledCustomerRequests(
+    customerRequests: Set[CustomerRequest],
+    quadTreeBounds: QuadTreeBounds
+  ): QuadTree[CustomerRequest] = {
+    val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
+      quadTreeBounds.minx,
+      quadTreeBounds.miny,
+      quadTreeBounds.maxx,
+      quadTreeBounds.maxy
+    )
+    customerRequests.foreach { request =>
+      spatialPoolCustomerReqs.put(request.pickup.activity.getCoord.getX, request.pickup.activity.getCoord.getY, request)
+    }
+    spatialPoolCustomerReqs
+  }
+
+  def createSpatialPooledCustomerRequests(
+    tick: Int,
+    requests: Set[RideHailRequest],
+    rideHailManager: RideHailManager
+  ): QuadTree[CustomerRequest] = {
+    createSpatialPooledCustomerRequests(
+      requests.map { rhr =>
+        createPersonRequest(
+          rhr.customer,
+          rhr.pickUpLocationUTM,
+          tick,
+          rhr.destinationUTM,
+          rideHailManager.beamServices
+        )
+      },
+      rideHailManager.activityQuadTreeBounds
+    )
+  }
+
+  def createVehiclesAndSchedulesFromRideHailAgentLocation(
+    tick: Int,
+    agentLocations: Iterable[RideHailAgentLocation],
+    rideHailManager: RideHailManager
+  ) = {
+    agentLocations.map { veh =>
+      val vehAndSched = RideHailMatching.createVehicleAndScheduleFromRideHailAgentLocation(
+        veh,
+        Math.max(tick, veh.latestTickExperienced),
+        rideHailManager.beamServices,
+        rideHailManager
+          .resources(veh.vehicleId)
+          .getTotalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+      )
+      vehAndSched
+    }
+  }
+
   def createVehicleAndScheduleFromRideHailAgentLocation(
     veh: RideHailAgentLocation,
     tick: Int,
@@ -295,8 +372,7 @@ object RideHailMatching {
       veh.vehicleType,
       managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, veh.vehicleType, isRideHail = true),
     )
-    val vehCurrentLocation =
-      veh.currentPassengerSchedule.map(_.locationAtTime(tick, beamServices)).getOrElse(veh.currentLocationUTM.loc)
+    val vehCurrentLocation = veh.getCurrentLocationUTM(tick, beamServices)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
     v1Act0.setEndTime(tick)
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()

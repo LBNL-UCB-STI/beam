@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleManagerType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.sim.vehiclesharing.VehicleManager
-import beam.utils.FileUtils
+import beam.utils.{DebugLib, FileUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
@@ -23,7 +23,8 @@ object ParkingZoneFileUtils extends LazyLogging {
     * used to parse a row ofParkingGeoIndexConverterSpec the parking file
     * last row (ReservedFor) is ignored
     */
-  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*)(.*)""".r.unanchored
+  val ParkingFileRowRegex: Regex =
+    """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*),?(\w+)?,?(\d+\.{0,1}\d*)?(.*)""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)
@@ -341,6 +342,8 @@ object ParkingZoneFileUtils extends LazyLogging {
           chargingTypeString,
           numStallsString,
           feeInCentsString,
+          parkingZoneNameString,
+          landCostInUSDPerSqftString,
           theRest,
           ) =>
         Try {
@@ -370,16 +373,24 @@ object ParkingZoneFileUtils extends LazyLogging {
           val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
           val chargingPoint = ChargingPointType(chargingTypeString)
           val numStalls = numberOfStallsToCreate
-          val parkingZone = ParkingZone(
-            nextParkingZoneId,
-            taz,
-            parkingType,
-            numStalls,
-            vehicleManagerType,
-            vehicleManagerId,
-            chargingPoint,
-            pricingModel
-          )
+          val parkingZoneName =
+            if (parkingZoneNameString == null || parkingZoneNameString.isEmpty) None else Some(parkingZoneNameString)
+          val landCostInUSDPerSqft =
+            if (landCostInUSDPerSqftString == null || landCostInUSDPerSqftString.isEmpty) None
+            else Some(landCostInUSDPerSqftString.toDouble)
+          val parkingZone =
+            ParkingZone(
+              nextParkingZoneId,
+              taz,
+              parkingType,
+              numStalls,
+              vehicleManagerType,
+              vehicleManagerId,
+              chargingPoint,
+              pricingModel,
+              parkingZoneName,
+              landCostInUSDPerSqft
+            )
 
           ParkingLoadingDataRow(taz, parkingType, parkingZone)
 
@@ -486,4 +497,34 @@ object ParkingZoneFileUtils extends LazyLogging {
 
     fromIterator(rows.iterator, random, header = false)
   }
+
+  /**
+    * Write parking zones to csv.
+    */
+  def toCsv[GEO: GeoLevel](parkingZones: Array[ParkingZone[GEO]], filePath: String): Unit = {
+    val fileContent = parkingZones
+      .map { parkingZone =>
+        List(
+          parkingZone.geoId,
+          parkingZone.parkingType,
+          parkingZone.pricingModel.getOrElse(""),
+          parkingZone.chargingPointType.getOrElse(""),
+          parkingZone.maxStalls,
+          parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
+          parkingZone.parkingZoneName.getOrElse(""),
+          parkingZone.parkingZoneId,
+          parkingZone.landCostInUSDPerSqft.getOrElse("")
+        ).mkString(",")
+      }
+      .mkString(System.lineSeparator())
+
+    FileUtils.writeToFile(
+      filePath,
+      Some("taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,name,parkingZoneId,landCostInUSDPerSqft"),
+      fileContent,
+      None
+    )
+
+  }
+
 }
