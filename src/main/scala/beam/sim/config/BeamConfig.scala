@@ -3349,14 +3349,16 @@ object BeamConfig {
         }
 
         case class MaxDistanceLimitByModeInMeters(
-          bike: scala.Int
+          bike: scala.Int,
+          walk: scala.Int
         )
 
         object MaxDistanceLimitByModeInMeters {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters = {
             BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters(
-              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 40000
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 40000,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 40000
             )
           }
         }

@@ -41,8 +41,10 @@ import org.matsim.vehicles.Vehicle
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport
     with StrictLogging {
-  private val maxDistanceForBikeMeters: Int =
-    workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
+  private val maxDistancePerMode: Map[BeamMode, Int] = Map(
+    BeamMode.WALK -> workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.walk,
+    BeamMode.BIKE -> workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike,
+  )
 
   private val R5Parameters(
     beamConfig,
@@ -115,7 +117,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     response
   }
 
-  private def getStreetPlanFromR5(request: R5Request): ProfileResponse = {
+  private def getStreetPlanFromR5(request: R5Request, beamMode: BeamMode): ProfileResponse = {
     countOccurrence("r5-plans-count", request.time)
 
     val profileRequest = createProfileRequestFromRequest(request)
@@ -135,9 +137,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
-        if (request.accessMode == LegMode.BICYCLE) {
-          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
-        }
+        streetRouter.distanceLimitMeters = maxDistancePerMode.getOrElse(beamMode, 0)
         streetRouter.profileRequest = profileRequest
         streetRouter.streetMode = toR5StreetMode(mode)
         streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -247,7 +247,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   egressMode,
                   request.timeValueOfMoney,
                   body.vehicleTypeId
-                )
+                ),
+                BeamMode.WALK
               )
             }
           if (profileResponse.options.isEmpty) {
@@ -319,7 +320,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               egressMode = LegMode.WALK,
               request.timeValueOfMoney,
               vehicle.vehicleTypeId
-            )
+            ),
+            vehicle.mode
           )
         }
       if (!profileResponse.options.isEmpty) {
@@ -442,9 +444,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         turnCostCalculator,
         travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
       )
-      if (vehicle.mode == BeamMode.BIKE) {
-        streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
-      }
+      streetRouter.distanceLimitMeters = maxDistancePerMode.getOrElse(vehicle.mode, 0)
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
       val legMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
@@ -490,9 +490,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                   turnCostCalculator,
                   travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
                 )
-                if (vehicle.mode == BeamMode.BIKE) {
-                  streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
-                }
+                streetRouter.distanceLimitMeters = maxDistancePerMode.getOrElse(vehicle.mode, 0)
                 streetRouter.profileRequest = profileRequest
                 streetRouter.streetMode = toR5StreetMode(vehicle.mode)
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
@@ -554,9 +552,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           turnCostCalculator,
           travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
         )
-        if (vehicle.mode == BeamMode.BIKE) {
-          streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
-        }
+        streetRouter.distanceLimitMeters = maxDistancePerMode.getOrElse(vehicle.mode, 0)
         val legMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
