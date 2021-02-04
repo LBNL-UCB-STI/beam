@@ -16,8 +16,6 @@ import beam.router.osm.TollCalculator
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
-import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils._
 import com.conveyal.osmlib.OSM
@@ -28,8 +26,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
+import org.apache.commons.io
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
@@ -46,7 +46,17 @@ import scala.reflect.io.Directory
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
 
-  System.load("/home/crixal/work/projects/RoutingKit/src/cchnative.so")
+  val tempDir: File = Paths.get(System.getProperty("java.io.tmpdir"), "cchnative").toFile
+  tempDir.mkdirs
+  tempDir.deleteOnExit()
+
+  if (System.getProperty("os.name").toLowerCase.contains("win")) {
+    throw new IllegalStateException("Win is not supported")
+  } else {
+    val cchNativeLib = "libcchnative.so"
+    io.FileUtils.copyInputStreamToFile(this.getClass.getClassLoader.getResourceAsStream(Paths.get("cchnative", cchNativeLib).toString), Paths.get(tempDir.toString, cchNativeLib).toFile)
+    System.load(Paths.get(tempDir.getPath, cchNativeLib).toString)
+  }
 
   def this(config: Config) {
     this(workerParams = {
@@ -133,8 +143,6 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   val id2Link: Map[Int, (Location, Location)] = workerParams.networkHelper.allLinks
     .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
     .toMap
-
-//  var nodes2Link: mutable.Map[(Long, Long), Long] = mutable.Map[(Long, Long), Long]()
 
   override final def receive: Receive = {
     case "tick" =>
@@ -468,21 +476,6 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       nativeCCH.createBinQueries(bin, Map[String, String]().asJava)
     }
 
-//    val r1 = nativeCCH.route(5, -122.43244898381829, 37.77491557097691, -122.45382120000001, 37.7704974)
-////    nativeCCH.lock()
-//    val cur = workerParams.transportNetwork.streetLayer.edgeStore.getCursor
-//    (0 until noOfTimeBins).foreach { bin =>
-//      val weights = mutable.Map[String, String]()
-//      for (idx <- 0 until workerParams.transportNetwork.streetLayer.edgeStore.nEdges by 1) {
-//        cur.seek(idx)
-//
-//        if (cur.allowsStreetMode(StreetMode.CAR)) {
-//          weights ++= Map(idx.toString -> (Math.random() * 100).toInt.toString)
-//        }
-//      }
-//      nativeCCH.createBinQueries(bin, weights.asJava)
-//    }
-////    nativeCCH.unlock()
 //    val r2 = nativeCCH.route(5, -122.43244898381829, 37.77491557097691, -122.45382120000001, 37.7704974)
 //    def getFullLine(list: Seq[Int]) = {
 //      val geomStr = list.map { id =>
@@ -539,6 +532,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
             cchResponse.getDistance
           )
         )
+        val vehicleType = workerParams.vehicleTypes(streetVehicle.vehicleTypeId)
         val alternative = EmbodiedBeamTrip(
           IndexedSeq(
             EmbodiedBeamLeg(
@@ -546,7 +540,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
               streetVehicle.id,
               streetVehicle.vehicleTypeId,
               asDriver = true,
-              cost = DrivingCost.estimateDrivingCost(beamLeg, workerParams.vehicleTypes(streetVehicle.vehicleTypeId), workerParams.fuelTypePrices),
+              cost = DrivingCost.estimateDrivingCost(beamLeg.travelPath.distanceInM, beamLeg.duration, vehicleType, workerParams.fuelTypePrices(vehicleType.primaryFuelType)),
               unbecomeDriverOnCompletion = true
             )
           )

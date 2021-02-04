@@ -2,7 +2,9 @@ package beam.sim
 
 import beam.utils.MathUtils
 import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
+import beam.sim.config.BeamConfig.Beam.Cosim.Helics
 import ch.qos.logback.classic.util.ContextInitializer
+import com.github.beam.HelicsLoader
 import org.matsim.core.controler.AbstractModule
 
 import scala.collection.JavaConverters._
@@ -13,7 +15,6 @@ object RunBeam extends BeamHelper {
     System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback.xml")
 
   def main(args: Array[String]): Unit = {
-    System.setProperty("java.io.tmpdir", "/home/crixal/work/tmp")
     println(beamAsciiArt)
 
     println(s"Received ${args.length} arguments: ${args.toList}")
