@@ -18,8 +18,9 @@ import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils._
-import com.conveyal.osmlib.OSM
+import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.api.util._
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.util.concurrent.ThreadFactoryBuilder
@@ -416,7 +417,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     /*
         val timeStampStr = "2021-01-21T15:41:30Z"
         val osm = new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile)
-        FileUtils.using(IOUtils.getBufferedWriter("/home/crixal/work/sf-light.osm")) { bw =>
+        FileUtils.using(IOUtils.getBufferedWriter("/home/crixal/work/texas.osm")) { bw =>
           bw.write("<?xml version='1.0' encoding='UTF-8'?>")
           bw.newLine()
           bw.write("<osm version=\"0.6\" generator=\"BEAM\">")
@@ -470,7 +471,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     */
 
     nativeCCH = new CchNative()
-    nativeCCH.init(Paths.get(workerParams.beamConfig.beam.routing.r5.directory, "sf-light-generated.osm.pbf").toString)
+    nativeCCH.init(Paths.get(workerParams.beamConfig.beam.routing.r5.directory, "cchnative", "texas-generated.osm.pbf").toString)
 
     (0 until noOfTimeBins).foreach { bin =>
       nativeCCH.createBinQueries(bin, Map[String, String]().asJava)
