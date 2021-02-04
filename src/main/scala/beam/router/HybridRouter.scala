@@ -50,9 +50,10 @@ class HybridRouter(
       val ghResponses: IndexedSeq[BeamRouter.RoutingResponse] = calcRouteGH(ghRequest).map(_._2)
       val resultItineraries: IndexedSeq[EmbodiedBeamTrip] = if (ghResponses.nonEmpty) {
         //find routes from the nearest stop to the destination
-        val bodyStreetVehicle = request.streetVehicles
-          .filter(vehicle => vehicle.mode == WALK)
-          .map(body => body.copy(locationUTM = SpaceTime(stopLocation, request.departureTime)))
+        val bodyStreetVehicle = request.streetVehicles.collect {
+          case vehicle if vehicle.mode == WALK =>
+            vehicle.copy(locationUTM = SpaceTime(stopLocation, request.departureTime))
+        }
         val r5Resp = r5.calcRoute(
           request
             .copy(originUTM = stopLocation, streetVehicles = bodyStreetVehicle, streetVehiclesUseIntermodalUse = Access)
