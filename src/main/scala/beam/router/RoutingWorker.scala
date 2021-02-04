@@ -93,9 +93,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   private val graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
   private val carGraphHopperDir: String = Paths.get(graphHopperDir, "car").toString
-  private var binToCarGraphHopper: Map[Int, GraphHopperWrapper] = _
-  private var walkGraphHopper: GraphHopperWrapper = _
-  private var bikeGraphHopper: GraphHopperWrapper = _
+  private var binToCarGraphHopper: Map[Int, CarGraphHopperWrapper] = _
+  private var walkGraphHopper: WalkGraphHopperWrapper = _
+  private var bikeGraphHopper: BikeGraphHopperWrapper = _
   private var hybridRouter: HybridRouter = _
 
   private val linksBelowMinCarSpeed =
@@ -118,16 +118,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       createWalkGraphHopper()
       createBikeGraphHopper()
       createCarGraphHoppers("staticGH")
-      val carGraphHopperWrapper = binToCarGraphHopper(0).asInstanceOf[CarGraphHopperWrapper]
-      val walkGraphHopperWrapper = walkGraphHopper.asInstanceOf[WalkGraphHopperWrapper]
-      val bikeGraphHopperWrapper = bikeGraphHopper.asInstanceOf[BikeGraphHopperWrapper]
       hybridRouter = new HybridRouter(
         workerParams.gtfs,
         workerParams.geo,
         r5,
-        carGraphHopperWrapper,
-        walkGraphHopperWrapper,
-        bikeGraphHopperWrapper,
+        binToCarGraphHopper(0),
+        walkGraphHopper,
+        bikeGraphHopper,
       )
     }
   }
