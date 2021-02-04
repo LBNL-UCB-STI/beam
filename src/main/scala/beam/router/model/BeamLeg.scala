@@ -119,6 +119,16 @@ object BeamLeg {
     } else { legs }
   }
 
+  def makeLegsConsistent(legs: Seq[Option[BeamLeg]], startTime: Int): IndexedSeq[Option[BeamLeg]] = {
+    legs
+      .foldLeft((IndexedSeq.empty[Option[BeamLeg]], startTime)) {
+        case ((acc, runningStartTime), legOpt) =>
+          val newLeg = legOpt.map(_.updateStartTime(runningStartTime))
+          (acc :+ newLeg, newLeg.map(_.endTime).getOrElse(runningStartTime))
+      }
+      ._1
+  }
+
   def makeVectorLegsConsistentAsTrip(legs: List[BeamLeg]): List[BeamLeg] = {
     if (legs.isEmpty) {
       legs
