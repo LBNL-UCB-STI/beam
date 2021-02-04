@@ -30,7 +30,7 @@ object SegmentSerializer {
     val vWgsCoordinates = rec.get("wgsCoordinates")
     val vLengthInMeters = rec.get("lengthInMeters").toInt
     val vDurationInSeconds = rec.getOrDefault("durationInSeconds", "")
-    val vSpeedLimitInKph = rec.getOrDefault("speedLimitInKph", "")
+    val vSpeedLimitInMps = rec.getOrDefault("speedLimitInMps", "")
     Segment(
       deserializeCoordinates(vWgsCoordinates),
       lengthInMeters = vLengthInMeters,
@@ -38,7 +38,7 @@ object SegmentSerializer {
         case value if value == null || value.isEmpty => None
         case value                                   => Some(value.toInt)
       },
-      speedLimitInKph = vSpeedLimitInKph match {
+      speedLimitInMetersPerSecond = vSpeedLimitInMps match {
         case value if value == null || value.isEmpty => None
         case value                                   => Some(value.toInt)
       }

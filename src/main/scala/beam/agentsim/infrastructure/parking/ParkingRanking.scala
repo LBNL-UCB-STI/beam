@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.Coord
 
 object ParkingRanking {
 
-  type RankingFunction = (ParkingZone, Double, Option[ChargingInquiry]) => Double
+  type RankingFunction[GEO] = (ParkingZone[GEO], Double, Option[ChargingInquiry[GEO]]) => Double
 
   val PlaceholderForChargingCosts = 0.0
 
@@ -21,12 +21,12 @@ object ParkingRanking {
     * @param valueOfTime agent's value of time
     * @return utility of parking
     */
-  def rankingValue(
-    parkingZone: ParkingZone,
+  def rankingValue[GEO](
+    parkingZone: ParkingZone[GEO],
     parkingDuration: Double,
     distanceToStall: Double,
     valueOfTime: Double,
-    chargingInquiry: Option[ChargingInquiry]
+    chargingInquiry: Option[ChargingInquiry[GEO]]
   ): Double = {
     val parkingTicket: Double = parkingZone.pricingModel match {
       case None               => 0.0

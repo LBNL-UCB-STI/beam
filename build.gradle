@@ -14,9 +14,9 @@ buildscript {
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
-        classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
     }
 }
+
 
 plugins {
     id "net.ltgt.apt" version "0.5"
@@ -24,6 +24,8 @@ plugins {
     id "org.scoverage" version "2.5.0"
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.0"
+    id 'com.bmuschko.docker-java-application' version '6.6.1'
+    id 'org.ajoberstar.grgit' version '4.0.2'
 }
 
 apply plugin: 'java'
@@ -35,10 +37,9 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
-apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.8.0'
+version = '0.8.6'
 
 description = """"""
 
@@ -271,7 +272,7 @@ dependencies {
     compile group: 'com.typesafe.akka', name: "akka-cluster-tools_${scalaBinaryVersion}", version: akkaBinaryVersion
     //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
-    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.10"
+    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.12"
     compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
 
     // TEST Akka //
@@ -598,29 +599,65 @@ docker {
         username = System.getenv("DOCKER_USER")
         password = System.getenv("DOCKER_PASSWORD")
     }
-
-    javaApplication {
-        baseImage = 'beammodel/miniconda3'
-        maintainer = 'LBNL Beam Team'
-        tag = "beammodel/beam:$version"
-    }
 }
 
-dockerDistTar {
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
+
+// Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
+// Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
+task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
+    from 'beammodel/miniconda3'
+    label(['maintainer': 'LBNL Beam Team'])
     instruction 'RUN apt-get update && apt-get -y install python3 python3-pip python3-rtree libproj-dev proj-data proj-bin libgeos-dev npm'
     instruction 'RUN pip3 install --upgrade setuptools'
     instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
-    addFile 'src/main/python/events_analysis/', 'src/main/python/events_analysis/'
-    addFile 'test/', 'test/'
+    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
+    workingDir("/app")
+    // Beam dependencies, resources and compiled Java classes
+    copyFile("libs", "libs")
+    copyFile("resources", "resources")
+    copyFile("classes", "classes")
+    // Test scenarios
+    copyFile("test/input/common", "test/input/common")
+    copyFile("test/input/dtd", "test/input/dtd")
+    copyFile("test/input/beamville", "test/input/beamville")
+    copyFile("test/input/sf-light", "test/input/sf-light")
+
+    addFile 'src/main/python', 'src/main/python'
+    addFile 'entrypoint.sh', 'entrypoint.sh'
+    runCommand('chmod +x /app/entrypoint.sh')
+    entryPoint('/app/entrypoint.sh')
 }
 
-dockerCopyDistResources {
-    from('src/main/python/events_analysis/') {
-        into('src/main/python/events_analysis/')
+task buildImage(type: DockerBuildImage, dependsOn: createDockerfile) {
+}
+
+task tagImage(type: DockerTagImage, dependsOn: buildImage) {
+    repository = "beammodel/beam"
+    tag = version
+    targetImageId buildImage.getImageId()
+}
+
+dockerSyncBuildContext {
+    from('src/main/python') {
+        into('src/main/python')
     }
-    from('test/') {
-        into('test/')
+    from('test/input/common') {
+        into('test/input/common')
     }
+    from('test/input/dtd') {
+        into('test/input/dtd')
+    }
+    from('test/input/beamville') {
+        into('test/input/beamville')
+    }
+    from('test/input/sf-light') {
+        into('test/input/sf-light')
+    }
+
+    from file('docker/entrypoint.sh')
 }
 
 jmh {

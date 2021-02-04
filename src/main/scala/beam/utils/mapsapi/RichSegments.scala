@@ -19,7 +19,7 @@ class RichSegments(segments: Seq[Segment]) {
         toCsv(segment.coordinates),
         segment.lengthInMeters,
         segment.durationInSeconds.getOrElse(""),
-        segment.speedLimitInKph.getOrElse("")
+        segment.speedLimitInMetersPerSecond.getOrElse("")
       )
     }
     rows.foreach(csvWriter.writeRow)
