@@ -1546,11 +1546,12 @@ class RideHailManager(
     pickDrops: List[MobilityRequest],
     rideHailAgentLocation: RideHailAgentLocation
   ): PassengerSchedule = {
-    val consistentSchedule = pickDrops.zip(BeamLeg.makeLegsConsistent(pickDrops.map(_.beamLegAfterTag.map(_.beamLeg))))
+    val pickDropLegs: List[Option[BeamLeg]] = pickDrops.map(_.beamLegAfterTag.map(_.beamLeg))
+    val startTime = Math.max(pickDropLegs.flatten.head.startTime, rideHailAgentLocation.latestTickExperienced)
+    val consistentSchedule = pickDrops.zip(BeamLeg.makeLegsConsistent(pickDropLegs, startTime))
     val allLegs = consistentSchedule.flatMap(_._2)
     var passSched = PassengerSchedule()
       .addLegs(allLegs)
-      .updateStartTimes(Math.max(allLegs.head.startTime, rideHailAgentLocation.latestTickExperienced))
     // Initialize passengersToAdd with any passenger that doesn't have a pickup
     val noPickupPassengers = Set[PersonIdWithActorRef]() ++ consistentSchedule
       .groupBy(_._1.person)
