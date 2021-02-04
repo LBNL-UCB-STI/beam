@@ -470,7 +470,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     */
 
     nativeCCH = new CchNative()
-    nativeCCH.init("sdfsdfsd")
+    nativeCCH.init(Paths.get(workerParams.beamConfig.beam.routing.r5.directory, "sf-light-generated.osm.pbf").toString)
 
     (0 until noOfTimeBins).foreach { bin =>
       nativeCCH.createBinQueries(bin, Map[String, String]().asJava)
