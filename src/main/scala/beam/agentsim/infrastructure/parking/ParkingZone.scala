@@ -49,10 +49,7 @@ class ParkingZone[GEO](
       case None    => "pricingModel = None"
       case Some(p) => s" pricingModel = $p"
     }
-    val additionalInfo = reservedFor match {
-      case None    => ""
-      case Some(r) => s", reservedFor = $r"
-    }
+    val additionalInfo = reservedFor.map(", reservedFor = " + _).getOrElse("")
     s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString$additionalInfo)"
   }
 
