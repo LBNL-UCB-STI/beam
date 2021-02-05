@@ -18,9 +18,10 @@ import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils._
-import com.conveyal.osmlib.{OSM, OSMEntity}
+import com.conveyal.osmlib.{Node, OSM, OSMEntity, Way}
+import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.util._
-import com.conveyal.r5.profile.StreetMode
+import com.conveyal.r5.profile.{ProfileRequest, StreetMode}
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.util.concurrent.ThreadFactoryBuilder
@@ -30,16 +31,17 @@ import gnu.trove.map.hash.TIntIntHashMap
 import org.apache.commons.io
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
-import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
-import java.io.File
+import java.io.{File, FileOutputStream}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.collection.JavaConverters._
+import scala.collection.immutable.HashMap
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -87,14 +89,14 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
-  log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
+  log.info("RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
   log.info(
     "Num of available processors: {}. Will use: {}",
     Runtime.getRuntime.availableProcessors(),
     numOfThreads
   )
 
-  private def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
+  private def getNameAndHashCode: String = s"RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
   private var workAssigner: ActorRef = context.parent
 
@@ -124,7 +126,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
       new Directory(new File(graphHopperDir)).deleteRecursively()
       createWalkGraphHopper()
-      createCarGraphHoppers()
+      createCarGraphHoppers(new FreeFlowTravelTime())
     }
 
     if (carRouter == "nativeCCH") {
@@ -144,6 +146,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   val id2Link: Map[Int, (Location, Location)] = workerParams.networkHelper.allLinks
     .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
     .toMap
+
+//  val linkId2Weights: mutable.Map[Int, Map[String, String]] = new mutable.HashMap[Int, Map[String, String]]()
 
   override final def receive: Receive = {
     case "tick" =>
@@ -287,7 +291,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       if (carRouter == "quasiDynamicGH") {
-        createCarGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(newTravelTime)
       } else if (carRouter == "nativeCCH") {
         rebuildNativeCCHWeights(newTravelTime)
       }
@@ -304,7 +308,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
-        createCarGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(newTravelTime)
       } else if (carRouter == "nativeCCH") {
         rebuildNativeCCHWeights(newTravelTime)
       }
@@ -346,7 +350,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
   }
 
-  private def createCarGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+  private def createCarGraphHoppers(travelTime: TravelTime): Unit = {
     log.info("Init GH Car")
     // Clean up GHs variable and than calculate new ones
     binToCarGraphHopper = Map()
@@ -354,21 +358,26 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     val graphHopperInstances = if (carRouter == "quasiDynamicGH") noOfTimeBins else 1
 
+    val maxSpeed: Double = workerParams.networkHelper.allLinks.map(_.getFreespeed).max
+    val minSpeed = workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+
     val futures = (0 until graphHopperInstances).map { i =>
       Future {
         val ghDir = Paths.get(carGraphHopperDir, i.toString).toString
 
-        val wayId2TravelTime = travelTime
-          .map { times =>
+        val wayId2TravelTime =
             workerParams.networkHelper.allLinks.toSeq
-              .map(
-                l =>
-                  l.getId.toString.toLong ->
-                  times.getLinkTravelTime(l, i * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null)
-              )
+              .map { l =>
+                val edge = workerParams.transportNetwork.streetLayer.edgeStore.getCursor(l.getId.toString.toInt)
+                val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
+                val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
+                val physSimTravelTime = travelTime.getLinkTravelTime(l, i * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null)
+                val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
+                val weight = Math.min(linkTravelTime, maxTravelTime)
+
+                l.getId.toString.toLong -> weight
+              }
               .toMap
-          }
-          .getOrElse(Map.empty)
 
         GraphHopperWrapper.createCarGraphDirectoryFromR5(
           carRouter,
@@ -397,88 +406,119 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   }
 
   private def rebuildNativeCCHWeights(newTravelTime: TravelTime): Unit = {
+    val s = System.currentTimeMillis()
     nativeCCH.lock()
-    (0 until noOfTimeBins).foreach { bin =>
-      val wayId2TravelTime =
-        workerParams.networkHelper.allLinks.toSeq
-          .map(
-            l =>
-              //                    new java.lang.Long(l.getId.toString) ->
-              //                      new java.lang.Long(newTravelTime.getLinkTravelTime(l, bin * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null).toLong.toString)
-              l.getId.toString ->
-                newTravelTime.getLinkTravelTime(l, bin * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null).toLong.toString
-          )
-          .toMap
 
-      nativeCCH.createBinQueries(bin, wayId2TravelTime.asJava)
+    val maxSpeed: Double = workerParams.networkHelper.allLinks.map(_.getFreespeed).max
+    log.info(s"---- Max speed is: $maxSpeed")
+    val minSpeed = workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
+//    val futures = (0 until noOfTimeBins).map { bin =>
+    (0 until noOfTimeBins).foreach { bin =>
+//      Future {
+        val wayId2TravelTime =
+          workerParams.networkHelper.allLinks.toSeq
+            .map { l =>
+              val linkId = l.getId.toString
+              val edge = workerParams.transportNetwork.streetLayer.edgeStore.getCursor(linkId.toInt)
+              val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
+              val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
+              val physSimTravelTime = newTravelTime.getLinkTravelTime(l, bin * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null)
+              val linkTravelTime = Math.max(physSimTravelTime, minTravelTime)
+              val weight = Math.min(linkTravelTime, maxTravelTime)
+              linkId -> weight.toString
+//                    newTravelTime.getLinkTravelTime(l, bin * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null).toLong.toString
+            }
+            .toMap
+
+//        linkId2Weights.put(bin, wayId2TravelTime)
+        nativeCCH.createBinQueries(bin, wayId2TravelTime.asJava)
+//      }
     }
+//    Await.result(Future.sequence(futures), 20.minutes)
     nativeCCH.unlock()
+    val e = System.currentTimeMillis()
+    log.info(s"Cch native rebuilt weights in ${e - s} ms")
   }
 
   private def createNativeCCH(): Unit = {
-    /*
-        val timeStampStr = "2021-01-21T15:41:30Z"
-        val osm = new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile)
-        FileUtils.using(IOUtils.getBufferedWriter("/home/crixal/work/texas.osm")) { bw =>
-          bw.write("<?xml version='1.0' encoding='UTF-8'?>")
-          bw.newLine()
-          bw.write("<osm version=\"0.6\" generator=\"BEAM\">")
-          bw.newLine()
+    val cchOsm = new OSM(null)
+    val r5Osm = new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile)
+    val vertexCur = workerParams.transportNetwork.streetLayer.vertexStore.getCursor
 
-          val vertexCur = workerParams.transportNetwork.streetLayer.vertexStore.getCursor
-          for (idx <- 0 until workerParams.transportNetwork.streetLayer.vertexStore.getVertexCount) {
-            vertexCur.seek(idx)
-            val nodeStr = "  <node id=\"" + idx + "\" timestamp=\"" + timeStampStr + "\" lat=\"" + vertexCur.getLat.toString + "\" lon=\"" + vertexCur.getLon.toString + "\" uid=\"1\" version=\"1\" changeset=\"0\"/>"
-            bw.write(nodeStr)
-            bw.newLine()
-          }
+    def addNode(nodeId: Long): Node = {
+      vertexCur.seek(nodeId.toInt)
+      val node = new Node(vertexCur.getLat, vertexCur.getLon)
+      cchOsm.nodes.put(nodeId, node)
+    }
 
-          val cur = workerParams.transportNetwork.streetLayer.edgeStore.getCursor
-          for (idx <- 0 until workerParams.transportNetwork.streetLayer.edgeStore.nEdges by 1) {
-            cur.seek(idx)
+    val cur = workerParams.transportNetwork.streetLayer.edgeStore.getCursor
+    for (idx <- 0 until workerParams.transportNetwork.streetLayer.edgeStore.nEdges by 1) {
+      cur.seek(idx)
 
-            if (cur.allowsStreetMode(StreetMode.CAR)) {
-
-              bw.write("  <way id=\"" + idx + "\" timestamp=\"" + timeStampStr + "\" uid=\"1\" user=\"beam\" version=\"1\" changeset=\"0\">")
-              bw.newLine()
-              bw.write("    <nd ref=\"" + cur.getFromVertex.toString + "\"/>")
-              bw.newLine()
-              bw.write("    <nd ref=\"" + cur.getToVertex.toString + "\"/>")
-              bw.newLine()
-
-              val osmWay = osm.ways.get(cur.getOSMID)
-              if (osmWay != null) {
-                osmWay.tags.forEach((tag: OSMEntity.Tag) => {
-                  if (tag.key == "oneway" && (tag.value == "no" || tag.value == "false" || tag.value == "0")) {
-                    bw.write("    <tag k=\"" + tag.key + "\" v=\"yes\"/>")
-                  } else {
-                    bw.write("    <tag k=\"" + tag.key + "\" v=\"" + escapeHTML(tag.value) + "\"/>")
-                  }
-                  bw.newLine()
-                })
-              } else {
-                bw.write("    <tag k=\"highway\" v=\"trunk\"/>")
-                bw.write("    <tag k=\"oneway\" v=\"yes\"/>")
-                bw.newLine()
-              }
-
-              bw.write("  </way>")
-              bw.newLine()
-            }
-          }
-
-          bw.write("</osm>")
-          bw.flush()
+      if (cur.allowsStreetMode(StreetMode.CAR)) {
+        val fromNodeId = cur.getFromVertex.toLong
+        val toNodeId = cur.getToVertex.toLong
+        if (!cchOsm.nodes.containsKey(fromNodeId)) {
+          addNode(fromNodeId)
         }
-    */
+
+        if (!cchOsm.nodes.containsKey(toNodeId)) {
+          addNode(toNodeId)
+        }
+
+        val newWay = new Way()
+        newWay.nodes = Array(fromNodeId, toNodeId)
+
+        val osmWay = r5Osm.ways.get(cur.getOSMID)
+        if (osmWay != null) {
+//          if (r5Osm.nodes.containsKey(osmWay.nodes.head)) {
+//            val fromNode = r5Osm.nodes.get(osmWay.nodes.head)
+//            if (fromNode.tags != null) {
+//              fromNode.tags.forEach((tag: OSMEntity.Tag) => {
+//                cchOsm.nodes.get(fromNodeId).addTag(tag.key, tag.value)
+//              })
+//            }
+//          }
+//
+//          if (r5Osm.nodes.containsKey(osmWay.nodes.last)) {
+//            val toNode = r5Osm.nodes.get(osmWay.nodes.last)
+//            if (toNode.tags != null) {
+//              toNode.tags.forEach((tag: OSMEntity.Tag) => {
+//                cchOsm.nodes.get(toNodeId).addTag(tag.key, tag.value)
+//              })
+//            }
+//          }
+
+          osmWay.tags.forEach((tag: OSMEntity.Tag) => {
+            newWay.addOrReplaceTag(tag.key, tag.value)
+          })
+          newWay.addOrReplaceTag("oneway", "yes")
+        } else {
+          newWay.addOrReplaceTag("highway", "trunk")
+          newWay.addOrReplaceTag("oneway", "yes")
+        }
+
+        cchOsm.ways.put(idx.toLong, newWay)
+      }
+    }
+    val osmFile = Paths.get(tempDir.toString, "cch-generated.osm.pbf").toString
+    cchOsm.writePbf(new FileOutputStream(osmFile))
+
     val s = System.currentTimeMillis()
     log.info("Init CchNative")
     nativeCCH = new CchNative()
-    nativeCCH.init(Paths.get(workerParams.beamConfig.beam.routing.r5.directory, "cchnative", "texas-generated.osm.pbf").toString)
+    nativeCCH.init(osmFile)
 
-    (0 until noOfTimeBins).foreach { bin =>
-      nativeCCH.createBinQueries(bin, Map[String, String]().asJava)
-    }
+//    val futures = (0 until noOfTimeBins).map { bin =>
+////    (0 until noOfTimeBins).map { bin =>
+//      Future {
+//      linkId2Weights.put(bin, new HashMap[String, String]())
+//        nativeCCH.createBinQueries(bin, Map[String, String]().asJava)
+//      }
+//    }
+    rebuildNativeCCHWeights(new FreeFlowTravelTime())
+
+//    Await.result(Future.sequence(futures), 20.minutes)
 
     val e = System.currentTimeMillis()
     log.info(s"Cch native built in ${e - s} ms")
@@ -517,50 +557,126 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private def calcCarNativeCCHRoute(req: RoutingRequest) = {
     val mode = Modes.BeamMode.CAR
     if (req.streetVehicles.exists(_.mode == mode)) {
-      val request = req.copy(streetVehicles = req.streetVehicles.filter(_.mode == mode))
-      val origin = workerParams.geo.utm2Wgs(request.originUTM)
-      val destination = workerParams.geo.utm2Wgs(request.destinationUTM)
+      try {
+        val request = req.copy(streetVehicles = req.streetVehicles.filter(_.mode == mode))
+        val origin = workerParams.geo.utm2Wgs(request.originUTM)
+        val destination = workerParams.geo.utm2Wgs(request.destinationUTM)
 
-      val bin = Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
-      val cchResponse = nativeCCH.route(bin, origin.getX, origin.getY, destination.getX, destination.getY)
-      val streetVehicle = request.streetVehicles.head
-      val times = cchResponse.getTimes.asScala.map(_.toDouble)
-      if (times.nonEmpty) {
-        val beamLeg = BeamLeg(
-          request.departureTime,
-          mode,
-          cchResponse.getDepTime.toInt - times.head.toInt,
-          BeamPath(
-            cchResponse.getLinks.asScala.map(_.toInt).toIndexedSeq,
-            times.toIndexedSeq,
-            None,
-            SpaceTime(origin, request.departureTime),
-            SpaceTime(destination, request.departureTime + cchResponse.getDepTime.toInt),
-            cchResponse.getDistance
-          )
-        )
-        val vehicleType = workerParams.vehicleTypes(streetVehicle.vehicleTypeId)
-        val alternative = EmbodiedBeamTrip(
-          IndexedSeq(
-            EmbodiedBeamLeg(
-              beamLeg,
-              streetVehicle.id,
-              streetVehicle.vehicleTypeId,
-              asDriver = true,
-              cost = DrivingCost.estimateDrivingCost(beamLeg.travelPath.distanceInM, beamLeg.duration, vehicleType, workerParams.fuelTypePrices(vehicleType.primaryFuelType)),
-              unbecomeDriverOnCompletion = true
+        val bin = Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
+        val cchResponse = nativeCCH.route(bin, origin.getX, origin.getY, destination.getX, destination.getY)
+        val streetVehicle = request.streetVehicles.head
+        val times = cchResponse.getTimes.asScala.map(_.toDouble)
+
+        if (times.nonEmpty && cchResponse.getLinks.size() > 1 && cchResponse.getDepTime != 0L) {
+          //        if (times.nonEmpty) {
+          //-----
+          //          val cur = workerParams.transportNetwork.streetLayer.edgeStore.getCursor
+          //          var cchTrueDistance = 0.0D
+          //          cchResponse.getLinks.asScala.foreach { linkId =>
+          //            cur.seek(linkId.toInt)
+          //            cchTrueDistance += cur.getLengthM
+          //          }
+          //
+          //          val weights = linkId2Weights(bin)
+          //          val times2 = cchResponse.getLinks.asScala.map(linkId => weights.getOrElse(linkId, "0")).map(_.toDouble)
+          //          val depTime = times2.sum.toInt
+          //-----
+
+          val beamTotalTravelTime = cchResponse.getDepTime.toInt - times.head.toInt
+          //          val beamTotalTravelTime = depTime - times2.head.toInt
+          val beamLeg = BeamLeg(
+            request.departureTime,
+            mode,
+            beamTotalTravelTime,
+            BeamPath(
+              cchResponse.getLinks.asScala.map(_.toInt).toIndexedSeq,
+              times.toIndexedSeq,
+              None,
+              SpaceTime(origin, request.departureTime),
+              SpaceTime(destination, request.departureTime + beamTotalTravelTime),
+              //              cchTrueDistance
+              cchResponse.getDistance
             )
           )
-        )
-        val cchResp = RoutingResponse(Seq(alternative), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
-//        val r5Response = r5.calcRoute(request)
-//
-//        if (cchResp == r5Response) {
-//          System.out.println("")
-//        }
-        Some(cchResp)
-      } else None
-    } else None
+          val vehicleType = workerParams.vehicleTypes(streetVehicle.vehicleTypeId)
+          val alternative = EmbodiedBeamTrip(
+            IndexedSeq(
+              EmbodiedBeamLeg(
+                beamLeg,
+                streetVehicle.id,
+                streetVehicle.vehicleTypeId,
+                asDriver = true,
+                cost = DrivingCost.estimateDrivingCost(beamLeg.travelPath.distanceInM, beamLeg.duration, vehicleType, workerParams.fuelTypePrices(vehicleType.primaryFuelType)),
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+
+          val cchResp = RoutingResponse(Seq(alternative), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+
+          //          val weights = linkId2Weights(bin)
+          //          val cchTrueTimes = if (weights.nonEmpty) {
+          //            cchResponse.getLinks.asScala.map(linkId => weights.getOrElse(linkId, "0")).map(_.toDouble)
+          //          } else {
+          //            List(1.0)
+          //          }
+          //
+          //          val cur = workerParams.transportNetwork.streetLayer.edgeStore.getCursor
+          //          def getFullLine(list: Seq[Int]) = {
+          //            val geomStr = list.map { id =>
+          //              cur.seek(id)
+          //              cur.getGeometry.toText.replaceAll("LINESTRING", "")
+          //            }.mkString(",")
+          //            s"multilinestring(${geomStr})"
+          //          }
+          //
+          //          val r5Response = r5.calcRoute(request)
+          //
+          //          val r5TrueTimes = if (weights.nonEmpty) {
+          //            r5Response.itineraries.head.legs.head.beamLeg.travelPath.linkIds.map(linkId => weights.getOrElse(linkId.toString, "-1")).map(_.toDouble)
+          //          } else {
+          //            List(1.0)
+          //          }
+          //
+          //          var cchTrueDistance = 0.0
+          //          cchResp.itineraries.flatMap(_.beamLegs).flatMap(_.travelPath.linkIds).foreach { linkId =>
+          //            cur.seek(linkId)
+          //            cchTrueDistance += cur.getLengthM
+          //          }
+          //
+          //          val r5TrueDistance = r5Response.itineraries
+          //            .flatMap(_.beamLegs)
+          //            .flatMap(_.travelPath.linkIds)
+          //            .map { linkId =>
+          //              cur.seek(linkId)
+          //              cur.getLengthM
+          //            }
+          //
+          //          val cchTrueDuration = cchTrueTimes.sum
+          //          val cchDuration = cchResp.itineraries.flatMap(_.beamLegs).map(l => l.endTime - l.startTime)
+          //          val r5Duration = r5Response.itineraries.flatMap(_.beamLegs).map(l => l.endTime - l.startTime)
+          //          val r5TrueDuration = r5TrueTimes.sum
+          //          val cchDistance = cchResp.itineraries.flatMap(_.beamLegs).map(_.travelPath.distanceInM)
+          //          val r5Distance = r5Response.itineraries.flatMap(_.beamLegs).map(_.travelPath.distanceInM)
+          //          val cchSpeed = cchDistance.head / cchDuration.head
+          //          val cchTrueSpeed = cchTrueDistance / cchTrueDuration
+          //          val r5Speed = r5Distance.head / r5Duration.head
+          //          val r5TrueSpeed = r5TrueDistance.sum / r5TrueDuration
+          //          if (cchSpeed == r5Speed || cchTrueSpeed == r5TrueSpeed) {
+          //            System.out.println("")
+          //          }
+          //          val cchLine = getFullLine(cchResp.itineraries.flatMap(_.beamLegs).flatMap(_.travelPath.linkIds))
+          //          val r5Line = getFullLine(r5Response.itineraries.flatMap(_.beamLegs).flatMap(_.travelPath.linkIds))
+          //
+          //          if (cchLine == r5Line) {
+          //          }
+
+          Some(cchResp)
+        } else Some(RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false))
+      } catch {
+        case _: Exception => Some(RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false))
+      }
+    } else Some(RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false))
   }
 
   private def calcCarGhRoute(request: RoutingRequest) = {
@@ -570,23 +686,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         if (carRouter == "quasiDynamicGH")
           Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
         else 0
-//
-//      val origin = workerParams.geo.utm2Wgs(request.originUTM)
-//      val destination = workerParams.geo.utm2Wgs(request.destinationUTM)
-//
-//      val startCch = System.currentTimeMillis()
-//      val cchResponse = nativeCCH.route(origin.getX, origin.getY, destination.getX, destination.getY)
-//      val cchTime = System.currentTimeMillis() - startCch
-//      cchTimeCounter.addAndGet(cchTime.toInt)
-//      cchResponse.getNodes.isEmpty
-//
-//      val startGh = System.currentTimeMillis()
-      val ghRes = binToCarGraphHopper(idx).calcRoute(
+
+      Some(binToCarGraphHopper(idx).calcRoute(
         request.copy(streetVehicles = request.streetVehicles.filter(_.mode == mode))
-      )
-//      val ghTime = System.currentTimeMillis() - startGh
-//      ghTimeCounter.addAndGet(ghTime.toInt)
-      Some(ghRes)
+      ))
     } else None
   }
 

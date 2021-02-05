@@ -358,6 +358,11 @@ class CarTripStatsFromPathTraversalEventHandler(
         val avgFreeFlowSpeed = statsList.map(_.freeFlowSpeed).sum / statsList.size
         hour -> 100 * (avgSpeed / avgFreeFlowSpeed)
     }
+    hourAverageSpeedPercent.foreach { case (k, v) =>
+      if (v > 50 || v < 5) {
+        logger.info(s"----- Bad personal speed: $k -> $v")
+      }
+    }
     val arr = (0 until hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
     val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(arr.toArray))
     val fileName = s"${prefix}AverageSpeedPercentage.$mode.png"
