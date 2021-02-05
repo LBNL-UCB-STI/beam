@@ -190,6 +190,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -397,6 +398,7 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -666,7 +668,8 @@ class PersonAgentSpec
           identity[TAZ],
           services.geo,
           services.beamRouter,
-          boundingBox
+          boundingBox,
+          ZonalParkingManager.getDefaultParkingZones(beamConfig),
         ),
         "ParkingManager"
       )
@@ -688,6 +691,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

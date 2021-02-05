@@ -13,7 +13,8 @@ object VehicleProtocol {
     vehicleTypeId: Id[BeamVehicleType],
     locationUTM: SpaceTime,
     mode: BeamMode,
-    asDriver: Boolean
+    asDriver: Boolean,
+    needsToCalculateCost: Boolean,
   )
 
 }

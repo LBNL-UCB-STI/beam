@@ -381,7 +381,8 @@ class RideHailAgent(
           currentBeamVehicle.beamVehicleType.id,
           SpaceTime(currentLocationUTM, _currentTick.get),
           CAR,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = true
         )
       val veh2StallRequest = RoutingRequest(
         currentLocationUTM,

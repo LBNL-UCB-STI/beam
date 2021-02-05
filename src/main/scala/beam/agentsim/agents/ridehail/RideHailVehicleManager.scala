@@ -712,7 +712,14 @@ object RideHailVehicleManager {
     }
 
     def toStreetVehicle: StreetVehicle = {
-      StreetVehicle(vehicleId, vehicleType.id, latestUpdatedLocationUTM, CAR, asDriver = true)
+      StreetVehicle(
+        vehicleId,
+        vehicleType.id,
+        latestUpdatedLocationUTM,
+        CAR,
+        asDriver = true,
+        needsToCalculateCost = true
+      )
     }
 
     override def equals(obj: Any): Boolean = {

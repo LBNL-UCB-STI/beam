@@ -16,7 +16,7 @@ import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
@@ -63,7 +63,7 @@ trait ChoosesParking extends {
       parkingManager ! ParkingInquiry(
         destinationUtm,
         nextActivityType,
-        this.currentTourBeamVehicle,
+        Some(this.currentBeamVehicle),
         remainingTripData,
         attributes.valueOfTime,
         parkingDuration
@@ -143,17 +143,26 @@ trait ChoosesParking extends {
         val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
         val finalPoint = nextLeg.travelPath.endPoint
 
+        val streetVehicle = currentBeamVehicle.toStreetVehicle
         // get route from customer to stall, add body for backup in case car route fails
         val carStreetVeh =
           StreetVehicle(
             currentBeamVehicle.id,
             currentBeamVehicle.beamVehicleType.id,
             currentPointUTM,
-            CAR,
-            asDriver = true
+            streetVehicle.mode,
+            asDriver = true,
+            streetVehicle.needsToCalculateCost
           )
         val bodyStreetVeh =
-          StreetVehicle(body.id, body.beamVehicleType.id, currentPointUTM, WALK, asDriver = true)
+          StreetVehicle(
+            body.id,
+            body.beamVehicleType.id,
+            currentPointUTM,
+            WALK,
+            asDriver = true,
+            needsToCalculateCost = false
+          )
         val veh2StallRequest = RoutingRequest(
           currentLocUTM,
           stall.locationUTM,
@@ -178,7 +187,8 @@ trait ChoosesParking extends {
               body.beamVehicleType.id,
               SpaceTime(stall.locationUTM, currentPoint.time),
               WALK,
-              asDriver = true
+              asDriver = true,
+              needsToCalculateCost = false
             )
           ),
           Some(attributes)
@@ -200,9 +210,10 @@ trait ChoosesParking extends {
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
-      // If no car leg returned, use previous route to destination (i.e. assume parking is at dest)
-      var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == CAR)) {
-        logDebug("no CAR leg returned by router, assuming parking spot is at destination")
+      val vehicleMode = currentBeamVehicle.toStreetVehicle.mode
+      // If no vehicle leg returned, use previous route to destination (i.e. assume parking is at dest)
+      var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == vehicleMode)) {
+        logDebug(s"no vehicle leg ($vehicleMode) returned by router, assuming parking spot is at destination")
         (
           EmbodiedBeamLeg(
             nextLeg,
@@ -217,11 +228,11 @@ trait ChoosesParking extends {
       } else {
         (
           routingResponse1.itineraries.view
-            .filter(_.tripClassifier == CAR)
+            .filter(_.tripClassifier == vehicleMode)
             .head
             .legs
             .view
-            .filter(_.beamLeg.mode == CAR)
+            .filter(_.beamLeg.mode == vehicleMode)
             .head,
           routingResponse2.itineraries.head.legs.head
         )
@@ -240,7 +251,7 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == CAR || currentBeamVehicle.id == body.id) {
+      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == vehicleMode || currentBeamVehicle.id == body.id) {
         (data.currentVehicle, currentBeamVehicle)
       } else {
         currentBeamVehicle.unsetDriver()

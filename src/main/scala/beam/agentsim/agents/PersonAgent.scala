@@ -68,7 +68,9 @@ object PersonAgent {
     personId: Id[PersonAgent],
     householdRef: ActorRef,
     plan: Plan,
+    fleetManagers: Seq[ActorRef],
     sharedVehicleFleets: Seq[ActorRef],
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -87,7 +89,9 @@ object PersonAgent {
         parkingManager,
         tollCalculator,
         householdRef,
+        fleetManagers,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
         boundingBox
       )
@@ -244,7 +248,9 @@ class PersonAgent(
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
-  val vehicleFleets: Seq[ActorRef] = Vector(),
+  val fleetManagers: Seq[ActorRef] = Vector(),
+  val sharedVehicleFleets: Seq[ActorRef] = Vector(),
+  val possibleSharedVehicleTypes: Set[BeamVehicleType] = Set.empty,
   val routeHistory: RouteHistory,
   val boundingBox: Envelope
 ) extends DrivesVehicle[PersonData]
@@ -265,10 +271,13 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    managerInfo = VehicleManagerInfo.create(id.toString, bodyType)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
+
+  val vehicleFleets: Seq[ActorRef] = fleetManagers ++ sharedVehicleFleets
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes
@@ -847,16 +856,22 @@ class PersonAgent(
           )
         }
 
-        val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
-          ReleasingParkingSpot
-        } else {
-          releaseTickAndTriggerId()
-          WaitingToDrive
-        }
+        val stateToGo =
+          if (nextLeg.beamLeg.mode == CAR
+              || beamVehicles(nextLeg.beamVehicleId)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+                .managerInfo
+                .managerType == VehicleManagerType.SharedMicromobility) {
+            log.debug(
+              "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+              legsToInclude
+            )
+            ReleasingParkingSpot
+          } else {
+            releaseTickAndTriggerId()
+            WaitingToDrive
+          }
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
@@ -1176,7 +1191,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _
+          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
@@ -1203,7 +1218,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _
+          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)

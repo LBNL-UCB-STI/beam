@@ -1,11 +1,11 @@
 package beam.sim
 
 import java.nio.file.{Files, Paths}
-
 import akka.actor.ActorRef
+import beam.agentsim.agents.ridehail.RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManagerInfo}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -321,6 +321,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
+        managerInfo = VehicleManagerInfo(RIDE_HAIL_VEHICLE_MANAGER_ID, beamVehicleType, isRideHail = true),
         randomSeed
       )
 

@@ -161,7 +161,7 @@ class HierarchicalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,unused
+            |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
@@ -223,7 +223,7 @@ class HierarchicalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,unused
+          |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)

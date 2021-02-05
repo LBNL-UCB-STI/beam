@@ -10,6 +10,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
+import beam.sim.vehiclesharing.VehicleManager
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.algorithm.ConvexHull
@@ -154,17 +155,17 @@ object ParallelParkingManager extends LazyLogging {
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingFilePaths: Map[Id[VehicleManager], String],
   ): Props = {
     val numClusters =
       Math.min(tazTreeMap.tazQuadTree.size(), beamConfig.beam.agentsim.taz.parkingManager.parallel.numberOfClusters)
-    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
     val random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val seed = beamConfig.matsim.modules.global.randomSeed
     val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
-      parkingFilePath,
+      parkingFilePaths,
       tazTreeMap.tazQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,

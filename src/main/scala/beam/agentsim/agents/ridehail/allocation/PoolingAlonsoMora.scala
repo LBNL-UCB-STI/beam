@@ -267,7 +267,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                       origin,
                       CAR,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = true
                     )
                   )
                 )
