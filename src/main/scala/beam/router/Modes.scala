@@ -136,6 +136,15 @@ object Modes {
         BIKE_TRANSIT
       )
 
+    val carModes: Vector[BeamMode] = Vector(
+      CAR,
+      CAV,
+      RIDE_HAIL,
+      RIDE_HAIL_POOLED,
+      RIDE_HAIL_TRANSIT,
+      DRIVE_TRANSIT,
+    )
+
     def fromString(stringMode: String): Option[BeamMode] = {
       if (stringMode.equals("")) {
         None

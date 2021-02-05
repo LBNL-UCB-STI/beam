@@ -488,15 +488,14 @@ class PersonAgent(
             SpaceTime(currentCoord, _currentTick.get),
             excludeModes =
               if (canUseCars(currentCoord, nextCoord)) Vector.empty
-              else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+              else BeamMode.carModes
           )
       }
   }
 
   private def canUseCars(currentCoord: Coord, nextCoord: Coord): Boolean = {
-    beamScenario.trainStopQuadTree
-      .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
-      .isEmpty && beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
+    beamScenario.trainStopQuadTree.getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop).isEmpty ||
+    beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
   }
 
   when(WaitingForDeparture) {
@@ -567,7 +566,7 @@ class PersonAgent(
       excludeModes =
       (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
        else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
-                          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)).distinct
+                          else BeamMode.carModes).distinct
     )
   }
 
@@ -594,7 +593,7 @@ class PersonAgent(
         isWithinTripReplanning = true,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          else BeamMode.carModes
       )
     // RIDE HAIL DELAY
     case Event(DelayedRideHailResponse, data: BasePersonData) =>
@@ -765,7 +764,7 @@ class PersonAgent(
         SpaceTime(currentCoord, _currentTick.get),
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          else BeamMode.carModes
       )
   }
 
@@ -866,7 +865,7 @@ class PersonAgent(
         isWithinTripReplanning = true,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          else BeamMode.carModes
       )
     // TRANSIT
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _))
@@ -926,7 +925,7 @@ class PersonAgent(
         isWithinTripReplanning = true,
         excludeModes =
           if (canUseCars(currentCoord, nextCoord)) Vector.empty
-          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+          else BeamMode.carModes
       )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
