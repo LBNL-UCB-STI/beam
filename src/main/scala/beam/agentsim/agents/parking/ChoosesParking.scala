@@ -213,7 +213,7 @@ trait ChoosesParking extends {
       val vehicleMode = currentBeamVehicle.toStreetVehicle.mode
       // If no vehicle leg returned, use previous route to destination (i.e. assume parking is at dest)
       var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == vehicleMode)) {
-        logDebug("no vehicle leg returned by router, assuming parking spot is at destination")
+        logDebug(s"no vehicle leg ($vehicleMode) returned by router, assuming parking spot is at destination")
         (
           EmbodiedBeamLeg(
             nextLeg,

@@ -233,7 +233,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-        val validVehicleManager = inquiry.beamVehicle match {
+        val isValidVehicleManager = inquiry.beamVehicle match {
           case Some(vehicle)
               if vehicle.managerInfo.managerType.isPrivate
               || vehicle.managerInfo.managerType == VehicleManagerType.Ridehail =>
@@ -247,7 +247,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         rideHailFastChargingOnly &&
         validParkingType &&
         canThisCarParkHere &&
-        validVehicleManager
+        isValidVehicleManager
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
