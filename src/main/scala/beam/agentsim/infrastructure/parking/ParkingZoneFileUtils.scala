@@ -73,8 +73,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     def someRowsFailed: Boolean = failedRows > 0
 
     def totalParkingStalls: Long =
-      if (zones.isEmpty) 0
-      else zones.map { _.maxStalls.toLong }.sum
+      zones.map { _.maxStalls.toLong }.sum
 
     def parkingStallsPlainEnglish: String = {
       val count: Long = totalParkingStalls
