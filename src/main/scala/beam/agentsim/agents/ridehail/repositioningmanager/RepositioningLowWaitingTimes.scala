@@ -163,7 +163,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
               val lineToPlot = LineToPlot(
                 rideHailManager.vehicleManager
                   .getRideHailAgentLocation(vehToRepso._1)
-                  .currentLocationUTM
+                  .latestUpdatedLocationUTM
                   .loc,
                 vehToRepso._2,
                 Color.blue,
@@ -187,7 +187,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
               firstRepositionCoordsOfDay = Some(
                 rideHailManager.vehicleManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
-                  .currentLocationUTM
+                  .latestUpdatedLocationUTM
                   .loc,
                 whichTAZToRepositionTo.head._2
               )
@@ -223,7 +223,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
         val result = if (firstRepositioningOfDay) {
           firstRepositioningOfDay = false
           idleVehicles
-            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
+            .map(idle => (idle._1, idle._2.latestUpdatedLocationUTM.loc))
             .toVector
         } else {
           whichTAZToRepositionTo
@@ -247,7 +247,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
           //    x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
 
           val result = idleVehiclesWithoutExcluded
-            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
+            .map(idle => (idle._1, idle._2.latestUpdatedLocationUTM.loc))
             .toVector
           result
         } else {

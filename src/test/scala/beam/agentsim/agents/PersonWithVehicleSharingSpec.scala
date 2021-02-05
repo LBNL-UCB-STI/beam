@@ -701,7 +701,6 @@ class PersonWithVehicleSharingSpec
   def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def afterAll(): Unit = {
-    shutdown()
     super.afterAll()
   }
 

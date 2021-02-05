@@ -1,4 +1,4 @@
-package beam.sim
+package beam.sim.termination
 
 import beam.sim.config.BeamConfigHolder
 import javax.inject.Inject

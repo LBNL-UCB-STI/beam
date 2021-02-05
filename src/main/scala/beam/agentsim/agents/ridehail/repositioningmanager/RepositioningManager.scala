@@ -52,7 +52,7 @@ class TheSameLocationRepositioningManager(val beamServices: BeamServices, val ri
     tick: Int
   ): Vector[(Id[BeamVehicle], Location)] = {
     rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.map {
-      case (id, rha) => (id, rha.currentLocationUTM.loc)
+      case (id, rha) => (id, rha.getCurrentLocationUTM(tick, beamServices))
     }.toVector
   }
 }

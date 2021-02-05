@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure
 
 import scala.util.Random
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
@@ -69,6 +70,7 @@ object ParkingStall {
     )
   }
 
+  //#Art
   /**
     * take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
     * This should only kick in when all other (potentially non-free, non-colocated) stalls in the search area are
@@ -91,4 +93,27 @@ object ParkingStall {
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential
   )
+
+  /**
+    * Convenience method to convert a [[ParkingAlternative]] to a [[ParkingStall]]
+    *
+    * @param parkingAlternative
+    * @return
+    */
+  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(
+    implicit gl: GeoLevel[GEO]
+  ): ParkingStall = {
+    import GeoLevel.ops._
+    ParkingStall(
+      parkingAlternative.geo.getId,
+      tazId,
+      parkingAlternative.parkingZone.parkingZoneId,
+      parkingAlternative.coord,
+      parkingAlternative.costInDollars,
+      parkingAlternative.parkingZone.chargingPointType,
+      None,
+      parkingAlternative.parkingType,
+    )
+  }
+
 }

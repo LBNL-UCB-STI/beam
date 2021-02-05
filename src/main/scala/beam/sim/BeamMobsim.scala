@@ -1,7 +1,6 @@
 package beam.sim
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
 import akka.pattern.ask
@@ -11,6 +10,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTr
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, EventsAccumulator, VehicleCategory}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
+import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{HierarchicalParkingManager, ParallelParkingManager, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -57,7 +57,8 @@ class BeamMobsim @Inject()(
   val routeHistory: RouteHistory,
   val geo: GeoUtils,
   val planCleaner: ModeIterationPlanCleaner,
-  val networkHelper: NetworkHelper
+  val networkHelper: NetworkHelper,
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -135,7 +136,8 @@ class BeamMobsim @Inject()(
           eventsManager,
           rideHailSurgePricingManager,
           rideHailIterationHistory,
-          routeHistory
+          routeHistory,
+          rideHailFleetInitializerProvider
         )
       ),
       "BeamMobsim.iteration"
@@ -310,7 +312,8 @@ class BeamMobsimIteration(
   val eventsManager: EventsManager,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
-  val routeHistory: RouteHistory
+  val routeHistory: RouteHistory,
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
 ) extends Actor
     with ActorLogging
     with MetricsSupport {
@@ -397,6 +400,8 @@ class BeamMobsimIteration(
 
   context.watch(parkingManager)
 
+  private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
+
   private val rideHailManager = context.actorOf(
     Props(
       new RideHailManager(
@@ -414,7 +419,8 @@ class BeamMobsimIteration(
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        routeHistory
+        routeHistory,
+        rideHailFleetInitializer
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
@@ -449,6 +455,7 @@ class BeamMobsimIteration(
   private val transitSystem = context.actorOf(
     Props(
       new TransitSystem(
+        beamServices,
         beamScenario,
         matsimServices.getScenario,
         beamScenario.transportNetwork,
@@ -553,13 +560,18 @@ class BeamMobsimIteration(
         debugActorWithTimerCancellable.cancel()
         context.stop(debugActorWithTimerActorRef)
       }
+
     case Terminated(_) =>
       if (context.children.isEmpty) {
-        context.stop(self)
-        runSender ! Success("Ran.")
+        // Await eventBuilder message queue to be processed, before ending iteration
+        beamServices.eventBuilderActor ! FlushEvents
       } else {
         log.debug("Remaining: {}", context.children)
       }
+
+    case EventBuilderActorCompleted =>
+      runSender ! Success("Ran.")
+      context.stop(self)
 
     case "Run!" =>
       runSender = sender

@@ -27,7 +27,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   override protected val skimName: String = config.origin_destination_skimmer.name
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
   override protected val skimFileHeader: String =
-    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,observations,iterations"
+    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
 
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
@@ -58,11 +58,11 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ODSkimmerInternal])
-      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, observations = 0, iterations = 0))
+      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 1, observations = 0, iterations = 0))
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ODSkimmerInternal])
-        .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, observations = 0, iterations = 1))
+        .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 1, observations = 0, iterations = 1))
     ODSkimmerInternal(
       travelTimeInS = (prevSkim.travelTimeInS * prevSkim.iterations + currSkim.travelTimeInS * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       generalizedTimeInS = (prevSkim.generalizedTimeInS * prevSkim.iterations + currSkim.generalizedTimeInS * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
@@ -70,6 +70,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       distanceInM = (prevSkim.distanceInM * prevSkim.iterations + currSkim.distanceInM * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       cost = (prevSkim.cost * prevSkim.iterations + currSkim.cost * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       energy = (prevSkim.energy * prevSkim.iterations + currSkim.energy * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      level4CavTravelTimeScalingFactor = (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.iterations + currSkim.level4CavTravelTimeScalingFactor * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       observations = (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
@@ -81,7 +82,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
       .map(_.asInstanceOf[ODSkimmerInternal])
-      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, observations = 0, iterations = 0))
+      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 1, observations = 0, iterations = 0))
     val currSkim = currObservation.asInstanceOf[ODSkimmerInternal]
     ODSkimmerInternal(
       travelTimeInS = (prevSkim.travelTimeInS * prevSkim.observations + currSkim.travelTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
@@ -90,6 +91,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       distanceInM = (prevSkim.distanceInM * prevSkim.observations + currSkim.distanceInM * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       cost = (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       energy = (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      level4CavTravelTimeScalingFactor = (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.observations + currSkim.level4CavTravelTimeScalingFactor * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1
     )
@@ -179,6 +181,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
+    val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
+    val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
     var writer: BufferedWriter = null
     try {
@@ -210,6 +214,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             newDestCoord,
                             timeBin * 3600,
                             dummyId,
+                            vehicleType,
+                            fuelPrice,
                             beamScenario
                           )
                       } else {
@@ -221,15 +227,15 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             destination.coord,
                             timeBin * 3600,
                             dummyId,
+                            vehicleType,
+                            fuelPrice,
                             beamScenario
                           )
                       }
                     }
 
                   writer.write(
-                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.count},${internalSkimmer
-                      .map(_.iterations)
-                      .getOrElse(0)}\n"
+                    s"$timeBin,$mode,${origin.tazId},${destination.tazId},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.count},${event.getIteration}\n"
                   )
                 }
             }
@@ -274,6 +280,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
               adjustedDestCoord,
               timeBin * 3600,
               dummyId,
+              beamScenario.vehicleTypes(dummyId),
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(dummyId).primaryFuelType),
               beamScenario
             )
         }
@@ -294,6 +302,11 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       .map(tup => tup._1 * tup._2)
       .sum / sumWeights
     val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedLevel4TravelTimeScale = individualSkims
+      .map(_.level4CavTravelTimeScalingFactor)
+      .zip(weights)
+      .map(tup => tup._1 * tup._2)
+      .sum / sumWeights
 
     ExcerptData(
       timePeriodString = timePeriodString,
@@ -306,7 +319,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       weightedGeneralizedCost = weightedGeneralizedCost,
       weightedDistance = weightedDistance,
       sumWeights = sumWeights,
-      weightedEnergy = weightedEnergy
+      weightedEnergy = weightedEnergy,
+      weightedLevel4TravelTimeScaleFactor = weightedLevel4TravelTimeScale
     )
   }
 }
@@ -336,6 +350,7 @@ object ODSkimmer extends LazyLogging {
         distanceInM = row("distanceInM").toDouble,
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
+        level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
         observations = row("observations").toInt,
         iterations = row("iterations").toInt
       )
@@ -349,16 +364,38 @@ object ODSkimmer extends LazyLogging {
     distanceInM: Double,
     cost: Double,
     energy: Double,
+    level4CavTravelTimeScalingFactor: Double,
     observations: Int = 1,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
 
     //NOTE: All times in seconds here
     def toSkimExternal: Skim =
-      Skim(travelTimeInS.toInt, generalizedTimeInS, generalizedCost, distanceInM, cost, observations, energy)
+      Skim(
+        travelTimeInS.toInt,
+        generalizedTimeInS,
+        generalizedCost,
+        distanceInM,
+        cost,
+        observations,
+        energy,
+        level4CavTravelTimeScalingFactor
+      )
+
+    def toSkimExternalForLevel4CAV: Skim =
+      Skim(
+        (travelTimeInS * level4CavTravelTimeScalingFactor).toInt,
+        generalizedTimeInS,
+        generalizedCost,
+        distanceInM,
+        cost,
+        observations,
+        energy,
+        level4CavTravelTimeScalingFactor
+      )
 
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + observations + "," + iterations
+      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations
   }
 
   case class Skim(
@@ -368,7 +405,8 @@ object ODSkimmer extends LazyLogging {
     distance: Double = 0,
     cost: Double = 0,
     count: Int = 0,
-    energy: Double = 0
+    energy: Double = 0,
+    level4CavTravelTimeScalingFactor: Double = 1.0
   ) {
 
     def +(that: Skim): Skim =
@@ -379,7 +417,8 @@ object ODSkimmer extends LazyLogging {
         this.distance + that.distance,
         this.cost + that.cost,
         this.count + that.count,
-        this.energy + that.energy
+        this.energy + that.energy,
+        this.level4CavTravelTimeScalingFactor + that.level4CavTravelTimeScalingFactor
       )
   }
 
@@ -394,7 +433,8 @@ object ODSkimmer extends LazyLogging {
     weightedGeneralizedCost: Double,
     weightedDistance: Double,
     sumWeights: Double,
-    weightedEnergy: Double
+    weightedEnergy: Double,
+    weightedLevel4TravelTimeScaleFactor: Double
   )
 
 }

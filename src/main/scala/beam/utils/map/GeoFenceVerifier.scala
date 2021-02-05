@@ -4,7 +4,7 @@ import java.io.Closeable
 
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.common.GeoUtils
-import beam.sim.{Geofence, RideHailFleetInitializer}
+import beam.sim.{CircularGeofence, Geofence, RideHailFleetInitializer}
 import beam.utils.{EventReader, ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
@@ -41,7 +41,7 @@ object GeoFenceVerifier extends LazyLogging {
     val fleetData = RideHailFleetInitializer.readFleetFromCSV(pathToRideHailFleetData)
     val vehIdToGeofence = fleetData.map { rhaInput =>
       val maybeGeofence = (rhaInput.geofenceX, rhaInput.geofenceY, rhaInput.geofenceRadius) match {
-        case (Some(x), Some(y), Some(r)) => Some(Geofence(x, y, r))
+        case (Some(x), Some(y), Some(r)) => Some(CircularGeofence(x, y, r))
         case _                           => None
       }
       rhaInput.id -> maybeGeofence
@@ -79,7 +79,7 @@ object GeoFenceVerifier extends LazyLogging {
     }
   }
 
-  def calculateError(pte: PathTraversalEvent, geofence: Geofence): Array[PointInfo] = {
+  def calculateError(pte: PathTraversalEvent, geofence: CircularGeofence): Array[PointInfo] = {
     val geofenceCoord = new Coord(geofence.geofenceX, geofence.geofenceY)
     val startUtm = geoUtils.wgs2Utm(new Coord(pte.startX, pte.startY))
     val endUtm = geoUtils.wgs2Utm(new Coord(pte.endX, pte.endY))
