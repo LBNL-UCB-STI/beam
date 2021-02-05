@@ -336,6 +336,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
   private def createWalkGraphHopper(): Unit = {
+    log.info("Init GH Walk")
     GraphHopperWrapper.createWalkGraphDirectoryFromR5(
       workerParams.transportNetwork,
       new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
@@ -346,6 +347,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   }
 
   private def createCarGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+    log.info("Init GH Car")
     // Clean up GHs variable and than calculate new ones
     binToCarGraphHopper = Map()
     new Directory(new File(carGraphHopperDir)).deleteRecursively()
@@ -469,13 +471,17 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           bw.flush()
         }
     */
-
+    val s = System.currentTimeMillis()
+    log.info("Init CchNative")
     nativeCCH = new CchNative()
     nativeCCH.init(Paths.get(workerParams.beamConfig.beam.routing.r5.directory, "cchnative", "texas-generated.osm.pbf").toString)
 
     (0 until noOfTimeBins).foreach { bin =>
       nativeCCH.createBinQueries(bin, Map[String, String]().asJava)
     }
+
+    val e = System.currentTimeMillis()
+    log.info(s"Cch native built in ${e - s} ms")
 
 //    val r2 = nativeCCH.route(5, -122.43244898381829, 37.77491557097691, -122.45382120000001, 37.7704974)
 //    def getFullLine(list: Seq[Int]) = {
