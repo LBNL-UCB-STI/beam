@@ -23,6 +23,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
@@ -37,7 +38,6 @@ import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
-import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
@@ -69,9 +69,6 @@ class BeamRouter(
 ) extends Actor
     with Stash
     with ActorLogging {
-
-  import beam.router.BeamRouter._
-
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
@@ -435,7 +432,7 @@ class BeamRouter(
   }
 }
 
-object BeamRouter extends StrictLogging {
+object BeamRouter {
   type Location = Coord
 
   case class ClearRoutedWorkerTracker(workIdToClear: Int)
@@ -479,7 +476,8 @@ object BeamRouter extends StrictLogging {
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    requestId: Int = IdGeneratorImpl.nextId
+    requestId: Int = IdGeneratorImpl.nextId,
+    possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
   )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
@@ -766,9 +764,6 @@ object BeamRouter extends StrictLogging {
      }).round.toInt
   }
 
-  val cnt: AtomicInteger = new AtomicInteger(0)
-  val totalTime: AtomicInteger = new AtomicInteger(0)
-
   def computeTravelTimeAndDistanceAndCost(
     originUTM: Coord,
     destinationUTM: Coord,
@@ -782,12 +777,6 @@ object BeamRouter extends StrictLogging {
     maybeOrigTazId: Option[Id[TAZ]] = None,
     maybeDestTazId: Option[Id[TAZ]] = None,
   ): ODSkimmer.Skim = {
-    if (cnt.get() % 1000000 == 0) {
-      logger.warn(s"computeTravelTimeAndDistanceAndCost is called ${cnt.get()} times, totalTime: ${totalTime
-        .get()}, AVG: ${totalTime.get().toDouble / cnt.get()} ms")
-    }
-    val s = System.currentTimeMillis()
-
     val origTazId = Some(maybeOrigTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId))
     val destTazId = Some(
       maybeDestTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId)
@@ -847,10 +836,6 @@ object BeamRouter extends StrictLogging {
         )
         .intValue()
     }
-    val e = System.currentTimeMillis()
-    val diff = e - s
-    totalTime.getAndAdd(diff.toInt)
-    cnt.incrementAndGet()
     ODSkimmer.Skim(time = travelTimeInS, distance = skimResult.distance, cost = skimResult.cost)
   }
 

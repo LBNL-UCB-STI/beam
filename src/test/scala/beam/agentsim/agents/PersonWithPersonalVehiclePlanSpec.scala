@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
@@ -84,10 +85,12 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleId = Id.createVehicleId("car-dummyAgent")
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -127,6 +130,7 @@ class PersonWithPersonalVehiclePlanSpec
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -313,10 +317,12 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleId = Id.createVehicleId("bicycle-dummyAgent")
+      val vehicleType = beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -355,6 +361,7 @@ class PersonWithPersonalVehiclePlanSpec
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -452,15 +459,18 @@ class PersonWithPersonalVehiclePlanSpec
           }
         }
       )
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -500,6 +510,7 @@ class PersonWithPersonalVehiclePlanSpec
           Map(car1.id -> car1, car2.id -> car2),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -558,10 +569,12 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleId = Id.createVehicleId("car-1")
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -598,6 +611,7 @@ class PersonWithPersonalVehiclePlanSpec
           Map(beamVehicle.id -> beamVehicle),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

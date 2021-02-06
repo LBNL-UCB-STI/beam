@@ -1,6 +1,7 @@
 package beam.router.graphhopper
 
 import java.util
+import java.util.stream.Collectors
 
 import com.graphhopper.routing.ev.EncodedValueLookup
 import com.graphhopper.routing.weighting.Weighting
@@ -12,9 +13,17 @@ class BeamPathDetailsBuilderFactory extends PathDetailsBuilderFactory {
     evl: EncodedValueLookup,
     weighting: Weighting
   ): util.List[PathDetailsBuilder] = {
-    val details = super.createPathDetailsBuilders(requestedPathDetails, evl, weighting)
-    details.add(new BeamTimeDetails(weighting))
-    details.add(new BeamTimeReverseDetails(weighting))
+    val customDetails = List(new BeamTimeDetails(weighting), new BeamTimeReverseDetails(weighting))
+    val customDetailAliases = customDetails.map(_.getName)
+    val details = super.createPathDetailsBuilders(
+      requestedPathDetails
+        .stream()
+        .filter(!customDetailAliases.contains(_))
+        .collect(Collectors.toList()),
+      evl,
+      weighting
+    )
+    customDetails.foreach(details.add)
     details
   }
 }

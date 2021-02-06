@@ -7,6 +7,7 @@ import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
+  BIKE_TRANSIT,
   CAR,
   CAV,
   DRIVE_TRANSIT,
@@ -55,8 +56,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
         beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
       case RIDE_HAIL_POOLED =>
         beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => 0.25 * travelDistance / 1609
-      case _                                                          => 0.0
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
+      case _                                                                         => 0.0
     }
     Skim(
       travelTime,

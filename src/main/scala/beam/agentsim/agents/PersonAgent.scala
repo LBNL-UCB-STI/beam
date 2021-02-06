@@ -1,28 +1,28 @@
 package beam.agentsim.agents
 
-import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
+import akka.actor.FSM.Failure
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
+import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
-import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -31,10 +31,12 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
-import beam.sim.population.AttributesOfIndividual
+import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent}
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.sim.common.GeoUtils
+import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
@@ -45,8 +47,6 @@ import org.matsim.core.utils.misc.Time
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
-import beam.sim.common.GeoUtils
-import beam.utils.NetworkHelper
 
 /**
   */
@@ -68,7 +68,9 @@ object PersonAgent {
     personId: Id[PersonAgent],
     householdRef: ActorRef,
     plan: Plan,
+    fleetManagers: Seq[ActorRef],
     sharedVehicleFleets: Seq[ActorRef],
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -87,7 +89,9 @@ object PersonAgent {
         parkingManager,
         tollCalculator,
         householdRef,
+        fleetManagers,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
         boundingBox
       )
@@ -244,7 +248,9 @@ class PersonAgent(
   val parkingManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
-  val vehicleFleets: Seq[ActorRef] = Vector(),
+  val fleetManagers: Seq[ActorRef] = Vector(),
+  val sharedVehicleFleets: Seq[ActorRef] = Vector(),
+  val possibleSharedVehicleTypes: Set[BeamVehicleType] = Set.empty,
   val routeHistory: RouteHistory,
   val boundingBox: Envelope
 ) extends DrivesVehicle[PersonData]
@@ -265,10 +271,13 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    managerInfo = VehicleManagerInfo.create(id.toString, bodyType)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
+
+  val vehicleFleets: Seq[ActorRef] = fleetManagers ++ sharedVehicleFleets
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes
@@ -847,16 +856,22 @@ class PersonAgent(
           )
         }
 
-        val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
-          ReleasingParkingSpot
-        } else {
-          releaseTickAndTriggerId()
-          WaitingToDrive
-        }
+        val stateToGo =
+          if (nextLeg.beamLeg.mode == CAR
+              || beamVehicles(nextLeg.beamVehicleId)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+                .managerInfo
+                .managerType == VehicleManagerType.SharedMicromobility) {
+            log.debug(
+              "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+              legsToInclude
+            )
+            ReleasingParkingSpot
+          } else {
+            releaseTickAndTriggerId()
+            WaitingToDrive
+          }
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
@@ -1176,7 +1191,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _
+          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
@@ -1203,7 +1218,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _
+          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)

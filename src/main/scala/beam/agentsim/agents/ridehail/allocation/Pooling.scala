@@ -145,7 +145,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
       rideHailLocation.vehicleType.id,
       SpaceTime((rideHailLocation.getCurrentLocationUTM(tick, rideHailManager.beamServices), startTime)),
       CAR,
-      asDriver = false
+      asDriver = false,
+      needsToCalculateCost = true
     )
 
     // Pickups first
@@ -166,7 +167,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         rideHailLocation.vehicleType.id,
         SpaceTime((req.pickUpLocationUTM, startTime)),
         CAR,
-        asDriver = false
+        asDriver = false,
+        needsToCalculateCost = true
       )
     }
 
@@ -191,7 +193,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         rideHailLocation.vehicleType.id,
         SpaceTime((req.destinationUTM, startTime)),
         CAR,
-        asDriver = false
+        asDriver = false,
+        needsToCalculateCost = true
       )
     }
 

@@ -121,7 +121,7 @@ object DrivesVehicle {
 
   sealed trait VehicleOrToken {
     def id: Id[BeamVehicle]
-
+    def vehicle: BeamVehicle
     def streetVehicle: StreetVehicle
   }
 
@@ -133,8 +133,9 @@ object DrivesVehicle {
     override def streetVehicle: StreetVehicle = vehicle.toStreetVehicle
   }
 
-  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, override val streetVehicle: StreetVehicle)
-      extends VehicleOrToken
+  case class Token(override val id: Id[BeamVehicle], manager: ActorRef, vehicle: BeamVehicle) extends VehicleOrToken {
+    override def streetVehicle: StreetVehicle = vehicle.toStreetVehicle
+  }
 
   case class StartLegTrigger(tick: Int, beamLeg: BeamLeg) extends Trigger
 
@@ -351,7 +352,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               .head
           if (nextLeg.startTime < tick - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
             logger.info(
-              s"**** BEYOND Parallelism Window. ID: ${this.id}. currentVehicle: ${currentBeamVehicle.id}. isCAV: ${currentBeamVehicle.isCAV}. timeDifference: ${tick-nextLeg.startTime}"
+              s"**** BEYOND Parallelism Window. ID: ${this.id}. currentVehicle: ${currentBeamVehicle.id}. isCAV: ${currentBeamVehicle.isCAV}. timeDifference: ${tick - nextLeg.startTime}"
             )
           }
           val startLegTriggerTick = if (nextLeg.startTime < tick) {

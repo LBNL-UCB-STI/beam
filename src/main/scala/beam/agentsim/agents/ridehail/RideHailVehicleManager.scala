@@ -3,20 +3,18 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailMatching.VehicleAndSchedule
 import beam.agentsim.agents.ridehail.RideHailVehicleManager._
-import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
+import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
-import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL}
-import beam.router.skim.Skims
+import beam.router.Modes.BeamMode.CAR
 import beam.sim.{BeamServices, Geofence}
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.geometry.CoordUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -712,7 +710,14 @@ object RideHailVehicleManager {
     }
 
     def toStreetVehicle: StreetVehicle = {
-      StreetVehicle(vehicleId, vehicleType.id, latestUpdatedLocationUTM, CAR, asDriver = true)
+      StreetVehicle(
+        vehicleId,
+        vehicleType.id,
+        latestUpdatedLocationUTM,
+        CAR,
+        asDriver = true,
+        needsToCalculateCost = true
+      )
     }
 
     override def equals(obj: Any): Boolean = {

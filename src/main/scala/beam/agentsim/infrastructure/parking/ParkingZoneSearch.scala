@@ -187,8 +187,7 @@ object ParkingZoneSearch {
           }
         }
 
-        val validParkingAlternatives: Int = alternatives.count { _.isValidAlternative }
-        if (validParkingAlternatives == 0) {
+        if (!alternatives.exists(_.isValidAlternative)) {
           _search(
             thisOuterRadius,
             thisOuterRadius * config.searchExpansionFactor,
@@ -200,10 +199,9 @@ object ParkingZoneSearch {
 
           // remove any invalid parking alternatives
           val alternativesToSample: Map[ParkingAlternative[GEO], Map[ParkingMNL.Parameters, Double]] =
-            alternatives.flatMap { a =>
-              if (a.isValidAlternative)
-                Some { a.parkingAlternative -> a.utilityParameters } else
-                None
+            alternatives.collect {
+              case a if a.isValidAlternative =>
+                a.parkingAlternative -> a.utilityParameters
             }.toMap
 
           val mnl: MultinomialLogit[ParkingAlternative[GEO], ParkingMNL.Parameters] =
