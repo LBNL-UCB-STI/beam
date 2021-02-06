@@ -1589,6 +1589,15 @@ class RideHailManager(
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
           }
         }
+        if (legOpt.isDefined) {
+          val tempLeg = legOpt.get
+          val tempTick = rideHailAgentLocation.latestTickExperienced
+          if (tempLeg.startTime < tempTick - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
+            log.info(
+              s"**** (2) BEYOND Parallelism Window. timeDifference: ${tempTick - tempLeg.startTime}. ID: ${this.id}. person: ${mobReq.person.get.personId}. vehicleOccupancy: ${mobReq.vehicleOccupancy}"
+            )
+          }
+        }
       case _ =>
     }
     pickDropsForGrouping.foreach { passAndLegs =>
