@@ -5,7 +5,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.utils.TestConfigUtils
@@ -67,7 +67,8 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType,
+          managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, defaultCAVBeamVehicleType),
         )
       )
       val household = scenario1(cavs)
@@ -82,16 +83,19 @@ class FastHouseholdCAVSchedulingSpec
     }
 
     it("pool two persons for both trips") {
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val cavs = List[BeamVehicle](
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType,
+          managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, defaultCAVBeamVehicleType),
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
         )
       )
       val household = scenario2(cavs)
@@ -114,12 +118,14 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType,
+          managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, defaultCAVBeamVehicleType),
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType
+          defaultCAVBeamVehicleType,
+          managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, defaultCAVBeamVehicleType),
         )
       )
       val household = scenario5(cavs)

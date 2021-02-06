@@ -3,9 +3,12 @@ package beam.agentsim.infrastructure
 import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Props}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.agents.vehicles.VehicleManagerType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
   ParkingZoneSearchConfiguration,
@@ -16,6 +19,7 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.sim.vehiclesharing.VehicleManager
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -227,10 +231,21 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
+        val isValidVehicleManager = inquiry.beamVehicle match {
+          case Some(vehicle)
+              if vehicle.managerInfo.managerType.isPrivate
+              || vehicle.managerInfo.managerType == VehicleManagerType.Ridehail =>
+            zone.vehicleManagerId.isEmpty && zone.reservedFor.forall(_ == vehicle.managerInfo.managerType)
+          case Some(vehicle) if vehicle.managerInfo.managerType.isShared =>
+            zone.vehicleManagerId.contains(vehicle.managerInfo.managerId)
+          case _ => zone.vehicleManagerId.isEmpty && zone.reservedFor.isEmpty
+        }
+
         hasAvailability &&
         rideHailFastChargingOnly &&
         validParkingType &&
-        canThisCarParkHere
+        canThisCarParkHere &&
+        isValidVehicleManager
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
@@ -501,11 +516,11 @@ object ZonalParkingManager extends LazyLogging {
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
     geoToTAZ: GEO => TAZ,
     geo: GeoUtils,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingFilePaths: Map[Id[VehicleManager], String],
   ): ZonalParkingManager[GEO] = {
 
     // generate or load parking
-    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
 
@@ -515,7 +530,7 @@ object ZonalParkingManager extends LazyLogging {
     }
 
     val (stalls, searchTree) =
-      loadParkingZones(parkingFilePath, geoQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, random)
+      loadParkingZones(parkingFilePaths, geoQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, random)
 
     ZonalParkingManager(
       beamConfig,
@@ -537,19 +552,70 @@ object ZonalParkingManager extends LazyLogging {
     parkingCostScalingFactor: Double,
     random: Random
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val (stalls, searchTree) = if (parkingFilePath.isEmpty) {
-      ParkingZoneFileUtils.generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random)
-    } else {
-      Try {
-        ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor, parkingCostScalingFactor)
-      } match {
-        case Success((s, t)) => (s, t)
-        case Failure(e) =>
-          logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-          ParkingZoneFileUtils.generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random)
-      }
+    loadParkingZones(
+      Map(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> parkingFilePath),
+      geoQuadTree,
+      parkingStallCountScalingFactor,
+      parkingCostScalingFactor,
+      random
+    )
+  }
+
+  def loadParkingZones[GEO: GeoLevel](
+    parkingFilePaths: Map[Id[VehicleManager], String],
+    geoQuadTree: QuadTree[GEO],
+    parkingStallCountScalingFactor: Double,
+    parkingCostScalingFactor: Double,
+    random: Random
+  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+    val mainParkingFilePath = parkingFilePaths.get(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID)
+    val initialAccumulator: ParkingLoadingAccumulator[GEO] = mainParkingFilePath match {
+      case Some(parkingFilePath) =>
+        if (parkingFilePath.isEmpty) {
+          ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(geoQuadTree.values().asScala, random)
+        } else {
+          Try {
+            ParkingZoneFileUtils.fromFileToAccumulator(
+              parkingFilePath,
+              random,
+              parkingStallCountScalingFactor,
+              parkingCostScalingFactor
+            )
+          } match {
+            case Success(accumulator) => accumulator
+            case Failure(e) =>
+              logger.error(s"unable to read contents of provided parking file $parkingFilePath", e)
+              ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(geoQuadTree.values().asScala, random)
+          }
+        }
+      case None => new ParkingLoadingAccumulator[GEO]()
     }
-    (stalls, searchTree)
+    val otherParkingFiles = parkingFilePaths - HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID
+    val parkingLoadingAccumulator = otherParkingFiles.foldLeft(initialAccumulator) {
+      case (acc, (vehicleManagerId, filePath)) =>
+        filePath.trim match {
+          case "" => acc
+          case parkingFilePath @ _ =>
+            Try {
+              ParkingZoneFileUtils.fromFileToAccumulator(
+                parkingFilePath,
+                random,
+                parkingStallCountScalingFactor,
+                parkingCostScalingFactor,
+                header = true,
+                Some(vehicleManagerId),
+                acc
+              )
+            } match {
+              case Success(accumulator) => accumulator
+              case Failure(e) =>
+                logger.error(s"unable to read contents of provided parking file $parkingFilePath", e)
+                acc
+            }
+        }
+    }
+
+    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
   }
 
   /**
@@ -601,7 +667,8 @@ object ZonalParkingManager extends LazyLogging {
     geoToTAZ: GEO => TAZ,
     geo: GeoUtils,
     beamRouter: ActorRef,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingFilePaths: Map[Id[VehicleManager], String],
   ): Props = {
 
     Props(
@@ -611,7 +678,8 @@ object ZonalParkingManager extends LazyLogging {
         idToGeoMapping,
         geoToTAZ,
         geo,
-        boundingBox
+        boundingBox,
+        parkingFilePaths,
       )
     )
   }
@@ -647,4 +715,8 @@ object ZonalParkingManager extends LazyLogging {
       )
     )
   }
+
+  def getDefaultParkingZones(beamConfig: BeamConfig): Map[Id[VehicleManager], String] = Map(
+    HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> beamConfig.beam.agentsim.taz.parkingFilePath,
+  )
 }

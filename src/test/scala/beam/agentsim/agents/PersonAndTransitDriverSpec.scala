@@ -7,6 +7,7 @@ import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.TransitDriverAgent.createAgentIdFromVehicleId
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
@@ -78,7 +79,8 @@ class PersonAndTransitDriverSpec
       identity[TAZ],
       services.geo,
       services.beamRouter,
-      boundingBox
+      boundingBox,
+      ZonalParkingManager.getDefaultParkingZones(beamConfig),
     ),
     "ParkingManager"
   )
@@ -134,15 +136,18 @@ class PersonAndTransitDriverSpec
         }
       )
 
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val bus = new BeamVehicle(
         id = busId,
         powerTrain = new Powertrain(0.0),
-        beamVehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        beamVehicleType = vehicleType,
+        managerInfo = VehicleManagerInfo(TransitSystem.VEHICLE_MANAGER_ID, vehicleType),
       )
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
-        beamVehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        beamVehicleType = vehicleType,
+        managerInfo = VehicleManagerInfo(TransitSystem.VEHICLE_MANAGER_ID, vehicleType),
       )
 
       val busLeg = EmbodiedBeamLeg(
@@ -364,6 +369,7 @@ class PersonAndTransitDriverSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

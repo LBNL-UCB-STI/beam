@@ -20,7 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -73,6 +73,7 @@ object HouseholdActor {
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -94,6 +95,7 @@ object HouseholdActor {
         houseHoldVehicles,
         homeCoord,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
         boundingBox
       )
@@ -104,6 +106,8 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
+  case class GetVehicleTypes()
+  case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -135,6 +139,7 @@ object HouseholdActor {
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ) extends Actor
@@ -299,7 +304,9 @@ object HouseholdActor {
               person.getId,
               self,
               selectedPlan,
-              fleetManagers ++: sharedVehicleFleets,
+              fleetManagers.toSeq,
+              sharedVehicleFleets,
+              possibleSharedVehicleTypes,
               routeHistory,
               boundingBox
             ),

@@ -51,6 +51,7 @@ import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
+import beam.sim.vehiclesharing.VehicleManager
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -82,6 +83,8 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_UNIFORM_RANDOM = "UNIFORM_RANDOM"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
+
+  val RIDE_HAIL_VEHICLE_MANAGER_ID: Id[VehicleManager] = Id.create("private-vehicle", classOf[VehicleManager])
 
   type VehicleId = Id[BeamVehicle]
 
@@ -1118,10 +1121,18 @@ class RideHailManager(
       rideHailLocation.vehicleType.id,
       SpaceTime((rideHailLocation.getCurrentLocationUTM(requestTime, beamServices), requestTime)),
       CAR,
-      asDriver = false
+      asDriver = false,
+      needsToCalculateCost = true
     )
     val rideHailVehicleAtPickup =
-      StreetVehicle(rideHailLocation.vehicleId, rideHailLocation.vehicleType.id, pickupSpaceTime, CAR, asDriver = false)
+      StreetVehicle(
+        rideHailLocation.vehicleId,
+        rideHailLocation.vehicleType.id,
+        pickupSpaceTime,
+        CAR,
+        asDriver = false,
+        needsToCalculateCost = true
+      )
 
     // route from ride hailing vehicle to customer
     val rideHailAgent2Customer = RoutingRequest(
@@ -1801,7 +1812,8 @@ class RideHailManager(
             rideHailAgentLocation.vehicleType.id,
             SpaceTime((rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices), tick)),
             CAR,
-            asDriver = false
+            asDriver = false,
+            needsToCalculateCost = true
           )
           val routingRequest = RoutingRequest(
             originUTM = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices),
