@@ -1491,6 +1491,14 @@ class RideHailManager(
           case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
               if pickDropIdWithRoutes.nonEmpty =>
             val travelProposal = createTravelProposal(alloc)
+
+            val tempTick = rideHailAgentLocation.latestTickExperienced
+            if (tempTick < tick - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
+              log.info(
+                s"**** (2) BEYOND Parallelism Window. timeDifference: ${tick - tempTick}. ID: ${this.id}."
+              )
+            }
+
             val waitTimeMaximumSatisfied = travelProposal.passengerSchedule.uniquePassengers.filter { customer =>
               travelProposal.timeToCustomer(customer) > beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
             }.isEmpty
@@ -1587,15 +1595,6 @@ class RideHailManager(
           passengersToAdd.foreach { pass =>
             val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
             pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)
-          }
-        }
-        if (legOpt.isDefined) {
-          val tempLeg = legOpt.get
-          val tempTick = rideHailAgentLocation.latestTickExperienced
-          if (tempLeg.startTime < tempTick - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
-            log.info(
-              s"**** (2) BEYOND Parallelism Window. timeDifference: ${tempTick - tempLeg.startTime}. ID: ${this.id}. person: ${mobReq.person.get.personId}. vehicleOccupancy: ${mobReq.vehicleOccupancy}"
-            )
           }
         }
       case _ =>
