@@ -369,8 +369,10 @@ trait ChoosesMode {
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>
+          // FIXME: Our previous tour was WALK, but this should not stop us to use RideHail or try transit!
+          // This is important for the secondary activties because you can end-up walking very far (the problem was that whenever the person chooses WALK, he will never use any other mode anymore)
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
-          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
+          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
@@ -483,7 +485,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.routingRequestToLegMap.contains(requestId) =>
       //handling router responses for shared vehicles
@@ -528,7 +530,7 @@ trait ChoosesMode {
         )
 
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -1357,7 +1359,9 @@ trait ChoosesMode {
           data.availablePersonalStreetVehicles.nonEmpty,
           chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
           _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
-          chosenTrip
+          chosenTrip,
+          _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
+          nextActivity(data.personData).get.getType
         )
       )
 

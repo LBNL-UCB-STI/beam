@@ -41,6 +41,10 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
+  def legModes: IndexedSeq[BeamMode] = legs.map(_.beamLeg.mode)
+
+  def legVehicleIds: IndexedSeq[Id[BeamVehicle]] = legs.map(_.beamVehicleId)
+
   def toBeamTrip: BeamTrip = BeamTrip(beamLegs)
 
   def updateStartTime(newStartTime: Int): EmbodiedBeamTrip = {

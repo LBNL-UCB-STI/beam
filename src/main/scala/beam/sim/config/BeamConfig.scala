@@ -103,7 +103,8 @@ object BeamConfig {
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
           overrideAutomationForVOTT: scala.Boolean,
           overrideAutomationLevel: scala.Int,
-          poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier
+          poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier,
+          transitVehicleTypeVOTMultipliers: scala.Option[scala.List[java.lang.String]]
         )
 
         object ModalBehaviors {
@@ -477,6 +478,8 @@ object BeamConfig {
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
+              transit_crowding_VOT_multiplier: scala.Double,
+              transit_crowding_VOT_threshold: scala.Double,
               transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
               walk_transit_intercept: scala.Double
@@ -505,6 +508,13 @@ object BeamConfig {
                     else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
                   transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
+                  transit_crowding_VOT_multiplier =
+                    if (c.hasPathOrNull("transit_crowding_VOT_multiplier"))
+                      c.getDouble("transit_crowding_VOT_multiplier")
+                    else 0.0,
+                  transit_crowding_VOT_threshold =
+                    if (c.hasPathOrNull("transit_crowding_VOT_threshold")) c.getDouble("transit_crowding_VOT_threshold")
+                    else 0.5,
                   transit_crowding_percentile =
                     if (c.hasPathOrNull("transit_crowding_percentile")) c.getDouble("transit_crowding_percentile")
                     else 90.0,
@@ -590,7 +600,11 @@ object BeamConfig {
               poolingMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier(
                 if (c.hasPathOrNull("poolingMultiplier")) c.getConfig("poolingMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("poolingMultiplier{}")
-              )
+              ),
+              transitVehicleTypeVOTMultipliers =
+                if (c.hasPathOrNull("transitVehicleTypeVOTMultipliers"))
+                  scala.Some($_L$_str(c.getList("transitVehicleTypeVOTMultipliers")))
+                else None
             )
           }
         }
@@ -692,13 +706,37 @@ object BeamConfig {
         }
 
         case class Population(
+          industryRemovalProbabilty: BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty,
           useVehicleSampling: scala.Boolean
         )
 
         object Population {
+          case class IndustryRemovalProbabilty(
+            enabled: scala.Boolean,
+            inputFilePath: java.lang.String,
+            removalStrategy: java.lang.String
+          )
+
+          object IndustryRemovalProbabilty {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty = {
+              BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty(
+                enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+                inputFilePath = if (c.hasPathOrNull("inputFilePath")) c.getString("inputFilePath") else "",
+                removalStrategy =
+                  if (c.hasPathOrNull("removalStrategy")) c.getString("removalStrategy") else "RemovePersonFromScenario"
+              )
+            }
+          }
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Population = {
             BeamConfig.Beam.Agentsim.Agents.Population(
+              industryRemovalProbabilty = BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty(
+                if (c.hasPathOrNull("industryRemovalProbabilty")) c.getConfig("industryRemovalProbabilty")
+                else com.typesafe.config.ConfigFactory.parseString("industryRemovalProbabilty{}")
+              ),
               useVehicleSampling = c.hasPathOrNull("useVehicleSampling") && c.getBoolean("useVehicleSampling")
             )
           }
@@ -2577,6 +2615,7 @@ object BeamConfig {
       jdeqsim: BeamConfig.Beam.Physsim.Jdeqsim,
       linkStatsBinSize: scala.Int,
       linkStatsWriteInterval: scala.Int,
+      maxLinkLengthToApplySpeedScalingFactor: scala.Double,
       name: java.lang.String,
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
@@ -3311,6 +3350,10 @@ object BeamConfig {
           linkStatsBinSize = if (c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
           linkStatsWriteInterval =
             if (c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval") else 0,
+          maxLinkLengthToApplySpeedScalingFactor =
+            if (c.hasPathOrNull("maxLinkLengthToApplySpeedScalingFactor"))
+              c.getDouble("maxLinkLengthToApplySpeedScalingFactor")
+            else 50.0,
           name = if (c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
           network = BeamConfig.Beam.Physsim.Network(
             if (c.hasPathOrNull("network")) c.getConfig("network")
@@ -3546,6 +3589,7 @@ object BeamConfig {
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
         directory: java.lang.String,
+        directory2: scala.Option[java.lang.String],
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
@@ -3591,6 +3635,7 @@ object BeamConfig {
               if (c.hasPathOrNull("bikeLaneScaleFactor")) c.getDouble("bikeLaneScaleFactor") else 1.0,
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
+            directory2 = if (c.hasPathOrNull("directory2")) Some(c.getString("directory2")) else None,
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")

@@ -68,22 +68,25 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
           override def next(): SimpleFeature = fIterator.next()
         }
         val persistedFeatureIds = featureStore.addFeatures(featureCollection)
-        val originalToPersistedFid: Map[String, String] = originalFeatureIdsIt
+
+        val originalIds = originalFeatureIdsIt
           .map(_.getID)
-          .toSeq
+          .toArray
+        val originalToPersistedFid = originalIds
           .zip(persistedFeatureIds.asScala)
           .map {
             case (originalFeatureId, persistedFeatureId) =>
               originalFeatureId -> persistedFeatureId.getID
           }
-          .toMap
+
+        val map = originalToPersistedFid.toMap
 
         dataStore.dispose()
         features.clear()
         featureIds.clear()
         isWritten = true
 
-        OriginalToPersistedFeatureIdMap(originalToPersistedFid)
+        OriginalToPersistedFeatureIdMap(map)
       }
     }
   }

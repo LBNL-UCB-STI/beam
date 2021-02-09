@@ -110,9 +110,17 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
   }
 
   override def postProcessing(): Unit = {
-    this.transportNetwork.transitLayer.buildDistanceTables(null)
-    this.transportNetwork =
-      buildFrequencyAdjustmentScenario(this.frequencyData).applyToTransportNetwork(transportNetwork)
-    convertFrequenciesToTrips()
+    def processTransportNetwork(transportNetwork: TransportNetwork): TransportNetwork = {
+      transportNetwork.transitLayer.buildDistanceTables(null)
+      val tn = buildFrequencyAdjustmentScenario(this.frequencyData).applyToTransportNetwork(transportNetwork)
+      convertFrequenciesToTrips(tn)
+      tn
+    }
+
+    this.transportNetwork = processTransportNetwork(this.transportNetwork)
+    this.networks2 = this.networks2.map {
+      case (tn, n) =>
+        (processTransportNetwork(tn), n)
+    }
   }
 }

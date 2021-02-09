@@ -3,6 +3,7 @@ package beam.utils.csv.readers
 import java.util.{Map => JavaMap}
 
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.scenario._
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
@@ -101,6 +102,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val age = getIfNotNull(rec, "age").toInt
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
+    val industry = Option(rec.get("industry"))
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0D)
     PersonInfo(
@@ -110,7 +112,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       age = age,
       excludedModes = excludedModes,
       isFemale = isFemale,
-      valueOfTime = valueOfTime
+      valueOfTime = valueOfTime,
+      industry = industry
     )
   }
 

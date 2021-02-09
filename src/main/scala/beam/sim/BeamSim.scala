@@ -180,6 +180,7 @@ class BeamSim @Inject()(
       eventsManager.addHandler(transitOccupancyByStop)
       eventsManager.addHandler(modeChoiceAlternativesCollector)
       eventsManager.addHandler(rideHailUtilizationCollector)
+      eventsManager.addHandler(travelTimeGoogleStatistic)
       carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     }
 
@@ -599,7 +600,8 @@ class BeamSim @Inject()(
         Files.delete(filePath)
         Right(filePath)
       } catch {
-        case e: Throwable => Left(filePath)
+        case e: Throwable =>
+          Left(filePath)
       }
     }
   }

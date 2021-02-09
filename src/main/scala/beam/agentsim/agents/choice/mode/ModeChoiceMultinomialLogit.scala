@@ -2,13 +2,15 @@ package beam.agentsim.agents.choice.mode
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{ModeCostTimeTransfer, _}
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{
+  calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment,
+  ModeCostTimeTransfer
+}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.ModeChoiceOccurredEvent
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
@@ -20,6 +22,7 @@ import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -31,6 +34,7 @@ class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
   val model: MultinomialLogit[EmbodiedBeamTrip, String],
   val modeModel: MultinomialLogit[BeamMode, String],
+  val transitVehicleTypeVOTMultipliers: Map[Id[BeamVehicleType], Double],
   beamConfigHolder: BeamConfigHolder,
   transitCrowding: TransitCrowdingSkims,
   val eventsManager: EventsManager
@@ -220,11 +224,12 @@ class ModeChoiceMultinomialLogit(
       } else {
         1D
       }
-      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity) * factor
+      getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity) * factor
     }.sum + getGeneralizedTime(waitingTime, None, None)
   }
 
   override def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
@@ -232,14 +237,22 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual match {
       case Some(attributes) =>
         attributes.getGeneralizedTimeOfLegForMNL(
+          embodiedBeamTrip,
           embodiedBeamLeg,
           this,
           beamServices,
-          destinationActivity
+          destinationActivity,
+          Some(transitCrowding)
         )
       case None =>
         embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
     }
+  }
+
+  override def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+    val percentile =
+      beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+    transitCrowding.getTransitOccupancyLevelForPercentile(embodiedBeamTrip, percentile)
   }
 
   override def getGeneralizedTime(
@@ -293,10 +306,7 @@ class ModeChoiceMultinomialLogit(
           adjustSpecialBikeLines = true
         )
       )
-
-      val percentile =
-        beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
-      val occupancyLevel: Double = transitCrowding.getTransitOccupancyLevelForPercentile(altAndIdx._1, percentile)
+      val occupancyLevel = getCrowdingForTrip(altAndIdx._1)
 
       ModeCostTimeTransfer(
         embodiedBeamTrip = altAndIdx._1,
@@ -408,7 +418,7 @@ class ModeChoiceMultinomialLogit(
   ): Double = trips.map(utilityOf(_, attributesOfIndividual, None)).sum // TODO: Update with destination activity
 }
 
-object ModeChoiceMultinomialLogit {
+object ModeChoiceMultinomialLogit extends StrictLogging {
 
   def buildModelFromConfig(
     configHolder: BeamConfigHolder
@@ -476,6 +486,37 @@ object ModeChoiceMultinomialLogit {
     transitOccupancyLevel: Double,
     index: Int = -1
   )
+
+  def getTransitVehicleTypeVOTMultipliers(
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    transitVehicleTypeVOTMultipliersStr: List[String]
+  ): Map[Id[BeamVehicleType], Double] = {
+    if (transitVehicleTypeVOTMultipliersStr.isEmpty) Map.empty
+    else {
+      val vehTypeToMultiplier = transitVehicleTypeVOTMultipliersStr.flatMap { curr =>
+        val separator = curr.indexOf(":")
+        if (separator < 0) {
+          logger.warn(
+            s"Cannot derive vehicle mode and multiplier from '${transitVehicleTypeVOTMultipliersStr}', current element is '${curr}'"
+          )
+          None
+        } else {
+          val vehicleTypeStr = curr.substring(0, separator)
+          val vehicleTypeId = Id.create(vehicleTypeStr, classOf[BeamVehicleType])
+          vehicleTypes.get(vehicleTypeId) match {
+            case Some(_) =>
+              val multiplier = curr.substring(separator + 1).toDouble
+              Some((vehicleTypeId, multiplier))
+            case None =>
+              logger.warn(s"Can't find vehicle type '${vehicleTypeStr}'")
+              None
+          }
+
+        }
+      }
+      vehTypeToMultiplier.toMap
+    }
+  }
 
   def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
     embodiedBeamTrip: EmbodiedBeamTrip,

@@ -1,5 +1,8 @@
 package beam.router.graphhopper
 
+import java.util
+
+import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -12,12 +15,14 @@ import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
+import com.graphhopper.reader.osm.GraphHopperOSM
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
-import com.graphhopper.routing.util._
+import com.graphhopper.routing.util.parsers.TagParserFactory
+import com.graphhopper.routing.util.{EncodingManager, _}
 import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider, Weighting}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
-import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
+import com.graphhopper.{GHRequest, GraphHopper, GraphHopperConfig, ResponsePath}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -302,5 +307,28 @@ object GraphHopperWrapper {
     graphHopperStorage.getProperties.put("prepare.ch.done", true)
 
     graphHopperStorage.flush()
+  }
+
+  def fromOsm(pathToOsm: String, tagParserFactory: Option[TagParserFactory]): GraphHopper = {
+    val cfg = new GraphHopperConfig()
+    cfg.putObject("graph.flag_encoders", "car")
+    cfg.putObject("graph.encoded_values", "way_id")
+
+    val fastestCarProfile = new Profile("car")
+    fastestCarProfile.setVehicle("car")
+    fastestCarProfile.setWeighting("fastest")
+    cfg.setProfiles(util.Arrays.asList(fastestCarProfile))
+
+    val chProfile = new CHProfile("car")
+    cfg.setCHProfiles(util.Arrays.asList(chProfile))
+
+    val tempGh = new GraphHopperOSM()
+      .setOSMFile(pathToOsm)
+      .forServer()
+    val tempGh1 = tagParserFactory.map(pf => tempGh.setTagParserFactory(pf)).getOrElse(tempGh)
+    tempGh1
+      .init(cfg)
+      .importOrLoad()
+
   }
 }

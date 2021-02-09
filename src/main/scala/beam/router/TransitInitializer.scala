@@ -92,7 +92,11 @@ class TransitInitializer(
         )
     }
 
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
+    def pathWithStreetRoute(
+      fromStopIdx: Int,
+      toStopIdx: Int,
+      streetSeg: StreetPath
+    ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
@@ -111,24 +115,32 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          edges.map(_.intValue()).toVector,
-          TravelTimeUtils.scaleTravelTime(
+          linkIds = edges.map(_.intValue()).toVector,
+          linkTravelTime = TravelTimeUtils.scaleTravelTime(
             streetSeg.getDuration,
             math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
-          None,
-          SpaceTime(
+          transitStops = Some(
+            TransitStopsInfo(
+              agencyId = "",
+              routeId = "",
+              vehicleId = vehicleId,
+              fromIdx = fromStopIdx,
+              toIdx = toStopIdx
+            )
+          ),
+          startPoint = SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,
             departureTime
           ),
-          SpaceTime(
+          endPoint = SpaceTime(
             endEdge.getGeometry.getEndPoint.getX,
             endEdge.getGeometry.getEndPoint.getY,
             departureTime + math.round(streetSeg.getDuration - scaledLinkTimes.head).toInt
           ),
-          distance
+          distanceInM = distance
         )
     }
 
@@ -147,7 +159,7 @@ class TransitInitializer(
                 routeTransitPathThroughStreets(fromStop, toStop)
               ) match {
                 case Some(streetSeg) =>
-                  pathWithStreetRoute(fromStop, toStop, streetSeg)
+                  pathWithStreetRoute(fromStopIdx, toStopIdx, streetSeg)
                 case None =>
                   pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
               }
@@ -161,7 +173,7 @@ class TransitInitializer(
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique id for this trip which will become the transit agent and vehicle id
-          val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
+          val tripVehId = Id.create(BeamVehicle.noSpecialChars(tripSchedule.tripId), classOf[BeamVehicle])
           val legs =
             tripSchedule.departures.zipWithIndex
               .sliding(2)

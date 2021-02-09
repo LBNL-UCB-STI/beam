@@ -134,6 +134,7 @@ class BeamRouter(
       RoutingWorker.props(
         beamScenario,
         transportNetwork,
+        beamScenario.networks2,
         networkHelper,
         fareCalculator,
         tollCalculator
@@ -502,7 +503,8 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int,
     request: Option[RoutingRequest],
-    isEmbodyWithCurrentTravelTime: Boolean
+    isEmbodyWithCurrentTravelTime: Boolean,
+    computedInMs: Long = -1
   )
 
   case class RoutingFailure(cause: Throwable, requestId: Int)

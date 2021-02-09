@@ -49,7 +49,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     }.toMap
   }
 
-  val tazGeoIdToGeom: Map[TazGeoId, Geometry] = {
+  val tazGeoIdToGeomWithExtraDetails: Map[TazGeoId, (Geometry, Double)] = {
     val stateAndCounty = uniqueGeoIds.map(x => (x.state, x.county))
     def filter(feature: SimpleFeature): Boolean = {
       val state = State(feature.getAttribute("STATEFP10").toString)
@@ -57,10 +57,14 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       uniqueGeoIds.isEmpty || stateAndCounty.contains((state, county))
     }
     findShapeFile(param.pathToTazShapeFolder).flatMap { pathToShapeFile =>
-      val map = getTazMap(crsCode, pathToShapeFile.getPath, filter, defaultTazMapper)
-      logger.info(s"Read geometries of ${map.size} TAZs from '${pathToShapeFile.getPath}'")
-      map
+      val xs = getTazMap(crsCode, pathToShapeFile.getPath, filter, defaultTazMapper)
+      logger.info(s"Read geometries of ${xs.size} TAZs from '${pathToShapeFile.getPath}'")
+      xs.groupBy(x => x._1).map { case (tazId, xs) => tazId -> (xs.head._2, xs.head._3) }
     }.toMap
+  }
+
+  val tazGeoIdToGeom: Map[TazGeoId, Geometry] = tazGeoIdToGeomWithExtraDetails.map { x =>
+    (x._1, x._2._1)
   }
   logger.info(s"blockGroupGeoIdToGeom: ${blockGroupGeoIdToGeom.size}")
   logger.info(s"tazGeoIdToGeom: ${tazGeoIdToGeom.size}")
@@ -77,7 +81,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
       val blockGroup = feature.getAttribute("BLKGRPCE").toString
-      val shouldConsider = uniqueGeoIds.contains(
+      val shouldConsider = uniqueGeoIds.isEmpty || uniqueGeoIds.contains(
         BlockGroupGeoId(state = state, county = county, tract = tract, blockGroup = blockGroup)
       )
       shouldConsider
@@ -139,13 +143,16 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
 
 object GeoService {
 
-  def defaultTazMapper(mathTransform: MathTransform, feature: SimpleFeature): (TazGeoId, Geometry) = {
+  def defaultTazMapper(mathTransform: MathTransform, feature: SimpleFeature): (TazGeoId, Geometry, Double) = {
     val state = State(feature.getAttribute("STATEFP10").toString)
     val county = County(feature.getAttribute("COUNTYFP10").toString)
     val taz = feature.getAttribute("TAZCE10").toString
     val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
     val wgsGeom = JTS.transform(geom.getGeometry, mathTransform)
-    TazGeoId(state, county, taz) -> wgsGeom
+    val waterArea = feature.getAttribute("AWATER10").asInstanceOf[Long]
+    val landArea = feature.getAttribute("ALAND10").asInstanceOf[Long]
+    val area = waterArea + landArea
+    (TazGeoId(state, county, taz), wgsGeom, area)
   }
 
   def getTazMap[T: ClassTag](

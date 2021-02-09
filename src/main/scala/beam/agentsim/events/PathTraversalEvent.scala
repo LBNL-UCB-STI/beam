@@ -247,8 +247,9 @@ object PathTraversalEvent {
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
     val riders: IndexedSeq[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
     val fromStopIndex: Option[Int] =
-      attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(x => if (x == "") None else Some(x.toInt))
-    val toStopIndex: Option[Int] = attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(x => if (x == "") None else Some(x.toInt))
+      attr.get(ATTRIBUTE_FROM_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
+    val toStopIndex: Option[Int] =
+      attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     /*
     val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
       val linkIdToLaneSplit = x.split(":")

@@ -39,7 +39,8 @@ class UrbanSimScenarioSource(
         age = person.age,
         excludedModes = person.excludedModes.split(","),
         isFemale = person.isFemale,
-        valueOfTime = person.valueOfTime
+        valueOfTime = person.valueOfTime,
+        industry = person.industry
       )
     }
   }

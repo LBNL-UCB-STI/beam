@@ -1,5 +1,7 @@
 package beam.utils.scenario.generic.readers
 
+import java.io.Closeable
+
 import beam.utils.csv.GenericCsvReader
 import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
 import org.apache.commons.lang3.math.NumberUtils
@@ -8,10 +10,13 @@ import scala.util.Try
 
 trait PersonInfoReader {
   def read(path: String): Array[PersonInfo]
+
+  def readWithFilter(path: String, filter: PersonInfo => Boolean): (Iterator[PersonInfo], Closeable)
 }
 
 object CsvPersonInfoReader extends PersonInfoReader {
   import GenericCsvReader._
+
   override def read(path: String): Array[PersonInfo] = {
     val (it, toClose) = readAs[PersonInfo](path, toPersonInfo, x => true)
     try {
@@ -21,6 +26,10 @@ object CsvPersonInfoReader extends PersonInfoReader {
     }
   }
 
+  override def readWithFilter(path: String, filter: PersonInfo => Boolean): (Iterator[PersonInfo], Closeable) = {
+    readAs[PersonInfo](path, toPersonInfo, filter)
+  }
+
   private[readers] def toPersonInfo(rec: java.util.Map[String, String]): PersonInfo = {
     val personId = getIfNotNull(rec, "personId")
     val householdId = getIfNotNull(rec, "householdId")
@@ -28,6 +37,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
     val isFemale = getIfNotNull(rec, "isFemale").toBoolean
     val rank = getIfNotNull(rec, "householdRank").toInt
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
+    val industry = Option(rec.get("industry"))
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime")).getOrElse("0"), 0D)
     PersonInfo(
       personId = PersonId(personId),
@@ -36,7 +46,8 @@ object CsvPersonInfoReader extends PersonInfoReader {
       age = age,
       excludedModes = excludedModes,
       isFemale = isFemale,
-      valueOfTime = valueOfTime
+      valueOfTime = valueOfTime,
+      industry = industry
     )
   }
 }

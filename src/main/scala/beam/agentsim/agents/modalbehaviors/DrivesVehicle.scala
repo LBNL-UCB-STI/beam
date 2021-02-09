@@ -576,6 +576,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             toStopIdx,
             pte.numberOfPassengers,
             pte.capacity,
+            pte.arrivalTime - pte.departureTime
           )
         )
       case _ =>

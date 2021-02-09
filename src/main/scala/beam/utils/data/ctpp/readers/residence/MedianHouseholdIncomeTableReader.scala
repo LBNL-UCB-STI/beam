@@ -6,7 +6,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 import beam.utils.data.ctpp.readers.residence.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
 
 class MedianHouseholdIncomeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(dbInfo, Table.MedianHouseholdIncome, Some(residenceGeography.level)) {
+    extends BaseTableReader(dbInfo, Table.Residence.MedianHouseholdIncome, Some(residenceGeography.level)) {
 
   def read(): MedianHouseholdIncome = {
     val map = readRaw()

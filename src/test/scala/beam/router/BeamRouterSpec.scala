@@ -125,6 +125,7 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       ptFares = PtFares(List.empty),
       transportNetwork = mock[TransportNetwork],
       network = mock[Network],
+      networks2 = None,
       tazTreeMap = tazMap,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,

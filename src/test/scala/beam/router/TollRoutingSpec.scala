@@ -56,7 +56,7 @@ class TollRoutingSpec
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+    networkCoordinator.convertFrequenciesToTrips(networkCoordinator.transportNetwork)
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 

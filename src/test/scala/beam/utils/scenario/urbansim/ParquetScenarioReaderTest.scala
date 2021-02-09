@@ -3,8 +3,8 @@ package beam.utils.scenario.urbansim
 import beam.utils.scenario.urbansim.DataExchange._
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
-import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpec}
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.JavaConverters._
 
@@ -69,7 +69,8 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
           rank = 0,
           excludedModes = "",
           isFemale = false,
-          valueOfTime = 0
+          valueOfTime = 0,
+          industry = None
         )
       )
     }
