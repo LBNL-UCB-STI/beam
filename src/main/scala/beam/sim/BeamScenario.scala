@@ -4,13 +4,14 @@ import beam.agentsim.agents.choice.logit.DestinationChoiceModel
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
-import beam.agentsim.infrastructure.taz.{H3TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.concurrent.TrieMap
 
@@ -41,10 +42,13 @@ case class BeamScenario(
   networks2: Option[(TransportNetwork, Network)],
   network: Network,
   tazTreeMap: TAZTreeMap,
+  linkQuadTree: QuadTree[Link],
+  linkIdMapping: Map[Id[Link], Link],
+  linkToTAZMapping: Map[Link, TAZ],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ
 ) {
-  val destinationChoiceModel = DestinationChoiceModel(beamConfig)
+  val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
 
   lazy val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes

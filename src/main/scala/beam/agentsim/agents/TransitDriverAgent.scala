@@ -12,7 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, Geofence}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.sim.common.GeoUtils
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
@@ -28,6 +28,7 @@ object TransitDriverAgent {
 
   def props(
     scheduler: ActorRef,
+    beamServices: BeamServices,
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
@@ -42,6 +43,7 @@ object TransitDriverAgent {
     Props(
       new TransitDriverAgent(
         scheduler,
+        beamServices: BeamServices,
         beamScenario,
         transportNetwork,
         tollCalculator,
@@ -79,8 +81,8 @@ object TransitDriverAgent {
       copy(passengerSchedule = newPassengerSchedule)
 
     override def withCurrentLegPassengerScheduleIndex(
-      currentLegPassengerScheduleIndex: Int
-    ): DrivingData = copy(currentLegPassengerScheduleIndex = currentLegPassengerScheduleIndex)
+      newLegPassengerScheduleIndex: Int
+    ): DrivingData = copy(currentLegPassengerScheduleIndex = newLegPassengerScheduleIndex)
 
     override def hasParkingBehaviors: Boolean = false
 
@@ -91,6 +93,7 @@ object TransitDriverAgent {
 
 class TransitDriverAgent(
   val scheduler: ActorRef,
+  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
@@ -102,6 +105,7 @@ class TransitDriverAgent(
   val geo: GeoUtils,
   val networkHelper: NetworkHelper
 ) extends DrivesVehicle[DrivingData] {
+  override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
 
   override val id: Id[TransitDriverAgent] = transitDriverId
 

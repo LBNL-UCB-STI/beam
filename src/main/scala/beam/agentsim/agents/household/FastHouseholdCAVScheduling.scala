@@ -162,6 +162,8 @@ class FastHouseholdCAVScheduling(
           prevReq.baselineNonPooledTime,
           BeamMode.CAR,
           cav.beamVehicleType.id,
+          cav.beamVehicleType,
+          beamServices.beamScenario.fuelTypePrices(cav.beamVehicleType.primaryFuelType),
           beamServices.beamScenario
         )
         var serviceTime = prevReq.serviceTime + metric.time
@@ -271,7 +273,8 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
             cav.beamVehicleType.id,
             origin,
             CAV,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           )
           val origLink = beamServices.geo.getNearestR5Edge(
             transportNetwork.streetLayer,
@@ -302,13 +305,15 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 dest.activity.getCoord,
                 origin.time,
                 withTransit = false,
+                personId = orig.person.map(_.personId),
                 IndexedSeq(
                   StreetVehicle(
                     cav.id,
                     cav.beamVehicleType.id,
                     origin,
                     CAV,
-                    asDriver = true
+                    asDriver = true,
+                    needsToCalculateCost = true
                   )
                 )
               )
@@ -471,19 +476,21 @@ object HouseholdTripsHelper {
       0,
       defaultMode,
       beamVehicleType.id,
+      beamVehicleType,
+      beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType),
       beamServices.beamScenario
     )
 
     val startTime = prevTrip.activity.getEndTime.toInt
     val arrivalTime = startTime + skim.time
 
-    val nextTripStartTime = curTrip.activity.getEndTime
-    if (nextTripStartTime != Double.NegativeInfinity && startTime >= nextTripStartTime.toInt) {
+    val nextTripStartTime: Double = curTrip.activity.getEndTime
+    if (!nextTripStartTime.isNegInfinity && startTime >= nextTripStartTime.toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
       break
-    } else if (nextTripStartTime != Double.NegativeInfinity && arrivalTime > nextTripStartTime.toInt) {
+    } else if (!nextTripStartTime.isNegInfinity && arrivalTime > nextTripStartTime.toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )

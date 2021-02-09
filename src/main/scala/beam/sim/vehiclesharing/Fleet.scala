@@ -6,8 +6,8 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
+import beam.utils.MathUtils
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.log4j.Logger
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -16,6 +16,8 @@ import scala.collection.mutable
 trait VehicleManager
 
 trait FleetType {
+  val managerId: Id[VehicleManager]
+  val parkingFilePath: String
 
   def props(
     beamServices: BeamServices,
@@ -26,6 +28,7 @@ trait FleetType {
 
 case class FixedNonReservingFleetByTAZ(
   managerId: Id[VehicleManager],
+  parkingFilePath: String,
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
 ) extends FleetType
@@ -48,7 +51,7 @@ case class FixedNonReservingFleetByTAZ(
         logger.info(s"Reading shared vehicle fleet from file: $fileName")
         FleetUtils.readCSV(fileName).foreach {
           case (idTaz, coord, share) =>
-            val fleetShare: Int = (share * config.fleetSize).toInt
+            val fleetShare: Int = MathUtils.roundUniformly(share * config.fleetSize).toInt
             (0 until fleetShare).foreach(
               _ =>
                 initialLocation
@@ -75,21 +78,24 @@ case class FixedNonReservingFleetByTAZ(
     )
     Props(
       new FixedNonReservingFleetManager(
-        managerId,
-        parkingManager,
-        initialLocation,
-        vehicleType,
-        beamScheduler,
-        beamServices,
-        config.maxWalkingDistance,
-        repConfig.map(RepositionAlgorithms.lookup)
+        id = managerId,
+        parkingManager = parkingManager,
+        locations = initialLocation,
+        vehicleType = vehicleType,
+        mainScheduler = beamScheduler,
+        beamServices = beamServices,
+        maxWalkingDistance = config.maxWalkingDistance,
+        repositionAlgorithmType = repConfig.map(RepositionAlgorithms.lookup)
       )
     )
   }
 }
 
-case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedFleets$Elm.FixedNonReserving)
-    extends FleetType {
+case class FixedNonReservingFleet(
+  managerId: Id[VehicleManager],
+  parkingFilePath: String,
+  config: SharedFleets$Elm.FixedNonReserving
+) extends FleetType {
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
@@ -118,7 +124,11 @@ case class FixedNonReservingFleet(managerId: Id[VehicleManager], config: SharedF
   }
 }
 
-case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleReserving) extends FleetType {
+case class InexhaustibleReservingFleet(
+  managerId: Id[VehicleManager],
+  parkingFilePath: String,
+  config: SharedFleets$Elm.InexhaustibleReserving
+) extends FleetType {
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
@@ -130,6 +140,7 @@ case class InexhaustibleReservingFleet(config: SharedFleets$Elm.InexhaustibleRes
     )
     Props(
       new InexhaustibleReservingFleetManager(
+        managerId,
         parkingManager,
         vehicleType,
         beamServices.beamConfig.matsim.modules.global.randomSeed

@@ -36,7 +36,7 @@ object TotalPopulationTableReader {
     val readData = new TotalPopulationTableReader(databaseInfo, ResidenceGeography.TAZ).read()
 
     println(s"Number of keys: ${readData.size}")
-    val totalNumberOfPeopleInAllGeoIds = readData.map(_._2).sum
+    val totalNumberOfPeopleInAllGeoIds = readData.values.sum
     readData.foreach {
       case (geoId, count) =>
         println(s"$geoId: $count")

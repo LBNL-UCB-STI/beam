@@ -1,11 +1,12 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.BeamvilleFixtures._
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
 import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamScenario, BeamServices, Geofence}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices, CircularGeofence, Geofence}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
@@ -26,6 +27,7 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
+           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
@@ -44,13 +46,14 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
-          |beam.outputs.events.fileOutputFormats = xml
-          |beam.physsim.skipPhysSim = true
-          |beam.agentsim.lastIteration = 0
-          |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
-          |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-          |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
+           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
+           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -62,13 +65,14 @@ class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with Beam
     val config = ConfigFactory
       .parseString(
         """
-          |beam.outputs.events.fileOutputFormats = xml
-          |beam.physsim.skipPhysSim = true
-          |beam.agentsim.lastIteration = 0
-          |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
-          |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-          |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-          |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
+           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+           |beam.outputs.events.fileOutputFormats = xml
+           |beam.physsim.skipPhysSim = true
+           |beam.agentsim.lastIteration = 0
+           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
+           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
+           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -271,7 +275,7 @@ object MatchingAlgorithmsForRideHailSpec {
         vehicleType,
         new Coord(5000, 5000),
         8.hours.toSeconds.toInt,
-        Some(Geofence(10000, 10000, 13400)),
+        Some(CircularGeofence(10000, 10000, 13400)),
         4
       )
     val v2: VehicleAndSchedule =
@@ -280,7 +284,7 @@ object MatchingAlgorithmsForRideHailSpec {
         vehicleType,
         new Coord(2000, 2000),
         8.hours.toSeconds.toInt,
-        Some(Geofence(10000, 10000, 13400)),
+        Some(CircularGeofence(10000, 10000, 13400)),
         4
       )
     val p1Req: CustomerRequest =
@@ -344,6 +348,66 @@ object MatchingAlgorithmsForRideHailSpec {
     val miny = demand.map(_.pickup.activity.getCoord.getY).min
     val maxy = demand.map(_.pickup.activity.getCoord.getY).max
     new Envelope(minx, maxx, miny, maxy)
+  }
+
+  def beamvilleScenario(vehicleType: BeamVehicleType, remainingRangeInM: Int = 10000)(
+    implicit
+    services: BeamServices,
+    beamScenario: BeamScenario,
+    mockActorRef: ActorRef
+  ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
+    import scala.concurrent.duration._
+    val v1: VehicleAndSchedule =
+      RideHailMatching.createVehicleAndSchedule(
+        "v1",
+        vehicleType,
+        taz4Loc,
+        0,
+        None,
+        remainingRangeInM
+      )
+    val v2: VehicleAndSchedule =
+      RideHailMatching.createVehicleAndSchedule(
+        "v2",
+        vehicleType,
+        taz4Loc,
+        0,
+        None,
+        remainingRangeInM
+      )
+    val p1Req: CustomerRequest =
+      RideHailMatching.createPersonRequest(
+        makeVehPersonId("p1"),
+        taz1Loc,
+        0,
+        taz4Loc,
+        services
+      )
+    val p4Req: CustomerRequest =
+      RideHailMatching.createPersonRequest(
+        makeVehPersonId("p4"),
+        taz2Loc,
+        (5.minutes.toSeconds).toInt,
+        taz1Loc,
+        services
+      )
+    val p2Req: CustomerRequest =
+      RideHailMatching.createPersonRequest(
+        makeVehPersonId("p2"),
+        taz1Loc,
+        (1.minutes.toSeconds).toInt,
+        taz4Loc,
+        services
+      )
+    val p3Req: CustomerRequest =
+      RideHailMatching.createPersonRequest(
+        makeVehPersonId("p3"),
+        taz2Loc,
+        (2.minutes.toSeconds).toInt,
+        taz1Loc,
+        services
+      )
+    (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
 }

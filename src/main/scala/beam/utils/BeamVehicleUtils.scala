@@ -1,7 +1,8 @@
 package beam.utils
 
-import java.util
+import beam.agentsim.agents.household.HouseholdFleetManager
 
+import java.util
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
@@ -39,7 +40,14 @@ object BeamVehicleUtils {
 
         val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle = new BeamVehicle(vehicleId, powerTrain, vehicleType, rand.nextInt)
+        val beamVehicle =
+          new BeamVehicle(
+            vehicleId,
+            powerTrain,
+            vehicleType,
+            managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, vehicleType),
+            rand.nextInt
+          )
         acc += ((vehicleId, beamVehicle))
         acc
     }

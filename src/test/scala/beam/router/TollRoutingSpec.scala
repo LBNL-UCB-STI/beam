@@ -90,13 +90,15 @@ class TollRoutingSpec
         destination,
         time,
         withTransit = false,
+        personId = None,
         Vector(
           StreetVehicle(
             Id.createVehicleId("car"),
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           )
         ),
         attributesOfIndividual = Some(
@@ -159,7 +161,8 @@ class TollRoutingSpec
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           )
         ),
         attributesOfIndividual = Some(
@@ -195,7 +198,8 @@ class TollRoutingSpec
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
         )
       )

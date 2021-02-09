@@ -47,8 +47,6 @@ object R5Parameters {
     LoggingUtil.initLogger(outputDirectory, beamConfig.beam.logger.keepConsoleAppenderOn)
     matsimConfig.controler.setOutputDirectory(outputDirectory)
     matsimConfig.controler().setWritePlansInterval(beamConfig.beam.outputs.writePlansInterval)
-    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    scenario.setNetwork(networkCoordinator.network)
     val dates: DateUtils = DateUtils(
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate)

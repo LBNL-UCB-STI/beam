@@ -4,7 +4,10 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{
+  calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment,
+  ModeCostTimeTransfer
+}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
@@ -210,41 +213,19 @@ class ModeChoiceMultinomialLogit(
     adjustSpecialBikeLines: Boolean = false
   ): Double = {
     val adjustedTripDuration = if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip)
+      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip, bikeLanesAdjustment)
     } else {
       embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }
     val waitingTime: Int = embodiedBeamTrip.totalTravelTimeInSecs - adjustedTripDuration
     embodiedBeamTrip.legs.map { x: EmbodiedBeamLeg =>
       val factor = if (adjustSpecialBikeLines) {
-        bikeLanesAdjustment.bikeLaneScaleFactor(x.beamLeg.mode, adjustSpecialBikeLines)
+        bikeLanesAdjustment.scaleFactor(x.beamLeg.mode, adjustSpecialBikeLines)
       } else {
         1D
       }
       getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity) * factor
     }.sum + getGeneralizedTime(waitingTime, None, None)
-  }
-
-  private def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
-    embodiedBeamTrip: EmbodiedBeamTrip
-  ): Int = {
-    embodiedBeamTrip.legs
-      .map { embodiedBeamLeg: EmbodiedBeamLeg =>
-        pathScaledForWaiting(embodiedBeamLeg.beamLeg.travelPath)
-      }
-      .sum
-      .toInt
-  }
-
-  private def pathScaledForWaiting(path: BeamPath): Double = {
-    path.linkIds
-      .drop(1)
-      .zip(path.linkTravelTime.drop(1))
-      .map {
-        case (linkId: Int, travelTime: Double) =>
-          travelTime * 1D / bikeLanesAdjustment.scaleFactor(linkId)
-      }
-      .sum
   }
 
   override def getGeneralizedTimeOfLeg(
@@ -303,7 +284,7 @@ class ModeChoiceMultinomialLogit(
         )
 
       val numTransfers = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
+        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[BeamVehicle])
           altAndIdx._1.legs.foreach { leg =>
@@ -475,6 +456,11 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
         "intercept"             -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
         "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
         "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
+      ),
+      "bike_transit" -> Map(
+        "intercept"             -> UtilityFunctionOperation("intercept", params.bike_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       )
     )
 
@@ -531,4 +517,28 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
       vehTypeToMultiplier.toMap
     }
   }
+
+  def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    bikeLanesAdjustment: BikeLanesAdjustment
+  ): Int = {
+    embodiedBeamTrip.legs
+      .map { embodiedBeamLeg: EmbodiedBeamLeg =>
+        pathScaledForWaiting(embodiedBeamLeg.beamLeg.travelPath, bikeLanesAdjustment)
+      }
+      .sum
+      .toInt
+  }
+
+  private[mode] def pathScaledForWaiting(path: BeamPath, bikeLanesAdjustment: BikeLanesAdjustment): Double = {
+    path.linkIds
+      .drop(1)
+      .zip(path.linkTravelTime.drop(1))
+      .map {
+        case (linkId: Int, travelTime: Double) =>
+          travelTime * 1D / bikeLanesAdjustment.scaleFactor(linkId)
+      }
+      .sum
+  }
+
 }

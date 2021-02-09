@@ -83,10 +83,13 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
   ): Double = {
     val res =
       runData
-        .map({
+        .flatMap({
           case (k, y_hat) =>
-            val y = benchmarkData(k)
-            Math.abs(y - y_hat)
+            benchmarkData
+              .get(k)
+              .map { y =>
+                Math.abs(y - y_hat)
+              }
         })
         .sum
     -res
@@ -104,13 +107,14 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
     runData: Map[String, Double]
   ): Double = {
     val res = -Math.sqrt(
-      runData
-        .map({
-          case (k, y_hat) =>
-            val y = benchmarkData(k)
-            Math.pow((y - y_hat) / y, 2)
-        })
-        .sum / runData.size
+      runData.flatMap {
+        case (k, y_hat) =>
+          benchmarkData
+            .get(k)
+            .map { y =>
+              Math.pow((y - y_hat) / y, 2)
+            }
+      }.sum / runData.size
     )
     res
   }
@@ -133,7 +137,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
       modeChoiceStatList.map { stat =>
         stat.mode -> stat.share
       }.toMap
-    }).get
+    }).getOrElse(Map.empty[String, Double])
   }
 
   def getMTCContent(benchmarkDataFileLoc: URI): Try[String] = {
@@ -149,7 +153,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 
   def jsonToModechoiceStats(modechoiceJson: Json): Try[List[ModeChoiceStats]] = {
     Try {
-      modechoiceJson.as[List[ModeChoiceStats]].right.get
+      modechoiceJson.as[List[ModeChoiceStats]].right.getOrElse(List.empty[ModeChoiceStats])
     }
   }
 

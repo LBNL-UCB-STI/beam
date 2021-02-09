@@ -17,7 +17,7 @@ class HouseholdIncomeTableReader(
   def read(): Iterable[OD[HouseholdIncome]] = {
     readRaw()
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         val income = HouseholdIncome.all(entry.lineNumber - 1)
         OD(fromGeoId, toGeoId, income, entry.estimate)
       }
@@ -37,6 +37,10 @@ object HouseholdIncomeTableReader {
       new HouseholdIncomeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
         .read()
         .toVector
+    val nonZeros = readData.filterNot(x => x.value.equals(0D))
+    val distinctHomeLocations = readData.map(_.source).distinct.size
+    val distintWorkLocations = readData.map(_.destination).distinct.size
+    val sumOfValues = readData.map(_.value).sum
 
     val csvWriter = new CsvWriter("household_income_aggregated.csv", Array("source", "destination", "cttp_count"))
     try {

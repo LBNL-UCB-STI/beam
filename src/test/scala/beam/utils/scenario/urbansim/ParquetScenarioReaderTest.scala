@@ -67,6 +67,7 @@ class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar
           householdId = "2",
           age = 3,
           rank = 0,
+          excludedModes = "",
           isFemale = false,
           valueOfTime = 0,
           industry = None

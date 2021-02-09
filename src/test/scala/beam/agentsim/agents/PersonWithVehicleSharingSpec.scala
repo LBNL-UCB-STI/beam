@@ -15,6 +15,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusResponse,
   ReleaseVehicle
 }
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
@@ -137,6 +138,7 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -150,11 +152,13 @@ class PersonWithVehicleSharingSpec
       // since I am the manager of a shared vehicle fleet.
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -284,6 +288,7 @@ class PersonWithVehicleSharingSpec
             Map(),
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -297,11 +302,13 @@ class PersonWithVehicleSharingSpec
       // since I am the manager of a shared vehicle fleet.
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -406,7 +413,8 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -458,10 +466,12 @@ class PersonWithVehicleSharingSpec
     it("should replan when the car that was originally offered is taken") {
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
       val mockSharedVehicleFleet = TestProbe()
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -525,6 +535,7 @@ class PersonWithVehicleSharingSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
+          Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -538,7 +549,7 @@ class PersonWithVehicleSharingSpec
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             car1.useParkingStall(stall)
-            MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle)))
+            MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1)))
         } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
@@ -579,7 +590,7 @@ class PersonWithVehicleSharingSpec
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
       mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(
-        Vector(Token(car1.id, car1.getManager.get, car1.toStreetVehicle))
+        Vector(Token(car1.id, car1.getManager.get, car1))
       )
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _) =>
@@ -623,7 +634,7 @@ class PersonWithVehicleSharingSpec
 
       // agent has no car available, so will ask for new route
       mockRouter.expectMsgPF() {
-        case RoutingRequest(_, _, _, _, streetVehicles, _, _, _) =>
+        case RoutingRequest(_, _, _, _, _, streetVehicles, _, _, _, _) =>
           val body = streetVehicles.find(_.mode == WALK).get
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = BeamLeg(
@@ -701,7 +712,6 @@ class PersonWithVehicleSharingSpec
   def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
 
   override def afterAll(): Unit = {
-    shutdown()
     super.afterAll()
   }
 

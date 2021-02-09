@@ -83,7 +83,7 @@ case class TNCIterationStats(
     // Vehicle Grouping in Taz
     vehiclesToReposition.foreach { rhaLoc =>
       val vehicleTaz =
-        tazTreeMap.getTAZ(rhaLoc.currentLocationUTM.loc.getX, rhaLoc.currentLocationUTM.loc.getY)
+        tazTreeMap.getTAZ(rhaLoc.latestUpdatedLocationUTM.loc.getX, rhaLoc.latestUpdatedLocationUTM.loc.getY)
 
       tazVehicleMap.get(vehicleTaz) match {
         case Some(lov: ListBuffer[Id[BeamVehicle]]) =>
@@ -273,8 +273,8 @@ case class TNCIterationStats(
 
       for (taz <- tazTreeMap
              .getTAZInRadius(
-               rhLoc.currentLocationUTM.loc.getX,
-               rhLoc.currentLocationUTM.loc.getY,
+               rhLoc.latestUpdatedLocationUTM.loc.getX,
+               rhLoc.latestUpdatedLocationUTM.loc.getY,
                maxDistanceInMeters
              )
              .asScala) {
@@ -344,7 +344,7 @@ case class TNCIterationStats(
       val startTimeBin = getTimeBin(tick)
       val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-      val taz = tazTreeMap.getTAZ(rhLoc.currentLocationUTM.loc.getX, rhLoc.currentLocationUTM.loc.getY)
+      val taz = tazTreeMap.getTAZ(rhLoc.latestUpdatedLocationUTM.loc.getX, rhLoc.latestUpdatedLocationUTM.loc.getY)
 
       val idleScore = (startTimeBin to endTimeBin)
         .map(
@@ -410,7 +410,7 @@ case class TNCIterationStats(
         logger.debug(
           "s{} -> {}",
           x.vehicleId,
-          tazTreeMap.getTAZ(x.currentLocationUTM.loc.getX, x.currentLocationUTM.loc.getY).tazId
+          tazTreeMap.getTAZ(x.latestUpdatedLocationUTM.loc.getX, x.latestUpdatedLocationUTM.loc.getY).tazId
       )
     )
   }
@@ -449,7 +449,7 @@ case class TNCIterationStats(
       updatedRadius = updatedRadius * 2
     }
 
-    if (circleRadiusInMeters != updatedRadius) {
+    if (!circleRadiusInMeters.equals(updatedRadius)) {
       logger.debug("search radius for repositioning algorithm increased: {}", updatedRadius)
     }
 
@@ -465,7 +465,7 @@ case class TNCIterationStats(
     import scala.collection.JavaConverters._
     val startTime = tick
 
-    if (circleSize == Double.PositiveInfinity) {
+    if (circleSize.isPosInfinity) {
       DebugLib.emptyFunctionForSettingBreakPoint()
     }
 
@@ -474,7 +474,7 @@ case class TNCIterationStats(
       .flatMap(
         vehicle =>
           tazTreeMap
-            .getTAZInRadius(vehicle.currentLocationUTM.loc, circleSize)
+            .getTAZInRadius(vehicle.latestUpdatedLocationUTM.loc, circleSize)
             .asScala
             .map(_.tazId)
       )

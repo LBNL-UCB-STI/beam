@@ -51,7 +51,7 @@ object RunBatch extends App with BeamHelper {
     for (plan <- plans.asScala) {
       val conf = plan.withFallback(baseConf).resolve()
 
-      runBeamWithConfig(conf)
+      runBeamWithConfig(conf, None)
     }
   }
 }

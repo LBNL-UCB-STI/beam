@@ -35,7 +35,7 @@ class ParkingH3IndexConverterSpec extends WordSpec with Matchers {
           parkingType = "Workplace",
           pricingModel = "Block",
           chargingType = "DCFast(50|DC)",
-          reservedFor = "Any"
+          reservedFor = null
         )
         grouper.groupValues(entryGroup)
       }

@@ -14,13 +14,15 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.graphhopper.GraphHopperWrapper
+import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils._
 import com.conveyal.osmlib.OSM
@@ -96,7 +98,9 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
     )
 
   private val graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
-  private var graphHoppers: Map[Int, GraphHopperWrapper] = _
+  private val carGraphHopperDir: String = Paths.get(graphHopperDir, "car").toString
+  private var binToCarGraphHopper: Map[Int, GraphHopperWrapper] = _
+  private var walkGraphHopper: GraphHopperWrapper = _
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -110,7 +114,9 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   override def preStart(): Unit = {
     if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
-      createGraphHoppers()
+      new Directory(new File(graphHopperDir)).deleteRecursively()
+      createWalkGraphHopper()
+      createCarGraphHoppers()
       askForMoreWork()
     }
   }
@@ -122,12 +128,9 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   // Let the dispatcher on which the Future in receive will be running
   // be the dispatcher on which this actor is running.
-  val id2Link = workerParams.networkHelper.allLinks
+  val id2Link: Map[Int, (Location, Location)] = workerParams.networkHelper.allLinks
     .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
     .toMap
-
-  val routeRequestCounter = new AtomicInteger(0)
-  val routeRequestExecutionTime = new AtomicDouble(0.0)
 
   override final def receive: Receive = {
     case "tick" =>
@@ -167,59 +170,36 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       val eventualResponse = Future {
         latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
-            routeRequestCounter.incrementAndGet()
-            val start = System.currentTimeMillis()
+            // run graphHopper for only cars
+            val ghCarResponse = calcCarGhRoute(request)
+            // run graphHopper for only walk
+            val ghWalkResponse = calcWalkGhRoute(request)
 
-            //run graphHopper for only cars
-            val ghResponse = if (request.streetVehicles.exists(_.mode == CAR)) {
-              val idx =
-                if (carRouter == "quasiDynamicGH")
-                  Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
-                else 0
-              Some(
-                graphHoppers(idx).calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == CAR)))
-              )
-            } else None
-
-            //run r5 for everything except cars
-            val r5Response = if (request.streetVehicles.exists(_.mode != CAR)) {
-              Some(r5.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode != CAR))))
-            } else None
-
-            routeRequestExecutionTime.addAndGet(System.currentTimeMillis() - start)
-
-            //combine into one response
-            val response = Seq(ghResponse, r5Response).collectFirst { case Some(res) => res }.get
-            response.copy(
-              ghResponse.map(_.itineraries).getOrElse(Seq.empty) ++
-              r5Response.map(_.itineraries).getOrElse(Seq.empty)
+            val modesToExclude = calcExcludeModes(
+              ghCarResponse.exists(_.itineraries.nonEmpty),
+              ghWalkResponse.exists(_.itineraries.nonEmpty)
             )
-          } else {
-            (secondR5, request.withTransit) match {
-              case (Some(r52), true) =>
-                val resp1 = r5.calcRoute(request)
-                val resp2 = r52.calcRoute(request)
 
-                def union(it1: Seq[EmbodiedBeamTrip], it2: Seq[EmbodiedBeamTrip]): Seq[EmbodiedBeamTrip] = {
-                  val filtered = it1.filter(trip1 => !it2.exists(trip2 => equals(trip1, trip2)))
-                  filtered ++ it2
-                }
-
-                def equals(trip1: EmbodiedBeamTrip, trip2: EmbodiedBeamTrip): Boolean = {
-                  trip1.tripClassifier == trip2.tripClassifier &&
-                  trip1.legs.size == trip2.legs.size &&
-                  trip1.totalTravelTimeInSecs == trip2.totalTravelTimeInSecs
-                }
-
-                resp1.copy(
-                  itineraries = union(resp1.itineraries, resp2.itineraries),
-                  computedInMs = resp1.computedInMs + resp2.computedInMs
+            val response = if (modesToExclude.isEmpty) {
+              r5.calcRoute(request)
+            } else {
+              val filteredStreetVehicles = request.streetVehicles.filter(it => !modesToExclude.contains(it.mode))
+              val r5Response = if (filteredStreetVehicles.isEmpty) {
+                None
+              } else {
+                Some(r5.calcRoute(request.copy(streetVehicles = filteredStreetVehicles)))
+              }
+              ghCarResponse
+                .getOrElse(ghWalkResponse.get)
+                .copy(
+                  ghCarResponse.map(_.itineraries).getOrElse(Seq.empty) ++
+                  ghWalkResponse.map(_.itineraries).getOrElse(Seq.empty) ++
+                  r5Response.map(_.itineraries).getOrElse(Seq.empty)
                 )
-
-              case _ =>
-                r5.calcRoute(request)
             }
-
+            response
+          } else {
+            r5.calcRoute(request)
           }
         }
       }
@@ -231,16 +211,8 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
-      log.debug("===================================================================")
-      log.debug(
-        s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}"
-      )
-      log.debug("===================================================================")
-      routeRequestExecutionTime.set(0)
-      routeRequestCounter.set(0)
-
       if (carRouter == "quasiDynamicGH") {
-        createGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(Some(newTravelTime))
       }
 
       r5 = new R5Wrapper(
@@ -248,29 +220,14 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
-      secondR5 = for {
-        (transportNetwork, network) <- networks2
-      } yield
-        new R5Wrapper(
-          workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
-          newTravelTime,
-          workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
-        )
-      log.info(s"{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
+      log.info("{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
-      log.debug("===================================================================")
-      log.debug(
-        s"TOTAL ROUTING REQUESTS: ${routeRequestCounter.get()}, TOTAL EXECUTION TIME ${routeRequestExecutionTime.get()}"
-      )
-      log.debug("===================================================================")
-      routeRequestExecutionTime.set(0)
-      routeRequestCounter.set(0)
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
-        createGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(Some(newTravelTime))
       }
 
       r5 = new R5Wrapper(
@@ -287,7 +244,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
         )
       log.info(
-        s"{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
+        "{} UpdateTravelTimeRemote. Set new travel time from map with size {}",
         getNameAndHashCode,
         map.keySet().size()
       )
@@ -307,14 +264,26 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
   private def askForMoreWork(): Unit =
     if (workAssigner != null) workAssigner ! GimmeWork //Master will retry if it hasn't heard
 
-  private def createGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
-    new Directory(new File(graphHopperDir)).deleteRecursively()
+  private def createWalkGraphHopper(): Unit = {
+    GraphHopperWrapper.createWalkGraphDirectoryFromR5(
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
+      graphHopperDir
+    )
+
+    walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+  }
+
+  private def createCarGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+    // Clean up GHs variable and than calculate new ones
+    binToCarGraphHopper = Map()
+    new Directory(new File(carGraphHopperDir)).deleteRecursively()
 
     val graphHopperInstances = if (carRouter == "quasiDynamicGH") noOfTimeBins else 1
 
     val futures = (0 until graphHopperInstances).map { i =>
       Future {
-        val ghDir = Paths.get(graphHopperDir, i.toString).toString
+        val ghDir = Paths.get(carGraphHopperDir, i.toString).toString
 
         val wayId2TravelTime = travelTime
           .map { times =>
@@ -328,7 +297,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           }
           .getOrElse(Map.empty)
 
-        GraphHopperWrapper.createGraphDirectoryFromR5(
+        GraphHopperWrapper.createCarGraphDirectoryFromR5(
           carRouter,
           workerParams.transportNetwork,
           new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
@@ -336,7 +305,7 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
           wayId2TravelTime
         )
 
-        i -> new GraphHopperWrapper(
+        i -> new CarGraphHopperWrapper(
           carRouter,
           ghDir,
           workerParams.geo,
@@ -348,7 +317,46 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
       }
     }
 
-    graphHoppers = Await.result(Future.sequence(futures), 10.minutes).toMap
+    val s = System.currentTimeMillis()
+    binToCarGraphHopper = Await.result(Future.sequence(futures), 20.minutes).toMap
+    val e = System.currentTimeMillis()
+    log.info(s"GH built in ${e - s} ms")
+  }
+
+  private def calcCarGhRoute(request: RoutingRequest): Option[RoutingResponse] = {
+    val mode = Modes.BeamMode.CAR
+    if (request.streetVehicles.exists(_.mode == mode)) {
+      val idx =
+        if (carRouter == "quasiDynamicGH")
+          Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
+        else 0
+      Some(
+        binToCarGraphHopper(idx).calcRoute(
+          request.copy(streetVehicles = request.streetVehicles.filter(_.mode == mode))
+        )
+      )
+    } else None
+  }
+
+  private def calcWalkGhRoute(request: RoutingRequest): Option[RoutingResponse] = {
+    val mode = Modes.BeamMode.WALK
+    if (request.streetVehicles.exists(_.mode == mode)) {
+      Some(
+        walkGraphHopper.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == mode)))
+      )
+    } else None
+  }
+
+  private def calcExcludeModes(successfulCarResponse: Boolean, successfulWalkResponse: Boolean) = {
+    if (successfulCarResponse && successfulWalkResponse) {
+      List(CAR, WALK)
+    } else if (successfulCarResponse) {
+      List(CAR)
+    } else if (successfulWalkResponse) {
+      List(WALK)
+    } else {
+      List()
+    }
   }
 }
 

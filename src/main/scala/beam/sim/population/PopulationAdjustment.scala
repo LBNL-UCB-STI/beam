@@ -2,7 +2,7 @@ package beam.sim.population
 
 import java.util.Random
 
-import beam.agentsim
+import beam.{agentsim, sim}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -176,6 +176,7 @@ object PopulationAdjustment extends LazyLogging {
   val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
   val BEAM_ATTRIBUTES = "beam-attributes"
+  val CAR_RIDE_HAIL_ONLY = "CAR_RIDE_HAIL_ONLY"
 
   /**
     * Generates the population adjustment interface based on the configuration set
@@ -195,6 +196,8 @@ object PopulationAdjustment extends LazyLogging {
         ExcludeHalfTransit(beamServices)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
+      case CAR_RIDE_HAIL_ONLY =>
+        new CarRideHailOnly(beamServices)
       case adjClass =>
         try {
           Class
@@ -233,7 +236,21 @@ object PopulationAdjustment extends LazyLogging {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-    val availableModes: Seq[BeamMode] = BeamMode.allModes.filterNot { mode =>
+    val initialAvailableModes = person.getCustomAttributes.isEmpty match {
+      case true =>
+        BeamMode.allModes
+      case false =>
+        person.getCustomAttributes.containsKey("beam-attributes") match {
+          case true =>
+            person.getCustomAttributes
+              .get("beam-attributes")
+              .asInstanceOf[sim.population.AttributesOfIndividual]
+              .availableModes
+          case false =>
+            BeamMode.allModes
+        }
+    }
+    val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
     // Read person attribute "income" and default it to 0 if not set

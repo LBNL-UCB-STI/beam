@@ -163,7 +163,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
               val lineToPlot = LineToPlot(
                 rideHailManager.vehicleManager
                   .getRideHailAgentLocation(vehToRepso._1)
-                  .currentLocationUTM
+                  .latestUpdatedLocationUTM
                   .loc,
                 vehToRepso._2,
                 Color.blue,
@@ -187,7 +187,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
               firstRepositionCoordsOfDay = Some(
                 rideHailManager.vehicleManager
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
-                  .currentLocationUTM
+                  .latestUpdatedLocationUTM
                   .loc,
                 whichTAZToRepositionTo.head._2
               )
@@ -223,7 +223,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
         val result = if (firstRepositioningOfDay) {
           firstRepositioningOfDay = false
           idleVehicles
-            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
+            .map(idle => (idle._1, idle._2.latestUpdatedLocationUTM.loc))
             .toVector
         } else {
           whichTAZToRepositionTo
@@ -233,9 +233,9 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
       case None =>
         // iteration 0
 
-        val idleVehicles = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
+        val idleVehiclesWithoutExcluded = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
 
-        if (firstRepositioningOfDay && idleVehicles.nonEmpty) {
+        if (firstRepositioningOfDay && idleVehiclesWithoutExcluded.nonEmpty) {
           // these are zero distance repositionings
           // => this is a hack, as the tnc iteration stats does not know the initial position of any rideHailVehicle unless it has at least one pathTraversal during the day
           // this is needed to account for idling vehicles by TAZ, even if they are not moving during the whole day
@@ -246,8 +246,8 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
           //  val vehicleToTAZ=idleVehicles.foreach( x=> log.debug(s"${x._2.vehicleId} -> ${mTazTreeMap.get.getTAZ(x._2.currentLocation.loc.getX,
           //    x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
 
-          val result = idleVehicles
-            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
+          val result = idleVehiclesWithoutExcluded
+            .map(idle => (idle._1, idle._2.latestUpdatedLocationUTM.loc))
             .toVector
           result
         } else {
@@ -265,15 +265,15 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
   def filterOutAlreadyRepositioningVehiclesIfEnoughAlternativeIdleVehiclesAvailable(
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
-    maxNumberOfVehiclesToReposition: Int
+    newMaxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
     val (idle, repositioning) = idleVehicles.values.toVector.partition(
       rideHailAgentLocation =>
         rideHailManager.modifyPassengerScheduleManager
           .isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId)
     )
-    val result = if (idle.size < maxNumberOfVehiclesToReposition) {
-      idle ++ repositioning.take(maxNumberOfVehiclesToReposition - idle.size)
+    val result = if (idle.size < newMaxNumberOfVehiclesToReposition) {
+      idle ++ repositioning.take(newMaxNumberOfVehiclesToReposition - idle.size)
     } else {
       idle
     }

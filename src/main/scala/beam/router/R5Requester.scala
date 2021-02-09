@@ -39,7 +39,7 @@ class MyDebugRoutingVisitor extends RoutingVisitor {
 /*
 ./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=24 -PappArgs="['--config', 'test/input/newyork/new-york-PROD-baseline-one-r5.conf']" \
 	-PlogbackCfg=logback.xml -Dplans=test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz -DconvertToWgs=false
-*/
+ */
 object R5Requester extends BeamHelper {
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:32118"
@@ -56,12 +56,14 @@ object R5Requester extends BeamHelper {
       age = None,
       income = Some(70000.0)
     )
+    val personId = Id.createPersonId(1)
     RoutingRequest(
       originUTM = originUTM,
       destinationUTM = new Location(2967932.9521744307, 3635449.522501624),
       departureTime = 30600,
       withTransit = true,
       streetVehicles = Vector.empty,
+      personId = Some(personId),
       attributesOfIndividual = Some(personAttribs)
     )
   }
@@ -149,8 +151,7 @@ object R5Requester extends BeamHelper {
           val homeWgs = geoUtils.utm2Wgs(homeUTM)
           val workWgs = geoUtils.utm2Wgs(workUTM)
           (homeWgs, workWgs, homeUTM, workUTM)
-        }
-        else {
+        } else {
           val homeWgs = new Coord(home.activityLocationX.get, home.activityLocationY.get)
           val workWgs = new Coord(work.activityLocationX.get, work.activityLocationY.get)
           val homeUTM = geoUtils.wgs2Utm(homeWgs)
@@ -335,7 +336,8 @@ object R5Requester extends BeamHelper {
       vehicleTypeId = Id.create(vehicleTypeId, classOf[BeamVehicleType]),
       locationUTM = SpaceTime(loc = location, time = departureTime),
       mode = beamMode,
-      asDriver = true
+      asDriver = true,
+      needsToCalculateCost = beamMode == BeamMode.CAR || beamMode == BeamMode.CAV
     )
   }
 

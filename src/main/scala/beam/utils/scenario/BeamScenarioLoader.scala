@@ -1,14 +1,18 @@
 package beam.utils.scenario
 
-import java.util
-import scala.util.Random
+import beam.agentsim.agents.household.HouseholdFleetManager
 
+import java.util
+
+import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
+import com.google.common.annotations.VisibleForTesting
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
@@ -26,7 +30,7 @@ class BeamScenarioLoader(
   var beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
   val geo: GeoUtils
-) extends LazyLogging {
+) extends ExponentialLazyLogging {
 
   import BeamScenarioLoader._
 
@@ -132,6 +136,7 @@ class BeamScenarioLoader(
     }
   }
 
+  @VisibleForTesting
   private[utils] def buildPopulation(persons: Iterable[PersonInfo]): Population = {
     logger.info("Applying persons...")
     val result = scenarioBuilder.buildPopulation
@@ -148,6 +153,7 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "age", personInfo.age)
       personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
       personAttributes.putAttribute(personId, "sex", sexChar)
+      personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes)
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
@@ -157,14 +163,14 @@ class BeamScenarioLoader(
     result
   }
 
-  def updateAvailableModesForPopulation(scenario: MutableScenario): Unit = {
-    val personHouseholds = scenario.getHouseholds.getHouseholds
+  def updateAvailableModesForPopulation(scenarioToUpdate: MutableScenario): Unit = {
+    val personHouseholds = scenarioToUpdate.getHouseholds.getHouseholds
       .values()
       .asScala
       .flatMap(h => h.getMemberIds.asScala.map(_ -> h))
       .toMap
 
-    val population = scenario.getPopulation
+    val population = scenarioToUpdate.getPopulation
     population.getPersons.asScala.values.foreach { person: Person =>
       // TODO: setAvailableModesForPerson_v2 - probable need to improve:
       // - build AttributesOfIndividual with many fields already filled at BuildPopulation method
@@ -239,6 +245,7 @@ class BeamScenarioLoader(
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
     planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
     planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legMode.foreach(v => leg.setMode(v))
 
     val legRoute: NetworkRoute = {
       val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
@@ -270,7 +277,7 @@ class BeamScenarioLoader(
   }
 }
 
-object BeamScenarioLoader extends LazyLogging {
+object BeamScenarioLoader extends ExponentialLazyLogging {
 
   private[utils] def buildMatsimHouseholds(
     households: Iterable[HouseholdInfo],
@@ -347,7 +354,13 @@ object BeamScenarioLoader extends LazyLogging {
     val beamVehicleType = map(beamVehicleTypeId)
 
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-    new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType, randomSeed)
+    new BeamVehicle(
+      beamVehicleId,
+      powerTrain,
+      beamVehicleType,
+      managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, beamVehicleType),
+      randomSeed
+    )
   }
 
 }

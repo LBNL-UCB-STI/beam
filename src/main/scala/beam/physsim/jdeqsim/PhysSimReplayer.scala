@@ -41,7 +41,7 @@ object PhysSimReplayer extends StrictLogging {
       val beamTypesafeConfig = readBeamConfig(pathToBeamConfig, args(1))
 
       val beamHelper = new BeamHelper {}
-      val (execCfg, matsimScenario, beamScenario, beamSvc) = beamHelper.prepareBeamService(beamTypesafeConfig)
+      val (execCfg, matsimScenario, beamScenario, beamSvc) = beamHelper.prepareBeamService(beamTypesafeConfig, None)
       logger.info("BeamService is prepared")
 
       val eventsManager = new EventsManagerImpl
@@ -120,7 +120,7 @@ object PhysSimReplayer extends StrictLogging {
           "beam.routing.r5.osmMapdbFile",
           ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/osm.mapdb""")
         )
-        .withValue("beam.exchange.scenario.source", ConfigValueFactory.fromAnyRef(s"""Beam"""))
+        .withValue("beam.exchange.scenario.source", ConfigValueFactory.fromAnyRef("Beam"))
         .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
         .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(pathToWarmStartZip))
         .withValue("beam.agentsim.taz.filePath", ConfigValueFactory.fromAnyRef(s"""$pwd/taz-centers.csv"""))

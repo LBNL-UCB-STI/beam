@@ -28,7 +28,7 @@ class TravelTimeTableReader(
     readRaw()
       .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         OD(fromGeoId, toGeoId, toRange(entry.lineNumber), entry.estimate)
       }
   }
@@ -92,7 +92,7 @@ object TravelTimeTableReader {
     val rdr = new TravelTimeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
     val readData = rdr.read().toVector
 
-    val nonZeros = readData.filter(x => x.value != 0.0)
+    val nonZeros = readData.filterNot(x => x.value.equals(0D))
     val distinctHomeLocations = readData.map(_.source).distinct.size
     val distintWorkLocations = readData.map(_.destination).distinct.size
     val sumOfValues = readData.map(_.value).sum

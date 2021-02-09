@@ -151,7 +151,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   override def close(): Unit = {
-    implicit val timeOut = new Timeout(20L, TimeUnit.SECONDS)
+    implicit val timeOut: Timeout = new Timeout(20L, TimeUnit.SECONDS)
     fileWriter.foreach { ref =>
       val closed = ref ? ResponseSaverActor.CloseMsg
       Try(Await.result(closed, timeOut.duration))
@@ -218,7 +218,7 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
-  override def receive = {
+  override def receive: Receive = {
     case jsObject: JsObject =>
       val out = FileUtils.openOutputStream(file)
       val buffer = new BufferedOutputStream(out)

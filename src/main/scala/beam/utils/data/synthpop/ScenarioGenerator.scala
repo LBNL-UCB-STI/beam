@@ -313,9 +313,10 @@ class SimpleScenarioGenerator(
                           householdId = createdHousehold.householdId,
                           rank = 0,
                           age = person.age,
+                          excludedModes = Seq.empty,
                           isFemale = person.gender == Gender.Female,
                           valueOfTime = valueOfTime,
-                          person.industry
+                          industry = person.industry,
                         )
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 

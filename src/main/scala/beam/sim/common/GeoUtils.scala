@@ -235,6 +235,20 @@ object GeoUtils {
     Math.pow(a + b, 1 / exponent)
   }
 
+  /**
+    * Calculate the Manhattan distance (i.e., L_1-norm) between two coordinates. The provided
+    * coordinates must be in UTM.
+    *
+    * Source: https://en.wikipedia.org/wiki/Taxicab_geometry
+    *
+    * @param coord1 first coordinate in UTM
+    * @param coord2 second coordinate in UTM
+    * @return distance in meters
+    */
+  def manhattanDistance(coord1: Coord, coord2: Coord): Double = {
+    (coord2.getX - coord1.getX).abs + (coord2.getY - coord1.getY).abs
+  }
+
   sealed trait TurningDirection
   case object Straight extends TurningDirection
   case object SoftLeft extends TurningDirection
@@ -317,6 +331,21 @@ object GeoUtils {
   def getR5EdgeCoord(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
     val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
     new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
+  }
+
+  /**
+    * Returns the WGS coordinates of a link's end.
+    *
+    * Note: by convention, a BeamPath starts at the **end** of the first link and ends at the end of the last link.
+    *
+    * @param linkIdInt Link ID.
+    * @param transportNetwork Transport network.
+    * @return WGS coordinates of the link's end.
+    */
+  def getLinkEndCoordWgs(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
+
+    val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
+    new Coord(currentEdge.getGeometry.getEndPoint.getX, currentEdge.getGeometry.getEndPoint.getY)
   }
 
 }

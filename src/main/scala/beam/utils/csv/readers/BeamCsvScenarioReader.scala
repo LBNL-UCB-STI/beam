@@ -2,9 +2,11 @@ package beam.utils.csv.readers
 
 import java.util.{Map => JavaMap}
 
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario._
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
+import beam.utils.scenario._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.math.NumberUtils
 import org.supercsv.io.CsvMapReader
@@ -13,7 +15,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.reflect.ClassTag
 import scala.util.Try
 
-object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
+object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogging {
   override def inputType: InputType = InputType.CSV
 
   override def readPersonsFile(path: String): Array[PersonInfo] = {
@@ -46,8 +48,12 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "householdId")
     val cars = householdIdToVehiclesSize.get(householdId) match {
       case Some(total) => total
-      case None =>
-        logger.warn(s"HouseholdId [$householdId] has no cars associated")
+      case None        =>
+        // The dots here are due to an idiosyncrasy with how ExponentialLazyLogger works....
+        // it has to track how many times a log message has been requested and it uses the first
+        // 20 characters as a unique key... if message is fewer than 20 characters the intended
+        // behavior fails.
+        logger.warn(s"HouseholdId has no cars associated........Id [$householdId]")
         0
     }
     HouseholdInfo(
@@ -97,12 +103,14 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
     val industry = Option(rec.get("industry"))
+    val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0D)
     PersonInfo(
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),
       rank = rank,
       age = age,
+      excludedModes = excludedModes,
       isFemale = isFemale,
       valueOfTime = valueOfTime,
       industry = industry

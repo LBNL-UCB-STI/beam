@@ -23,10 +23,10 @@ class TransitCrowdingSkimmer @Inject()(
   beamConfig: BeamConfig
 ) extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   override protected[skim] val readOnlySkim = new TransitCrowdingSkims(beamScenario.vehicleTypes)
-  override protected val skimFileBaseName = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
+  override protected val skimFileBaseName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
   override protected val skimFileHeader =
     "vehicleId,fromStopIdx,numberOfPassengers,capacity,observations,duration,iterations"
-  override protected val skimName = beamConfig.beam.router.skim.transit_crowding_skimmer.name
+  override protected val skimName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.name
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     super.notifyIterationStarts(event)
