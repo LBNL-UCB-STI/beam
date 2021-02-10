@@ -606,6 +606,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               case Some(theStall) if !currentBeamVehicle.isCAV =>
                 parkingManager ! ReleaseParkingStall(theStall)
                 currentBeamVehicle.unsetParkingStall()
+              case _ =>
             }
           case None =>
         }
