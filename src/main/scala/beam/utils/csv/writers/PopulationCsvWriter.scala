@@ -102,10 +102,10 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
     }
     val values = Seq(
-      personInfo.personId,
+      personInfo.personId.id,
       personInfo.age,
       personInfo.isFemale,
-      personInfo.householdId,
+      personInfo.householdId.id,
       personInfo.rank,
       excludedModes,
       personInfo.valueOfTime

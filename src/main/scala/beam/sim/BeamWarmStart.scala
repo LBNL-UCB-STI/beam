@@ -55,9 +55,15 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
         if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
           extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)
         } else {
+          logger.warn(
+            s"not a regular file: description: $description, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
+          )
           throwErrorFileNotFound(description, compressedFileFullPath)
         }
       case None =>
+        logger.warn(
+          s"not found: description: $description, fileName: $fileName, rootFirst: $rootFirst"
+        )
         throwErrorFileNotFound(description, srcPath)
     }
   }
