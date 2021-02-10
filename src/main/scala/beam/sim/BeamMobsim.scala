@@ -6,16 +6,20 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.ridehail.{
+  RideHailDepotParkingManager,
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailSurgePricingManager
+}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager, VehicleManagerType}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{
+  ChargingNetworkInfo,
   ChargingNetworkManager,
-  HierarchicalParkingManager,
-  ParallelParkingManager,
-  ZonalParkingManager
+  ParkingNetworkInfo,
+  ParkingNetworkManager
 }
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -45,6 +49,7 @@ import org.matsim.households.Households
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -355,80 +360,35 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
-  private val parkingFilePaths = {
-    val sharedVehicleFleetTypes = config.agents.vehicles.sharedFleets.map(Fleets.lookup)
-    ZonalParkingManager.getDefaultParkingZones(beamConfig) ++ sharedVehicleFleetTypes.map(
-      fleetType => fleetType.managerId -> fleetType.parkingFilePath
-    )
-  }
+  // Vehicle Managers
+  val vehicleManagers: Map[Id[VehicleManager], VehicleManager] = prepareVehicleManagers()
 
-  private val parkingManager = {
-    val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
-    log.info(s"Starting parking manager: $managerName")
-    val pmProps = managerName match {
-      case "DEFAULT" =>
-        val geoLevel = beamConfig.beam.agentsim.taz.parkingManager.level
-        geoLevel.toLowerCase match {
-          case "taz" =>
-            ZonalParkingManager.props(
-              beamScenario.beamConfig,
-              beamScenario.tazTreeMap.tazQuadTree,
-              beamScenario.tazTreeMap.idToTAZMapping,
-              identity[TAZ],
-              geo,
-              beamRouter,
-              envelopeInUTM,
-              parkingFilePaths,
-            )
-          case "link" =>
-            ZonalParkingManager.props(
-              beamScenario.beamConfig,
-              beamScenario.linkQuadTree,
-              beamScenario.linkIdMapping,
-              beamScenario.linkToTAZMapping,
-              geo,
-              beamRouter,
-              envelopeInUTM,
-              parkingFilePaths,
-            )
-          case _ =>
-            throw new IllegalArgumentException(
-              s"Unsupported parking level type $geoLevel, only TAZ | Link are supported"
-            )
-        }
-      case "HIERARCHICAL" =>
-        HierarchicalParkingManager
-          .props(
-            beamConfig,
-            beamScenario.tazTreeMap,
-            beamScenario.linkQuadTree,
-            beamScenario.linkToTAZMapping,
-            geo,
-            envelopeInUTM,
-            parkingFilePaths,
-          )
-      case "PARALLEL" =>
-        ParallelParkingManager
-          .props(beamScenario.beamConfig, beamScenario.tazTreeMap, geo, envelopeInUTM, parkingFilePaths)
-      case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
-    }
-    context.actorOf(pmProps.withDispatcher("zonal-parking-manager-pinned-dispatcher"), "ParkingManager")
-  }
-  context.watch(parkingManager)
+  // Parking Network Manager
+  private val parkingNetworkInfo = ParkingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
+  private val parkingNetworkManager = context.actorOf(
+    Props(new ParkingNetworkManager(beamServices, parkingNetworkInfo))
+      .withDispatcher("parking-network-manager-pinned-dispatcher"),
+    "ParkingNetworkManager"
+  )
+  context.watch(parkingNetworkManager)
 
+  // Charging Network Manager
+  private val chargingNetworkInfo = ChargingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
   private val chargingNetworkManager = context.actorOf(
-    Props(new ChargingNetworkManager(beamServices, parkingManager, scheduler))
+    Props(new ChargingNetworkManager(beamServices, chargingNetworkInfo, parkingNetworkManager, scheduler))
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
   context.watch(chargingNetworkManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
+  val rideHailManagerId: Id[VehicleManager] =
+    vehicleManagers.filter(_._2.managerType == VehicleManagerType.Ridehail).head._1
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
   private val rideHailManager = context.actorOf(
     Props(
       new RideHailManager(
-        Id.create("GlobalRHM", classOf[RideHailManager]),
+        rideHailManagerId,
         beamServices,
         beamScenario,
         beamScenario.transportNetwork,
@@ -437,14 +397,15 @@ class BeamMobsimIteration(
         matsimServices.getEvents,
         scheduler,
         beamRouter,
-        parkingManager,
+        parkingNetworkManager,
         chargingNetworkManager,
         envelopeInUTM,
         activityQuadTreeBounds,
         rideHailSurgePricingManager,
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
-        rideHailFleetInitializer
+        rideHailFleetInitializer,
+        parkingNetworkInfo.getRideHailParking.asInstanceOf[RideHailDepotParkingManager[_]]
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
@@ -469,7 +430,7 @@ class BeamMobsimIteration(
 
   private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
     context.actorOf(
-      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingManager),
+      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingNetworkManager),
       fleetConfig.name
     )
   }
@@ -484,7 +445,7 @@ class BeamMobsimIteration(
         matsimServices.getScenario,
         beamScenario.transportNetwork,
         scheduler,
-        parkingManager,
+        parkingNetworkManager,
         chargingNetworkManager,
         tollCalculator,
         geo,
@@ -507,7 +468,7 @@ class BeamMobsimIteration(
       tollCalculator,
       beamRouter,
       rideHailManager,
-      parkingManager,
+      parkingNetworkManager,
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
@@ -547,6 +508,31 @@ class BeamMobsimIteration(
     cancellable
   }
 
+  def prepareVehicleManagers(): Map[Id[VehicleManager], VehicleManager] = {
+    val managers = mutable.HashMap.empty[Id[VehicleManager], VehicleManager]
+    managers.put(VehicleManager.privateVehicleManager.managerId, VehicleManager.privateVehicleManager)
+    managers.put(VehicleManager.transitVehicleManager.managerId, VehicleManager.transitVehicleManager)
+    val rideHailVehicleManager: VehicleManager =
+      VehicleManager.create(
+        Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),
+        Some(VehicleCategory.Car),
+        isRideHail = true
+      )
+    managers.put(rideHailVehicleManager.managerId, rideHailVehicleManager)
+    config.agents.vehicles.sharedFleets.map { fleetConfig =>
+      val sharedId = Id.create(fleetConfig.name, classOf[VehicleManager])
+      managers.put(
+        sharedId,
+        VehicleManager.create(
+          sharedId,
+          Some(VehicleCategory.Car),
+          isShared = true
+        )
+      )
+    }
+    managers.toMap
+  }
+
   override def receive: PartialFunction[Any, Unit] = {
 
     case CompletionNotice(_, _) =>
@@ -563,7 +549,7 @@ class BeamMobsimIteration(
       chargingNetworkManager ! Finish
       context.stop(scheduler)
       context.stop(errorListener)
-      context.stop(parkingManager)
+      context.stop(parkingNetworkManager)
       sharedVehicleFleets.foreach(context.stop)
       if (beamConfig.beam.debug.debugActorTimerIntervalInSec > 0) {
         debugActorWithTimerCancellable.cancel()

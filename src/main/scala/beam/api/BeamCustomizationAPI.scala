@@ -1,8 +1,8 @@
 package beam.api
 
 import beam.agentsim.agents.ridehail.{DefaultRideHailDepotParkingManager, RideHailDepotParkingManager}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.eventbuilder.ComplexEventBuilder
-import beam.api.agentsim.agents.ridehail.{DefaultRidehailManagerCustomization, RidehailManagerCustomizationAPI}
 import beam.api.agentsim.agents.ridehail.allocation.{DefaultRepositionManagerFactory, RepositionManagerFactory}
 import beam.api.agentsim.agents.ridehail.charging.{
   ChargingManagerFactory,
@@ -10,13 +10,14 @@ import beam.api.agentsim.agents.ridehail.charging.{
   DefaultStallAssignmentStrategyFactory,
   StallAssignmentStrategyFactory
 }
+import beam.api.agentsim.agents.ridehail.{DefaultRidehailManagerCustomization, RidehailManagerCustomizationAPI}
 import beam.api.agentsim.agents.vehicles.BeamVehicleAfterUseFuelHook
 import beam.api.sim.termination.{DefaultTerminationCriterionFactory, TerminationCriterionFactory}
 import beam.sim.BeamServices
 import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.controler.TerminationCriterion
 
 import scala.util.Random
 
@@ -75,7 +76,11 @@ trait BeamCustomizationAPI {
     * @param boundingBox
     * @return
     */
-  def getRideHailDepotParkingManager(beamServices: BeamServices, boundingBox: Envelope): RideHailDepotParkingManager[_]
+  def getRideHailDepotParkingManager(
+    beamServices: BeamServices,
+    boundingBox: Envelope,
+    vehicleManagerId: Id[VehicleManager]
+  ): RideHailDepotParkingManager[_]
 
   /**
     * Allows to provide a custom [[TerminationCriterionFactory]].
@@ -106,7 +111,8 @@ class DefaultAPIImplementation extends BeamCustomizationAPI {
 
   override def getRideHailDepotParkingManager(
     beamServices: BeamServices,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    vehicleManagerId: Id[VehicleManager]
   ): RideHailDepotParkingManager[_] = {
     val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
     val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
@@ -123,7 +129,8 @@ class DefaultAPIImplementation extends BeamCustomizationAPI {
           parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamServices = beamServices,
           skims = beamServices.skims,
-          outputDirectory = beamServices.matsimServices.getControlerIO
+          outputDirectory = beamServices.matsimServices.getControlerIO,
+          vehicleManagerId = vehicleManagerId
         )
       case "link" =>
         DefaultRideHailDepotParkingManager(
@@ -138,7 +145,8 @@ class DefaultAPIImplementation extends BeamCustomizationAPI {
           parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamServices = beamServices,
           skims = beamServices.skims,
-          outputDirectory = beamServices.matsimServices.getControlerIO
+          outputDirectory = beamServices.matsimServices.getControlerIO,
+          vehicleManagerId = vehicleManagerId
         )
       case wrong @ _ =>
         throw new IllegalArgumentException(s"Unsupported parking level type $wrong, only TAZ | Link are supported")

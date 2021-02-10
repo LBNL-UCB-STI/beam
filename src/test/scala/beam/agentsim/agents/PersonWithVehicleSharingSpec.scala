@@ -160,7 +160,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerInfo = VehicleManager.create("shared-fleet-1", vehicleType, isShared = true),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -312,7 +312,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerInfo = VehicleManager.create("shared-fleet-1", vehicleType, isShared = true),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -418,7 +418,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerInfo = VehicleManager.create("shared-fleet-1", vehicleType, isShared = true),
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -475,7 +475,7 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerInfo = VehicleManager.create("shared-fleet-1", vehicleType, isShared = true),
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 

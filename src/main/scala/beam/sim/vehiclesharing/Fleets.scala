@@ -1,4 +1,6 @@
 package beam.sim.vehiclesharing
+
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm
 import org.matsim.api.core.v01.Id

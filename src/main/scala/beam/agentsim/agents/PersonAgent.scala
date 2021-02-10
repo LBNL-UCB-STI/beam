@@ -275,7 +275,7 @@ class PersonAgent(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType,
-    managerInfo = VehicleManagerInfo.create(id.toString, bodyType)
+    None
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -849,8 +849,7 @@ class PersonAgent(
               || beamVehicles(nextLeg.beamVehicleId)
                 .asInstanceOf[ActualVehicle]
                 .vehicle
-                .managerInfo
-                .managerType == VehicleManagerType.SharedMicromobility) {
+                .isSharedVehicle) {
             log.debug(
               "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
               legsToInclude

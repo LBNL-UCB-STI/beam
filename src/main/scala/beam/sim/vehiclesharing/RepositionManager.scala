@@ -1,6 +1,7 @@
 package beam.sim.vehiclesharing
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ

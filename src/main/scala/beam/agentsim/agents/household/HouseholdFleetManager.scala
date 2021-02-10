@@ -22,7 +22,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.vehiclesharing.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 

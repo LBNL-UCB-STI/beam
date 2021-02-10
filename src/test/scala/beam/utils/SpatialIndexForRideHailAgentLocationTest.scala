@@ -1,6 +1,6 @@
 package beam.utils
 
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
 import beam.sim.{CircularGeofence, Geofence}

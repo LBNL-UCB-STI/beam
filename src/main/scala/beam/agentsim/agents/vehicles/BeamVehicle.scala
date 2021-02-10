@@ -47,7 +47,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
-  val managerInfo: VehicleManagerInfo,
+  val managerId: Option[Id[VehicleManager]],
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
@@ -278,9 +278,7 @@ class BeamVehicle(
     )
   }
 
-  def isRidehailVehicle = {
-    id.toString.contains("rideHailVehicle")
-  }
+  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
 
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
@@ -379,9 +377,11 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || managerInfo.managerType.isShared
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || isSharedVehicle
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
+
+  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
 

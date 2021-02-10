@@ -5,11 +5,10 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartRefuelSessionTrigg
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.charging.StallAssignmentStrategy
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
-import beam.agentsim.infrastructure.parking.ParkingMNL.ParkingMNLConfig
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
   ParkingZoneSearchConfiguration,
@@ -23,17 +22,16 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.LogActorState
-import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.utils.collections.QuadTree
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Random, Success, Try}
-import scala.collection.JavaConverters._
 
 /**
   * Manages the parking/charging depots for the RideHailManager. Depots can contain heterogeneous [[ChargingPlugTypes]]
@@ -76,9 +74,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   parkingStallCountScalingFactor: Double = 1.0,
   beamServices: BeamServices,
   skims: Skims,
-  outputDirectory: OutputDirectoryHierarchy
-) extends RideHailDepotParkingManager[GEO]
-    with LazyLogging {
+  outputDirectory: OutputDirectoryHierarchy,
+  override val vehicleManagerId: Id[VehicleManager]
+) extends RideHailDepotParkingManager[GEO] {
 
   // load parking from a parking file, or generate it using the geo beam input
   val (
@@ -90,11 +88,18 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       .generateDefaultParkingFromGeoObjects(
         geoQuadTree.values().asScala,
         random,
-        Seq(ParkingType.Workplace)
+        Seq(ParkingType.Workplace),
+        vehicleManagerId
       )
   } else {
     Try {
-      ParkingZoneFileUtils.fromFile[GEO](parkingFilePath, random, parkingStallCountScalingFactor)
+      ParkingZoneFileUtils
+        .fromFile[GEO](
+          parkingFilePath,
+          random,
+          parkingStallCountScalingFactor,
+          vehicleManagerId = vehicleManagerId
+        )
     } match {
       case Success((stalls, tree)) =>
         logger.info(s"generating ride hail parking from file $parkingFilePath")
@@ -106,7 +111,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           .generateDefaultParkingFromGeoObjects(
             geoQuadTree.values().asScala,
             random,
-            Seq(ParkingType.Workplace)
+            Seq(ParkingType.Workplace),
+            vehicleManagerId
           )
     }
   }
@@ -274,7 +280,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         )
         val chargingTime = beamVehicle
           .refuelingSessionDurationAndEnergyInJoulesForStall(
-            Some(ParkingStall.fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative))
+            Some(
+              ParkingStall
+                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative, vehicleManagerId)
+            )
           )
           ._1
         Map(
@@ -309,9 +318,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
 
   def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone[GEO]): Boolean = {
     val soc = beamVehicle.primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelCapacityInJoule
-    soc >= 0.8 && parkingZone.chargingPointType
-      .map(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
-      .getOrElse(false)
+    soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
   }
 
   /**
@@ -332,7 +339,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     val remainingChargeDurationFromPluggedInVehicles = if (chargingVehicles.size < parkingZone.maxStalls) {
       0
     } else {
-      chargingVehicles.map(vehicleId => vehicleIdToEndRefuelTick.get(vehicleId).getOrElse(tick) - tick).toVector.sum
+      chargingVehicles.map(vehicleId => vehicleIdToEndRefuelTick.getOrElse(vehicleId, tick) - tick).toVector.sum
     }
     val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
     val chargingQueue = parkingZoneDepotData.chargingQueue
@@ -682,6 +689,7 @@ object DefaultRideHailDepotParkingManager {
     beamServices: BeamServices,
     skims: Skims,
     outputDirectory: OutputDirectoryHierarchy,
+    vehicleManagerId: Id[VehicleManager]
   ): RideHailDepotParkingManager[TAZ] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -696,6 +704,7 @@ object DefaultRideHailDepotParkingManager {
       beamServices = beamServices: BeamServices,
       skims = skims: Skims,
       outputDirectory = outputDirectory: OutputDirectoryHierarchy,
+      vehicleManagerId = vehicleManagerId
     )
   }
 
@@ -712,6 +721,7 @@ object DefaultRideHailDepotParkingManager {
     beamServices: BeamServices,
     skims: Skims,
     outputDirectory: OutputDirectoryHierarchy,
+    vehicleManagerId: Id[VehicleManager]
   ): RideHailDepotParkingManager[Link] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -725,7 +735,8 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices,
       skims = skims,
-      outputDirectory = outputDirectory
+      outputDirectory = outputDirectory,
+      vehicleManagerId = vehicleManagerId
     )
   }
 }

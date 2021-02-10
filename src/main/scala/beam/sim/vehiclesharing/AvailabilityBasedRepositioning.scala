@@ -1,5 +1,6 @@
 package beam.sim.vehiclesharing
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter

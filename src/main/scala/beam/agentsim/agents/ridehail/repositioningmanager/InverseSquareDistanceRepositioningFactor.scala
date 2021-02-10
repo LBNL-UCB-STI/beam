@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.H3TAZ
 import beam.router.BeamRouter.Location
@@ -108,7 +108,7 @@ class InverseSquareDistanceRepositioningFactor(
               beamServices.beamScenario.fuelTypePrices(vehAndNewLoc._1.vehicleType.primaryFuelType),
               beamServices.beamScenario
             )
-            .distance <= rideHailManager.vehicleManager
+            .distance <= rideHailManager.rideHailManagerHelper
             .getVehicleState(vehAndNewLoc._1.vehicleId)
             .totalRemainingRange - range
         }

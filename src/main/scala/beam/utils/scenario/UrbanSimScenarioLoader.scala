@@ -2,7 +2,7 @@ package beam.utils.scenario
 
 import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManagerInfo}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -227,7 +227,7 @@ class UrbanSimScenarioLoader(
             bvId,
             powerTrain,
             beamVehicleType,
-            managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, beamVehicleType),
+            Some(VehicleManager.privateVehicleManager.managerId),
             rand.nextInt
           )
           beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)

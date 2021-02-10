@@ -21,12 +21,10 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
-import org.matsim.core.utils.collections.QuadTree
 
 import java.util.concurrent.TimeUnit
 import scala.collection.concurrent.TrieMap
 import scala.language.postfixOps
-import scala.util.Random
 
 /**
   * Created by haitamlaarabi
@@ -34,6 +32,7 @@ import scala.util.Random
 
 class ChargingNetworkManager(
   beamServices: BeamServices,
+  chargingNetworkInfo: ChargingNetworkInfo,
   parkingManager: ActorRef,
   scheduler: ActorRef
 ) extends Actor
@@ -41,12 +40,12 @@ class ChargingNetworkManager(
   import ChargingNetworkManager._
   import ConnectionStatus._
   import beamServices._
+  import chargingNetworkInfo._
 
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
   private val chargingNetworkMap = TrieMap.empty[String, ChargingNetwork]
-  private val chargingZoneList: QuadTree[ChargingZone] = loadChargingZones(beamServices)
   private lazy val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
   private lazy val powerController = new PowerController(chargingNetworkMap, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
@@ -106,7 +105,7 @@ class ChargingNetworkManager(
                     case cycle =>
                       Some(
                         ScheduleTrigger(
-                          ChargingTimeOutTrigger((timeBin + cycle.duration).toInt, vehicle.id, vehicleManager),
+                          ChargingTimeOutTrigger(timeBin + cycle.duration, vehicle.id, vehicleManager),
                           self
                         )
                       )
@@ -256,7 +255,7 @@ class ChargingNetworkManager(
       vehicle.disconnectFromChargingPoint()
       vehicle.stall match {
         case Some(stall) =>
-          parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.tazId)
+          parkingManager ! ReleaseParkingStall(stall)
           vehicle.unsetParkingStall()
         case None =>
           log.error(s"Vehicle $vehicle has no stall while ending charging event")
@@ -426,56 +425,4 @@ object ChargingNetworkManager {
     }
   }
 
-  /**
-    * load parking stalls with charging point
-    * @param beamServices BeamServices
-    * @return QuadTree of ChargingZone
-    */
-  private def loadChargingZones(beamServices: BeamServices): QuadTree[ChargingZone] = {
-    import beamServices._
-    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
-    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-    val random = new Random(beamConfig.matsim.modules.global.randomSeed)
-    val (zones, _) = ZonalParkingManager.loadParkingZones[TAZ](
-      parkingFilePath,
-      beamScenario.tazTreeMap.tazQuadTree,
-      parkingStallCountScalingFactor,
-      parkingCostScalingFactor,
-      random
-    )
-    val zonesWithCharger =
-      zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.geoId).get))
-    val coordinates = zonesWithCharger.map(_._2.coord)
-    val xs = coordinates.map(_.getX)
-    val ys = coordinates.map(_.getY)
-    val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
-    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
-    envelopeInUTM.expandToInclude(xs.min, ys.min)
-    envelopeInUTM.expandToInclude(xs.max, ys.max)
-
-    val stationsQuadTree = new QuadTree[ChargingZone](
-      envelopeInUTM.getMinX,
-      envelopeInUTM.getMinY,
-      envelopeInUTM.getMaxX,
-      envelopeInUTM.getMaxY
-    )
-    zonesWithCharger.foreach {
-      case (zone, taz) =>
-        stationsQuadTree.put(
-          taz.coord.getX,
-          taz.coord.getY,
-          ChargingZone(
-            zone.parkingZoneId,
-            zone.geoId,
-            zone.parkingType,
-            zone.maxStalls,
-            zone.chargingPointType.get,
-            zone.pricingModel.get,
-            defaultVehicleManager
-          )
-        )
-    }
-    stationsQuadTree
-  }
 }

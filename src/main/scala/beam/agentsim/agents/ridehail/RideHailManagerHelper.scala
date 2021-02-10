@@ -2,7 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailMatching.VehicleAndSchedule
-import beam.agentsim.agents.ridehail.RideHailVehicleManager._
+import beam.agentsim.agents.ridehail.RideHailManagerHelper._
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
@@ -50,7 +50,7 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
 /**
   * BEAM
   */
-class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: Envelope) extends LazyLogging {
+class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: Envelope) extends LazyLogging {
 
   val vehicleState: mutable.Map[Id[BeamVehicle], BeamVehicleState] =
     mutable.Map[Id[BeamVehicle], BeamVehicleState]()
@@ -278,7 +278,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     val filteredVehicles = new java.util.HashMap[Id[BeamVehicle], RideHailAgentLocation](maxSize)
 
     def addIfNotInAllocation(
-      idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailVehicleManager.RideHailAgentLocation]
+      idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
     ): Unit = {
       idleOrRepositioning.foreach {
         case (vehicleId, location) =>
@@ -341,7 +341,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
     }
   }
 
-  def getServiceStatusOf(vehicleId: Id[BeamVehicle]): RideHailVehicleManager.RideHailServiceStatus = {
+  def getServiceStatusOf(vehicleId: Id[BeamVehicle]): RideHailManagerHelper.RideHailServiceStatus = {
     if (idleRideHailVehicles.contains(vehicleId)) {
       Available
     } else if (inServiceRideHailVehicles.contains(vehicleId)) {
@@ -668,7 +668,7 @@ class RideHailVehicleManager(val rideHailManager: RideHailManager, boundingBox: 
 
 }
 
-object RideHailVehicleManager {
+object RideHailManagerHelper {
 
   def RideHailAgentLocationFromVehicleAndSchedule(vehicleAndSchedule: VehicleAndSchedule): RideHailAgentLocation = {
     RideHailAgentLocation(
