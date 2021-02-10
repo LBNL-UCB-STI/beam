@@ -12,7 +12,6 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.utils.metrics.SimpleCounter
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
