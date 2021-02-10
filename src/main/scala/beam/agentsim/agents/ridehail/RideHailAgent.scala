@@ -421,7 +421,7 @@ class RideHailAgent(
       waitingForDoneRefuelingAndOutOfServiceReply = false
       val (tick, localTriggerId) = releaseTickAndTriggerId()
       assert(localTriggerId == triggerId)
-      if (newTriggers.headOption.map(_.trigger.tick < tick).getOrElse(false)) {
+      if (newTriggers.headOption.exists(_.trigger.tick < tick)) {
         log.error(
           s"agent({}) state(RideHailingAgent.Offline): NotifyVehicleDoneRefuelingAndOutOfServiceReply detected trigger {} with tick before the one about to be completed {}",
           id,

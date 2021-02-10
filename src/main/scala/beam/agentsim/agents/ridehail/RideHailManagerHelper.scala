@@ -140,8 +140,7 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
               SpaceTime(
                 rideHailManager.rideHailFleetInitializer
                   .getRideHailAgentInitializers(rideHailManager.id, rideHailManager.activityQuadTreeBounds)
-                  .filter(_.id.equalsIgnoreCase(vehicleId.toString))
-                  .headOption
+                  .find(_.id.equalsIgnoreCase(vehicleId.toString))
                   .map(_.initialLocation)
                   .getOrElse(
                     rideHailManager.rideHailFleetInitializer
