@@ -11,7 +11,7 @@ import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ZonalParkingManager
+import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager, ZonalParkingManager}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
@@ -72,15 +72,18 @@ class PersonAndTransitDriverSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager.props(
-      beamConfig,
-      beamScenario.tazTreeMap.tazQuadTree,
-      beamScenario.tazTreeMap.idToTAZMapping,
-      identity[TAZ],
-      services.geo,
-      services.beamRouter,
-      boundingBox,
-      ZonalParkingManager.getDefaultParkingZones(beamConfig),
+    Props(
+      new ParkingNetworkManager(
+        services,
+        ParkingNetworkInfo(
+          services,
+          boundingBox,
+          Map[Id[VehicleManager], VehicleManager](
+            VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
+            VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
+          )
+        )
+      )
     ),
     "ParkingManager"
   )

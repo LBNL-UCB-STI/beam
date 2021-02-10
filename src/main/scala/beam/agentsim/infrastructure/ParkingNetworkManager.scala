@@ -1,12 +1,15 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.{ActorLogging, Cancellable}
+import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
 import akka.event.Logging
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.Id
 
 import scala.concurrent.duration._
 
@@ -37,4 +40,12 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: Park
   override def postStop(): Unit = tickTask.cancel()
 }
 
-object ParkingNetworkManager extends LazyLogging {}
+object ParkingNetworkManager extends LazyLogging {
+
+  def props(
+    services: BeamServices,
+    parkingNetworkInfo: ParkingNetworkInfo
+  ): Props = {
+    Props(new ParkingNetworkManager(services, parkingNetworkInfo))
+  }
+}

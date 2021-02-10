@@ -366,7 +366,8 @@ class BeamMobsimIteration(
   // Parking Network Manager
   private val parkingNetworkInfo = ParkingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
   private val parkingNetworkManager = context.actorOf(
-    Props(new ParkingNetworkManager(beamServices, parkingNetworkInfo))
+    ParkingNetworkManager
+      .props(beamServices, parkingNetworkInfo)
       .withDispatcher("parking-network-manager-pinned-dispatcher"),
     "ParkingNetworkManager"
   )
@@ -375,7 +376,8 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkInfo = ChargingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
   private val chargingNetworkManager = context.actorOf(
-    Props(new ChargingNetworkManager(beamServices, chargingNetworkInfo, parkingNetworkManager, scheduler))
+    ChargingNetworkManager
+      .props(beamServices, chargingNetworkInfo, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )

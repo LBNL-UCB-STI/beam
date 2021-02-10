@@ -1,13 +1,13 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -20,6 +20,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
+import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
@@ -423,6 +424,15 @@ object ChargingNetworkManager {
         "vehicleManager"    -> chargingZone.vehicleManager
       )
     }
+  }
+
+  def props(
+    beamServices: BeamServices,
+    chargingNetworkInfo: ChargingNetworkInfo,
+    parkingManager: ActorRef,
+    scheduler: ActorRef
+  ): Props = {
+    Props(new ChargingNetworkManager(beamServices, chargingNetworkInfo, parkingManager, scheduler))
   }
 
 }
