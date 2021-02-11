@@ -160,7 +160,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -312,7 +312,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -418,7 +418,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -475,7 +475,7 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 

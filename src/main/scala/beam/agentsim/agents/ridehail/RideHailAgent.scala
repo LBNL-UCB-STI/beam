@@ -953,10 +953,10 @@ class RideHailAgent(
   }
 
   def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData): Unit = {
-    val (unlimitedSessionDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(None)
+    val (unlimitedSessionDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
     val secondsUntilEndOfSim = lastTickOfSimulation - 1 - tick
     val sessionDurationLimit = (isCurrentlyOnShift || isStartingNewShift) match {
-      case false if data.remainingShifts.headOption.isDefined =>
+      case false if data.remainingShifts.nonEmpty =>
         Some(
           Math.min(
             secondsUntilEndOfSim,
@@ -972,7 +972,11 @@ class RideHailAgent(
         None
     }
     val (sessionDuration, energyDelivered) =
-      vehicle.refuelingSessionDurationAndEnergyInJoules(sessionDurationLimit)
+      vehicle.refuelingSessionDurationAndEnergyInJoules(
+        sessionDurationLimit = sessionDurationLimit,
+        stateOfChargeLimit = None,
+        chargingPowerLimit = None
+      )
 
 //    if(sessionDuration==0 && !vehicle.stall.get.chargingPointType.get.toString.equals("abb_50kw_dc(50.0|DC)")){
 //      log.warning(

@@ -47,7 +47,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
-  val managerId: Option[Id[VehicleManager]],
+  val managerId: Id[VehicleManager],
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
@@ -296,9 +296,9 @@ class BeamVehicle(
     */
   def refuelingSessionDurationAndEnergyInJoulesForStall(
     parkingStall: Option[ParkingStall],
-    sessionDurationLimit: Option[Int] = None,
-    stateOfChargeLimit: Option[Double] = None,
-    chargingPowerLimit: Option[Double] = None
+    sessionDurationLimit: Option[Int],
+    stateOfChargeLimit: Option[Double],
+    chargingPowerLimit: Option[Double]
   ): (Int, Double) = {
     parkingStall match {
       case Some(theStall) =>
@@ -330,10 +330,16 @@ class BeamVehicle(
     * @return tuple with (refuelingDuration, refuelingEnergy)
     */
   def refuelingSessionDurationAndEnergyInJoules(
-    sessionDurationLimit: Option[Int] = None,
-    stateOfChargeLimit: Option[Double] = None
+    sessionDurationLimit: Option[Int],
+    stateOfChargeLimit: Option[Double],
+    chargingPowerLimit: Option[Double]
   ): (Int, Double) = {
-    refuelingSessionDurationAndEnergyInJoulesForStall(stall, sessionDurationLimit, stateOfChargeLimit)
+    refuelingSessionDurationAndEnergyInJoulesForStall(
+      stall,
+      sessionDurationLimit,
+      stateOfChargeLimit,
+      chargingPowerLimit
+    )
   }
 
   def getState: BeamVehicleState = {

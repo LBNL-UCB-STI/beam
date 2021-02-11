@@ -224,7 +224,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     val parkingZoneSearchParams: ParkingZoneSearchParams[GEO] =
       ParkingZoneSearchParams(
         locationUtm,
-        beamVehicle.refuelingSessionDurationAndEnergyInJoules()._1,
+        beamVehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)._1,
         mnlMultiplierParameters,
         rideHailParkingSearchTree,
         rideHailParkingZones,
@@ -283,7 +283,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
             Some(
               ParkingStall
                 .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative, vehicleManagerId)
-            )
+            ),
+            None,
+            None,
+            None
           )
           ._1
         Map(
@@ -345,7 +348,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     val chargingQueue = parkingZoneDepotData.chargingQueue
     val chargeDurationFromQueue = chargingQueue.map {
       case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None)._1
+        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
     }.sum
     val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
     val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
@@ -505,7 +508,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       )
       chargingVehicleToParkingStallMap += beamVehicle.id -> stall
       parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.add(beamVehicle.id)
-      val (chargingSessionDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules()
+      val (chargingSessionDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
       putNewTickAndObservation(beamVehicle.id, (tick, s"Charging(${source})"))
       vehicleIdToEndRefuelTick.put(beamVehicle.id, tick + chargingSessionDuration)
       true

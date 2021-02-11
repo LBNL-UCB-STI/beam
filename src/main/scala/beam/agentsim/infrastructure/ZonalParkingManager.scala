@@ -3,9 +3,8 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.FuelType.Electricity
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
@@ -19,7 +18,6 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import com.vividsolutions.jts.geom.Envelope
@@ -40,7 +38,8 @@ class ZonalParkingManager[GEO: GeoLevel](
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
+  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager]
 ) extends ParkingNetwork {
 
   override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
@@ -66,6 +65,7 @@ class ZonalParkingManager[GEO: GeoLevel](
     maxSearchRadius,
     boundingBox,
     mnlMultiplierParameters,
+    vehicleManagers
   )
 
   override def processParkingInquiry(
@@ -132,6 +132,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager]
 ) extends StrictLogging {
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
@@ -148,7 +149,6 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
       UbiqiutousParkingAvailability,
-      None,
       VehicleManager.privateVehicleManager.managerId
     )
 
@@ -232,10 +232,19 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
+        val isValidVehicleManager = inquiry.beamVehicle.forall(
+          vehicle =>
+            (vehicle.managerId == zone.vehicleManagerId) || (vehicle.managerId == VehicleManager.privateVehicleManager.managerId && vehicleManagers(
+              vehicle.managerId
+            ).managerType
+              .in(Seq(VehicleManagerType.Ridehail, VehicleManagerType.Carsharing)))
+        )
+
         hasAvailability &&
         rideHailFastChargingOnly &&
         validParkingType &&
-        canThisCarParkHere
+        canThisCarParkHere &&
+        isValidVehicleManager
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
@@ -452,7 +461,8 @@ object ZonalParkingManager extends LazyLogging {
     searchTree: ZoneSearchTree[GEO],
     geo: GeoUtils,
     random: Random,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ZonalParkingManager[GEO] = {
 
     val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
@@ -471,7 +481,8 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      mnlMultiplierParameters
+      mnlMultiplierParameters,
+      vehicleManagers
     )
   }
 
@@ -508,6 +519,7 @@ object ZonalParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ZonalParkingManager[GEO] = {
 
     // generate or load parking
@@ -532,6 +544,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       random,
       boundingBox,
+      vehicleManagers
     )
   }
 
@@ -635,7 +648,8 @@ object ZonalParkingManager extends LazyLogging {
     minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
-    includesHeader: Boolean = true
+    includesHeader: Boolean = true,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
@@ -656,7 +670,8 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      ParkingMNL.DefaultMNLParameters
+      ParkingMNL.DefaultMNLParameters,
+      vehicleManagers
     )
   }
 
@@ -675,6 +690,7 @@ object ZonalParkingManager extends LazyLogging {
     beamRouter: ActorRef,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ParkingNetwork = {
     ZonalParkingManager(
       beamConfig,
@@ -684,6 +700,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       boundingBox,
       parkingFilePaths,
+      vehicleManagers
     )
   }
 
@@ -701,7 +718,8 @@ object ZonalParkingManager extends LazyLogging {
     searchTree: ZoneSearchTree[GEO],
     geo: GeoUtils,
     random: Random,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ParkingNetwork = {
     ZonalParkingManager(
       beamConfig,
@@ -713,6 +731,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       random,
       boundingBox,
+      vehicleManagers
     )
   }
 

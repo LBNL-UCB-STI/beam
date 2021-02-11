@@ -51,6 +51,10 @@ class ParallelParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
+  private val managers = Map[Id[VehicleManager], VehicleManager](
+    VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
+  )
+
   describe("ParallelParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
@@ -72,6 +76,7 @@ class ParallelParkingManagerSpec
           geo,
           randomSeed,
           boundingBox,
+          managers
         )
       } {
 
@@ -109,6 +114,7 @@ class ParallelParkingManagerSpec
         geo,
         randomSeed,
         boundingBox,
+        managers
       )
 
       val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
@@ -162,6 +168,7 @@ class ParallelParkingManagerSpec
           geo,
           randomSeed,
           boundingBox,
+          managers
         )
       } {
 
@@ -230,6 +237,7 @@ class ParallelParkingManagerSpec
           geo,
           randomSeed,
           boundingBox,
+          managers
         )
 
       } {
@@ -316,6 +324,7 @@ class ParallelParkingManagerSpec
           geo,
           randomSeed,
           boundingBox,
+          managers
         )
       } {
 
@@ -362,6 +371,7 @@ class ParallelParkingManagerSpec
           geo,
           randomSeed,
           boundingBox,
+          managers
         )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)

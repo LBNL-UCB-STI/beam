@@ -24,7 +24,7 @@ case class ParkingNetworkInfo(
               .getRideHailDepotParkingManager(beamServices, envelopeInUTM, vehicleManagerId)
           )
         case VehicleManagerType.Cars =>
-          Some(vehicleManagerId -> buildPublicParkingNetwork(beamServices, envelopeInUTM))
+          Some(vehicleManagerId -> buildPublicParkingNetwork(beamServices, envelopeInUTM, vehicleManagers))
         case _ =>
           None
       }
@@ -39,7 +39,11 @@ case class ParkingNetworkInfo(
 }
 
 object ParkingNetworkInfo extends LazyLogging {
-  private def buildPublicParkingNetwork(beamServices: BeamServices, envelopeInUTM: Envelope): ParkingNetwork = {
+  private def buildPublicParkingNetwork(
+    beamServices: BeamServices,
+    envelopeInUTM: Envelope,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+  ): ParkingNetwork = {
     import beamServices._
     val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
     val parkingFilePaths = {
@@ -63,6 +67,7 @@ object ParkingNetworkInfo extends LazyLogging {
               beamRouter,
               envelopeInUTM,
               parkingFilePaths,
+              vehicleManagers
             )
           case "link" =>
             ZonalParkingManager.init(
@@ -74,6 +79,7 @@ object ParkingNetworkInfo extends LazyLogging {
               beamRouter,
               envelopeInUTM,
               parkingFilePaths,
+              vehicleManagers
             )
           case _ =>
             throw new IllegalArgumentException(
@@ -89,7 +95,8 @@ object ParkingNetworkInfo extends LazyLogging {
             beamScenario.linkToTAZMapping,
             geo,
             envelopeInUTM,
-            parkingFilePaths
+            parkingFilePaths,
+            vehicleManagers
           )
       case "PARALLEL" =>
         ParallelParkingManager.init(
@@ -97,7 +104,8 @@ object ParkingNetworkInfo extends LazyLogging {
           beamScenario.tazTreeMap,
           geo,
           envelopeInUTM,
-          parkingFilePaths
+          parkingFilePaths,
+          vehicleManagers
         )
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }

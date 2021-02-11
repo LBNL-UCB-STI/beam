@@ -358,7 +358,7 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
       beamVehicleId,
       powerTrain,
       beamVehicleType,
-      Some(VehicleManager.privateVehicleManager.managerId),
+      managerId = VehicleManager.privateVehicleManager.managerId,
       randomSeed
     )
   }

@@ -514,6 +514,7 @@ class BeamMobsimIteration(
     val managers = mutable.HashMap.empty[Id[VehicleManager], VehicleManager]
     managers.put(VehicleManager.privateVehicleManager.managerId, VehicleManager.privateVehicleManager)
     managers.put(VehicleManager.transitVehicleManager.managerId, VehicleManager.transitVehicleManager)
+    managers.put(VehicleManager.bodiesVehicleManager.managerId, VehicleManager.bodiesVehicleManager)
     val rideHailVehicleManager: VehicleManager =
       VehicleManager.create(
         Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),

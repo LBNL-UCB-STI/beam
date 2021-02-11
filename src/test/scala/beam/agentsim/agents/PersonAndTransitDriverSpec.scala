@@ -140,13 +140,13 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        managerId = Some(VehicleManager.transitVehicleManager.managerId),
+        managerId = VehicleManager.transitVehicleManager.managerId,
       )
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        managerId = Some(VehicleManager.transitVehicleManager.managerId),
+        managerId = VehicleManager.transitVehicleManager.managerId,
       )
 
       val busLeg = EmbodiedBeamLeg(

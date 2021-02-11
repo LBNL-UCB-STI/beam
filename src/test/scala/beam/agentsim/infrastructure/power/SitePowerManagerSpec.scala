@@ -106,13 +106,13 @@ class SitePowerManagerSpec
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
       vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
-      managerId = Some(VehicleManager.privateVehicleManager.managerId)
+      managerId = VehicleManager.privateVehicleManager.managerId
     )
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
       vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
-      managerId = Some(VehicleManager.privateVehicleManager.managerId)
+      managerId = VehicleManager.privateVehicleManager.managerId
     )
     v1.useParkingStall(parkingStall1)
     v2.useParkingStall(parkingStall1.copy())

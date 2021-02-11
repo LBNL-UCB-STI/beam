@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorSystem
 import akka.util.Timeout
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingZone}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -22,7 +23,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext
 import scala.util.Random
 
@@ -150,6 +151,10 @@ object ParkingManagerBenchmark extends StrictLogging {
       }
       val allActivityLocations: Array[(Coord, String)] = activities.map(act => (act.getCoord, act.getType)).toArray
 
+      val managers = Map[Id[VehicleManager], VehicleManager](
+        VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
+      )
+
       def createZonalParkingManager(isLink: Boolean): ParkingNetwork = {
         if (isLink) {
           val linkQuadTree: QuadTree[Link] = LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
@@ -166,7 +171,8 @@ object ParkingManagerBenchmark extends StrictLogging {
             searchTree,
             geoUtils,
             new Random(seed),
-            boundingBox
+            boundingBox,
+            managers
           )
         } else {
           val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
@@ -179,7 +185,8 @@ object ParkingManagerBenchmark extends StrictLogging {
             searchTree,
             geoUtils,
             new Random(seed),
-            boundingBox
+            boundingBox,
+            managers
           )
         }
       }
@@ -189,7 +196,17 @@ object ParkingManagerBenchmark extends StrictLogging {
         val parkingManager: ParkingNetwork = managerType match {
           case "parallel" =>
             val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
-            ParallelParkingManager.init(beamConfig, tazTreeMap, zones, searchTree, 6, geoUtils, 42, boundingBox)
+            ParallelParkingManager.init(
+              beamConfig,
+              tazTreeMap,
+              zones,
+              searchTree,
+              6,
+              geoUtils,
+              42,
+              boundingBox,
+              managers
+            )
           case "zonal" =>
             createZonalParkingManager(isLink = false)
           case "hierarchical" =>
@@ -208,7 +225,8 @@ object ParkingManagerBenchmark extends StrictLogging {
               beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
               boundingBox,
               mnlCfg,
-              checkThatNumberOfStallsMatch = true
+              checkThatNumberOfStallsMatch = true,
+              managers
             )
         }
 

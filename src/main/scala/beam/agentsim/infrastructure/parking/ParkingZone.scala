@@ -23,7 +23,6 @@ class ParkingZone[GEO](
   val parkingType: ParkingType,
   var stallsAvailable: Int,
   val maxStalls: Int,
-  val reservedFor: Option[VehicleManagerType],
   val vehicleManagerId: Id[VehicleManager],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
@@ -47,8 +46,7 @@ class ParkingZone[GEO](
       case None    => "pricingModel = None"
       case Some(p) => s" pricingModel = $p"
     }
-    val additionalInfo = reservedFor.map(", reservedFor = " + _).getOrElse("")
-    s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString$additionalInfo)"
+    s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString)"
   }
 
   def makeCopy(maxStalls: Int = -1): ParkingZone[GEO] = {
@@ -58,7 +56,6 @@ class ParkingZone[GEO](
       this.parkingType,
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
-      this.reservedFor,
       this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel,
@@ -91,7 +88,6 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     numStalls: Int = 0,
-    reservedFor: Option[VehicleManagerType],
     vehicleManagerId: Id[VehicleManager],
     chargingType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
@@ -104,7 +100,6 @@ object ParkingZone extends LazyLogging {
       parkingType,
       numStalls,
       numStalls,
-      reservedFor,
       vehicleManagerId,
       chargingType,
       pricingModel,

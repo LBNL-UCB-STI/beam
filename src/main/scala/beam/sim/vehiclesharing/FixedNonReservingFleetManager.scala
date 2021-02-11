@@ -59,7 +59,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
         vehicleType,
-        Some(id),
+        managerId = id,
         rand.nextInt()
       )
       vehicle.setManager(Some(self))

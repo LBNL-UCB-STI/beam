@@ -90,7 +90,7 @@ class PersonWithPersonalVehiclePlanSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(VehicleManager.privateVehicleManager.managerId),
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -324,7 +324,7 @@ class PersonWithPersonalVehiclePlanSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(VehicleManager.privateVehicleManager.managerId),
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -468,13 +468,13 @@ class PersonWithPersonalVehiclePlanSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(VehicleManager.privateVehicleManager.managerId),
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(VehicleManager.privateVehicleManager.managerId),
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -580,7 +580,7 @@ class PersonWithPersonalVehiclePlanSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerId = Some(VehicleManager.privateVehicleManager.managerId),
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())

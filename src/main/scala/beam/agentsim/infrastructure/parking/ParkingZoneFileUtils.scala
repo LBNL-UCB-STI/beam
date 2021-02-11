@@ -125,9 +125,8 @@ object ParkingZoneFileUtils extends LazyLogging {
         }
         val parkingZoneName = parkingZone.parkingZoneName.getOrElse("")
         val landCostInUSDPerSqft = parkingZone.landCostInUSDPerSqft.getOrElse("")
-        val reservedFor = parkingZone.reservedFor.getOrElse("")
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft,$reservedFor"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft"
       }
     } match {
       case Failure(e) =>
@@ -390,7 +389,6 @@ object ParkingZoneFileUtils extends LazyLogging {
               taz,
               parkingType,
               numStalls,
-              vehicleManagerType,
               vehicleManagerId,
               chargingPoint,
               pricingModel,

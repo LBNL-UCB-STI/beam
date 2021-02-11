@@ -103,7 +103,11 @@ class SitePowerManager(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingN
     val chargingPointLoad =
       ChargingPointType.getChargingPointInstalledPowerInKw(station.zone.chargingPointType)
     val chargingPowerLimit = maxZoneLoad * chargingPointLoad / maxUnlimitedZoneLoad
-    vehicle.refuelingSessionDurationAndEnergyInJoules(Some(timeInterval), Some(chargingPowerLimit))
+    vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = Some(timeInterval),
+      stateOfChargeLimit = None,
+      chargingPowerLimit = Some(chargingPowerLimit)
+    )
   }
 
   /**
@@ -115,7 +119,11 @@ class SitePowerManager(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingN
     import chargingSession._
     import chargingVehicle._
     // Collect data on load demand
-    val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(Some(duration))
+    val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = Some(duration),
+      stateOfChargeLimit = None,
+      chargingPowerLimit = None
+    )
     beamServices.matsimServices.getEvents.processEvent(
       event.TAZSkimmerEvent(
         cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),

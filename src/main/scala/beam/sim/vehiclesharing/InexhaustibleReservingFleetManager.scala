@@ -51,7 +51,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
-        Some(managerId),
+        managerId = managerId,
         rand.nextInt()
       )
       nextVehicleIndex += 1

@@ -319,7 +319,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        Some(rideHailManagerId),
+        managerId = rideHailManagerId,
         randomSeed
       )
 

@@ -10,31 +10,38 @@ case class VehicleManager(managerId: Id[VehicleManager], managerType: VehicleMan
 
 object VehicleManager {
 
+  val bodiesVehicleManager: VehicleManager =
+    VehicleManager.create(Id.create("bodies", classOf[VehicleManager]), Some(VehicleCategory.Body))
+
   val privateVehicleManager: VehicleManager =
     VehicleManager.create(Id.create("private", classOf[VehicleManager]), Some(VehicleCategory.Car))
 
   val transitVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("transit", classOf[VehicleManager]), None, isTransit = true)
+    VehicleManager.create(Id.create("transit", classOf[VehicleManager]), None)
 
   def getType(
     vehicleType: BeamVehicleType,
     isRideHail: Boolean = false,
     isShared: Boolean = false,
-    isTransit: Boolean = false,
+    isFreight: Boolean = false,
   ): VehicleManagerType =
-    VehicleManagerType.getManagerType(isRideHail, isShared, isTransit, Some(vehicleType.vehicleCategory))
+    VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, Some(vehicleType.vehicleCategory))
 
   def create(
     managerId: Id[VehicleManager],
     vehicleCategoryOption: Option[VehicleCategory],
     isRideHail: Boolean = false,
     isShared: Boolean = false,
-    isTransit: Boolean = false,
+    isFreight: Boolean = false,
   ): VehicleManager =
-    VehicleManager(managerId, VehicleManagerType.getManagerType(isRideHail, isShared, isTransit, vehicleCategoryOption))
+    VehicleManager(managerId, VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, vehicleCategoryOption))
 }
 
-sealed abstract class VehicleManagerType(val isPrivate: Boolean, val isShared: Boolean = false) extends EnumEntry
+sealed abstract class VehicleManagerType(
+  val isPrivate: Boolean,
+  val isShared: Boolean = false,
+  val isFreight: Boolean = false
+) extends EnumEntry
 
 object VehicleManagerType extends Enum[VehicleManagerType] {
   val values: immutable.IndexedSeq[VehicleManagerType] = findValues
@@ -45,25 +52,25 @@ object VehicleManagerType extends Enum[VehicleManagerType] {
   case object Carsharing extends VehicleManagerType(isPrivate = false, isShared = true) //for shared fleet of type car
   case object SharedMicromobility extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
   case object Ridehail extends VehicleManagerType(isPrivate = false) //for ridehail
-  case object Freight extends VehicleManagerType(isPrivate = false)
+  case object Freight extends VehicleManagerType(isPrivate = false, isFreight = true)
   case object Transit extends VehicleManagerType(isPrivate = false, isShared = true) // for transit
 
   def getManagerType(
     isRideHail: Boolean = false,
     isShared: Boolean = false,
-    isTransit: Boolean = false,
+    isFreight: Boolean = false,
     vehicleCategory: Option[VehicleCategory]
   ): VehicleManagerType = {
 
     vehicleCategory match {
-      case _ if isRideHail                        => Ridehail
-      case _ if isTransit                         => Transit
-      case Some(VehicleCategory.Body)             => Bodies
-      case Some(VehicleCategory.Bike) if isShared => SharedMicromobility
-      case Some(VehicleCategory.Bike)             => Bikes
-      case Some(VehicleCategory.Car) if isShared  => Carsharing
-      case Some(VehicleCategory.Car)              => Cars
-      case _                                      => Freight
+      case Some(VehicleCategory.Body)              => Bodies
+      case Some(VehicleCategory.Bike) if isShared  => SharedMicromobility
+      case Some(VehicleCategory.Bike)              => Bikes
+      case Some(VehicleCategory.Car) if isRideHail => Ridehail
+      case Some(VehicleCategory.Car) if isShared   => Carsharing
+      case Some(VehicleCategory.Car)               => Cars
+      case _ if isFreight                          => Freight
+      case _                                       => Transit
     }
   }
 }

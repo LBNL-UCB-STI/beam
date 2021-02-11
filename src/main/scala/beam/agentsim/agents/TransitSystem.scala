@@ -134,7 +134,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
           beamVehicleId,
           powertrain,
           vehicleType,
-          Some(VehicleManager.transitVehicleManager.managerId),
+          managerId = VehicleManager.transitVehicleManager.managerId,
           randomSeed
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
