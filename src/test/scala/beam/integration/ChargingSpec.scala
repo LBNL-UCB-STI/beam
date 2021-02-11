@@ -84,7 +84,7 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
                   refuelSessionEvents += (
                     (
                       energyInJoules,
-                      sessionDuration,
+                      sessionDuration.toLong,
                       ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                     )
                   )
