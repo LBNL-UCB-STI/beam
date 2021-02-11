@@ -400,7 +400,7 @@ class HierarchicalParkingManagerSpec
     val inquiry = ParkingInquiry(coord, "init")
     val response = spm.processParkingInquiry(inquiry)
     response match {
-      case Some(rsp @ ParkingInquiryResponse(stall, _)) if stall.tazId shouldBe (Id.create(tazId, classOf[TAZ])) =>
+      case Some(rsp @ ParkingInquiryResponse(stall, _)) if stall.tazId.toString == tazId =>
         val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
         dist should be <= 400.0
       case _ =>
