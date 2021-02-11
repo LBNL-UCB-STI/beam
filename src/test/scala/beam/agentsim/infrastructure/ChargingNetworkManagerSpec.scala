@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -112,11 +112,27 @@ class ChargingNetworkManagerSpec
   private val pricingModel = PricingModel.Block(0.0, 0)
 
   val parkingStall: ParkingStall =
-    ParkingStall(taz2.tazId, 0, taz2.coord, 0.0, Some(chargingType), Some(pricingModel), ParkingType.Public)
+    ParkingStall(
+      taz2.tazId,
+      taz2.tazId,
+      0,
+      taz2.coord,
+      0.0,
+      Some(chargingType),
+      Some(pricingModel),
+      ParkingType.Public,
+      managerId = VehicleManager.privateVehicleManager.managerId
+    )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _
   var personAgent: TestProbe = _
   var chargingNetworkManager: TestActorRef[ChargingNetworkManager] = _
+
+  private val envelopeInUTM = {
+    val envelopeInUTM = beamServices.geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
+    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
+    envelopeInUTM
+  }
 
   "ChargingNetworkManager" should {
     "process trigger PlanningTimeOutTrigger" in {
@@ -144,10 +160,13 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectMsgType[ScheduleTrigger] should be(
-        ScheduleTrigger(ChargingTimeOutTrigger(10, beamVilleCar.id, defaultVehicleManager), chargingNetworkManager)
+        ScheduleTrigger(
+          ChargingTimeOutTrigger(10, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+          chargingNetworkManager
+        )
       )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
@@ -171,20 +190,26 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08E8)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(300), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(ChargingTimeOutTrigger(442, beamVilleCar.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(
+          ChargingTimeOutTrigger(442, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+          chargingNetworkManager
+        ),
         ScheduleTrigger(PlanningTimeOutTrigger(600), chargingNetworkManager)
       )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.805E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar.id, defaultVehicleManager), 0)
+      chargingNetworkManager ! TriggerWithId(
+        ChargingTimeOutTrigger(442, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+        0
+      )
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector()
       expectNoMessage()
       parkingManager.expectMsgType[ReleaseParkingStall]
@@ -201,20 +226,26 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(300), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(ChargingTimeOutTrigger(334, beamVilleCar.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(
+          ChargingTimeOutTrigger(334, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+          chargingNetworkManager
+        ),
         ScheduleTrigger(PlanningTimeOutTrigger(600), chargingNetworkManager)
       )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.075E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(334, beamVilleCar.id, defaultVehicleManager), 0)
+      chargingNetworkManager ! TriggerWithId(
+        ChargingTimeOutTrigger(334, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+        0
+      )
       expectMsgType[CompletionNotice] shouldBe CompletionNotice(0)
       expectNoMessage()
       parkingManager.expectMsgType[ReleaseParkingStall]
@@ -231,17 +262,20 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
-      chargingNetworkManager ! ChargingUnplugRequest(35, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingUnplugRequest(35, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[EndingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(35, beamVilleCar.id, defaultVehicleManager), 0)
+      chargingNetworkManager ! TriggerWithId(
+        ChargingTimeOutTrigger(35, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+        0
+      )
       expectMsgType[CompletionNotice]
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125E8)
 
@@ -263,7 +297,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4E7)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4E7)
@@ -275,7 +309,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.265E8)
 
-      chargingNetworkManager ! ChargingUnplugRequest(315, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingUnplugRequest(315, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[EndingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.3025E8)
@@ -295,7 +329,7 @@ class ChargingNetworkManagerSpec
       )
 
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
-      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4E7)
@@ -308,18 +342,24 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(600), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(ChargingTimeOutTrigger(748, beamVilleCar.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(
+          ChargingTimeOutTrigger(748, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+          chargingNetworkManager
+        ),
         ScheduleTrigger(PlanningTimeOutTrigger(900), chargingNetworkManager)
       )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.79E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(748, beamVilleCar.id, defaultVehicleManager), 0)
+      chargingNetworkManager ! TriggerWithId(
+        ChargingTimeOutTrigger(748, beamVilleCar.id, VehicleManager.privateVehicleManager.managerId),
+        0
+      )
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
 
-      chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar, defaultVehicleManager)
+      chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[UnhandledVehicle]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
@@ -337,26 +377,32 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08E8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, defaultVehicleManager)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, VehicleManager.privateVehicleManager.managerId)
       expectMsgType[WaitingInLine] should be(WaitingInLine(10, beamVilleCar3.id))
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(300), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(ChargingTimeOutTrigger(442, beamVilleCar2.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(
+          ChargingTimeOutTrigger(442, beamVilleCar2.id, VehicleManager.privateVehicleManager.managerId),
+          chargingNetworkManager
+        ),
         ScheduleTrigger(PlanningTimeOutTrigger(600), chargingNetworkManager)
       )
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(1.805E8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2.id, defaultVehicleManager), 0)
+      chargingNetworkManager ! TriggerWithId(
+        ChargingTimeOutTrigger(442, beamVilleCar2.id, VehicleManager.privateVehicleManager.managerId),
+        0
+      )
       expectMsgType[StartingRefuelSession] should be(StartingRefuelSession(442, beamVilleCar3.id))
       expectMsgType[CompletionNotice]
       expectNoMessage()
@@ -366,14 +412,20 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(PlanningTimeOutTrigger(600), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(ChargingTimeOutTrigger(874, beamVilleCar3.id, defaultVehicleManager), chargingNetworkManager),
+        ScheduleTrigger(
+          ChargingTimeOutTrigger(874, beamVilleCar3.id, VehicleManager.privateVehicleManager.managerId),
+          chargingNetworkManager
+        ),
         ScheduleTrigger(PlanningTimeOutTrigger(900), chargingNetworkManager)
       )
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16E8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.475E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(874, beamVilleCar3.id, defaultVehicleManager), 0)
+      chargingNetworkManager ! TriggerWithId(
+        ChargingTimeOutTrigger(874, beamVilleCar3.id, VehicleManager.privateVehicleManager.managerId),
+        0
+      )
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16E8)
@@ -395,7 +447,19 @@ class ChargingNetworkManagerSpec
     )
     parkingManager = new TestProbe(system)
     chargingNetworkManager = TestActorRef[ChargingNetworkManager](
-      Props(new ChargingNetworkManager(beamServices, parkingManager.ref, scheduler))
+      ChargingNetworkManager.props(
+        beamServices,
+        ChargingNetworkInfo(
+          beamServices,
+          envelopeInUTM,
+          Map[Id[VehicleManager], VehicleManager](
+            VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
+            VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
+          )
+        ),
+        parkingManager.ref,
+        scheduler
+      )
     )
     personAgent = new TestProbe(system)
 

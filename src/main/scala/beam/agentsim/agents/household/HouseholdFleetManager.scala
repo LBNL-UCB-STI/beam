@@ -114,6 +114,5 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 }
 
 object HouseholdFleetManager {
-  val PRIVATE_VEHICLE_MANAGER_ID: Id[VehicleManager] = Id.create("private-vehicle", classOf[VehicleManager])
   case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)])
 }

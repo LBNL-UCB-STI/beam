@@ -3,9 +3,9 @@ package beam.agentsim.infrastructure.power
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{defaultVehicleManager, ChargingZone}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.{ChargingNetwork, ParkingStall}
@@ -87,28 +87,32 @@ class SitePowerManagerSpec
     2,
     ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC"),
     PricingModel.FlatFee(0.0),
-    defaultVehicleManager
+    VehicleManager.privateVehicleManager.managerId
   )
 
   private val vehiclesList = {
     val parkingStall1: ParkingStall = ParkingStall(
+      dummyChargingZone.tazId,
       dummyChargingZone.tazId,
       0,
       tazMap.getTAZ(dummyChargingZone.tazId).get.coord,
       0.0,
       Some(dummyChargingZone.chargingPointType),
       Some(dummyChargingZone.pricingModel),
-      dummyChargingZone.parkingType
+      dummyChargingZone.parkingType,
+      managerId = VehicleManager.privateVehicleManager.managerId,
     )
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType]))
+      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
+      managerId = Some(VehicleManager.privateVehicleManager.managerId)
     )
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
+      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
+      managerId = Some(VehicleManager.privateVehicleManager.managerId)
     )
     v1.useParkingStall(parkingStall1)
     v2.useParkingStall(parkingStall1.copy())
@@ -126,9 +130,9 @@ class SitePowerManagerSpec
 
     val dummyStation = ChargingStation(dummyChargingZone)
     zoneTree.put(tazMap.getTAZs.head.coord.getX, tazMap.getTAZs.head.coord.getY, dummyChargingZone)
-    val dummyNetwork = new ChargingNetwork(defaultVehicleManager, zoneTree)
+    val dummyNetwork = new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, zoneTree)
     val trieMap =
-      TrieMap[String, ChargingNetwork](defaultVehicleManager -> dummyNetwork)
+      TrieMap[Id[VehicleManager], ChargingNetwork](VehicleManager.privateVehicleManager.managerId -> dummyNetwork)
     val sitePowerManager = new SitePowerManager(trieMap, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
@@ -150,7 +154,6 @@ class SitePowerManagerSpec
         chargingVehicle.status shouldBe ConnectionStatus.Connected
         chargingVehicle shouldBe ChargingVehicle(
           v,
-          defaultVehicleManager,
           v.stall.get,
           dummyStation,
           0,

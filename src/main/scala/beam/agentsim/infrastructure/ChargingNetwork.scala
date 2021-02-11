@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingZone, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
@@ -16,7 +16,7 @@ import scala.collection.mutable.ListBuffer
   * Created by haitamlaarabi
   */
 
-class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree: QuadTree[ChargingZone])
+class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
   import ChargingNetwork._
 
@@ -29,7 +29,7 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
     * @return charging station
     */
   def lookupStation(stall: ParkingStall): Option[ChargingStation] =
-    chargingStationMap.get(ChargingZone.to(stall, vehicleManager))
+    chargingStationMap.get(ChargingZone.to(stall))
 
   /**
     * lookup information about charging vehicle
@@ -64,7 +64,7 @@ class ChargingNetwork(vehicleManagerName: VehicleManager, chargingStationsQTree:
     * get name of the vehicle manager
     * @return VehicleManager
     */
-  def vehicleManager: VehicleManager = vehicleManagerName
+  def vehicleManagerId: Id[VehicleManager] = managerId
 
   /**
     * clear charging vehicle map
@@ -143,7 +143,7 @@ object ChargingNetwork {
       stall: ParkingStall,
       theSender: ActorRef
     ): ChargingVehicle = this.synchronized {
-      val chargingVehicle = ChargingVehicle(vehicle, zone.vehicleManager, stall, this, tick, theSender)
+      val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, theSender)
       if (numAvailableChargers > 0) {
         chargingVehicle.updateStatus(Connected)
         connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
@@ -190,7 +190,6 @@ object ChargingNetwork {
 
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
-    vehicleManager: VehicleManager,
     stall: ParkingStall,
     chargingStation: ChargingStation,
     arrivalTime: Int,

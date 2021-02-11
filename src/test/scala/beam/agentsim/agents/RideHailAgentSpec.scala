@@ -1,7 +1,5 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase}
 import akka.util.Timeout
@@ -9,13 +7,12 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.PersonAgent.DrivingInterrupted
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger, StopDriving}
-import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager}
+import beam.agentsim.agents.ridehail.RideHailAgent
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, ShiftEvent, SpaceTime}
-import beam.agentsim.infrastructure.ZonalParkingManager
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -32,6 +29,8 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfter, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
+
+import java.util.concurrent.TimeUnit
 
 //#Test needs to be updated/fixed on LBNL side
 class RideHailAgentSpec
@@ -65,17 +64,17 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager
-      .props(
-        beamConfig,
-        beamScenario.tazTreeMap.tazQuadTree,
-        beamScenario.tazTreeMap.idToTAZMapping,
-        identity[TAZ],
-        services.geo,
-        services.beamRouter,
+    ParkingNetworkManager.props(
+      services,
+      ParkingNetworkInfo(
+        services,
         boundingBox,
-        ZonalParkingManager.getDefaultParkingZones(beamConfig),
-      ),
+        Map[Id[VehicleManager], VehicleManager](
+          VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
+          VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
+        )
+      )
+    ),
     "ParkingManager"
   )
 
@@ -167,7 +166,9 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
+          managerId = Some(
+            Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          ),
         )
       beamVehicle.setManager(Some(self))
 
@@ -247,7 +248,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])),
         )
       beamVehicle.setManager(Some(self))
 
@@ -319,7 +320,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          managerInfo = VehicleManagerInfo(RideHailManager.RIDE_HAIL_VEHICLE_MANAGER_ID, vehicleType, isRideHail = true),
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])),
         )
       beamVehicle.setManager(Some(self))
 

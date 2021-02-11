@@ -543,7 +543,7 @@ object ZonalParkingManager extends LazyLogging {
     random: Random
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     loadParkingZones(
-      Map(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> parkingFilePath),
+      Map(VehicleManager.privateVehicleManager.managerId -> parkingFilePath),
       geoQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,
@@ -558,7 +558,7 @@ object ZonalParkingManager extends LazyLogging {
     parkingCostScalingFactor: Double,
     random: Random
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val mainParkingFilePath = parkingFilePaths.get(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID)
+    val mainParkingFilePath = parkingFilePaths.get(VehicleManager.privateVehicleManager.managerId)
     val initialAccumulator: ParkingLoadingAccumulator[GEO] = mainParkingFilePath match {
       case Some(parkingFilePath) =>
         if (parkingFilePath.isEmpty) {
@@ -589,7 +589,7 @@ object ZonalParkingManager extends LazyLogging {
         }
       case None => new ParkingLoadingAccumulator[GEO]()
     }
-    val otherParkingFiles = parkingFilePaths - HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID
+    val otherParkingFiles = parkingFilePaths - VehicleManager.privateVehicleManager.managerId
     val parkingLoadingAccumulator = otherParkingFiles.foldLeft(initialAccumulator) {
       case (acc, (vehicleManagerId, filePath)) =>
         filePath.trim match {
@@ -717,6 +717,6 @@ object ZonalParkingManager extends LazyLogging {
   }
 
   def getDefaultParkingZones(beamConfig: BeamConfig): Map[Id[VehicleManager], String] = Map(
-    HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> beamConfig.beam.agentsim.taz.parkingFilePath,
+    VehicleManager.privateVehicleManager.managerId -> beamConfig.beam.agentsim.taz.parkingFilePath,
   )
 }

@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
-import beam.agentsim.infrastructure.ChargingNetworkManager.{defaultVehicleManager, ChargingZone}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import com.vividsolutions.jts.geom.Envelope
@@ -41,13 +41,13 @@ object ChargingNetworkInfo {
     )
     val zonesWithCharger =
       zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.geoId).get))
-//    val coordinates = zonesWithCharger.map(_._2.coord)
-//    val xs = coordinates.map(_.getX)
-//    val ys = coordinates.map(_.getY)
+    val coordinates = zonesWithCharger.map(_._2.coord)
+    val xs = coordinates.map(_.getX)
+    val ys = coordinates.map(_.getY)
 //    val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
-//    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
-//    envelopeInUTM.expandToInclude(xs.min, ys.min)
-//    envelopeInUTM.expandToInclude(xs.max, ys.max)
+    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
+    envelopeInUTM.expandToInclude(xs.min, ys.min)
+    envelopeInUTM.expandToInclude(xs.max, ys.max)
 
     val stationsQuadTree = new QuadTree[ChargingZone](
       envelopeInUTM.getMinX,
@@ -67,7 +67,7 @@ object ChargingNetworkInfo {
             zone.maxStalls,
             zone.chargingPointType.get,
             zone.pricingModel.get,
-            defaultVehicleManager
+            zone.vehicleManagerId
           )
         )
     }

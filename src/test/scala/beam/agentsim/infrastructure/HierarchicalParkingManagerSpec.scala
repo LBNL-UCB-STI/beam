@@ -156,7 +156,11 @@ class HierarchicalParkingManagerSpec
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[Link](oneParkingOption, random)
+        parking = ParkingZoneFileUtils.fromIterator[Link](
+          oneParkingOption,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
         parkingManager = HierarchicalParkingManager.init(
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -222,7 +226,12 @@ class HierarchicalParkingManagerSpec
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[Link](oneParkingOption, random)
+        parking = ParkingZoneFileUtils
+          .fromIterator[Link](
+            oneParkingOption,
+            random,
+            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+          )
         parkingManager = HierarchicalParkingManager.init(
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -305,7 +314,11 @@ class HierarchicalParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[Link](parkingConfiguration, random)
+        parking = ParkingZoneFileUtils.fromIterator[Link](
+          parkingConfiguration,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
         parkingManager = HierarchicalParkingManager.init(
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),

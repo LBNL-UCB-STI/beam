@@ -78,6 +78,7 @@ class ChargingSpec extends FlatSpec with Matchers with BeamHelper {
                     _,
                     sessionDuration,
                     `vehicleId`,
+                    _,
                     _
                     ) =>
                   refuelSessionEvents += (

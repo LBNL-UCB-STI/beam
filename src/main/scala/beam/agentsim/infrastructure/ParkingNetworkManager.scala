@@ -1,15 +1,12 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
+import akka.actor.{ActorLogging, Cancellable, Props}
 import akka.event.Logging
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Id
 
 import scala.concurrent.duration._
 
@@ -26,14 +23,15 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: Park
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
-  private val publicParking = parkingNetworkInfo.getPublicParking
-  private val isParallelizedPublicParking = publicParking.isInstanceOf[ParallelParkingManager]
+  private val privateCarsParkingNetwork = parkingNetworkInfo.getPrivateCarsParkingNetwork
+
+  private val isParallelizedPublicParking = privateCarsParkingNetwork.isInstanceOf[ParallelParkingManager]
 
   override def receive: Receive = {
     case inquiry: ParkingInquiry if isParallelizedPublicParking =>
-      publicParking.processParkingInquiry(inquiry, Some(counter)).map(sender() ! _)
-    case inquiry: ParkingInquiry      => publicParking.processParkingInquiry(inquiry, None).map(sender() ! _)
-    case release: ReleaseParkingStall => parkingNetworkInfo.getPublicParking.processReleaseParkingStall(release)
+      privateCarsParkingNetwork.processParkingInquiry(inquiry, Some(counter)).map(sender() ! _)
+    case inquiry: ParkingInquiry      => privateCarsParkingNetwork.processParkingInquiry(inquiry, None).map(sender() ! _)
+    case release: ReleaseParkingStall => privateCarsParkingNetwork.processReleaseParkingStall(release)
     case "tick"                       => counter.tick()
   }
 

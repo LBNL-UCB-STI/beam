@@ -5,7 +5,6 @@ import akka.testkit.{ImplicitSender, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleManagerType.Cars
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager, VehicleManagerType}
@@ -337,9 +336,9 @@ class ZonalParkingManagerSpec
       val sharedFleet1 = Id.create("shared-fleet-1", classOf[VehicleManager])
       val sharedFleet2 = Id.create("shared-fleet-2", classOf[VehicleManager])
       val parkingFilePaths = Map(
-        HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
-        sharedFleet1                                     -> "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
-        sharedFleet2                                     -> "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv",
+        VehicleManager.privateVehicleManager.managerId -> "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
+        sharedFleet1                                   -> "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
+        sharedFleet2                                   -> "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv",
       )
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val zpm = ZonalParkingManager(
@@ -393,7 +392,7 @@ class ZonalParkingManagerSpec
     parkingZoneId: Int,
     pricingModel: PricingModel,
     parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager] = HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID,
+    vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId,
     vehicleManagerType: VehicleManagerType = Cars,
   ) = {
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))

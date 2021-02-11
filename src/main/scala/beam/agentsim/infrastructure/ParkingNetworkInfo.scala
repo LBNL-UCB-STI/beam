@@ -32,7 +32,7 @@ case class ParkingNetworkInfo(
 
   def getParkingNetwork(managerId: Id[VehicleManager]): ParkingNetwork = parkingNetworkMap(managerId)
 
-  def getPublicParking: ParkingNetwork = parkingNetworkMap(VehicleManager.privateVehicleManager.managerId)
+  def getPrivateCarsParkingNetwork: ParkingNetwork = parkingNetworkMap(VehicleManager.privateVehicleManager.managerId)
 
   def getRideHailParking: ParkingNetwork =
     parkingNetworkMap(vehicleManagers.filter(_._2.managerType == VehicleManagerType.Ridehail).head._1)

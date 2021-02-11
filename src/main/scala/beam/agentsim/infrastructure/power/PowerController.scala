@@ -1,17 +1,19 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 
 import scala.collection.concurrent.TrieMap
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: TrieMap[String, ChargingNetwork], beamConfig: BeamConfig)
+class PowerController(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
     extends LazyLogging {
   import ChargingZone._
   import SitePowerManager._

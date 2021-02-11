@@ -147,7 +147,12 @@ class ParallelParkingManagerSpec
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, random)
+        parking = ParkingZoneFileUtils
+          .fromIterator[TAZ](
+            oneParkingOption,
+            random,
+            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+          )
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
@@ -212,7 +217,11 @@ class ParallelParkingManagerSpec
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](
+          oneParkingOption,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
@@ -294,7 +303,11 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](
+          parkingConfiguration,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,

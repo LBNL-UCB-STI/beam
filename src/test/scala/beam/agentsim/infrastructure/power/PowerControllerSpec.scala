@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
-import beam.agentsim.infrastructure.ChargingNetworkManager.{defaultVehicleManager, ChargingZone}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
@@ -45,7 +46,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     1,
     ChargingPointType.ChargingStationType1,
     PricingModel.FlatFee(0.0),
-    defaultVehicleManager
+    VehicleManager.privateVehicleManager.managerId
   )
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
@@ -73,7 +74,12 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      TrieMap[String, ChargingNetwork](defaultVehicleManager -> new ChargingNetwork(defaultVehicleManager, zoneTree)),
+      TrieMap[Id[VehicleManager], ChargingNetwork](
+        VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
+          VehicleManager.privateVehicleManager.managerId,
+          zoneTree
+        )
+      ),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = Some(beamFederateMock)
@@ -93,7 +99,12 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when not connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      TrieMap[String, ChargingNetwork](defaultVehicleManager -> new ChargingNetwork(defaultVehicleManager, zoneTree)),
+      TrieMap[Id[VehicleManager], ChargingNetwork](
+        VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
+          VehicleManager.privateVehicleManager.managerId,
+          zoneTree
+        )
+      ),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = None

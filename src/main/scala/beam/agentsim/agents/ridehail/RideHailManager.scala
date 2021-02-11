@@ -84,8 +84,6 @@ object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_ALL_AT_CENTER = "ALL_AT_CENTER"
   val INITIAL_RIDE_HAIL_LOCATION_ALL_IN_CORNER = "ALL_IN_CORNER"
 
-  val RIDE_HAIL_VEHICLE_MANAGER_ID: Id[VehicleManager] = Id.create("private-vehicle", classOf[VehicleManager])
-
   type VehicleId = Id[BeamVehicle]
 
   case object NotifyIterationEnds
