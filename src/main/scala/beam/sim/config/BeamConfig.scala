@@ -3806,13 +3806,24 @@ object BeamConfig {
       routeHistoryFileName: java.lang.String,
       routeHistoryFilePath: java.lang.String,
       samplePopulationIntegerFlag: scala.Int,
-      skimsFileName: java.lang.String,
-      skimsFilePath: java.lang.String,
-      skimsPlusFileName: java.lang.String,
-      skimsPlusFilePath: java.lang.String
+      skimsFilePaths: scala.Option[scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm]]
     )
 
     object WarmStart {
+      case class SkimsFilePaths$Elm(
+        skimType: java.lang.String,
+        skimsFilePath: java.lang.String
+      )
+
+      object SkimsFilePaths$Elm {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm = {
+          BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm(
+            skimType = c.getString("skimType"),
+            skimsFilePath = if (c.hasPathOrNull("skimsFilePath")) c.getString("skimsFilePath") else ""
+          )
+        }
+      }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
@@ -3824,12 +3835,22 @@ object BeamConfig {
             if (c.hasPathOrNull("routeHistoryFilePath")) c.getString("routeHistoryFilePath") else "",
           samplePopulationIntegerFlag =
             if (c.hasPathOrNull("samplePopulationIntegerFlag")) c.getInt("samplePopulationIntegerFlag") else 0,
-          skimsFileName = if (c.hasPathOrNull("skimsFileName")) c.getString("skimsFileName") else "skims.csv.gz",
-          skimsFilePath = if (c.hasPathOrNull("skimsFilePath")) c.getString("skimsFilePath") else "",
-          skimsPlusFileName =
-            if (c.hasPathOrNull("skimsPlusFileName")) c.getString("skimsPlusFileName") else "skimsPlus.csv.gz",
-          skimsPlusFilePath = if (c.hasPathOrNull("skimsPlusFilePath")) c.getString("skimsPlusFilePath") else ""
+          skimsFilePaths =
+            if (c.hasPathOrNull("skimsFilePaths"))
+              scala.Some($_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(c.getList("skimsFilePaths")))
+            else None
         )
+      }
+      private def $_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(
+        cl: com.typesafe.config.ConfigList
+      ): scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm] = {
+        import scala.collection.JavaConverters._
+        cl.asScala
+          .map(
+            cv =>
+              BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
+          )
+          .toList
       }
     }
 

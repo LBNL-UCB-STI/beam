@@ -3,19 +3,19 @@ package beam.sim
 import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
-
 import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
-
 import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
-import beam.sim.config.BeamConfig.Beam
+import beam.router.skim.Skims.SkimType
+import beam.router.skim.AbstractSkimmer
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.BeamWarmStart.WarmStartConfigProperties
+import beam.sim.config.BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm
 import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
 import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
@@ -253,15 +253,25 @@ object BeamWarmStart extends LazyLogging {
       val instance = BeamWarmStart(beamConfig, matsimConfig.travelTimeCalculator())
 
       val newWarmStartConfig: Beam.WarmStart = {
-        val newSkimsFilePath = Try(instance.compressedLocation("Skims file", beamConfig.beam.warmStart.skimsFileName))
-          .getOrElse(instance.parentRunPath)
-        val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
+        val skimCfg = beamConfig.beam.router.skim
+        val skimFileNames = List(
+          SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
+          SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
+          SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
+          SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
+        )
+
+        val newSkimsFilePath: List[SkimsFilePaths$Elm] = skimFileNames.map {
+          case (skimType, fileName) =>
+            val filePath = Try(instance.compressedLocation("Skims file", fileName + AbstractSkimmer.AGG_SUFFIX))
+              .getOrElse(instance.parentRunPath)
+            SkimsFilePaths$Elm(skimType.toString, filePath)
+        }
         val newRouteHistoryFilePath =
           Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
 
         beamConfig.beam.warmStart.copy(
-          skimsFilePath = newSkimsFilePath,
-          skimsPlusFilePath = newSkimPlusFilePath,
+          skimsFilePaths = Some(newSkimsFilePath),
           routeHistoryFilePath = newRouteHistoryFilePath
         )
       }

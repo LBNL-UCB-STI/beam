@@ -35,6 +35,7 @@ class DriveTimeSkimmer @Inject()(
   override protected val skimFileHeader: String =
     "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,iterations"
   override protected val skimName: String = config.drive_time_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.DT_SKIMMER
   private val chartName: String = "scatterplot_simulation_vs_reference.png"
   private val histogramName: String = "simulation_vs_reference_histogram.png"
   private val histogramBinSize: Int = 200

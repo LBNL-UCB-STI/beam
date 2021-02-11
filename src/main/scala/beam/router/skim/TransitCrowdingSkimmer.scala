@@ -26,6 +26,7 @@ class TransitCrowdingSkimmer @Inject()(
   override protected val skimFileBaseName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
   override protected val skimFileHeader = "vehicleId,fromStopIdx,numberOfPassengers,capacity,observations,iterations"
   override protected val skimName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     super.notifyIterationStarts(event)

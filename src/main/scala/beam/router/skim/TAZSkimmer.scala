@@ -15,6 +15,7 @@ class TAZSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamSce
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = TAZSkims(beamScenario)
 
   override protected val skimName: String = config.taz_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TAZ_SKIMMER
   override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "time,taz,hex,actor,key,value,observations,iterations"

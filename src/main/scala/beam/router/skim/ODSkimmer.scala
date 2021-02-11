@@ -25,6 +25,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = ODSkims(beamConfig, beamScenario)
 
   override protected val skimName: String = config.origin_destination_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.OD_SKIMMER
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
