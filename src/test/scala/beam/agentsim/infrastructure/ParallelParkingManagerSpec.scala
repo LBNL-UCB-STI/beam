@@ -189,7 +189,6 @@ class ParallelParkingManagerSpec
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
-
         response2 match {
           case Some(res @ ParkingInquiryResponse(stall, responseId))
               if stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
