@@ -20,14 +20,22 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     extends LazyLogging {
   import ChargingNetwork._
 
-  private val chargingStationMap: Map[ChargingZone, ChargingStation] =
+  private lazy val chargingStationMap: Map[ChargingZone, ChargingStation] =
     chargingStationsQTree.values().asScala.map(z => z -> ChargingStation(z)).toMap
 
   lazy val chargingStations: List[ChargingStation] = chargingStationMap.values.toList
 
-  lazy val connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.connectedVehicles)
+  /**
+    *
+    * @return all vehicles still connected to a charging point
+    */
+  def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.connectedVehicles)
 
-  lazy val vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.vehicles)
+  /**
+    *
+    * @return all vehicles, connected, and the ones waiting in line
+    */
+  def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.vehicles)
 
   /**
     * lookup a station from a parking stall
