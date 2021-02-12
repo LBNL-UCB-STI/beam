@@ -10,7 +10,7 @@ import spray.json.{JsNumber, JsString, JsValue, _}
 
 object BeamHelicsInterface {
   // Lazy makes sure that it is initialized only once
-  lazy val loadHelics: Unit = HelicsLoader.load()
+  lazy val loadHelicsIfNotAlreadyLoaded: Unit = HelicsLoader.load()
 
   def unloadHelics(): Unit = this.synchronized {
     helics.helicsCleanupLibrary()
@@ -24,12 +24,12 @@ object BeamHelicsInterface {
     * @param dataInStreamPointAndBufferSizeMaybe ("FEDERATE_NAME/SUBSCRIPTION_NAME" , "BUFFER_SIZE")
     * @return
     */
-  def getFederateInstance(
+  def getFederate(
     fedName: String,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointAndBufferSizeMaybe: Option[(String, Int)] = None
   ): BeamFederate = {
-    loadHelics
+    loadHelicsIfNotAlreadyLoaded
     BeamFederate(fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe)
   }
 
@@ -42,14 +42,14 @@ object BeamHelicsInterface {
     * @param dataInStreamPointAndBufferSizeMaybe (FEDERATE_NAME/SUBSCRIPTION_NAME , BUFFER_SIZE)
     * @return
     */
-  def getBrokerInstance(
+  def getBroker(
     brokerName: String,
     numFederates: Int,
     fedName: String,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointAndBufferSizeMaybe: Option[(String, Int)] = None
   ): BeamBroker = {
-    loadHelics
+    loadHelicsIfNotAlreadyLoaded
     BeamBroker(brokerName, numFederates, fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe)
   }
 
@@ -239,11 +239,12 @@ object BeamHelicsInterface {
       * close HELICS library
       */
     def close(): Unit = {
+      logger.debug(s"closing BeamFederate")
       if (helics.helicsFederateIsValid(fedComb) == 1) {
         helics.helicsFederateFinalize(fedComb)
         helics.helicsFederateFree(fedComb)
         helics.helicsCloseLibrary()
-        logger.debug(s"closing BeamFederate")
+        logger.debug(s"BeamFederate closed")
       } else {
         logger.error(s"helics federate is not valid!")
       }
@@ -261,10 +262,10 @@ object BeamHelicsInterface {
     private val broker = helics.helicsCreateBroker(coreType, "", s"-f $numFederates --name=$brokerName")
     lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
     private val federate: Option[BeamFederate] = if (isConnected) {
-      Some(getFederateInstance(fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe))
+      Some(getFederate(fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe))
     } else {
       None
     }
-    def getFederate: Option[BeamFederate] = federate
+    def getBrokersFederate: Option[BeamFederate] = federate
   }
 }

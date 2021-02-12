@@ -693,7 +693,7 @@ class PersonAgent(
       )
   }
 
-  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselve s.
+  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll, energyConsumedOption), data: BasePersonData) =>
       updateFuelConsumed(energyConsumedOption)

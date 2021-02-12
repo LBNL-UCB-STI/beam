@@ -10,7 +10,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
 class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
-  override def beforeAll(): Unit = loadHelics
+  override def beforeAll(): Unit = loadHelicsIfNotAlreadyLoaded
 
   override def afterAll(): Unit = {
     helics.helicsCleanupLibrary()
@@ -19,8 +19,8 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
 
   "Running a broker and two federates" must "result is message being transmitted back and forth" in {
     lazy val beamBroker =
-      getBrokerInstance("Broker", 2, "Federate1", Some("LIST_MAP_ANY"), Some(("Federate2/LIST_ANY", 1000)))
-    lazy val beamFederate = getFederateInstance("Federate2", Some("LIST_ANY"), Some(("Federate1/LIST_MAP_ANY", 1000)))
+      getBroker("Broker", 2, "Federate1", Some("LIST_MAP_ANY"), Some(("Federate2/LIST_ANY", 1000)))
+    lazy val beamFederate = getFederate("Federate2", Some("LIST_ANY"), Some(("Federate1/LIST_MAP_ANY", 1000)))
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {

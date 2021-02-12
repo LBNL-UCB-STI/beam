@@ -22,7 +22,7 @@ class SitePowerManager(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingN
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val tazSkimmer = beamServices.skims.taz_skimmer
-  private val allChargingStations = chargingNetworkMap.flatMap(_._2.lookupStations).toList.distinct
+  private lazy val allChargingStations = chargingNetworkMap.flatMap(_._2.chargingStations).toList.distinct
   private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
 
   /**
@@ -32,25 +32,14 @@ class SitePowerManager(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingN
     * @return power (in Kilo Watt) over planning horizon
     */
   def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
-    lazy val planningFuture = Future
-      .sequence(allChargingStations.map { station =>
-        Future {
-          station -> observedPowerDemandInKW(tick, station.zone).getOrElse(estimatePowerDemandInKW(tick, station.zone))
-        }
-      })
-      .map(_.toMap)
-      .recover {
-        case e =>
-          logger.debug(s"Charging Replan did not produce allocations: $e")
-          Map.empty[ChargingStation, PowerInKW]
+    val plans = allChargingStations.par
+      .map { station =>
+        station -> observedPowerDemandInKW(tick, station.zone).getOrElse(estimatePowerDemandInKW(tick, station.zone))
       }
-    try {
-      Await.result(planningFuture, atMost = 1.minutes)
-    } catch {
-      case e: TimeoutException =>
-        logger.error(s"timeout of Charging Replan with no allocations made: $e")
-        Map.empty[ChargingStation, PowerInKW]
-    }
+      .seq
+      .toMap
+    if (plans.isEmpty) logger.error(s"Charging Replan did not produce allocations")
+    plans
   }
 
   /**
@@ -96,7 +85,7 @@ class SitePowerManager(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingN
     physicalBounds: Map[ChargingStation, PhysicalBounds]
   ): (ChargingDurationInSec, EnergyInJoules) = {
     assume(timeInterval >= 0, "timeInterval should not be negative!")
-    val ChargingVehicle(vehicle, _, station, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, station, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).maxLoad
     val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).maxLoad
