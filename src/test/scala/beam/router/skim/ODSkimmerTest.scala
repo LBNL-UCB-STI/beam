@@ -41,10 +41,18 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
 
 object ODSkimmerTest extends MockitoSugar {
   private[skim] def createSkimmer[S <: AbstractSkimmer](inputFilePath: String, constructor: BeamServices => S): S = {
+    import scala.collection.JavaConverters._
     val beamConfig = BeamConfig(
       testConfig("test/input/beamville/beam.conf")
         .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-        .withValue("beam.warmStart.skimsFilePath", ConfigValueFactory.fromAnyRef(inputFilePath))
+        .withValue(
+          "beam.warmStart.skimsFilePaths",
+          ConfigValueFactory.fromIterable(
+            List(
+              ConfigValueFactory.fromAnyRef(Map("skimType" -> "od-skimmer", "skimsFilePath" -> inputFilePath).asJava)
+            ).asJava
+          )
+        )
         .resolve()
     )
     val services = mock[BeamServices]
