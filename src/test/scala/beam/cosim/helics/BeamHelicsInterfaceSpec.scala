@@ -51,8 +51,8 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
   }
 
   private def broker(beamBroker: BeamBroker): Unit = {
-    beamBroker.getFederate.isDefined should be(true)
-    val beamFederate = beamBroker.getFederate.get
+    beamBroker.getBrokersFederate.isDefined should be(true)
+    val beamFederate = beamBroker.getBrokersFederate.get
 
     val (time1, message) = beamFederate.syncAndCollect(1)
     time1 should be(1.0)
