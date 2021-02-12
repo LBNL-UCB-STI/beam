@@ -3804,8 +3804,6 @@ object BeamConfig {
       enabled: scala.Boolean,
       linkStatsOnlyEnabled: scala.Boolean,
       path: java.lang.String,
-      routeHistoryFileName: java.lang.String,
-      routeHistoryFilePath: java.lang.String,
       samplePopulationIntegerFlag: scala.Int,
       skimsFilePaths: scala.Option[scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm]]
     )
@@ -3831,10 +3829,6 @@ object BeamConfig {
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
           linkStatsOnlyEnabled = c.hasPathOrNull("linkStatsOnlyEnabled") && c.getBoolean("linkStatsOnlyEnabled"),
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
-          routeHistoryFileName =
-            if (c.hasPathOrNull("routeHistoryFileName")) c.getString("routeHistoryFileName") else "routeHistory.csv.gz",
-          routeHistoryFilePath =
-            if (c.hasPathOrNull("routeHistoryFilePath")) c.getString("routeHistoryFilePath") else "",
           samplePopulationIntegerFlag =
             if (c.hasPathOrNull("samplePopulationIntegerFlag")) c.getInt("samplePopulationIntegerFlag") else 0,
           skimsFilePaths =

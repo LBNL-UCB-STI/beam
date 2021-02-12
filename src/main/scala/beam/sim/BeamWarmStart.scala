@@ -267,12 +267,9 @@ object BeamWarmStart extends LazyLogging {
               .getOrElse(instance.parentRunPath)
             SkimsFilePaths$Elm(skimType.toString, filePath)
         }
-        val newRouteHistoryFilePath =
-          Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
 
         beamConfig.beam.warmStart.copy(
           skimsFilePaths = Some(newSkimsFilePath),
-          routeHistoryFilePath = newRouteHistoryFilePath
         )
       }
 
