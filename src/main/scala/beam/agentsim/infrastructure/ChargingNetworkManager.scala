@@ -9,9 +9,10 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingVehicle, ConnectionStatus}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -72,15 +73,14 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
       import scala.concurrent.ExecutionContext.Implicits.global
-      import scala.concurrent.duration._
-      import scala.concurrent.{Await, Future, TimeoutException}
+      import scala.concurrent.Future
       val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
       val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
-      val futures = Future
+      Future
         .sequence(chargingNetworkMap.flatMap {
           case (_, chargingNetwork) =>
             chargingNetwork.connectedVehicles.map {
@@ -117,45 +117,15 @@ class ChargingNetworkManager(
                 }
             }
         })
-        .map(_.toVector)
-        .recover {
-          case e =>
-            log.debug(s"No energy was dispatched at time $timeBin because: $e")
-            Vector.empty[Option[ScheduleTrigger]]
+        .map { triggers =>
+          val nextStepPlanning = if (!isEndOfSimulation(timeBin)) {
+            Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
+          } else {
+            completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
+          }
+          CompletionNotice(triggerId, triggers.flatten.toVector ++ nextStepPlanning)
         }
-
-      val triggers = (try {
-        Await.result(futures, atMost = 1.minutes)
-      } catch {
-        case e: TimeoutException =>
-          log.error(s"Timeout of energy dispatch at time $timeBin because: $e")
-          Vector.empty[Option[ScheduleTrigger]]
-      }).flatten
-
-      // rescheduling the PlanningTimeOutTrigger
-      sender ! CompletionNotice(
-        triggerId,
-        triggers ++ (if (nextTimeBin(timeBin) < endOfSimulationTime) {
-                       Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
-                     } else {
-                       // if we still have a BEV/PHEV that is connected to a charging point,
-                       // we assume that they will charge until the end of the simulation and throwing events accordingly
-                       chargingNetworkMap
-                         .flatMap(_._2.vehicles)
-                         .map {
-                           case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _)) =>
-                             if (chargingVehicle.status == Connected) {
-                               val (duration, energy) = dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
-                               chargingVehicle.processChargingCycle(timeBin, energy, duration)
-                             }
-                             ScheduleTrigger(
-                               ChargingTimeOutTrigger(nextTimeBin(timeBin) - 1, vehicle.id, stall.managerId),
-                               self
-                             )
-                         }
-                         .toVector
-                     })
-      )
+        .pipeTo(sender())
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
@@ -221,18 +191,57 @@ class ChargingNetworkManager(
   }
 
   /**
-    *
-    * @param cycle
+    * if charging completed then duration of charging should be zero
+    * @param cycle the latest charging cycle
     * @return
     */
   private def chargingIsCompleteUsing(cycle: ChargingCycle) = cycle.duration == 0
 
   /**
-    *
-    * @param cycle
+    * if charging won't complete during the current cycle
+    * @param cycle the latest charging cycle
     * @return
     */
   private def chargingNotCompleteUsing(cycle: ChargingCycle) = cycle.duration >= cnmConfig.timeStepInSeconds
+
+  /**
+    * if this is the last timebin of the simulation
+    * @param tick current tick
+    * @return a boolean
+    */
+  private def isEndOfSimulation(tick: Int) = nextTimeBin(tick) >= endOfSimulationTime
+
+  /**
+    * if we still have a BEV/PHEV that is connected to a charging point,
+    * we assume that they will charge until the end of the simulation and throwing events accordingly
+    * @param tick current time bin
+    * @param physicalBounds physical bounds received from the grid (or default ones if not)
+    * @return triggers to schedule
+    */
+  private def completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(
+    tick: Int,
+    physicalBounds: Map[ChargingStation, PhysicalBounds]
+  ): Vector[ScheduleTrigger] = {
+    chargingNetworkMap
+      .flatMap(_._2.vehicles)
+      .map {
+        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _)) =>
+          if (chargingVehicle.status == Connected) {
+            val (duration, energy) =
+              dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
+            chargingVehicle.processChargingCycle(tick, energy, duration)
+          }
+          ScheduleTrigger(
+            ChargingTimeOutTrigger(
+              nextTimeBin(tick) - 1,
+              vehicle.id,
+              stall.managerId
+            ),
+            self
+          )
+      }
+      .toVector
+  }
 
   /**
     * Connect the vehicle
