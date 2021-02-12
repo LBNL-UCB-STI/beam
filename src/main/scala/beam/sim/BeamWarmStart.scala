@@ -241,7 +241,7 @@ object BeamWarmStart extends LazyLogging {
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     val beamConfig = beamExecutionConfig.beamConfig
 
-    if (beamConfig.beam.warmStart.enabled) {
+    if (beamConfig.beam.warmStart.enabled && !beamConfig.beam.warmStart.linkStatsOnlyEnabled) {
       val matsimConfig = beamExecutionConfig.matsimConfig
 
       if (beamConfig.beam.router.skim.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {

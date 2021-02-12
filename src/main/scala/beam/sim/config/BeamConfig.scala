@@ -3802,6 +3802,7 @@ object BeamConfig {
 
     case class WarmStart(
       enabled: scala.Boolean,
+      linkStatsOnlyEnabled: scala.Boolean,
       path: java.lang.String,
       routeHistoryFileName: java.lang.String,
       routeHistoryFilePath: java.lang.String,
@@ -3828,6 +3829,7 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
           enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+          linkStatsOnlyEnabled = c.hasPathOrNull("linkStatsOnlyEnabled") && c.getBoolean("linkStatsOnlyEnabled"),
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           routeHistoryFileName =
             if (c.hasPathOrNull("routeHistoryFileName")) c.getString("routeHistoryFileName") else "routeHistory.csv.gz",
