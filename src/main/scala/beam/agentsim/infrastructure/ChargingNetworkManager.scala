@@ -73,14 +73,15 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
       import scala.concurrent.ExecutionContext.Implicits.global
-      import scala.concurrent.Future
+      import scala.concurrent.duration._
+      import scala.concurrent.{Await, Future, TimeoutException}
       val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
       val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
-      Future
+      val futures = Future
         .sequence(chargingNetworkMap.flatMap {
           case (_, chargingNetwork) =>
             chargingNetwork.connectedVehicles.map {
@@ -117,15 +118,28 @@ class ChargingNetworkManager(
                 }
             }
         })
-        .map { triggers =>
-          val nextStepPlanning = if (!isEndOfSimulation(timeBin)) {
-            Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
-          } else {
-            completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
-          }
-          CompletionNotice(triggerId, triggers.flatten.toVector ++ nextStepPlanning)
+        .map(_.toVector)
+        .recover {
+          case e =>
+            log.debug(s"No energy was dispatched at time $timeBin because: $e")
+            Vector.empty[Option[ScheduleTrigger]]
         }
-        .pipeTo(sender())
+
+      val triggers = (try {
+        Await.result(futures, atMost = 1.minutes)
+      } catch {
+        case e: TimeoutException =>
+          log.error(s"Timeout of energy dispatch at time $timeBin because: $e")
+          Vector.empty[Option[ScheduleTrigger]]
+      }).flatten
+
+      val nextStepPlanning = if (!isEndOfSimulation(timeBin)) {
+        Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
+      } else {
+        completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
+      }
+
+      sender ! CompletionNotice(triggerId, triggers ++ nextStepPlanning)
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
