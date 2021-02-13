@@ -2,7 +2,6 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
-import akka.pattern.ask
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
@@ -14,8 +13,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, StartingRefuelSession, WaitingInLine}
-import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingStall}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -42,8 +41,6 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
-import scala.concurrent.duration._
-import scala.concurrent.{Await, TimeoutException}
 import scala.language.postfixOps
 
 /**

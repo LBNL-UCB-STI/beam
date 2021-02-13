@@ -1,6 +1,5 @@
 package beam.agentsim.agents.parking
 
-import akka.actor.FSM
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
@@ -11,13 +10,7 @@ import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingUnplugRequest,
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  WaitingInLine
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
