@@ -11,12 +11,7 @@ import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
-
-class SitePowerManager(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingNetwork], beamServices: BeamServices)
+class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamServices: BeamServices)
     extends LazyLogging {
   import SitePowerManager._
 

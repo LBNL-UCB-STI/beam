@@ -24,7 +24,6 @@ import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
-import scala.collection.concurrent.TrieMap
 import scala.language.postfixOps
 
 /**
@@ -46,7 +45,6 @@ class ChargingNetworkManager(
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
-  private val chargingNetworkMap = TrieMap.empty[Id[VehicleManager], ChargingNetwork]
   private lazy val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
   private lazy val powerController = new PowerController(chargingNetworkMap, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
@@ -62,10 +60,6 @@ class ChargingNetworkManager(
       import scala.concurrent.{ExecutionContext, Future}
       implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
       implicit val executionContext: ExecutionContext = context.dispatcher
-      chargingNetworkMap.put(
-        VehicleManager.privateVehicleManager.managerId,
-        new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, chargingZoneList)
-      )
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
@@ -73,14 +67,15 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
       import scala.concurrent.ExecutionContext.Implicits.global
-      import scala.concurrent.Future
+      import scala.concurrent.duration._
+      import scala.concurrent.{Await, Future, TimeoutException}
       val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
       val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
-      Future
+      val futures = Future
         .sequence(chargingNetworkMap.flatMap {
           case (_, chargingNetwork) =>
             chargingNetwork.connectedVehicles.map {
@@ -117,29 +112,41 @@ class ChargingNetworkManager(
                 }
             }
         })
-        .map { triggers =>
-          val nextStepPlanning = if (!isEndOfSimulation(timeBin)) {
-            Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
-          } else {
-            completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
-          }
-          CompletionNotice(triggerId, triggers.flatten.toVector ++ nextStepPlanning)
+        .map(_.toVector)
+        .recover {
+          case e =>
+            log.debug(s"No energy was dispatched at time $timeBin because: $e")
+            Vector.empty[Option[ScheduleTrigger]]
         }
-        .pipeTo(sender())
 
-    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager), triggerId) =>
+      val triggers = (try {
+        Await.result(futures, atMost = 1.minutes)
+      } catch {
+        case e: TimeoutException =>
+          log.error(s"Timeout of energy dispatch at time $timeBin because: $e")
+          Vector.empty[Option[ScheduleTrigger]]
+      }).flatten
+
+      val nextStepPlanning = if (!isEndOfSimulation(timeBin)) {
+        Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
+      } else {
+        completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
+      }
+      sender ! CompletionNotice(triggerId, triggers ++ nextStepPlanning)
+
+    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, managerId), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
-      val chargingNetwork = chargingNetworkMap(vehicleManager)
+      val chargingNetwork = chargingNetworkMap(managerId)
       chargingNetwork.lookupVehicle(vehicleId) match {
         case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle)
         case _                     => log.debug(s"Vehicle $vehicleId is already disconnected")
       }
       sender ! CompletionNotice(triggerId)
 
-    case ChargingPlugRequest(tick, vehicle, vehicleManager) =>
+    case ChargingPlugRequest(tick, vehicle, managerId) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV | vehicle.isPHEV) {
-        val chargingNetwork = chargingNetworkMap(vehicleManager)
+        val chargingNetwork = chargingNetworkMap(managerId)
         // connecting the current vehicle
         chargingNetwork.attemptToConnectVehicle(tick, vehicle, sender) match {
           case chargingVehicle @ ChargingVehicle(vehicle, _, station, _, _, _) if chargingVehicle.status == Waiting =>
@@ -163,10 +170,10 @@ class ChargingNetworkManager(
         )
       }
 
-    case ChargingUnplugRequest(tick, vehicle, vehicleManager) =>
+    case ChargingUnplugRequest(tick, vehicle, managerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
-      val chargingNetwork = chargingNetworkMap(vehicleManager)
+      val chargingNetwork = chargingNetworkMap(managerId)
       chargingNetwork.lookupVehicle(vehicle.id) match {
         case Some(chargingVehicle) =>
           val prevStartTime = chargingVehicle.latestChargingCycle.get.startTime
@@ -184,7 +191,6 @@ class ChargingNetworkManager(
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
       chargingNetworkMap.foreach(_._2.clearAllMappedStations())
-      chargingNetworkMap.clear()
       powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
