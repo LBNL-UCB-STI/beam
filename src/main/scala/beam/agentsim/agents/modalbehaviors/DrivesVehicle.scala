@@ -2,19 +2,19 @@ package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
+import akka.pattern.ask
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.parking.ChoosesParking.ConnectingToChargingPoint
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
-import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, StartingRefuelSession, WaitingInLine}
+import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -41,6 +41,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.concurrent.{Await, TimeoutException}
 import scala.language.postfixOps
 
 /**
@@ -213,8 +215,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     fuelConsumed: Option[FuelConsumed] = None
   )
 
-  case class LastLegPassengerSchedule()
-
   var nextNotifyVehicleResourceIdle: Option[NotifyVehicleIdle] = None
 
   def updateFuelConsumedByTrip(idp: Id[Person], fuelConsumed: FuelConsumed, factor: Int = 1): Unit = {
@@ -369,7 +369,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           )
         }
       } else {
-        var waitForConnectionToChargingPoint = false
         if (data.hasParkingBehaviors) {
           currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
             currentBeamVehicle.useParkingStall(stall)
@@ -387,12 +386,26 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               stall.chargingPointType match {
                 case Some(_) =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
-                  chargingNetworkManager ! ChargingPlugRequest(
-                    tick,
-                    currentBeamVehicle,
-                    VehicleManager.privateVehicleManager.managerId
-                  )
-                  waitForConnectionToChargingPoint = true
+                  try {
+                    Await
+                      .result(
+                        chargingNetworkManager ? ChargingPlugRequest(
+                          tick,
+                          currentBeamVehicle,
+                          VehicleManager.privateVehicleManager.managerId
+                        ),
+                        atMost = 1.minute
+                      ) match {
+                      case StartingRefuelSession(tick, vehicleId) =>
+                        log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
+                      case WaitingInLine(tick, vehicleId) =>
+                        log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
+                    }
+                  } catch {
+                    case _: TimeoutException =>
+                      log.error("ChargingPlugRequest timeout. No response from the ChargingNetworkManager")
+                  }
+
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -401,17 +414,29 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     stall.parkingZoneId
                   )
               }
+
             }
           }
           currentBeamVehicle.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
-        if (waitForConnectionToChargingPoint) {
-          goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
-        } else {
-          self ! LastLegPassengerSchedule
-          goto(DrivingInterrupted) using data.asInstanceOf[T]
-        }
+        self ! PassengerScheduleEmptyMessage(
+          geo.wgs2Utm(
+            data.passengerSchedule.schedule
+              .drop(data.currentLegPassengerScheduleIndex)
+              .head
+              ._1
+              .travelPath
+              .endPoint
+          ),
+          tollsAccumulated,
+          Some(fuelConsumedByTrip.getOrElse(id.asInstanceOf[Id[Person]], FuelConsumed(0, 0)))
+        )
+        fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
+        tollsAccumulated = 0.0
+        goto(PassengerScheduleEmpty) using stripLiterallyDrivingData(data)
+          .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
+          .asInstanceOf[T]
       }
 
     //TODO Need explanation as to why we do nothing if we receive EndLeg but data is not type LiterallyDrivingData
@@ -541,25 +566,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), triggerId), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay replying CompletionNotice(triggerId)
-    case ev @ Event(LastLegPassengerSchedule, data) =>
-      self ! PassengerScheduleEmptyMessage(
-        geo.wgs2Utm(
-          data.passengerSchedule.schedule
-            .drop(data.currentLegPassengerScheduleIndex)
-            .head
-            ._1
-            .travelPath
-            .endPoint
-        ),
-        tollsAccumulated,
-        Some(fuelConsumedByTrip.getOrElse(id.asInstanceOf[Id[Person]], FuelConsumed(0, 0)))
-      )
-      fuelConsumedByTrip.remove(id.asInstanceOf[Id[Person]])
-      tollsAccumulated = 0.0
-      goto(PassengerScheduleEmpty) using stripLiterallyDrivingData(data)
-        .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
-        .asInstanceOf[T]
-
   }
 
   private def generateTCSEventIfPossible(pte: PathTraversalEvent): Unit = {

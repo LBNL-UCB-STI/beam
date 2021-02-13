@@ -1,6 +1,5 @@
 package beam.agentsim.agents.parking
 
-import akka.actor.FSM
 import akka.pattern.{ask, pipe}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
@@ -14,9 +13,7 @@ import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager.{
   ChargingUnplugRequest,
   EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  WaitingInLine
+  UnhandledVehicle
 }
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -36,7 +33,6 @@ object ChoosesParking {
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState
   case object ReleasingChargingPoint extends BeamAgentState
-  case object ConnectingToChargingPoint extends BeamAgentState
 }
 
 trait ChoosesParking extends {
@@ -71,17 +67,6 @@ trait ChoosesParking extends {
         attributes.valueOfTime,
         parkingDuration
       )
-  }
-
-  when(ConnectingToChargingPoint) {
-    case _ @Event(StartingRefuelSession(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
-      self ! LastLegPassengerSchedule
-      goto(DrivingInterrupted) using data
-    case _ @Event(WaitingInLine(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
-      self ! LastLegPassengerSchedule
-      goto(DrivingInterrupted) using data
   }
 
   when(ReleasingChargingPoint) {
