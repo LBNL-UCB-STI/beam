@@ -23,6 +23,7 @@ import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 
+import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -32,7 +33,6 @@ import scala.language.postfixOps
 object ChoosesParking {
   case object ChoosingParkingSpot extends BeamAgentState
   case object ReleasingParkingSpot extends BeamAgentState
-  case object ReleasingChargingPoint extends BeamAgentState
 }
 
 trait ChoosesParking extends {
@@ -69,21 +69,6 @@ trait ChoosesParking extends {
       )
   }
 
-  when(ReleasingChargingPoint) {
-    case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
-      stash()
-      stay using data
-    case _ @Event(EndingRefuelSession(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(tick, data)
-      goto(WaitingToDrive) using data
-    case _ @Event(UnhandledVehicle(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId is not handled by the CNM at tick $tick")
-      goto(ReleasingParkingSpot) using data
-      handleReleasingParkingSpot(tick, data)
-      goto(WaitingToDrive) using data
-  }
-
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
@@ -92,16 +77,28 @@ trait ChoosesParking extends {
       val (tick, _) = releaseTickAndTriggerId()
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
-        chargingNetworkManager ! ChargingUnplugRequest(
-          tick,
-          currentBeamVehicle,
-          VehicleManager.privateVehicleManager.managerId
-        )
-        goto(ReleasingChargingPoint) using data
-      } else {
-        handleReleasingParkingSpot(tick, data)
-        goto(WaitingToDrive) using data
+        try {
+          Await
+            .result(
+              chargingNetworkManager ? ChargingUnplugRequest(
+                tick,
+                currentBeamVehicle,
+                VehicleManager.privateVehicleManager.managerId
+              ),
+              atMost = 1.minute
+            ) match {
+            case EndingRefuelSession(tick, vehicleId) =>
+              log.debug(s"Vehicle $vehicleId ended charging and it is not handled by the CNM at tick $tick")
+            case UnhandledVehicle(tick, vehicleId) =>
+              log.debug(s"Vehicle $vehicleId is not handled by the CNM at tick $tick")
+          }
+        } catch {
+          case _: TimeoutException =>
+            log.error("ChargingUnplugRequest timeout. No response from the ChargingNetworkManager")
+        }
       }
+      handleReleasingParkingSpot(tick, data)
+      goto(WaitingToDrive) using data
 
     case Event(StateTimeout, data) =>
       val stall = currentBeamVehicle.stall.get
