@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
@@ -16,23 +16,7 @@ case class ChargingNetworkInfo(
   vehicleManagers: Map[Id[VehicleManager], VehicleManager]
 ) {
   import ChargingNetworkInfo._
-
-  private[infrastructure] val chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork] = vehicleManagers.flatMap {
-    case (vehicleManagerId, VehicleManager(_, vehicleManagerType)) =>
-      vehicleManagerType match {
-        case VehicleManagerType.Ridehail =>
-          None
-        case VehicleManagerType.Cars =>
-          Some(
-            vehicleManagerId -> new ChargingNetwork(
-              vehicleManagerId,
-              loadPublicChargingZones(beamServices, envelopeInUTM)
-            )
-          )
-        case _ =>
-          None
-      }
-  }
+  private[infrastructure] val chargingZoneList: QuadTree[ChargingZone] = loadChargingZones(beamServices, envelopeInUTM)
 }
 
 object ChargingNetworkInfo {
@@ -42,7 +26,7 @@ object ChargingNetworkInfo {
     * @param beamServices BeamServices
     * @return QuadTree of ChargingZone
     */
-  private def loadPublicChargingZones(beamServices: BeamServices, envelopeInUTM: Envelope) = {
+  private def loadChargingZones(beamServices: BeamServices, envelopeInUTM: Envelope): QuadTree[ChargingZone] = {
     import beamServices._
     val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
@@ -55,23 +39,25 @@ object ChargingNetworkInfo {
       parkingCostScalingFactor,
       random
     )
-    val publicZonesWithChargers =
+    val zonesWithCharger =
       zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.geoId).get))
-    val coordinates = publicZonesWithChargers.map(_._2.coord)
+    val coordinates = zonesWithCharger.map(_._2.coord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
-    envelopeInUTM.expandBy(beamServices.beamConfig.beam.spatial.boundingBoxBuffer)
+//    val envelopeInUTM = geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
+    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
     envelopeInUTM.expandToInclude(xs.min, ys.min)
     envelopeInUTM.expandToInclude(xs.max, ys.max)
-    val chargingZonesQuadTree = new QuadTree[ChargingZone](
+
+    val stationsQuadTree = new QuadTree[ChargingZone](
       envelopeInUTM.getMinX,
       envelopeInUTM.getMinY,
       envelopeInUTM.getMaxX,
       envelopeInUTM.getMaxY
     )
-    publicZonesWithChargers.foreach {
+    zonesWithCharger.foreach {
       case (zone, taz) =>
-        chargingZonesQuadTree.put(
+        stationsQuadTree.put(
           taz.coord.getX,
           taz.coord.getY,
           ChargingZone(
@@ -85,6 +71,6 @@ object ChargingNetworkInfo {
           )
         )
     }
-    chargingZonesQuadTree
+    stationsQuadTree
   }
 }

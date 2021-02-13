@@ -9,10 +9,11 @@ import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
+import scala.collection.concurrent.TrieMap
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
+class PowerController(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
     extends LazyLogging {
   import ChargingZone._
   import SitePowerManager._

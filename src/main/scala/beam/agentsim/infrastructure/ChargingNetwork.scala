@@ -16,11 +16,12 @@ import scala.collection.mutable.ListBuffer
   * Created by haitamlaarabi
   */
 
-class ChargingNetwork(managerId: Id[VehicleManager], chargingZonesQTree: QuadTree[ChargingZone]) extends LazyLogging {
+class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: QuadTree[ChargingZone])
+    extends LazyLogging {
   import ChargingNetwork._
 
   private lazy val chargingStationMap: Map[ChargingZone, ChargingStation] =
-    chargingZonesQTree.values().asScala.map(z => z -> ChargingStation(z)).toMap
+    chargingStationsQTree.values().asScala.map(z => z -> ChargingStation(z)).toMap
 
   lazy val chargingStations: List[ChargingStation] = chargingStationMap.values.toList
 

@@ -21,6 +21,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
 
 class SitePowerManagerSpec
@@ -130,10 +131,9 @@ class SitePowerManagerSpec
     val dummyStation = ChargingStation(dummyChargingZone)
     zoneTree.put(tazMap.getTAZs.head.coord.getX, tazMap.getTAZs.head.coord.getY, dummyChargingZone)
     val dummyNetwork = new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, zoneTree)
-    val sitePowerManager = new SitePowerManager(
-      Map[Id[VehicleManager], ChargingNetwork](VehicleManager.privateVehicleManager.managerId -> dummyNetwork),
-      beamServices
-    )
+    val trieMap =
+      TrieMap[Id[VehicleManager], ChargingNetwork](VehicleManager.privateVehicleManager.managerId -> dummyNetwork)
+    val sitePowerManager = new SitePowerManager(trieMap, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(

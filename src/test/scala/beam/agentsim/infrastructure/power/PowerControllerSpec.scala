@@ -18,6 +18,8 @@ import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
+import scala.collection.concurrent.TrieMap
+
 class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach {
 
   private val config =
@@ -72,7 +74,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Id[VehicleManager], ChargingNetwork](
+      TrieMap[Id[VehicleManager], ChargingNetwork](
         VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
           VehicleManager.privateVehicleManager.managerId,
           zoneTree
@@ -97,7 +99,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when not connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Id[VehicleManager], ChargingNetwork](
+      TrieMap[Id[VehicleManager], ChargingNetwork](
         VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
           VehicleManager.privateVehicleManager.managerId,
           zoneTree
