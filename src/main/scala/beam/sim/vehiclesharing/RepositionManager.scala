@@ -1,14 +1,15 @@
 package beam.sim.vehiclesharing
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.skim.TAZSkimmerEvent
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
+import beam.router.skim.event.TAZSkimmerEvent
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.{Coord, Id}
 

@@ -3,6 +3,7 @@ package beam.router.skim
 import java.io.{BufferedReader, File}
 import java.util
 
+import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
 import com.typesafe.scalalogging.Logger
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}

@@ -1,18 +1,20 @@
 package beam.agentsim.agents.ridehail
 
+import beam.agentsim.Resource
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingZone}
+import beam.agentsim.infrastructure.parking.ParkingZone
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingNetwork, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
 import beam.sim.Geofence
+import beam.utils.metrics.SimpleCounter
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
-trait RideHailDepotParkingManager[GEO] {
+trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
 
   /**
     * Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
@@ -121,6 +123,23 @@ trait RideHailDepotParkingManager[GEO] {
     * @return Parking zone location in UTM.
     */
   def getParkingZoneLocationUtm(parkingZoneId: Int): Coord
+
+  /**
+    *
+    * @param inquiry
+    * @param parallelizationCounterOption
+    * @return
+    */
+  override def processParkingInquiry(
+    inquiry: ParkingInquiry,
+    parallelizationCounterOption: Option[SimpleCounter] = None
+  ): Option[ParkingInquiryResponse] = None
+
+  /**
+    *
+    * @param release
+    */
+  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = Unit
 
 }
 

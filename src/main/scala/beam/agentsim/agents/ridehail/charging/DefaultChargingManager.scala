@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail.charging
 
-import beam.agentsim.agents.ridehail.{RideHailDepotParkingManager, RideHailVehicleManager}
+import beam.agentsim.agents.ridehail.{RideHailDepotParkingManager, RideHailManagerHelper}
 import beam.agentsim.agents.ridehail.charging.VehicleChargingManager.VehicleChargingManagerResult
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.BeamServices
@@ -23,7 +23,7 @@ class DefaultChargingManager(
 ) extends VehicleChargingManager(beamServices, resources) {
   override def findStationsForVehiclesInNeedOfCharging(
     tick: Int,
-    idleVehicles: collection.Map[Id[BeamVehicle], RideHailVehicleManager.RideHailAgentLocation]
+    idleVehicles: collection.Map[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
   ): VehicleChargingManagerResult = {
     val idleVehicleIdsWantingToRefuelWithLocation = idleVehicles.toVector.filter {
       case (vehicleId: Id[BeamVehicle], _) => {

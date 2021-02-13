@@ -3,10 +3,9 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.BeamvilleFixtures._
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
-import beam.router.skim.Skims
+import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef, VehicleManager}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamScenario, BeamServices, CircularGeofence, Geofence}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices, CircularGeofence}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
@@ -215,7 +214,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(5000, 5000),
         8.hours.toSeconds.toInt,
         None,
-        4
+        4,
+        Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -224,7 +224,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 2000),
         8.hours.toSeconds.toInt,
         None,
-        4
+        4,
+        Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -276,7 +277,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(5000, 5000),
         8.hours.toSeconds.toInt,
         Some(CircularGeofence(10000, 10000, 13400)),
-        4
+        4,
+        Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -285,7 +287,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 2000),
         8.hours.toSeconds.toInt,
         Some(CircularGeofence(10000, 10000, 13400)),
-        4
+        4,
+        Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -364,7 +367,8 @@ object MatchingAlgorithmsForRideHailSpec {
         taz4Loc,
         0,
         None,
-        remainingRangeInM
+        remainingRangeInM,
+        Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -373,7 +377,8 @@ object MatchingAlgorithmsForRideHailSpec {
         taz4Loc,
         0,
         None,
-        remainingRangeInM
+        remainingRangeInM,
+        Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(

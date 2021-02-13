@@ -1,8 +1,8 @@
-package beam.router.skim
+package beam.router.skim.core
 
 import java.math.RoundingMode
 
-import beam.router.skim.TransitCrowdingSkimmer.{TransitCrowdingSkimmerInternal, TransitCrowdingSkimmerKey}
+import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import com.google.common.math.IntMath
@@ -10,7 +10,6 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.MatsimServices
-import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.vehicles.Vehicle
 
 /**
@@ -22,16 +21,11 @@ class TransitCrowdingSkimmer @Inject()(
   beamScenario: BeamScenario,
   beamConfig: BeamConfig
 ) extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
+  import TransitCrowdingSkimmer._
   override protected[skim] val readOnlySkim = new TransitCrowdingSkims(beamScenario.vehicleTypes)
   override protected val skimFileBaseName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
   override protected val skimFileHeader = "vehicleId,fromStopIdx,numberOfPassengers,capacity,observations,iterations"
   override protected val skimName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.name
-
-  override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    super.notifyIterationStarts(event)
-    //we need to put the aggregated result into the first iteration
-    readOnlySkim.pastSkims.prepend(readOnlySkim.aggregatedSkim)
-  }
 
   override protected def fromCsv(
     line: collection.Map[String, String]

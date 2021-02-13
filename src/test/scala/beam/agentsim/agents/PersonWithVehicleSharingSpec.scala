@@ -20,7 +20,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, TrivialParkingManager}
+import beam.agentsim.infrastructure._
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -28,7 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.skim.AbstractSkimmerEvent
+import beam.router.skim.core.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -116,6 +116,7 @@ class PersonWithVehicleSharingSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val mockRouter = TestProbe()
       val mockSharedVehicleFleet = TestProbe()
@@ -132,6 +133,7 @@ class PersonWithVehicleSharingSpec
             mockRouter.ref,
             mockRideHailingManager.ref,
             parkingManager,
+            self,
             eventsManager,
             population,
             household,
@@ -158,7 +160,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -266,6 +268,7 @@ class PersonWithVehicleSharingSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val mockRouter = TestProbe()
       val mockSharedVehicleFleet = TestProbe()
@@ -282,6 +285,7 @@ class PersonWithVehicleSharingSpec
             mockRouter.ref,
             mockRideHailingManager.ref,
             parkingManager,
+            self,
             eventsManager,
             population,
             household,
@@ -308,7 +312,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
@@ -414,7 +418,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
@@ -471,7 +475,7 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        managerInfo = VehicleManagerInfo.create("shared-fleet-1", vehicleType, isShared = true),
+        managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -514,6 +518,7 @@ class PersonWithVehicleSharingSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val mockRouter = TestProbe()
       val mockRideHailingManager = TestProbe()
@@ -529,6 +534,7 @@ class PersonWithVehicleSharingSpec
           mockRouter.ref,
           mockRideHailingManager.ref,
           parkingManager,
+          self,
           eventsManager,
           population,
           household,

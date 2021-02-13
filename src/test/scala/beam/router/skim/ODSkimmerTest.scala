@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -23,7 +24,7 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
     val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(inputFilePath, odConstructor)
 
     val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
-    assert(skimmer.readOnlySkim.aggregatedSkim == origData)
+    assert(skimmer.readOnlySkim.aggregatedFromPastSkims == origData)
   }
 
   test("Read OD skims from multi files in the directory with warm start mode") {
@@ -35,7 +36,7 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
       ODSkimmer.fromCsv,
       logger
     ).readAggregatedSkims
-    assert(skimmer.readOnlySkim.aggregatedSkim == origData)
+    assert(skimmer.readOnlySkim.aggregatedFromPastSkims == origData)
   }
 }
 
