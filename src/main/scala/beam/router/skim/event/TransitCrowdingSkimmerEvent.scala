@@ -1,6 +1,7 @@
-package beam.router.skim
+package beam.router.skim.event
 
-import beam.router.skim.TransitCrowdingSkimmer.{TransitCrowdingSkimmerInternal, TransitCrowdingSkimmerKey}
+import beam.router.skim.core.TransitCrowdingSkimmer.{TransitCrowdingSkimmerInternal, TransitCrowdingSkimmerKey}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 

@@ -2,7 +2,8 @@ package scripts
 
 import java.nio.file.Files
 
-import beam.router.skim.{CsvSkimReader, ODSkimmer}
+import beam.router.skim.CsvSkimReader
+import beam.router.skim.core.ODSkimmer.fromCsv
 import beam.sim.BeamWarmStart
 import com.typesafe.scalalogging.StrictLogging
 import org.scalatest.FunSuite
@@ -27,11 +28,11 @@ class SplitCsvSkimsTest extends FunSuite with StrictLogging {
 
     assert(paths.size == numberOfParts)
 
-    val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
+    val origData = new CsvSkimReader(inputFilePath, fromCsv, logger).readAggregatedSkims
 
     val splitData = paths
       .flatMap(path => {
-        new CsvSkimReader(path, ODSkimmer.fromCsv, logger).readAggregatedSkims
+        new CsvSkimReader(path, fromCsv, logger).readAggregatedSkims
       })
       .toMap
 

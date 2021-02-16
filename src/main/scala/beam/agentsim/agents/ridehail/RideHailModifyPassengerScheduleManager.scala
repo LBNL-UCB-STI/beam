@@ -6,7 +6,7 @@ import beam.agentsim.agents.HasTickAndTrigger
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StopDriving
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.Refueling
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.Refueling
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -167,7 +167,7 @@ class RideHailModifyPassengerScheduleManager(
 
   def startWaveOfRepositioningOrBatchedReservationRequests(tick: Int, triggerId: Long): Unit = {
     //    assert(numberPendingModifyPassengerScheduleAcks <= 0)
-    rideHailManager.vehicleManager.getIdleAndInServiceVehicles.foreach { veh =>
+    rideHailManager.rideHailManagerHelper.getIdleAndInServiceVehicles.foreach { veh =>
       sendInterruptMessage(
         ModifyPassengerSchedule(PassengerSchedule(), tick),
         tick,
@@ -176,7 +176,7 @@ class RideHailModifyPassengerScheduleManager(
         HoldForPlanning
       )
     }
-    numInterruptRepliesPending = rideHailManager.vehicleManager.getIdleAndInServiceVehicles.size
+    numInterruptRepliesPending = rideHailManager.rideHailManagerHelper.getIdleAndInServiceVehicles.size
     holdTickAndTriggerId(tick, triggerId)
   }
 
@@ -191,7 +191,7 @@ class RideHailModifyPassengerScheduleManager(
       case Some(status) =>
         val reply = status.interruptReply.get
         val isRepositioning = waitingToReposition.nonEmpty
-        val isNotRefueling = rideHailManager.vehicleManager.getServiceStatusOf(rideHailVehicleId) != Refueling
+        val isNotRefueling = rideHailManager.rideHailManagerHelper.getServiceStatusOf(rideHailVehicleId) != Refueling
         interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
           case Some(
               RideHailModifyPassengerScheduleStatus(

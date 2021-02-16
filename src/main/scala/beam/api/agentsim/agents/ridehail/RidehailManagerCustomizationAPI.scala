@@ -3,7 +3,7 @@ package beam.api.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.kpis.DefaultKpiRegistry
 import beam.agentsim.agents.ridehail.kpis.KpiRegistry.Kpi
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}

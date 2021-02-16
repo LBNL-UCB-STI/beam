@@ -1,20 +1,17 @@
 package beam.router
 
 import beam.agentsim.agents.choice.mode.PtFares
-import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
 import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory, VehicleEnergy}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.{Location, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.ODSkimmer.Skim
-import beam.router.skim.ODSkims
+import beam.router.skim.core.ODSkimmer.Skim
+import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.config.BeamConfig.Beam
-import beam.sim.config.BeamConfig.Beam.Routing
 import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.transit.TransportNetwork
@@ -22,10 +19,10 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.scalatest.FlatSpec
 import org.scalatestplus.mockito.MockitoSugar
-import org.mockito.ArgumentMatchers.{any, _}
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap

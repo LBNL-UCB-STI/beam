@@ -1,17 +1,17 @@
 package beam.agentsim
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
+import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.Geofence
 import org.matsim.api.core.v01.Id
 
 object Resource {
 
-  case class ReleaseParkingStall(stallId: Int, geoId: Id[_])
+  case class ReleaseParkingStall(stall: ParkingStall)
 
   case class NotifyVehicleIdle(
     resourceId: Id[_],

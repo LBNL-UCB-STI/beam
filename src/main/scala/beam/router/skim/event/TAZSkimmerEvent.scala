@@ -1,6 +1,7 @@
-package beam.router.skim
+package beam.router.skim.event
 
-import beam.router.skim.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
+import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
 
