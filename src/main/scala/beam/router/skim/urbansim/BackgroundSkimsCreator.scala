@@ -59,8 +59,10 @@ class BackgroundSkimsCreator(
     None
   }
 
-  val maybeODRouter: Option[ODRouter_ProofOfConcept] =
-    if (useR5) { None } else { Some(ODRouter_ProofOfConcept(r5Parameters, Some(travelTime))) }
+  val maybeODRouter: Option[ODRouterR5GHForActivitySimSkims] =
+    if (useR5) { None } else {
+      Some(ODRouterR5GHForActivitySimSkims(r5Parameters, getPeakSecondsFromConfig(beamServices), Some(travelTime)))
+    }
 
   val router: Router = if (useR5) { maybeR5Router.get } else { maybeODRouter.get }
 
@@ -90,9 +92,7 @@ class BackgroundSkimsCreator(
       geoClustering,
       abstractSkimmer,
       odRequester,
-      requestTimes = getPeakHoursFromConfig(beamServices).map { hour =>
-        (hour * 3600).toInt
-      }
+      requestTimes = getPeakSecondsFromConfig(beamServices)
     )
     actorSystem.actorOf(masterProps, actorName)
   }
@@ -105,7 +105,7 @@ class BackgroundSkimsCreator(
     masterActorRef ! MasterActor.Request.Stop
     logger.info(s"Routes execution time: ${odRequester.requestsExecutionTime}")
     if (maybeODRouter.nonEmpty) {
-      val execInfo = maybeODRouter.map(_.totalRouteExecitionInfo.toString()).getOrElse("")
+      val execInfo = maybeODRouter.map(_.totalRouteExecutionInfo.toString()).getOrElse("")
       logger.info(s"Routes execution time detailed: ${execInfo}")
     }
   }
@@ -124,6 +124,12 @@ class BackgroundSkimsCreator(
 }
 
 object BackgroundSkimsCreator {
+
+  def getPeakSecondsFromConfig(beamServices: BeamServices): List[Int] = {
+    getPeakHoursFromConfig(beamServices).map { hour =>
+      (hour * 3600).toInt
+    }
+  }
 
   def getPeakHoursFromConfig(beamServices: BeamServices): List[Double] = {
     // it seems there is no way to specify default list value in configuration
@@ -200,7 +206,7 @@ object BackgroundSkimsCreator {
             skimFileBaseName + additionalSkimFileNamePart + ".TAZ.Full.csv.gz"
           )
           val hours = getPeakHoursFromConfig(beamServices)
-          val uniqueTimeBins: Seq[Int] = hours.map(_.toInt)
+          val uniqueTimeBins: Seq[Int] = hours.map(math.round(_).toInt)
           val origins = tazClustering.tazTreeMap.getTAZs
             .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
             .toSeq
@@ -221,7 +227,7 @@ object BackgroundSkimsCreator {
           )
 
           val hours = getPeakHoursFromConfig(beamServices)
-          val uniqueTimeBins: Seq[Int] = hours.map(_.toInt)
+          val uniqueTimeBins: Seq[Int] = hours.map(math.round(_).toInt)
           val origins: Seq[GeoUnit.H3] = h3Clustering.h3Indexes.map { h3Index =>
             val wgsCenter = H3Wrapper.wgsCoordinate(h3Index.index).coord
             val utmCenter = beamServices.geo.wgs2Utm(wgsCenter)

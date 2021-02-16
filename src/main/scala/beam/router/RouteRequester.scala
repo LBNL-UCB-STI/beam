@@ -7,7 +7,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
-import beam.router.skim.urbansim.ODRouter_ProofOfConcept
+import beam.router.skim.urbansim.ODRouterR5GHForActivitySimSkims
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
@@ -27,7 +27,7 @@ object RouteRequester extends BeamHelper {
 
     val router = getUniversalODRouter(cfg) // getCarGraphHopperWrapper(cfg)
 
-    val departureTime = 30600
+    val departureTime = requestTimes.head
     val originUTM = new Location(543648, 4177464)
     val destinationUTM = new Location(548025, 4182237)
 
@@ -51,6 +51,8 @@ object RouteRequester extends BeamHelper {
     println
   }
 
+  val requestTimes: List[Int] = List(30600)
+
   val personAttributes: AttributesOfIndividual = AttributesOfIndividual(
     householdAttributes = HouseholdAttributes("031400-2014000788156-0", 325147.0, 10, 4, 1),
     modalityStyle = None,
@@ -72,9 +74,9 @@ object RouteRequester extends BeamHelper {
     income = Some(70000.0)
   )
 
-  private def getUniversalODRouter(cfg: Config): ODRouter_ProofOfConcept = {
+  private def getUniversalODRouter(cfg: Config): ODRouterR5GHForActivitySimSkims = {
     val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)
-    val odRouter = ODRouter_ProofOfConcept(r5Parameters, None)
+    val odRouter = ODRouterR5GHForActivitySimSkims(r5Parameters, requestTimes, None)
     odRouter
   }
 
