@@ -255,7 +255,8 @@ def getNudges(whichCounter):
 
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             try:
-                validate = pickle.load(open("fetched_files.txt","rb"))
+
+                validate = pickle.load(open(f"{search_space}/fetched_files.txt","rb"))
             except EOFError:
                 validate = []
 

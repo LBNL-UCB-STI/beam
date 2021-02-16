@@ -7,7 +7,10 @@ import os, subprocess, glob, shutil
 3. Deletes all files except 1_*.csv from the storage 
 4. Delete BEAM urbansim output directory to clear up space on EC2 before the run
 5. export MAXRAM=16g
-6. recreate fetched_files.txt 
+6. clean firecue.txt
+7. clean writecue.txt
+8. recreate fetched_files.txt 
+
 '''
 
 for item in os.listdir(beam):
@@ -38,6 +41,14 @@ else:
 os.environ["MAXRAM"] = "16g"
 
 # point 6
+if os.path.isfile('firecue.txt'):
+    os.remove('firecue.txt')
+
+# point 7
+if os.path.isfile('writecue.txt'):
+    os.remove('writecue.txt')
+
+# point 8
 fetch_file = f'{search_space}/fetched_files.txt'
 if os.path.isfile(fetch_file):
     os.remove(fetch_file)
