@@ -41,12 +41,12 @@ else:
 os.environ["MAXRAM"] = "16g"
 
 # point 6
-if os.path.isfile('firecue.txt'):
-    os.remove('firecue.txt')
+if os.path.isfile(f'{beam}/firecue.txt'):
+    os.remove(f'{beam}/firecue.txt')
 
 # point 7
-if os.path.isfile('writecue.txt'):
-    os.remove('writecue.txt')
+if os.path.isfile(f'{beam}/writecue.txt'):
+    os.remove(f'{beam}/writecue.txt')
 
 # point 8
 fetch_file = f'{search_space}/fetched_files.txt'
