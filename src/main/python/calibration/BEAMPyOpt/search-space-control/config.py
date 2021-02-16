@@ -16,8 +16,6 @@ sf_light_dir = f'{beam}/output/sf-light/*'
 
 output_csv = f'{shared}/%d_%d.csv'
 
-runme = f'{beam}/runme.sh'
-
 writecue = f'{beam}/writecue.txt'
 firecue = f'{beam}/firecue.txt'
 
