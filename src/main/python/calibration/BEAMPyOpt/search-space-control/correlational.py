@@ -9,9 +9,13 @@ from worker import ext_change, change_conf
 # KEEP ALL INTERCEPTS AS ZERO and KEEP OUTPUT FOLDER EMPTY!!
 
 # Deleting shared o/p folder contents
-filelist = [ f for f in os.listdir(shared) ]
-for f in filelist:
-    os.remove(os.path.join(shared, f))
+if os.path.isdir(shared):
+    filelist = [ f for f in os.listdir(shared) ]
+    for f in filelist:
+        os.remove(os.path.join(shared, f))
+else:
+    os.makedirs(shared)
+
 
 ################################### Preprocessing
 
@@ -28,7 +32,7 @@ ext_change('save', picked_conf_file, filename)
 
 ################################### Fire BEAM
 os.chdir(beam) 
-subprocess.call(['gradlew', ':run', f"-PappArgs=['--config', {beam}/{picked_conf_file}]"])
+subprocess.call(['./gradlew', ':run', f"-PappArgs=['--config', '{picked_conf_file}']"])
 os.chdir(search_space)
 
 ################################### Bookkeeping phase

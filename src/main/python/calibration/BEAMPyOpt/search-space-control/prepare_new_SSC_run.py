@@ -38,6 +38,7 @@ else:
 os.environ["MAXRAM"] = "16g"
 
 # point 6
-fetch_file = '/home/ubuntu/kiran_thesis/beam/src/main/python/calibration/BEAMPyOpt/search-space-control/fetched_files.txt'
-os.remove(fetch_file)
+fetch_file = f'{search_space}/fetched_files.txt'
+if os.path.isfile(fetch_file):
+    os.remove(fetch_file)
 with open(fetch_file, 'w') as document: pass

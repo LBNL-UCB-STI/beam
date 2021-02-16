@@ -1,4 +1,5 @@
-beam = '/home/ubuntu/kiran_thesis/beam'
+import os
+beam = f'{os.getcwd()}'
 
 total_rel_nudge_trials = 300 # should always be even and multiple of 4
 

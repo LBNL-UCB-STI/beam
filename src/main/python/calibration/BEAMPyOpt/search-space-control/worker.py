@@ -193,7 +193,7 @@ def fire_BEAM(number):
     print('BEAM fired on '+str(os.getpid())+' PID.')
     picked_conf_file = copy_urbansim_config % number   # label the file
     os.chdir(beam)
-    subprocess.call(['gradlew', ':run', f"-PappArgs=['--config', {beam}/{picked_conf_file}]"])
+    subprocess.call(['gradlew', ':run', f"-PappArgs=['--config', '{picked_conf_file}']"])
     os.chdir(search_space)
 
 def bookkeep(which_stage):
