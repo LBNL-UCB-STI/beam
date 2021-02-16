@@ -2,6 +2,7 @@ package beam.router.skim.urbansim
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props, Terminated}
 import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, TAZIndex}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.AbstractSkimmer
@@ -9,6 +10,7 @@ import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import org.matsim.api.core.v01.Coord
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.duration._
@@ -19,7 +21,7 @@ import scala.util.{Failure, Success}
 class MasterActor(
   val geoClustering: GeoClustering,
   val abstractSkimmer: AbstractSkimmer,
-  val odR5Requester: ODR5Requester,
+  val odRequester: ODRequester,
   val requestTimes: Seq[Int]
 ) extends Actor
     with ActorLogging {
@@ -30,6 +32,14 @@ class MasterActor(
   }
 
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
+
+  private def coordIsSelected(coord:Coord):Boolean = {
+    val isSelected = math.round(coord.getX) % 3 == 0 && math.round(coord.getY) % 3 == 0
+    if (isSelected){
+      beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
+    }
+    isSelected
+  }
 
   private val allODs: Array[(GeoIndex, GeoIndex)] = {
     geoClustering match {
@@ -44,12 +54,12 @@ class MasterActor(
         }.toArray
 
       case tazClustering: TAZClustering =>
-        val tazs = tazClustering.tazTreeMap.getTAZs
+        val tazs = tazClustering.tazTreeMap.getTAZs.filter(taz => coordIsSelected(taz.coord))
         log.info(s"Number of TAZs: ${tazs.size}")
         tazs.flatMap { srcTAZ =>
-          tazs.map { destTAZ =>
-            (TAZIndex(srcTAZ), TAZIndex(destTAZ))
-          }
+            tazs.map { destTAZ =>
+              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
+            }
         }.toArray
     }
   }
@@ -79,7 +89,7 @@ class MasterActor(
   def totalResponses: Int = nSuccessRoutes + nFailedRoutes
 
   def receive: Receive = {
-    case resp: ODR5Requester.Response =>
+    case resp: ODRequester.Response =>
       checkIfNeedToStop(sender())
       resp.maybeRoutingResponse match {
         case Failure(ex) =>
@@ -90,7 +100,7 @@ class MasterActor(
           routingResponse.itineraries.foreach { trip =>
             if (!isBikeTransit(trip)) {
               try {
-                val event = odR5Requester.createSkimEvent(
+                val event = odRequester.createSkimEvent(
                   resp.srcIndex,
                   resp.dstIndex,
                   trip.tripClassifier,
@@ -213,7 +223,7 @@ class MasterActor(
 
   private def createWorker(): (ActorRef, ExecutionContextExecutorService) = {
     val ec: ExecutionContextExecutorService = createSingleThreadExecutionContext
-    (context.actorOf(WorkerActor.props(self, odR5Requester, ec)), ec)
+    (context.actorOf(WorkerActor.props(self, odRequester, ec)), ec)
   }
 
   private def createSingleThreadExecutionContext: ExecutionContextExecutorService = {
@@ -267,9 +277,9 @@ object MasterActor {
   def props(
     geoClustering: GeoClustering,
     abstractSkimmer: AbstractSkimmer,
-    odR5Requester: ODR5Requester,
+    odR5Requester: ODRequester,
     requestTimes: Seq[Int]
   ): Props = {
-    Props(new MasterActor(geoClustering, abstractSkimmer, odR5Requester: ODR5Requester, requestTimes))
+    Props(new MasterActor(geoClustering, abstractSkimmer, odR5Requester: ODRequester, requestTimes))
   }
 }

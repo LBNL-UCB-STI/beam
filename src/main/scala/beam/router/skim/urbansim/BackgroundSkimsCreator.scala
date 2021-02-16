@@ -5,11 +5,13 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.H3Wrapper
 import beam.router.Modes.BeamMode
+import beam.router.Router
 import beam.router.r5.{R5Parameters, R5Wrapper}
-import beam.router.skim.urbansim.MasterActor.Response
 import beam.router.skim._
+import beam.router.skim.urbansim.MasterActor.Response
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.ProfilingUtils
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.router.util.TravelTime
 
@@ -24,54 +26,70 @@ class BackgroundSkimsCreator(
   val abstractSkimmer: AbstractSkimmer,
   val travelTime: TravelTime,
   val beamModes: Array[BeamMode],
-  val withTransit: Boolean
-)(implicit actorSystem: ActorSystem) {
+  val withTransit: Boolean,
+  val useR5: Boolean = true
+)(implicit actorSystem: ActorSystem)
+    extends LazyLogging {
 
   import BackgroundSkimsCreator._
 
   private implicit val timeout: Timeout = Timeout(6, TimeUnit.HOURS)
 
-  private val r5Wrapper: R5Wrapper = new R5Wrapper(
-    R5Parameters(
-      beamServices.beamConfig,
-      beamScenario.transportNetwork,
-      beamScenario.vehicleTypes,
-      beamScenario.fuelTypePrices,
-      beamScenario.ptFares,
-      beamServices.geo,
-      beamScenario.dates,
-      beamServices.networkHelper,
-      beamServices.fareCalculator,
-      beamServices.tollCalculator
-    ),
-    travelTime,
-    0.0
+  val r5Parameters: R5Parameters = R5Parameters(
+    beamServices.beamConfig,
+    beamScenario.transportNetwork,
+    beamScenario.vehicleTypes,
+    beamScenario.fuelTypePrices,
+    beamScenario.ptFares,
+    beamServices.geo,
+    beamScenario.dates,
+    beamServices.networkHelper,
+    beamServices.fareCalculator,
+    beamServices.tollCalculator
+  )
+
+  val maybeR5Router: Option[R5Wrapper] = if (useR5) {
+    val r5Wrapper = new R5Wrapper(
+      r5Parameters,
+      travelTime,
+      0.0
+    )
+    Some(r5Wrapper)
+  } else {
+    None
+  }
+
+  val maybeODRouter: Option[ODRouter_ProofOfConcept] =
+    if (useR5) { None } else { Some(ODRouter_ProofOfConcept(r5Parameters, Some(travelTime))) }
+
+  val router: Router = if (useR5) { maybeR5Router.get } else { maybeODRouter.get }
+
+  val skimmerEventFactory: AbstractSkimmerEventFactory =
+    beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
+      case "od"          => new ODSkimmerEventFactory
+      case "activitySim" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
+      case kind @ _      => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
+    }
+
+  var odRequester: ODRequester = new ODRequester(
+    vehicleTypes = beamScenario.vehicleTypes,
+    router = router,
+    scenario = beamServices.matsimServices.getScenario,
+    geoUtils = beamServices.geo,
+    beamModes = beamModes,
+    beamConfig = beamServices.beamConfig,
+    modeChoiceCalculatorFactory = beamServices.modeChoiceCalculatorFactory,
+    withTransit = withTransit,
+    skimmerEventFactory
   )
 
   private val masterActorRef: ActorRef = {
     val actorName = s"Modes-${beamModes.mkString("_")}-with-transit-$withTransit-${UUID.randomUUID()}"
-    val skimmerEventFactory: AbstractSkimmerEventFactory =
-      beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-        case "od"          => new ODSkimmerEventFactory
-        case "activitySim" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
-        case kind @ _      => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
-      }
 
     val masterProps = MasterActor.props(
       geoClustering,
       abstractSkimmer,
-      // Array(BeamMode.WALK, BeamMode.WALK_TRANSIT, BeamMode.BIKE)
-      new ODR5Requester(
-        vehicleTypes = beamScenario.vehicleTypes,
-        r5Wrapper = r5Wrapper,
-        scenario = beamServices.matsimServices.getScenario,
-        geoUtils = beamServices.geo,
-        beamModes = beamModes,
-        beamConfig = beamServices.beamConfig,
-        modeChoiceCalculatorFactory = beamServices.modeChoiceCalculatorFactory,
-        withTransit = withTransit,
-        skimmerEventFactory
-      ),
+      odRequester,
       requestTimes = getPeakHoursFromConfig(beamServices).map { hour =>
         (hour * 3600).toInt
       }
@@ -85,6 +103,11 @@ class BackgroundSkimsCreator(
 
   def stop(): Unit = {
     masterActorRef ! MasterActor.Request.Stop
+    logger.info(s"Routes execution time: ${odRequester.requestsExecutionTime}")
+    if (maybeODRouter.nonEmpty) {
+      val execInfo = maybeODRouter.map(_.totalRouteExecitionInfo.toString()).getOrElse("")
+      logger.info(s"Routes execution time detailed: ${execInfo}")
+    }
   }
 
   def reduceParallelismTo(parallelism: Int): Unit = {
@@ -98,7 +121,6 @@ class BackgroundSkimsCreator(
   def getResult: Future[Response.PopulatedSkimmer] = {
     masterActorRef.ask(MasterActor.Request.WaitToFinish).mapTo[MasterActor.Response.PopulatedSkimmer]
   }
-
 }
 
 object BackgroundSkimsCreator {
@@ -212,5 +234,38 @@ object BackgroundSkimsCreator {
         }
       }
     }
+}
 
+case class RouteExecutionInfo(
+  r5ExecutionTime: Long = 0,
+  ghCarExecutionDuration: Long = 0,
+  ghWalkExecutionDuration: Long = 0,
+  r5Responses: Long = 0,
+  ghCarResponses: Long = 0,
+  ghWalkResponses: Long = 0
+) {
+  val nanosToSec = 0.000000001
+
+  def toShortString: String =
+    s"total execution time in seconds: ${(r5ExecutionTime + ghCarExecutionDuration + ghWalkExecutionDuration) * nanosToSec}"
+
+  override def toString: String =
+    toShortString +
+    s"\nr5 execution time in seconds | number of responses: ${r5ExecutionTime * nanosToSec} | $r5Responses " +
+    s"\ngh car route execution time in seconds | number of responses: ${ghCarExecutionDuration * nanosToSec} | $ghCarResponses" +
+    s"\ngh walk route execution time in seconds | number of responses: ${ghWalkExecutionDuration * nanosToSec} | $ghWalkResponses"
+}
+
+object RouteExecutionInfo {
+
+  def sum(debugInfo1: RouteExecutionInfo, debugInfo2: RouteExecutionInfo): RouteExecutionInfo = {
+    RouteExecutionInfo(
+      r5ExecutionTime = debugInfo1.r5ExecutionTime + debugInfo2.r5ExecutionTime,
+      ghCarExecutionDuration = debugInfo1.ghCarExecutionDuration + debugInfo2.ghCarExecutionDuration,
+      ghWalkExecutionDuration = debugInfo1.ghWalkExecutionDuration + debugInfo2.ghWalkExecutionDuration,
+      r5Responses = debugInfo1.r5Responses + debugInfo2.r5Responses,
+      ghCarResponses = debugInfo1.ghCarResponses + debugInfo2.ghCarResponses,
+      ghWalkResponses = debugInfo1.ghWalkResponses + debugInfo2.ghWalkResponses
+    )
+  }
 }

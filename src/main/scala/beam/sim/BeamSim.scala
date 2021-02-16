@@ -302,7 +302,8 @@ class BeamSim @Inject()(
         abstractSkimmer,
         new FreeFlowTravelTime,
         Array(BeamMode.WALK, BeamMode.BIKE),
-        withTransit = true
+        withTransit = true,
+        useR5 = beamServices.beamConfig.beam.routing.carRouter == "R5"
       )(actorSystem)
       skimCreator.start()
       backgroundSkimsCreator = Some(skimCreator)
@@ -559,7 +560,8 @@ class BeamSim @Inject()(
   import scala.concurrent.duration._
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    finalizeUrbanSimSkims()
+    finalizeBackgroundSkimsCreator()
+
     carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
@@ -781,7 +783,7 @@ class BeamSim @Inject()(
       }
   }
 
-  private def finalizeUrbanSimSkims(): Unit = {
+  private def finalizeBackgroundSkimsCreator(): Unit = {
     val timeoutForSkimmer = 6.hours
     backgroundSkimsCreator match {
       case Some(skimCreator) =>
@@ -791,32 +793,44 @@ class BeamSim @Inject()(
           .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
-        val h3Clustering = skimCreator.geoClustering
-        val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
-          beamServices,
-          beamScenario,
-          h3Clustering,
-          abstractSkimmer,
-          currentTravelTime,
-          Array(BeamMode.CAR, BeamMode.WALK),
-          withTransit = true
-        )(actorSystem)
-        carAndDriveTransitSkimCreator.start()
-        carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
-        try {
-          val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
-          carAndDriveTransitSkimCreator.stop()
-          finalSkimmer.writeToDisk(
-            new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
-          )
-        } catch {
-          case NonFatal(ex) =>
-            logger.error(
-              s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
-              ex
+        val geoClustering = skimCreator.geoClustering
+
+        def runDriveTransitSkimsCreator(useR5: Boolean, withTransit: Boolean) = {
+          val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
+            beamServices,
+            beamScenario,
+            geoClustering,
+            abstractSkimmer,
+            currentTravelTime,
+            Array(BeamMode.CAR, BeamMode.WALK),
+            withTransit = withTransit,
+            useR5 = useR5
+          )(actorSystem)
+          carAndDriveTransitSkimCreator.start()
+          carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
+          try {
+            val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
+            carAndDriveTransitSkimCreator.stop()
+            finalSkimmer.writeToDisk(
+              new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
             )
-            None
+          } catch {
+            case NonFatal(ex) =>
+              logger.error(
+                s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
+                ex
+              )
+              None
+          }
         }
+
+        val useR5 = beamServices.beamConfig.beam.routing.carRouter == "R5"
+
+        MethodWatcher.withLoggingInvocationTime(
+          s"run drive transit skims creator with ${if (useR5) { "R5" } else { "GH + R5" }} with transit",
+          runDriveTransitSkimsCreator(useR5, true),
+          logger.underlying
+        )
       case None =>
     }
   }

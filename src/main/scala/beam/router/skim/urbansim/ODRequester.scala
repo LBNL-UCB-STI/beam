@@ -9,8 +9,8 @@ import beam.agentsim.infrastructure.geozone.{GeoIndex, H3Index, TAZIndex}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.{Router}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.r5.R5Wrapper
 import beam.router.skim.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -20,9 +20,9 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-class ODR5Requester(
+class ODRequester(
   val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  val r5Wrapper: R5Wrapper,
+  val router: Router,
   val scenario: Scenario,
   val geoUtils: GeoUtils,
   val beamModes: Array[BeamMode],
@@ -31,6 +31,8 @@ class ODR5Requester(
   val withTransit: Boolean,
   val skimmerEventFactory: AbstractSkimmerEventFactory
 ) {
+  var requestsExecutionTime: RouteExecutionInfo = RouteExecutionInfo()
+
   private val dummyPersonAttributes = createDummyPersonAttribute
 
   private val modeChoiceCalculator: ModeChoiceCalculator = modeChoiceCalculatorFactory(dummyPersonAttributes)
@@ -46,7 +48,7 @@ class ODR5Requester(
 
   private val thresholdDistanceForBikeMeters: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
 
-  def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODR5Requester.Response = {
+  def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
     val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
       case (h3SrcIndex: H3Index, h3DestIndex: H3Index) =>
         H3Clustering.getGeoIndexCenters(geoUtils, h3SrcIndex, h3DestIndex)
@@ -70,9 +72,16 @@ class ODR5Requester(
         streetVehicles = streetVehicles,
         attributesOfIndividual = Some(dummyPersonAttributes)
       )
-      r5Wrapper.calcRoute(routingReq)
+      val startExecution = System.nanoTime()
+      val response = router.calcRoute(routingReq, buildDirectCarRoute = true, buildDirectWalkRoute = true)
+      requestsExecutionTime = RouteExecutionInfo.sum(
+        requestsExecutionTime,
+        RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+      )
+      response
     }
-    ODR5Requester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
+
+    ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
   }
 
   def createSkimEvent(
@@ -203,7 +212,7 @@ class ODR5Requester(
   }
 }
 
-object ODR5Requester {
+object ODRequester {
   case class Response(
     srcIndex: GeoIndex,
     dstIndex: GeoIndex,
