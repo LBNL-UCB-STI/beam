@@ -66,6 +66,15 @@ case class ActivitySimSkimmerEvent(
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val distInMeters = beamLegs.map(_.travelPath.distanceInM).sum
+    val (driveTimeInSeconds, driveDistanceInMeters) = beamLegs.foldLeft((0, 0.0)) {
+      case ((duration, distanceInM), leg) =>
+        leg.mode match {
+          case BeamMode.CAV | BeamMode.CAR => (duration + leg.duration, distanceInM + leg.travelPath.distanceInM)
+          case _                           => (duration, distanceInM)
+
+        }
+    }
+
     val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination)
 
     val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime) = calcTimes(trip)
@@ -81,7 +90,9 @@ case class ActivitySimSkimmerEvent(
         walkAccessInMinutes = walkAccess / 60.0,
         walkEgressInMinutes = walkEgress / 60.0,
         walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
-        totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0
+        totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
+        driveTimeInMinutes = driveTimeInSeconds / 60.0,
+        driveDistanceInMeters = driveDistanceInMeters
       )
     (key, payload)
   }
@@ -89,6 +100,6 @@ case class ActivitySimSkimmerEvent(
 
 object ActivitySimSkimmerEvent {
 
-  val inVehicleModes
-    : Set[BeamMode] = Set(BeamMode.CAV, BeamMode.CAR) ++ BeamMode.transitModes ++ BeamMode.massTransitModes
+  val carModes: Set[BeamMode] = Set(BeamMode.CAV, BeamMode.CAR)
+  val inVehicleModes: Set[BeamMode] = carModes ++ BeamMode.transitModes ++ BeamMode.massTransitModes
 }

@@ -2,7 +2,6 @@ package beam.router.skim.urbansim
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props, Terminated}
 import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, TAZIndex}
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.AbstractSkimmer
@@ -33,9 +32,9 @@ class MasterActor(
 
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
 
-  private def coordIsSelected(coord:Coord):Boolean = {
+  private def coordIsSelected(coord: Coord): Boolean = {
     val isSelected = math.round(coord.getX) % 3 == 0 && math.round(coord.getY) % 3 == 0
-    if (isSelected){
+    if (isSelected) {
       beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
     }
     isSelected
@@ -57,9 +56,9 @@ class MasterActor(
         val tazs = tazClustering.tazTreeMap.getTAZs.filter(taz => coordIsSelected(taz.coord))
         log.info(s"Number of TAZs: ${tazs.size}")
         tazs.flatMap { srcTAZ =>
-            tazs.map { destTAZ =>
-              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
-            }
+          tazs.map { destTAZ =>
+            (TAZIndex(srcTAZ), TAZIndex(destTAZ))
+          }
         }.toArray
     }
   }
