@@ -1,6 +1,6 @@
 import os
-beam = f'{os.getcwd()}'
-
+#beam = f'{os.getcwd()}'
+beam = '/home/ubuntu/git/beam'
 total_rel_nudge_trials = 300 # should always be even and multiple of 4
 
 shared = f'{beam}/src/main/python/calibration/BEAMPyOpt/storage'

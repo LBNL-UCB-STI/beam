@@ -1,7 +1,7 @@
 # Author: Kiran Chhatre
 # Implementation 2 related
-import numpy as np 
-import pandas as pd 
+import numpy as np
+import pandas as pd
 import itertools, glob, fnmatch, os, random, csv, math, pickle
 from natsort import natsorted
 import warnings
@@ -21,18 +21,18 @@ def getNudges(whichCounter):
         #last_needed_csv = rel_nudge_stages[rel_nudge_stages.index(whichCounter)-1] 
         last_needed_csv = rel_nudge_stages[quotient]               # total init random runs = NEW SETUP!
 
-    last_needed_csv_path = glob.glob(shared+'/'+str(last_needed_csv)+'_*.csv')[0] 
-    validate = any([len(fnmatch.filter(os.listdir(shared), '*.csv')) == last_needed_csv, len(fnmatch.filter(os.listdir(shared), '*.csv')) > last_needed_csv-1]) 
+    last_needed_csv_path = glob.glob(shared+'/'+str(last_needed_csv)+'_*.csv')[0]
+    validate = any([len(fnmatch.filter(os.listdir(shared), '*.csv')) == last_needed_csv, len(fnmatch.filter(os.listdir(shared), '*.csv')) > last_needed_csv-1])
     while not os.path.exists(last_needed_csv_path):                       # Condition 1 to verify the file exists
-        time.sleep(5) 
-        print('In relativeFactoredNudges: waiting for the last BEAM output csv...') 
+        time.sleep(5)
+        print('In relativeFactoredNudges: waiting for the last BEAM output csv...')
     while not validate:                                                   # Condition 2 to be true
         time.sleep(5)
-        print('Waiting to validate required number of csv files for nudge compuations...')  
+        print('Waiting to validate required number of csv files for nudge compuations...')
 
     if whichCounter == init_runs:                                       # total init random runs = 8
         print('Creating nudges for stage 1...')
-        csv_name = glob.glob(shared+'/1_*.csv')[0]  
+        csv_name = glob.glob(shared+'/1_*.csv')[0]
         df =  pd.read_csv(csv_name)
         for j in range(init_runs-1):                                      # total init random runs = 7
             vector_4_gradients = []
@@ -59,7 +59,7 @@ def getNudges(whichCounter):
         '''
 
         def methodB():
-            prev_list, next_list, names = ([] for i in range(3)) 
+            prev_list, next_list, names = ([] for i in range(3))
             files = glob.glob(shared+'/*')
             for i in range(len(files)):
                 names.append(files[i][77:-4])  # extract file names only
@@ -69,7 +69,7 @@ def getNudges(whichCounter):
                 names_sorted.sort(key=lambda x: int(x.split('_')[1])) # sort with L1 norm values
                 next_list = [names_sorted[0]] * 4
                 prev_list = names_sorted[1:5]
-                
+
             else: # find best CSV from either stage and create 4 pair accordingly
                 if whichCounter == 16:
                     list_one = names_sorted[whichCounter-16:whichCounter-8] # leveraging to look at all 8 outputs so as to choose the best four CSVs
@@ -77,7 +77,7 @@ def getNudges(whichCounter):
                     list_one = names_sorted[whichCounter-12:whichCounter-8]
                 list_two = names_sorted[whichCounter-8:whichCounter-4]
                 list_one_min = min(list_one, key=lambda x: int(x.split('_')[1]))
-                list_two_min = min(list_two, key=lambda x: int(x.split('_')[1])) 
+                list_two_min = min(list_two, key=lambda x: int(x.split('_')[1]))
                 if int(list_one_min.split('_')[1]) < int(list_two_min.split('_')[1]):
                     next_list = [list_one_min] * 4
                     prev_list = list_two
@@ -88,7 +88,7 @@ def getNudges(whichCounter):
             return prev_list, next_list
 
         def methodC():
-            prev_list, next_list, names = ([] for i in range(3)) 
+            prev_list, next_list, names = ([] for i in range(3))
             files = glob.glob(shared+'/*')
             for i in range(len(files)):
                 names.append(files[i][77:-4])  # extract file names only
@@ -99,7 +99,7 @@ def getNudges(whichCounter):
                 next_list = [names_sorted[0]] * 4
                 prev_list = names_sorted[1:5]
 
-            else: 
+            else:
                 if whichCounter == 16:
                     list_one = names_sorted[whichCounter-16:whichCounter-8] # leveraging to look at all 8 outputs so as to choose the best four CSVs
                 else:
@@ -118,12 +118,12 @@ def getNudges(whichCounter):
                 for i in range(len(unique_combined_merged)):
                     if tuple((int(unique_combined_merged[i][0].split('_')[1]), int(unique_combined_merged[i][1].split('_')[1]))) in top_4_L1:
                         next_list.append(unique_combined_merged[i][0])
-                        prev_list.append(unique_combined_merged[i][1]) 
+                        prev_list.append(unique_combined_merged[i][1])
             return prev_list, next_list
 
         def methodD():
             print('Fetch method is D')
-            prev_list, next_list, names = ([] for i in range(3)) 
+            prev_list, next_list, names = ([] for i in range(3))
             files = glob.glob(shared+'/*')
             for i in range(len(files)):
                 names.append(files[i][77:-4])  # extract file names only
@@ -132,7 +132,7 @@ def getNudges(whichCounter):
 
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             start = 0
-            if whichCounter != 12: 
+            if whichCounter != 12:
                 csv_4_comparison = natsorted(names, key=lambda x: x.split('_')[0])[0:whichCounter-8] # sort with iteration number upto whichCounter-8
                 csv_4_comparison.sort(key=lambda x: int(x.split('_')[1])) # sort with L1 norm values
                 if csv_4_comparison[0:5] == names_sorted[0:5]:      # checking similarity at first batch
@@ -144,7 +144,7 @@ def getNudges(whichCounter):
             return prev_list, next_list
 
         def methodE():
-            prev_list, next_list, names = ([] for i in range(3)) 
+            prev_list, next_list, names = ([] for i in range(3))
             files = glob.glob(shared+'/*')
             for i in range(len(files)):
                 names.append(files[i][77:-4])  # extract file names only
@@ -154,25 +154,25 @@ def getNudges(whichCounter):
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             start = 0
             end = 0
-            if whichCounter != 12: 
+            if whichCounter != 12:
                 csv_4_comparison = natsorted(names, key=lambda x: x.split('_')[0])[0:whichCounter-8] # sort with iteration number upto whichCounter-8
                 csv_4_comparison.sort(key=lambda x: int(x.split('_')[1])) # sort with L1 norm values
                 if csv_4_comparison[0:3] == names_sorted[0:3]:      # checking similarity at first batch
                     start = 1
                     if csv_4_comparison[1:4] == names_sorted[1:4]:  # checking similarity at second batch
                         start = 2
-                if csv_4_comparison[-2:len(csv_4_comparison)] == names_sorted[-2:len(names_sorted)]: 
+                if csv_4_comparison[-2:len(csv_4_comparison)] == names_sorted[-2:len(names_sorted)]:
                     end = -1
-                    if csv_4_comparison[-3:len(csv_4_comparison)-1] == names_sorted[-3:len(names_sorted)-1]: 
+                    if csv_4_comparison[-3:len(csv_4_comparison)-1] == names_sorted[-3:len(names_sorted)-1]:
                         end = -2
 
             # set df lists for computation
             next_list = [names_sorted[start]] * 4
-            prev_list = names_sorted[start+1:start+3] + names_sorted[-2+end:len(names_sorted)+end]  
+            prev_list = names_sorted[start+1:start+3] + names_sorted[-2+end:len(names_sorted)+end]
             return prev_list, next_list
 
         def methodF():
-            prev_list, next_list, names = ([] for i in range(3)) 
+            prev_list, next_list, names = ([] for i in range(3))
             files = glob.glob(shared+'/*')
             for i in range(len(files)):
                 names.append(files[i][77:-4])  # extract file names only
@@ -182,43 +182,43 @@ def getNudges(whichCounter):
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             end = 0
             start = 0
-            if whichCounter != 12: 
+            if whichCounter != 12:
                 csv_4_comparison = natsorted(names, key=lambda x: x.split('_')[0])[0:whichCounter-8] # sort with iteration number upto whichCounter-8
                 csv_4_comparison.sort(key=lambda x: int(x.split('_')[1])) # sort with L1 norm values
-                if csv_4_comparison[-4:len(csv_4_comparison)] == names_sorted[-4:len(names_sorted)]: 
+                if csv_4_comparison[-4:len(csv_4_comparison)] == names_sorted[-4:len(names_sorted)]:
                     end = -1
-                    if csv_4_comparison[-3:len(csv_4_comparison)-1] == names_sorted[-3:len(names_sorted)-1]: 
+                    if csv_4_comparison[-3:len(csv_4_comparison)-1] == names_sorted[-3:len(names_sorted)-1]:
                         end = -2
 
             # set df lists for computation
             next_list = [names_sorted[start]] * 4
-            prev_list = names_sorted[-4+end:len(names_sorted)+end]  
+            prev_list = names_sorted[-4+end:len(names_sorted)+end]
             return prev_list, next_list
-        
+
         def methodG():
             print('Fetch method is G')
-            prev_list, next_list, names, old_compared_csv = [] = ([] for i in range(4)) 
+            prev_list, next_list, names, old_compared_csv = [] = ([] for i in range(4))
             files = glob.glob(shared+'/*')
             for i in range(len(files)):
-                names.append(files[i][len(shared):-4])  # extract file names only
+                names.append(files[i][77:-4])  # extract file names only
             names_sorted = natsorted(names, key=lambda x: x.split('_')[0]) # sort with iteration number
             names_sorted.sort(key=lambda x: int(x.split('_')[1])) # sort with L1 norm values
 
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             try:
-                validate = pickle.load(open(f"{search_space}/fetched_files.txt","rb"))
+                validate = pickle.load(open("fetched_files.txt","rb"))
             except EOFError:
                 validate = []
 
             if not validate:
                 prev_list = names_sorted[1:5]
             else:
-                for i in range(len(validate)): 
-                    if names_sorted[0] == validate[i][0]: 
-                        old_compared_csv.append(validate[i][1:5]) 
+                for i in range(len(validate)):
+                    if names_sorted[0] == validate[i][0]:
+                        old_compared_csv.append(validate[i][1:5])
                 old_compared_csv = list(itertools.chain(*old_compared_csv)) # flatten
                 old_compared_csv = list(set(old_compared_csv)) # remove duplicates
-                
+
                 for i in range(len(names_sorted)-1):
                     if names_sorted[i+1] in old_compared_csv:
                         pass
@@ -228,23 +228,23 @@ def getNudges(whichCounter):
 
             # set df lists for computation
             next_list = [names_sorted[0]] * 4
-            prev_list = prev_list[0:4] 
+            prev_list = prev_list[0:4]
 
             if not validate:
-                updated_fetched_list = [[names_sorted[0]] + prev_list] 
+                updated_fetched_list = [[names_sorted[0]] + prev_list]
             else:
                 what_to_append = [names_sorted[0]] + prev_list
                 validate.append(what_to_append)
                 updated_fetched_list = validate
 
-            with open(f"{search_space}/fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
+            with open("fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
                 pickle.dump(updated_fetched_list, fp)
 
             return prev_list, next_list
 
         def methodH():
             print('Fetch method is H')
-            prev_list1, prev_list, next_list, names, old_compared_csv = [] = ([] for i in range(5)) 
+            prev_list1, prev_list, next_list, names, old_compared_csv = [] = ([] for i in range(5))
             files = glob.glob(shared+'/*')
 
             # sorting all memory bank according to their L1 norm
@@ -255,20 +255,19 @@ def getNudges(whichCounter):
 
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             try:
-
-                validate = pickle.load(open(f"{search_space}/fetched_files.txt","rb"))
+                validate = pickle.load(open("fetched_files.txt","rb"))
             except EOFError:
                 validate = []
 
             if validate:
-                # checking if least error from the current stage was seen before, 
+                # checking if least error from the current stage was seen before,
                 # if so collecting all csv list that were compared to this least error
-                for i in range(len(validate)): 
+                for i in range(len(validate)):
                     if names_sorted[0] == validate[i][0]:  # validate is [ [a,b]  , [v,r] ... ]
-                        old_compared_csv.append(validate[i][1:5]) 
+                        old_compared_csv.append(validate[i][1:5])
                 old_compared_csv = list(itertools.chain(*old_compared_csv)) # flatten
                 old_compared_csv = list(set(old_compared_csv)) # remove duplicates
-                
+
                 # removing all previously compared least errors from originally sorted memory bank
                 for i in range(len(names_sorted)-1):
                     if names_sorted[i+1] in old_compared_csv:
@@ -293,14 +292,14 @@ def getNudges(whichCounter):
             for i in range(len(prev_list1)):
                 if prev_list1[i].split('_')[1] != min_err:
                     for_prev.append(prev_list1[i])
-            for_prev.sort(key=lambda x: int(x.split('_')[1])) 
+            for_prev.sort(key=lambda x: int(x.split('_')[1]))
 
             if validate:
                 prev_list = for_prev[0:4]
             else:
-                prev_list = names_sorted[1:5] 
+                prev_list = names_sorted[1:5]
 
-            # only for 5 and 6 error: take last two best err CSVs, if num of files is less than 4 then execute the following two loops:
+                # only for 5 and 6 error: take last two best err CSVs, if num of files is less than 4 then execute the following two loops:
             if len(names_sorted[0].split('_')[1]) == 1:
                 if names_sorted[0].split('_')[1] == '5' or names_sorted[0].split('_')[1] == '6':
                     # arrange next list
@@ -328,10 +327,10 @@ def getNudges(whichCounter):
                         for i in range(how_many_to_add):
                             leaving_one_set.append(add_more_from[:i+1][0])
                     random.shuffle(leaving_one_set)
-                    prev_list = leaving_one_set 
-            
-            # Add Gaussian error for 1 stage (4 iters) if min error has not improved for last 5 stage length (20iters) after 56 total iters
-            if validate: 
+                    prev_list = leaving_one_set
+
+                    # Add Gaussian error for 1 stage (4 iters) if min error has not improved for last 5 stage length (20iters) after 56 total iters
+            if validate:
                 checker = []
                 if len(validate) > 10:
                     recent_err = validate[-1][0].split('_')[1]
@@ -347,7 +346,7 @@ def getNudges(whichCounter):
                         exclude_best_err = []
                         for i in range(len(names_sorted)):
                             if names_sorted[i].split('_')[1] != recent_err:
-                                exclude_best_err.append(names_sorted[i]) 
+                                exclude_best_err.append(names_sorted[i])
                         exclude_best_err.sort(key=lambda x: int(x.split('_')[1]))
                         next_list = [exclude_best_err[0]] * 4 # second best
                         third_best = []
@@ -360,14 +359,14 @@ def getNudges(whichCounter):
                         print('The optimizer has past 11 stages and has been improving since last 5 stages!')
 
             if not validate:
-                updated_fetched_list = [[next_list[0]] + prev_list] 
+                updated_fetched_list = [[next_list[0]] + prev_list]
             else:
                 what_to_append = [next_list[0]] + prev_list
                 validate.append(what_to_append)
                 updated_fetched_list = validate
 
 
-            with open(f"{search_space}/fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
+            with open("fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
                 pickle.dump(updated_fetched_list, fp)
 
             return prev_list, next_list
@@ -387,16 +386,16 @@ def getNudges(whichCounter):
 
         for i in range(4):
             print('Computing nudges for '+str(i+1)+' substage...')
-            
+
             #for 'methodA'
             #df_prev =  pd.read_csv(glob.glob(shared+'/'+str(whichCounter-iterators_prev[i])+'_*.csv')[0])
             #df_next =  pd.read_csv(glob.glob(shared+'/'+str(whichCounter-iterators_next[i])+'_*.csv')[0])
 
             # otherwise for methodB methodC methodD
-            df_prev =  pd.read_csv(shared+'/'+prev_list[i]+'.csv')  
-            df_next =  pd.read_csv(shared+'/'+next_list[i]+'.csv')  
+            df_prev =  pd.read_csv(shared+'/'+prev_list[i]+'.csv')
+            df_next =  pd.read_csv(shared+'/'+next_list[i]+'.csv')
             # Create a separate df from df_next with 2 cols: L1 and L1_rank
-            Rank_L1_df = df_next.loc[3:4].T 
+            Rank_L1_df = df_next.loc[3:4].T
             # Compute relative ratios of top 4 worst performing mode choices wrt to observed L1 norms
             # Example: {'ride_hail': 1.0, 'walk_transit': 0.45877255803345796, 'walk': 0.40894045161300785, 'ride_hail_transit': 0.3808596172941896}
             fetch_ratios = {}
@@ -417,15 +416,15 @@ def getNudges(whichCounter):
             else:
                 for i in range(1,9): # finding ratios for all 8 choices
                     fetch_ratios[list(Rank_L1_df.loc[Rank_L1_df.iloc[:, 1] == int('{i}'.format(i=i)),3].to_dict().keys())[0]] = abs(list(Rank_L1_df.loc[Rank_L1_df.iloc[:, 1] == int('{i}'.format(i=i)),3].to_dict().values())[0]*1 / list(Rank_L1_df.loc[Rank_L1_df.iloc[:, 1] == 1,3].to_dict().values())[0])
-            
+
             relative_variation_factor = df_next.loc[3].to_dict()
             del relative_variation_factor['iterations']
             relative_variation_factor = dict.fromkeys(relative_variation_factor, 0)
             # update relative variation factors for all mode choices
             # Example: {'bike': 0, 'car': 0, 'drive_transit': 0, 'ride_hail': 1.0, 'ride_hail_pooled': 0, 'ride_hail_transit': 0.3808596172941896, 'walk': 0.40894045161300785, 'walk_transit': 0.45877255803345796}
-            relative_variation_factor.update(fetch_ratios) 
+            relative_variation_factor.update(fetch_ratios)
             # create a df of rows: intercepts_now and L1 for first 2 rows from df_prev and next 2 from df_next
-            compute_df = pd.concat([df_prev.loc[list(range(0,1)) + list(range(3,4))],df_next.loc[list(range(0,1)) + list(range(3,4))]], ignore_index=True, sort =False)  
+            compute_df = pd.concat([df_prev.loc[list(range(0,1)) + list(range(3,4))],df_next.loc[list(range(0,1)) + list(range(3,4))]], ignore_index=True, sort =False)
             del compute_df['iterations']
             # compute d_L1/d_m = (L1_next-L1_prev)/(m_next-m_prev) where m: intercept and this value is an !!! ABSOLUTE VALUE
             # required addition or substraction is taken care of by other variables
@@ -452,13 +451,8 @@ def getNudges(whichCounter):
                     compute_df.loc['m_(t+1)'][i] = compute_df.loc[2][i]
                 else:
                     pass
-            input_vector.append(compute_df.loc['m_(t+1)'].tolist()) 
+            input_vector.append(compute_df.loc['m_(t+1)'].tolist())
 
-        # at the end of this loop, it will return 4 input vectors
+            # at the end of this loop, it will return 4 input vectors
 
     return input_vector
-
-
-
-
-  
