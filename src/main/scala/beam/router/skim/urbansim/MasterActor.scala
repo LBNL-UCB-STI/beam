@@ -32,15 +32,15 @@ class MasterActor(
 
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
 
-  private def coordIsSelected(coord: Coord): Boolean = {
-    val isSelected = math.round(coord.getX) % 3 == 0 && math.round(coord.getY) % 3 == 0
-    if (isSelected) {
-      beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
-    }
-    isSelected
-  }
-
   private val allODs: Array[(GeoIndex, GeoIndex)] = {
+    //    def coordIsSelected(coord: Coord): Boolean = {
+    //      val isSelected = math.round(coord.getX) % 3 == 0 && math.round(coord.getY) % 3 == 0
+    //      if (isSelected) {
+    //        beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
+    //      }
+    //      isSelected
+    //    }
+
     geoClustering match {
       case h3Clustering: H3Clustering =>
         val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
@@ -53,7 +53,7 @@ class MasterActor(
         }.toArray
 
       case tazClustering: TAZClustering =>
-        val tazs = tazClustering.tazTreeMap.getTAZs.filter(taz => coordIsSelected(taz.coord))
+        val tazs = tazClustering.tazTreeMap.getTAZs
         log.info(s"Number of TAZs: ${tazs.size}")
         tazs.flatMap { srcTAZ =>
           tazs.map { destTAZ =>
