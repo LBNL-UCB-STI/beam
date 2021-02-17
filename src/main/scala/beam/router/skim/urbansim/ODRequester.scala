@@ -73,7 +73,7 @@ class ODRequester(
         attributesOfIndividual = Some(dummyPersonAttributes)
       )
       val startExecution = System.nanoTime()
-      val response = router.calcRoute(routingReq, buildDirectCarRoute = true, buildDirectWalkRoute = true)
+      val response = router.calcRoute(routingReq, buildDirectCarRoute = true, buildDirectWalkRoute = false)
       requestsExecutionTime = RouteExecutionInfo.sum(
         requestsExecutionTime,
         RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)

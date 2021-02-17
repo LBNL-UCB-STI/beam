@@ -84,7 +84,7 @@ case class ODRouterR5GHForActivitySimSkims(
           r5.calcRoute(
             request,
             buildDirectCarRoute = needToBuildCarRoute,
-            buildDirectWalkRoute = false
+            buildDirectWalkRoute = buildDirectWalkRoute
           )
         )
       } else {
@@ -109,7 +109,7 @@ case class ODRouterR5GHForActivitySimSkims(
       (response, executionInfo)
     } else {
       val r5ExecutionStart = System.nanoTime()
-      val response = r5.calcRoute(request)
+      val response = r5.calcRoute(request, buildDirectCarRoute, buildDirectWalkRoute)
       val r5ExecutionTime = System.nanoTime() - r5ExecutionStart
       (response, RouteExecutionInfo(r5ExecutionTime = r5ExecutionTime, r5Responses = 1))
     }

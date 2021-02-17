@@ -103,10 +103,10 @@ class BackgroundSkimsCreator(
 
   def stop(): Unit = {
     masterActorRef ! MasterActor.Request.Stop
-    logger.info(s"Routes execution time: ${odRequester.requestsExecutionTime}")
+    logger.info(s"Routes execution time: ${odRequester.requestsExecutionTime.toShortString}")
     if (maybeODRouter.nonEmpty) {
       val execInfo = maybeODRouter.map(_.totalRouteExecutionInfo.toString()).getOrElse("")
-      logger.info(s"Routes execution time detailed: ${execInfo}")
+      logger.info(s"Routes execution time detailed: $execInfo")
     }
   }
 
