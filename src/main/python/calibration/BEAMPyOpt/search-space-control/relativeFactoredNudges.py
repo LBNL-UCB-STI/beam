@@ -206,7 +206,7 @@ def getNudges(whichCounter):
 
             # Comparison loop to avoid duplicate stage runs which starts with 12,16,20,24...
             try:
-                validate = pickle.load(open("fetched_files.txt","rb"))
+                validate = pickle.load(open(f"{search_space}/fetched_files.txt","rb"))
             except EOFError:
                 validate = []
 
@@ -237,7 +237,7 @@ def getNudges(whichCounter):
                 validate.append(what_to_append)
                 updated_fetched_list = validate
 
-            with open("fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
+            with open(f"{search_space}/fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
                 pickle.dump(updated_fetched_list, fp)
 
             return prev_list, next_list
@@ -367,7 +367,7 @@ def getNudges(whichCounter):
                 updated_fetched_list = validate
 
 
-            with open("fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
+            with open(f"{search_space}/fetched_files.txt", "wb") as fp: #how to save in format [[56], [55],[66]]
                 pickle.dump(updated_fetched_list, fp)
 
             return prev_list, next_list
