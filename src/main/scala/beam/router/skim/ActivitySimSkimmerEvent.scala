@@ -24,7 +24,7 @@ case class ActivitySimSkimmerEvent(
 
   val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
 
-  private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double) = {
+  private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Int) = {
     var walkAccess = 0
     var walkEgress = 0
     var walkAuxiliary = 0
@@ -32,6 +32,9 @@ case class ActivitySimSkimmerEvent(
     var sawNonWalkModes = 0
     var currentWalkTime = 0
     var totalInVehicleTime = 0
+
+    var travelingInTransit = false
+    var numberOfTransitTrips = 0
 
     trip.legs.foreach { leg =>
       if (leg.beamLeg.mode == BeamMode.WALK) {
@@ -44,14 +47,23 @@ case class ActivitySimSkimmerEvent(
           walkAuxiliary += currentWalkTime
         }
         currentWalkTime = 0
+
+        if (inVehicleModes.contains(leg.beamLeg.mode)) {
+          totalInVehicleTime += leg.beamLeg.duration
+        }
       }
 
-      if (inVehicleModes.contains(leg.beamLeg.mode)) {
-        totalInVehicleTime += leg.beamLeg.duration
+      if (transitModes.contains(leg.beamLeg.mode)) {
+        if (!travelingInTransit) {
+          travelingInTransit = true
+          numberOfTransitTrips += 1
+        }
+      } else {
+        travelingInTransit = false
       }
     }
     walkEgress = currentWalkTime
-    (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime)
+    (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, numberOfTransitTrips)
   }
 
   private def observeTrip(
@@ -66,20 +78,21 @@ case class ActivitySimSkimmerEvent(
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val distInMeters = beamLegs.map(_.travelPath.distanceInM).sum
+    val (driveTimeInSeconds, driveDistanceInMeters, ferryTimeInSeconds, lightRailTimeInSeconds) =
+      beamLegs.foldLeft((0, 0.0, 0, 0)) {
+        case ((driveTime, driveDistanceInM, ferryTime, railTime), leg) =>
+          leg.mode match {
+            case BeamMode.CAV | BeamMode.CAR =>
+              (driveTime + leg.duration, driveDistanceInM + leg.travelPath.distanceInM, ferryTime, railTime)
+            case BeamMode.FERRY                => (driveTime, driveDistanceInM, ferryTime + leg.duration, railTime)
+            case BeamMode.TRAM | BeamMode.RAIL => (driveTime, driveDistanceInM, ferryTime, railTime + leg.duration)
+            case _                             => (driveTime, driveDistanceInM, ferryTime, railTime)
+          }
+      }
+
     val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination)
 
-    val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime) = calcTimes(trip)
-    val legsStrRepresentation = trip.legs
-      .map { leg =>
-        val tp = leg.beamLeg.travelPath
-        if (tp.distanceInM > 0) {
-          s"dist:${tp.distanceInM}links:${tp.linkIds.mkString("*")}"
-        } else {
-          ""
-        }
-      }
-      .filter(entry => entry != "")
-      .mkString(";")
+    val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, numberOfTransitTrips) = calcTimes(trip)
 
     val payload =
       ActivitySimSkimmerInternal(
@@ -93,7 +106,11 @@ case class ActivitySimSkimmerEvent(
         walkEgressInMinutes = walkEgress / 60.0,
         walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
         totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
-        debugText = legsStrRepresentation
+        driveTimeInMinutes = driveTimeInSeconds / 60.0,
+        driveDistanceInMeters = driveDistanceInMeters,
+        ferryInVehicleTimeInMinutes = ferryTimeInSeconds / 60.0,
+        lightRailInVehicleTimeInMinutes = lightRailTimeInSeconds / 60.0,
+        transitBoardingsCount = numberOfTransitTrips
       )
     (key, payload)
   }
@@ -101,6 +118,7 @@ case class ActivitySimSkimmerEvent(
 
 object ActivitySimSkimmerEvent {
 
-  val inVehicleModes
-    : Set[BeamMode] = Set(BeamMode.CAV, BeamMode.CAR) ++ BeamMode.transitModes ++ BeamMode.massTransitModes
+  val carModes: Set[BeamMode] = Set(BeamMode.CAV, BeamMode.CAR)
+  val transitModes: Set[BeamMode] = (BeamMode.transitModes ++ BeamMode.massTransitModes).toSet
+  val inVehicleModes: Set[BeamMode] = carModes ++ transitModes
 }

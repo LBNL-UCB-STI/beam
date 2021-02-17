@@ -6,7 +6,7 @@ import akka.pattern._
 import scala.concurrent.{ExecutionContextExecutorService, Future}
 import scala.util.control.NonFatal
 
-class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(
+class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(
   implicit val ec: ExecutionContextExecutorService
 ) extends Actor
     with ActorLogging {
@@ -22,7 +22,7 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(
   }
 
   override def receive: Receive = {
-    case resp: ODR5Requester.Response =>
+    case resp: ODRequester.Response =>
       if (resp.maybeRoutingResponse.isSuccess)
         nSuccess += 1
       masterActor ! resp
@@ -50,7 +50,7 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODR5Requester)(
 object WorkerActor {
   sealed trait Request
 
-  def props(masterActor: ActorRef, r5Requester: ODR5Requester, ec: ExecutionContextExecutorService): Props = {
+  def props(masterActor: ActorRef, r5Requester: ODRequester, ec: ExecutionContextExecutorService): Props = {
     Props(new WorkerActor(masterActor, r5Requester)(ec))
   }
 }

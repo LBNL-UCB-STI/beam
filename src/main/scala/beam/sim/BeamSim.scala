@@ -559,7 +559,8 @@ class BeamSim @Inject()(
   import scala.concurrent.duration._
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
-    finalizeUrbanSimSkims()
+    finalizeBackgroundSkimsCreator()
+
     carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
@@ -781,7 +782,7 @@ class BeamSim @Inject()(
       }
   }
 
-  private def finalizeUrbanSimSkims(): Unit = {
+  private def finalizeBackgroundSkimsCreator(): Unit = {
     val timeoutForSkimmer = 6.hours
     backgroundSkimsCreator match {
       case Some(skimCreator) =>
@@ -791,11 +792,12 @@ class BeamSim @Inject()(
           .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
-        val h3Clustering = skimCreator.geoClustering
+        val geoClustering = skimCreator.geoClustering
+
         val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
           beamServices,
           beamScenario,
-          h3Clustering,
+          geoClustering,
           abstractSkimmer,
           currentTravelTime,
           Array(BeamMode.CAR, BeamMode.WALK),
@@ -817,6 +819,7 @@ class BeamSim @Inject()(
             )
             None
         }
+
       case None =>
     }
   }

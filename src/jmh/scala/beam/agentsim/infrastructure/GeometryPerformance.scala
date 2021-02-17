@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import java.nio.file.Paths
 
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
@@ -70,9 +70,9 @@ object GeometryPerformance {
     val beamHome = System.getProperty("beam.home", ".")
     println("beamHome = " + Paths.get(beamHome).toAbsolutePath)
     val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
-    val (zones, _) = ZonalParkingManager.loadParkingZones(
+    val (zones, _) = ZonalParkingManager.loadParkingZones[TAZ](
       s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
-      "/not_set",
+      tazMap.tazQuadTree,
       1.0,
       1.0,
       new Random(18389),

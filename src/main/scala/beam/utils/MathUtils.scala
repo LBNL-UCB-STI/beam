@@ -105,4 +105,10 @@ object MathUtils {
   }
 
   def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
+
+  def formatBytes(v: Long): String = {
+    if (v < 1024) return v + " B"
+    val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
+    "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
+  }
 }
