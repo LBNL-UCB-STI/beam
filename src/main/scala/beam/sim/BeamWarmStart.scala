@@ -152,8 +152,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
     new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
   }
 
-  private lazy val parentRunPath: String =
-    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
+  private lazy val parentRunPath: String = FileUtils.downloadAndUnpackIfNeeded(srcPath)
 
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize: Int = warmConfig.agentsimTimeBinSize
@@ -295,7 +294,7 @@ object BeamWarmStart extends LazyLogging {
   ): Option[(Beam.Agentsim, Beam.Exchange)] = {
     val configAgents = beamConfig.beam.agentsim.agents
     try {
-      val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
+      val populationAttributesXml = instance.compressedLocation("Person attributes", "output_personAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
       val populationAttributesCsv = instance.compressedLocation("Population", "population.csv.gz")
 
