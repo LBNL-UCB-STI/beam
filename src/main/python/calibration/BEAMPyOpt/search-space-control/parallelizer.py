@@ -2,7 +2,7 @@
 # Implementation 2 related
 from multiprocessing import Process
 import random, time, psutil, logging, sys, multiprocessing, subprocess, glob, os, fnmatch
-from worker_1 import fire_BEAM, bookkeep, recipe
+from worker import fire_BEAM, bookkeep, recipe
 from config import *
 
 #sys.stdout=open("test.txt","w")     # if required to export the outputs to a file

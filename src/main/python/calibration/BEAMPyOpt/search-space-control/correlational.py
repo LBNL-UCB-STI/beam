@@ -4,7 +4,7 @@ import os, subprocess, time, glob, csv, shutil, fnmatch
 import pandas as pd
 from modify_csv import modify_csv
 from config import *
-from worker_1 import ext_change, change_conf
+from worker import ext_change, change_conf
 
 # KEEP ALL INTERCEPTS AS ZERO and KEEP OUTPUT FOLDER EMPTY!!
 
