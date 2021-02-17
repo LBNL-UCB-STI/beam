@@ -26,8 +26,7 @@ class BackgroundSkimsCreator(
   val abstractSkimmer: AbstractSkimmer,
   val travelTime: TravelTime,
   val beamModes: Array[BeamMode],
-  val withTransit: Boolean,
-  val useR5: Boolean = true
+  val withTransit: Boolean
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
 
@@ -48,11 +47,13 @@ class BackgroundSkimsCreator(
     beamServices.tollCalculator
   )
 
+  private val useR5 = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.routerType == "r5"
+
   val maybeR5Router: Option[R5Wrapper] = if (useR5) {
     val r5Wrapper = new R5Wrapper(
       r5Parameters,
       travelTime,
-      0.0
+      travelTimeNoiseFraction = 0.0
     )
     Some(r5Wrapper)
   } else {

@@ -302,8 +302,7 @@ class BeamSim @Inject()(
         abstractSkimmer,
         new FreeFlowTravelTime,
         Array(BeamMode.WALK, BeamMode.BIKE),
-        withTransit = true,
-        useR5 = beamServices.beamConfig.beam.routing.carRouter == "R5"
+        withTransit = true
       )(actorSystem)
       skimCreator.start()
       backgroundSkimsCreator = Some(skimCreator)
@@ -795,42 +794,32 @@ class BeamSim @Inject()(
           .travelTime
         val geoClustering = skimCreator.geoClustering
 
-        def runDriveTransitSkimsCreator(useR5: Boolean, withTransit: Boolean) = {
-          val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
-            beamServices,
-            beamScenario,
-            geoClustering,
-            abstractSkimmer,
-            currentTravelTime,
-            Array(BeamMode.CAR, BeamMode.WALK),
-            withTransit = withTransit,
-            useR5 = useR5
-          )(actorSystem)
-          carAndDriveTransitSkimCreator.start()
-          carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
-          try {
-            val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
-            carAndDriveTransitSkimCreator.stop()
-            finalSkimmer.writeToDisk(
-              new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
+        val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
+          beamServices,
+          beamScenario,
+          geoClustering,
+          abstractSkimmer,
+          currentTravelTime,
+          Array(BeamMode.CAR, BeamMode.WALK),
+          withTransit = true
+        )(actorSystem)
+        carAndDriveTransitSkimCreator.start()
+        carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
+        try {
+          val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
+          carAndDriveTransitSkimCreator.stop()
+          finalSkimmer.writeToDisk(
+            new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
+          )
+        } catch {
+          case NonFatal(ex) =>
+            logger.error(
+              s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
+              ex
             )
-          } catch {
-            case NonFatal(ex) =>
-              logger.error(
-                s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
-                ex
-              )
-              None
-          }
+            None
         }
 
-        val useR5 = beamServices.beamConfig.beam.routing.carRouter == "R5"
-
-        MethodWatcher.withLoggingInvocationTime(
-          s"run drive transit skims creator with ${if (useR5) { "R5" } else { "GH + R5" }} with transit",
-          runDriveTransitSkimsCreator(useR5, true),
-          logger.underlying
-        )
       case None =>
     }
   }
