@@ -25,8 +25,6 @@ finaliteration = '0'
 ext_change('edit', picked_conf_file, filename)
 change_conf(input_vector=input_vector, filename=filename)
 ext_change('save', picked_conf_file, filename)
-with open(beam + "/instanceconfpath.txt", "w") as text_file:
-    text_file.write(picked_conf_file)
 
 ################################### Fire BEAM
 os.chdir(beam)

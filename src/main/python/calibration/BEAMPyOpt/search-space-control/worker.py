@@ -190,12 +190,9 @@ def recipe():
 
 
 def fire_BEAM(number):
-    name = multiprocessing.current_process().name
     import os
     print('BEAM fired on '+str(os.getpid())+' PID.')
     picked_conf_file = copy_urbansim_config % number   # label the file
-    with open(beam + "/instanceconfpath.txt", "w") as text_file:
-        text_file.write(picked_conf_file)
     os.chdir(beam)
     subprocess.call(['./gradlew', ':run', f"-PappArgs=['--config', '{picked_conf_file}']"])
     os.chdir(search_space)
