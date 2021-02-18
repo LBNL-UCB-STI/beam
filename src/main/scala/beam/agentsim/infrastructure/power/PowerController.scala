@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
@@ -81,6 +81,26 @@ class PowerController(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingNe
       currentBin = currentTime / cnmCfg.timeStepInSeconds
     }
     physicalBounds
+  }
+
+  def publishAndWaitForResponse(currentTime: Int, loadEstimation: Map[ChargingZone, Double]) = {
+    if (currentBin < currentTime / cnmCfg.timeStepInSeconds) {
+      beamFederateOption match {
+        case Some(beamFederate) if cnmCfg.gridConnectionEnabled && loadEstimation.nonEmpty =>
+          logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
+          beamFederate.publishJSON(
+            loadEstimation.map {
+              case (zone, powerInKW) =>
+                from(zone) ++ Map("estimatedLoad" -> powerInKW)
+            }.toList
+          )
+          val (_, gridBounds) = beamFederate.syncAndCollectJSON(currentTime)
+          logger.info("Obtained feedback the grid {}...", gridBounds)
+        case _ =>
+          logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
+      }
+      currentBin = currentTime / cnmCfg.timeStepInSeconds
+    }
   }
 
   /**

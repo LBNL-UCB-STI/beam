@@ -13,7 +13,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, ProcessChargingEvents}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -875,6 +875,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
       secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
     )
+    chargingNetworkManager ! ProcessChargingEvents(currentTick, vehicle, chargingPlugInEvent)
     eventsManager.processEvent(chargingPlugInEvent)
   }
 

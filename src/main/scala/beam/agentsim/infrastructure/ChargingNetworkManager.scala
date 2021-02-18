@@ -25,6 +25,7 @@ import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable.ListBuffer
 import scala.language.postfixOps
 
 /**
@@ -50,12 +51,17 @@ class ChargingNetworkManager(
   private lazy val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
   private lazy val powerController = new PowerController(chargingNetworkMap, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
+  private val loadEstimation = TrieMap.empty[Int, TrieMap[Id[BeamVehicle], (ChargingZone, Double)]]
+
+  private val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
+    ListBuffer.empty[org.matsim.api.core.v01.events.Event]
 
   import powerController._
   import sitePowerManager._
 
   private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds).toInt
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
+  private def prevTimeBin(tick: Int): Int = currentTimeBin(tick) - cnmConfig.timeStepInSeconds
 
   override def receive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -66,6 +72,9 @@ class ChargingNetworkManager(
         VehicleManager.privateVehicleManager.managerId,
         new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, chargingZoneList)
       )
+      (0 until endOfSimulationTime by cnmConfig.timeStepInSeconds).foreach { i =>
+        loadEstimation.put(i, TrieMap.empty[Id[BeamVehicle], (ChargingZone, Double)])
+      }
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
@@ -79,7 +88,10 @@ class ChargingNetworkManager(
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
-      val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
+      if(timeBin > 0)
+        publishAndWaitForResponse(timeBin, loadEstimation(prevTimeBin(timeBin)).groupBy(_._2._1).mapValues(_.map(_._2._2).sum))
+      //val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
+      val physicalBounds = obtainPowerPhysicalBounds(timeBin, None)
 
       val futures = Future
         .sequence(chargingNetworkMap.flatMap {
@@ -195,8 +207,36 @@ class ChargingNetworkManager(
           sender ! UnhandledVehicle(tick, vehicle.id)
       }
 
+    case ProcessChargingEvents(tick, v, _) =>
+      val (sessionDuration, energyDelivered) = v.refuelingSessionDurationAndEnergyInJoules(None, None, None)
+      if (sessionDuration > 0 && v.stall.isDefined) {
+        val zone = ChargingZone.to(v.stall.get)
+
+        val startBin = currentTimeBin(tick)
+        val startSessionDuration = Math.min((nextTimeBin(tick) - tick).toDouble, sessionDuration.toDouble)
+        val startCharge = energyDelivered * startSessionDuration / sessionDuration
+        val startLoad = (startCharge / 3.6e+6) / (startSessionDuration / 3600.0)
+        loadEstimation(startBin).put(v.id, (zone, startLoad))
+
+        val endBin = currentTimeBin(tick + sessionDuration)
+        if (endBin > startBin) {
+          val endSessionDuration = (tick + sessionDuration - endBin).toDouble
+          val endCharge = energyDelivered * endSessionDuration / sessionDuration
+          val endLoad = (endCharge / 3.6e+6) / (endSessionDuration / 3600.0)
+          loadEstimation(endBin).put(v.id, (zone, endLoad))
+        }
+
+        (nextTimeBin(tick) until endBin by cnmConfig.timeStepInSeconds).foreach { i =>
+          val inBetweenSessionDuration = cnmConfig.timeStepInSeconds.toDouble
+          val inBetweenCharge = energyDelivered * inBetweenSessionDuration / sessionDuration
+          val inBetweenLoad = (inBetweenCharge / 3.6e+6) / (inBetweenSessionDuration / 3600.0)
+          loadEstimation(i).put(v.id, (zone, inBetweenLoad))
+        }
+      }
+
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
+      chargingEventsBuffer.clear()
       chargingNetworkMap.foreach(_._2.clearAllMappedStations())
       chargingNetworkMap.clear()
       powerController.close()
@@ -332,6 +372,7 @@ class ChargingNetworkManager(
       primaryFuelLevel = vehicle.primaryFuelLevelInJoules,
       secondaryFuelLevel = Some(vehicle.secondaryFuelLevelInJoules)
     )
+    self ! ProcessChargingEvents(currentTick, vehicle, chargingPlugInEvent)
     log.debug(s"ChargingPlugInEvent: $chargingPlugInEvent")
     beamServices.matsimServices.getEvents.processEvent(chargingPlugInEvent)
   }
@@ -384,6 +425,7 @@ object ChargingNetworkManager {
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
   case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle])
   case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle])
+  case class ProcessChargingEvents(tick: Int, vehicle: BeamVehicle, event: org.matsim.api.core.v01.events.Event)
 
   final case class ChargingZone(
     chargingZoneId: Int,
