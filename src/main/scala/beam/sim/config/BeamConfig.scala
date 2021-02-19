@@ -2429,22 +2429,24 @@ object BeamConfig {
     )
     object Urbansim {
       case class BackgroundODSkimsCreator(
-        enabled           : scala.Boolean,
-        numberOfH3Indexes : scala.Int,
-        peakHours         : scala.Option[scala.List[scala.Double]],
-        routerType        : java.lang.String,
-        skimsGeoType      : java.lang.String,
-        skimsKind         : java.lang.String
+        calculationTimeoutHours : scala.Int,
+        enabled                 : scala.Boolean,
+        numberOfH3Indexes       : scala.Int,
+        peakHours               : scala.Option[scala.List[scala.Double]],
+        routerType              : java.lang.String,
+        skimsGeoType            : java.lang.String,
+        skimsKind               : java.lang.String
       )
       object BackgroundODSkimsCreator {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator = {
           BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
-            enabled           = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-            numberOfH3Indexes = if(c.hasPathOrNull("numberOfH3Indexes")) c.getInt("numberOfH3Indexes") else 1000,
-            peakHours         = if(c.hasPathOrNull("peakHours")) scala.Some($_L$_dbl(c.getList("peakHours"))) else None,
-            routerType        = if(c.hasPathOrNull("routerType")) c.getString("routerType") else "r5",
-            skimsGeoType      = if(c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "h3",
-            skimsKind         = if(c.hasPathOrNull("skimsKind")) c.getString("skimsKind") else "od"
+            calculationTimeoutHours = if(c.hasPathOrNull("calculationTimeoutHours")) c.getInt("calculationTimeoutHours") else 6,
+            enabled                 = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+            numberOfH3Indexes       = if(c.hasPathOrNull("numberOfH3Indexes")) c.getInt("numberOfH3Indexes") else 1000,
+            peakHours               = if(c.hasPathOrNull("peakHours")) scala.Some($_L$_dbl(c.getList("peakHours"))) else None,
+            routerType              = if(c.hasPathOrNull("routerType")) c.getString("routerType") else "r5",
+            skimsGeoType            = if(c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "h3",
+            skimsKind               = if(c.hasPathOrNull("skimsKind")) c.getString("skimsKind") else "od"
           )
         }
       }
