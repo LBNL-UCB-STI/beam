@@ -3,6 +3,7 @@ package beam.router.skim
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
+import beam.utils.BeamScenarioForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import com.typesafe.scalalogging.StrictLogging
@@ -17,7 +18,7 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
 
-  val basePath = s"${System.getenv("PWD")}/test/test-resources/beam/od-skims"
+  val basePath = "test/test-resources/beam/od-skims"
 
   test("Read OD skims from single file with warm start mode") {
     val inputFilePath = s"$basePath/od_for_test.csv.gz"
@@ -40,7 +41,7 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
   }
 }
 
-object ODSkimmerTest extends MockitoSugar {
+object ODSkimmerTest extends MockitoSugar with BeamScenarioForTest {
   private[skim] def createSkimmer[S <: AbstractSkimmer](inputFilePath: String, constructor: BeamServices => S): S = {
     val beamConfig = BeamConfig(
       testConfig("test/input/beamville/beam.conf")
@@ -50,7 +51,8 @@ object ODSkimmerTest extends MockitoSugar {
     )
     val services = mock[BeamServices]
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.beamScenario).thenReturn(mock[BeamScenario])
+    val scenario: BeamScenario = getBeamScenario("test/input/beamville/beam.conf", 1.0)
+    when(services.beamScenario).thenReturn(scenario)
     when(services.matsimServices).thenReturn(mock[MatsimServices])
 
     val event = mock[IterationStartsEvent]
