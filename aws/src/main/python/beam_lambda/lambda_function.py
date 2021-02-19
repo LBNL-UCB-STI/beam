@@ -7,12 +7,12 @@ import glob
 import base64
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
-  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
+  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
-EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM'''
+EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
@@ -92,6 +92,7 @@ runcmd:
         \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"profiler_type\\":\\"$PROFILER\\",
         \\"config_file\\":\\"$CONFIG\\",
         \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
@@ -153,6 +154,7 @@ runcmd:
         \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"profiler_type\\":\\"$PROFILER\\",
         \\"config_file\\":\\"$CONFIG\\",
         \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
@@ -558,6 +560,7 @@ def deploy_handler(event, context):
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
+    profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
@@ -628,6 +631,7 @@ def deploy_handler(event, context):
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
                 .replace('$GOOGLE_API_KEY', google_api_key) \
+                .replace('$PROFILER', profiler_type) \
                 .replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
