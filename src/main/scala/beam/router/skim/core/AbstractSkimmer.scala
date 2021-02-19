@@ -1,8 +1,5 @@
 package beam.router.skim.core
 
-import java.io.BufferedWriter
-import java.nio.file.Paths
-
 import beam.agentsim.events.ScalaEvent
 import beam.router.skim.CsvSkimReader
 import beam.sim.BeamWarmStart
@@ -15,7 +12,9 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
 
-import scala.collection.concurrent.TrieMap
+import java.io.BufferedWriter
+import java.nio.file.Paths
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal
@@ -39,21 +38,14 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
   private[core] var currentIterationInternal: Int = -1
-  private[core] val currentSkimInternal: TrieMap[AbstractSkimmerKey, AbstractSkimmerInternal] =
-    TrieMap.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-  private[core] var aggregatedFromPastSkimsInternal =
-    collection.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-  private[core] val pastSkimsInternal: TrieMap[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
-    TrieMap.empty[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
+  private[core] val currentSkimInternal = mutable.HashMap.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] var aggregatedFromPastSkimsInternal = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] val pastSkimsInternal = mutable.HashMap.empty[Int, Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
 
   def currentIteration: Int = currentIterationInternal
-  def currentSkim: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.readOnlySnapshot()
-
-  def aggregatedFromPastSkims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
-    aggregatedFromPastSkimsInternal
-
-  def pastSkims: collection.Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] =
-    pastSkimsInternal.readOnlySnapshot()
+  def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.toMap
+  def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
+  def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)

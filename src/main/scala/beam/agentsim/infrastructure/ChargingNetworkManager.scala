@@ -24,8 +24,7 @@ import beam.utils.DateUtils
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable
 import scala.language.postfixOps
 
 /**
@@ -47,14 +46,17 @@ class ChargingNetworkManager(
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
-  private val chargingNetworkMap = TrieMap.empty[Id[VehicleManager], ChargingNetwork]
-  private lazy val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
-  private lazy val powerController = new PowerController(chargingNetworkMap, beamConfig)
+  private val chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork] = Map(
+    VehicleManager.privateVehicleManager.managerId ->
+    new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, chargingZoneList)
+  )
+  private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
+  private val powerController = new PowerController(chargingNetworkMap, beamConfig)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
-  private val loadEstimation = TrieMap.empty[Int, TrieMap[Id[BeamVehicle], (ChargingZone, Double)]]
-
-  private val chargingEventsBuffer: ListBuffer[org.matsim.api.core.v01.events.Event] =
-    ListBuffer.empty[org.matsim.api.core.v01.events.Event]
+  private val loadEstimation: Map[Int, mutable.HashMap[Id[BeamVehicle], (ChargingZone, Double)]] =
+    (0 until endOfSimulationTime by cnmConfig.timeStepInSeconds).map { i =>
+      i -> new mutable.HashMap[Id[BeamVehicle], (ChargingZone, Double)]()
+    }.toMap
 
   import powerController._
   import sitePowerManager._
@@ -68,13 +70,7 @@ class ChargingNetworkManager(
       import scala.concurrent.{ExecutionContext, Future}
       implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
       implicit val executionContext: ExecutionContext = context.dispatcher
-      chargingNetworkMap.put(
-        VehicleManager.privateVehicleManager.managerId,
-        new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, chargingZoneList)
-      )
-      (0 until endOfSimulationTime by cnmConfig.timeStepInSeconds).foreach { i =>
-        loadEstimation.put(i, TrieMap.empty[Id[BeamVehicle], (ChargingZone, Double)])
-      }
+
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
@@ -88,8 +84,11 @@ class ChargingNetworkManager(
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
-      if(timeBin > 0)
-        publishAndWaitForResponse(timeBin, loadEstimation(prevTimeBin(timeBin)).groupBy(_._2._1).mapValues(_.map(_._2._2).sum))
+      if (timeBin > 0)
+        publishAndWaitForResponse(
+          timeBin,
+          loadEstimation(prevTimeBin(timeBin)).groupBy(_._2._1).mapValues(_.map(_._2._2).sum)
+        )
       //val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
       val physicalBounds = obtainPowerPhysicalBounds(timeBin, None)
 
@@ -236,9 +235,7 @@ class ChargingNetworkManager(
 
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
-      chargingEventsBuffer.clear()
       chargingNetworkMap.foreach(_._2.clearAllMappedStations())
-      chargingNetworkMap.clear()
       powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)

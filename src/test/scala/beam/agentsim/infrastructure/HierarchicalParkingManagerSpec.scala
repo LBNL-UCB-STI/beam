@@ -280,7 +280,7 @@ class HierarchicalParkingManagerSpec
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, "")
         parkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again

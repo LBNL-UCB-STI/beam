@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
@@ -9,11 +9,10 @@ import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-import scala.collection.concurrent.TrieMap
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
+class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
     extends LazyLogging {
   import ChargingZone._
   import SitePowerManager._
@@ -83,7 +82,7 @@ class PowerController(chargingNetworkMap: TrieMap[Id[VehicleManager], ChargingNe
     physicalBounds
   }
 
-  def publishAndWaitForResponse(currentTime: Int, loadEstimation: Map[ChargingZone, Double]) = {
+  def publishAndWaitForResponse(currentTime: Int, loadEstimation: Map[ChargingZone, Double]): Unit = {
     if (currentBin < currentTime / cnmCfg.timeStepInSeconds) {
       beamFederateOption match {
         case Some(beamFederate) if cnmCfg.gridConnectionEnabled && loadEstimation.nonEmpty =>

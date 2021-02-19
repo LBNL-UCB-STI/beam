@@ -8,7 +8,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -109,14 +108,12 @@ object ChargingNetwork {
 
   final case class ChargingStation(zone: ChargingZone) {
     import ConnectionStatus._
-    private val connectedVehiclesInternal = TrieMap.empty[Id[BeamVehicle], ChargingVehicle]
+    private val connectedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
     private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
     def numAvailableChargers: Int = zone.numChargers - connectedVehiclesInternal.size
-
-    def connectedVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
-      connectedVehiclesInternal.readOnlySnapshot()
+    def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = connectedVehiclesInternal.toMap
 
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
