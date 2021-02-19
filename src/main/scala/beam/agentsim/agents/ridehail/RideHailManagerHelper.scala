@@ -19,6 +19,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.PriorityQueue
+import scala.collection.parallel.mutable.ParHashMap
 
 object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
   override def compare(
@@ -273,24 +274,12 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     */
   def getIdleAndRepositioningVehiclesAndFilterOutExluded: mutable.Map[Id[BeamVehicle], RideHailAgentLocation] = {
     val repositioningVehicles = getRepositioningVehicles
-    val maxSize = idleRideHailVehicles.size + repositioningVehicles.size
-    val filteredVehicles = new java.util.HashMap[Id[BeamVehicle], RideHailAgentLocation](maxSize)
-
-    def addIfNotInAllocation(
-      idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
-    ): Unit = {
-      idleOrRepositioning.foreach {
-        case (vehicleId, location) =>
-          if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
-            filteredVehicles.put(vehicleId, location)
-          }
-      }
+    val parMap: ParHashMap[Id[BeamVehicle], RideHailAgentLocation] =
+    idleRideHailVehicles.par.filter { case (vehicleId, _) => !rideHailManager.doNotUseInAllocation.contains(vehicleId) } ++
+    repositioningVehicles.par.filter {
+      case (vehicleId, _) => !rideHailManager.doNotUseInAllocation.contains(vehicleId)
     }
-
-    addIfNotInAllocation(idleRideHailVehicles)
-    addIfNotInAllocation(repositioningVehicles)
-
-    filteredVehicles.asScala
+    mutable.HashMap(parMap.toIndexedSeq: _*)
   }
 
   def getIdleAndRepositioningAndOfflineCAVsAndFilterOutExluded
