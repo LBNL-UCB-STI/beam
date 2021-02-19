@@ -783,7 +783,7 @@ class BeamSim @Inject()(
   }
 
   private def finalizeBackgroundSkimsCreator(): Unit = {
-    val timeoutForSkimmer = 6.hours
+    val timeoutForSkimmer = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours.hours
     backgroundSkimsCreator match {
       case Some(skimCreator) =>
         val abstractSkimmer = Await.result(skimCreator.getResult, timeoutForSkimmer).abstractSkimmer
