@@ -56,16 +56,13 @@ class RouteDumperTest extends FunSuite with Matchers {
     record.get("requestId") shouldBe 123
 
     // Verify StreetVehicles
-    val readSvs = record.get("streetVehicles").asInstanceOf[GenericData.Array[Any]]
-    readSvs.size() shouldBe 1
-    val readStreetVehicle = readSvs.get(0).asInstanceOf[GenericData.Record]
-    readStreetVehicle.get("id") shouldBe streetVehicle.id.toString
-    readStreetVehicle.get("vehicleTypeId") shouldBe streetVehicle.vehicleTypeId.toString
-    readStreetVehicle.get("locationUTM_X") shouldBe streetVehicle.locationUTM.loc.getX
-    readStreetVehicle.get("locationUTM_Y") shouldBe streetVehicle.locationUTM.loc.getY
-    readStreetVehicle.get("locationUTM_time") shouldBe streetVehicle.locationUTM.time
-    readStreetVehicle.get("mode") shouldBe streetVehicle.mode.value
-    readStreetVehicle.get("asDriver") shouldBe streetVehicle.asDriver
+    record.get("streetVehicle_0_id") shouldBe streetVehicle.id.toString
+    record.get("streetVehicle_0_vehicleTypeId") shouldBe streetVehicle.vehicleTypeId.toString
+    record.get("streetVehicle_0_locationUTM_X") shouldBe streetVehicle.locationUTM.loc.getX
+    record.get("streetVehicle_0_locationUTM_Y") shouldBe streetVehicle.locationUTM.loc.getY
+    record.get("streetVehicle_0_locationUTM_time") shouldBe streetVehicle.locationUTM.time
+    record.get("streetVehicle_0_mode") shouldBe streetVehicle.mode.value
+    record.get("streetVehicle_0_asDriver") shouldBe streetVehicle.asDriver
 
     // Verify AttributesOfIndividual
     val readAttributesOfIndividual = record.get("attributesOfIndividual").asInstanceOf[GenericData.Record]
@@ -202,12 +199,12 @@ class RouteDumperTest extends FunSuite with Matchers {
     record.get("startTime") shouldBe leg.startTime
     record.get("mode") shouldBe leg.mode.value
     record.get("duration") shouldBe leg.duration
-    record.get("linkIds").asInstanceOf[Array[Int]] shouldBe leg.travelPath.linkIds
-    record.get("linkTravelTime").asInstanceOf[Array[Double]] shouldBe leg.travelPath.linkTravelTime
+    record.get("linkIds").asInstanceOf[String] shouldBe leg.travelPath.linkIds.mkString(", ")
+    record.get("linkTravelTime").asInstanceOf[String] shouldBe leg.travelPath.linkTravelTime.mkString(", ")
     leg.travelPath.transitStops.foreach { transitStops =>
       record.get("transitStops_agencyId") shouldBe transitStops.agencyId
       record.get("transitStops_routeId") shouldBe transitStops.routeId
-      record.get("transitStops_vehicleId") shouldBe transitStops.vehicleId
+      record.get("transitStops_vehicleId") shouldBe transitStops.vehicleId.toString
       record.get("transitStops_fromIdx") shouldBe transitStops.fromIdx
       record.get("transitStops_toIdx") shouldBe transitStops.toIdx
     }
