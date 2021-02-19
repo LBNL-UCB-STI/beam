@@ -297,7 +297,7 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     : mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
     collection.mutable.HashMap(
       (idleRideHailVehicles.toMap ++ inServiceRideHailVehicles
-        .filter(_._2.currentPassengerSchedule.map(_.numUniquePassengers == 0).getOrElse(false))
+        .filter(_._2.currentPassengerSchedule.exists(_.numUniquePassengers == 0))
         .toMap ++ outOfServiceRideHailVehicles.filter(_._2.vehicleType.automationLevel >= 4).toMap)
         .filterNot(elem => rideHailManager.doNotUseInAllocation.contains(elem._1))
         .toSeq: _*

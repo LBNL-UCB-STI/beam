@@ -58,6 +58,11 @@ class ChargingNetworkManager(
       i -> new mutable.HashMap[Id[BeamVehicle], (ChargingZone, Double)]()
     }.toMap
 
+  private var duration1: Double = 0.0
+  private var duration2: Double = 0.0
+  private var duration3: Double = 0.0
+  private var duration4: Double = 0.0
+  private var duration5: Double = 0.0
   import powerController._
   import sitePowerManager._
 
@@ -76,6 +81,7 @@ class ChargingNetworkManager(
         .pipeTo(sender())
 
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
+      val t1 = System.nanoTime
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
       import scala.concurrent.ExecutionContext.Implicits.global
       import scala.concurrent.duration._
@@ -151,8 +157,12 @@ class ChargingNetworkManager(
       }
 
       sender ! CompletionNotice(triggerId, triggers ++ nextStepPlanning)
+      val duration = (System.nanoTime - t1) / 1e9d
+      duration1 += duration
+      log.info(s"PlanEnergyDispatchTrigger at $timeBin runtime is $duration , total is $duration1")
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager), triggerId) =>
+      val t1 = System.nanoTime
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicleId) match {
@@ -160,8 +170,12 @@ class ChargingNetworkManager(
         case _                     => log.debug(s"Vehicle $vehicleId is already disconnected")
       }
       sender ! CompletionNotice(triggerId)
+      val duration = (System.nanoTime - t1) / 1e9d
+      duration2 += duration
+      log.info(s"ChargingTimeOutTrigger at $tick runtime is $duration , total is $duration2")
 
     case ChargingPlugRequest(tick, vehicle, vehicleManager) =>
+      val t1 = System.nanoTime
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV | vehicle.isPHEV) {
         val chargingNetwork = chargingNetworkMap(vehicleManager)
@@ -187,8 +201,12 @@ class ChargingNetworkManager(
           )
         )
       }
+      val duration = (System.nanoTime - t1) / 1e9d
+      duration3 += duration
+      log.info(s"ChargingPlugRequest at $tick runtime is $duration , total is $duration3")
 
     case ChargingUnplugRequest(tick, vehicle, vehicleManager) =>
+      val t1 = System.nanoTime
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       val chargingNetwork = chargingNetworkMap(vehicleManager)
@@ -205,8 +223,12 @@ class ChargingNetworkManager(
           log.debug(s"Vehicle $vehicle is already disconnected at $tick")
           sender ! UnhandledVehicle(tick, vehicle.id)
       }
+      val duration = (System.nanoTime - t1) / 1e9d
+      duration4 += duration
+      log.info(s"ChargingUnplugRequest at $tick runtime is $duration , total is $duration4")
 
     case ProcessChargingEvents(tick, v, _) =>
+      val t1 = System.nanoTime
       val (sessionDuration, energyDelivered) = v.refuelingSessionDurationAndEnergyInJoules(None, None, None)
       if (sessionDuration > 0 && v.stall.isDefined) {
         val zone = ChargingZone.to(v.stall.get)
@@ -232,6 +254,9 @@ class ChargingNetworkManager(
           loadEstimation(i).put(v.id, (zone, inBetweenLoad))
         }
       }
+      val duration = (System.nanoTime - t1) / 1e9d
+      duration5 += duration
+      log.info(s"ProcessChargingEvents at $tick runtime is $duration , total is $duration5")
 
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
