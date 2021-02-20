@@ -107,7 +107,7 @@ class ChargingNetworkManager(
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
-              handleEndCharging(timeBin, chargingVehicle)
+              handleEndCharging(timeBin, chargingVehicle, synchronize = true)
               None
             case cycle if chargingNotCompleteUsing(cycle) =>
               log.debug(
@@ -145,7 +145,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicleId) match {
-        case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle)
+        case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle, synchronize = false)
         case _                     => log.debug(s"Vehicle $vehicleId is already disconnected")
       }
       sender ! CompletionNotice(triggerId)
@@ -197,7 +197,7 @@ class ChargingNetworkManager(
           val duration = endTime - startTime
           val (chargeDurationAtTick, energyToChargeAtTick) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
           chargingVehicle.processChargingCycle(startTime, energyToChargeAtTick, chargeDurationAtTick)
-          handleEndCharging(tick, chargingVehicle, Some(sender))
+          handleEndCharging(tick, chargingVehicle, Some(sender), synchronize = false)
         case _ =>
           log.debug(s"Vehicle $vehicle is already disconnected at $tick")
           sender ! UnhandledVehicle(tick, vehicle.id)
@@ -327,22 +327,28 @@ class ChargingNetworkManager(
   private def handleEndCharging(
     tick: Int,
     chargingVehicle: ChargingVehicle,
-    currentSenderMaybe: Option[ActorRef] = None
+    currentSenderMaybe: Option[ActorRef] = None,
+    synchronize: Boolean
   ): Unit = {
-    val ChargingVehicle(vehicle, stall, station, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, stall, _, _, _, _) = chargingVehicle
     val chargingNetwork = chargingNetworkMap(stall.managerId)
-    if (chargingNetwork.disconnectVehicle(vehicle)) {
-      handleRefueling(chargingVehicle)
-      handleEndChargingHelper(tick, chargingVehicle)
-      vehicle.disconnectFromChargingPoint()
-      val msg = s"*** 623 WaitingToDrive DrivesVehicle unsetting vehicle ${vehicle} from stall ${vehicle.stall}"
-      parkingManager ! ReleaseParkingStall(vehicle.stall.get, msg)
-      vehicle.unsetParkingStall()
-      currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
-    } else {
-      log.debug(s"Vehicle $vehicle is already disconnected at $tick")
+    (if (synchronize) {
+       chargingNetwork.synchronized {
+         chargingNetwork.disconnectVehicle(tick, chargingVehicle)
+       }
+     } else chargingNetwork.disconnectVehicle(tick, chargingVehicle)) match {
+      case Some(processedWaitingLine) =>
+        handleRefueling(chargingVehicle)
+        handleEndChargingHelper(tick, chargingVehicle)
+        vehicle.disconnectFromChargingPoint()
+        val msg = s"*** 623 WaitingToDrive DrivesVehicle unsetting vehicle ${vehicle} from stall ${vehicle.stall}"
+        parkingManager ! ReleaseParkingStall(vehicle.stall.get, msg)
+        vehicle.unsetParkingStall()
+        currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
+        processedWaitingLine.foreach(handleStartCharging(tick, _))
+      case _ =>
+        log.debug(s"Vehicle $vehicle is already disconnected at $tick")
     }
-    chargingNetwork.processWaitingLine(tick, station).foreach(handleStartCharging(tick, _))
   }
 
   /**

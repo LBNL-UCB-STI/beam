@@ -68,25 +68,25 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def attemptToConnectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): ChargingVehicle = {
-    if (vehicle.stall.isEmpty) {
-      throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
-    } else {
-      val stall = vehicle.stall.get
-      lookupStation(stall).map(station => station.connect(tick, vehicle, stall, theSender)).get
+    vehicle.stall match {
+      case Some(stall) => lookupStation(stall).map(station => station.connect(tick, vehicle, stall, theSender)).get
+      case _           => throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
     }
   }
 
   /**
     * Disconnect the vehicle for the charging point/station
-    * @param vehicle vehicle to disconnect
+    * @param chargingVehicle vehicle to disconnect
     * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def disconnectVehicle(vehicle: BeamVehicle): Boolean = {
-    if (vehicle.stall.isEmpty) {
-      throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
-    } else {
-      val stall = vehicle.stall.get
-      lookupStation(stall).flatMap(station => station.disconnect(vehicle.id)).isDefined
+  def disconnectVehicle(tick: Int, chargingVehicle: ChargingVehicle): Option[List[ChargingVehicle]] = {
+    chargingVehicle.vehicle.stall match {
+      case Some(_) =>
+        chargingVehicle.chargingStation.disconnect(chargingVehicle.vehicle.id) map { chargingVehicle =>
+          processWaitingLine(tick, chargingVehicle.chargingStation)
+        }
+      case _ =>
+        throw new RuntimeException(s"Vehicle ${chargingVehicle.vehicle} doesn't have a stall!")
     }
   }
 
