@@ -302,7 +302,8 @@ class BeamSim @Inject()(
         abstractSkimmer,
         new FreeFlowTravelTime,
         Array(BeamMode.WALK, BeamMode.BIKE),
-        withTransit = true
+        withTransit = true,
+        beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours
       )(actorSystem)
       skimCreator.start()
       backgroundSkimsCreator = Some(skimCreator)
@@ -801,7 +802,8 @@ class BeamSim @Inject()(
           abstractSkimmer,
           currentTravelTime,
           Array(BeamMode.CAR, BeamMode.WALK),
-          withTransit = true
+          withTransit = true,
+          beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours
         )(actorSystem)
         carAndDriveTransitSkimCreator.start()
         carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())

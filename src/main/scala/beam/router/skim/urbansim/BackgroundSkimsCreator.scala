@@ -26,13 +26,14 @@ class BackgroundSkimsCreator(
   val abstractSkimmer: AbstractSkimmer,
   val travelTime: TravelTime,
   val beamModes: Array[BeamMode],
-  val withTransit: Boolean
+  val withTransit: Boolean,
+  val calculationTimeoutHours:Int
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
 
   import BackgroundSkimsCreator._
 
-  private implicit val timeout: Timeout = Timeout(6, TimeUnit.HOURS)
+  private implicit val timeout: Timeout = Timeout(calculationTimeoutHours, TimeUnit.HOURS)
 
   val r5Parameters: R5Parameters = R5Parameters(
     beamServices.beamConfig,
