@@ -121,7 +121,7 @@ class ChargingNetworkManager(
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
       val chargingNetwork = chargingNetworkMap(vehicleManager)
-      chargingNetwork.lookupVehicle(vehicleId) match {
+      chargingNetwork.lookupVehicle(vehicleId) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle, synchronize = false)
         case _                     => log.debug(s"Vehicle $vehicleId is already disconnected")
       }
@@ -158,7 +158,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       val chargingNetwork = chargingNetworkMap(vehicleManager)
-      chargingNetwork.lookupVehicle(vehicle.id) match {
+      chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) =>
           val prevStartTime = chargingVehicle.latestChargingCycle.get.startTime
           val startTime = Math.min(tick, prevStartTime)
