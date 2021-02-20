@@ -65,6 +65,11 @@ class ChargingNetworkManager(
   private var duration5: Double = 0.0
   import powerController._
   import sitePowerManager._
+  import scala.concurrent.ExecutionContext.Implicits.global
+  import scala.concurrent.duration._
+  import scala.concurrent.{Await, Future, TimeoutException}
+  import scala.concurrent.Future
+  implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
 
   private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds).toInt
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
@@ -72,10 +77,6 @@ class ChargingNetworkManager(
 
   override def receive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      import scala.concurrent.{ExecutionContext, Future}
-      implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
-      implicit val executionContext: ExecutionContext = context.dispatcher
-
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
@@ -83,80 +84,58 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val t1 = System.nanoTime
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      import scala.concurrent.ExecutionContext.Implicits.global
-      import scala.concurrent.duration._
-      import scala.concurrent.{Await, Future, TimeoutException}
-      val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
-      log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
+      //val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
+      //log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
-      if (timeBin > 0)
+      if (timeBin > 0) {
         publishAndWaitForResponse(
           timeBin,
           loadEstimation(prevTimeBin(timeBin)).groupBy(_._2._1).mapValues(_.map(_._2._2).sum)
         )
+      }
       //val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
       val physicalBounds = obtainPowerPhysicalBounds(timeBin, None)
+      val allConnectedVehicles = chargingNetworkMap.flatMap(_._2.connectedVehicles)
+      val triggers = allConnectedVehicles.par.flatMap {
+        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _)) =>
+          // Refuel
+          handleRefueling(chargingVehicle)
+          // Calculate the energy to charge each vehicle connected to the a charging station
+          val (chargingDuration, energyToCharge) =
+            dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
+          // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
+          chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
+            case cycle if chargingIsCompleteUsing(cycle) =>
+              handleEndCharging(timeBin, chargingVehicle)
+              None
+            case cycle if chargingNotCompleteUsing(cycle) =>
+              log.debug(
+                "Ending refuel cycle of vehicle {}. Stall: {}. Provided energy: {} J. Remaining: {} J",
+                vehicle.id,
+                stall,
+                cycle.energy,
+                energyToCharge
+              )
+              None
+            case cycle =>
+              // charging is going to end during this current session
+              Some(
+                ScheduleTrigger(
+                  ChargingTimeOutTrigger(timeBin + cycle.duration, vehicle.id, stall.managerId),
+                  self
+                )
+              )
+          }
+      }
 
-      val futures = Future
-        .sequence(chargingNetworkMap.flatMap {
-          case (_, chargingNetwork) =>
-            chargingNetwork.connectedVehicles.map {
-              case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _)) =>
-                Future {
-                  // Refuel
-                  handleRefueling(chargingVehicle)
-                  // Calculate the energy to charge each vehicle connected to the a charging station
-                  val (chargingDuration, energyToCharge) =
-                    dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
-                  // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
-                  chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
-                    case cycle if chargingIsCompleteUsing(cycle) =>
-                      handleEndCharging(timeBin, chargingVehicle)
-                      None
-                    case cycle if chargingNotCompleteUsing(cycle) =>
-                      log.debug(
-                        "Ending refuel cycle of vehicle {}. Stall: {}. Provided energy: {} J. Remaining: {} J",
-                        vehicle.id,
-                        stall,
-                        cycle.energy,
-                        energyToCharge
-                      )
-                      None
-                    case cycle =>
-                      // charging is going to end during this current session
-                      Some(
-                        ScheduleTrigger(
-                          ChargingTimeOutTrigger(timeBin + cycle.duration, vehicle.id, stall.managerId),
-                          self
-                        )
-                      )
-                  }
-                }
-            }
-        })
-        .map(_.toVector)
-        .recover {
-          case e =>
-            log.debug(s"No energy was dispatched at time $timeBin because: $e")
-            Vector.empty[Option[ScheduleTrigger]]
-        }
-
-      val triggers = (try {
-        Await.result(futures, atMost = 1.minutes)
-      } catch {
-        case e: TimeoutException =>
-          log.error(s"Timeout of energy dispatch at time $timeBin because: $e")
-          Vector.empty[Option[ScheduleTrigger]]
-      }).flatten
-
-      val nextStepPlanning = if (!isEndOfSimulation(timeBin)) {
+      val nextStepPlanningTriggers = if (!isEndOfSimulation(timeBin)) {
         Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
       } else {
         completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
       }
 
-      sender ! CompletionNotice(triggerId, triggers ++ nextStepPlanning)
+      sender ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
       val duration = (System.nanoTime - t1) / 1e9d
       duration1 += duration
       log.info(s"PlanEnergyDispatchTrigger at $timeBin runtime is $duration , total is $duration1")
