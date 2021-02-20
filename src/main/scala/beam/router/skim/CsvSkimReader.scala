@@ -27,7 +27,7 @@ class CsvSkimReader(
   logger: Logger
 ) {
 
-  def readAggregatedSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+  def readAggregatedSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     if (!new File(aggregatedSkimsFilePath).isFile) {
       logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
       Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]

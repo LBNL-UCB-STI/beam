@@ -74,7 +74,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      TrieMap[Id[VehicleManager], ChargingNetwork](
+      Map[Id[VehicleManager], ChargingNetwork](
         VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
           VehicleManager.privateVehicleManager.managerId,
           zoneTree
@@ -99,7 +99,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when not connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      TrieMap[Id[VehicleManager], ChargingNetwork](
+      Map[Id[VehicleManager], ChargingNetwork](
         VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
           VehicleManager.privateVehicleManager.managerId,
           zoneTree
