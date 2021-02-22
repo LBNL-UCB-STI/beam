@@ -93,8 +93,8 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
                 from(zone) ++ Map("estimatedLoad" -> powerInKW)
             }.toList
           )
-          val (_, gridBounds) = beamFederate.syncAndCollectJSON(currentTime)
-          logger.info("Obtained feedback the grid {}...", gridBounds)
+          val (_, dummyDouble) = beamFederate.syncAndCollectDouble(currentTime)
+          logger.info("Obtained feedback from the grid {}...", dummyDouble)
         case _ =>
           logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
       }

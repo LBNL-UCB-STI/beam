@@ -7,6 +7,7 @@ import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
 import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
+import org.matsim.api.core.v01.Id
 
 object BeamHelicsInterface {
   // Lazy makes sure that it is initialized only once
@@ -63,6 +64,7 @@ object BeamHelicsInterface {
       case b: Boolean if b  => JsTrue
       case b: Boolean if !b => JsFalse
       case s: String        => JsString(s)
+      case id: Id[_]        => JsString(id.toString)
     }
 
     def read(value: JsValue): Any = value match {
@@ -195,6 +197,10 @@ object BeamHelicsInterface {
       } else {
         List.empty[Map[String, Any]]
       })
+    }
+
+    def syncAndCollectDouble(time: Int): (Double, Double) = {
+      (sync(time), dataInStreamHandle.map(helics.helicsInputGetDouble).getOrElse(-1))
     }
 
     /**

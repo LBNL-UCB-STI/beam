@@ -1,8 +1,5 @@
 package beam.utils
 
-import beam.agentsim.agents.household.HouseholdFleetManager
-
-import java.util
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
@@ -11,6 +8,7 @@ import org.matsim.households.Household
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import java.util
 import scala.util.Random
 
 object BeamVehicleUtils {
