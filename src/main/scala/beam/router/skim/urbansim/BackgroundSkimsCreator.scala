@@ -49,6 +49,8 @@ class BackgroundSkimsCreator(
   )
 
   private val useR5 = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.routerType == "r5"
+  private val useR5AndGH = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.routerType == "r5+gh"
+  private val useR5AndCch = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.routerType == "r5+cch"
 
   val maybeR5Router: Option[R5Wrapper] = if (useR5) {
     val r5Wrapper = new R5Wrapper(
@@ -61,9 +63,9 @@ class BackgroundSkimsCreator(
     None
   }
 
-  val maybeODRouter: Option[ODRouterR5GHForActivitySimSkims] =
+  val maybeODRouter: Option[ODRouterR5GHCchForActivitySimSkims] =
     if (useR5) { None } else {
-      Some(ODRouterR5GHForActivitySimSkims(r5Parameters, getPeakSecondsFromConfig(beamServices), Some(travelTime)))
+      Some(ODRouterR5GHCchForActivitySimSkims(r5Parameters, getPeakSecondsFromConfig(beamServices), Some(travelTime)))
     }
 
   val router: Router = if (useR5) { maybeR5Router.get } else { maybeODRouter.get }
@@ -248,9 +250,11 @@ case class RouteExecutionInfo(
   r5ExecutionTime: Long = 0,
   ghCarExecutionDuration: Long = 0,
   ghWalkExecutionDuration: Long = 0,
+  cchCarExecutionDuration: Long = 0,
   r5Responses: Long = 0,
   ghCarResponses: Long = 0,
-  ghWalkResponses: Long = 0
+  ghWalkResponses: Long = 0,
+  cchCarResponses: Long = 0
 ) {
   val nanosToSec = 0.000000001
 
@@ -261,7 +265,8 @@ case class RouteExecutionInfo(
     toShortString +
     s"\nr5 execution time in seconds | number of responses: ${r5ExecutionTime * nanosToSec} | $r5Responses " +
     s"\ngh car route execution time in seconds | number of responses: ${ghCarExecutionDuration * nanosToSec} | $ghCarResponses" +
-    s"\ngh walk route execution time in seconds | number of responses: ${ghWalkExecutionDuration * nanosToSec} | $ghWalkResponses"
+    s"\ngh walk route execution time in seconds | number of responses: ${ghWalkExecutionDuration * nanosToSec} | $ghWalkResponses" +
+    s"\ncch car route execution time in seconds | number of responses: ${cchCarExecutionDuration * nanosToSec} | $cchCarResponses"
 }
 
 object RouteExecutionInfo {

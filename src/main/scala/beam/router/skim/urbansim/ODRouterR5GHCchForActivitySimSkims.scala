@@ -2,6 +2,7 @@ package beam.router.skim.urbansim
 
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
+import beam.router.cch.CchWrapper
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.{FreeFlowTravelTime, Modes, Router}
@@ -14,7 +15,7 @@ import java.nio.file.Paths
 import scala.language.postfixOps
 import scala.reflect.io.Directory
 
-case class ODRouterR5GHForActivitySimSkims(
+case class ODRouterR5GHCchForActivitySimSkims(
   workerParams: R5Parameters,
   requestTimes: List[Int],
   travelTimeOpt: Option[TravelTime]
@@ -49,6 +50,8 @@ case class ODRouterR5GHForActivitySimSkims(
   private val timeToCarGraphHopper: Map[Int, GraphHopperWrapper] =
     createCarGraphHoppers(carGraphHopperDir, requestTimes, travelTimeOpt)
 
+  private val cchWrapper = new CchWrapper(workerParams)
+
   override def calcRoute(
     request: RoutingRequest,
     buildDirectCarRoute: Boolean,
@@ -59,9 +62,13 @@ case class ODRouterR5GHForActivitySimSkims(
     }
 
     val (resultingResponse, executionInfo) = if (carRequested) {
-      val carExecutionStart = System.nanoTime()
+      val ghCarExecutionStart = System.nanoTime()
       val maybeCarGHRoute = if (carRequested) calcCarGhRouteWithoutTransit(request) else None
-      val carExecutionDuration = System.nanoTime() - carExecutionStart
+      val ghCarExecutionDuration = System.nanoTime() - ghCarExecutionStart
+
+      val cchCarExecutionStart = System.nanoTime()
+      val maybeCarCchRoute = if (carRequested) calcCarCchRouteWithoutTransit(request) else None
+      val cchCarExecutionDuration = System.nanoTime() - cchCarExecutionStart
 
       def routeIsEmpty(route: Option[RoutingResponse]): Boolean = {
         val routeExist = route.exists(_.itineraries.nonEmpty)
@@ -101,9 +108,11 @@ case class ODRouterR5GHForActivitySimSkims(
 
       val executionInfo = RouteExecutionInfo(
         r5ExecutionTime,
-        carExecutionDuration,
+        ghCarExecutionDuration,
+        cchCarExecutionDuration = cchCarExecutionDuration,
         r5Responses = if (maybeR5Response.nonEmpty && maybeR5Response.get.itineraries.nonEmpty) 1 else 0,
         ghCarResponses = if (maybeCarGHRoute.nonEmpty && maybeCarGHRoute.get.itineraries.nonEmpty) 1 else 0,
+        cchCarResponses = if (maybeCarCchRoute.nonEmpty && maybeCarCchRoute.get.itineraries.nonEmpty) 1 else 0,
       )
 
       (response, executionInfo)
@@ -177,6 +186,17 @@ case class ODRouterR5GHForActivitySimSkims(
           )
           None
       }
+    } else {
+      None
+    }
+  }
+
+  private def calcCarCchRouteWithoutTransit(request: RoutingRequest): Option[RoutingResponse] = {
+    val carRequest =
+      request.copy(streetVehicles = request.streetVehicles.filter(_.mode == Modes.BeamMode.CAR), withTransit = false)
+
+    if (carRequest.streetVehicles.nonEmpty) {
+      Some(cchWrapper.calcRoute(carRequest))
     } else {
       None
     }

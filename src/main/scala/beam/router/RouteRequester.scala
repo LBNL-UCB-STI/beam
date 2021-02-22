@@ -7,7 +7,7 @@ import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
-import beam.router.skim.urbansim.ODRouterR5GHForActivitySimSkims
+import beam.router.skim.urbansim.ODRouterR5GHCchForActivitySimSkims
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
@@ -74,9 +74,9 @@ object RouteRequester extends BeamHelper {
     income = Some(70000.0)
   )
 
-  private def getUniversalODRouter(cfg: Config): ODRouterR5GHForActivitySimSkims = {
+  private def getUniversalODRouter(cfg: Config): ODRouterR5GHCchForActivitySimSkims = {
     val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)
-    val odRouter = ODRouterR5GHForActivitySimSkims(r5Parameters, requestTimes, None)
+    val odRouter = ODRouterR5GHCchForActivitySimSkims(r5Parameters, requestTimes, None)
     odRouter
   }
 
