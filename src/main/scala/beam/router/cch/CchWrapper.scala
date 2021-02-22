@@ -121,7 +121,7 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
     osmFile
   }
 
-  override def calcRoute(req: RoutingRequest): RoutingResponse = {
+  override def calcRoute(req: RoutingRequest, buildDirectCarRoute: Boolean, buildDirectWalkRoute: Boolean): RoutingResponse = {
     val origin = workerParams.geo.utm2Wgs(req.originUTM)
     val destination = workerParams.geo.utm2Wgs(req.destinationUTM)
 
@@ -154,10 +154,9 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
             streetVehicle.vehicleTypeId,
             asDriver = true,
             cost = DrivingCost.estimateDrivingCost(
-              beamLeg.travelPath.distanceInM,
-              beamLeg.duration,
+              beamLeg,
               vehicleType,
-              workerParams.fuelTypePrices(vehicleType.primaryFuelType)
+              workerParams.fuelTypePrices
             ),
             unbecomeDriverOnCompletion = true
           )
