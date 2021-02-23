@@ -17,23 +17,10 @@ import org.matsim.core.utils.misc.Time
 
 import java.io.{File, FileOutputStream}
 import java.nio.file.Paths
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.collection.JavaConverters._
 
 class CchWrapper(workerParams: R5Parameters) extends Router {
-  private val tempDir: File = Paths.get(System.getProperty("java.io.tmpdir"), "cchnative").toFile
-  tempDir.mkdirs
-  tempDir.deleteOnExit()
-
-  if (System.getProperty("os.name").toLowerCase.contains("win")) {
-    throw new IllegalStateException("Win is not supported")
-  } else {
-    val cchNativeLib = "libcchnative.so"
-    io.FileUtils.copyInputStreamToFile(
-      this.getClass.getClassLoader.getResourceAsStream(Paths.get("cchnative", cchNativeLib).toString),
-      Paths.get(tempDir.toString, cchNativeLib).toFile
-    )
-    System.load(Paths.get(tempDir.getPath, cchNativeLib).toString)
-  }
 
   private val noOfTimeBins = Math
     .floor(
@@ -45,6 +32,7 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
   val carWeightCalculator = new CarWeightCalculator(workerParams)
 
   private var nativeCCH: CchNative = {
+    CchWrapper.init()
     nativeCCH = new CchNative()
     nativeCCH.init(prepareOsmFile())
     rebuildNativeCCHWeights(new FreeFlowTravelTime())
@@ -114,7 +102,7 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
         cchOsm.ways.put(idx.toLong, newWay)
       }
     }
-    val osmFile = Paths.get(tempDir.toString, "cch-generated.osm.pbf").toString
+    val osmFile = Paths.get(CchWrapper.tempDir.toString, "cch-generated.osm.pbf").toString
     FileUtils.using(new FileOutputStream(osmFile)) { fos =>
       cchOsm.writePbf(fos)
     }
@@ -187,5 +175,28 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
     }
     //    Await.result(Future.sequence(futures), 20.minutes)
     nativeCCH.unlock()
+  }
+}
+
+object CchWrapper {
+  private val isInitialized = new AtomicBoolean(false)
+  val tempDir: File = Paths.get(System.getProperty("java.io.tmpdir"), "cchnative").toFile
+
+  def init(): Unit = {
+    if (isInitialized.compareAndSet(false, true)) {
+      tempDir.mkdirs
+      tempDir.deleteOnExit()
+
+      if (System.getProperty("os.name").toLowerCase.contains("win")) {
+        throw new IllegalStateException("Win is not supported")
+      } else {
+        val cchNativeLib = "libcchnative.so"
+        io.FileUtils.copyInputStreamToFile(
+          this.getClass.getClassLoader.getResourceAsStream(Paths.get("cchnative", cchNativeLib).toString),
+          Paths.get(tempDir.toString, cchNativeLib).toFile
+        )
+        System.load(Paths.get(tempDir.getPath, cchNativeLib).toString)
+      }
+    }
   }
 }
