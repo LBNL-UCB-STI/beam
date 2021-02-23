@@ -79,34 +79,34 @@ for t in range(0, iterations):
             print("GRID: Simulating work (sleep for {} sec) before power flow response".format(time_sleep))
             time.sleep(time_sleep)
 
-        if h.helicsInputIsUpdated(sub):
-            rec_value = h.helicsInputGetString(sub)
-            print("GRID: Received {} at time {}".format(beamFederateName, currenttime))
-            received_data = json.loads(rec_value)
-            print("")
-            print("****************************************************")
-            print("chargingZoneId, tazId, parkingType, chargingPointType, pricingModel, 'numChargers', vehicleManager, estimatedLoad")
-            for load in received_data:
-                print("{}, {}, {}, {}, {}, {}, {}, {}".format(
-                      load['chargingZoneId'],
-                      load['tazId'],
-                      load['parkingType'],
-                      load['chargingPointType'],
-                      load['pricingModel'],
-                      load['numChargers'],
-                      load['vehicleManager'],
-                      load['estimatedLoad']))
-                del load['estimatedLoad']
-                load['maxLoad'] = 0  # a dummy physical bound
-            print("****************************************************")
-            print("")
-            #data_to_send = json.dumps(received_data, separators=(',', ':'))
-            #print(data_to_send)
-            #h.helicsPublicationPublishString(pub, "yoooya")
-            #h.helicsPublicationPublishString(pub, '["foo", {"bar":["baz", null, 1.0, 2]}]')
-            #h.helicsFederatePublishJSON(cfed, data_to_send)
-            h.helicsPublicationPublishDouble(pub, random.random())
-            print("GRID: Sending {} at time {} to CNMFederate".format(dataOuputStreamPoint, currenttime))
+        #if h.helicsInputIsUpdated(sub):
+        rec_value = h.helicsInputGetString(sub)
+        print("GRID: Received {} at time {}".format(beamFederateName, currenttime))
+        received_data = json.loads(rec_value)
+        print("")
+        print("****************************************************")
+        print("chargingZoneId, tazId, parkingType, chargingPointType, pricingModel, 'numChargers', vehicleManager, estimatedLoad")
+        for load in received_data:
+            print("{}, {}, {}, {}, {}, {}, {}, {}".format(
+                  load['chargingZoneId'],
+                  load['tazId'],
+                  load['parkingType'],
+                  load['chargingPointType'],
+                  load['pricingModel'],
+                  load['numChargers'],
+                  load['vehicleManager'],
+                  load['estimatedLoad']))
+            del load['estimatedLoad']
+            load['maxLoad'] = 0  # a dummy physical bound
+        print("****************************************************")
+        print("")
+        #data_to_send = json.dumps(received_data, separators=(',', ':'))
+        #print(data_to_send)
+        #h.helicsPublicationPublishString(pub, "TESTING PUBLISHING STRING")
+        #h.helicsPublicationPublishString(pub, '["foo", {"bar":["baz", null, 1.0, 2]}]')
+        #h.helicsFederatePublishJSON(cfed, data_to_send)
+        h.helicsPublicationPublishDouble(pub, 22.0)
+        print("GRID: Sending {} at time {} to CNMFederate".format(dataOuputStreamPoint, currenttime))
 
 
     h.helicsFederateFinalize(cfed)
