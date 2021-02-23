@@ -222,12 +222,13 @@ def bookkeep(which_stage):
         print('Required csv file for bookkeep() found at stage '+str(which_stage)+'.'+str(j))
         if os.path.isfile(out_file):
             time.sleep(2)
-            df =  pd.read_csv(out_file)
+            df = pd.read_csv(out_file)
         else:
             raise ValueError("%s isn't a file!" % file_path)
         df['iterations'][1] = 'modeshare_now'
-        del df['cav']
+        df = df.drop(['cav','bike_transit'], axis=1, errors='ignore')
         ip_vecs = get_me_ip_vecs(output_folders[j])
+        pd.set_option('display.max_columns', None)
         print('Input vector for this run ('+str(which_stage)+'.'+str(j)+') was: ', ip_vecs)
         df.loc[-1] = ['intercepts_now'] + ip_vecs
         df.index = df.index+1

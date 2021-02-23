@@ -249,7 +249,7 @@ def getNudges(whichCounter):
 
             # sorting all memory bank according to their L1 norm
             for i in range(len(files)):
-                names.append(files[i][len(shared):-4])  # extract file names only
+                names.append(files[i][len(shared)+1:-4])  # extract file names only
             names_sorted = natsorted(names, key=lambda x: x.split('_')[0]) # sort with iteration number
             names_sorted.sort(key=lambda x: int(x.split('_')[1])) # sort with L1 norm values
 
