@@ -637,13 +637,12 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     entryPoint('/app/entrypoint.sh')
 }
 
-task buildImage(type: DockerBuildImage, dependsOn: createDockerfile) {
-}
+task buildImageContent(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
-task tagImage(type: DockerTagImage, dependsOn: buildImage) {
+task buildImage(type: DockerTagImage, dependsOn: buildImageContent) {
     repository = "beammodel/beam"
     tag = version
-    targetImageId buildImage.getImageId()
+    targetImageId buildImageContent.getImageId()
 }
 
 dockerSyncBuildContext {
