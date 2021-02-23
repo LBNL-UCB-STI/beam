@@ -2,12 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
-import beam.agentsim.Resource.{
-  NotifyVehicleDoneRefuelingAndOutOfService,
-  NotifyVehicleIdle,
-  NotifyVehicleOutOfService,
-  ReleaseParkingStall
-}
+import beam.agentsim.Resource.{NotifyVehicleDoneRefuelingAndOutOfService, NotifyVehicleIdle, NotifyVehicleOutOfService, ReleaseParkingStall}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
@@ -27,6 +22,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
+import beam.router.RouterWorkerStats
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.sim.common.{GeoUtils, Range}
@@ -393,6 +389,7 @@ class RideHailAgent(
         None
       )
       isOnWayToParkAtStall = Some(stall)
+      RouterWorkerStats.add(this.getClass.getSimpleName, veh2StallRequest)
       beamServices.beamRouter ! veh2StallRequest
       stay
     case Event(RoutingResponse(itineraries, _, _, _), data) =>

@@ -5,17 +5,7 @@ import java.io.File
 import java.util
 import java.util.concurrent.TimeUnit
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  BeamLoggingReceive,
-  Cancellable,
-  OneForOneStrategy,
-  Props,
-  Stash,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.Resource._
@@ -30,11 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailVehicleManager.{Available, Refuelin
 import beam.agentsim.agents.ridehail.allocation.{DispatchProductType, _}
 import beam.agentsim.agents.ridehail.charging.VehicleChargingManager
 import beam.agentsim.agents.ridehail.kpis.RealTimeKpis
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -52,7 +38,7 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimmerEvent
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.{BeamRouter, RouteHistory, RouterWorkerStats}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
@@ -819,6 +805,7 @@ class RideHailManager(
         personId = None,
         streetVehicles = Vector(agentLocation.toStreetVehicle)
       )
+      RouterWorkerStats.add(this.getClass.getSimpleName, routingRequest)
       val futureRideHail2ParkingRouteRequest = router ? routingRequest
 
       for {
@@ -1811,6 +1798,7 @@ class RideHailManager(
             personId = None,
             streetVehicles = Vector(rideHailVehicleAtOrigin)
           )
+          RouterWorkerStats.add(this.getClass.getSimpleName, routingRequest)
           val futureRideHailAgent2CustomerResponse = router ? routingRequest
           futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
 

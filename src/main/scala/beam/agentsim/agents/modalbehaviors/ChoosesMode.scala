@@ -31,7 +31,7 @@ import org.matsim.core.utils.misc.Time
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingMNL}
-import beam.router.RoutingWorker
+import beam.router.{RouterWorkerStats, RoutingWorker}
 
 /**
   * BEAM
@@ -235,7 +235,7 @@ trait ChoosesMode {
         withParking: Boolean,
         streetVehiclesIntermodalUse: IntermodalUse = Access
       ): Option[Int] = {
-        router ! RoutingRequest(
+        val req = RoutingRequest(
           currentPersonLocation.loc,
           nextAct.getCoord,
           departTime,
@@ -245,6 +245,8 @@ trait ChoosesMode {
           Some(attributes),
           streetVehiclesIntermodalUse
         )
+        RouterWorkerStats.add(this.getClass.getSimpleName, req)
+        router ! req
         if (withParking) {
           requestParkingCost(
             nextAct.getCoord,
@@ -283,6 +285,7 @@ trait ChoosesMode {
           Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
           streetVehiclesUseIntermodalUse = AccessAndEgress
         )
+        RouterWorkerStats.add(this.getClass.getSimpleName, theRequest)
         router ! theRequest
         Some(theRequest.requestId)
       }

@@ -8,6 +8,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.cch.CchNative
 import beam.router.BeamRouter._
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
 import beam.router.gtfs.FareCalculator
@@ -26,6 +27,7 @@ import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
 import org.apache.commons.io
@@ -38,7 +40,8 @@ import java.io.{File, FileOutputStream}
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.{ExecutorService, Executors}
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.{ConcurrentHashMap, ExecutorService, Executors}
 import scala.collection.JavaConverters._
 import scala.collection.immutable.HashMap
 import scala.collection.mutable
@@ -290,6 +293,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
+      RouterWorkerStats.printStats()
       if (carRouter == "quasiDynamicGH") {
         createCarGraphHoppers(newTravelTime)
       } else if (carRouter == "nativeCCH") {
@@ -305,6 +309,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case UpdateTravelTimeRemote(map) =>
+      RouterWorkerStats.printStats()
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
@@ -826,4 +831,45 @@ object RoutingWorker {
                   val fromNode: Int,
                   val toNode: Int
                 )
+}
+
+object RouterWorkerStats extends LazyLogging {
+  private val senders = new ConcurrentHashMap[String, AtomicInteger]()
+  private val woTransitWithCarMode = new ConcurrentHashMap[String, AtomicInteger]()
+
+  def add(str: String, req: RoutingRequest): Unit = {
+    if (senders.containsKey(str)) {
+      senders.get(str).incrementAndGet()
+    } else {
+      this.synchronized {
+        if (senders.containsKey(str)) {
+          senders.get(str).incrementAndGet()
+        } else {
+          senders.put(str, new AtomicInteger(1))
+        }
+      }
+    }
+
+    if (!req.withTransit && req.streetVehicles.exists(_.mode == BeamMode.CAR)) {
+      if (woTransitWithCarMode.containsKey(str)) {
+        woTransitWithCarMode.get(str).incrementAndGet()
+      } else {
+        this.synchronized {
+          if (woTransitWithCarMode.containsKey(str)) {
+            woTransitWithCarMode.get(str).incrementAndGet()
+          } else {
+            woTransitWithCarMode.put(str, new AtomicInteger(1))
+          }
+        }
+      }
+    }
+  }
+
+  def printStats(): Unit = {
+    logger.info("--------------- Router Worker Stats --------------")
+    logger.info("--------------- Common ---------------------------")
+    logger.info(senders.asScala.map { case (str, i) => s"$str -> $i" }.mkString(";"))
+    logger.info("--------------- Without Transit ---------------------------")
+    logger.info(woTransitWithCarMode.asScala.map { case (str, i) => s"$str -> $i" }.mkString(";"))
+  }
 }
