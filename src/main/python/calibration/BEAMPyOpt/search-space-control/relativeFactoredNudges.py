@@ -12,12 +12,13 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 def getNudges(whichCounter):
 
     input_vector = []
-    rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1,4)) # total init random runs = 8 [8, 12, 16, 20, 24, 28, 32, 36] 
+    ##rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1, 4))
+    rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1, parallel_run)) # total init random runs = 8 [8, 12, 16, 20, 24, 28, 32, 36]
 
     if whichCounter == init_runs:                                        # total init random runs = 8
         last_needed_csv = 1
     else:
-        quotient = (whichCounter - init_runs - 1)//4                         # total init random runs = NEW SETUP! old=17 for 16
+        quotient = (whichCounter - init_runs - 1)//parallel_run                         # total init random runs = NEW SETUP! old=17 for 16
         #last_needed_csv = rel_nudge_stages[rel_nudge_stages.index(whichCounter)-1] 
         last_needed_csv = rel_nudge_stages[quotient]               # total init random runs = NEW SETUP!
 
@@ -33,11 +34,11 @@ def getNudges(whichCounter):
     if whichCounter == init_runs:                                       # total init random runs = 8
         print('Creating nudges for stage 1...')
         csv_name = glob.glob(shared+'/1_*.csv')[0]
-        df =  pd.read_csv(csv_name)
+        df = pd.read_csv(csv_name)
         for j in range(init_runs-1):                                      # total init random runs = 7
             vector_4_gradients = []
             for i in range(1,len(df.loc[5])):
-                if (df.loc[5][i] == 1):
+                if df.loc[5][i] == 1:
                     vector_4_gradients.append([np.random.uniform(0,20)])           # modified limits to 1.5 11.5 
                 else:
                     vector_4_gradients.append([np.random.uniform(-20,0)])             # modified limits to -14 -1
@@ -384,7 +385,7 @@ def getNudges(whichCounter):
         print('Prev list is ', prev_list)
         print('Next list is ', next_list)
 
-        for i in range(4):
+        for i in range(parallel_run):
             print('Computing nudges for '+str(i+1)+' substage...')
 
             #for 'methodA'

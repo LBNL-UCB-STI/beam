@@ -41,7 +41,7 @@ while not out_dir:
 out_file = out_dir[0]+'/referenceRealizedModeChoice.csv'
 
 if os.path.isfile(out_file):
-    df =  pd.read_csv(out_file)
+    df = pd.read_csv(out_file)
 else:
     raise ValueError("%s isn't a file!" % file_path)
 
@@ -55,7 +55,7 @@ df.sort_index(inplace=True)
 df.set_index('iterations', inplace=True)
 df.loc['L1'] = df.loc['benchmark'] - df.loc['modeshare_now']
 df.loc['L1_rank'] = df.loc['L1'].abs().rank(ascending=False)
-df.loc['Positive_Directionality'] =  df.loc['L1'].ge(0)
+df.loc['Positive_Directionality'] = df.loc['L1'].ge(0)
 total_L1 = df.loc['L1'].abs().sum()
 
 # intercepts_now, benchmark, modeshare_now, L1, L1_rank, Positive_Directionality

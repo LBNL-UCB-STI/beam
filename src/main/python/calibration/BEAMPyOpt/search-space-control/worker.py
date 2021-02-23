@@ -13,7 +13,7 @@ warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 # NO MECHANISM TO START 0TH ITERATION WITH ALL ZERO INTERCEPTS. Design it accordingly! Current workaround: run correlational_1.py before running parallelizer_1.py
 
 # iterator
-rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1,4)) # total init random runs = 8 ; 8, 12, 16, 20, 24, 28, 32, 36
+rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1, parallel_run)) # total init random runs = 8 ; 8, 12, 16, 20, 24, 28, 32, 36
 
 # constants
 finaliteration = '0'
@@ -91,7 +91,7 @@ def vector(whichCounter):
     if whichCounter == init_runs:                               # total init random runs = 8 
         required = init_runs-1                                    # total init random runs = 7
     else:
-        required = 4
+        required = parallel_run
     while True:
         if len(input_vector) == required:
             print('Input vector length matched with parallel_passes!')
@@ -151,7 +151,7 @@ def recipe():
         if len(input_vector_now) == init_runs-1: # [[...],[...],[...],[...],[...],[...],[...]]  # total init random runs = 7
             parallel_passes = init_runs-1                                                       # total init random runs = 7
         else: # len(input_vector_now) == 4
-            parallel_passes = 4
+            parallel_passes = parallel_run
 
         which_stage = rel_nudge_stages[i]
 
@@ -206,7 +206,7 @@ def bookkeep(which_stage):
         with open("op_folders.txt", "wb") as fp:
             pickle.dump(output_folders, fp)
     else:
-        how_many = 4
+        how_many = parallel_run
         with open("op_folders.txt", "rb") as fp:
             neglect = pickle.load(fp)
         output_folders = find_op_folder(parallel_passes=how_many,neglect=neglect)

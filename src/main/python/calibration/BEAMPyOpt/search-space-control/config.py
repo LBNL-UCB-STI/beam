@@ -20,3 +20,5 @@ writecue = f'{beam}/writecue.txt'
 firecue = f'{beam}/firecue.txt'
 
 init_runs = 16
+
+parallel_run = 16

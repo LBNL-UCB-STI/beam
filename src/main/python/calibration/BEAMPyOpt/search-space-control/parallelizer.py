@@ -19,7 +19,8 @@ recipe_procs = []
 manager = multiprocessing.Manager()
 
 # information inline to the info fed in the worker
-rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1,4))   # total init random runs = 8
+rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1, parallel_run))
+#rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1, 4))   # total init random runs = 8
 
 o = Process(name='recipe-proc', target=recipe)
 o.start()
@@ -41,7 +42,8 @@ for k in range(len(rel_nudge_stages)): # per stage start x=(number of parallel p
     if k == 0:
         parallel_passes = list(range(init_runs-1))                      # total init random runs = 7
     else:
-        parallel_passes = list(range(4))
+        ##parallel_passes = list(range(4))
+        parallel_passes = list(range(parallel_run))
 
     for m in range(len(parallel_passes)):
         #multiprocessing.log_to_stderr(logging.DEBUG)
