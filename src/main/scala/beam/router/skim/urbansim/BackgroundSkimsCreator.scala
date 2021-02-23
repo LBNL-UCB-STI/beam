@@ -276,9 +276,11 @@ object RouteExecutionInfo {
       r5ExecutionTime = debugInfo1.r5ExecutionTime + debugInfo2.r5ExecutionTime,
       ghCarExecutionDuration = debugInfo1.ghCarExecutionDuration + debugInfo2.ghCarExecutionDuration,
       ghWalkExecutionDuration = debugInfo1.ghWalkExecutionDuration + debugInfo2.ghWalkExecutionDuration,
+      cchCarExecutionDuration = debugInfo1.cchCarExecutionDuration + debugInfo2.cchCarExecutionDuration,
       r5Responses = debugInfo1.r5Responses + debugInfo2.r5Responses,
       ghCarResponses = debugInfo1.ghCarResponses + debugInfo2.ghCarResponses,
-      ghWalkResponses = debugInfo1.ghWalkResponses + debugInfo2.ghWalkResponses
+      ghWalkResponses = debugInfo1.ghWalkResponses + debugInfo2.ghWalkResponses,
+      cchCarResponses = debugInfo1.cchCarResponses + debugInfo2.cchCarResponses
     )
   }
 }
