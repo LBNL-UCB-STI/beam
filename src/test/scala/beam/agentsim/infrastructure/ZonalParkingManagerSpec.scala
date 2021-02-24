@@ -7,6 +7,8 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
+import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
+import beam.agentsim.infrastructure.charging.ElectricCurrentType
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -87,17 +89,6 @@ class ZonalParkingManagerSpec
           config
         )
       } {
-//        val beta1 = 1
-//        val beta2 = 1
-//        val beta3 = 0.001
-//        val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
-//          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-//          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-//          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-//        )
-//        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
-//        val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
-
         val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
@@ -177,6 +168,78 @@ class ZonalParkingManagerSpec
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
         assert(stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId, "something is wildly broken")
+      }
+    }
+  }
+
+  describe("ZonalParkingManager with only XFC charging option") {
+    it(
+      "should first return that an ultra fast charging stall for XFC capable vehicle, and afterward respond with a default stall for non XFC capable vehicle"
+    ) {
+      for {
+        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
+          List((coordCenterOfUTM, 10000)),
+          startAtId = 1,
+          167000,
+          0,
+          833000,
+          10000000
+        ) // one TAZ at agent coordinate
+        config = BeamConfig(system.settings.config)
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents
+                                               |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,
+          """.stripMargin.split("\n").toIterator
+        zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
+          tazTreeMap,
+          geo,
+          oneParkingOption,
+          boundingBox,
+          new Random(randomSeed),
+          managers,
+          config
+        )
+      } {
+        val vehicleType1 = beamScenario.vehicleTypes(Id.create("BEV_XFC", classOf[BeamVehicleType]))
+        val vehicle1 = new BeamVehicle(
+          id = Id.createVehicleId("car-01"),
+          powerTrain = new Powertrain(0.0),
+          beamVehicleType = vehicleType1,
+          managerId = VehicleManager.privateVehicleManager.managerId
+        )
+        val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
+        // first request is handled with the only stall in the system
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", Some(vehicle1))
+        val expectedFirstStall =
+          ParkingStall(
+            Id.create(1, classOf[TAZ]),
+            Id.create(1, classOf[TAZ]),
+            0,
+            coordCenterOfUTM,
+            56.78,
+            Some(xfcChargingPoint),
+            Some(PricingModel.FlatFee(12.34)),
+            ParkingType.Workplace,
+            VehicleManager.privateVehicleManager.managerId
+          )
+        val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(response1.get.requestId == firstInquiry.requestId, "something is wildly broken")
+        assert(response1.get.stall.toString == expectedFirstStall.toString, "something is wildly broken")
+
+        // since only stall is in use, the second inquiry will be handled with the emergency stall
+        val vehicleType2 = beamScenario.vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
+        val vehicle2 = new BeamVehicle(
+          id = Id.createVehicleId("car-01"),
+          powerTrain = new Powertrain(0.0),
+          beamVehicleType = vehicleType2,
+          managerId = VehicleManager.privateVehicleManager.managerId
+        )
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", Some(vehicle2))
+        val response2 @ Some(ParkingInquiryResponse(stall, responseId)) =
+          zonalParkingManager.processParkingInquiry(secondInquiry)
+        assert(response2.isDefined, "no response")
+        assert(stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId, "something is wildly broken")
+        assert(stall.chargingPointType.isEmpty, "it should not get an Ultra Fast charging point stall")
       }
     }
   }
