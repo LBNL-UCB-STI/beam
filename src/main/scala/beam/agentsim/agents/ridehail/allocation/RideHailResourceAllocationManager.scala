@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager._
 import beam.agentsim.agents.ridehail.{RideHailManager, RideHailRequest}
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -37,7 +37,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
    * rational choices about mode that reflect the true travel time cost of pooling.
    */
   def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.vehicleManager.getClosestIdleVehiclesWithinRadiusByETA(
+    rideHailManager.rideHailManagerHelper.getClosestIdleVehiclesWithinRadiusByETA(
       inquiry.pickUpLocationUTM,
       inquiry.destinationUTM,
       rideHailManager.radiusInMeters,
@@ -117,13 +117,11 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests), beamServices)
     allocationResponse match {
       case VehicleAllocations(allocations) =>
-        allocations.foreach { alloc =>
-          alloc match {
-            case RoutingRequiredToAllocateVehicle(request, _) =>
-              awaitingRoutes += request
-              bufferedRideHailRequests -= request
-            case _ =>
-          }
+        allocations.foreach {
+          case RoutingRequiredToAllocateVehicle(request, _) =>
+            awaitingRoutes += request
+            bufferedRideHailRequests -= request
+          case _ =>
         }
       case _ =>
     }
@@ -160,7 +158,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if (routingResponses.isEmpty) =>
         val requestWithUpdatedLoc = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
-        rideHailManager.vehicleManager
+        rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
             requestWithUpdatedLoc.pickUpLocationUTM,
             requestWithUpdatedLoc.destinationUTM,
@@ -186,7 +184,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
         val requestUpdated = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
-        rideHailManager.vehicleManager
+        rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
             requestUpdated.pickUpLocationUTM,
             requestUpdated.destinationUTM,

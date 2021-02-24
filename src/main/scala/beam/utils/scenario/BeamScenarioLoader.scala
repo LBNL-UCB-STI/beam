@@ -1,10 +1,12 @@
 package beam.utils.scenario
 
+import beam.agentsim.agents.household.HouseholdFleetManager
+
 import java.util
 
 import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -352,7 +354,13 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
     val beamVehicleType = map(beamVehicleTypeId)
 
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-    new BeamVehicle(beamVehicleId, powerTrain, beamVehicleType, randomSeed)
+    new BeamVehicle(
+      beamVehicleId,
+      powerTrain,
+      beamVehicleType,
+      managerId = VehicleManager.privateVehicleManager.managerId,
+      randomSeed
+    )
   }
 
 }

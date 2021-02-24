@@ -1,8 +1,5 @@
 package beam.agentsim.agents.vehicles
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
-import java.util.concurrent.locks.ReentrantReadWriteLock
-
 import akka.actor.ActorRef
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
@@ -28,6 +25,8 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.util.Random
 
 /**
@@ -48,6 +47,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
+  val managerId: Id[VehicleManager],
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
@@ -93,7 +93,9 @@ class BeamVehicle(
   private val chargerRWLock = new ReentrantReadWriteLock()
 
   private var connectedToCharger: Boolean = false
+
   private var chargerConnectedTick: Option[Int] = None
+  private var chargerConnectedPrimaryFuel: Option[Double] = None
 
   /**
     * Called by the driver.
@@ -150,6 +152,7 @@ class BeamVehicle(
       chargerRWLock.write {
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
+        chargerConnectedPrimaryFuel = Some(primaryFuelLevelInJoules)
       }
     } else
       logger.warn(
@@ -161,6 +164,7 @@ class BeamVehicle(
     chargerRWLock.write {
       connectedToCharger = false
       chargerConnectedTick = None
+      chargerConnectedPrimaryFuel = None
     }
   }
 
@@ -173,6 +177,12 @@ class BeamVehicle(
   def getChargerConnectedTick(): Int = {
     chargerRWLock.read {
       chargerConnectedTick.getOrElse(0)
+    }
+  }
+
+  def getChargerConnectedPrimaryFuel(): Double = {
+    chargerRWLock.read {
+      chargerConnectedPrimaryFuel.getOrElse(0L)
     }
   }
 
@@ -268,9 +278,7 @@ class BeamVehicle(
     )
   }
 
-  def isRidehailVehicle = {
-    id.toString.contains("rideHailVehicle")
-  }
+  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
 
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
@@ -288,8 +296,9 @@ class BeamVehicle(
     */
   def refuelingSessionDurationAndEnergyInJoulesForStall(
     parkingStall: Option[ParkingStall],
-    sessionDurationLimit: Option[Int] = None,
-    stateOfChargeLimit: Option[Double] = None
+    sessionDurationLimit: Option[Int],
+    stateOfChargeLimit: Option[Double],
+    chargingPowerLimit: Option[Double]
   ): (Int, Double) = {
     parkingStall match {
       case Some(theStall) =>
@@ -302,7 +311,8 @@ class BeamVehicle(
               1e6,
               1e6,
               sessionDurationLimit,
-              stateOfChargeLimit
+              stateOfChargeLimit,
+              chargingPowerLimit
             )
           case None =>
             (0, 0.0)
@@ -320,10 +330,16 @@ class BeamVehicle(
     * @return tuple with (refuelingDuration, refuelingEnergy)
     */
   def refuelingSessionDurationAndEnergyInJoules(
-    sessionDurationLimit: Option[Int] = None,
-    stateOfChargeLimit: Option[Double] = None
+    sessionDurationLimit: Option[Int],
+    stateOfChargeLimit: Option[Double],
+    chargingPowerLimit: Option[Double]
   ): (Int, Double) = {
-    refuelingSessionDurationAndEnergyInJoulesForStall(stall, sessionDurationLimit, stateOfChargeLimit)
+    refuelingSessionDurationAndEnergyInJoulesForStall(
+      stall,
+      sessionDurationLimit,
+      stateOfChargeLimit,
+      chargingPowerLimit
+    )
   }
 
   def getState: BeamVehicleState = {
@@ -367,8 +383,11 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, true)
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || isSharedVehicle
+    StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
+
+  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
 

@@ -1,7 +1,5 @@
 package beam.router
 
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.TimeUnit
 import akka.actor.Status.Failure
 import akka.actor.{
   Actor,
@@ -28,8 +26,9 @@ import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
-import beam.router.skim.{ODSkimmer, ODSkims, Skims}
 import beam.router.r5.RouteDumper
+import beam.router.skim.core.ODSkimmer
+import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
@@ -40,20 +39,19 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id, Scenario, TransportMode}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
-import scala.util.Try
 
 class BeamRouter(
   beamScenario: BeamScenario,
@@ -476,7 +474,8 @@ object BeamRouter {
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    requestId: Int = IdGeneratorImpl.nextId
+    requestId: Int = IdGeneratorImpl.nextId,
+    possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
   )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings

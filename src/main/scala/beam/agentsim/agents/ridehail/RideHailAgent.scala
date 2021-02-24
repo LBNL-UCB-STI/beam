@@ -14,7 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.MarkVehicleBatteryDepleted
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
@@ -25,15 +25,15 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, Par
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.sim.common.{GeoUtils, Range}
-import beam.sim.{BeamScenario, BeamServices, Geofence, RideHailFleetInitializer}
-import beam.utils.logging.{ExponentialLazyLogging, LogActorState}
-import beam.utils.reflection.ReflectionUtils
+import beam.sim.common.GeoUtils
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
+import beam.utils.logging.LogActorState
+import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -54,6 +54,7 @@ object RideHailAgent {
     tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
     rideHailManager: ActorRef,
     vehicle: BeamVehicle,
@@ -72,6 +73,7 @@ object RideHailAgent {
         geofence,
         eventsManager,
         parkingManager,
+        chargingNetworkManager,
         services,
         beamScenario,
         transportNetwork,
@@ -186,6 +188,7 @@ class RideHailAgent(
   val geofence: Option[Geofence],
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
@@ -381,7 +384,8 @@ class RideHailAgent(
           currentBeamVehicle.beamVehicleType.id,
           SpaceTime(currentLocationUTM, _currentTick.get),
           CAR,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = true
         )
       val veh2StallRequest = RoutingRequest(
         currentLocationUTM,
@@ -417,7 +421,7 @@ class RideHailAgent(
       waitingForDoneRefuelingAndOutOfServiceReply = false
       val (tick, localTriggerId) = releaseTickAndTriggerId()
       assert(localTriggerId == triggerId)
-      if (newTriggers.headOption.map(_.trigger.tick < tick).getOrElse(false)) {
+      if (newTriggers.headOption.exists(_.trigger.tick < tick)) {
         log.error(
           s"agent({}) state(RideHailingAgent.Offline): NotifyVehicleDoneRefuelingAndOutOfServiceReply detected trigger {} with tick before the one about to be completed {}",
           id,
@@ -886,7 +890,7 @@ class RideHailAgent(
           )
         if (!vehicle.isCAV) {
           val stall = vehicle.stall.get
-          parkingManager ! ReleaseParkingStall(stall.parkingZoneId, stall.geoId)
+          parkingManager ! ReleaseParkingStall(stall)
         }
         val currentLocation = parkingStall.locationUTM
         if (!vehicle.isCAV) vehicle.unsetParkingStall()
@@ -944,15 +948,15 @@ class RideHailAgent(
     val rideHailAgentLocation =
       RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
-    val inquiry = ParkingInquiry(destinationUtm, "charge", beamVehicle = Some(vehicle))
+    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry
   }
 
   def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData): Unit = {
-    val (unlimitedSessionDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(None)
+    val (unlimitedSessionDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
     val secondsUntilEndOfSim = lastTickOfSimulation - 1 - tick
     val sessionDurationLimit = (isCurrentlyOnShift || isStartingNewShift) match {
-      case false if data.remainingShifts.headOption.isDefined =>
+      case false if data.remainingShifts.nonEmpty =>
         Some(
           Math.min(
             secondsUntilEndOfSim,
@@ -968,7 +972,11 @@ class RideHailAgent(
         None
     }
     val (sessionDuration, energyDelivered) =
-      vehicle.refuelingSessionDurationAndEnergyInJoules(sessionDurationLimit)
+      vehicle.refuelingSessionDurationAndEnergyInJoules(
+        sessionDurationLimit = sessionDurationLimit,
+        stateOfChargeLimit = None,
+        chargingPowerLimit = None
+      )
 
 //    if(sessionDuration==0 && !vehicle.stall.get.chargingPointType.get.toString.equals("abb_50kw_dc(50.0|DC)")){
 //      log.warning(

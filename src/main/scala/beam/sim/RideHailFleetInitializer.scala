@@ -1,11 +1,9 @@
 package beam.sim
 
-import java.nio.file.{Files, Paths}
-
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -22,6 +20,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
+import java.nio.file.{Files, Paths}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
@@ -49,7 +48,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId = rideHailManagerId,
+      rideHailManagerId = Id.create(rideHailManagerId, classOf[VehicleManager]),
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -224,7 +223,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     */
   case class RideHailAgentInputData(
     id: String,
-    rideHailManagerId: String,
+    rideHailManagerId: Id[VehicleManager],
     vehicleType: String,
     initialLocationX: Double,
     initialLocationY: Double,
@@ -257,13 +256,12 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     def createRideHailAgentInitializer(beamScenario: BeamScenario): RideHailAgentInitializer = {
       val beamVehicleType = beamScenario.vehicleTypes(Id.create(vehicleType, classOf[BeamVehicleType]))
-      val rideHailManagerId_ = Id.create(rideHailManagerId, classOf[RideHailManager])
       val shifts = shiftsListFromString(shiftsStr)
 
       RideHailAgentInitializer(
         id,
         beamVehicleType,
-        rideHailManagerId_,
+        rideHailManagerId,
         shifts,
         initialStateOfCharge,
         initialLocation,
@@ -295,7 +293,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
   case class RideHailAgentInitializer(
     id: String,
     beamVehicleType: BeamVehicleType,
-    rideHailManagerId: Id[RideHailManager],
+    rideHailManagerId: Id[VehicleManager],
     shifts: Option[List[Shift]],
     initialStateOfCharge: Double,
     initialLocation: Coord,
@@ -321,6 +319,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
+        managerId = rideHailManagerId,
         randomSeed
       )
 
@@ -350,7 +349,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
       RideHailAgentInputData(
         id,
-        rideHailManagerId.toString,
+        rideHailManagerId,
         beamVehicleType.id.toString,
         initialLocation.getX,
         initialLocation.getY,
@@ -483,7 +482,7 @@ trait RideHailFleetInitializer extends LazyLogging {
     * @return Sequence of RideHailAgentInitializer.
     */
   def getRideHailAgentInitializers(
-    rideHailManagerId: Id[RideHailManager],
+    rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer] = {
     rideHailAgentInitializersOpt match {
@@ -505,7 +504,7 @@ trait RideHailFleetInitializer extends LazyLogging {
 
   /** Interface method to define initialization algorithms. */
   protected def generateRideHailAgentInitializers(
-    rideHailManagerId: Id[RideHailManager],
+    rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer]
 }
@@ -519,7 +518,7 @@ trait RideHailFleetInitializer extends LazyLogging {
 class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScenario: BeamScenario)
     extends RideHailFleetInitializer {
   protected def generateRideHailAgentInitializers(
-    rideHailManagerId: Id[RideHailManager],
+    rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer] = {
     val fleetFilePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
@@ -569,7 +568,7 @@ class ProceduralRideHailFleetInitializer(
   }
 
   protected def generateRideHailAgentInitializers(
-    rideHailManagerId: Id[RideHailManager],
+    rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer] = {
     val averageOnDutyHoursPerDay = 3.52 // Measured from Austin Data, assuming drivers took at least 4 trips

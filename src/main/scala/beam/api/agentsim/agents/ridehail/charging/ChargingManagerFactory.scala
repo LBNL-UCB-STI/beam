@@ -9,7 +9,6 @@ import beam.agentsim.agents.ridehail.charging.{
 }
 import beam.agentsim.agents.ridehail.kpis.RealTimeKpis
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.api.agentsim.agents.ridehail.allocation.{DefaultRepositionManagerFactory, RepositionManagerFactory}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 

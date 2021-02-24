@@ -1,6 +1,5 @@
 package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.{ask, pipe}
@@ -9,10 +8,12 @@ import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor.{
+  GetVehicleTypes,
   MobilityStatusInquiry,
   MobilityStatusResponse,
   ReleaseVehicle,
-  ReleaseVehicleAndReply
+  ReleaseVehicleAndReply,
+  VehicleTypesResponse
 }
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
@@ -21,6 +22,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -86,6 +88,9 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         logger.debug("Vehicle {} is now available", vehicle.id)
         sender() ! Success
       }
+
+    case GetVehicleTypes() =>
+      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet)
 
     case MobilityStatusInquiry(_, _, _) =>
       availableVehicles = availableVehicles match {

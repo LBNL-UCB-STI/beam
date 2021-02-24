@@ -1,19 +1,13 @@
 package beam.agentsim.agents.ridehail.kpis
 
 import beam.agentsim.agents.ridehail.kpis.KpiRegistry.Kpi
+import beam.agentsim.agents.ridehail.kpis.RideHailKpisObject._
+import beam.agentsim.agents.ridehail.kpis.TemporalAggregation.{HalfHourly, Hourly, QuarterHourly}
 import beam.agentsim.infrastructure.taz.H3TAZ.HexIndex
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.{Skims, TAZSkimmerEvent, TAZSkims}
+import beam.router.skim.event.TAZSkimmerEvent
 import beam.sim.BeamServices
 import enumeratum.{Enum, EnumEntry}
-import beam.agentsim.agents.ridehail.kpis.RideHailKpisObject.{
-  HalfHourBin,
-  HourBin,
-  IndexedSpatioTemporalKpi,
-  QuarterHourBin,
-  SpatioTemporalKey
-}
-import beam.agentsim.agents.ridehail.kpis.TemporalAggregation.{HalfHourly, Hourly, QuarterHourly}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable

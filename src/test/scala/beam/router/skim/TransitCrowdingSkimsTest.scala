@@ -7,6 +7,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.core.TransitCrowdingSkimmer
 import beam.sim.{BeamHelper, BeamServices}
 import org.matsim.api.core.v01.Id
 import org.scalatest.{FlatSpec, Matchers}

@@ -1,7 +1,5 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase}
 import akka.util.Timeout
@@ -14,8 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, ShiftEvent, SpaceTime}
-import beam.agentsim.infrastructure.ZonalParkingManager
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -32,6 +29,8 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.{BeforeAndAfter, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
+
+import java.util.concurrent.TimeUnit
 
 //#Test needs to be updated/fixed on LBNL side
 class RideHailAgentSpec
@@ -65,18 +64,22 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ZonalParkingManager
-      .props(
-        beamConfig,
-        beamScenario.tazTreeMap.tazQuadTree,
-        beamScenario.tazTreeMap.idToTAZMapping,
-        identity[TAZ],
-        services.geo,
-        services.beamRouter,
-        boundingBox
-      ),
+    ParkingNetworkManager.props(
+      services,
+      ParkingNetworkInfo(
+        services,
+        boundingBox,
+        Map[Id[VehicleManager], VehicleManager](
+          VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
+          VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
+        )
+      )
+    ),
     "ParkingManager"
   )
+
+  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
+    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
 
   case class TestTrigger(tick: Int) extends Trigger
 
@@ -157,11 +160,14 @@ class RideHailAgentSpec
 
     it("should drive around when I tell him to") {
       val vehicleId = Id.createVehicleId(1)
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          managerId =
+            Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
         )
       beamVehicle.setManager(Some(self))
 
@@ -185,6 +191,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
+          self,
           services,
           beamScenario,
           beamScenario.transportNetwork,
@@ -234,11 +241,13 @@ class RideHailAgentSpec
 
     it("should let me interrupt it and tell it to cancel its job") {
       val vehicleId = Id.createVehicleId(1)
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
         )
       beamVehicle.setManager(Some(self))
 
@@ -262,6 +271,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
+          self,
           services,
           beamScenario,
           beamScenario.transportNetwork,
@@ -303,11 +313,13 @@ class RideHailAgentSpec
 
     it("won't let me cancel its job after it has picked up passengers", FlakyTest) {
       val vehicleId = Id.createVehicleId(1)
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle =
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+          vehicleType,
+          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),
         )
       beamVehicle.setManager(Some(self))
 
@@ -331,6 +343,7 @@ class RideHailAgentSpec
           None,
           eventMgr,
           zonalParkingManager,
+          self,
           services,
           beamScenario,
           beamScenario.transportNetwork,

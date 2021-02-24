@@ -1,12 +1,12 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.infrastructure.ParkingStall
-
-import scala.language.higherKinds
-import cats.Eval
+import beam.agentsim.agents.vehicles.VehicleManagerType
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.agents.vehicles.VehicleManager
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+
+import scala.language.higherKinds
 
 /**
   * stores the number of stalls in use for a zone of parking stalls with a common set of attributes
@@ -23,6 +23,7 @@ class ParkingZone[GEO](
   val parkingType: ParkingType,
   var stallsAvailable: Int,
   val maxStalls: Int,
+  val vehicleManagerId: Id[VehicleManager],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
   val parkingZoneName: Option[String],
@@ -55,6 +56,7 @@ class ParkingZone[GEO](
       this.parkingType,
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
+      this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel,
       this.parkingZoneName,
@@ -86,6 +88,7 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     numStalls: Int = 0,
+    vehicleManagerId: Id[VehicleManager],
     chargingType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     parkingZoneName: Option[String] = None,
@@ -97,6 +100,7 @@ object ParkingZone extends LazyLogging {
       parkingType,
       numStalls,
       numStalls,
+      vehicleManagerId,
       chargingType,
       pricingModel,
       parkingZoneName,

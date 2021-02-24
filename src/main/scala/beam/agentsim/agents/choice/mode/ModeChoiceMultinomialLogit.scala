@@ -2,7 +2,6 @@ package beam.agentsim.agents.choice.mode
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{ModeCostTimeTransfer, _}
@@ -14,7 +13,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.BikeLanesAdjustment
-import beam.router.skim.TransitCrowdingSkims
+import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
@@ -271,7 +270,7 @@ class ModeChoiceMultinomialLogit(
         )
 
       val numTransfers = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
+        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[BeamVehicle])
           altAndIdx._1.legs.foreach { leg =>
@@ -444,6 +443,11 @@ object ModeChoiceMultinomialLogit {
       ),
       "drive_transit" -> Map(
         "intercept"             -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
+      ),
+      "bike_transit" -> Map(
+        "intercept"             -> UtilityFunctionOperation("intercept", params.bike_transit_intercept),
         "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
         "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       )

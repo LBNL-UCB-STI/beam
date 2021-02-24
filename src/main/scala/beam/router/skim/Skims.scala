@@ -2,6 +2,15 @@ package beam.router.skim
 
 import beam.router
 import beam.router.skim
+import beam.router.skim.core.{
+  AbstractSkimmer,
+  AbstractSkimmerReadOnly,
+  DriveTimeSkimmer,
+  ODSkimmer,
+  TAZSkimmer,
+  TransitCrowdingSkimmer
+}
+import beam.router.skim.readonly.{DriveTimeSkims, ODSkims, TAZSkims, TransitCrowdingSkims}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.MatsimServices
