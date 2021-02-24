@@ -29,6 +29,7 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
         |beam.urbansim.backgroundODSkimsCreator.skimsKind = "activitySim"
         |beam.urbansim.backgroundODSkimsCreator.routerType = "r5+gh"
         |beam.agentsim.taz.filePath = test/test-resources/taz-centers.10.csv
+        |beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk = 1000
       """.stripMargin
     )
     .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
@@ -86,7 +87,7 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
     val keys = skims.keys.map(_.asInstanceOf[ActivitySimSkimmerKey]).toSeq
 
     keys.count(_.pathType != ActivitySimPathType.WALK) shouldBe 0
-    keys.size shouldBe 82
+    keys.size shouldBe 22 // because max walk trip length is 1000 meters
   }
 
   "skims creator" should "generate CAR skims only" in {
@@ -182,10 +183,10 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
     pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 61
     pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 10
 
-    pathTypeToSkimsCount(ActivitySimPathType.WALK) shouldBe 82
+    pathTypeToSkimsCount(ActivitySimPathType.WALK) shouldBe 22 // because max walk trip length is 1000 meters
     pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 100
 
     pathTypeToSkimsCount(ActivitySimPathType.OTHER) shouldBe 1
 
-    skims.keys.size shouldBe 297
+    skims.keys.size shouldBe 237
   }}
