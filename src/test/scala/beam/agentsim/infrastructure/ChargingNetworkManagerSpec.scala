@@ -71,7 +71,7 @@ class ChargingNetworkManagerSpec
      |
      |  chargingPoint {
      |    thresholdXFCinKW = 250
-     |    thresholdFCinKW = 50
+     |    thresholdDCFCinKW = 50
      |  }
      |}
      |""".stripMargin))

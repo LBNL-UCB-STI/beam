@@ -251,17 +251,17 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
               case Some(_) if zone.chargingPointType.isEmpty => true
 
               // if the vehicle is FC capable, it cannot charges in XFC charging points
-              case Some(chargingCapability) if chargingCapability == ChargingCapability.FC =>
+              case Some(chargingCapability) if chargingCapability == ChargingCapability.DCFC =>
                 ChargingPointType
                   .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdXFCinKW
 
               // if the vehicle is not capable of DCFC, it can only charges in level 1 and 2
               case Some(chargingCapability) if chargingCapability == ChargingCapability.AC =>
                 ChargingPointType
-                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdFCinKW
+                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdDCFCinKW
 
-              // This means that the vehicle is XFC capable and it can charges everywhere
-              // of the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
+              // EITHER the vehicle is XFC capable and it can charges everywhere
+              // OR the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
               case _ => true
           }
         )

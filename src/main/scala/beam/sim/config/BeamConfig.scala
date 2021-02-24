@@ -1737,7 +1737,7 @@ object BeamConfig {
 
       object ChargingNetworkManager {
         case class ChargingPoint(
-          thresholdFCinKW: scala.Int,
+          thresholdDCFCinKW: scala.Int,
           thresholdXFCinKW: scala.Int
         )
 
@@ -1745,7 +1745,7 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              thresholdFCinKW = if (c.hasPathOrNull("thresholdFCinKW")) c.getInt("thresholdFCinKW") else 50,
+              thresholdDCFCinKW = if (c.hasPathOrNull("thresholdDCFCinKW")) c.getInt("thresholdDCFCinKW") else 50,
               thresholdXFCinKW = if (c.hasPathOrNull("thresholdXFCinKW")) c.getInt("thresholdXFCinKW") else 250
             )
           }

@@ -77,10 +77,10 @@ object VehicleCategory {
 object ChargingCapability {
   sealed trait ChargingCapability
   case object XFC extends ChargingCapability
-  case object FC extends ChargingCapability
+  case object DCFC extends ChargingCapability
   case object AC extends ChargingCapability
 
   def fromString(value: String): ChargingCapability = {
-    Vector(XFC, FC, AC).find(_.toString.equalsIgnoreCase(value)).get
+    Vector(XFC, DCFC, AC).find(_.toString.equalsIgnoreCase(value)).get
   }
 }
