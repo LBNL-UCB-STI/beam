@@ -25,7 +25,7 @@ class ODRequester(
   val router: Router,
   val scenario: Scenario,
   val geoUtils: GeoUtils,
-  val beamModes: Array[BeamMode],
+  val beamModes: Seq[BeamMode],
   val beamConfig: BeamConfig,
   val modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory,
   val withTransit: Boolean,
@@ -66,7 +66,7 @@ class ODRequester(
     }
 
     val dist = distanceWithMargin(srcCoord, dstCoord)
-    val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist))
+    val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist)).toArray
     val walkDistanceWithinRange = dist < thresholdDistanceForWalkMeters
     val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
     val maybeResponse: Try[RoutingResponse] =

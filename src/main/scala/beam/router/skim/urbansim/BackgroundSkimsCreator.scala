@@ -25,7 +25,7 @@ class BackgroundSkimsCreator(
   val geoClustering: GeoClustering,
   val abstractSkimmer: AbstractSkimmer,
   val travelTime: TravelTime,
-  val beamModes: Array[BeamMode],
+  val beamModes: Seq[BeamMode],
   val withTransit: Boolean,
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
@@ -160,7 +160,7 @@ object BackgroundSkimsCreator {
 
   private val additionalSkimFileNamePart = ".UrbanSim"
 
-  private def createTAZActivitySimSkimmer(
+  def createTAZActivitySimSkimmer(
     beamServices: BeamServices,
     tazClustering: TAZClustering
   ): ActivitySimSkimmer =
@@ -181,7 +181,7 @@ object BackgroundSkimsCreator {
       }
     }
 
-  private def createH3ActivitySimSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ActivitySimSkimmer =
+  def createH3ActivitySimSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
@@ -203,7 +203,7 @@ object BackgroundSkimsCreator {
       }
     }
 
-  private def createTAZOdSkimmer(beamServices: BeamServices, tazClustering: TAZClustering): ODSkimmer =
+  def createTAZOdSkimmer(beamServices: BeamServices, tazClustering: TAZClustering): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
@@ -223,7 +223,7 @@ object BackgroundSkimsCreator {
       }
     }
 
-  private def createH3ODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer =
+  def createH3ODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {

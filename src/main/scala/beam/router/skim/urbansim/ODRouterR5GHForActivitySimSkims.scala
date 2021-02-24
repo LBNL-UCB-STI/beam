@@ -73,8 +73,8 @@ case class ODRouterR5GHForActivitySimSkims(
         !routeExist
       }
 
-      val needToBuildCarRoute = routeIsEmpty(maybeCarGHRoute)
-      val needToBuildWalkRoute = routeIsEmpty(maybeWalkGHRoute)
+      val needToBuildCarRoute = routeIsEmpty(maybeCarGHRoute) && carRequested
+      val needToBuildWalkRoute = routeIsEmpty(maybeWalkGHRoute) && walkRequested
 
       val otherVehiclesRequested =
         request.streetVehicles.exists(vehicle => vehicle.mode != BeamMode.CAR && vehicle.mode != BeamMode.WALK)

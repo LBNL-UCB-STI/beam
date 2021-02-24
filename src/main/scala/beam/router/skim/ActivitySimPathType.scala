@@ -80,14 +80,10 @@ object ActivitySimPathType {
   }
 
   def determineTripPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
-    val uniqueNotWalkingModes: Set[BeamMode] = trip.legs
-      .map { leg =>
-        leg.beamLeg.mode
-      }
-      .filter { mode =>
-        isCar(mode) || isWalkTransit(mode) || mode == BeamMode.WALK
-      }
-      .toSet
+    val allMods = trip.legs.map(_.beamLeg.mode).toSet
+    val uniqueNotWalkingModes: Set[BeamMode] = allMods.filter { mode =>
+      isCar(mode) || isWalkTransit(mode)
+    }
 
     if (uniqueNotWalkingModes.exists(isCar)) {
       if (uniqueNotWalkingModes.exists(isWalkTransit)) {
@@ -97,7 +93,7 @@ object ActivitySimPathType {
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       determineTransitPathType(trip)
-    } else if (uniqueNotWalkingModes.size == 1 && uniqueNotWalkingModes.head == BeamMode.WALK) {
+    } else if (allMods == Set(BeamMode.WALK)) {
       WALK
     } else {
       OTHER
@@ -106,28 +102,28 @@ object ActivitySimPathType {
 
   def toBeamMode(pathType: ActivitySimPathType): BeamMode = {
     pathType match {
-      case DRV_COM_WLK => BeamMode.DRIVE_TRANSIT
-      case DRV_EXP_WLK => BeamMode.DRIVE_TRANSIT
-      case DRV_HVY_WLK => BeamMode.DRIVE_TRANSIT
-      case DRV_LOC_WLK => BeamMode.DRIVE_TRANSIT
-      case DRV_LRF_WLK => BeamMode.DRIVE_TRANSIT
-      case WLK_COM_DRV => BeamMode.DRIVE_TRANSIT
-      case WLK_EXP_DRV => BeamMode.DRIVE_TRANSIT
-      case WLK_HVY_DRV => BeamMode.DRIVE_TRANSIT
-      case WLK_LOC_DRV => BeamMode.DRIVE_TRANSIT
-      case WLK_LRF_DRV => BeamMode.DRIVE_TRANSIT
-      case HOV2        => BeamMode.CAR
-      case HOV2TOLL    => BeamMode.CAR
-      case HOV3        => BeamMode.CAR
-      case HOV3TOLL    => BeamMode.CAR
-      case SOV         => BeamMode.CAR
-      case SOVTOLL     => BeamMode.CAR
-      case WLK_COM_WLK => BeamMode.WALK_TRANSIT
-      case WLK_EXP_WLK => BeamMode.WALK_TRANSIT
-      case WLK_HVY_WLK => BeamMode.WALK_TRANSIT
-      case WLK_LOC_WLK => BeamMode.WALK_TRANSIT
-      case WLK_LRF_WLK => BeamMode.WALK_TRANSIT
-      case WLK_TRN_WLK => BeamMode.WALK_TRANSIT
+      case DRV_COM_WLK  => BeamMode.DRIVE_TRANSIT
+      case DRV_EXP_WLK  => BeamMode.DRIVE_TRANSIT
+      case DRV_HVY_WLK  => BeamMode.DRIVE_TRANSIT
+      case DRV_LOC_WLK  => BeamMode.DRIVE_TRANSIT
+      case DRV_LRF_WLK  => BeamMode.DRIVE_TRANSIT
+      case WLK_COM_DRV  => BeamMode.DRIVE_TRANSIT
+      case WLK_EXP_DRV  => BeamMode.DRIVE_TRANSIT
+      case WLK_HVY_DRV  => BeamMode.DRIVE_TRANSIT
+      case WLK_LOC_DRV  => BeamMode.DRIVE_TRANSIT
+      case WLK_LRF_DRV  => BeamMode.DRIVE_TRANSIT
+      case HOV2         => BeamMode.CAR
+      case HOV2TOLL     => BeamMode.CAR
+      case HOV3         => BeamMode.CAR
+      case HOV3TOLL     => BeamMode.CAR
+      case SOV          => BeamMode.CAR
+      case SOVTOLL      => BeamMode.CAR
+      case WLK_COM_WLK  => BeamMode.WALK_TRANSIT
+      case WLK_EXP_WLK  => BeamMode.WALK_TRANSIT
+      case WLK_HVY_WLK  => BeamMode.WALK_TRANSIT
+      case WLK_LOC_WLK  => BeamMode.WALK_TRANSIT
+      case WLK_LRF_WLK  => BeamMode.WALK_TRANSIT
+      case WLK_TRN_WLK  => BeamMode.WALK_TRANSIT
       case WALK | OTHER => BeamMode.WALK
     }
   }
