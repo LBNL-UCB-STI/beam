@@ -9,7 +9,7 @@ import beam.agentsim.infrastructure.geozone.{GeoIndex, H3Index, TAZIndex}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.{Router}
+import beam.router.Router
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
@@ -29,6 +29,8 @@ class ODRequester(
   val beamConfig: BeamConfig,
   val modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory,
   val withTransit: Boolean,
+  val buildDirectWalkRoute: Boolean,
+  val buildDirectCarRoute: Boolean,
   val skimmerEventFactory: AbstractSkimmerEventFactory
 ) {
   var requestsExecutionTime: RouteExecutionInfo = RouteExecutionInfo()
@@ -46,7 +48,10 @@ class ODRequester(
   private val dummyBikeVehicleType: BeamVehicleType =
     vehicleTypes.values.find(theType => theType.vehicleCategory == VehicleCategory.Bike).get
 
-  private val thresholdDistanceForBikeMeters: Double = 20 * 1.60934 * 1E3 // 20 miles to meters
+  private val thresholdDistanceForBikeMeters: Double =
+    beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.bike
+  private val thresholdDistanceForWalkMeters: Double =
+    beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk
 
   def route(srcIndex: GeoIndex, dstIndex: GeoIndex, requestTime: Int): ODRequester.Response = {
     val (srcCoord, dstCoord) = (srcIndex, dstIndex) match {
@@ -62,24 +67,33 @@ class ODRequester(
 
     val dist = distanceWithMargin(srcCoord, dstCoord)
     val considerModes: Array[BeamMode] = beamModes.filter(mode => isDistanceWithinRange(mode, dist))
-    val maybeResponse = Try {
-      val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
-      val routingReq = RoutingRequest(
-        originUTM = srcCoord,
-        destinationUTM = dstCoord,
-        departureTime = requestTime,
-        withTransit = withTransit,
-        streetVehicles = streetVehicles,
-        attributesOfIndividual = Some(dummyPersonAttributes)
-      )
-      val startExecution = System.nanoTime()
-      val response = router.calcRoute(routingReq, buildDirectCarRoute = true, buildDirectWalkRoute = false)
-      requestsExecutionTime = RouteExecutionInfo.sum(
-        requestsExecutionTime,
-        RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
-      )
-      response
-    }
+    val walkDistanceWithinRange = dist < thresholdDistanceForWalkMeters
+    val streetVehicles = considerModes.map(createStreetVehicle(_, requestTime, srcCoord))
+    val maybeResponse: Try[RoutingResponse] =
+      if (streetVehicles.nonEmpty && (buildDirectCarRoute || buildDirectWalkRoute || withTransit)) Try {
+        val routingReq = RoutingRequest(
+          originUTM = srcCoord,
+          destinationUTM = dstCoord,
+          departureTime = requestTime,
+          withTransit = withTransit,
+          streetVehicles = streetVehicles,
+          attributesOfIndividual = Some(dummyPersonAttributes)
+        )
+        val startExecution = System.nanoTime()
+        val response =
+          router.calcRoute(
+            routingReq,
+            buildDirectCarRoute = buildDirectCarRoute,
+            buildDirectWalkRoute = buildDirectWalkRoute && walkDistanceWithinRange
+          )
+        requestsExecutionTime = RouteExecutionInfo.sum(
+          requestsExecutionTime,
+          RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
+        )
+        response
+      } else {
+        Try(RoutingResponse.dummyRoutingResponse.get)
+      }
 
     ODRequester.Response(srcIndex, dstIndex, considerModes, maybeResponse, requestTime)
   }

@@ -2,7 +2,7 @@ package beam.router.skim.urbansim
 
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
+import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.{FreeFlowTravelTime, Modes, Router}
 import com.conveyal.osmlib.OSM
@@ -49,19 +49,24 @@ case class ODRouterR5GHForActivitySimSkims(
   private val timeToCarGraphHopper: Map[Int, GraphHopperWrapper] =
     createCarGraphHoppers(carGraphHopperDir, requestTimes, travelTimeOpt)
 
+  private val walkGraphHopper = createWalkGraphHopper()
+
   override def calcRoute(
     request: RoutingRequest,
     buildDirectCarRoute: Boolean,
     buildDirectWalkRoute: Boolean
   ): RoutingResponse = {
-    val carRequested = buildDirectCarRoute && request.streetVehicles.exists { vehicle =>
-      vehicle.mode == BeamMode.CAR || vehicle.mode == BeamMode.CAV
-    }
+    val carRequested = buildDirectCarRoute && request.streetVehicles.exists(_.mode == BeamMode.CAR)
+    val walkRequested = buildDirectWalkRoute && request.streetVehicles.exists(_.mode == BeamMode.WALK)
 
-    val (resultingResponse, executionInfo) = if (carRequested) {
+    val (resultingResponse, executionInfo) = if (carRequested || walkRequested) {
       val carExecutionStart = System.nanoTime()
       val maybeCarGHRoute = if (carRequested) calcCarGhRouteWithoutTransit(request) else None
       val carExecutionDuration = System.nanoTime() - carExecutionStart
+
+      val walkExecutionStart = System.nanoTime()
+      val maybeWalkGHRoute = if (walkRequested) calcWalkGhRouteWithoutTransit(request) else None
+      val walkExecutionDuration = System.nanoTime() - walkExecutionStart
 
       def routeIsEmpty(route: Option[RoutingResponse]): Boolean = {
         val routeExist = route.exists(_.itineraries.nonEmpty)
@@ -69,11 +74,13 @@ case class ODRouterR5GHForActivitySimSkims(
       }
 
       val needToBuildCarRoute = routeIsEmpty(maybeCarGHRoute)
+      val needToBuildWalkRoute = routeIsEmpty(maybeWalkGHRoute)
 
       val otherVehiclesRequested =
         request.streetVehicles.exists(vehicle => vehicle.mode != BeamMode.CAR && vehicle.mode != BeamMode.WALK)
       val needToRunR5: Boolean = {
         needToBuildCarRoute ||
+        needToBuildWalkRoute ||
         request.withTransit ||
         otherVehiclesRequested
       }
@@ -84,7 +91,7 @@ case class ODRouterR5GHForActivitySimSkims(
           r5.calcRoute(
             request,
             buildDirectCarRoute = needToBuildCarRoute,
-            buildDirectWalkRoute = buildDirectWalkRoute
+            buildDirectWalkRoute = needToBuildWalkRoute
           )
         )
       } else {
@@ -93,17 +100,20 @@ case class ODRouterR5GHForActivitySimSkims(
       val r5ExecutionTime = System.nanoTime() - r5ExecutionStart
 
       val response = maybeCarGHRoute
-        .getOrElse(maybeR5Response.get)
+        .getOrElse(maybeWalkGHRoute.getOrElse(maybeR5Response.get))
         .copy(
           maybeCarGHRoute.map(_.itineraries).getOrElse(Seq.empty) ++
+          maybeWalkGHRoute.map(_.itineraries).getOrElse(Seq.empty) ++
           maybeR5Response.map(_.itineraries).getOrElse(Seq.empty)
         )
 
       val executionInfo = RouteExecutionInfo(
-        r5ExecutionTime,
-        carExecutionDuration,
+        r5ExecutionTime = r5ExecutionTime,
+        ghCarExecutionDuration = carExecutionDuration,
+        ghWalkExecutionDuration = walkExecutionDuration,
         r5Responses = if (maybeR5Response.nonEmpty && maybeR5Response.get.itineraries.nonEmpty) 1 else 0,
         ghCarResponses = if (maybeCarGHRoute.nonEmpty && maybeCarGHRoute.get.itineraries.nonEmpty) 1 else 0,
+        ghWalkResponses = if (maybeWalkGHRoute.nonEmpty && maybeWalkGHRoute.get.itineraries.nonEmpty) 1 else 0
       )
 
       (response, executionInfo)
@@ -164,6 +174,16 @@ case class ODRouterR5GHForActivitySimSkims(
     timeToCarGraphHopper
   }
 
+  private def createWalkGraphHopper(): WalkGraphHopperWrapper = {
+    GraphHopperWrapper.createWalkGraphDirectoryFromR5(
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
+      graphHopperDir
+    )
+
+    new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+  }
+
   private def calcCarGhRouteWithoutTransit(request: RoutingRequest): Option[RoutingResponse] = {
     val carRequest =
       request.copy(streetVehicles = request.streetVehicles.filter(_.mode == Modes.BeamMode.CAR), withTransit = false)
@@ -177,6 +197,17 @@ case class ODRouterR5GHForActivitySimSkims(
           )
           None
       }
+    } else {
+      None
+    }
+  }
+
+  private def calcWalkGhRouteWithoutTransit(request: RoutingRequest): Option[RoutingResponse] = {
+    val walkRequest =
+      request.copy(streetVehicles = request.streetVehicles.filter(_.mode == Modes.BeamMode.WALK), withTransit = false)
+
+    if (walkRequest.streetVehicles.nonEmpty) {
+      Some(walkGraphHopper.calcRoute(walkRequest))
     } else {
       None
     }

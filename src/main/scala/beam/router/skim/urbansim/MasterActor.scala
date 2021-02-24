@@ -35,9 +35,6 @@ class MasterActor(
   private val allODs: Array[(GeoIndex, GeoIndex)] = {
     //    def coordIsSelected(coord: Coord): Boolean = {
     //      val isSelected = math.round(coord.getX) % 3 == 0 && math.round(coord.getY) % 3 == 0
-    //      if (isSelected) {
-    //        beam.utils.DebugLib.emptyFunctionForSettingBreakPoint()
-    //      }
     //      isSelected
     //    }
 
@@ -62,6 +59,8 @@ class MasterActor(
         }.toArray
     }
   }
+
+  private val maxRequestsNumber: Int = allODs.length * requestTimes.length
 
   private var currentIdx: Int = 0
   private var currentTime: Int = 0
@@ -233,7 +232,7 @@ class MasterActor(
   }
 
   private def createMonitor: Cancellable = {
-    context.system.scheduler.scheduleWithFixedDelay(10.seconds, 60.seconds, self, Request.Monitor)(context.dispatcher)
+    context.system.scheduler.scheduleWithFixedDelay(30.seconds, 5.minutes, self, Request.Monitor)(context.dispatcher)
   }
 
   private def isBikeTransit(trip: EmbodiedBeamTrip): Boolean = {
@@ -244,7 +243,7 @@ class MasterActor(
     val dtInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startedAt)
     val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
     val msg =
-      s"""nRouteSent: $nRouteSent, nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
+      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${nRouteSent / maxRequestsNumber * 100}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
          |AVG route per second: $avgRoutePerSecond, elapsed time: $dtInSeconds seconds
          |Current number of workers: ${workers.size}""".stripMargin
     log.info(msg)

@@ -295,15 +295,18 @@ class BeamSim @Inject()(
         }
 
       val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
+      val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
       val skimCreator = new BackgroundSkimsCreator(
         beamServices,
         beamScenario,
         geoClustering,
         abstractSkimmer,
         new FreeFlowTravelTime,
-        Array(BeamMode.WALK, BeamMode.BIKE),
-        withTransit = true,
-        beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours
+        Array(BeamMode.WALK),
+        withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
+        buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
+        buildDirectCarRoute = false,
+        calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
       )(actorSystem)
       skimCreator.start()
       backgroundSkimsCreator = Some(skimCreator)
@@ -795,6 +798,7 @@ class BeamSim @Inject()(
           .travelTime
         val geoClustering = skimCreator.geoClustering
 
+        val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
         val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
           beamServices,
           beamScenario,
@@ -802,8 +806,10 @@ class BeamSim @Inject()(
           abstractSkimmer,
           currentTravelTime,
           Array(BeamMode.CAR, BeamMode.WALK),
-          withTransit = true,
-          beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours
+          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
+          buildDirectWalkRoute = false,
+          buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
+          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
         )(actorSystem)
         carAndDriveTransitSkimCreator.start()
         carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())

@@ -27,6 +27,8 @@ class BackgroundSkimsCreator(
   val travelTime: TravelTime,
   val beamModes: Array[BeamMode],
   val withTransit: Boolean,
+  val buildDirectWalkRoute: Boolean,
+  val buildDirectCarRoute: Boolean,
   val calculationTimeoutHours:Int
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
@@ -84,6 +86,8 @@ class BackgroundSkimsCreator(
     beamConfig = beamServices.beamConfig,
     modeChoiceCalculatorFactory = beamServices.modeChoiceCalculatorFactory,
     withTransit = withTransit,
+    buildDirectWalkRoute = buildDirectWalkRoute,
+    buildDirectCarRoute = buildDirectCarRoute,
     skimmerEventFactory
   )
 

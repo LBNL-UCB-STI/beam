@@ -85,7 +85,7 @@ object ActivitySimPathType {
         leg.beamLeg.mode
       }
       .filter { mode =>
-        isCar(mode) || isWalkTransit(mode)
+        isCar(mode) || isWalkTransit(mode) || mode == BeamMode.WALK
       }
       .toSet
 
@@ -95,8 +95,12 @@ object ActivitySimPathType {
       } else {
         determineCarPathType(trip)
       }
-    } else {
+    } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       determineTransitPathType(trip)
+    } else if (uniqueNotWalkingModes.size == 1 && uniqueNotWalkingModes.head == BeamMode.WALK) {
+      WALK
+    } else {
+      OTHER
     }
   }
 
@@ -124,7 +128,7 @@ object ActivitySimPathType {
       case WLK_LOC_WLK => BeamMode.WALK_TRANSIT
       case WLK_LRF_WLK => BeamMode.WALK_TRANSIT
       case WLK_TRN_WLK => BeamMode.WALK_TRANSIT
-      case OTHER       => BeamMode.WALK
+      case WALK | OTHER => BeamMode.WALK
     }
   }
 
@@ -152,8 +156,9 @@ object ActivitySimPathType {
     WLK_LOC_WLK,
     WLK_LRF_DRV,
     WLK_LRF_WLK,
-    // ignored because we can not understand what kind of vehicles are TRN yet
+    // ignored because we did not understand what kind of vehicles are TRN yet
     //    WLK_TRN_WLK
+    WALK,
   )
 
   private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
@@ -217,6 +222,7 @@ object ActivitySimPathType {
   case object WLK_LRF_DRV extends ActivitySimPathType
   case object WLK_LRF_WLK extends ActivitySimPathType
   case object WLK_TRN_WLK extends ActivitySimPathType
+  case object WALK extends ActivitySimPathType
 
   case object OTHER extends ActivitySimPathType
 }

@@ -1,11 +1,11 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import java.util.UUID
-
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.config.BeamConfig.Beam.Urbansim
 import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator
+import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.{MaxTravelDistanceInMeters, ModesToBuild}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
 import org.matsim.core.config.ConfigUtils
@@ -24,7 +24,9 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
       peakHours = Some(List(8.5)),
       routerType = "r5",
       skimsGeoType = "h3",
-      skimsKind = "od"
+      skimsKind = "od",
+      modesToBuild = ModesToBuild(drive = false, drive_transit = false, walk = false, walk_transit = false),
+      maxTravelDistanceInMeters = MaxTravelDistanceInMeters(bike = 10000, walk = 5000)
     )
 
   test("adjust should work properly when allModes = 0") {
