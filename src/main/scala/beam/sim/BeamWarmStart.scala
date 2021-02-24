@@ -216,15 +216,19 @@ object BeamWarmStart extends LazyLogging {
     calculator: TravelTimeCalculatorConfigGroup,
     beamRouter: ActorRef,
     scenario: Scenario
-  ): Unit = {
+  ): Option[TravelTime] = {
     if (beamConfig.beam.warmStart.enabled) {
       val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
       val warm = BeamWarmStart(beamConfig, maxHour)
-      warm.readTravelTime.foreach { travelTime =>
+      val travelTime = warm.readTravelTime
+      travelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
         BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
         logger.info("Travel times successfully warm started from")
       }
+      travelTime
+    } else {
+      None
     }
   }
 

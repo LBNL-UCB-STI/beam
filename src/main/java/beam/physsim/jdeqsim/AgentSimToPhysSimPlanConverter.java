@@ -484,7 +484,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         return leg;
     }
 
-    public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
+    public void startPhysSim(IterationEndsEvent iterationEndsEvent, TravelTime initialTravelTime) {
+        previousTravelTime = initialTravelTime;
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();
