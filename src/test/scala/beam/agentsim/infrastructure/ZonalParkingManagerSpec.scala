@@ -6,8 +6,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleManagerType.Cars
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -24,7 +23,6 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.io.Source
 import scala.util.Random
 
@@ -85,7 +83,8 @@ class ZonalParkingManagerSpec
           emptyParkingDescription,
           boundingBox,
           new Random(randomSeed),
-          managers
+          managers,
+          config
         )
       } {
 //        val beta1 = 1
@@ -146,7 +145,8 @@ class ZonalParkingManagerSpec
           oneParkingOption,
           boundingBox,
           new Random(randomSeed),
-          managers
+          managers,
+          config
         )
       } {
 
@@ -204,7 +204,8 @@ class ZonalParkingManagerSpec
           oneParkingOption,
           boundingBox,
           new Random(randomSeed),
-          managers
+          managers,
+          config
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
@@ -275,13 +276,15 @@ class ZonalParkingManagerSpec
         tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
+        config = BeamConfig(system.settings.config)
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           tazTreeMap,
           geo,
           parkingConfiguration,
           boundingBox,
           new Random(randomSeed),
-          managers
+          managers,
+          config
         )
       } {
 
@@ -326,7 +329,8 @@ class ZonalParkingManagerSpec
         minSearchRadius,
         maxSearchRadius,
         boundingBox,
-        vehicleManagers = managers
+        vehicleManagers = managers,
+        chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
       )
 
       assertParkingResponse(
@@ -471,7 +475,8 @@ object ZonalParkingManagerSpec {
     parkingDescription: Iterator[String],
     boundingBox: Envelope,
     random: Random = Random,
-    managers: Map[Id[VehicleManager], VehicleManager]
+    managers: Map[Id[VehicleManager], VehicleManager],
+    beamConfig: BeamConfig
   ): ZonalParkingManager[TAZ] = {
     val minSearchRadius = 1000.0
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
@@ -485,7 +490,8 @@ object ZonalParkingManagerSpec {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      vehicleManagers = managers
+      vehicleManagers = managers,
+      chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
     )
   }
 

@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.Electricity
-import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.{ChargingCapability, VehicleManager, VehicleManagerType}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
@@ -39,7 +39,8 @@ class ZonalParkingManager[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
-  vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
 ) extends ParkingNetwork {
 
   override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
@@ -65,7 +66,8 @@ class ZonalParkingManager[GEO: GeoLevel](
     maxSearchRadius,
     boundingBox,
     mnlMultiplierParameters,
-    vehicleManagers
+    vehicleManagers,
+    chargingPointConfig
   )
 
   override def processParkingInquiry(
@@ -132,7 +134,8 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
-  vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
 ) extends StrictLogging {
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
@@ -240,11 +243,35 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
               .in(Seq(VehicleManagerType.Ridehail, VehicleManagerType.Carsharing)))
         )
 
+        val validChargingCapability = inquiry.beamVehicle.forall(
+          vehicle =>
+            vehicle.beamVehicleType.chargingCapability match {
+
+              // if the charging zone has no charging point then by default the vehicle has valid charging capability
+              case Some(_) if zone.chargingPointType.isEmpty => true
+
+              // if the vehicle is FC capable, it cannot charges in XFC charging points
+              case Some(chargingCapability) if chargingCapability == ChargingCapability.FC =>
+                ChargingPointType
+                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdXFCinKW
+
+              // if the vehicle is not capable of DCFC, it can only charges in level 1 and 2
+              case Some(chargingCapability) if chargingCapability == ChargingCapability.AC =>
+                ChargingPointType
+                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdFCinKW
+
+              // This means that the vehicle is XFC capable and it can charges everywhere
+              // of the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
+              case _ => true
+          }
+        )
+
         hasAvailability &&
         rideHailFastChargingOnly &&
         validParkingType &&
         canThisCarParkHere &&
-        isValidVehicleManager
+        isValidVehicleManager &&
+        validChargingCapability
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
@@ -467,6 +494,7 @@ object ZonalParkingManager extends LazyLogging {
 
     val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+    val chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
 
     val mnlMultiplierParameters = mnlMultiplierParametersFromConfig(beamConfig)
 
@@ -482,7 +510,8 @@ object ZonalParkingManager extends LazyLogging {
       maxSearchRadius,
       boundingBox,
       mnlMultiplierParameters,
-      vehicleManagers
+      vehicleManagers,
+      chargingPointConfig
     )
   }
 
@@ -649,7 +678,8 @@ object ZonalParkingManager extends LazyLogging {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     includesHeader: Boolean = true,
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+    chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
   ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
@@ -671,7 +701,8 @@ object ZonalParkingManager extends LazyLogging {
       maxSearchRadius,
       boundingBox,
       ParkingMNL.DefaultMNLParameters,
-      vehicleManagers
+      vehicleManagers,
+      chargingPointConfig
     )
   }
 

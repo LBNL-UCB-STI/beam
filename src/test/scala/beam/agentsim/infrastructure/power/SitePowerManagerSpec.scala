@@ -56,13 +56,20 @@ class SitePowerManagerSpec
                                                |  }
                                                |}
                                                |beam.agentsim.chargingNetworkManager {
-                                               |  gridConnectionEnabled = false
-                                               |  chargingSessionInSeconds = 300
-                                               |  planningHorizonInSec = 300
-                                               |  helicsFederateName = "CNMFederate"
-                                               |  helicsDataOutStreamPoint = ""
-                                               |  helicsDataInStreamPoint = ""
-                                               |  helicsBufferSize = 1000
+                                               |  timeStepInSeconds = 300
+                                               |
+                                               |  helics {
+                                               |    connectionEnabled = false
+                                               |    federateName = "CNMFederate"
+                                               |    dataOutStreamPoint = ""
+                                               |    dataInStreamPoint = ""
+                                               |    bufferSize = 100
+                                               |  }
+                                               |
+                                               |  chargingPoint {
+                                               |    thresholdXFCinKW = 250
+                                               |    thresholdFCinKW = 50
+                                               |  }
                                                |}
                                                |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())

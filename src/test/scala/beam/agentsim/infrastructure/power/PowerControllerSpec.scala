@@ -26,10 +26,20 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     ConfigFactory
       .parseString(s"""
                       |beam.agentsim.chargingNetworkManager {
-                      |  gridConnectionEnabled = false
-                      |  chargingSessionInSeconds = 300
-                      |  planningHorizonInSec = 300
-                      |  helicsFederateName = "BeamCNM"
+                      |  timeStepInSeconds = 300
+                      |
+                      |  helics {
+                      |    connectionEnabled = false
+                      |    federateName = "CNMFederate"
+                      |    dataOutStreamPoint = ""
+                      |    dataInStreamPoint = ""
+                      |    bufferSize = 100
+                      |  }
+                      |
+                      |  chargingPoint {
+                      |    thresholdXFCinKW = 250
+                      |    thresholdFCinKW = 50
+                      |  }
                       |}
                     """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
