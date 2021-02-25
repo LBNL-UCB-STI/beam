@@ -32,7 +32,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   )
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.vehicleManager
+    rideHailManager.rideHailManagerHelper
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
         inquiry.destinationUTM,
@@ -119,7 +119,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
         val rideHailAgentLocation =
-          rideHailManager.vehicleManager.getRideHailAgentLocationInIdleAndInServiceVehicles(vehicleId)
+          rideHailManager.rideHailManagerHelper.getRideHailAgentLocationInIdleAndInServiceVehicles(vehicleId)
         if (rideHailAgentLocation.nonEmpty && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
           val requestsWithLegs = if (tempScheduleStore.contains(request.requestId)) {
@@ -178,7 +178,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       logger.debug(s"Served soloCustomer ${soloCustomer.size} in ${e - s} ms")
       // Then allocate the pooled customers
       val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
-      val vehiclePoolToUse = rideHailManager.vehicleManager.getCandidateVehiclesForPoolingAssignment
+      val vehiclePoolToUse = rideHailManager.rideHailManagerHelper.getCandidateVehiclesForPoolingAssignment
       val availVehicles = RideHailMatching
         .createVehiclesAndSchedulesFromRideHailAgentLocation(tick, vehiclePoolToUse, rideHailManager)
         .toList
@@ -212,13 +212,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             tick,
             theTrip
           )
-          if (rideHailManager.vehicleManager
+          if (rideHailManager.rideHailManagerHelper
                 .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
                 .latestTickExperienced > 0) {
             rideHailManager.log.debug(
               "\tlatest tick by vehicle {} is {}",
               vehicleAndOldSchedule.vehicle.id,
-              rideHailManager.vehicleManager
+              rideHailManager.rideHailManagerHelper
                 .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
                 .latestTickExperienced
             )
@@ -267,7 +267,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                       origin,
                       CAR,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = true
                     )
                   )
                 )

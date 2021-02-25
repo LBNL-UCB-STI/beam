@@ -66,12 +66,12 @@ The mode choice protocol involves gathering information, making a choice, confir
 *Gathering Information*
 
 1. The Person receives the BeginModeChoiceTrigger from the scheduler.
-2. Person sends a MobilityStatusInquiry to thier Household.
+2. Person sends a MobilityStatusInquiry to their Household.
 3. Household returns a MobilityStatusResponse. Based on this response, the person optionally includes vehicles in the ReservationRequest sent to the Router.
 4. Person sends a ReservationRequest to the Router.
 5. Person sends a RideHailInquiry to the RideHailManager.
-6. Person schedules a FinalizeModeChoiceTrigger to occur in the future (respresenting non-zero time to make a choice).
-7. Person stays in ChoosingMode state until all results are recieved: RoutingResponse, RideHailingInquiryResponse, FinalizeModeChoiceTrigger. With each response, the data is stored locally for use in the mode choice.
+6. Person schedules a FinalizeModeChoiceTrigger to occur in the future (representing non-zero time to make a choice).
+7. Person stays in ChoosingMode state until all results are received: RoutingResponse, RideHailingInquiryResponse, FinalizeModeChoiceTrigger. With each response, the data is stored locally for use in the mode choice.
 
 *Choosing and Reserving*
 

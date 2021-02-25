@@ -122,6 +122,8 @@ object BeamAgentScheduler {
 
 }
 
+case object BeamAgentSchedulerTimer
+
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
   stopTick: Int,
@@ -271,6 +273,8 @@ class BeamAgentScheduler(
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
             }
           } else {
+            // Send to the stuck agent in order to spy it's internal state in debugger
+            x.agent ! BeamAgentSchedulerTimer
 //            monitorStuckDetectionState match {
 //              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
 //                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse

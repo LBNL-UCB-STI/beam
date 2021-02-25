@@ -19,21 +19,23 @@ import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
+import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
-import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
-import beam.router.skim.{DriveTimeSkimmerEvent, ODSkimmerEvent, ODSkims, Skims}
+import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
+import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
@@ -45,8 +47,6 @@ import org.matsim.core.utils.misc.Time
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
-import beam.sim.common.GeoUtils
-import beam.utils.NetworkHelper
 
 /**
   */
@@ -64,11 +64,14 @@ object PersonAgent {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     personId: Id[PersonAgent],
     householdRef: ActorRef,
     plan: Plan,
+    fleetManagers: Seq[ActorRef],
     sharedVehicleFleets: Seq[ActorRef],
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -85,9 +88,12 @@ object PersonAgent {
         personId,
         plan,
         parkingManager,
+        chargingNetworkManager,
         tollCalculator,
         householdRef,
+        fleetManagers,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
         boundingBox
       )
@@ -242,9 +248,12 @@ class PersonAgent(
   override val id: Id[PersonAgent],
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val tollCalculator: TollCalculator,
   val householdRef: ActorRef,
-  val vehicleFleets: Seq[ActorRef] = Vector(),
+  val fleetManagers: Seq[ActorRef] = Vector(),
+  val sharedVehicleFleets: Seq[ActorRef] = Vector(),
+  val possibleSharedVehicleTypes: Set[BeamVehicleType] = Set.empty,
   val routeHistory: RouteHistory,
   val boundingBox: Envelope
 ) extends DrivesVehicle[PersonData]
@@ -265,10 +274,13 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    managerId = VehicleManager.bodiesVehicleManager.managerId
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
+
+  val vehicleFleets: Seq[ActorRef] = fleetManagers ++ sharedVehicleFleets
 
   val attributes: AttributesOfIndividual =
     matsimPlan.getPerson.getCustomAttributes
@@ -294,7 +306,7 @@ class PersonAgent(
 
   def resetFuelConsumed(): Unit = curFuelConsumed = FuelConsumed(0.0, 0.0)
 
-  override def logDepth: Int = 30
+  override def logDepth: Int = beamScenario.beamConfig.beam.debug.actor.logDepth
 
   val lastTickOfSimulation = Time
     .parseTime(beamScenario.beamConfig.beam.agentsim.endTime)
@@ -444,22 +456,7 @@ class PersonAgent(
     case Event(TriggerWithId(ActivityEndTrigger(tick), triggerId), data: BasePersonData) =>
       nextActivity(data) match {
         case None =>
-          logger.debug("didn't get nextActivity, PersonAgent:440")
-
-          // if we still have a BEV/PHEV that is connected to a charging point,
-          // we assume that they will charge until the end of the simulation and throwing events accordingly
-          (beamVehicles ++ potentiallyChargingBeamVehicles).foreach(idVehicleOrTokenTuple => {
-            beamScenario.privateVehicles
-              .get(idVehicleOrTokenTuple._1)
-              .foreach(beamvehicle => {
-                if ((beamvehicle.isPHEV | beamvehicle.isBEV) & beamvehicle.isConnectedToChargingPoint()) {
-                  val endOfTime = Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt
-                  val (chargingDuration, _) = beamvehicle
-                    .refuelingSessionDurationAndEnergyInJoules(Some(endOfTime - beamvehicle.getChargerConnectedTick()))
-                  handleEndCharging(beamvehicle.getChargerConnectedTick() + chargingDuration, beamvehicle)
-                }
-              })
-          })
+          logger.warn(s"didn't get nextActivity, PersonAgent:$id")
           stay replying CompletionNotice(triggerId)
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
@@ -696,7 +693,7 @@ class PersonAgent(
       )
   }
 
-  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselve s.
+  // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll, energyConsumedOption), data: BasePersonData) =>
       updateFuelConsumed(energyConsumedOption)
@@ -847,16 +844,21 @@ class PersonAgent(
           )
         }
 
-        val stateToGo = if (nextLeg.beamLeg.mode == CAR) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
-          ReleasingParkingSpot
-        } else {
-          releaseTickAndTriggerId()
-          WaitingToDrive
-        }
+        val stateToGo =
+          if (nextLeg.beamLeg.mode == CAR
+              || beamVehicles(nextLeg.beamVehicleId)
+                .asInstanceOf[ActualVehicle]
+                .vehicle
+                .isSharedVehicle) {
+            log.debug(
+              "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
+              legsToInclude
+            )
+            ReleasingParkingSpot
+          } else {
+            releaseTickAndTriggerId()
+            WaitingToDrive
+          }
         goto(stateToGo) using data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
@@ -1131,6 +1133,10 @@ class PersonAgent(
   }
 
   val myUnhandled: StateFunction = {
+    case Event(BeamAgentSchedulerTimer, _) =>
+      // Put a breakpoint here to see an internal state of the actor
+      log.debug(s"Received message from ${sender()}")
+      stay
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Status.Failure(reason), _) =>
@@ -1150,7 +1156,7 @@ class PersonAgent(
         logger.debug(s"$id is performing Activity at end of simulation")
         logger.warn("Performing Activity at end of simulation")
       } else {
-        logger.warn(s"Person has received Finish while in state: ${stateName}, personId: $id")
+        logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
       }
       stop
     case Event(
@@ -1176,7 +1182,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _
+          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
@@ -1203,7 +1209,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _
+          _,
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
@@ -1227,9 +1233,13 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case Event(TriggerWithId(EndRefuelSessionTrigger(tick, _, _, vehicle), triggerId), _) =>
+    case Event(
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
+        _
+        ) =>
+      log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle)
+        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>

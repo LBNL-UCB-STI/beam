@@ -2,16 +2,17 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents._
 import beam.agentsim.agents.planning.Trip
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.RideHailMatching.RideHailTrip
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef, VehicleManager}
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.skim.{ODSkimmer, Skims, SkimsUtils}
+import beam.router.skim.SkimsUtils
+import beam.router.skim.core.ODSkimmer
 import beam.sim.common.GeoUtils
-import beam.sim.{BeamServices, CircularGeofence, Geofence, TAZGeofence}
+import beam.sim.{BeamServices, Geofence}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory}
@@ -354,7 +355,8 @@ object RideHailMatching {
         rideHailManager.beamServices,
         rideHailManager
           .resources(veh.vehicleId)
-          .getTotalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+          .getTotalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters,
+        rideHailManager.id
       )
       vehAndSched
     }
@@ -364,12 +366,14 @@ object RideHailMatching {
     veh: RideHailAgentLocation,
     tick: Int,
     beamServices: BeamServices,
-    remainingRangeInMeters: Double
+    remainingRangeInMeters: Double,
+    vehicleManagerId: Id[VehicleManager]
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      veh.vehicleType
+      veh.vehicleType,
+      managerId = vehicleManagerId
     )
     val vehCurrentLocation = veh.getCurrentLocationUTM(tick, beamServices)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
@@ -487,12 +491,14 @@ object RideHailMatching {
     dst: Location,
     dstTime: Int,
     geofence: Option[Geofence] = None,
-    vehicleRemainingRangeInMeters: Int = Int.MaxValue
+    vehicleRemainingRangeInMeters: Int = Int.MaxValue,
+    vehicleManagerId: Id[VehicleManager]
   ): VehicleAndSchedule = {
     val v1 = new BeamVehicle(
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
-      vehicleType
+      vehicleType,
+      managerId = vehicleManagerId
     )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)

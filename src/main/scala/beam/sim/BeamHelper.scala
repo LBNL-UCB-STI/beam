@@ -1,16 +1,5 @@
 package beam.sim
 
-import java.io.{File, FileOutputStream, PrintWriter}
-import java.nio.file.{Files, Paths, StandardCopyOption}
-import java.time.ZonedDateTime
-import java.util.Properties
-
-import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.Await
-import scala.sys.process.Process
-import scala.util.Try
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
@@ -27,7 +16,8 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5._
-import beam.router.skim._
+import beam.router.skim.Skims
+import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -69,6 +59,10 @@ import org.matsim.core.utils.collections.QuadTree
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
+import java.io.{File, FileOutputStream, PrintWriter}
+import java.nio.file.{Files, Paths, StandardCopyOption}
+import java.time.ZonedDateTime
+import java.util.Properties
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer

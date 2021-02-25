@@ -10,8 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, 
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.taz.TAZ
-import beam.agentsim.infrastructure.{TrivialParkingManager, ZonalParkingManager}
+import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -21,7 +20,7 @@ import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
-import beam.router.skim.AbstractSkimmerEvent
+import beam.router.skim.core.AbstractSkimmerEvent
 import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -101,6 +100,7 @@ class PersonAgentSpec
           )
         )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK))
@@ -123,6 +123,7 @@ class PersonAgentSpec
           Id.create("dummyAgent", classOf[PersonAgent]),
           plan,
           parkingManager,
+          self,
           services.tollCalculator,
           self,
           routeHistory = new RouteHistory(beamConfig),
@@ -172,6 +173,7 @@ class PersonAgentSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -184,12 +186,14 @@ class PersonAgentSpec
           self,
           self,
           parkingManager,
+          self,
           eventsManager,
           population,
           household,
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -380,6 +384,7 @@ class PersonAgentSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
           beamServices = services,
@@ -391,12 +396,14 @@ class PersonAgentSpec
           router = self,
           rideHailManager = self,
           parkingManager = parkingManager,
+          chargingNetworkManager = self,
           eventsManager = eventsManager,
           population = population,
           household = household,
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -659,17 +666,23 @@ class PersonAgentSpec
       )
 
       val parkingManager = system.actorOf(
-        ZonalParkingManager.props(
-          beamConfig,
-          beamScenario.tazTreeMap.tazQuadTree,
-          beamScenario.tazTreeMap.idToTAZMapping,
-          identity[TAZ],
-          services.geo,
-          services.beamRouter,
-          boundingBox
+        Props(
+          new ParkingNetworkManager(
+            services,
+            ParkingNetworkInfo(
+              services,
+              boundingBox,
+              Map[Id[VehicleManager], VehicleManager](
+                VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
+                VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
+              )
+            )
+          )
         ),
         "ParkingManager"
       )
+
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -682,12 +695,14 @@ class PersonAgentSpec
           self,
           self,
           parkingManager,
+          self,
           eventsManager,
           population,
           household,
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

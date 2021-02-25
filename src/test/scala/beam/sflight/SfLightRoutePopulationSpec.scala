@@ -61,14 +61,16 @@ class SfLightRoutePopulationSpec
                       Id.create("Car", classOf[BeamVehicleType]),
                       new SpaceTime(origin, 0),
                       CAR,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = true
                     ),
                     StreetVehicle(
                       Id.createVehicleId("body-116378-2"),
                       Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                       new SpaceTime(new Coord(origin.getX, origin.getY), time),
                       WALK,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = false
                     )
                   )
                 )

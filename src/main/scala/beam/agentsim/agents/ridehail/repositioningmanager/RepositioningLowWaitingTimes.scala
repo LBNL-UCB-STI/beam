@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail.repositioningmanager
 import java.awt.Color
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
@@ -161,7 +161,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
             for (vehToRepso <- whichTAZToRepositionTo) {
               val lineToPlot = LineToPlot(
-                rideHailManager.vehicleManager
+                rideHailManager.rideHailManagerHelper
                   .getRideHailAgentLocation(vehToRepso._1)
                   .latestUpdatedLocationUTM
                   .loc,
@@ -185,7 +185,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
             if (firstRepositionCoordsOfDay.isEmpty) {
               firstRepositionCoordsOfDay = Some(
-                rideHailManager.vehicleManager
+                rideHailManager.rideHailManagerHelper
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
                   .latestUpdatedLocationUTM
                   .loc,
@@ -233,7 +233,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
       case None =>
         // iteration 0
 
-        val idleVehiclesWithoutExcluded = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
+        val idleVehiclesWithoutExcluded = rideHailManager.rideHailManagerHelper.getIdleVehiclesAndFilterOutExluded
 
         if (firstRepositioningOfDay && idleVehiclesWithoutExcluded.nonEmpty) {
           // these are zero distance repositionings

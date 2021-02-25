@@ -389,7 +389,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
     } else if (request.withTransit) {
-      Vector(request.streetVehicles.find(_.mode == WALK).get)
+      request.possibleEgressVehicles :+ request.streetVehicles.find(_.mode == WALK).get
     } else {
       Vector()
     }
@@ -872,7 +872,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         .toVector
       tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(beamLeg.travelPath)
     } else 0.0
-    val drivingCost = if (segment.mode == LegMode.CAR) {
+    val drivingCost = if (segment.mode == LegMode.CAR || vehicle.needsToCalculateCost) {
       val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
       DrivingCost.estimateDrivingCost(
         beamLeg.travelPath.distanceInM,

@@ -1,6 +1,7 @@
 package beam.integration
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -11,6 +12,7 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.controler.listener.IterationStartsListener
@@ -21,6 +23,13 @@ import org.scalatest.{FlatSpec, Matchers}
 class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
 
   private val sharedCarTypeId = org.matsim.api.core.v01.Id.create("sharedCar", classOf[BeamVehicleType])
+
+  val beamVilleTaz = Map(
+    "1" -> (Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351)),
+    "2" -> (Id.create("2", classOf[TAZ]), new Coord(167141.3, 3326.017)),
+    "3" -> (Id.create("3", classOf[TAZ]), new Coord(169369.8, 1112.351)),
+    "4" -> (Id.create("4", classOf[TAZ]), new Coord(169369.8, 3326.017))
+  )
 
   //clearModes is required for clearing modes defined in population.xml
   "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" ignore {
@@ -60,6 +69,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
+        |beam.outputs.writeGraphs = false
         |beam.replanning.clearModes.iteration = 0
         |beam.replanning.clearModes.modes = ["walk", "bike", "car"]
         |beam.agentsim.agents.vehicles.sharedFleets = [
@@ -261,5 +271,4 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     assume(carsharingTripsIt0 == 0, "no agent is supposed to be driving in iteration 1")
     assume(carsharingTripsIt1 > 0, "at least one agent has to be driving in iteration 2")
   }
-
 }
