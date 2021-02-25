@@ -207,7 +207,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             case "CCHRoutingAssignment":
                 travelTimeMap = routingFrameworkTravelTimeCalculator.get().generateLink2TravelTimes(traversalEventsForPhysSimulation, iterationNumber, links, maxHour);
                 travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
-                volumesAnalyzer = dummyVolumesAnalyzer();//todo replace with the correct version
+                volumesAnalyzer = dummyVolumesAnalyzer();
+                log.warn("For CCHRoutingAssignment physsim the iteration x.linkstats.csv.gz is going to contain wrong" +
+                        " volumes (1.0 for all the entries)");
                 break;
             default:
                 throw new RuntimeException(String.format("Unknown physsim type: %s", physSimName));
