@@ -499,7 +499,7 @@ def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 
 def profilerTypeConfig = project.findProperty('profiler_type') ?: null
 
-def profilerOption = ""
+def profilerOption = []
 if( profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
     profilerOption = jfr
 }
