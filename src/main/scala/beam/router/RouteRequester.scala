@@ -28,8 +28,13 @@ object RouteRequester extends BeamHelper {
     val router = getUniversalODRouter(cfg) // getCarGraphHopperWrapper(cfg)
 
     val departureTime = requestTimes.head
-    val originUTM = new Location(543648, 4177464)
-    val destinationUTM = new Location(548025, 4182237)
+
+    // 	      taz 	    coord-x   coord-y 	    area
+    //  916 	184 	    544516 	  4177935 	1.163906e+06
+    //  1229 	1059 	    558588 	  4196086 	6.080444e+06
+
+    val originUTM = new Location(544516, 4177935)
+    val destinationUTM = new Location(558588, 4196086)
 
     val originUTMSpaceTime = SpaceTime(originUTM, time = departureTime)
     val carStreetVehicle = getStreetVehicle("83-1", BeamMode.CAR, originUTMSpaceTime)

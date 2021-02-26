@@ -42,19 +42,19 @@ object ActivitySimPathType {
       OTHER
     } else if (longestCarLegId.get > longestWalkTransitLegId.get) {
       longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
-        case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) => WLK_LRF_DRV
-        case Some(BeamMode.BUS)                         => WLK_LOC_DRV
-        case Some(BeamMode.RAIL)                        => WLK_COM_DRV
-        case Some(BeamMode.SUBWAY)                      => WLK_HVY_DRV
-        case _                                          => OTHER
+        case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => WLK_LRF_DRV
+        case Some(BeamMode.BUS)                                                    => WLK_LOC_DRV
+        case Some(BeamMode.RAIL)                                                   => WLK_COM_DRV
+        case Some(BeamMode.SUBWAY)                                                 => WLK_HVY_DRV
+        case _                                                                     => OTHER
       }
     } else {
       longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
-        case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) => DRV_LRF_WLK
-        case Some(BeamMode.BUS)                         => DRV_LOC_WLK
-        case Some(BeamMode.RAIL)                        => DRV_COM_WLK
-        case Some(BeamMode.SUBWAY)                      => DRV_HVY_WLK
-        case _                                          => OTHER
+        case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => DRV_LRF_WLK
+        case Some(BeamMode.BUS)                                                    => DRV_LOC_WLK
+        case Some(BeamMode.RAIL)                                                   => DRV_COM_WLK
+        case Some(BeamMode.SUBWAY)                                                 => DRV_HVY_WLK
+        case _                                                                     => OTHER
       }
     }
   }
@@ -71,11 +71,11 @@ object ActivitySimPathType {
 
     val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
     longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
-      case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) => WLK_LRF_WLK
-      case Some(BeamMode.BUS)                         => WLK_LOC_WLK
-      case Some(BeamMode.RAIL)                        => WLK_COM_WLK
-      case Some(BeamMode.SUBWAY)                      => WLK_HVY_WLK
-      case _                                          => OTHER
+      case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => WLK_LRF_WLK
+      case Some(BeamMode.BUS)                                                    => WLK_LOC_WLK
+      case Some(BeamMode.RAIL)                                                   => WLK_COM_WLK
+      case Some(BeamMode.SUBWAY)                                                 => WLK_HVY_WLK
+      case _                                                                     => OTHER
     }
   }
 
@@ -158,10 +158,10 @@ object ActivitySimPathType {
   )
 
   private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
-    case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM => true
+    case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM | BeamMode.CABLE_CAR => true
 
     case BeamMode.CAR | BeamMode.CAV | BeamMode.RIDE_HAIL | BeamMode.RIDE_HAIL_POOLED                   => false
-    case BeamMode.FUNICULAR | BeamMode.GONDOLA | BeamMode.CABLE_CAR | BeamMode.WALK | BeamMode.BIKE     => false
+    case BeamMode.FUNICULAR | BeamMode.GONDOLA | BeamMode.WALK | BeamMode.BIKE                          => false
     case BeamMode.TRANSIT | BeamMode.WALK_TRANSIT | BeamMode.DRIVE_TRANSIT | BeamMode.RIDE_HAIL_TRANSIT => false
   }
 

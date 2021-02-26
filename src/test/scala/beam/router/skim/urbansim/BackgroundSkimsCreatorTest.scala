@@ -28,7 +28,7 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
         |beam.routing.carRouter="staticGH"
         |beam.urbansim.backgroundODSkimsCreator.skimsKind = "activitySim"
         |beam.urbansim.backgroundODSkimsCreator.routerType = "r5+gh"
-        |beam.agentsim.taz.filePath = test/test-resources/taz-centers.10.csv
+        |beam.agentsim.taz.filePath = test/test-resources/taz-centers.12.csv
         |beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk = 1000
       """.stripMargin
     )
@@ -108,7 +108,7 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
     val keys = skims.keys.map(_.asInstanceOf[ActivitySimSkimmerKey]).toSeq
 
     keys.count(_.pathType != ActivitySimPathType.SOV) shouldBe 0
-    keys.size shouldBe 100
+    keys.size shouldBe 144
   }
 
   "skims creator" should "generate transit skims only" in {
@@ -139,16 +139,14 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
       }
 
     pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 12
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 8
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 23
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 61
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 10
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 86
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 19
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 28
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 24
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 31
 
-    pathTypeToSkimsCount(ActivitySimPathType.OTHER) shouldBe 1
-
-    skims.keys.size shouldBe (12 + 8 + 23 + 61 + 10 + 1)
+    skims.keys.size shouldBe (12 + 86 + 19 + 28 + 24 + 31)
   }
-
 
   "skims creator" should "generate all types of skims" in {
     val skimsCreator =
@@ -178,15 +176,27 @@ class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSuga
       }
 
     pathTypeToSkimsCount(ActivitySimPathType.DRV_HVY_WLK) shouldBe 12
-    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 8
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 23
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 61
-    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 10
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LOC_WLK) shouldBe 86
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LRF_WLK) shouldBe 19
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_LRF_WLK) shouldBe 28
+    pathTypeToSkimsCount(ActivitySimPathType.WLK_HVY_WLK) shouldBe 24
+    pathTypeToSkimsCount(ActivitySimPathType.DRV_LOC_WLK) shouldBe 31
 
+    pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 144
     pathTypeToSkimsCount(ActivitySimPathType.WALK) shouldBe 22 // because max walk trip length is 1000 meters
-    pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 100
 
-    pathTypeToSkimsCount(ActivitySimPathType.OTHER) shouldBe 1
+    val walkKeys = skims.keys.filter {
+      case k: ActivitySimSkimmerKey => k.pathType == ActivitySimPathType.WALK
+    }
+    val walkSkims = walkKeys.map(key => key -> skims.get(key)).toMap
+    walkSkims.size shouldBe 22
 
-    skims.keys.size shouldBe 237
-  }}
+    val walkTransitKeys = skims.keys.filter {
+      case k: ActivitySimSkimmerKey => k.pathType == ActivitySimPathType.WLK_LOC_WLK
+    }
+    val walkTransitSkims = walkTransitKeys.map(key => key -> skims.get(key)).toMap
+    walkTransitSkims.size shouldBe 86
+
+    skims.keys.size shouldBe (12 + 86 + 19 + 28 + 24 + 31 + 144 + 22)
+  }
+}
