@@ -156,6 +156,7 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
     val weightedGeneralizedTime = getWeightedSkimsValue(_.generalizedTimeInMinutes)
     val weightedGeneralizedCost = getWeightedSkimsValue(_.generalizedCost)
+    val weightedCost = getWeightedSkimsValue(_.cost)
     val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
     val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
     val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
@@ -184,6 +185,7 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
       weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
       weightedLightRailInVehicleTimeInMinutes = weightedLightRailTime,
       weightedTransitBoardingsCount = weightedTransitBoardingsCount,
+      weightedCost = weightedCost,
       debugText = debugText
     )
   }
@@ -242,6 +244,7 @@ object ActivitySimSkimmer extends LazyLogging {
     weightedFerryInVehicleTimeInMinutes: Double,
     weightedLightRailInVehicleTimeInMinutes: Double,
     weightedTransitBoardingsCount: Double,
+    weightedCost: Double,
     debugText: String = "",
   ) {
 
@@ -251,7 +254,7 @@ object ActivitySimSkimmer extends LazyLogging {
       s"$weightedGeneralizedCost,$weightedDistance,$weightedWalkAccess," +
       s"$weightedWalkAuxiliary,$weightedWalkEgress,$weightedDriveTimeInMinutes," +
       s"$weightedDriveDistanceInMeters,$weightedLightRailInVehicleTimeInMinutes,$weightedFerryInVehicleTimeInMinutes," +
-      s"$weightedTransitBoardingsCount,$debugText\n"
+      s"$weightedTransitBoardingsCount,$weightedCost,$debugText\n"
     }
   }
 
@@ -263,6 +266,6 @@ object ActivitySimSkimmer extends LazyLogging {
     "VTOLL_FAR,DIST_meters,WACC_minutes," +
     "WAUX_minutes,WEGR_minutes,DTIM_minutes," +
     "DDIST_meters,KEYIVT_minutes,FERRYIVT_minutes," +
-    "BOARDS,DEBUG_TEXT"
+    "BOARDS,WeightedCost,DEBUG_TEXT"
   }
 }
