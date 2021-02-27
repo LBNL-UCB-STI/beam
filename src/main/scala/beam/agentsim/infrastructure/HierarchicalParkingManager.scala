@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.ZonalParkingManager.{loadParkingZones, mnlMultiplierParametersFromConfig}
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -38,7 +38,8 @@ class HierarchicalParkingManager(
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNLConfig,
   checkThatNumberOfStallsMatch: Boolean = false,
-  vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
 ) extends ParkingNetwork {
 
   override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
@@ -64,7 +65,8 @@ class HierarchicalParkingManager(
     maxSearchRadius,
     boundingBox,
     mnlMultiplierParameters,
-    vehicleManagers
+    vehicleManagers,
+    chargingPointConfig
   )
 
   val DefaultParkingZone: ParkingZone[Link] =
@@ -259,7 +261,8 @@ object HierarchicalParkingManager {
     boundingBox: Envelope,
     mnlMultiplierParameters: ParkingMNLConfig,
     checkThatNumberOfStallsMatch: Boolean = false,
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+    chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
   ): ParkingNetwork =
     new HierarchicalParkingManager(
       tazMap,
@@ -272,7 +275,8 @@ object HierarchicalParkingManager {
       boundingBox,
       mnlMultiplierParameters,
       checkThatNumberOfStallsMatch,
-      vehicleManagers
+      vehicleManagers,
+      chargingPointConfig
     )
 
   def init(
@@ -333,7 +337,8 @@ object HierarchicalParkingManager {
       maxSearchRadius,
       boundingBox,
       mnlMultiplierParameters,
-      vehicleManagers = vehicleManagers
+      vehicleManagers = vehicleManagers,
+      chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
     )
   }
 

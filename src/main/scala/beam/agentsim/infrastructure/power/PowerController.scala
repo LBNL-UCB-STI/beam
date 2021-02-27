@@ -17,20 +17,21 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
   import ChargingZone._
   import SitePowerManager._
 
-  private val cnmCfg = beamConfig.beam.agentsim.chargingNetworkManager
+  private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
+  private val helicsConfig = cnmConfig.helics
 
-  private[power] lazy val beamFederateOption: Option[BeamFederate] = if (cnmCfg.gridConnectionEnabled) {
+  private[power] lazy val beamFederateOption: Option[BeamFederate] = if (helicsConfig.connectionEnabled) {
     logger.info("ChargingNetworkManager should be connected to a grid model...")
     Try {
       logger.debug("Init PowerController resources...")
       getFederate(
-        cnmCfg.helicsFederateName,
-        cnmCfg.helicsDataOutStreamPoint match {
+        helicsConfig.federateName,
+        helicsConfig.dataOutStreamPoint match {
           case s: String if s.nonEmpty => Some(s)
           case _                       => None
         },
-        cnmCfg.helicsDataInStreamPoint match {
-          case s: String if s.nonEmpty => Some((s, cnmCfg.helicsBufferSize))
+        helicsConfig.dataInStreamPoint match {
+          case s: String if s.nonEmpty => Some((s, helicsConfig.bufferSize))
           case _                       => None
         }
       )
@@ -57,9 +58,9 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
     currentTime: Int,
     estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
   ): Map[ChargingStation, PhysicalBounds] = {
-    if (physicalBounds.isEmpty || currentBin < currentTime / cnmCfg.timeStepInSeconds) {
+    if (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) {
       physicalBounds = beamFederateOption match {
-        case Some(beamFederate) if cnmCfg.gridConnectionEnabled && estimatedLoad.isDefined =>
+        case Some(beamFederate) if helicsConfig.connectionEnabled && estimatedLoad.isDefined =>
           logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
           beamFederate.publishJSON(
             estimatedLoad.get.map {
@@ -77,7 +78,7 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
           logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
           unlimitedPhysicalBounds
       }
-      currentBin = currentTime / cnmCfg.timeStepInSeconds
+      currentBin = currentTime / cnmConfig.timeStepInSeconds
     }
     physicalBounds
   }
