@@ -23,7 +23,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable}
+import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 import scala.util.Random
 
@@ -226,7 +226,8 @@ object ParkingManagerBenchmark extends StrictLogging {
               boundingBox,
               mnlCfg,
               checkThatNumberOfStallsMatch = true,
-              managers
+              managers,
+              beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
             )
         }
 

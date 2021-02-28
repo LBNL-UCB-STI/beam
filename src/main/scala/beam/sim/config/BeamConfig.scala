@@ -1730,28 +1730,61 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        gridConnectionEnabled: scala.Boolean,
-        helicsBufferSize: scala.Int,
-        helicsDataInStreamPoint: java.lang.String,
-        helicsDataOutStreamPoint: java.lang.String,
-        helicsFederateName: java.lang.String,
+        chargingPoint: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint,
+        helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
+        case class ChargingPoint(
+          thresholdDCFCinKW: scala.Int,
+          thresholdXFCinKW: scala.Int
+        )
+
+        object ChargingPoint {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
+              thresholdDCFCinKW = if (c.hasPathOrNull("thresholdDCFCinKW")) c.getInt("thresholdDCFCinKW") else 50,
+              thresholdXFCinKW = if (c.hasPathOrNull("thresholdXFCinKW")) c.getInt("thresholdXFCinKW") else 250
+            )
+          }
+        }
+
+        case class Helics(
+          bufferSize: scala.Int,
+          connectionEnabled: scala.Boolean,
+          dataInStreamPoint: java.lang.String,
+          dataOutStreamPoint: java.lang.String,
+          federateName: java.lang.String
+        )
+
+        object Helics {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
+              connectionEnabled = c.hasPathOrNull("connectionEnabled") && c.getBoolean("connectionEnabled"),
+              dataInStreamPoint =
+                if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
+                else "GridFed/PhysicalBounds",
+              dataOutStreamPoint =
+                if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
+              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate"
+            )
+          }
+        }
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            gridConnectionEnabled = c.hasPathOrNull("gridConnectionEnabled") && c.getBoolean("gridConnectionEnabled"),
-            helicsBufferSize = if (c.hasPathOrNull("helicsBufferSize")) c.getInt("helicsBufferSize") else 1000,
-            helicsDataInStreamPoint =
-              if (c.hasPathOrNull("helicsDataInStreamPoint")) c.getString("helicsDataInStreamPoint")
-              else "GridFed/PhysicalBounds",
-            helicsDataOutStreamPoint =
-              if (c.hasPathOrNull("helicsDataOutStreamPoint")) c.getString("helicsDataOutStreamPoint")
-              else "PowerDemand",
-            helicsFederateName =
-              if (c.hasPathOrNull("helicsFederateName")) c.getString("helicsFederateName") else "CNMFederate",
+            chargingPoint = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
+              if (c.hasPathOrNull("chargingPoint")) c.getConfig("chargingPoint")
+              else com.typesafe.config.ConfigFactory.parseString("chargingPoint{}")
+            ),
+            helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
+              if (c.hasPathOrNull("helics")) c.getConfig("helics")
+              else com.typesafe.config.ConfigFactory.parseString("helics{}")
+            ),
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
