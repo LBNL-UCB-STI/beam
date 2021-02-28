@@ -415,7 +415,6 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     nativeCCH.lock()
 
     val maxSpeed: Double = workerParams.networkHelper.allLinks.map(_.getFreespeed).max
-    log.info(s"---- Max speed is: $maxSpeed")
     val minSpeed = workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
 //    val futures = (0 until noOfTimeBins).map { bin =>
     (0 until noOfTimeBins).foreach { bin =>

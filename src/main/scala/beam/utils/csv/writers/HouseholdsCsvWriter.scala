@@ -39,7 +39,7 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
   private def toLine(info: HouseholdInfo): String = {
     Seq(
-      info.householdId,
+      info.householdId.id,
       info.income,
       info.locationX,
       info.locationY
