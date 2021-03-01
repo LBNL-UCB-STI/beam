@@ -59,12 +59,20 @@ class ChargingNetworkManagerSpec
      |  }
      |}
      |beam.agentsim.chargingNetworkManager {
-     |  gridConnectionEnabled = false
      |  timeStepInSeconds = 300
-     |  helicsFederateName = "CNMFederate"
-     |  helicsDataOutStreamPoint = ""
-     |  helicsDataInStreamPoint = ""
-     |  helicsBufferSize = 1000
+     |
+     |  helics {
+     |    connectionEnabled = false
+     |    federateName = "CNMFederate"
+     |    dataOutStreamPoint = ""
+     |    dataInStreamPoint = ""
+     |    bufferSize = 100
+     |  }
+     |
+     |  chargingPoint {
+     |    thresholdXFCinKW = 250
+     |    thresholdDCFCinKW = 50
+     |  }
      |}
      |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())

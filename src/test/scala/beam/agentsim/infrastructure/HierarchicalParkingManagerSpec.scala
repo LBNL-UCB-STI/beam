@@ -82,7 +82,8 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
 
@@ -123,7 +124,8 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
 
       val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
@@ -178,7 +180,8 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
 
@@ -250,7 +253,8 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
@@ -338,7 +342,8 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
 
@@ -388,7 +393,8 @@ class HierarchicalParkingManagerSpec
         // the number of stalls on TAZ and link levels will not match because of big number of stalls
         // which don't fit into Int precision
         checkThatNumberOfStallsMatch = false,
-        managers
+        managers,
+        beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
       )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 4033, Block(0.0, 3600), ParkingType.Residential)
