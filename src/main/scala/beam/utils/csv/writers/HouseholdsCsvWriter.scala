@@ -12,7 +12,7 @@ import beam.utils.scenario.{HouseholdId, HouseholdInfo}
 object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
   override protected val fields: Seq[String] =
-    Seq("householdId", "incomeValue", "locationX", "locationY")
+    Seq("householdId", "cars", "incomeValue", "locationX", "locationY")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val attributes: ObjectAttributes = scenario.getHouseholds.getHouseholdAttributes
