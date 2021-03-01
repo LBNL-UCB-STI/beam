@@ -40,10 +40,10 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
   private def toLine(info: HouseholdInfo): String = {
     Seq(
       info.householdId.id,
+      info.cars,
       info.income,
       info.locationX,
       info.locationY
     ).mkString("", FieldSeparator, LineSeparator)
   }
-
 }
