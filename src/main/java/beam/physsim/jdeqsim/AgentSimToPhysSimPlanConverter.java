@@ -107,7 +107,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     final Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
-    //because it's replaced by the first simulation result we don't need to load this info from warmstart
     private TravelTime prevTravelTime = new FreeFlowTravelTime();
 
     private final Random rnd;
@@ -488,6 +487,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent, TravelTime initialTravelTime) {
         previousTravelTime = initialTravelTime;
+        if (initialTravelTime != null) {
+            prevTravelTime = initialTravelTime;
+        }
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();
