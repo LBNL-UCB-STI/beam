@@ -48,11 +48,13 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
   def currentIteration: Int = currentIterationInternal
 
   /**
-   *  This method creates a copy of `currentSkimInternal`, so careful when you use it often! Consider using `getCurrentSkimValue` in such scenario
-   *  or expose other method to access `currentSkimInternal`
-   */
+    *  This method creates a copy of `currentSkimInternal`, so careful when you use it often! Consider using `getCurrentSkimValue` in such scenario
+    *  or expose other method to access `currentSkimInternal`
+    */
   def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
-  def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] = Option(currentSkimInternal.get(key))
+
+  def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
+    Option(currentSkimInternal.get(key))
   def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
   def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
   def isEmpty: Boolean = currentSkimInternal.isEmpty
@@ -114,10 +116,10 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
       logger.warn("skim aggregation is skipped as 'overrideNetworkTravelTimesUsingSkims' enabled")
     } else {
-      aggregatedFromPastSkimsInternal = (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.asScala.keySet).map {
-        key =>
+      aggregatedFromPastSkimsInternal =
+        (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.asScala.keySet).map { key =>
           key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentSkimInternal.get(key)))
-      }.toMap
+        }.toMap
     }
     // write
     writeToDisk(event)
@@ -128,10 +130,15 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   override def handleEvent(event: Event): Unit = {
     event match {
       case e: AbstractSkimmerEvent if e.getEventType == eventType =>
-        currentSkimInternal.compute(e.getKey, (_, v) => {
-          val value = if (v == null) aggregateWithinIteration(None, e.getSkimmerInternal) else aggregateWithinIteration(Some(v), e.getSkimmerInternal)
-          value
-        })
+        currentSkimInternal.compute(
+          e.getKey,
+          (_, v) => {
+            val value =
+              if (v == null) aggregateWithinIteration(None, e.getSkimmerInternal)
+              else aggregateWithinIteration(Some(v), e.getSkimmerInternal)
+            value
+          }
+        )
       case _ =>
     }
   }

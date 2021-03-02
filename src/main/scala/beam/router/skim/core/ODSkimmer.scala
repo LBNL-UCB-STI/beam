@@ -198,8 +198,9 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
             uniqueModes.foreach { mode =>
               uniqueTimeBins
                 .foreach { timeBin =>
-                  val internalSkimmer = getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
-                    .map(_.asInstanceOf[ODSkimmerInternal])
+                  val internalSkimmer =
+                    getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
+                      .map(_.asInstanceOf[ODSkimmerInternal])
                   val theSkim: ODSkimmer.Skim = internalSkimmer
                     .map(_.toSkimExternal)
                     .getOrElse {
