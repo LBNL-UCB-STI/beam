@@ -17,7 +17,7 @@ object AddExcludedModes extends App with LazyLogging {
     var i=0
     while(i<parts.length) {
       if(i == 5) {
-        strs += "\"ride_hail_transit,drive_transit,walk_transit,cav,ride_hail,ride_hail_pooled,bus,funicular,gondola,cable_car,ferry,transit,rail,subway,tram,walk,bike\""
+        strs += "\"ride_hail_transit,drive_transit,walk_transit,bike_transit,cav,ride_hail,ride_hail_pooled,bus,funicular,gondola,cable_car,ferry,transit,rail,subway,tram,walk,bike\""
       } else {
         strs += parts(i)
       }
