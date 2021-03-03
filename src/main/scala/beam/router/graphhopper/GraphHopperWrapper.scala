@@ -14,7 +14,7 @@ import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
 import com.graphhopper.routing.util._
-import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider, Weighting}
+import com.graphhopper.routing.weighting.{FastestWeighting, PriorityWeighting, TurnCostProvider, Weighting}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
@@ -156,7 +156,7 @@ abstract class GraphHopperWrapper(
               streetVehicle.vehicleTypeId,
               asDriver = true,
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
-              unbecomeDriverOnCompletion = true
+              unbecomeDriverOnCompletion = beamMode == BeamMode.CAR
             )
           )
         )
@@ -238,6 +238,26 @@ object GraphHopperWrapper {
       encodingManager,
       WalkGraphHopperWrapper.FastestProfile,
       new FastestWeighting(flagEncoder),
+      transportNetwork,
+      osm,
+      directory
+    )
+  }
+
+  def createBikeGraphDirectoryFromR5(
+    transportNetwork: TransportNetwork,
+    osm: OSM,
+    directory: String
+  ): Unit = {
+    val flagEncoder = new BikeFlagEncoder
+    val emBuilder: EncodingManager.Builder = new EncodingManager.Builder
+    emBuilder.add(flagEncoder)
+    val encodingManager = emBuilder.build
+
+    createGraphDirectoryFromR5(
+      encodingManager,
+      BikeGraphHopperWrapper.getFastestProfile,
+      new PriorityWeighting(flagEncoder, new PMap, TurnCostProvider.NO_TURN_COST_PROVIDER),
       transportNetwork,
       osm,
       directory

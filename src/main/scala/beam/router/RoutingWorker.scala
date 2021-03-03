@@ -1,12 +1,5 @@
 package beam.router
 
-import java.io.File
-import java.nio.file.Paths
-import java.time.temporal.ChronoUnit
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.{ExecutorService, Executors}
-
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -14,7 +7,12 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode.{CAR, WALK}
-import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
+import beam.router.graphhopper.{
+  BikeGraphHopperWrapper,
+  CarGraphHopperWrapper,
+  GraphHopperWrapper,
+  WalkGraphHopperWrapper
+}
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
@@ -29,7 +27,7 @@ import com.conveyal.osmlib.OSM
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
-import com.google.common.util.concurrent.{AtomicDouble, ThreadFactoryBuilder}
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
@@ -38,6 +36,11 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
+import java.io.File
+import java.nio.file.Paths
+import java.time.temporal.ChronoUnit
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.concurrent.{ExecutorService, Executors}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -92,8 +95,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   private val graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
   private val carGraphHopperDir: String = Paths.get(graphHopperDir, "car").toString
-  private var binToCarGraphHopper: Map[Int, GraphHopperWrapper] = _
-  private var walkGraphHopper: GraphHopperWrapper = _
+  private var binToCarGraphHopper: Map[Int, CarGraphHopperWrapper] = _
+  private var walkGraphHopper: WalkGraphHopperWrapper = _
+  private var bikeGraphHopper: BikeGraphHopperWrapper = _
+  private var hybridRouter: HybridRouter = _
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -109,8 +114,20 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
       new Directory(new File(graphHopperDir)).deleteRecursively()
       createWalkGraphHopper()
-      createCarGraphHoppers()
+      createCarGraphHoppers(carRouter)
       askForMoreWork()
+    } else if (carRouter == "hybridGH") {
+      createWalkGraphHopper()
+      createBikeGraphHopper()
+      createCarGraphHoppers("staticGH")
+      hybridRouter = new HybridRouter(
+        workerParams.gtfs,
+        workerParams.geo,
+        r5,
+        binToCarGraphHopper(0),
+        walkGraphHopper,
+        bikeGraphHopper,
+      )
     }
   }
 
@@ -191,6 +208,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
                 )
             }
             response
+          } else if (carRouter == "hybridGH") {
+            hybridRouter.calcRoute(request)
           } else {
             r5.calcRoute(request)
           }
@@ -205,7 +224,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       if (carRouter == "quasiDynamicGH") {
-        createCarGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(carRouter, Some(newTravelTime))
       }
 
       r5 = new R5Wrapper(
@@ -220,7 +239,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
-        createCarGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(carRouter, Some(newTravelTime))
       }
 
       r5 = new R5Wrapper(
@@ -259,12 +278,22 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
   }
 
-  private def createCarGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+  private def createBikeGraphHopper(): Unit = {
+    GraphHopperWrapper.createBikeGraphDirectoryFromR5(
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
+      graphHopperDir
+    )
+
+    bikeGraphHopper = new BikeGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+  }
+
+  private def createCarGraphHoppers(routerType: String, travelTime: Option[TravelTime] = None): Unit = {
     // Clean up GHs variable and than calculate new ones
     binToCarGraphHopper = Map()
     new Directory(new File(carGraphHopperDir)).deleteRecursively()
 
-    val graphHopperInstances = if (carRouter == "quasiDynamicGH") noOfTimeBins else 1
+    val graphHopperInstances = if (routerType == "quasiDynamicGH") noOfTimeBins else 1
 
     val futures = (0 until graphHopperInstances).map { i =>
       Future {
@@ -366,6 +395,7 @@ object RoutingWorker {
         new GeoUtilsImpl(beamScenario.beamConfig),
         beamScenario.dates,
         networkHelper,
+        beamScenario.gtfs,
         fareCalculator,
         tollCalculator
       )
