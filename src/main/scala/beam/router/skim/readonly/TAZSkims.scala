@@ -8,10 +8,10 @@ import org.matsim.api.core.v01.Id
 
 case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
-  def isPartialSkimEmpty: Boolean = currentSkim.isEmpty
+  def isPartialSkimEmpty: Boolean = isEmpty
 
   def getPartialSkim(time: Int, taz: Id[TAZ], hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
-    currentSkim.get(TAZSkimmerKey(time, taz, hex, actor, key)).asInstanceOf[Option[TAZSkimmerInternal]]
+    getCurrentSkimValue(TAZSkimmerKey(time, taz, hex, actor, key)).asInstanceOf[Option[TAZSkimmerInternal]]
 
   def getPartialSkim(time: Int, hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
     getPartialSkim(time, beamScenario.h3taz.getTAZ(hex), hex, actor, key)

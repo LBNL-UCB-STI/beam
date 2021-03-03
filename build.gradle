@@ -497,7 +497,7 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 
 def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 
-def profilerTypeConfig = project.findProperty('profiler_type') ?: null
+def profilerTypeConfig = project.findProperty('profiler_type') ?: ""
 
 def profilerOption = []
 if( profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
