@@ -3,7 +3,8 @@ package beam.router
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{Location, RoutingRequest}
+import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
@@ -11,49 +12,139 @@ import beam.router.skim.urbansim.ODRouterR5GHForActivitySimSkims
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
+import beam.utils.gtfs.GTFSToShape
 import com.conveyal.osmlib.OSM
 import com.typesafe.config.Config
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 
 import java.io.File
 import java.nio.file.Paths
+import scala.collection.mutable
+import scala.io.Source
 import scala.reflect.io.Directory
+import scala.util.Random
 
 object RouteRequester extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
-    val manualArgs = Array[String]("--config", "test/input/sf-light/sf-light-1k-full-background-activitySim-skims.conf")
+    val coordPath = "/mnt/data/work/beam-side/notWorkingGHRoutingODPairs.txt"
+    val outputShapeFile = "/mnt/data/work/beam-side/notWorkingGHPairs.shp"
+    val configPath = "test/input/sf-light/sf-light-1k-csv.conf"
+
+    val manualArgs = Array[String]("--config", configPath)
     val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)
 
-    val router = getUniversalODRouter(cfg) // getCarGraphHopperWrapper(cfg)
+    val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)
+    val router: CarGraphHopperWrapper = getCarGraphHopperWrapper(cfg, r5Parameters) // getUniversalODRouter(cfg) //
 
-    val departureTime = requestTimes.head
+    def doRequest(originUTM: Location, destinationUTM: Location): RoutingResponse = {
+      val departureTime = requestTimes.head
+      val originUTMSpaceTime = SpaceTime(originUTM, time = departureTime)
+      val carStreetVehicle = getStreetVehicle("83-1", BeamMode.CAR, originUTMSpaceTime)
 
-    // 	      taz 	    coord-x   coord-y 	    area
-    //  916 	184 	    544516 	  4177935 	1.163906e+06
-    //  1229 	1059 	    558588 	  4196086 	6.080444e+06
+      val request = RoutingRequest(
+        originUTM,
+        destinationUTM,
+        streetVehicles = Vector(carStreetVehicle),
+        withTransit = false,
+        departureTime = departureTime,
+        personId = Some(Id.createPersonId("031400-2014000788156-0-569466")),
+        attributesOfIndividual = Some(personAttributes)
+      )
 
-    val originUTM = new Location(544516, 4177935)
-    val destinationUTM = new Location(558588, 4196086)
+      router.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = false)
+    }
 
-    val originUTMSpaceTime = SpaceTime(originUTM, time = departureTime)
-    val carStreetVehicle = getStreetVehicle("83-1", BeamMode.CAR, originUTMSpaceTime)
-    val walkStreetVehicle = getStreetVehicle("body-031400-2014000788156-0-569466", BeamMode.WALK, originUTMSpaceTime)
+    val mapEnvelop = r5Parameters.transportNetwork.getEnvelope
+    val geoUtils = r5Parameters.geo
 
-    val request = RoutingRequest(
-      originUTM,
-      destinationUTM,
-      streetVehicles = Vector(carStreetVehicle, walkStreetVehicle),
-      withTransit = true,
-      departureTime = departureTime,
-      personId = Some(Id.createPersonId("031400-2014000788156-0-569466")),
-      attributesOfIndividual = Some(personAttributes)
-    )
+    var empty = 0
+    var found = 0
+    var outside = 0
+    var inside = 0
+    val pointWithin = scala.collection.mutable.HashSet.empty[Location]
+    val pointOutside = scala.collection.mutable.HashSet.empty[Location]
 
-    val resp = router.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = true)
+    val source = Source.fromFile(coordPath)
+    for (coordRow <- source.getLines()) {
+      val Array(ox, oy, dx, dy) = coordRow.split(',').map(x => x.trim.toFloat)
+      val originUTM: Location = geoUtils.wgs2Utm(new Coord(ox, oy))
+      val destinationUTM: Location = geoUtils.wgs2Utm(new Coord(dx, dy))
 
-    showRouteResponse("car mode response", resp)
-    println
+      if (mapEnvelop.contains(ox, oy)) {
+        pointWithin.add(originUTM)
+      } else {
+        pointOutside.add(originUTM)
+      }
+      if (mapEnvelop.contains(dx, dy)) {
+        pointWithin.add(destinationUTM)
+      } else {
+        pointOutside.add(destinationUTM)
+      }
+
+      if (mapEnvelop.contains(ox, oy) && mapEnvelop.contains(dx, dy)) {
+        inside += 1
+        val resp = doRequest(originUTM, destinationUTM)
+        if (resp.itineraries.nonEmpty) {
+          found += 1
+        } else {
+          empty += 1
+        }
+      } else {
+        outside += 1
+      }
+    }
+    source.close()
+
+    println(s"Found: $found, empty: $empty, one or both point is outside:$outside, both inside:$inside")
+    println(s"Single points inside:${pointWithin.size}, single points outside:${pointOutside.size}")
+
+    found = 0
+
+    val points = pointWithin.toArray
+    def randomPoint: Location = points(Random.nextInt(points.length))
+
+    val nonWorkingPoints = scala.collection.mutable.HashSet.empty[Location]
+
+    val numberOfRequests = 10000
+    for (_ <- Range(0, numberOfRequests)) {
+      val origin = randomPoint
+      val destination = randomPoint
+      val resp = doRequest(origin, destination)
+      if (resp.itineraries.nonEmpty) {
+        found += 1
+        nonWorkingPoints.remove(origin)
+        nonWorkingPoints.remove(destination)
+      } else {
+        nonWorkingPoints.add(destination)
+        nonWorkingPoints.add(origin)
+      }
+    }
+
+    val twoTimesNotWorkingPoints = scala.collection.mutable.HashSet.empty[Location]
+    nonWorkingPoints.foreach { origin =>
+      nonWorkingPoints.foreach { destination =>
+        val resp = doRequest(origin, destination)
+        if (resp.itineraries.nonEmpty) {
+          found += 1
+          twoTimesNotWorkingPoints.remove(origin)
+          twoTimesNotWorkingPoints.remove(destination)
+        } else {
+          twoTimesNotWorkingPoints.add(destination)
+          twoTimesNotWorkingPoints.add(origin)
+        }
+      }
+    }
+
+    println(s"Found $found out of $numberOfRequests")
+    println(s"There are ${twoTimesNotWorkingPoints.size} points outside of GH reach")
+
+    val wgsCoords: mutable.Set[WgsCoordinate] = twoTimesNotWorkingPoints.map { point =>
+      val wgsCoord = geoUtils.utm2Wgs(point)
+      new WgsCoordinate(wgsCoord.getY, wgsCoord.getX)
+    }
+
+    GTFSToShape.coordsToShapefile(wgsCoords, outputShapeFile)
   }
 
   val requestTimes: List[Int] = List(30600)
@@ -79,16 +170,13 @@ object RouteRequester extends BeamHelper {
     income = Some(70000.0)
   )
 
-  private def getUniversalODRouter(cfg: Config): ODRouterR5GHForActivitySimSkims = {
-    val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)
+  private def getUniversalODRouter(r5Parameters: R5Parameters): ODRouterR5GHForActivitySimSkims = {
     val odRouter = ODRouterR5GHForActivitySimSkims(r5Parameters, requestTimes, None)
     odRouter
   }
 
-  private def getCarGraphHopperWrapper(cfg: Config): Router = {
+  private def getCarGraphHopperWrapper(cfg: Config, r5Parameters: R5Parameters): CarGraphHopperWrapper = {
     val beamConfig = BeamConfig(cfg)
-    val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)
-    new R5Wrapper(r5Parameters, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
 
     val graphHopperDir: String = Paths.get(beamConfig.beam.inputDirectory, "graphhopper").toString
     val ghDir = Paths.get(graphHopperDir, 0.toString).toString
