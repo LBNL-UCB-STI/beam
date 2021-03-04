@@ -24,6 +24,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
+import beam.utils.logging.LoggingMessageActor
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
@@ -46,7 +47,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 ) extends Actor
     with ActorLogging
     with Stash
-    with RepositionManager {
+    with RepositionManager
+    with LoggingMessageActor {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
@@ -70,14 +72,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
   private val availableVehiclesIndex = new Quadtree
 
-  override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
+  override def loggedReceive: Receive = super[RepositionManager].receive orElse { // Reposition
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.values.map { veh =>
           veh.setManager(Some(self))
-          parkingManager ? parkingInquiry(veh.spaceTime) flatMap {
+          parkingManager ? parkingInquiry(veh.spaceTime, veh) flatMap {
             case ParkingInquiryResponse(stall, _) =>
               veh.useParkingStall(stall)
               self ? ReleaseVehicleAndReply(veh)
@@ -123,7 +125,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime, beamVehicle: BeamVehicle): ParkingInquiry =
+    ParkingInquiry(whenWhere.loc, "wherever", beamVehicle = Some(beamVehicle))
 
   override def getId: Id[VehicleManager] = id
   override def queryAvailableVehicles: List[BeamVehicle] =

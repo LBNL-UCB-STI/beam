@@ -32,6 +32,7 @@ import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessage
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.StreetMode
@@ -66,7 +67,8 @@ class BeamRouter(
   eventsManager: EventsManager
 ) extends Actor
     with Stash
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessage {
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
@@ -243,6 +245,7 @@ class BeamRouter(
 
     case work =>
       processByEventsManagerIfNeeded(work)
+      publishMessage(work)
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
@@ -481,6 +484,12 @@ object BeamRouter {
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
 
     val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
+
+    def statisticId: String = {
+      val sb = new StringBuilder(20, "vehicle: ").append(streetVehicles.head.id)
+      if (personId.isDefined) sb.append("; person: ").append(personId.get)
+      sb.toString()
+    }
   }
 
   sealed trait IntermodalUse

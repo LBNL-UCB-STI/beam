@@ -53,7 +53,7 @@ import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.utils._
-import beam.utils.logging.LogActorState
+import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -244,7 +244,8 @@ class RideHailManager(
   val rideHailParkingNetwork: RideHailDepotParkingManager[_]
 ) extends Actor
     with ActorLogging
-    with Stash {
+    with Stash
+    with LoggingMessageActor {
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
@@ -427,7 +428,7 @@ class RideHailManager(
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
 
-  override def receive: Receive = BeamLoggingReceive {
+  override def loggedReceive: Receive = BeamLoggingReceive {
     case DebugReport =>
       log.info(
         s"timeSpendForHandleRideHailInquiryMs: ${timeSpendForHandleRideHailInquiryMs} ms, nHandleRideHailInquiry: ${nHandleRideHailInquiry}, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"

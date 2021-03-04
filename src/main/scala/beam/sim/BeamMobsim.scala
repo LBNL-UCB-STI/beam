@@ -36,6 +36,7 @@ import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
+import beam.utils.logging.LoggingMessageActor
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -328,7 +329,8 @@ class BeamMobsimIteration(
   val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
 ) extends Actor
     with ActorLogging
-    with MetricsSupport {
+    with MetricsSupport
+    with LoggingMessageActor {
 
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
@@ -536,7 +538,7 @@ class BeamMobsimIteration(
     managers.toMap
   }
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")

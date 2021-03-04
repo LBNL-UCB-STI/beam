@@ -21,5 +21,6 @@ trait HasTickAndTrigger {
   }
 
   def getCurrentTick: Option[Int] = _currentTick
+  def getCurrentTriggerId: Option[Long] = _currentTriggerId
 
 }

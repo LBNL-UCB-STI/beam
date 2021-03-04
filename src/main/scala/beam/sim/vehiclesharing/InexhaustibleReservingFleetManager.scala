@@ -21,6 +21,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.utils.logging.LoggingMessageActor
 import org.matsim.api.core.v01.Id
 
 import scala.util.Random
@@ -31,14 +32,15 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
   vehicleType: BeamVehicleType,
   randomSeed: Long
 ) extends Actor
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessageActor {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private val rand: Random = new Random(randomSeed)
 
   var nextVehicleIndex = 0
 
-  override def receive: Receive = {
+  override def loggedReceive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId)
 

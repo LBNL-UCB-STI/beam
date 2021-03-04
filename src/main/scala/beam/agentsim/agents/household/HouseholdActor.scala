@@ -1,7 +1,6 @@
 package beam.agentsim.agents.household
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
 import akka.pattern._
@@ -34,6 +33,7 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -144,7 +144,8 @@ object HouseholdActor {
     boundingBox: Envelope
   ) extends Actor
       with HasTickAndTrigger
-      with ActorLogging {
+      with ActorLogging
+      with LoggingMessageActor {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
 
@@ -175,7 +176,7 @@ object HouseholdActor {
     private var personAndActivityToCav: Map[(Id[Person], Activity), BeamVehicle] = Map()
     private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
 
-    override def receive: Receive = {
+    override def loggedReceive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val vehiclesByCategory =

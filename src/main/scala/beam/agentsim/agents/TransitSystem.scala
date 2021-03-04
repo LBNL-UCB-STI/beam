@@ -14,7 +14,7 @@ import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.{FileUtils, NetworkHelper}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -36,7 +36,8 @@ class TransitSystem(
   val networkHelper: NetworkHelper,
   val eventsManager: EventsManager
 ) extends Actor
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessageActor {
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
@@ -47,7 +48,7 @@ class TransitSystem(
   initDriverAgents()
   log.info("Transit schedule has been initialized")
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>

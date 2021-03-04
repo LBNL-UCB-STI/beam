@@ -23,14 +23,15 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.agents.vehicles.VehicleManager
-import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
     extends Actor
-    with ExponentialLazyLogging {
+    with ExponentialLazyLogging
+    with LoggingMessageActor {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 
@@ -38,7 +39,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 
   var triggerSender: Option[ActorRef] = None
 
-  override def receive: Receive = {
+  override def loggedReceive: Receive = {
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
       xs.foreach {

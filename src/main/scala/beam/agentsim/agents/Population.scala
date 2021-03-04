@@ -1,7 +1,6 @@
 package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
@@ -15,6 +14,7 @@ import beam.replanning.AddSupplementaryTrips
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -40,7 +40,8 @@ class Population(
   val routeHistory: RouteHistory,
   boundingBox: Envelope
 ) extends Actor
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessageActor {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.
@@ -50,7 +51,7 @@ class Population(
       case _: AssertionError => Stop
     }
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
       sharedVehicleFleets.foreach(_ ! GetVehicleTypes())

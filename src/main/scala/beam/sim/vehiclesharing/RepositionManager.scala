@@ -11,9 +11,10 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.router.skim.event.TAZSkimmerEvent
 import beam.sim.BeamServices
+import beam.utils.logging.LoggingMessageActor
 import org.matsim.api.core.v01.{Coord, Id}
 
-trait RepositionManager extends Actor with ActorLogging {
+trait RepositionManager extends Actor with ActorLogging with LoggingMessageActor {
 
   var currentTick = 0
   val eos = 108000
@@ -42,7 +43,7 @@ trait RepositionManager extends Actor with ActorLogging {
   def getRepositionAlgorithmType: Option[RepositionAlgorithmType]
 
   // ***
-  override def receive: Receive = {
+  override def loggedReceive: Receive = {
     case TAZSkimsCollectionTrigger(tick) =>
       queryAvailableVehicles.foreach(v => collectData(tick, v.spaceTime.loc, RepositionManager.availability))
 

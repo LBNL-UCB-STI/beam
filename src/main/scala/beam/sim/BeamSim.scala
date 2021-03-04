@@ -4,7 +4,6 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Path, Paths}
 import java.util.Collections
 import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -27,8 +26,10 @@ import beam.router.BeamRouter.ODSkimmerReady
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
 import beam.router.{BeamRouter, RouteHistory}
+import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage, ShutdownMessage}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
+import beam.utils.logging.MessageLogger
 import beam.utils.watcher.MethodWatcher
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
@@ -123,6 +124,8 @@ class BeamSim @Inject()(
   val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
     List(routeDumper)
 
+  private val messageLogger = actorSystem.actorOf(MessageLogger.props(beamServices.matsimServices.getControlerIO))
+
   val carTravelTimeFromPtes: List[CarTripStatsFromPathTraversalEventHandler] = {
     val normalCarTravelTime = new CarTripStatsFromPathTraversalEventHandler(
       networkHelper,
@@ -156,7 +159,7 @@ class BeamSim @Inject()(
 
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO
-  );
+  )
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -286,6 +289,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    messageLogger ! IterationStartsMessage(event.getIteration)
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
         beamServices.beamCustomizationAPI.getEventBuilders(beamServices.matsimServices.getEvents)
@@ -424,6 +428,7 @@ class BeamSim @Inject()(
         }
       }
     }
+    messageLogger ! IterationEndsMessage(event.getIteration)
 
     if (beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
@@ -545,6 +550,7 @@ class BeamSim @Inject()(
       beamOutputDataDescriptionGenerator.generateDescriptors(event)
     }
 
+    messageLogger ! ShutdownMessage
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
 
@@ -561,6 +567,7 @@ class BeamSim @Inject()(
       })
 
     beamServices.simMetricCollector.close()
+
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {
@@ -724,4 +731,11 @@ class BeamSim @Inject()(
     )
   }
 
+}
+
+object BeamSim {
+  case object StartupMessage
+  case object ShutdownMessage
+  case class IterationStartsMessage(iteration: Int)
+  case class IterationEndsMessage(iteration: Int)
 }
