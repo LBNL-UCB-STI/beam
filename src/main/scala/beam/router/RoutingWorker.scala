@@ -77,7 +77,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     numOfThreads
   )
 
-  private def getNameAndHashCode: String = s"RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
+  private def getNameAndHashCode: String = s"RoutingWorker[${hashCode()}], Path: `${self.path}`"
 
   private var workAssigner: ActorRef = context.parent
 
