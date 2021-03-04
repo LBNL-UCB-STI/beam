@@ -70,26 +70,6 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
 
         val osmWay = r5Osm.ways.get(cur.getOSMID)
         if (osmWay != null) {
-          // TODO copy tags for each node?
-          //
-          //          if (r5Osm.nodes.containsKey(osmWay.nodes.head)) {
-          //            val fromNode = r5Osm.nodes.get(osmWay.nodes.head)
-          //            if (fromNode.tags != null) {
-          //              fromNode.tags.forEach((tag: OSMEntity.Tag) => {
-          //                cchOsm.nodes.get(fromNodeId).addTag(tag.key, tag.value)
-          //              })
-          //            }
-          //          }
-          //
-          //          if (r5Osm.nodes.containsKey(osmWay.nodes.last)) {
-          //            val toNode = r5Osm.nodes.get(osmWay.nodes.last)
-          //            if (toNode.tags != null) {
-          //              toNode.tags.forEach((tag: OSMEntity.Tag) => {
-          //                cchOsm.nodes.get(toNodeId).addTag(tag.key, tag.value)
-          //              })
-          //            }
-          //          }
-
           osmWay.tags.forEach((tag: OSMEntity.Tag) => {
             newWay.addOrReplaceTag(tag.key, tag.value)
           })
