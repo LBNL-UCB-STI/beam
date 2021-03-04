@@ -18,12 +18,15 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[BeamMessage])
     context.system.eventStream.subscribe(self, classOf[BeamFSMMessage])
+    context.system.eventStream.subscribe(self, classOf[IterationEndsMessage])
+    context.system.eventStream.subscribe(self, classOf[IterationStartsMessage])
   }
 
   private var msgNum = 0
   private var fileNum = 0
+  private var csvWriter: CsvWriter = _
 
-  override def receive: Receive = writeMessagesToRootWriter
+  override def receive: Receive = logMessages
 
   private def createCsvWriter(iterationNumber: Int, fileNum: Int) = {
     CsvWriter(
@@ -49,15 +52,15 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     }
   }
 
-  def writeMessagesTo(csvWriter: CsvWriter, iterationNumber: Int): Receive = {
+  def writeMessagesToCsv(iterationNumber: Int): Receive = {
     def updateMsgNum(): Unit = {
       msgNum = msgNum + 1
       if (msgNum >= NUM_MESSAGES_PER_FILE - 1) {
-        csvWriter.flush()
         csvWriter.close()
         msgNum = 0
         fileNum = fileNum + 1
-        context.become(writeMessagesTo(createCsvWriter(iterationNumber, fileNum), iterationNumber))
+        csvWriter = createCsvWriter(iterationNumber, fileNum)
+        context.become(writeMessagesToCsv(iterationNumber))
       }
     }
     {
@@ -72,13 +75,12 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
         csvWriter.write(senderParent, senderName, parent, name, event.event, event.stateData, tick, triggerId)
         updateMsgNum()
       case IterationEndsMessage(_) =>
-        csvWriter.flush()
         csvWriter.close()
-        context.become(writeMessagesToRootWriter)
+        context.become(logMessages)
     }
   }
 
-  def writeMessagesToRootWriter: Receive = {
+  def logMessages: Receive = {
     case BeamMessage(sender, receiver, payload) =>
       log.debug("{} -> {}, {}", sender, receiver, payload)
     case BeamFSMMessage(_, actor, event, _, _) =>
@@ -86,7 +88,14 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     case IterationStartsMessage(iterationNumber) =>
       msgNum = 0
       fileNum = 0
-      context.become(writeMessagesTo(createCsvWriter(iterationNumber, fileNum), iterationNumber))
+      csvWriter = createCsvWriter(iterationNumber, fileNum)
+      context.become(writeMessagesToCsv(iterationNumber))
+  }
+
+  override def postStop(): Unit = {
+    if (csvWriter != null) {
+      csvWriter.close()
+    }
   }
 
   private def userFriendly(actorRef: ActorRef, payload: Any) = {

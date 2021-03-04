@@ -26,7 +26,7 @@ import beam.router.BeamRouter.ODSkimmerReady
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
 import beam.router.{BeamRouter, RouteHistory}
-import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage, ShutdownMessage}
+import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.logging.MessageLogger
@@ -289,7 +289,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    messageLogger ! IterationStartsMessage(event.getIteration)
+    actorSystem.eventStream.publish(IterationStartsMessage(event.getIteration))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
         beamServices.beamCustomizationAPI.getEventBuilders(beamServices.matsimServices.getEvents)
@@ -352,6 +352,7 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    actorSystem.eventStream.publish(IterationEndsMessage(event.getIteration))
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
@@ -428,7 +429,6 @@ class BeamSim @Inject()(
         }
       }
     }
-    messageLogger ! IterationEndsMessage(event.getIteration)
 
     if (beamConfig.beam.physsim.skipPhysSim) {
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
@@ -550,7 +550,6 @@ class BeamSim @Inject()(
       beamOutputDataDescriptionGenerator.generateDescriptors(event)
     }
 
-    messageLogger ! ShutdownMessage
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
 
