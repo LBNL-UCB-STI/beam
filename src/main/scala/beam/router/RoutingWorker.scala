@@ -1,8 +1,12 @@
 package beam.router
 
+import java.io.File
+import java.nio.file.Paths
+import java.time.temporal.ChronoUnit
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.concurrent.{ExecutorService, Executors}
 import akka.actor._
 import akka.pattern._
-import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
@@ -22,7 +26,7 @@ import com.conveyal.osmlib.OSM
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
-import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.common.util.concurrent.{AtomicDouble, ThreadFactoryBuilder}
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
@@ -31,11 +35,6 @@ import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
-import java.io.File
-import java.nio.file.Paths
-import java.time.temporal.ChronoUnit
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.{ExecutorService, Executors}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -71,7 +70,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
-  log.info("RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
+  log.info("RoutingWorker[{}] `{}` is ready", hashCode(), self.path)
   log.info(
     "Num of available processors: {}. Will use: {}",
     Runtime.getRuntime.availableProcessors(),
@@ -311,10 +310,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
         val wayId2TravelTime = workerParams.networkHelper.allLinks.toSeq
           .map(
-            l =>
-              l.getId.toString.toLong ->
+            link =>
+              link.getId.toString.toLong ->
               carWeightCalculator.calcTravelTime(
-                l.getId.toString.toInt,
+                link.getId.toString.toInt,
                 travelTime,
                 i * workerParams.beamConfig.beam.agentsim.timeBinSize
             )
