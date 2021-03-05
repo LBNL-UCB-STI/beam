@@ -2,6 +2,7 @@ package beam.router.skim.core
 
 import beam.agentsim.events.ScalaEvent
 import beam.router.skim.CsvSkimReader
+import beam.router.skim.core.TAZSkimmer.TAZSkimmerKey
 import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
@@ -14,7 +15,9 @@ import org.matsim.core.events.handler.BasicEventHandler
 
 import java.io.BufferedWriter
 import java.nio.file.Paths
+import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal
@@ -38,14 +41,23 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
   private[core] var currentIterationInternal: Int = -1
-  private[core] val currentSkimInternal = mutable.HashMap.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  private[core] val currentSkimInternal = new ConcurrentHashMap[AbstractSkimmerKey, AbstractSkimmerInternal]()
   private[core] var aggregatedFromPastSkimsInternal = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private[core] val pastSkimsInternal = mutable.HashMap.empty[Int, Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
 
   def currentIteration: Int = currentIterationInternal
-  def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.toMap
+
+  /**
+    *  This method creates a copy of `currentSkimInternal`, so careful when you use it often! Consider using `getCurrentSkimValue` in such scenario
+    *  or expose other method to access `currentSkimInternal`
+    */
+  def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
+
+  def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
+    Option(currentSkimInternal.get(key))
   def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
   def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
+  def isEmpty: Boolean = currentSkimInternal.isEmpty
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)
@@ -104,10 +116,10 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
       logger.warn("skim aggregation is skipped as 'overrideNetworkTravelTimesUsingSkims' enabled")
     } else {
-      aggregatedFromPastSkimsInternal = (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.keySet).map {
-        key =>
-          key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), currentSkimInternal.get(key))
-      }.toMap
+      aggregatedFromPastSkimsInternal =
+        (aggregatedFromPastSkimsInternal.keySet ++ currentSkimInternal.asScala.keySet).map { key =>
+          key -> aggregateOverIterations(aggregatedFromPastSkimsInternal.get(key), Option(currentSkimInternal.get(key)))
+        }.toMap
     }
     // write
     writeToDisk(event)
@@ -118,9 +130,14 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   override def handleEvent(event: Event): Unit = {
     event match {
       case e: AbstractSkimmerEvent if e.getEventType == eventType =>
-        currentSkimInternal.update(
+        currentSkimInternal.compute(
           e.getKey,
-          aggregateWithinIteration(currentSkimInternal.get(e.getKey), e.getSkimmerInternal)
+          (_, v) => {
+            val value =
+              if (v == null) aggregateWithinIteration(None, e.getSkimmerInternal)
+              else aggregateWithinIteration(Some(v), e.getSkimmerInternal)
+            value
+          }
         )
       case _ =>
     }
