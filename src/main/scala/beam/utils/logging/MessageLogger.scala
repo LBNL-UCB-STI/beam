@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.ParkingInquiry
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage}
 import beam.utils.csv.CsvWriter
-import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, NUM_MESSAGES_PER_FILE}
+import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, BeamStateTransition, NUM_MESSAGES_PER_FILE}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
 /**
@@ -18,6 +18,7 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
   override def preStart(): Unit = {
     context.system.eventStream.subscribe(self, classOf[BeamMessage])
     context.system.eventStream.subscribe(self, classOf[BeamFSMMessage])
+    context.system.eventStream.subscribe(self, classOf[BeamStateTransition[Any]])
     context.system.eventStream.subscribe(self, classOf[IterationEndsMessage])
     context.system.eventStream.subscribe(self, classOf[IterationStartsMessage])
   }
@@ -31,6 +32,7 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
   private def createCsvWriter(iterationNumber: Int, fileNum: Int) = {
     CsvWriter(
       controllerIO.getIterationFilename(iterationNumber, s"actor_messages_$fileNum.csv.gz"),
+      "type",
       "sender_parent",
       "sender_name",
       "receiver_parent",
@@ -67,12 +69,17 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
       case BeamMessage(sender, receiver, payload) =>
         val (senderParent, senderName) = userFriendly(sender, payload)
         val (receiverParent, receiverName) = userFriendly(receiver, payload)
-        csvWriter.write(senderParent, senderName, receiverParent, receiverName, payload, "", "", "")
+        csvWriter.write("message", senderParent, senderName, receiverParent, receiverName, payload, "", "", "")
         updateMsgNum()
       case BeamFSMMessage(sender, actor, event, tick, triggerId) =>
         val (senderParent, senderName) = userFriendly(sender, event.event)
         val (parent, name) = userFriendly(actor, event.event)
-        csvWriter.write(senderParent, senderName, parent, name, event.event, event.stateData, tick, triggerId)
+        csvWriter.write("event", senderParent, senderName, parent, name, event.event, event.stateData, tick, triggerId)
+        updateMsgNum()
+      case BeamStateTransition(sender, actor, prevState, newState, tick, triggerId) =>
+        val (senderParent, senderName) = userFriendly(sender)
+        val (parent, name) = userFriendly(actor)
+        csvWriter.write("transition", senderParent, senderName, parent, name, prevState, newState, tick, triggerId)
         updateMsgNum()
       case IterationEndsMessage(_) =>
         csvWriter.close()
@@ -85,6 +92,8 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
       log.debug("{} -> {}, {}", sender, receiver, payload)
     case BeamFSMMessage(_, actor, event, _, _) =>
       log.debug("FSM: actor={}, even={}, {}", actor, event.event, event.stateData)
+    case BeamStateTransition(_, actor, prevState, newState, _, _) =>
+      log.debug("State: actor={}, {} -> {}", actor, prevState, newState)
     case IterationStartsMessage(iterationNumber) =>
       msgNum = 0
       fileNum = 0
@@ -98,7 +107,22 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     }
   }
 
+  private def userFriendly(actorRef: ActorRef) = {
+    val parent = userFriendlyParent(actorRef)
+    (parent, actorRef.path.name)
+  }
+
   private def userFriendly(actorRef: ActorRef, payload: Any) = {
+    val parent = userFriendlyParent(actorRef)
+    val name = if (parent == "temp") { //means ask pattern
+      tryExtractingSenderId(payload)
+    } else {
+      actorRef.path.name
+    }
+    (parent, name)
+  }
+
+  private def userFriendlyParent(actorRef: ActorRef) = {
     val parentElements = actorRef.path.parent.elements.dropWhile(e => e != "BeamMobsim.iteration" && e != "temp").toList
     val meaningful = if (parentElements.size <= 1) {
       parentElements
@@ -108,14 +132,8 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
       parentElements
     }
     val parent = meaningful.mkString("/")
-    val name = if (parent == "temp") { //means ask pattern
-      tryExtractingSenderId(payload)
-    } else {
-      actorRef.path.name
-    }
-    (parent, name)
+    parent
   }
-
 }
 
 object MessageLogger {
@@ -123,6 +141,7 @@ object MessageLogger {
 
   case class BeamMessage(sender: ActorRef, receiver: ActorRef, payload: Any)
   case class BeamFSMMessage(sender: ActorRef, actor: ActorRef, event: Event[_], tick: Int, triggerId: Long)
+  case class BeamStateTransition[S](sender: ActorRef, actor: ActorRef, prevState: S, newState: S, tick: Int, triggerId: Long)
 
   def props(controllerIO: OutputDirectoryHierarchy): Props = Props(new MessageLogger(controllerIO))
 }
