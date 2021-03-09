@@ -6,7 +6,7 @@ import java.util
 
 import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManagerInfo}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -153,7 +153,7 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "age", personInfo.age)
       personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
       personAttributes.putAttribute(personId, "sex", sexChar)
-      personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes)
+      personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
 
@@ -358,7 +358,7 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
       beamVehicleId,
       powerTrain,
       beamVehicleType,
-      managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, beamVehicleType),
+      managerId = VehicleManager.privateVehicleManager.managerId,
       randomSeed
     )
   }

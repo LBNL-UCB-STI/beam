@@ -112,5 +112,4 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     )
     values.mkString("", FieldSeparator, LineSeparator)
   }
-
 }

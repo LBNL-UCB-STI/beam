@@ -154,7 +154,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       planInfo.legRouteEndLink.getOrElse(""),
       planInfo.legRouteTravelTime.getOrElse(""),
       planInfo.legRouteDistance.getOrElse(""),
-      planInfo.legRouteLinks.mkString("|")
+      planInfo.legRouteLinks.mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
     ).mkString("", FieldSeparator, LineSeparator)
   }
 

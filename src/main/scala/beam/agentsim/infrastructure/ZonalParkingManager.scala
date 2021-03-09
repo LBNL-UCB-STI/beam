@@ -1,13 +1,10 @@
 package beam.agentsim.infrastructure
 
-import scala.util.{Failure, Random, Success, Try}
-import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Props}
-import akka.actor.{ActorLogging, ActorRef, Props}
+import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.FuelType.Electricity
-import beam.agentsim.agents.vehicles.VehicleManagerType
+import beam.agentsim.agents.vehicles.{ChargingCapability, VehicleManager, VehicleManagerType}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
@@ -21,14 +18,14 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.vehiclesharing.VehicleManager
+import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.util.{Failure, Random, Success, Try}
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Random, Success, Try}
 
 class ZonalParkingManager[GEO: GeoLevel](
   geoQuadTree: QuadTree[GEO],
@@ -41,12 +38,15 @@ class ZonalParkingManager[GEO: GeoLevel](
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
-) extends beam.utils.CriticalActor
-    with ActorLogging {
+  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
+) extends ParkingNetwork {
+
+  override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
 
   if (maxSearchRadius < minSearchRadius) {
-    log.warning(
+    logger.warn(
       s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of $minSearchRadius; no searches will occur with these settings."
     )
   }
@@ -66,59 +66,60 @@ class ZonalParkingManager[GEO: GeoLevel](
     maxSearchRadius,
     boundingBox,
     mnlMultiplierParameters,
+    vehicleManagers,
+    chargingPointConfig
   )
 
-  override def receive: Receive = BeamLoggingReceive {
+  override def processParkingInquiry(
+    inquiry: ParkingInquiry,
+    parallelizationCounterOption: Option[SimpleCounter] = None
+  ): Option[ParkingInquiryResponse] = {
+    logger.debug("Received parking inquiry: {}", inquiry)
 
-    case inquiry: ParkingInquiry =>
-      log.debug("Received parking inquiry: {}", inquiry)
+    val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
+      functions.searchForParkingStall(inquiry)
 
-      val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
-        functions.searchForParkingStall(inquiry)
+    // reserveStall is false when agent is only seeking pricing information
+    if (inquiry.reserveStall) {
 
-      // reserveStall is false when agent is only seeking pricing information
-      if (inquiry.reserveStall) {
+      logger.debug(
+        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+      )
 
-        log.debug(
-          s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
-        )
-
-        // update the parking stall data
-        val claimed: Boolean = ParkingZone.claimStall(parkingZone)
-        if (claimed) {
-          totalStallsInUse += 1
-          totalStallsAvailable -= 1
-        }
-
-        log.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
-
-        if (totalStallsInUse % 1000 == 0) log.debug("Parking stalls in use: {}", totalStallsInUse)
+      // update the parking stall data
+      val claimed: Boolean = ParkingZone.claimStall(parkingZone)
+      if (claimed) {
+        totalStallsInUse += 1
+        totalStallsAvailable -= 1
       }
 
-      sender() ! ParkingInquiryResponse(parkingStall, inquiry.requestId)
+      logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
 
-    case ReleaseParkingStall(parkingZoneId, _) =>
-      if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
-        if (log.isDebugEnabled) {
-          // this is an infinitely available resource; no update required
-          log.debug("Releasing a stall in the default/emergency zone")
-        }
-      } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || parkingZones.length <= parkingZoneId) {
-        if (log.isDebugEnabled) {
-          log.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
-        }
-      } else {
+      if (totalStallsInUse % 1000 == 0) logger.debug("Parking stalls in use: {}", totalStallsInUse)
+    }
 
-        val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId))
-        if (released) {
-          totalStallsInUse -= 1
-          totalStallsAvailable += 1
-        }
-      }
-      if (log.isDebugEnabled) {
-        log.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
-      }
+    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId))
   }
+
+  override def processReleaseParkingStall(release: ReleaseParkingStall) = {
+    val parkingZoneId = release.stall.parkingZoneId
+    if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
+      // this is an infinitely available resource; no update required
+      logger.debug("Releasing a stall in the default/emergency zone")
+    } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || parkingZones.length <= parkingZoneId) {
+      logger.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
+    } else {
+
+      val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId))
+      if (released) {
+        totalStallsInUse -= 1
+        totalStallsAvailable += 1
+      }
+    }
+
+    logger.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
+  }
+
 }
 
 class ZonalParkingManagerFunctions[GEO: GeoLevel](
@@ -133,6 +134,8 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+  vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
 ) extends StrictLogging {
 
   val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
@@ -149,8 +152,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
       UbiqiutousParkingAvailability,
-      None,
-      None
+      VehicleManager.privateVehicleManager.managerId
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult[GEO] = {
@@ -160,15 +162,15 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
         case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
-        case act if act.equalsIgnoreCase("charge") =>
+        case act if act.equalsIgnoreCase("fast-charge") =>
           Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
         case _ => Set(ParkingType.Public)
       }
 
     // allow charger ParkingZones
     val returnSpotsWithChargers: Boolean = inquiry.activityTypeLowerCased match {
-      case "charge" => true
-      case "init"   => false
+      case "fast-charge" => true
+      case "init"        => false
       case _ =>
         inquiry.beamVehicle match {
           case Some(vehicleType) =>
@@ -182,8 +184,8 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
     // allow non-charger ParkingZones
     val returnSpotsWithoutChargers: Boolean = inquiry.activityTypeLowerCased match {
-      case "charge" => false
-      case _        => true
+      case "fast-charge" => false
+      case _             => true
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -233,21 +235,43 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-        val isValidVehicleManager = inquiry.beamVehicle match {
-          case Some(vehicle)
-              if vehicle.managerInfo.managerType.isPrivate
-              || vehicle.managerInfo.managerType == VehicleManagerType.Ridehail =>
-            zone.vehicleManagerId.isEmpty && zone.reservedFor.forall(_ == vehicle.managerInfo.managerType)
-          case Some(vehicle) if vehicle.managerInfo.managerType.isShared =>
-            zone.vehicleManagerId.contains(vehicle.managerInfo.managerId)
-          case _ => zone.vehicleManagerId.isEmpty && zone.reservedFor.isEmpty
-        }
+        val isValidVehicleManager = inquiry.beamVehicle.forall(
+          vehicle =>
+            (vehicle.managerId == zone.vehicleManagerId) || (vehicle.managerId == VehicleManager.privateVehicleManager.managerId && vehicleManagers(
+              vehicle.managerId
+            ).managerType
+              .in(Seq(VehicleManagerType.Ridehail, VehicleManagerType.Carsharing)))
+        )
+
+        val validChargingCapability = inquiry.beamVehicle.forall(
+          vehicle =>
+            vehicle.beamVehicleType.chargingCapability match {
+
+              // if the charging zone has no charging point then by default the vehicle has valid charging capability
+              case Some(_) if zone.chargingPointType.isEmpty => true
+
+              // if the vehicle is FC capable, it cannot charges in XFC charging points
+              case Some(chargingCapability) if chargingCapability == ChargingCapability.DCFC =>
+                ChargingPointType
+                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdXFCinKW
+
+              // if the vehicle is not capable of DCFC, it can only charges in level 1 and 2
+              case Some(chargingCapability) if chargingCapability == ChargingCapability.AC =>
+                ChargingPointType
+                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdDCFCinKW
+
+              // EITHER the vehicle is XFC capable and it can charges everywhere
+              // OR the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
+              case _ => true
+          }
+        )
 
         hasAvailability &&
         rideHailFastChargingOnly &&
         validParkingType &&
         canThisCarParkHere &&
-        isValidVehicleManager
+        isValidVehicleManager &&
+        validChargingCapability
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
@@ -464,11 +488,13 @@ object ZonalParkingManager extends LazyLogging {
     searchTree: ZoneSearchTree[GEO],
     geo: GeoUtils,
     random: Random,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ZonalParkingManager[GEO] = {
 
     val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
     val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
+    val chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
 
     val mnlMultiplierParameters = mnlMultiplierParametersFromConfig(beamConfig)
 
@@ -483,7 +509,9 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      mnlMultiplierParameters
+      mnlMultiplierParameters,
+      vehicleManagers,
+      chargingPointConfig
     )
   }
 
@@ -520,6 +548,7 @@ object ZonalParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ZonalParkingManager[GEO] = {
 
     // generate or load parking
@@ -544,6 +573,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       random,
       boundingBox,
+      vehicleManagers
     )
   }
 
@@ -555,7 +585,7 @@ object ZonalParkingManager extends LazyLogging {
     random: Random
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     loadParkingZones(
-      Map(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> parkingFilePath),
+      Map(VehicleManager.privateVehicleManager.managerId -> parkingFilePath),
       geoQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,
@@ -570,29 +600,38 @@ object ZonalParkingManager extends LazyLogging {
     parkingCostScalingFactor: Double,
     random: Random
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val mainParkingFilePath = parkingFilePaths.get(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID)
+    val mainParkingFilePath = parkingFilePaths.get(VehicleManager.privateVehicleManager.managerId)
     val initialAccumulator: ParkingLoadingAccumulator[GEO] = mainParkingFilePath match {
       case Some(parkingFilePath) =>
         if (parkingFilePath.isEmpty) {
-          ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(geoQuadTree.values().asScala, random)
+          ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
+            geoQuadTree.values().asScala,
+            random,
+            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+          )
         } else {
           Try {
             ParkingZoneFileUtils.fromFileToAccumulator(
               parkingFilePath,
               random,
               parkingStallCountScalingFactor,
-              parkingCostScalingFactor
+              parkingCostScalingFactor,
+              vehicleManagerId = VehicleManager.privateVehicleManager.managerId
             )
           } match {
             case Success(accumulator) => accumulator
             case Failure(e) =>
               logger.error(s"unable to read contents of provided parking file $parkingFilePath", e)
-              ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(geoQuadTree.values().asScala, random)
+              ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
+                geoQuadTree.values().asScala,
+                random,
+                vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+              )
           }
         }
       case None => new ParkingLoadingAccumulator[GEO]()
     }
-    val otherParkingFiles = parkingFilePaths - HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID
+    val otherParkingFiles = parkingFilePaths - VehicleManager.privateVehicleManager.managerId
     val parkingLoadingAccumulator = otherParkingFiles.foldLeft(initialAccumulator) {
       case (acc, (vehicleManagerId, filePath)) =>
         filePath.trim match {
@@ -605,7 +644,7 @@ object ZonalParkingManager extends LazyLogging {
                 parkingStallCountScalingFactor,
                 parkingCostScalingFactor,
                 header = true,
-                Some(vehicleManagerId),
+                vehicleManagerId,
                 acc
               )
             } match {
@@ -638,9 +677,18 @@ object ZonalParkingManager extends LazyLogging {
     minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
-    includesHeader: Boolean = true
+    includesHeader: Boolean = true,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager],
+    chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
   ): ZonalParkingManager[GEO] = {
-    val parking = ParkingZoneFileUtils.fromIterator(parkingDescription, random, 1.0, 1.0, true)
+    val parking = ParkingZoneFileUtils.fromIterator(
+      parkingDescription,
+      random,
+      1.0,
+      1.0,
+      true,
+      VehicleManager.privateVehicleManager.managerId
+    )
     new ZonalParkingManager(
       geoQuadTree,
       idToGeoMapping,
@@ -652,7 +700,9 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      ParkingMNL.DefaultMNLParameters
+      ParkingMNL.DefaultMNLParameters,
+      vehicleManagers,
+      chargingPointConfig
     )
   }
 
@@ -662,7 +712,7 @@ object ZonalParkingManager extends LazyLogging {
     * @param beamRouter Actor responsible for routing decisions (deprecated/previously unused)
     * @return
     */
-  def props[GEO: GeoLevel](
+  def init[GEO: GeoLevel](
     beamConfig: BeamConfig,
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -671,18 +721,17 @@ object ZonalParkingManager extends LazyLogging {
     beamRouter: ActorRef,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
-  ): Props = {
-
-    Props(
-      ZonalParkingManager(
-        beamConfig,
-        geoQuadTree,
-        idToGeoMapping,
-        geoToTAZ,
-        geo,
-        boundingBox,
-        parkingFilePaths,
-      )
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+  ): ParkingNetwork = {
+    ZonalParkingManager(
+      beamConfig,
+      geoQuadTree,
+      idToGeoMapping,
+      geoToTAZ,
+      geo,
+      boundingBox,
+      parkingFilePaths,
+      vehicleManagers
     )
   }
 
@@ -691,7 +740,7 @@ object ZonalParkingManager extends LazyLogging {
     *
     * @return
     */
-  def props[GEO: GeoLevel](
+  def init[GEO: GeoLevel](
     beamConfig: BeamConfig,
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -700,25 +749,24 @@ object ZonalParkingManager extends LazyLogging {
     searchTree: ZoneSearchTree[GEO],
     geo: GeoUtils,
     random: Random,
-    boundingBox: Envelope
-  ): Props = {
-
-    Props(
-      ZonalParkingManager(
-        beamConfig,
-        geoQuadTree,
-        idToGeoMapping,
-        geoToTAZ,
-        parkingZones,
-        searchTree,
-        geo,
-        random,
-        boundingBox,
-      )
+    boundingBox: Envelope,
+    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+  ): ParkingNetwork = {
+    ZonalParkingManager(
+      beamConfig,
+      geoQuadTree,
+      idToGeoMapping,
+      geoToTAZ,
+      parkingZones,
+      searchTree,
+      geo,
+      random,
+      boundingBox,
+      vehicleManagers
     )
   }
 
   def getDefaultParkingZones(beamConfig: BeamConfig): Map[Id[VehicleManager], String] = Map(
-    HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID -> beamConfig.beam.agentsim.taz.parkingFilePath,
+    VehicleManager.privateVehicleManager.managerId -> beamConfig.beam.agentsim.taz.parkingFilePath,
   )
 }

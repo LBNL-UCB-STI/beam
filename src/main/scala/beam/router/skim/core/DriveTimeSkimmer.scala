@@ -1,8 +1,10 @@
-package beam.router.skim
+package beam.router.skim.core
 
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
+import beam.router.skim.SkimsUtils
+import beam.router.skim.readonly.DriveTimeSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -31,6 +33,7 @@ class DriveTimeSkimmer @Inject()(
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
   override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims()
+  import readOnlySkim._
   override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,iterations"
@@ -55,11 +58,12 @@ class DriveTimeSkimmer @Inject()(
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
-                  currentSkim.get(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach { theSkimInternal =>
-                    series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
-                    for (_ <- 1 to theSkimInternal.observations)
-                      deltasOfObservedSimulatedTimes += theSkimInternal.timeSimulated - timeObserved
-                    currentSkim.update(theSkimKey, theSkimInternal.copy(timeObserved = timeObserved))
+                  getCurrentSkimValue(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
+                    theSkimInternal =>
+                      series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
+                      for (_ <- 1 to theSkimInternal.observations)
+                        deltasOfObservedSimulatedTimes += theSkimInternal.timeSimulated - timeObserved
+                      currentSkimInternal.put(theSkimKey, theSkimInternal.copy(timeObserved = timeObserved))
                   }
                 }
               }
@@ -111,7 +115,6 @@ class DriveTimeSkimmer @Inject()(
         DriveTimeSkimmerInternal(
           0,
           0,
-          observations = 0,
           iterations = matsimServices.getIterationNumber + 1
         )
       ) // no current skim means 0 observation
@@ -133,7 +136,6 @@ class DriveTimeSkimmer @Inject()(
         DriveTimeSkimmerInternal(
           0,
           0,
-          observations = 0,
           iterations = matsimServices.getIterationNumber + 1
         )
       )

@@ -132,7 +132,8 @@ object ChargingPointType {
     vehicleAcChargingLimitsInWatts: Double,
     vehicleDcChargingLimitsInWatts: Double,
     sessionDurationLimit: Option[Int],
-    stateOfChargeLimit: Option[Double] = None
+    stateOfChargeLimit: Option[Double] = None,
+    chargingPowerLimit: Option[Double] = None
   ): (Int, Double) = {
     val chargingLimits = stateOfChargeLimit match {
       case Some(socLimit) =>
@@ -145,23 +146,29 @@ object ChargingPointType {
             (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
         }
     }
+
+    val chargingPowerLimiter = chargingPowerLimit match {
+      case Some(powerLimit) =>
+        Math.min(powerLimit, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType))
+      case None => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)
+    }
+
     val sessionLengthLimiter = sessionDurationLimit.getOrElse(Int.MaxValue)
+
     val sessionLength = Math
       .max(
         Math.min(
           sessionLengthLimiter,
           Math.round(
             (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
-              .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
+              .min(chargingLimits._1, chargingPowerLimiter) * 3600.0
           )
         ),
         0
       )
       .intValue()
-    val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
-      chargingLimits._1,
-      ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)
-    ) * 3.6e6
+
+    val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(chargingLimits._1, chargingPowerLimiter) * 3.6e6
     (sessionLength, sessionEnergyInJoules)
   }
 

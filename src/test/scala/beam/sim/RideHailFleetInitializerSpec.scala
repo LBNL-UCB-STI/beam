@@ -11,7 +11,6 @@ import scala.collection.JavaConverters._
 //#Test needs to be updated/fixed on LBNL side
 class RideHailFleetInitializerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
   val filePath: String = File.createTempFile("0.rideHailFleet", ".csv.gz").getAbsolutePath
-  println(filePath)
 
   override def afterAll(): Unit = {
     Try {

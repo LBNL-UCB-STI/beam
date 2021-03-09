@@ -1,7 +1,5 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
@@ -9,12 +7,10 @@ import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.TransitDriverAgent.createAgentIdFromVehicleId
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ZonalParkingManager
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -23,7 +19,7 @@ import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.skim.AbstractSkimmerEvent
+import beam.router.skim.core.AbstractSkimmerEvent
 import beam.sim.common.GeoUtilsImpl
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -42,6 +38,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.FunSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
+import java.util.concurrent.TimeUnit
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -73,18 +70,22 @@ class PersonAndTransitDriverSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private lazy val parkingManager = system.actorOf(
-    ZonalParkingManager.props(
-      beamConfig,
-      beamScenario.tazTreeMap.tazQuadTree,
-      beamScenario.tazTreeMap.idToTAZMapping,
-      identity[TAZ],
-      services.geo,
-      services.beamRouter,
-      boundingBox,
-      ZonalParkingManager.getDefaultParkingZones(beamConfig),
+    ParkingNetworkManager.props(
+      services,
+      ParkingNetworkInfo(
+        services,
+        boundingBox,
+        Map[Id[VehicleManager], VehicleManager](
+          VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
+          VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
+        )
+      )
     ),
     "ParkingManager"
   )
+
+  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
+    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -139,13 +140,13 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        managerInfo = VehicleManagerInfo(TransitSystem.VEHICLE_MANAGER_ID, vehicleType),
+        managerId = VehicleManager.transitVehicleManager.managerId,
       )
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        managerInfo = VehicleManagerInfo(TransitSystem.VEHICLE_MANAGER_ID, vehicleType),
+        managerId = VehicleManager.transitVehicleManager.managerId,
       )
 
       val busLeg = EmbodiedBeamLeg(
@@ -268,6 +269,7 @@ class PersonAndTransitDriverSpec
           tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
+          chargingNetworkManager = self,
           transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
           vehicle = bus,
           Array(busLeg.beamLeg, busLeg2.beamLeg),
@@ -284,6 +286,7 @@ class PersonAndTransitDriverSpec
           tollCalculator = services.tollCalculator,
           eventsManager = eventsManager,
           parkingManager = parkingManager,
+          chargingNetworkManager = self,
           transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
           vehicle = tram,
           Array(tramLeg.beamLeg),
@@ -358,6 +361,7 @@ class PersonAndTransitDriverSpec
           router = self,
           rideHailManager = self,
           parkingManager = parkingManager,
+          chargingNetworkManager = self,
           eventsManager = eventsManager,
           population = population,
           household = household,

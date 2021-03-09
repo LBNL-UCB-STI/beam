@@ -3,7 +3,7 @@ package beam.physsim.jdeqsim
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.util.Try
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManagerInfo}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -151,7 +151,7 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
       BeamVehicle.createId(person.getId, Some("car")),
       new Powertrain(carVehType.primaryFuelConsumptionInJoulePerMeter),
       carVehType,
-      managerInfo = VehicleManagerInfo.create(person.getId.toString, carVehType),
+      managerId = VehicleManager.transitVehicleManager.managerId
     )
 
     val idxToResponse = elemIdxToRoute.map {

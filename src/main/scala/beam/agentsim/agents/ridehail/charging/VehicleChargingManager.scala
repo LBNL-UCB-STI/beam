@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail.charging
 
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.{OutOfService, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.charging.VehicleChargingManager.VehicleChargingManagerResult
 import beam.agentsim.agents.ridehail.kpis.RealTimeKpis
 import beam.agentsim.agents.ridehail.{RideHailDepotParkingManager, RideHailManager}

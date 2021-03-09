@@ -1,7 +1,5 @@
 package beam.agentsim.events
 
-import java.util
-
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ParkingStall
@@ -10,6 +8,8 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
+
+import java.util
 
 case class RefuelSessionEvent(
   tick: Double,

@@ -1,15 +1,14 @@
 package beam.agentsim.infrastructure.parking
 
-import java.io.{BufferedReader, File, IOException}
-import beam.agentsim.agents.vehicles.VehicleManagerType
+import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.sim.vehiclesharing.VehicleManager
-import beam.utils.{DebugLib, FileUtils}
+import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
+import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -126,9 +125,8 @@ object ParkingZoneFileUtils extends LazyLogging {
         }
         val parkingZoneName = parkingZone.parkingZoneName.getOrElse("")
         val landCostInUSDPerSqft = parkingZone.landCostInUSDPerSqft.getOrElse("")
-        val reservedFor = parkingZone.reservedFor.getOrElse("")
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft,$reservedFor"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft"
       }
     } match {
       case Failure(e) =>
@@ -162,10 +160,18 @@ object ParkingZoneFileUtils extends LazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    header: Boolean = true
+    header: Boolean = true,
+    vehicleManagerId: Id[VehicleManager]
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val parkingLoadingAccumulator =
-      fromFileToAccumulator(filePath, rand, parkingStallCountScalingFactor, parkingCostScalingFactor, header)
+      fromFileToAccumulator(
+        filePath,
+        rand,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor,
+        header,
+        vehicleManagerId
+      )
     (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
   }
 
@@ -184,7 +190,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
     header: Boolean = true,
-    vehicleManagerId: Option[Id[VehicleManager]] = None,
+    vehicleManagerId: Id[VehicleManager],
     parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
   ): ParkingLoadingAccumulator[GEO] =
     Try {
@@ -225,7 +231,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    vehicleManagerId: Option[Id[VehicleManager]] = None,
+    vehicleManagerId: Id[VehicleManager],
     parkingLoadingAccumulator: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator()
   ): ParkingLoadingAccumulator[GEO] = {
 
@@ -268,7 +274,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
     header: Boolean = true,
-    vehicleManagerId: Option[Id[VehicleManager]] = None,
+    vehicleManagerId: Id[VehicleManager]
   ): ParkingLoadingAccumulator[GEO] = {
 
     val maybeWithoutHeader = if (header) csvFileContents.drop(1) else csvFileContents
@@ -334,7 +340,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    vehicleManagerId: Option[Id[VehicleManager]] = None,
+    vehicleManagerId: Id[VehicleManager],
   ): Option[ParkingLoadingDataRow[GEO]] = {
     csvRow match {
       case ParkingFileRowRegex(
@@ -383,7 +389,6 @@ object ParkingZoneFileUtils extends LazyLogging {
               taz,
               parkingType,
               numStalls,
-              vehicleManagerType,
               vehicleManagerId,
               chargingPoint,
               pricingModel,
@@ -444,9 +449,11 @@ object ParkingZoneFileUtils extends LazyLogging {
   def generateDefaultParkingFromGeoObjects[GEO: GeoLevel](
     geoObjects: Iterable[GEO],
     random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    vehicleManagerId: Id[VehicleManager]
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val parkingLoadingAccumulator = generateDefaultParkingAccumulatorFromGeoObjects(geoObjects, random, parkingTypes)
+    val parkingLoadingAccumulator =
+      generateDefaultParkingAccumulatorFromGeoObjects(geoObjects, random, parkingTypes, vehicleManagerId)
     (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
   }
 
@@ -459,9 +466,10 @@ object ParkingZoneFileUtils extends LazyLogging {
   def generateDefaultParkingAccumulatorFromGeoObjects[GEO: GeoLevel](
     geoObjects: Iterable[GEO],
     random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    vehicleManagerId: Id[VehicleManager]
   ): ParkingLoadingAccumulator[GEO] = {
-    val result = generateDefaultParking(geoObjects, random, parkingTypes)
+    val result = generateDefaultParking(geoObjects, random, parkingTypes, vehicleManagerId)
     logger.info(
       s"generated ${result.totalRows} parking zones,one for each provided geo level, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
     )
@@ -480,7 +488,8 @@ object ParkingZoneFileUtils extends LazyLogging {
   def generateDefaultParking[GEO: GeoLevel](
     geoObjects: Iterable[GEO],
     random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    vehicleManagerId: Id[VehicleManager]
   ): ParkingLoadingAccumulator[GEO] = {
 
     val rows: Iterable[String] = for {
@@ -494,7 +503,7 @@ object ParkingZoneFileUtils extends LazyLogging {
       defaultParkingRow(geoObj.getId, parkingType, maybeChargingPoint)
     }
 
-    fromIterator(rows.iterator, random, header = false)
+    fromIterator(rows.iterator, random, header = false, vehicleManagerId = vehicleManagerId)
   }
 
   /**

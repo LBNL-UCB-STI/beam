@@ -1,8 +1,10 @@
-package beam.router.skim
+package beam.router.skim.event
 
 import beam.router.Modes.BeamMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.DriveTimeSkimmer.{DriveTimeSkimmerInternal, DriveTimeSkimmerKey}
+import beam.router.skim.SkimsUtils
+import beam.router.skim.core.DriveTimeSkimmer.{DriveTimeSkimmerInternal, DriveTimeSkimmerKey}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.BeamServices
 
 case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, carLeg: EmbodiedBeamLeg)

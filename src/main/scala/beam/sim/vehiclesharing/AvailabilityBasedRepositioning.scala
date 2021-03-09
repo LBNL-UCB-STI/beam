@@ -1,10 +1,11 @@
 package beam.sim.vehiclesharing
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter
 import beam.router.Modes.BeamMode
-import beam.router.skim.{ODSkims, Skims, TAZSkimmer, TAZSkims}
+import beam.router.skim.core.TAZSkimmer.TAZSkimmerInternal
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 
@@ -44,11 +45,11 @@ case class AvailabilityBasedRepositioning(
     time: Int,
     idTAZ: Id[TAZ],
     label: String
-  ): Vector[TAZSkimmer.TAZSkimmerInternal] = {
+  ): Vector[TAZSkimmerInternal] = {
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => beamServices.skims.taz_skimmer.getLatestSkimByTAZ(i, idTAZ, vehicleManager.toString, label))
+      .map(i => beamServices.skims.taz_skimmer.getLatestSkim(i, idTAZ, vehicleManager.toString, label))
       .toVector
       .flatten
   }
