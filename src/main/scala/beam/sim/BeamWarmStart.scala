@@ -3,19 +3,19 @@ package beam.sim
 import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.TimeUnit
-
 import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
-
 import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
-import beam.sim.config.BeamConfig.Beam
+import beam.router.skim.Skims.SkimType
+import beam.router.skim.core.AbstractSkimmer
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.BeamWarmStart.WarmStartConfigProperties
+import beam.sim.config.BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm
 import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
 import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
@@ -55,9 +55,15 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
         if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
           extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)
         } else {
+          logger.warn(
+            s"not a regular file: description: $description, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
+          )
           throwErrorFileNotFound(description, compressedFileFullPath)
         }
       case None =>
+        logger.warn(
+          s"not found: description: $description, fileName: $fileName, rootFirst: $rootFirst"
+        )
         throwErrorFileNotFound(description, srcPath)
     }
   }
@@ -146,8 +152,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
     new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
   }
 
-  private lazy val parentRunPath: String =
-    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
+  private lazy val parentRunPath: String = FileUtils.downloadAndUnpackIfNeeded(srcPath)
 
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize: Int = warmConfig.agentsimTimeBinSize
@@ -211,15 +216,19 @@ object BeamWarmStart extends LazyLogging {
     calculator: TravelTimeCalculatorConfigGroup,
     beamRouter: ActorRef,
     scenario: Scenario
-  ): Unit = {
+  ): Option[TravelTime] = {
     if (beamConfig.beam.warmStart.enabled) {
       val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
       val warm = BeamWarmStart(beamConfig, maxHour)
-      warm.readTravelTime.foreach { travelTime =>
+      val travelTime = warm.readTravelTime
+      travelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
         BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
         logger.info("Travel times successfully warm started from")
       }
+      travelTime
+    } else {
+      None
     }
   }
 
@@ -235,7 +244,7 @@ object BeamWarmStart extends LazyLogging {
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     val beamConfig = beamExecutionConfig.beamConfig
 
-    if (beamConfig.beam.warmStart.enabled) {
+    if (beamConfig.beam.warmStart.enabled && !beamConfig.beam.warmStart.linkStatsOnlyEnabled) {
       val matsimConfig = beamExecutionConfig.matsimConfig
 
       if (beamConfig.beam.router.skim.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
@@ -247,16 +256,23 @@ object BeamWarmStart extends LazyLogging {
       val instance = BeamWarmStart(beamConfig, matsimConfig.travelTimeCalculator())
 
       val newWarmStartConfig: Beam.WarmStart = {
-        val newSkimsFilePath = Try(instance.compressedLocation("Skims file", beamConfig.beam.warmStart.skimsFileName))
-          .getOrElse(instance.parentRunPath)
-        val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
-        val newRouteHistoryFilePath =
-          Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
+        val skimCfg = beamConfig.beam.router.skim
+        val skimFileNames = List(
+          SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
+          SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
+          SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
+          SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
+        )
+
+        val newSkimsFilePath: List[SkimsFilePaths$Elm] = skimFileNames.map {
+          case (skimType, fileName) =>
+            val filePath = Try(instance.compressedLocation("Skims file", fileName + AbstractSkimmer.AGG_SUFFIX))
+              .getOrElse(instance.parentRunPath)
+            SkimsFilePaths$Elm(skimType.toString, filePath)
+        }
 
         beamConfig.beam.warmStart.copy(
-          skimsFilePath = newSkimsFilePath,
-          skimsPlusFilePath = newSkimPlusFilePath,
-          routeHistoryFilePath = newRouteHistoryFilePath
+          skimsFilePaths = Some(newSkimsFilePath),
         )
       }
 
@@ -282,7 +298,7 @@ object BeamWarmStart extends LazyLogging {
   ): Option[(Beam.Agentsim, Beam.Exchange)] = {
     val configAgents = beamConfig.beam.agentsim.agents
     try {
-      val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
+      val populationAttributesXml = instance.compressedLocation("Person attributes", "output_personAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
       val populationAttributesCsv = instance.compressedLocation("Population", "population.csv.gz")
 

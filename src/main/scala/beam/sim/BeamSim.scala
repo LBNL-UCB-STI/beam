@@ -30,6 +30,7 @@ import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.watcher.MethodWatcher
+import org.matsim.core.router.util.TravelTime
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -160,6 +161,8 @@ class BeamSim @Inject()(
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
+  private var initialTravelTime = Option.empty[TravelTime]
+
   override def notifyStartup(event: StartupEvent): Unit = {
     maybeConsecutivePopulationLoader =
       if (beamServices.beamConfig.beam.physsim.relaxation.`type` == "consecutive_increase_of_population") {
@@ -202,7 +205,7 @@ class BeamSim @Inject()(
       ),
       "router"
     )
-    BeamWarmStart.warmStartTravelTime(
+    initialTravelTime = BeamWarmStart.warmStartTravelTime(
       beamServices.beamConfig,
       scenario.getConfig.travelTimeCalculator(),
       beamServices.beamRouter,
@@ -429,7 +432,7 @@ class BeamSim @Inject()(
       Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
     } else {
       val physsimFuture = Future {
-        agentSimToPhysSimPlanConverter.startPhysSim(event)
+        agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
 
       // executing code blocks parallel

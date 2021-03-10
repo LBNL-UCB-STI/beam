@@ -1,5 +1,6 @@
 package beam.utils.scenario.generic.readers
 
+import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.scenario.{PersonId, PlanElement}
 
 import scala.util.Try
@@ -26,7 +27,8 @@ object CsvPlanElementReader extends PlanElementReader {
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
-    val linkIds = Option(rec.get("legRouteLinks")).map(_.split("\\|").map(_.trim)).getOrElse(Array.empty[String])
+    val linkIds =
+      Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
       personId = PersonId(personId),
       planIndex = planIndex,

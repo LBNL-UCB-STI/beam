@@ -5,7 +5,7 @@ import java.io.BufferedWriter
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
-import beam.router.skim.readonly
+import beam.router.skim.{readonly, Skims}
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
@@ -28,6 +28,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   import readOnlySkim._
 
   override protected val skimName: String = config.origin_destination_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.OD_SKIMMER
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"

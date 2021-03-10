@@ -8,6 +8,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 import beam.utils.scenario.{HouseholdId, HouseholdInfo}
+import ScenarioCsvWriter._
 
 object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
