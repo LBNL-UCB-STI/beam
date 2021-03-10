@@ -11,6 +11,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
+import ScenarioCsvWriter._
 
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
