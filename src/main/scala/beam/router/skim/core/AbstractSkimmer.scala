@@ -1,7 +1,7 @@
 package beam.router.skim.core
 
 import beam.agentsim.events.ScalaEvent
-import beam.router.skim.AbstractSkimmer.AGG_SUFFIX
+import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.router.skim.Skims.SkimType
 import beam.router.skim.CsvSkimReader
 import beam.router.skim.core.TAZSkimmer.TAZSkimmerKey

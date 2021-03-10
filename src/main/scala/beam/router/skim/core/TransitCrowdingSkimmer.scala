@@ -3,6 +3,7 @@ package beam.router.skim.core
 import java.math.RoundingMode
 
 import beam.router.skim.readonly.TransitCrowdingSkims
+import beam.router.skim.Skims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import com.google.common.math.IntMath

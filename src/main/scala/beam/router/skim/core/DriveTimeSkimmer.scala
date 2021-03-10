@@ -3,7 +3,7 @@ package beam.router.skim.core
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.SkimsUtils
+import beam.router.skim.{Skims, SkimsUtils}
 import beam.router.skim.readonly.DriveTimeSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils

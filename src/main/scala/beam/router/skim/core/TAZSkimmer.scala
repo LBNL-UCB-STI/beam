@@ -1,7 +1,7 @@
 package beam.router.skim.core
 
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.readonly
+import beam.router.skim.{readonly, Skims}
 import beam.router.skim.readonly.TAZSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
