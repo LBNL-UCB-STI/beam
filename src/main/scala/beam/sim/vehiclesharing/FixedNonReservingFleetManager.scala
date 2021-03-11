@@ -79,18 +79,18 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       Future
         .sequence(vehicles.values.map { veh =>
           veh.setManager(Some(self))
-          parkingManager ? parkingInquiry(veh.spaceTime, veh) flatMap {
-            case ParkingInquiryResponse(stall, _) =>
+          parkingManager ? parkingInquiry(veh.spaceTime, veh, triggerId) flatMap {
+            case ParkingInquiryResponse(stall, _, triggerId) =>
               veh.useParkingStall(stall)
-              self ? ReleaseVehicleAndReply(veh)
+              self ? ReleaseVehicleAndReply(veh, None, triggerId)
           }
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case GetVehicleTypes() =>
-      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet)
-    case MobilityStatusInquiry(_, whenWhere, _) =>
+    case GetVehicleTypes(triggerId) =>
+      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
+    case MobilityStatusInquiry(_, whenWhere, _, triggerId) =>
       // Search box: maxWalkingDistance meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(maxWalkingDistance)
@@ -99,7 +99,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle)
-      })
+      }, triggerId)
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who) =>
@@ -115,18 +115,18 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
-    case ReleaseVehicle(vehicle) =>
+    case ReleaseVehicle(vehicle, _) =>
       makeAvailable(vehicle.id)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
 
-    case ReleaseVehicleAndReply(vehicle, _) =>
+    case ReleaseVehicleAndReply(vehicle, _, triggerId) =>
       makeAvailable(vehicle.id)
-      sender() ! Success
+      sender() ! Success(triggerId)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime, beamVehicle: BeamVehicle): ParkingInquiry =
-    ParkingInquiry(whenWhere.loc, "wherever", beamVehicle = Some(beamVehicle))
+  def parkingInquiry(whenWhere: SpaceTime, beamVehicle: BeamVehicle, triggerId: Long): ParkingInquiry =
+    ParkingInquiry(whenWhere.loc, "wherever", beamVehicle = Some(beamVehicle), triggerId = triggerId)
 
   override def getId: Id[VehicleManager] = id
   override def queryAvailableVehicles: List[BeamVehicle] =

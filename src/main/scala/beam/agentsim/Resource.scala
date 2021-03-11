@@ -6,6 +6,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.scheduler.HasTriggerId
 import beam.sim.Geofence
 import org.matsim.api.core.v01.Id
 
@@ -19,8 +20,8 @@ object Resource {
     passengerSchedule: PassengerSchedule,
     beamVehicleState: BeamVehicleState,
     geofence: Option[Geofence],
-    triggerId: Option[Long] // triggerId is included to facilitate debugging
-  )
+    triggerId: Long // triggerId is included to facilitate debugging
+  ) extends HasTriggerId
 
   // Optional triggerId and beamVehicleState are only used if the vehicle is completing a Refuel and needs to communicate SOC back
   case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle])

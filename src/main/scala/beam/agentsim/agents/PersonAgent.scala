@@ -695,7 +695,7 @@ class PersonAgent(
 
   // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, toll, energyConsumedOption), data: BasePersonData) =>
+    case Event(PassengerScheduleEmptyMessage(_, toll, triggerId, energyConsumedOption), data: BasePersonData) =>
       updateFuelConsumed(energyConsumedOption)
       val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
@@ -735,7 +735,7 @@ class PersonAgent(
           }
           if (!currentBeamVehicle.isMustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
-            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle)
+            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle, triggerId)
             beamVehicles -= data.currentVehicle.head
           }
         }
@@ -911,7 +911,8 @@ class PersonAgent(
         beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),
         nextLeg.isPooledTrip,
         requestTime = _currentTick,
-        quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get)
+        quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
+        triggerId = getCurrentTriggerId.getOrElse(-1111),
       )
 
       eventsManager.processEvent(
@@ -1071,7 +1072,7 @@ class PersonAgent(
                 if (activity.getType.equals("Home")) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
-                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
+                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh, getCurrentTriggerId.getOrElse(-1111))
                   None
                 } else {
                   currentTourPersonalVehicle
@@ -1244,7 +1245,7 @@ class PersonAgent(
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
-    case Event(ParkingInquiryResponse(_, _), _) =>
+    case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)

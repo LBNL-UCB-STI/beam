@@ -23,6 +23,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSch
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
 import beam.router.BeamRouter.RoutingResponse
@@ -102,12 +103,18 @@ object HouseholdActor {
     )
   }
 
-  case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime, originActivity: Activity)
-  case class ReleaseVehicle(vehicle: BeamVehicle)
-  case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
-  case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
-  case class GetVehicleTypes()
-  case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType])
+  case class MobilityStatusInquiry(
+    personId: Id[Person],
+    whereWhen: SpaceTime,
+    originActivity: Activity,
+    triggerId: Long
+  ) extends HasTriggerId
+  case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
+  case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None, triggerId: Long)
+      extends HasTriggerId
+  case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken], triggerId: Long) extends HasTriggerId
+  case class GetVehicleTypes(triggerId: Long) extends HasTriggerId
+  case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType], triggerId: Long) extends HasTriggerId
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -233,7 +240,7 @@ object HouseholdActor {
             cavs = List()
           } else {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
-              _.toRoutingRequests(beamServices, transportNetwork, routeHistory)
+              _.toRoutingRequests(beamServices, transportNetwork, routeHistory, triggerId)
             }
             val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)
             cavPlans ++= requestsAndUpdatedPlans.map(_._2)
@@ -402,7 +409,7 @@ object HouseholdActor {
                   akka.pattern
                     .ask(
                       cavAndSchedule._1.getDriver.get,
-                      ModifyPassengerSchedule(cavAndSchedule._2, tick)
+                      ModifyPassengerSchedule(cavAndSchedule._2, tick, routingResponses.head.triggerId) //todo check1
                     )
                     .mapTo[ModifyPassengerScheduleAck]
                 }
@@ -471,7 +478,11 @@ object HouseholdActor {
           veh.setManager(Some(self))
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")
+            ParkingInquiryResponse(stall, _, _) <- parkingManager ? ParkingInquiry(
+              homeCoord,
+              "init",
+              triggerId = triggerId
+            )
           } {
             veh.useParkingStall(stall)
           }

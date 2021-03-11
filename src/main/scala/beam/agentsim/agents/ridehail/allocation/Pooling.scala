@@ -157,7 +157,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         startTime,
         withTransit = false,
         Some(req.customer.personId),
-        Vector(rideHailVehicleAtOrigin)
+        Vector(rideHailVehicleAtOrigin),
+        triggerId = req.triggerId
       )
       routeReqs = routeReqs :+ routeReq2Pickup
       tempPickDropStore.put(routeReq2Pickup.requestId, MobilityRequest.simpleRequest(Pickup, Some(req.customer), None))
@@ -180,7 +181,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         startTime,
         withTransit = false,
         Some(req.customer.personId),
-        Vector(rideHailVehicleAtOrigin)
+        Vector(rideHailVehicleAtOrigin),
+        triggerId = req.triggerId
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
       tempPickDropStore.put(
@@ -242,7 +244,8 @@ object Pooling {
           rideHailManager.createRoutingRequestsToCustomerAndDestination(
             pickUpTime,
             requestUpdated,
-            agentETA.agentLocation
+            agentETA.agentLocation,
+            request.triggerId,
           )
         )
       case None =>

@@ -270,7 +270,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       asDriver = true,
                       needsToCalculateCost = true
                     )
-                  )
+                  ),
+                  triggerId = -1234 //todo
                 )
                 scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
                 Some(routingRequest)

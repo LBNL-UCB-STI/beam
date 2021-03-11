@@ -44,10 +44,10 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId)
 
-    case GetVehicleTypes() =>
-      sender() ! VehicleTypesResponse(Set(vehicleType))
+    case GetVehicleTypes(triggerId) =>
+      sender() ! VehicleTypesResponse(Set(vehicleType), triggerId)
 
-    case MobilityStatusInquiry(_, whenWhere, _) =>
+    case MobilityStatusInquiry(_, whenWhere, _, triggerId) =>
       // Create a vehicle out of thin air
       val vehicle = new BeamVehicle(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
@@ -62,18 +62,19 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       vehicle.becomeDriver(sender)
 
       // Park it and forward it to the customer
-      (parkingManager ? parkingInquiry(whenWhere))
+      (parkingManager ? parkingInquiry(whenWhere, triggerId))
         .collect {
-          case ParkingInquiryResponse(stall, _) =>
+          case ParkingInquiryResponse(stall, _, triggerId) =>
             vehicle.useParkingStall(stall)
-            MobilityStatusResponse(Vector(ActualVehicle(vehicle)))
+            MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
         } pipeTo sender
 
-    case ReleaseVehicle(_) =>
+    case ReleaseVehicle(_, _) =>
     // That's fine, nothing to do.
 
   }
 
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever",
+    triggerId = triggerId)
 
 }

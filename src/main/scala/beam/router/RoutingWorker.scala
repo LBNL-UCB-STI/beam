@@ -239,9 +239,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
         vehicleTypeId: Id[BeamVehicleType],
-        embodyRequestId: Int
+        embodyRequestId: Int,
+        triggerId
         ) =>
-      val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
+      val response: RoutingResponse =
+        r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId, triggerId)
       sender ! response
       askForMoreWork()
   }

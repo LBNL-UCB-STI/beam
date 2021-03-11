@@ -65,7 +65,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    embodyRequestId: Int
+    embodyRequestId: Int,
+    triggerId: Long
   ): RoutingResponse = {
     val vehicleType = vehicleTypes(vehicleTypeId)
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
@@ -116,7 +117,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ),
       embodyRequestId,
       None,
-      isEmbodyWithCurrentTravelTime = true
+      isEmbodyWithCurrentTravelTime = true,
+      triggerId
     )
     response
   }
@@ -820,18 +822,26 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           embodiedTrips :+ dummyTrip,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          request.triggerId
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          request.triggerId
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(
+        embodiedTrips,
+        request.requestId,
+        Some(request),
+        isEmbodyWithCurrentTravelTime = false,
+        request.triggerId
+      )
     }
   }
 

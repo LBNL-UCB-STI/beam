@@ -62,7 +62,8 @@ trait ChoosesParking extends {
         Some(this.currentBeamVehicle),
         remainingTripData,
         attributes.valueOfTime,
-        parkingDuration
+        parkingDuration,
+        triggerId = getCurrentTriggerId.getOrElse(-1111),
       )
   }
 
@@ -120,7 +121,7 @@ trait ChoosesParking extends {
   }
 
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall, _), data) =>
+    case Event(ParkingInquiryResponse(stall, _, _), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
@@ -181,7 +182,8 @@ trait ChoosesParking extends {
           withTransit = false,
           Some(id),
           Vector(carStreetVeh, bodyStreetVeh),
-          Some(attributes)
+          Some(attributes),
+          triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
@@ -202,7 +204,8 @@ trait ChoosesParking extends {
               needsToCalculateCost = false
             )
           ),
-          Some(attributes)
+          Some(attributes),
+          triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
 
         val responses = for {

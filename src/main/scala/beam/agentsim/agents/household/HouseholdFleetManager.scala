@@ -7,14 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  GetVehicleTypes,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply,
-  VehicleTypesResponse
-}
+import beam.agentsim.agents.household.HouseholdActor.{GetVehicleTypes, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply, VehicleTypesResponse}
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -23,6 +16,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -49,7 +43,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           veh.setMustBeDrivenHome(true)
           veh.useParkingStall(resp.stall)
-          self ! ReleaseVehicleAndReply(veh)
+          self ! ReleaseVehicleAndReply(veh, triggerId = triggerId)
       }
       triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
 
@@ -58,7 +52,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
-          (parkingManager ? ParkingInquiry(homeCoord, "init")).mapTo[ParkingInquiryResponse].map { r =>
+          (parkingManager ? ParkingInquiry(homeCoord, "init", triggerId = triggerId)).mapTo[ParkingInquiryResponse].map { r =>
             (id, r)
           }
       }
@@ -71,7 +65,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       vehicles(vehId).spaceTime = whenWhere
       logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
-    case ReleaseVehicle(vehicle) =>
+    case ReleaseVehicle(vehicle, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
         logger.warn("I can't release vehicle {} because I have it already", vehicle.id)
@@ -80,7 +74,7 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         logger.debug("Vehicle {} is now available", vehicle.id)
       }
 
-    case ReleaseVehicleAndReply(vehicle, _) =>
+    case ReleaseVehicleAndReply(vehicle, _, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
         sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
@@ -90,18 +84,18 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
         sender() ! Success
       }
 
-    case GetVehicleTypes() =>
-      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet)
+    case GetVehicleTypes(triggerId) =>
+      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(_, _, _) =>
+    case MobilityStatusInquiry(_, _, _, triggerId) =>
       availableVehicles = availableVehicles match {
         case firstVehicle :: rest =>
           logger.debug("Vehicle {} is now taken", firstVehicle.id)
           firstVehicle.becomeDriver(sender)
-          sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)))
+          sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
           rest
         case Nil =>
-          sender() ! MobilityStatusResponse(Vector())
+          sender() ! MobilityStatusResponse(Vector(), triggerId)
           Nil
       }
 
@@ -115,5 +109,5 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 }
 
 object HouseholdFleetManager {
-  case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)])
+  case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)]) extends HasTriggerId
 }

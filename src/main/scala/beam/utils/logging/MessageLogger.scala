@@ -1,9 +1,11 @@
 package beam.utils.logging
 
 import akka.actor.FSM.Event
+import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.agents.household.HouseholdActor.MobilityStatusInquiry
 import beam.agentsim.infrastructure.ParkingInquiry
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage}
 import beam.utils.csv.CsvWriter
@@ -54,6 +56,14 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     }
   }
 
+  def extractTriggerId(payload: Any): Long = {
+    payload match {
+      case hasTriggerId: HasTriggerId => hasTriggerId.triggerId
+      case Success(status) if status.isInstanceOf[Long] => status.asInstanceOf[Long]
+      case _ => -9998
+    }
+  }
+
   def writeMessagesToCsv(iterationNumber: Int): Receive = {
     def updateMsgNum(): Unit = {
       msgNum = msgNum + 1
@@ -69,7 +79,8 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
       case BeamMessage(sender, receiver, payload) =>
         val (senderParent, senderName) = userFriendly(sender, payload)
         val (receiverParent, receiverName) = userFriendly(receiver, payload)
-        csvWriter.write("message", senderParent, senderName, receiverParent, receiverName, payload, "", "", "")
+        val triggerId: Long = extractTriggerId(payload)
+        csvWriter.write("message", senderParent, senderName, receiverParent, receiverName, payload, "", "", triggerId)
         updateMsgNum()
       case BeamFSMMessage(sender, actor, event, tick, triggerId) =>
         val (senderParent, senderName) = userFriendly(sender, event.event)
@@ -141,7 +152,14 @@ object MessageLogger {
 
   case class BeamMessage(sender: ActorRef, receiver: ActorRef, payload: Any)
   case class BeamFSMMessage(sender: ActorRef, actor: ActorRef, event: Event[_], tick: Int, triggerId: Long)
-  case class BeamStateTransition[S](sender: ActorRef, actor: ActorRef, prevState: S, newState: S, tick: Int, triggerId: Long)
+  case class BeamStateTransition[S](
+    sender: ActorRef,
+    actor: ActorRef,
+    prevState: S,
+    newState: S,
+    tick: Int,
+    triggerId: Long
+  )
 
   def props(controllerIO: OutputDirectoryHierarchy): Props = Props(new MessageLogger(controllerIO))
 }

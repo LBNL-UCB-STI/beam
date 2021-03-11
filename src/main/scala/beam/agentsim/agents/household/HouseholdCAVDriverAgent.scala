@@ -45,7 +45,7 @@ class HouseholdCAVDriverAgent(
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
-    case Event(ModifyPassengerSchedule(_, _, _), _) =>
+    case Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       stay()
     case Event(Finish, _) =>
@@ -76,7 +76,7 @@ class HouseholdCAVDriverAgent(
       )
   }
   when(Idle) {
-    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
+    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, triggerId, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
@@ -102,7 +102,7 @@ class HouseholdCAVDriverAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle)

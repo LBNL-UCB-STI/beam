@@ -54,7 +54,7 @@ class Population(
   override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
-      sharedVehicleFleets.foreach(_ ! GetVehicleTypes())
+      sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
       context.become(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
   }
 
@@ -62,7 +62,7 @@ class Population(
     if (responsesLeft <= 0) {
       finishInitialization(triggerId, vehicleTypes)
     } else {
-      case VehicleTypesResponse(sharedVehicleTypes) =>
+      case VehicleTypesResponse(sharedVehicleTypes, _) =>
         context.become(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
     }
   }

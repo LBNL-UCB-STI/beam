@@ -154,7 +154,7 @@ trait ChoosesMode {
             _,
             _,
             ) =>
-          self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
+          self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerId.getOrElse(-1111))
         // Only need to get available street vehicles if our mode requires such a vehicle
         case ChoosesModeData(
             BasePersonData(
@@ -200,7 +200,7 @@ trait ChoosesMode {
           ) pipeTo self
         // Otherwise, send empty list to self
         case _ =>
-          self ! MobilityStatusResponse(Vector())
+          self ! MobilityStatusResponse(Vector(), getCurrentTriggerId.getOrElse(-1111))
       }
   }
 
@@ -216,7 +216,8 @@ trait ChoosesMode {
           _ ? MobilityStatusInquiry(
             id,
             location,
-            activity
+            activity,
+            getCurrentTriggerId.getOrElse(-1111)
           )
         )
       )
@@ -225,17 +226,18 @@ trait ChoosesMode {
           MobilityStatusResponse(
             listOfResponses
               .collect {
-                case MobilityStatusResponse(vehicles) =>
+                case MobilityStatusResponse(vehicles, triggerId) =>
                   vehicles
               }
               .flatten
-              .toVector
+              .toVector,
+            getCurrentTriggerId.getOrElse(-1111)
         )
       )
   }
 
   when(ChoosingMode)(stateFunction = transform {
-    case Event(MobilityStatusResponse(newlyAvailableBeamVehicles), choosesModeData: ChoosesModeData) =>
+    case Event(MobilityStatusResponse(newlyAvailableBeamVehicles, triggerId), choosesModeData: ChoosesModeData) =>
       beamVehicles ++= newlyAvailableBeamVehicles.map(v => v.id -> v)
       val currentPersonLocation = choosesModeData.currentLocation
       val availableModes: Seq[BeamMode] = availableModesForPerson(
@@ -293,6 +295,7 @@ trait ChoosesMode {
           Some(attributes),
           streetVehiclesIntermodalUse,
           possibleEgressVehicles = possibleEgressVehicles,
+          triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
       }
 
@@ -302,7 +305,8 @@ trait ChoosesMode {
           bodyVehiclePersonId,
           currentPersonLocation.loc,
           departTime,
-          nextAct.getCoord
+          nextAct.getCoord,
+          triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
@@ -320,7 +324,8 @@ trait ChoosesMode {
           withTransit = true,
           Some(id),
           Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
-          streetVehiclesUseIntermodalUse = AccessAndEgress
+          streetVehiclesUseIntermodalUse = AccessAndEgress,
+          triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
         router ! theRequest
         Some(theRequest.requestId)
@@ -397,7 +402,8 @@ trait ChoosesMode {
                     mode,
                     beamServices,
                     choosesModeData.currentLocation.loc,
-                    nextAct.getCoord
+                    nextAct.getCoord,
+                    triggerId
                   )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
                 case _ =>
@@ -483,7 +489,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.routingRequestToLegMap.contains(requestId) =>
       //handling router responses for shared vehicles
@@ -528,7 +534,7 @@ trait ChoosesMode {
         )
 
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -718,7 +724,8 @@ trait ChoosesMode {
                 None,
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
-                reserveStall = false
+                reserveStall = false,
+                triggerId = getCurrentTriggerId.getOrElse(-1111)
               ))
             )
       }
@@ -757,6 +764,7 @@ trait ChoosesMode {
               Some(id),
               IndexedSeq(bodyVehicle, beamVehicles(sharedVehicleLeg.beamVehicleId).streetVehicle),
               Some(attributes),
+              triggerId = getCurrentTriggerId.getOrElse(-1111),
             )
             tripMap + (egressRequest -> TripIdentifier(trip))
           case None =>
@@ -853,7 +861,8 @@ trait ChoosesMode {
       bodyVehiclePersonId,
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
       legs.head.startTime,
-      beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc)
+      beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
+      triggerId = getCurrentTriggerId.getOrElse(-1111),
     )
     //    println(s"requesting: ${inquiry.requestId}")
     rideHailManager ! inquiry
@@ -1376,7 +1385,7 @@ trait ChoosesMode {
             }
           }
           beamVehicles.remove(vehicle.id)
-          vehicle.getManager.get ! ReleaseVehicle(vehicle)
+          vehicle.getManager.get ! ReleaseVehicle(vehicle, getCurrentTriggerId.getOrElse(-1111))
       }
       scheduler ! CompletionNotice(
         triggerId,
