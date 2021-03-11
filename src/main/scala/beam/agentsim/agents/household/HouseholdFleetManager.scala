@@ -18,18 +18,25 @@ import beam.agentsim.agents.household.HouseholdActor.{
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
-    extends Actor
+class HouseholdFleetManager(
+  parkingManager: ActorRef,
+  eventsManager: EventsManager,
+  beamServices: BeamServices,
+  vehicles: Map[Id[BeamVehicle], BeamVehicle],
+  homeCoord: Coord
+) extends Actor
     with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
@@ -48,6 +55,14 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           veh.setMustBeDrivenHome(true)
           veh.useParkingStall(resp.stall)
+          val parkEvent = ParkingEvent(
+            time = 0,
+            stall = resp.stall,
+            locationWGS = beamServices.geo.utm2Wgs(resp.stall.locationUTM),
+            vehicleId = id,
+            driverId = "None"
+          )
+          eventsManager.processEvent(parkEvent)
           self ! ReleaseVehicleAndReply(veh)
       }
       triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))

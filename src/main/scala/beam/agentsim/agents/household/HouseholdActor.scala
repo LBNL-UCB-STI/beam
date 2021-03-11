@@ -183,7 +183,10 @@ object HouseholdActor {
         val fleetManagers = vehiclesByCategory.map {
           case (category, vs) =>
             val fleetManager =
-              context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
+              context.actorOf(
+                Props(new HouseholdFleetManager(parkingManager, eventsManager, beamServices, vs, homeCoord)),
+                category.toString
+              )
             context.watch(fleetManager)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
             fleetManager
