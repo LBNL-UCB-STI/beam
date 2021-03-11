@@ -16,7 +16,7 @@ import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.BeamWarmStart.WarmStartConfigProperties
 import beam.sim.config.BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm
-import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
+import beam.utils.{DateUtils, FileUtils, TravelTimeCalculatorHelper}
 import beam.utils.UnzipUtility._
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FilenameUtils.getName
@@ -183,14 +183,6 @@ object BeamWarmStart extends LazyLogging {
 
   def apply(
     beamConfig: BeamConfig,
-    travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = singletonTraveltimeCalculator
-  ): BeamWarmStart = {
-    val maxHour = TimeUnit.SECONDS.toHours(travelTimeCalculatorConfigGroup.getMaxTime).toInt
-    apply(beamConfig, maxHour)
-  }
-
-  def apply(
-    beamConfig: BeamConfig,
     maxHour: Int
   ): BeamWarmStart = {
     if (beamConfig.beam.warmStart.enabled) {
@@ -218,7 +210,7 @@ object BeamWarmStart extends LazyLogging {
     scenario: Scenario
   ): Option[TravelTime] = {
     if (beamConfig.beam.warmStart.enabled) {
-      val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
+      val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
       val travelTime = warm.readTravelTime
       travelTime.foreach { travelTime =>
@@ -253,7 +245,7 @@ object BeamWarmStart extends LazyLogging {
         )
       }
 
-      val instance = BeamWarmStart(beamConfig, matsimConfig.travelTimeCalculator())
+      val instance = BeamWarmStart(beamConfig, DateUtils.getMaxHour(beamConfig))
 
       val newWarmStartConfig: Beam.WarmStart = {
         val skimCfg = beamConfig.beam.router.skim
