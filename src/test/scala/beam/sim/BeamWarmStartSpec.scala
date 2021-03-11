@@ -267,7 +267,7 @@ class BeamWarmStartSpec
       .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
-    BeamWarmStart(BeamConfig(conf))
+    BeamWarmStart(BeamConfig(conf), 30)
   }
 
   "Warmstart" should {
