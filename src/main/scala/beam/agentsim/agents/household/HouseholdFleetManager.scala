@@ -52,7 +52,7 @@ class HouseholdFleetManager(
         case (id, resp) =>
           val veh = vehicles(id)
           veh.setManager(Some(self))
-          veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+          veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
           veh.setMustBeDrivenHome(true)
           veh.useParkingStall(resp.stall)
           val parkEvent = ParkingEvent(
