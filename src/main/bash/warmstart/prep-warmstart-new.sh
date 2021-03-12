@@ -27,7 +27,6 @@ cp "${run_folder}/ITERS/it.${it_number}/${it_number}.skimsOD_Aggregated.csv.gz" 
 cp "${run_folder}/ITERS/it.${it_number}/${it_number}.skimsTAZ_Aggregated.csv.gz" "${output_folder}/ITERS/it.${it_number}"
 cp "${run_folder}/ITERS/it.${it_number}/${it_number}.skimsTransitCrowding_Aggregated.csv.gz" "${output_folder}/ITERS/it.${it_number}"
 cp "${run_folder}/ITERS/it.${it_number}/${it_number}.linkstats.csv.gz" "${output_folder}/ITERS/it.${it_number}"
-cp "${run_folder}/ITERS/it.${it_number}/${it_number}.routeHistory.csv.gz" "${output_folder}/ITERS/it.${it_number}"
 
 echo "Copied needed files from ${run_folder}/ITERS/it.${it_number} to ${output_folder}/ITERS/it.${it_number}"
 
