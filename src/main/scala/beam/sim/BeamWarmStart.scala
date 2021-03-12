@@ -2,7 +2,6 @@ package beam.sim
 
 import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.TimeUnit
 import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.Try
@@ -10,11 +9,13 @@ import scala.util.control.NonFatal
 import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
+import beam.router.skim.Skims
 import beam.router.skim.Skims.SkimType
 import beam.router.skim.core.AbstractSkimmer
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.BeamWarmStart.WarmStartConfigProperties
+import beam.sim.config.BeamConfig.Beam.Router
 import beam.sim.config.BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm
 import beam.utils.{DateUtils, FileUtils, TravelTimeCalculatorHelper}
 import beam.utils.UnzipUtility._
@@ -23,6 +24,7 @@ import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
 
 class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends LazyLogging {
@@ -249,22 +251,16 @@ object BeamWarmStart extends LazyLogging {
 
       val newWarmStartConfig: Beam.WarmStart = {
         val skimCfg = beamConfig.beam.router.skim
-        val skimFileNames = List(
-          SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
-          SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
-          SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
-          SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
-        )
 
-        val newSkimsFilePath: List[SkimsFilePaths$Elm] = skimFileNames.map {
+        val newSkimsFilePath: IndexedSeq[SkimsFilePaths$Elm] = Skims.skimFileNames(skimCfg).map {
           case (skimType, fileName) =>
-            val filePath = Try(instance.compressedLocation("Skims file", fileName + AbstractSkimmer.AGG_SUFFIX))
+            val filePath = Try(instance.compressedLocation("Skims file", fileName))
               .getOrElse(instance.parentRunPath)
             SkimsFilePaths$Elm(skimType.toString, filePath)
         }
 
         beamConfig.beam.warmStart.copy(
-          skimsFilePaths = Some(newSkimsFilePath),
+          skimsFilePaths = Some(newSkimsFilePath.toList),
         )
       }
 
@@ -339,6 +335,46 @@ object BeamWarmStart extends LazyLogging {
     } catch {
       case NonFatal(exception: Exception) =>
         logger.info(s"Parts of population/housholds/vehicles could not be loaded ${exception.getMessage}")
+        None
+    }
+  }
+
+  def prepareWarmStartArchive(
+    beamConfig: BeamConfig,
+    controllerIO: OutputDirectoryHierarchy,
+    firstIteration: Int,
+    lastIteration: Int
+  ): Option[String] = {
+    val actualLastIteration = (firstIteration to lastIteration).reverse
+      .map(i => i -> org.apache.commons.io.FileUtils.getFile(new File(controllerIO.getIterationPath(i))))
+      .find { case (_, file) => file.isDirectory }
+    actualLastIteration match {
+      case Some((iteration, dir)) =>
+        logger.info(s"Using $dir to prepare warmstart archive")
+        val skimCfg = beamConfig.beam.router.skim
+        val skimFileNames = Skims
+          .skimAggregatedFileNames(skimCfg)
+          .map { case (_, name) => name }
+          .map(name => name -> controllerIO.getIterationFilename(iteration, name))
+        val skimFiles = skimFileNames.map {
+          case (name, pathStr) => s"ITERS/it.$iteration/$name" -> Paths.get(pathStr)
+        }
+        val rootFiles = IndexedSeq(
+          "output_personAttributes.xml.gz",
+          "population.csv.gz",
+          "households.csv.gz",
+          "vehicles.csv.gz",
+        ).map(name => name -> Paths.get(controllerIO.getOutputFilename(name)))
+        val iterationFiles = IndexedSeq(
+          "linkstats.csv.gz",
+          "plans.csv.gz",
+          "plans.xml.gz",
+          "rideHailFleet.csv.gz",
+        ).map(name => s"ITERS/it.$iteration/$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name)))
+        val files = rootFiles ++ skimFiles ++ iterationFiles
+        Some(FileUtils.zipFiles(controllerIO.getOutputFilename("warmstart_data.zip"), files))
+      case None =>
+        logger.warn("No iteration to prepare warmstart")
         None
     }
   }
