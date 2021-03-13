@@ -235,13 +235,13 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-        val isValidVehicleManager = inquiry.beamVehicle.forall(
-          vehicle =>
-            (vehicle.managerId == zone.vehicleManagerId) || (vehicle.managerId == VehicleManager.privateVehicleManager.managerId && vehicleManagers(
-              vehicle.managerId
-            ).managerType
-              .in(Seq(VehicleManagerType.Ridehail, VehicleManagerType.Carsharing)))
-        )
+        val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
+          val isSameVehicleManager = vehicle.managerId == zone.vehicleManagerId
+          val privateVehicleManagerChargerAcceptRidehailAndCarsharing = zone.vehicleManagerId == VehicleManager.privateVehicleManager.managerId &&
+          vehicleManagers(vehicle.managerId).managerType
+            .in(Seq(VehicleManagerType.Ridehail, VehicleManagerType.Carsharing))
+          isSameVehicleManager || privateVehicleManagerChargerAcceptRidehailAndCarsharing
+        }
 
         val validChargingCapability = inquiry.beamVehicle.forall(
           vehicle =>
