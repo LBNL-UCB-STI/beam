@@ -30,13 +30,14 @@ object ParquetRequester extends BeamHelper with LazyLogging {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
     val requester = new CchRouteRequester(workerParams, new FreeFlowTravelTime)
+//    val requester = new CchRouteRequester(workerParams, new LinkStatsTravelTime("/home/crixal/work/tmp/parquet/sf-light/0.linkstats.csv.gz", workerParams))
 
     val portionSize = 500000
     val counter = new AtomicInteger(0)
     val totalCounter = new AtomicInteger(0)
     var i = 0
     do {
-      val requests = getRequests(i * portionSize, portionSize, "/home/crixal/Downloads/0.routingRequest.parquet")
+      val requests = getRequests(i * portionSize, portionSize, "/home/crixal/work/tmp/parquet/sf-light/0.routingRequest.parquet")
       counter.set(requests.length)
       if (counter.get() != 0) {
         requests

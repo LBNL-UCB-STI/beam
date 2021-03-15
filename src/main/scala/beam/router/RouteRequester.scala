@@ -4,14 +4,20 @@ import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.cch.CchWrapper
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{CarWeightCalculator, R5Parameters, R5Wrapper}
+import beam.utils.FileUtils
 import com.conveyal.osmlib.OSM
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.utils.io.IOUtils
 import org.matsim.core.utils.misc.Time
+import org.matsim.vehicles.Vehicle
 
 import java.io.File
 import java.nio.file.Paths
 import java.util.concurrent.{ExecutorService, Executors}
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.io.Directory
@@ -128,5 +134,22 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
     }
 
     Await.result(Future.sequence(futures)(implicitly, executionContext), 20.minutes).toMap
+  }
+}
+
+class LinkStatsTravelTime(filePath: String, workerParams: R5Parameters) extends TravelTime {
+  private val linkHourToTime: mutable.Map[(String, Double), Double] = new mutable.HashMap[(String, Double), Double]()
+
+  FileUtils.using(IOUtils.getBufferedReader(filePath)) { br =>
+    br.lines()
+      .skip(1)
+      .forEach{ line =>
+        val parts = line.split(",")
+        linkHourToTime.put(parts(0) -> parts(3).toDouble, parts(9).toDouble)
+      }
+  }
+
+  override def getLinkTravelTime(link: Link, time: Double, person: Person, vehicle: Vehicle): Double = {
+      linkHourToTime(link.getId.toString -> time / workerParams.beamConfig.beam.agentsim.timeBinSize)
   }
 }
