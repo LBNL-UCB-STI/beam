@@ -136,7 +136,8 @@ class BeamMobsim @Inject()(
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities
+        && !beamConfig.beam.warmStart.enabled) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(matsimServices.getScenario.getHouseholds)
     }
