@@ -248,7 +248,7 @@ object BeamWarmStart extends LazyLogging {
       val newWarmStartConfig: Beam.WarmStart = {
         val skimCfg = beamConfig.beam.router.skim
 
-        val newSkimsFilePath: IndexedSeq[SkimsFilePaths$Elm] = Skims.skimFileNames(skimCfg).map {
+        val newSkimsFilePath: IndexedSeq[SkimsFilePaths$Elm] = Skims.skimAggregatedFileNames(skimCfg).map {
           case (skimType, fileName) =>
             val filePath = Try(instance.compressedLocation("Skims file", fileName))
               .getOrElse(instance.parentRunPath)
@@ -353,7 +353,7 @@ object BeamWarmStart extends LazyLogging {
           .map { case (_, name) => name }
           .map(name => name -> controllerIO.getIterationFilename(iteration, name))
         val skimFiles = skimFileNames.map {
-          case (name, pathStr) => s"ITERS/it.$iteration/$name" -> Paths.get(pathStr)
+          case (name, pathStr) => s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(pathStr)
         }
         val rootFiles = IndexedSeq(
           "output_personAttributes.xml.gz",
@@ -366,7 +366,10 @@ object BeamWarmStart extends LazyLogging {
           "plans.csv.gz",
           "plans.xml.gz",
           "rideHailFleet.csv.gz",
-        ).map(name => s"ITERS/it.$iteration/$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name)))
+        ).map(
+          name =>
+            s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
+        )
         val files = rootFiles ++ skimFiles ++ iterationFiles
         Some(FileUtils.zipFiles(controllerIO.getOutputFilename("warmstart_data.zip"), files))
       case None =>
