@@ -10,7 +10,8 @@ import org.matsim.api.core.v01.Coord
 class RouteResolverTAZ(val ghLocation: String) extends LazyLogging {
   private val gh: GraphHopper = {
     ProfilingUtils.timed("Initialize GraphHopper", x => logger.info(x)) {
-      val fastestCarProfile = new Profile("fastest_car")
+      // Name of the profile should match the one in `config-example.yml`, section `profiles`
+      val fastestCarProfile = new Profile("car")
       fastestCarProfile.setVehicle("car")
       fastestCarProfile.setWeighting("fastest")
       fastestCarProfile.setTurnCosts(false)
