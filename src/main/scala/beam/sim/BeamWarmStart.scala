@@ -187,22 +187,18 @@ object BeamWarmStart extends LazyLogging {
     beamConfig: BeamConfig,
     maxHour: Int
   ): BeamWarmStart = {
-    if (beamConfig.beam.warmStart.enabled) {
-      val warmConfig = buildWarmConfig(beamConfig, maxHour)
-      instances.getOrElseUpdate(
-        warmConfig, {
-          val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
-          if (instances.isEmpty) {
-            logger.info(msg)
-          } else {
-            logger.warn(msg)
-          }
-          new BeamWarmStart(warmConfig)
+    val warmConfig = buildWarmConfig(beamConfig, maxHour)
+    instances.getOrElseUpdate(
+      warmConfig, {
+        val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
+        if (instances.isEmpty) {
+          logger.info(msg)
+        } else {
+          logger.warn(msg)
         }
-      )
-    } else {
-      throw new IllegalArgumentException("BeamWarmStart cannot be initialized since warmstart is disabled")
-    }
+        new BeamWarmStart(warmConfig)
+      }
+    )
   }
 
   def warmStartTravelTime(
@@ -211,7 +207,7 @@ object BeamWarmStart extends LazyLogging {
     beamRouter: ActorRef,
     scenario: Scenario
   ): Option[TravelTime] = {
-    if (beamConfig.beam.warmStart.enabled) {
+    if (beamConfig.beam.warmStart.enabled || beamConfig.beam.warmStart.linkStatsOnlyEnabled) {
       val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
       val travelTime = warm.readTravelTime
@@ -238,7 +234,7 @@ object BeamWarmStart extends LazyLogging {
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     val beamConfig = beamExecutionConfig.beamConfig
 
-    if (beamConfig.beam.warmStart.enabled && !beamConfig.beam.warmStart.linkStatsOnlyEnabled) {
+    if (beamConfig.beam.warmStart.enabled) {
       val matsimConfig = beamExecutionConfig.matsimConfig
 
       if (beamConfig.beam.router.skim.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
