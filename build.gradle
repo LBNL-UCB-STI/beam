@@ -282,8 +282,6 @@ dependencies {
 
     compile group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
-    compile group: 'com.graphhopper', name: 'graphhopper-core', version: '1.0-pre39'
-
     def parquet = "1.10.0"
     compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
     compile group: 'org.apache.parquet', name: 'parquet-avro', version: parquet

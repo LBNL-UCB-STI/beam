@@ -1,7 +1,7 @@
 package beam.utils.analysis.geotype_spatial_sequencing
 
 import beam.utils.ProfilingUtils
-import com.graphhopper.config.{CHProfileConfig, ProfileConfig}
+import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.util.shapes.GHPoint
 import com.graphhopper.{GHRequest, GHResponse, GraphHopper}
 import com.typesafe.scalalogging.LazyLogging
@@ -10,10 +10,14 @@ import org.matsim.api.core.v01.Coord
 class RouteResolverTAZ(val ghLocation: String) extends LazyLogging {
   private val gh: GraphHopper = {
     ProfilingUtils.timed("Initialize GraphHopper", x => logger.info(x)) {
+      val fastestCarProfile = new Profile("fastest_car")
+      fastestCarProfile.setVehicle("car")
+      fastestCarProfile.setWeighting("fastest")
+      fastestCarProfile.setTurnCosts(false)
       val tempGh = new GraphHopper()
       tempGh.setGraphHopperLocation(ghLocation)
-      tempGh.setProfiles(new ProfileConfig("car"))
-      tempGh.getCHPreparationHandler.setCHProfileConfigs(new CHProfileConfig("car"))
+      tempGh.setProfiles(fastestCarProfile)
+      tempGh.getCHPreparationHandler.setCHProfiles(new CHProfile(fastestCarProfile.getName))
       tempGh.importOrLoad()
       tempGh
     }
