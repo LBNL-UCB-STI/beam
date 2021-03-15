@@ -4,7 +4,6 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Path, Paths}
 import java.util.Collections
 import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -31,6 +30,8 @@ import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.watcher.MethodWatcher
 import org.matsim.core.router.util.TravelTime
+
+import scala.util.Try
 //import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
 //import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
@@ -207,7 +208,6 @@ class BeamSim @Inject()(
     )
     initialTravelTime = BeamWarmStart.warmStartTravelTime(
       beamServices.beamConfig,
-      scenario.getConfig.travelTimeCalculator(),
       beamServices.beamRouter,
       scenario
     )
@@ -548,6 +548,18 @@ class BeamSim @Inject()(
       beamOutputDataDescriptionGenerator.generateDescriptors(event)
     }
 
+    if (beamServices.beamConfig.beam.warmStart.prepareData) {
+      Try {
+        BeamWarmStart.prepareWarmStartArchive(
+          beamServices.beamConfig,
+          event.getServices.getControlerIO,
+          firstIteration,
+          lastIteration
+        ) foreach { warmStartArchive =>
+          logger.info(s"Warmstart archive: $warmStartArchive")
+        }
+      }.failed.foreach(throwable => logger.error("Cannot create warmstart archive", throwable))
+    }
     Await.result(actorSystem.terminate(), Duration.Inf)
     logger.info("Actor system shut down")
 

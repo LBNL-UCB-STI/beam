@@ -448,6 +448,32 @@ object FileUtils extends LazyLogging {
     }
   }
 
+  /**
+    * Not recursive (accepts only files)
+    * @param out the output file path
+    * @param files a sequence of pairs zip entry name -> file path
+    */
+  def zipFiles(out: String, files: IndexedSeq[(String, Path)]): String = {
+    import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
+    import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    val existed = files.filter { case (_, path)      => Files.exists(path) && Files.isRegularFile(path) }
+    val notExited = files.filterNot { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
+    notExited.foreach { case (name, _) => logger.error(s"Cannot find $name") }
+
+    using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) { zip =>
+      existed.foreach {
+        case (name, path) =>
+          zip.putNextEntry(new ZipEntry(name))
+          using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
+            IOUtils.copyStream(in, zip)
+          }
+          zip.closeEntry()
+      }
+    }
+    out
+  }
+
   def getStreamFromZipFolder(pathToZip: String, fileName: String): Option[InputStream] = {
     val zipInputStream = new ZipInputStream(Files.newInputStream(new File(pathToZip).toPath))
 

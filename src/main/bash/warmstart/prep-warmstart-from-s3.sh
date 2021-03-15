@@ -42,7 +42,6 @@ copy_from_it_to_it skimsOD_Aggregated.csv.gz
 copy_from_it_to_it skimsTAZ_Aggregated.csv.gz
 copy_from_it_to_it skimsTransitCrowding_Aggregated.csv.gz
 copy_from_it_to_it linkstats.csv.gz
-copy_from_it_to_it routeHistory.csv.gz
 
 zip -r "${warmstart_file}" "${output_folder}"
 aws --region "us-east-2" s3 cp "$warmstart_file" "${s3_dest}"
