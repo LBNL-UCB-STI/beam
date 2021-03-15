@@ -50,7 +50,7 @@ object ODSkimmerTest extends MockitoSugar {
     import scala.collection.JavaConverters._
     val beamConfig = BeamConfig(
       testConfig("test/input/beamville/beam.conf")
-        .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
         .withValue(
           "beam.warmStart.skimsFilePaths",
           ConfigValueFactory.fromIterable(

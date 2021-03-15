@@ -16,7 +16,7 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
       val baseConf = ConfigFactory
         .parseString(s"""
                        |beam.agentsim.lastIteration = 1
-                       |beam.warmStart.enabled = true
+                       |beam.warmStart.type = full
                        |beam.warmStart.path = test/input/sf-light/warmstart
                      """.stripMargin)
         .withFallback(testConfig("test/input/sf-light/sf-light.conf"))

@@ -203,11 +203,10 @@ object BeamWarmStart extends LazyLogging {
 
   def warmStartTravelTime(
     beamConfig: BeamConfig,
-    calculator: TravelTimeCalculatorConfigGroup,
     beamRouter: ActorRef,
     scenario: Scenario
   ): Option[TravelTime] = {
-    if (beamConfig.beam.warmStart.enabled || beamConfig.beam.warmStart.linkStatsOnlyEnabled) {
+    if (BeamWarmStart.isLinkStatsEnabled(beamConfig.beam.warmStart)) {
       val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
       val travelTime = warm.readTravelTime
@@ -234,10 +233,10 @@ object BeamWarmStart extends LazyLogging {
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     val beamConfig = beamExecutionConfig.beamConfig
 
-    if (beamConfig.beam.warmStart.enabled) {
+    if (BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)) {
       val matsimConfig = beamExecutionConfig.matsimConfig
 
-      if (beamConfig.beam.router.skim.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
+      if (beamConfig.beam.router.skim.writeSkimsInterval == 0) {
         logger.warn(
           "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
         )
@@ -378,4 +377,14 @@ object BeamWarmStart extends LazyLogging {
     }
   }
 
+  def isLinkStatsEnabled(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "linkstatsonly" => true
+    case "full"          => true
+    case _               => false
+  }
+
+  def isFullWarmStart(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "full" => true
+    case _      => false
+  }
 }

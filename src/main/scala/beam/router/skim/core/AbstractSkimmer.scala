@@ -95,7 +95,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       .getOrElse(List.empty)
       .find(_.skimType == skimType.toString)
     currentIterationInternal = event.getIteration
-    if (currentIterationInternal == 0 && beamConfig.beam.warmStart.enabled && skimFilePath.isDefined) {
+    if (currentIterationInternal == 0
+        && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
+        && skimFilePath.isDefined) {
       val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
       aggregatedFromPastSkimsInternal = if (file.isFile) {

@@ -3835,12 +3835,11 @@ object BeamConfig {
     }
 
     case class WarmStart(
-      enabled: scala.Boolean,
-      linkStatsOnlyEnabled: scala.Boolean,
       path: java.lang.String,
       prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
-      skimsFilePaths: scala.Option[scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm]]
+      skimsFilePaths: scala.Option[scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm]],
+      `type`: java.lang.String
     )
 
     object WarmStart {
@@ -3861,8 +3860,6 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
-          enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-          linkStatsOnlyEnabled = c.hasPathOrNull("linkStatsOnlyEnabled") && c.getBoolean("linkStatsOnlyEnabled"),
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =
@@ -3870,7 +3867,8 @@ object BeamConfig {
           skimsFilePaths =
             if (c.hasPathOrNull("skimsFilePaths"))
               scala.Some($_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(c.getList("skimsFilePaths")))
-            else None
+            else None,
+          `type` = if (c.hasPathOrNull("type")) c.getString("type") else "disabled"
         )
       }
       private def $_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(

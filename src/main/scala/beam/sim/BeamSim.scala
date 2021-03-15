@@ -208,7 +208,6 @@ class BeamSim @Inject()(
     )
     initialTravelTime = BeamWarmStart.warmStartTravelTime(
       beamServices.beamConfig,
-      scenario.getConfig.travelTimeCalculator(),
       beamServices.beamRouter,
       scenario
     )
