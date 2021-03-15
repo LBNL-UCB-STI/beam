@@ -12,12 +12,12 @@ object TripReader extends LazyLogging {
     }
   }
   private def toTrip(rec: java.util.Map[String, String]): Option[Trip] = {
-    // w_tract,h_tract,S000
-    val maybeOrigin = Option(rec.get("w_tract"))
+    // o_geoid,d_geoid
+    val maybeOrigin = Option(rec.get("o_geoid"))
     maybeOrigin.foreach(checkTractFormat)
-    val maybeDest = Option(rec.get("h_tract"))
+    val maybeDest = Option(rec.get("d_geoid"))
     maybeDest.foreach(checkTractFormat)
-    val maybeTrips = Option(rec.get("S000")).flatMap(maybeNum => Try(maybeNum.toInt).toOption)
+    val maybeTrips = Some(1)
     val trip = for {
       origin <- maybeOrigin
       dest   <- maybeDest
