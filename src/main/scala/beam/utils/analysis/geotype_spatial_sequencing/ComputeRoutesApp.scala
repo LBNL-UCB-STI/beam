@@ -35,7 +35,7 @@ object ComputeRoutesApp extends LazyLogging {
   }
 
   // How to run
-  // ./gradlew execute -PmainClass=beam.utils.analysis.geotype_spatial_sequencing.ComputeRoutesApp -PappArgs="['/home/ubuntu/git/gh/data/tract.csv', '/home/ubuntu/git/gh/data/nhts_tracts_no_id.csv', '/home/ubuntu/git/gh/graph-cache', '/home/ubuntu/git/gh']" -PmaxRAM=4g
+  // ./gradlew execute -PmainClass=beam.utils.analysis.geotype_spatial_sequencing.ComputeRoutesApp -PappArgs="['/home/ubuntu/git/gh/data/tract.csv', '/home/ubuntu/git/gh/data/nhts_tracts_no_id.csv', '/home/ubuntu/git/gh/graph-cache', '/home/ubuntu/git/gh']" -PmaxRAM=100g
   def main(args: Array[String]): Unit = {
     assert(args.size == 4)
     val pathToCencusTrack = args(0) // https://www2.census.gov/geo/docs/reference/cenpop2010/tract/CenPop2010_Mean_TR.txt
