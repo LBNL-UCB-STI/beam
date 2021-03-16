@@ -9,7 +9,7 @@ import com.graphhopper.{GHRequest, GHResponse, GraphHopper}
 import com.typesafe.scalalogging.LazyLogging
 
 class RouteResolver(val ghLocation: String) extends LazyLogging {
-  val withElevation: Boolean = false
+  val withElevation: Boolean = true
 
   private val gh: GraphHopper = {
     ProfilingUtils.timed("Initialize GraphHopper", x => logger.info(x)) {
