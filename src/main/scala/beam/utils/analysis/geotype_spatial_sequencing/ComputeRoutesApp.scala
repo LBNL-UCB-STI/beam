@@ -34,14 +34,14 @@ object ComputeRoutesApp extends LazyLogging {
     }
   }
 
+  // How to run
+  // ./gradlew execute -PmainClass=beam.utils.analysis.geotype_spatial_sequencing.ComputeRoutesApp -PappArgs="['/home/ubuntu/git/gh/data/tract.csv', '/home/ubuntu/git/gh/data/nhts_tracts_no_id.csv', '/home/ubuntu/git/gh/graph-cache', '/home/ubuntu/git/gh']" -PmaxRAM=4g
   def main(args: Array[String]): Unit = {
     assert(args.size == 4)
-    val pathToCencusTrack = args(0)
-    val pathToOd = args(1)
+    val pathToCencusTrack = args(0) // https://www2.census.gov/geo/docs/reference/cenpop2010/tract/CenPop2010_Mean_TR.txt
+    val pathToOd = args(1)          // https://beam-outputs.s3.us-east-2.amazonaws.com/output/nhts_tracts_no_id.csv.gz
     val pathToGh = args(2)
     val tempOutputPath = args(3)
-
-
 
     val tripsFuture = Future {
       ProfilingUtils.timed("Read the trips", x => logger.info(x)) {
