@@ -11,11 +11,16 @@ object TripReader extends LazyLogging {
       logger.warn(s"Expecting to have a tract with length 11, something might be wrong!")
     }
   }
+
+  private def withLeftPadding(id: String): String = {
+    "%011d".format(id.toLong)
+  }
+
   private def toTrip(rec: java.util.Map[String, String]): Option[Trip] = {
     // o_geoid,d_geoid
-    val maybeOrigin = Option(rec.get("o_geoid"))
+    val maybeOrigin = Option(rec.get("o_geoid")).map(withLeftPadding)
     maybeOrigin.foreach(checkTractFormat)
-    val maybeDest = Option(rec.get("d_geoid"))
+    val maybeDest = Option(rec.get("d_geoid")).map(withLeftPadding)
     maybeDest.foreach(checkTractFormat)
     val maybeTrips = Some(1)
     val trip = for {
