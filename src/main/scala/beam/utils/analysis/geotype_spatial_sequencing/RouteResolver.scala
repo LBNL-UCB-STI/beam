@@ -32,6 +32,7 @@ class RouteResolver(val ghLocation: String) extends LazyLogging {
     val request: GHRequest =
       new GHRequest(new GHPoint(origin.latitude, origin.longitude), new GHPoint(dest.latitude, dest.longitude))
     request
+      .setProfile("car")
       .setAlgorithm("")
       .setLocale("en")
       .setPointHints(java.util.Collections.emptyList())

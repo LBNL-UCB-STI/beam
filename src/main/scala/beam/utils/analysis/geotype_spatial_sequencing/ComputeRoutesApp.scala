@@ -214,6 +214,7 @@ object ComputeRoutesApp extends LazyLogging {
     if (originCensusTrack.nonEmpty && destCensusTrack.nonEmpty) {
       val resp = routeResolver.route(originCensusTrack.get, destCensusTrack.get)
       if (resp.hasErrors || resp.getAll.size() == 0) {
+        resp.getErrors.forEach(error => logger.error(s"error for ${originCensusTrack} and ${destCensusTrack}: ${error.getMessage}", error))
         None
       } else {
         val finalPoint = resp.getAll.asScala.reduce((p1, p2) => if (p1.getPoints.size > p2.getPoints.size()) p1 else p2)
