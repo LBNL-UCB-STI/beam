@@ -86,7 +86,8 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
           processWaitingLine(tick, chargingVehicle.chargingStation)
         }
       case _ =>
-        throw new RuntimeException(s"Vehicle ${chargingVehicle.vehicle} doesn't have a stall!")
+        logger.error(s"Vehicle ${chargingVehicle.vehicle} doesn't have a stall!")
+        None
     }
   }
 
