@@ -9,15 +9,19 @@ import com.graphhopper.{GHRequest, GHResponse, GraphHopper}
 import com.typesafe.scalalogging.LazyLogging
 
 class RouteResolver(val ghLocation: String) extends LazyLogging {
+  val withElevation: Boolean = false
+
   private val gh: GraphHopper = {
     ProfilingUtils.timed("Initialize GraphHopper", x => logger.info(x)) {
       val tempGh = new GraphHopper()
-      val elevationTempFolder = new File(ghLocation + "/elevation_provider")
-      if (!elevationTempFolder.exists()) {
-        elevationTempFolder.mkdir()
-        logger.info(s"elevationTempFolder does not exist, created it on path: ${elevationTempFolder.getAbsolutePath}")
+      if (withElevation) {
+        val elevationTempFolder = new File(ghLocation + "/elevation_provider")
+        if (!elevationTempFolder.exists()) {
+          elevationTempFolder.mkdir()
+          logger.info(s"elevationTempFolder does not exist, created it on path: ${elevationTempFolder.getAbsolutePath}")
+        }
+        tempGh.setElevationProvider(new MultiSourceElevationProvider(elevationTempFolder.getAbsolutePath))
       }
-      tempGh.setElevationProvider(new MultiSourceElevationProvider(elevationTempFolder.getAbsolutePath))
       tempGh.setGraphHopperLocation(ghLocation)
       tempGh.importOrLoad()
       tempGh
@@ -35,7 +39,7 @@ class RouteResolver(val ghLocation: String) extends LazyLogging {
       .putObject("calc_points", true)
       .putObject("instructions", true)
       .putObject("way_point_max_distance", 1)
-      .putObject("elevation", "true")
+      .putObject("elevation", withElevation.toString)
      gh.route(request)
   }
 }
