@@ -203,7 +203,7 @@ def add_csloads_to_dssfiles(station_bus_pairs, bus_dict, bus_taz_dists):
         cs_load_bus = f"bus_{station_id}"
         # bus_load_file = str(bus_coords_file).replace("Buscoords", "Loads")
         charging_station_file = str(bus_coords_file).replace("Buscoords", "EV_ChargingStations")
-        bus_master_file = str(bus_coords_file).replace("Master.dss")
+        bus_master_file = str(bus_coords_file).replace("Buscoords", "Master")
         with open(bus_master_file, 'r') as master_file:
             master_lines = master_file.readlines()
         redirect_line = 'Redirect EV_ChargingStations.dss'
@@ -278,7 +278,7 @@ def add_load_subscriptions(station_bus_pairs, station_dict, subs_active=True):
 
 def create_load_points(subs_active):
     taz_ids, taz_dict, n_taz = get_station_locations()
-    taz_dict = get_station_info(taz_dict)
+    taz_dict = get_station_info(taz_dict, 'cs_data/gemini_depot_parking_power_150kw.csv')
     print('charging station information loaded')
     bus_dict, buscoords, busnames = get_dist_bus_info()
     print('available buses found')
