@@ -1,8 +1,8 @@
 package beam.utils.analysis.geotype_spatial_sequencing
 
 import java.io.File
-
 import beam.utils.ProfilingUtils
+import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.dem.MultiSourceElevationProvider
 import com.graphhopper.util.shapes.GHPoint
 import com.graphhopper.{GHRequest, GHResponse, GraphHopper}
@@ -22,6 +22,13 @@ class RouteResolver(val ghLocation: String) extends LazyLogging {
         }
         tempGh.setElevationProvider(new MultiSourceElevationProvider(elevationTempFolder.getAbsolutePath))
       }
+      // Name of the profile should match the one in `config-example.yml`, section `profiles`
+      val fastestCarProfile = new Profile("car")
+      fastestCarProfile.setVehicle("car")
+      fastestCarProfile.setWeighting("fastest")
+      fastestCarProfile.setTurnCosts(false)
+      tempGh.setProfiles(fastestCarProfile)
+      tempGh.getCHPreparationHandler.setCHProfiles(new CHProfile(fastestCarProfile.getName))
       tempGh.setGraphHopperLocation(ghLocation)
       tempGh.importOrLoad()
       tempGh
