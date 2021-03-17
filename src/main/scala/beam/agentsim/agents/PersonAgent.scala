@@ -36,7 +36,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
-import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessagePublisher}
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
@@ -260,7 +260,8 @@ class PersonAgent(
     with ChoosesMode
     with ChoosesParking
     with Stash
-    with ExponentialLazyLogging {
+    with ExponentialLazyLogging
+    with LoggingMessagePublisher {
 
   override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
 

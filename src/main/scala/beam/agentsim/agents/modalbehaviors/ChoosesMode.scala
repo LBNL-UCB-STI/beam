@@ -210,30 +210,34 @@ trait ChoosesMode {
     activity: Activity
   ): Future[MobilityStatusResponse] = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
+    val inquiry = MobilityStatusInquiry(
+      id,
+      location,
+      activity,
+      getCurrentTriggerId.getOrElse(-1111)
+    )
     Future
       .sequence(
-        vehicleFleets.map(
-          _ ? MobilityStatusInquiry(
-            id,
-            location,
-            activity,
-            getCurrentTriggerId.getOrElse(-1111)
-          )
-        )
+        vehicleFleets.map { fleet =>
+          publishMessageFromTo(inquiry, self, fleet)
+          (fleet ? inquiry).mapTo[MobilityStatusResponse].map(rsp => (rsp, fleet))
+        }
       )
-      .map(
-        listOfResponses =>
-          MobilityStatusResponse(
-            listOfResponses
-              .collect {
-                case MobilityStatusResponse(vehicles, triggerId) =>
-                  vehicles
-              }
-              .flatten
-              .toVector,
-            getCurrentTriggerId.getOrElse(-1111)
+      .map { listOfResponses =>
+        listOfResponses.foreach { case (rsp, fleet) =>
+          publishMessageFromTo(rsp, fleet, self)
+        }
+        MobilityStatusResponse(
+          listOfResponses
+            .collect {
+              case (MobilityStatusResponse(vehicles, _), _) =>
+                vehicles
+            }
+            .flatten
+            .toVector,
+          getCurrentTriggerId.getOrElse(-1111)
         )
-      )
+      }
   }
 
   when(ChoosingMode)(stateFunction = transform {

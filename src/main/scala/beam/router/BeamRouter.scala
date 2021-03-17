@@ -33,7 +33,7 @@ import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.logging.LoggingMessage
+import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.StreetMode
@@ -69,7 +69,7 @@ class BeamRouter(
 ) extends Actor
     with Stash
     with ActorLogging
-    with LoggingMessage {
+    with LoggingMessagePublisher {
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)

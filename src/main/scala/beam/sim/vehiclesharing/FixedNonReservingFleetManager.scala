@@ -72,7 +72,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
   private val availableVehiclesIndex = new Quadtree
 
-  override def loggedReceive: Receive = super[RepositionManager].receive orElse { // Reposition
+  override def loggedReceive: Receive = super[RepositionManager].loggedReceive orElse { // Reposition
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.

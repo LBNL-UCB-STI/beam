@@ -1,17 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  BeamLoggingReceive,
-  Cancellable,
-  OneForOneStrategy,
-  Props,
-  Stash,
-  Terminated
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
 import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.Resource._
@@ -26,11 +16,7 @@ import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling
 import beam.agentsim.agents.ridehail.allocation.{DispatchProductType, _}
 import beam.agentsim.agents.ridehail.charging.VehicleChargingManager
 import beam.agentsim.agents.ridehail.kpis.RealTimeKpis
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -53,7 +39,7 @@ import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.utils._
-import beam.utils.logging.{LogActorState, LoggingMessageActor}
+import beam.utils.logging.{LogActorState, LoggingMessageActor, LoggingMessagePublisher}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -140,8 +126,10 @@ object RideHailManager {
 
   case class RoutingResponses(
     tick: Int,
-    routingResponses: Seq[RoutingResponse]
-  )
+    routingResponses: Seq[RoutingResponse],
+  ) extends HasTriggerId {
+    override def triggerId: Long = routingResponses.head.triggerId
+  }
 
   case class PoolingInfo(timeFactor: Double, costFactor: Double)
 
@@ -246,7 +234,8 @@ class RideHailManager(
 ) extends Actor
     with ActorLogging
     with Stash
-    with LoggingMessageActor {
+    with LoggingMessageActor
+    with LoggingMessagePublisher {
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =
@@ -1194,17 +1183,23 @@ class RideHailManager(
     Future
       .sequence(
         routeOrEmbodyReqs.map(
-          req =>
+          req => {
+            val request = if (req.routeReq.isDefined) {
+              req.routeReq.get
+            } else {
+              req.embodyReq.get
+            }
+            publishMessageFromTo(request, self, router)
             akka.pattern
-              .ask(router, if (req.routeReq.isDefined) {
-                req.routeReq.get
-              } else {
-                req.embodyReq.get
-              })
+              .ask(router, request)
               .mapTo[RoutingResponse]
+          }
         )
       )
-      .map(RoutingResponses(tick, _)) pipeTo self
+      .map { responses =>
+          responses.foreach(rsp => publishMessageFromTo(rsp, router, self))
+          RoutingResponses(tick, responses)
+      } pipeTo self
   }
 
   private def handleReservation(request: RideHailRequest, tick: Int, travelProposal: TravelProposal): Unit = {

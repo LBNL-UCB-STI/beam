@@ -13,11 +13,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
@@ -34,7 +30,7 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.{LoggingMessageActor, LoggingMessagePublisher}
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -152,7 +148,8 @@ object HouseholdActor {
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging
-      with LoggingMessageActor {
+      with LoggingMessageActor
+    with LoggingMessagePublisher {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
 
@@ -274,13 +271,23 @@ object HouseholdActor {
             Future
               .sequence(
                 routingRequests.map(
-                  req =>
+                  req => {
+                    val request = if (req.routeReq.isDefined) {
+                      req.routeReq.get
+                    } else {
+                      req.embodyReq.get
+                    }
+                    publishMessageFromTo(request, self, router)
                     akka.pattern
-                      .ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get })
+                      .ask(router, request)
                       .mapTo[RoutingResponse]
+                  }
                 )
               )
-              .map(RoutingResponses(tick, _)) pipeTo self
+              .map { responses =>
+                responses.foreach(rsp => publishMessageFromTo(rsp, router, self))
+                RoutingResponses(tick, responses)
+              } pipeTo self
           }
         }
         household.members.foreach { person =>

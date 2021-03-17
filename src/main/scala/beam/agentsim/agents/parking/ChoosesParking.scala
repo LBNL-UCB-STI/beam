@@ -185,10 +185,10 @@ trait ChoosesParking extends {
           Some(attributes),
           triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
+        publishMessageFromTo(veh2StallRequest, self, router)
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
-        // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
-        val futureStall2DestinationResponse = router ? RoutingRequest(
+        val walkingRoute = RoutingRequest(
           stall.locationUTM,
           beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
@@ -207,11 +207,18 @@ trait ChoosesParking extends {
           Some(attributes),
           triggerId = getCurrentTriggerId.getOrElse(-1111),
         )
+        // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
+        publishMessageFromTo(walkingRoute, self, router)
+        val futureStall2DestinationResponse = router ? walkingRoute
 
         val responses = for {
           vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
           stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
-        } yield (vehicle2StallResponse, stall2DestinationResponse)
+        } yield {
+          publishMessageFromTo(vehicle2StallResponse, router, self)
+          publishMessageFromTo(stall2DestinationResponse, router, self)
+          (vehicle2StallResponse, stall2DestinationResponse)
+        }
 
         responses pipeTo self
         stay using data

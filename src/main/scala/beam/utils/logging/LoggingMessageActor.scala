@@ -1,6 +1,6 @@
 package beam.utils.logging
 
-import akka.actor.{Actor, ActorContext}
+import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.actor.Actor.Receive
 import beam.utils.logging.MessageLogger.BeamMessage
 
@@ -16,11 +16,16 @@ trait LoggingMessageActor extends Actor {
 
 }
 
-trait LoggingMessage extends Actor {
+trait LoggingMessagePublisher extends Actor {
 
   def publishMessage(msg: Any): Unit =
     if (context.system.settings.AddLoggingReceive) {
       context.system.eventStream.publish(BeamMessage(context.sender(), context.self, msg))
+    }
+
+  def publishMessageFromTo(msg: Any, sender: ActorRef, receiver: ActorRef): Unit =
+    if (context.system.settings.AddLoggingReceive) {
+      context.system.eventStream.publish(BeamMessage(sender, receiver, msg))
     }
 
 }
