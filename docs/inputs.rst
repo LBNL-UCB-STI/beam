@@ -161,7 +161,8 @@ Warm Mode
    ##################################################################
    # Warm Mode
    ##################################################################
-   beam.warmStart.enabled = false
+   # valid options: disabled, full, linkStatsOnly (only link stats is loaded (all the other data is got from the input directory))
+   beam.warmStart.type = "disabled"
    #PATH TYPE OPTIONS: PARENT_RUN, ABSOLUTE_PATH
    #PARENT_RUN: can be a director or zip archive of the output directory (e.g. like what get's stored on S3). We should also be able to specify a URL to an S3 output.
    #ABSOLUTE_PATH: a directory that contains required warm stats files (e.g. linkstats and eventually a plans).

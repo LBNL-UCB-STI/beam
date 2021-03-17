@@ -264,10 +264,10 @@ class BeamWarmStartSpec
 
   private def getWarmStart(casePath: Path): BeamWarmStart = {
     val conf = baseConfig
-      .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
-    BeamWarmStart(BeamConfig(conf))
+    BeamWarmStart(BeamConfig(conf), 30)
   }
 
   "Warmstart" should {
@@ -297,7 +297,7 @@ class BeamWarmStartSpec
           "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
           ConfigValueFactory.fromAnyRef(agentSampleSizeAsFractionOfPopulation)
         )
-        .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(warmstartEnabled))
+        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef(if (warmstartEnabled) "full" else "disabled"))
         .withValue(
           "beam.warmStart.samplePopulationIntegerFlag",
           ConfigValueFactory.fromAnyRef(samplePopulationIntegerFlag)
