@@ -89,7 +89,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
-    private TravelTime previousTravelTime;
+    private TravelTime aggregatedTravelTime;
     private final BeamServices beamServices;
     private final BeamConfigChangesObservable beamConfigChangesObservable;
 
@@ -254,7 +254,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
         if (startingIterationForTravelTimesMSA <= iterationNumber) {
             travelTimeMap = processTravelTime(links, travelTimeMap, maxHour);
-            travelTimeForR5 = previousTravelTime;
+            travelTimeForR5 = aggregatedTravelTime;
         }
 
         int lastIteration = beamConfig.matsim().modules().controler().lastIteration();
@@ -307,6 +307,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private VolumesAnalyzer dummyVolumesAnalyzer() {
         return new VolumesAnalyzer(3600, 120 * 3600, agentSimScenario.getNetwork()) {
             final double[] dummyVolumeArray = IntStream.range(0, 121).mapToDouble(x -> 1.0).toArray();
+
             @Override
             public double[] getVolumesPerHourForLink(Id<Link> linkId) {
                 return dummyVolumeArray;
@@ -486,7 +487,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     public void startPhysSim(IterationEndsEvent iterationEndsEvent, TravelTime initialTravelTime) {
-        previousTravelTime = initialTravelTime;
+        aggregatedTravelTime = initialTravelTime;
         if (initialTravelTime != null) {
             prevTravelTime = initialTravelTime;
         }
@@ -517,12 +518,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int binSize = beamConfig.beam().agentsim().timeBinSize();
         TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, currentTravelTimeMap);
 
-        if (previousTravelTime == null) {
-            previousTravelTime = currentTravelTime;
+        if (aggregatedTravelTime == null) {
+            aggregatedTravelTime = currentTravelTime;
             return currentTravelTimeMap;
         } else {
-            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
-            previousTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
+            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, aggregatedTravelTime, maxHour);
+            aggregatedTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
             return map;
         }
     }
