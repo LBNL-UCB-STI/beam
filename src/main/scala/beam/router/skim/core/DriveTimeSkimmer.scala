@@ -70,15 +70,19 @@ class DriveTimeSkimmer @Inject()(
             }
           }
         }
-      categoryDataset.addSeries("Simulated-Observed", deltasOfObservedSimulatedTimes.toArray, histogramBinSize)
-      val chartPath =
-        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
-      generateChart(series, chartPath)
-      val histogramPath =
-        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, histogramName)
-      generateHistogram(categoryDataset, histogramPath)
+      if (deltasOfObservedSimulatedTimes.nonEmpty) {
+        categoryDataset.addSeries("Simulated-Observed", deltasOfObservedSimulatedTimes.toArray, histogramBinSize)
+        val chartPath =
+          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
+        generateChart(series, chartPath)
+        val histogramPath =
+          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, histogramName)
+        generateHistogram(categoryDataset, histogramPath)
+      } else {
+        logger.warn(s"the skimmer $skimName observed simulated times are empty.")
+      }
     } else {
-      logger.warn(s"the skimmer $skimName does not have access to the observed travel time for calibration")
+      logger.warn(s"the skimmer $skimName does not have access to the observed travel time for calibration.")
     }
 
     super.notifyIterationEnds(event)

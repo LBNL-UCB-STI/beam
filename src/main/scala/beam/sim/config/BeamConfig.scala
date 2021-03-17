@@ -1348,7 +1348,7 @@ object BeamConfig {
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
               ),
               vehicleManagerId =
-                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "ride-hail-default"
+                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "GlobalRHM"
             )
           }
         }
