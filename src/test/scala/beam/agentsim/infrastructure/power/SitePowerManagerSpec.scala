@@ -21,7 +21,6 @@ import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
 
 class SitePowerManagerSpec
@@ -88,7 +87,6 @@ class SitePowerManagerSpec
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
 
   val dummyChargingZone: ChargingZone = ChargingZone(
-    0,
     tazMap.getTAZs.head.tazId,
     ParkingType.Workplace,
     2,
