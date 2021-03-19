@@ -22,8 +22,8 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     extends LazyLogging {
   import ChargingNetwork._
 
-  private val chargingStationMap: Map[ChargingZone, ChargingStation] =
-    chargingStationsQTree.values().asScala.map(z => z -> ChargingStation(z)).toMap
+  private val chargingStationMap: Map[String, ChargingStation] =
+    chargingStationsQTree.values().asScala.map(z => z.id -> ChargingStation(z)).toMap
 
   val chargingStations: List[ChargingStation] = chargingStationMap.values.toList
 
@@ -50,9 +50,7 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     tazId: Id[TAZ],
     parkingType: ParkingType,
     chargingPointType: ChargingPointType
-  ): Option[ChargingStation] = {
-    chargingStationMap.find(_._1.id == s"cs_${managerId}_${tazId}_${parkingType}_${chargingPointType}").map(_._2)
-  }
+  ): Option[ChargingStation] = chargingStationMap.get(s"cs_${managerId}_${tazId}_${parkingType}_${chargingPointType}")
 
   /**
     * lookup information about charging vehicle
