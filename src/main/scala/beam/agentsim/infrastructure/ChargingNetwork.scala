@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
+import beam.agentsim.infrastructure.ChargingNetworkManager.{constructChargingZoneKey, ChargingZone}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.taz.TAZ
@@ -12,7 +12,6 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 /**
   * Created by haitamlaarabi
@@ -50,7 +49,8 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     tazId: Id[TAZ],
     parkingType: ParkingType,
     chargingPointType: ChargingPointType
-  ): Option[ChargingStation] = chargingStationMap.get(s"cs_${managerId}_${tazId}_${parkingType}_${chargingPointType}")
+  ): Option[ChargingStation] =
+    chargingStationMap.get(constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType))
 
   /**
     * lookup information about charging vehicle
@@ -76,13 +76,22 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     * @param vehicle vehicle to charge
     * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def attemptToConnectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): ChargingVehicle = {
+  def attemptToConnectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): Option[ChargingVehicle] = {
     vehicle.stall match {
       case Some(stall) =>
-        lookupStation(stall.tazId, stall.parkingType, stall.chargingPointType.get)
-          .map(station => station.connect(tick, vehicle, stall, theSender))
-          .get
-      case _ => throw new RuntimeException(s"CNM cannot start charging the vehicle $vehicle that doesn't have a stall!")
+        lookupStation(stall.tazId, stall.parkingType, stall.chargingPointType.get) match {
+          case Some(station) => Some(station.connect(tick, vehicle, stall, theSender))
+          case _ =>
+            logger.error(
+              s"CNM cannot find a $managerId station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
+            )
+            None
+        }
+      case _ =>
+        logger.error(
+          s"CNM cannot start charging the vehicle $vehicle that doesn't have a stall. Something if broken and need attention!"
+        )
+        None
     }
   }
 
@@ -137,13 +146,11 @@ object ChargingNetwork {
       theSender: ActorRef
     ): ChargingVehicle = this.synchronized {
       if (numAvailableChargers > 0) {
-        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender)
-        chargingVehicle.updateStatus(Connected)
+        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender, List(Connected))
         connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
         chargingVehicle
       } else {
-        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, -1, theSender)
-        chargingVehicle.updateStatus(Waiting)
+        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, -1, theSender, List(Waiting))
         waitingLineInternal.enqueue(chargingVehicle)
         chargingVehicle
       }
@@ -167,9 +174,7 @@ object ChargingNetwork {
       */
     private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
-        val vTemp = waitingLineInternal.dequeue()
-        val v = vTemp.copy(sessionStartTime = tick)
-        v.updateStatus(Connected)
+        val v = waitingLineInternal.dequeue().updateStatus(tick)
         connectedVehiclesInternal.put(v.vehicle.id, v)
         v
       }.toList
@@ -188,14 +193,23 @@ object ChargingNetwork {
     stall: ParkingStall,
     chargingStation: ChargingStation,
     arrivalTime: Int,
-    sessionStartTime: Int,
-    theSender: ActorRef
+    var sessionStartTime: Int,
+    theSender: ActorRef,
+    var connectionStatus: List[ConnectionStatus.ConnectionStatus],
+    var chargingSessions: List[ChargingCycle] = List.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
-    private val chargingSessionInternal = ListBuffer.empty[ChargingCycle]
-    private val statusInternal = ListBuffer.empty[ConnectionStatus]
 
-    private[ChargingNetwork] def updateStatus(status: ConnectionStatus): Unit = statusInternal.append(status)
+    private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
+      connectionStatus = connectionStatus :+ status
+      this
+    }
+
+    private[ChargingNetwork] def updateStatus(startTime: Int): ChargingVehicle = {
+      sessionStartTime = startTime
+      connectionStatus = connectionStatus :+ Connected
+      this
+    }
 
     /**
       * adding a new charging cycle to the charging session
@@ -205,11 +219,11 @@ object ChargingNetwork {
       * @return boolean value expressing if the charging cycle has been added
       */
     def processChargingCycle(startTime: Int, energy: Double, duration: Int): Option[ChargingCycle] =
-      chargingSessionInternal.lastOption match {
+      chargingSessions.lastOption match {
         case Some(cycle: ChargingCycle) if startTime == cycle.startTime && duration < cycle.duration =>
-          chargingSessionInternal.remove(chargingSessionInternal.size - 1)
+          // this means that charging cycle was abruptly interrupted
           val cycle = ChargingCycle(startTime, energy, duration)
-          chargingSessionInternal.append(cycle)
+          chargingSessions = chargingSessions.dropRight(1) :+ cycle
           Some(cycle)
         case Some(cycle: ChargingCycle) if startTime == cycle.startTime =>
           // keep existing charging cycle
@@ -221,12 +235,12 @@ object ChargingNetwork {
           None
         case _ =>
           val cycle = ChargingCycle(startTime, energy, duration)
-          chargingSessionInternal.append(cycle)
+          chargingSessions = chargingSessions :+ cycle
           Some(cycle)
       }
 
-    def computeSessionEnergy: Double = chargingSessionInternal.map(_.energy).sum
-    def computeSessionDuration: Long = chargingSessionInternal.map(_.duration).sum
+    def computeSessionEnergy: Double = chargingSessions.map(_.energy).sum
+    def computeSessionDuration: Long = chargingSessions.map(_.duration).sum
 
     def computeSessionEndTime: Int =
       if (sessionStartTime >= 0) {
@@ -235,7 +249,5 @@ object ChargingNetwork {
         throw new RuntimeException("Can't compute session end time, if the sessions did not start yet")
       }
 
-    def latestChargingCycle: Option[ChargingCycle] = chargingSessionInternal.lastOption
-    def status: ConnectionStatus = statusInternal.last
   }
 }

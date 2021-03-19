@@ -84,6 +84,8 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
             beamFederate.sync(currentTime)
             // COLLECT
             gridBounds = beamFederate.collectJSON()
+            // Sleep
+            Thread.sleep(1)
           }
 
           logger.debug("Obtained power from the grid {}...", gridBounds)
