@@ -71,7 +71,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         #updated_station_p = []
         updated_station_loads = []
         logging.info('Logging this as CSV')
-        logging.info('stationId,estimatedLoad')
+        logging.info('stationId,estimatedLoad,currentTime')
         for station in charger_load_json:
             taz = station['tazId']
             parking_type = station['parkingType']
@@ -82,7 +82,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
             station_load = station['estimatedLoad']
             updated_station_ids.append(station_id)
             updated_station_loads.append(station_load)
-            logging.info(f'{station_id},{station_load}')
+            logging.info(f'{station_id},{station_load},{t}')
 
         # uncomment this when pydss is included
         # for i in range(len(updated_station_ids)):
@@ -130,14 +130,14 @@ def run_beam_to_pydss_federate(station_bus_pairs):
 
 ###############################################################################
 def load_station_bus_pairs():
-    with open('station_bus_pairs.csv', 'r') as sbpfile:
-        station_bus_list = sbpfile.readlines()
+    # with open('station_bus_pairs.csv', 'r') as sbpfile:
+    #     station_bus_list = sbpfile.readlines()
     station_bus_pairs = []
-    for sbp in station_bus_list:
-        pair = sbp.split(',')
-        station_id = pair[0].strip()
-        bus_name = pair[1].strip()
-        station_bus_pairs.append((station_id, bus_name))
+    # for sbp in station_bus_list:
+    #     pair = sbp.split(',')
+    #     station_id = pair[0].strip()
+    #     bus_name = pair[1].strip()
+    #     station_bus_pairs.append((station_id, bus_name))
     return station_bus_pairs
 
 

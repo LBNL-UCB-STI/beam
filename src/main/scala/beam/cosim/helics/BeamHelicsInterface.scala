@@ -177,17 +177,10 @@ object BeamHelicsInterface {
     private def collectRaw(): String = {
       dataInStreamHandle
         .map { handle =>
-          //            var inputUpdated = 0
-          //            while (inputUpdated != 1) {
-          //              inputUpdated = helics.helicsInputIsUpdated(handle)
-          //            }
-          val inputUpdated = helics.helicsInputIsUpdated(handle)
-          if (inputUpdated == 1) {
-            val buffer = new Array[Byte](bufferSize)
-            val bufferInt = new Array[Int](1)
-            helics.helicsInputGetString(handle, buffer, bufferInt)
-            buffer.take(bufferInt(0)).map(_.toChar).mkString
-          } else ""
+          val buffer = new Array[Byte](bufferSize)
+          val bufferInt = new Array[Int](1)
+          helics.helicsInputGetString(handle, buffer, bufferInt)
+          buffer.take(bufferInt(0)).map(_.toChar).mkString
         }
         .getOrElse("")
     }
@@ -202,7 +195,11 @@ object BeamHelicsInterface {
       val message = collectRaw()
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
-        message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
+        try {
+          message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
+        } catch {
+          case _: Throwable => List.empty[Map[String, Any]]
+        }
       } else List.empty[Map[String, Any]]
     }
 

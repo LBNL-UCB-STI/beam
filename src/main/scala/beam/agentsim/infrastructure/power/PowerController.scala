@@ -77,38 +77,40 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
               )
           }
           beamFederate.publishJSON(msgToPublish.toList)
-          // SYNC
-          beamFederate.sync(currentTime)
-          // COLLECT
-          val gridBounds = beamFederate.collectJSON()
-          if (gridBounds.nonEmpty) {
-            logger.debug("Obtained power from the grid {}...", gridBounds)
-            gridBounds.flatMap { x =>
-              val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
-              val chargingNetwork = chargingNetworkMap(managerId)
-              chargingNetwork.lookupStation(
-                Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
-                ParkingType(x("parkingType").asInstanceOf[String]),
-                ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
-              ) match {
-                case Some(station) =>
-                  Some(
-                    station -> PhysicalBounds(
-                      station,
-                      x("power_limit_upper").asInstanceOf[PowerInKW],
-                      x("power_limit_lower").asInstanceOf[PowerInKW],
-                      x("lmp_with_control_signal").asInstanceOf[Double]
-                    )
-                  )
-                case _ =>
-                  logger.error(
-                    "Cannot find the charging station correspondent to what has been received from the cosimulation"
-                  )
-                  None
-              }
 
-            }.toMap
-          } else unlimitedPhysicalBounds
+          var gridBounds = List.empty[Map[String, Any]]
+          while (gridBounds.isEmpty) {
+            // SYNC
+            beamFederate.sync(currentTime)
+            // COLLECT
+            gridBounds = beamFederate.collectJSON()
+          }
+
+          logger.debug("Obtained power from the grid {}...", gridBounds)
+          gridBounds.flatMap { x =>
+            val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
+            val chargingNetwork = chargingNetworkMap(managerId)
+            chargingNetwork.lookupStation(
+              Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
+              ParkingType(x("parkingType").asInstanceOf[String]),
+              ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
+            ) match {
+              case Some(station) =>
+                Some(
+                  station -> PhysicalBounds(
+                    station,
+                    x("power_limit_upper").asInstanceOf[PowerInKW],
+                    x("power_limit_lower").asInstanceOf[PowerInKW],
+                    x("lmp_with_control_signal").asInstanceOf[Double]
+                  )
+                )
+              case _ =>
+                logger.error(
+                  "Cannot find the charging station correspondent to what has been received from the co-simulation"
+                )
+                None
+            }
+          }.toMap
         case _ =>
           logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
           unlimitedPhysicalBounds
