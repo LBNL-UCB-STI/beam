@@ -64,7 +64,6 @@ object PhysSimReplayer extends StrictLogging {
       logger.info(s"Total number of handled events is $nEvents")
       // Create iteration folder because it is needed inside!
       new File(beamSvc.matsimServices.getControlerIO.getIterationPath(0)).mkdirs()
-      //todo instead of null we need to provide travel time from warmstart
       agentSimToPhysSimPlanConverter.startPhysSim(new IterationEndsEvent(beamSvc.matsimServices, 0), null)
 
     } finally {
