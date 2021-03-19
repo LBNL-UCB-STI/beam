@@ -163,7 +163,7 @@ class ChargingNetworkManager(
         val chargingNetwork = chargingNetworkMap(vehicleManager)
         // connecting the current vehicle
         chargingNetwork.attemptToConnectVehicle(tick, vehicle, sender) match {
-          case chargingVehicle @ ChargingVehicle(vehicle, _, station, _, _, _, status, _) if status.last == Waiting =>
+          case Some(ChargingVehicle(vehicle, _, station, _, _, _, status, _)) if status.last == Waiting =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station $station, with {}/{} vehicles connected and {} in waiting line",
               station.connectedVehicles.size,
@@ -173,8 +173,10 @@ class ChargingNetworkManager(
             log.debug(s"connected vehicles: ${station.connectedVehicles.keys.mkString(",")}")
             log.debug(s"waiting vehicles: ${station.waitingLineVehicles.keys.mkString(",")}")
             sender ! WaitingInLine(tick, vehicle.id)
-          case chargingVehicle: ChargingVehicle =>
+          case Some(chargingVehicle: ChargingVehicle) =>
             handleStartCharging(tick, chargingVehicle)
+          case _ =>
+            log.debug(s"attempt to connect vehicle ${vehicle.id} to charger failed!")
         }
       } else {
         sender ! Failure(
