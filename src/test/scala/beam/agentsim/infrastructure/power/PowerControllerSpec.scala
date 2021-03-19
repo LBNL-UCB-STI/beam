@@ -18,8 +18,6 @@ import org.mockito.Mockito._
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
-import scala.collection.concurrent.TrieMap
-
 class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach {
 
   private val config =
@@ -50,7 +48,6 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
 
   val dummyChargingZone: ChargingZone = ChargingZone(
-    1,
     tazFromBeamville.tazId,
     ParkingType.Public,
     1,
@@ -62,10 +59,10 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
   val dummyPhysicalBounds = Map(
-    "tazId"   -> dummyChargingZone.tazId.toString,
-    "zoneId"  -> dummyChargingZone.chargingZoneId,
-    "minLoad" -> 5678.90,
-    "maxLoad" -> 5678.90
+    "tazId"                   -> dummyChargingZone.tazId.toString,
+    "power_limit_lower"       -> 5678.90,
+    "power_limit_upper"       -> 5678.90,
+    "lmp_with_control_signal" -> 0.0
   )
 
   val zoneTree = new QuadTree[ChargingZone](
@@ -77,7 +74,8 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
 
   override def beforeEach: Unit = {
     reset(beamFederateMock)
-    when(beamFederateMock.syncAndCollectJSON(300)).thenReturn((300.0, List(dummyPhysicalBounds)))
+    when(beamFederateMock.sync(300)).thenReturn(300.0)
+    when(beamFederateMock.collectJSON()).thenReturn(List(dummyPhysicalBounds))
     zoneTree.clear()
   }
 
@@ -100,7 +98,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
         300,
         Some(Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
       )
-      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2))
+      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       // TODO: test beam federate connection
       //verify(beamFederateMock, times(1)).syncAndCollectJSON(300)
     }
@@ -123,8 +121,9 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     "obtain default (0.0) power physical bounds" in {
       val bounds =
         powerController.obtainPowerPhysicalBounds(300, Some(Map[ChargingStation, Double](dummyChargingStation -> 0.0)))
-      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2))
-      verify(beamFederateMock, never()).syncAndCollectJSON(300)
+      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
+      verify(beamFederateMock, never()).sync(300)
+      verify(beamFederateMock, never()).collectJSON()
     }
 
   }

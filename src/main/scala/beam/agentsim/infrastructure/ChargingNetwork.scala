@@ -3,6 +3,9 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
+import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
@@ -37,11 +40,19 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.vehicles)
 
   /**
-    * lookup a station from a parking stall
-    * @param stall the parking stall
-    * @return charging station
+    * lookup a station from attributes
+    * @param tazId the taz id
+    * @param parkingType the parking type
+    * @param chargingPointType the charging type
+    * @return
     */
-  def lookupStation(stall: ParkingStall): Option[ChargingStation] = chargingStationMap.get(ChargingZone.to(stall))
+  def lookupStation(
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    chargingPointType: ChargingPointType
+  ): Option[ChargingStation] = {
+    chargingStationMap.find(_._1.id == s"cs_${managerId}_${tazId}_${parkingType}_${chargingPointType}").map(_._2)
+  }
 
   /**
     * lookup information about charging vehicle
@@ -69,8 +80,11 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     */
   def attemptToConnectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): ChargingVehicle = {
     vehicle.stall match {
-      case Some(stall) => lookupStation(stall).map(station => station.connect(tick, vehicle, stall, theSender)).get
-      case _           => throw new RuntimeException(s"Vehicle $vehicle doesn't have a stall!")
+      case Some(stall) =>
+        lookupStation(stall.tazId, stall.parkingType, stall.chargingPointType.get)
+          .map(station => station.connect(tick, vehicle, stall, theSender))
+          .get
+      case _ => throw new RuntimeException(s"CNM cannot start charging the vehicle $vehicle that doesn't have a stall!")
     }
   }
 
@@ -79,17 +93,8 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     * @param chargingVehicle vehicle to disconnect
     * @return a tuple of the status of the charging vehicle and the connection status
     */
-  def disconnectVehicle(tick: Int, chargingVehicle: ChargingVehicle): Option[List[ChargingVehicle]] = {
-    chargingVehicle.vehicle.stall match {
-      case Some(_) =>
-        chargingVehicle.chargingStation.disconnect(chargingVehicle.vehicle.id) map { chargingVehicle =>
-          processWaitingLine(tick, chargingVehicle.chargingStation)
-        }
-      case _ =>
-        logger.error(s"Vehicle ${chargingVehicle.vehicle} doesn't have a stall!")
-        None
-    }
-  }
+  def disconnectVehicle(chargingVehicle: ChargingVehicle): Option[ChargingVehicle] =
+    chargingVehicle.chargingStation.disconnect(chargingVehicle.vehicle.id)
 
   /**
     * transfer vehciles from waiting line to connected
@@ -132,7 +137,7 @@ object ChargingNetwork {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       theSender: ActorRef
-    ): ChargingVehicle = {
+    ): ChargingVehicle = this.synchronized {
       if (numAvailableChargers > 0) {
         val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender)
         chargingVehicle.updateStatus(Connected)
@@ -151,7 +156,7 @@ object ChargingNetwork {
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
-    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = {
+    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = this.synchronized {
       connectedVehiclesInternal.remove(vehicleId).map { v =>
         v.updateStatus(Disconnected)
         v
@@ -162,7 +167,7 @@ object ChargingNetwork {
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
-    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = {
+    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
         val vTemp = waitingLineInternal.dequeue()
         val v = vTemp.copy(sessionStartTime = tick)

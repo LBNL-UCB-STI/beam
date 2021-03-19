@@ -88,7 +88,6 @@ class SitePowerManagerSpec
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
 
   val dummyChargingZone: ChargingZone = ChargingZone(
-    0,
     tazMap.getTAZs.head.tazId,
     ParkingType.Workplace,
     2,

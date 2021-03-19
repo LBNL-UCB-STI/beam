@@ -112,7 +112,7 @@ class ChargingNetworkManager(
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
-              handleEndCharging(timeBin, chargingVehicle, synchronize = true)
+              handleEndCharging(timeBin, chargingVehicle)
               None
             case cycle if chargingNotCompleteUsing(cycle) =>
               log.debug(
@@ -151,7 +151,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicleId) match { // not taking into consideration vehicles waiting in line
-        case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle, synchronize = false)
+        case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle)
         case _                     => log.debug(s"Vehicle $vehicleId is already disconnected")
       }
       sender ! CompletionNotice(triggerId)
@@ -195,7 +195,7 @@ class ChargingNetworkManager(
           val duration = endTime - startTime
           val (chargeDurationAtTick, energyToChargeAtTick) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
           chargingVehicle.processChargingCycle(startTime, energyToChargeAtTick, chargeDurationAtTick)
-          handleEndCharging(tick, chargingVehicle, Some(sender), synchronize = false)
+          handleEndCharging(tick, chargingVehicle, Some(sender))
         case _ =>
           log.debug(s"Vehicle $vehicle is already disconnected at $tick")
           sender ! UnhandledVehicle(tick, vehicle.id)
@@ -291,26 +291,24 @@ class ChargingNetworkManager(
   private def handleEndCharging(
     tick: Int,
     chargingVehicle: ChargingVehicle,
-    currentSenderMaybe: Option[ActorRef] = None,
-    synchronize: Boolean
+    currentSenderMaybe: Option[ActorRef] = None
   ): Unit = {
     val ChargingVehicle(vehicle, stall, _, _, _, _) = chargingVehicle
     val chargingNetwork = chargingNetworkMap(stall.managerId)
-    (if (synchronize) {
-       chargingNetwork.synchronized {
-         chargingNetwork.disconnectVehicle(tick, chargingVehicle)
-       }
-     } else chargingNetwork.disconnectVehicle(tick, chargingVehicle)) match {
-      case Some(processedWaitingLine) =>
+    chargingNetwork.disconnectVehicle(chargingVehicle) match {
+      case Some(cv) =>
+        log.debug(s"Vehicle ${chargingVehicle.vehicle} has been disconnected from the charging station")
         handleRefueling(chargingVehicle)
         handleEndChargingHelper(tick, chargingVehicle)
         vehicle.disconnectFromChargingPoint()
         parkingManager ! ReleaseParkingStall(vehicle.stall.get)
         vehicle.unsetParkingStall()
         currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
-        processedWaitingLine.foreach(handleStartCharging(tick, _))
-      case _ =>
-        log.debug(s"Vehicle $vehicle is already disconnected at $tick")
+        chargingNetwork.processWaitingLine(tick, cv.chargingStation)
+      case None =>
+        log.error(
+          s"Vehicle ${chargingVehicle.vehicle} failed to disconnect. Check the debug logs if it has been already disconnected. Otherwise something is broken!!"
+        )
     }
   }
 
@@ -397,7 +395,6 @@ object ChargingNetworkManager {
   case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle])
 
   final case class ChargingZone(
-    chargingZoneId: Int,
     tazId: Id[TAZ],
     parkingType: ParkingType,
     numChargers: Int,
@@ -405,69 +402,14 @@ object ChargingNetworkManager {
     pricingModel: PricingModel,
     managerId: Id[VehicleManager]
   ) {
-    val uniqueId: String = s"($managerId,$tazId,$chargingZoneId,$parkingType,$chargingPointType)"
+    val id: String = s"cs_${managerId}_${tazId}_${parkingType}_${chargingPointType}"
     override def equals(that: Any): Boolean =
       that match {
         case that: ChargingZone =>
           that.hashCode() == hashCode
         case _ => false
       }
-    override def hashCode: Int = uniqueId.hashCode()
-  }
-
-  object ChargingZone {
-
-    /**
-      * Construct charging zone from the parking stall
-      * @param stall ParkingStall
-      * @return ChargingZone
-      */
-    def to(stall: ParkingStall): ChargingZone = ChargingZone(
-      stall.parkingZoneId,
-      stall.tazId,
-      stall.parkingType,
-      1,
-      stall.chargingPointType.get,
-      stall.pricingModel.get,
-      stall.managerId
-    )
-
-    /**
-      * convert to ChargingZone from Map
-      * @param charging Map of String keys and Any values
-      * @return ChargingZone
-      */
-    def to(charging: Map[String, Any]): ChargingZone = {
-      ChargingZone(
-        charging("chargingZoneId").asInstanceOf[Int],
-        Id.create(charging("tazId").asInstanceOf[String], classOf[TAZ]),
-        ParkingType(charging("parkingType").asInstanceOf[String]),
-        charging("numChargers").asInstanceOf[Int],
-        ChargingPointType(charging("chargingPointType").asInstanceOf[String]).get,
-        PricingModel(
-          charging("pricingModel").asInstanceOf[String],
-          charging("costInDollars").asInstanceOf[Double].toString
-        ).get,
-        Id.create(charging("managerId").asInstanceOf[String], classOf[VehicleManager])
-      )
-    }
-
-    /**
-      * Convert chargingZone to a Map
-      * @param chargingZone ChargingZone
-      * @return Map of String keys and Any values
-      */
-    def from(chargingZone: ChargingZone): Map[String, Any] = {
-      Map(
-        "chargingZoneId"    -> chargingZone.chargingZoneId,
-        "tazId"             -> chargingZone.tazId.toString,
-        "parkingType"       -> chargingZone.parkingType.toString,
-        "numChargers"       -> chargingZone.numChargers,
-        "chargingPointType" -> chargingZone.chargingPointType.toString,
-        "pricingModel"      -> chargingZone.pricingModel.toString,
-        "vehicleManager"    -> chargingZone.managerId
-      )
-    }
+    override def hashCode: Int = id.hashCode()
   }
 
   def props(
