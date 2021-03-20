@@ -405,7 +405,8 @@ object ParkingZoneFileUtils extends LazyLogging {
             throw new java.io.IOException(s"Failed to load parking data from row with contents '$csvRow'.", e)
         }
       case _ =>
-        throw new java.io.IOException(s"Failed to match row of parking configuration '$csvRow' to expected schema")
+        logger.error(s"Failed to match row of parking configuration '$csvRow' to expected schema")
+        None
     }
   }
 
