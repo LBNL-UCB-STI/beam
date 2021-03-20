@@ -64,7 +64,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         isupdated = 0
         while isupdated != 1:
             isupdated = h.helicsInputIsUpdated(subs_charger_loads)
-        print(f"charger loads received at currenttime: {t} seconds")
+        print("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
         updated_station_ids = []
         #updated_station_q = []
@@ -78,11 +78,11 @@ def run_beam_to_pydss_federate(station_bus_pairs):
             charger_type = station['chargingPointType']
             n_plugs = station['numChargers']
             manager_id = station['managerId']
-            station_id = f'cs_{manager_id}_{taz}_{parking_type}_{charger_type}_{n_plugs}'
+            station_id = 'cs_'+str(manager_id)+'_'+str(taz)+'_'+str(parking_type)+'_'+str(charger_type)+'_'+str(n_plugs)
             station_load = station['estimatedLoad']
             updated_station_ids.append(station_id)
             updated_station_loads.append(station_load)
-            logging.info(f'{station_id},{station_load},{t}')
+            logging.info(str(station_id)+','+str(station_load)+','+str(t))
 
         # uncomment this when pydss is included
         # for i in range(len(updated_station_ids)):
