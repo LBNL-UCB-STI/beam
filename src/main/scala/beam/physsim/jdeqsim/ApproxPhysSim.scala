@@ -82,7 +82,7 @@ class ApproxPhysSim(
     tollCalculator = beamServices.tollCalculator
   )
 
-  def run(travelTime: TravelTime): TravelTime = {
+  def run(travelTime: TravelTime): SimulationResult = {
     val carTravelTimeWriter: CsvWriter = {
       val fileName = controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
@@ -98,11 +98,11 @@ class ApproxPhysSim(
         1,
         numberOfPeopleToSimulateEveryIter.length,
         numberOfPeopleToSimulateEveryIter.head,
-        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
-        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
+        SimulationResult(-1, travelTime, None, Seq.empty, Statistics(Seq.empty)),
+        SimulationResult(-1, travelTime, None, Seq.empty, Statistics(Seq.empty)),
         carTravelTimeWriter,
         reroutedTravelTimeWriter
-      ).travelTime
+      )
     } finally {
       Try(carTravelTimeWriter.close())
       Try(reroutedTravelTimeWriter.close())

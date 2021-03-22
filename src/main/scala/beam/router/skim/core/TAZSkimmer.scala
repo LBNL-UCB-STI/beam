@@ -1,7 +1,7 @@
 package beam.router.skim.core
 
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.readonly
+import beam.router.skim.{readonly, Skims}
 import beam.router.skim.readonly.TAZSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
@@ -18,6 +18,7 @@ class TAZSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamSce
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = readonly.TAZSkims(beamScenario)
 
   override protected val skimName: String = config.taz_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TAZ_SKIMMER
   override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
   override protected val skimFileHeader: String =
     "time,taz,hex,actor,key,value,observations,iterations"

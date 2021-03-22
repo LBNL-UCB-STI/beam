@@ -3,8 +3,7 @@ package beam.sim.population
 import java.io.FileWriter
 
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamScenario, BeamServices}
-import beam.sim.config.BeamConfig.Beam.Exchange.Scenario
+import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
 import beam.sim.metrics.BeamStaticMetricsWriter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -232,7 +231,8 @@ class PopulationScaling extends LazyLogging {
 object PopulationScaling {
 
   def isWarmstartDisabledOrSamplingEnabled(beamConfig: BeamConfig): Boolean = {
-    !beamConfig.beam.warmStart.enabled || beamConfig.beam.warmStart.samplePopulationIntegerFlag == 1
+    !BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart) ||
+    beamConfig.beam.warmStart.samplePopulationIntegerFlag == 1
   }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)

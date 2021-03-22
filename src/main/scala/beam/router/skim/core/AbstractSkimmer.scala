@@ -1,9 +1,11 @@
 package beam.router.skim.core
 
 import beam.agentsim.events.ScalaEvent
+import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
+import beam.router.skim.Skims.SkimType
 import beam.router.skim.CsvSkimReader
 import beam.router.skim.core.TAZSkimmer.TAZSkimmerKey
-import beam.sim.BeamWarmStart
+import beam.sim.{BeamServices, BeamWarmStart}
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -70,6 +72,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimFileBaseName: String
   protected val skimFileHeader: String
   protected val skimName: String
+  protected val skimType: SkimType.Value
   private lazy val eventType = skimName + "-event"
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
@@ -88,9 +91,14 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   ): AbstractSkimmerInternal
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    val skimFilePath = beamConfig.beam.warmStart.skimsFilePaths
+      .getOrElse(List.empty)
+      .find(_.skimType == skimType.toString)
     currentIterationInternal = event.getIteration
-    if (currentIterationInternal == 0 && beamConfig.beam.warmStart.enabled) {
-      val filePath = beamConfig.beam.warmStart.skimsFilePath
+    if (currentIterationInternal == 0
+        && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
+        && skimFilePath.isDefined) {
+      val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
       aggregatedFromPastSkimsInternal = if (file.isFile) {
         new CsvSkimReader(filePath, fromCsv, logger).readAggregatedSkims
@@ -161,7 +169,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       ) {
         val filePath =
           ioController
-            .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "_Aggregated.csv.gz")
+            .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + AGG_SUFFIX)
         writeSkim(aggregatedFromPastSkimsInternal, filePath)
       }
     }
@@ -182,4 +190,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         writer.close()
     }
   }
+}
+
+object AbstractSkimmer {
+  val AGG_SUFFIX = "_Aggregated.csv.gz"
 }
