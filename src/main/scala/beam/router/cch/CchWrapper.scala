@@ -31,13 +31,10 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
 
   val carWeightCalculator = new CarWeightCalculator(workerParams)
 
-  private var nativeCCH: CchNative = {
-    CchWrapper.init()
-    nativeCCH = new CchNative()
-    nativeCCH.init(prepareOsmFile())
-    rebuildNativeCCHWeights(new FreeFlowTravelTime())
-    nativeCCH
-  }
+  private val nativeCCH = new CchNative()
+  nativeCCH.init(prepareOsmFile())
+  rebuildNativeCCHWeights(new FreeFlowTravelTime())
+
 
   private def prepareOsmFile(): String = {
     val cchOsm = new OSM(null)
@@ -51,7 +48,7 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
     }
 
     val cur = workerParams.transportNetwork.streetLayer.edgeStore.getCursor
-    for (idx <- 0 until workerParams.transportNetwork.streetLayer.edgeStore.nEdges by 1) {
+    (0 until workerParams.transportNetwork.streetLayer.edgeStore.nEdges).foreach{ idx =>
       cur.seek(idx)
 
       if (cur.allowsStreetMode(StreetMode.CAR)) {
@@ -138,23 +135,19 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
 
   def rebuildNativeCCHWeights(newTravelTime: TravelTime): Unit = {
     nativeCCH.lock()
-
-    //    val futures = (0 until noOfTimeBins).map { bin =>
     (0 until noOfTimeBins).foreach { bin =>
-      //      Future {
       val wayId2TravelTime =
         workerParams.networkHelper.allLinks.toSeq.map { l =>
           val linkId = l.getId.toString
-          linkId -> carWeightCalculator
+          val weight = carWeightCalculator
             .calcTravelTime(linkId.toInt, newTravelTime, bin * workerParams.beamConfig.beam.agentsim.timeBinSize)
             .toInt
             .toString
+          linkId -> weight
         }.toMap
 
       nativeCCH.createBinQueries(bin, wayId2TravelTime.asJava)
-      //      }
     }
-    //    Await.result(Future.sequence(futures), 20.minutes)
     nativeCCH.unlock()
   }
 }
@@ -169,7 +162,7 @@ object CchWrapper {
       tempDir.deleteOnExit()
 
       if (System.getProperty("os.name").toLowerCase.contains("win")) {
-        throw new IllegalStateException("Win is not supported")
+        throw new IllegalStateException("Windows is not supported for CCH usage, please change beam.routing.carRouter to another value")
       } else {
         val cchNativeLib = "libcchnative.so"
         io.FileUtils.copyInputStreamToFile(
@@ -179,5 +172,10 @@ object CchWrapper {
         System.load(Paths.get(tempDir.getPath, cchNativeLib).toString)
       }
     }
+  }
+
+  def apply(workerParams: R5Parameters): CchWrapper = {
+    init()
+    new CchWrapper(workerParams)
   }
 }

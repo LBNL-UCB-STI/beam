@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.cch.CchWrapper
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
@@ -111,7 +112,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     } else if (carRouter == "nativeCCH") {
       log.info("Init CchNative")
       val s = System.currentTimeMillis()
-      cchWrapper = new CchWrapper(workerParams)
+      cchWrapper = CchWrapper(workerParams)
       val e = System.currentTimeMillis()
       log.info(s"Cch native built in ${e - s} ms")
     }
@@ -178,50 +179,16 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
               ghWalkResponse.exists(_.itineraries.nonEmpty)
             )
 
-            val response = if (modesToExclude.isEmpty) {
-              r5.calcRoute(request)
-            } else {
-              val filteredStreetVehicles = request.streetVehicles.filter(it => !modesToExclude.contains(it.mode))
-              val r5Response = if (filteredStreetVehicles.isEmpty) {
-                None
-              } else {
-                Some(r5.calcRoute(request.copy(streetVehicles = filteredStreetVehicles)))
-              }
-              ghCarResponse
-                .getOrElse(ghWalkResponse.get)
-                .copy(
-                  ghCarResponse.map(_.itineraries).getOrElse(Seq.empty) ++
-                  ghWalkResponse.map(_.itineraries).getOrElse(Seq.empty) ++
-                  r5Response.map(_.itineraries).getOrElse(Seq.empty)
-                )
-            }
-            response
+            joinResponsesOrCallR5(modesToExclude, request, ghCarResponse, ghWalkResponse)
           } else if (!request.withTransit && carRouter == "nativeCCH") {
             val cchResponse = calcCarNativeCCHRoute(request)
 
-            // FIXME same code
             val modesToExclude = calcExcludeModes(
               cchResponse.exists(_.itineraries.nonEmpty),
               successfulWalkResponse = false
             )
 
-            val response = if (modesToExclude.isEmpty) {
-              r5.calcRoute(request)
-            } else {
-              val filteredStreetVehicles = request.streetVehicles.filter(it => !modesToExclude.contains(it.mode))
-              val r5Response = if (filteredStreetVehicles.isEmpty) {
-                None
-              } else {
-                Some(r5.calcRoute(request.copy(streetVehicles = filteredStreetVehicles)))
-              }
-              cchResponse
-                .getOrElse(r5Response.get)
-                .copy(
-                  cchResponse.map(_.itineraries).getOrElse(Seq.empty) ++
-                  r5Response.map(_.itineraries).getOrElse(Seq.empty)
-                )
-            }
-            response
+            joinResponsesOrCallR5(modesToExclude, request, cchResponse)
           } else {
             r5.calcRoute(request)
           }
@@ -353,46 +320,33 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     log.info(s"Cch native rebuilt weights in ${e - s} ms")
   }
 
-  def escapeHTML(s: String): String = {
-    val out = new StringBuilder(Math.max(16, s.length))
-    for (i <- 0 until s.length) {
-      val c = s.charAt(i)
-      if (c > 127 || c == '"' || c == '\'' || c == '<' || c == '>' || c == '&') {
-        out.append("&#")
-        out.append(c.toInt)
-        out.append(';')
-      } else out.append(c)
-    }
-    out.toString
-  }
-
   private def calcCarNativeCCHRoute(req: RoutingRequest) = {
-    val mode = Modes.BeamMode.CAR
-    if (req.streetVehicles.exists(_.mode == mode)) {
-      Some(cchWrapper.calcRoute(req.copy(streetVehicles = req.streetVehicles.filter(_.mode == mode))))
+    val carMode = Modes.BeamMode.CAR
+    if (req.streetVehicles.exists(_.mode == carMode)) {
+      Some(cchWrapper.calcRoute(req.copy(streetVehicles = req.streetVehicles.filter(_.mode == carMode))))
     } else Some(RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false))
   }
 
   private def calcCarGhRoute(request: RoutingRequest): Option[RoutingResponse] = {
-    val mode = Modes.BeamMode.CAR
-    if (request.streetVehicles.exists(_.mode == mode)) {
+    val carMode = Modes.BeamMode.CAR
+    if (request.streetVehicles.exists(_.mode == carMode)) {
       val idx =
         if (carRouter == "quasiDynamicGH")
           Math.floor(request.departureTime / workerParams.beamConfig.beam.agentsim.timeBinSize).toInt
         else 0
       Some(
         binToCarGraphHopper(idx).calcRoute(
-          request.copy(streetVehicles = request.streetVehicles.filter(_.mode == mode))
+          request.copy(streetVehicles = request.streetVehicles.filter(_.mode == carMode))
         )
       )
     } else None
   }
 
   private def calcWalkGhRoute(request: RoutingRequest): Option[RoutingResponse] = {
-    val mode = Modes.BeamMode.WALK
-    if (request.streetVehicles.exists(_.mode == mode)) {
+    val walkMode = Modes.BeamMode.WALK
+    if (request.streetVehicles.exists(_.mode == walkMode)) {
       Some(
-        walkGraphHopper.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == mode)))
+        walkGraphHopper.calcRoute(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == walkMode)))
       )
     } else None
   }
@@ -406,6 +360,30 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       List(WALK)
     } else {
       List()
+    }
+  }
+
+  private def joinResponsesOrCallR5(modesToExclude: List[BeamMode], request: RoutingRequest, responses: Option[RoutingResponse]*) = {
+    if (modesToExclude.isEmpty) {
+      r5.calcRoute(request)
+    } else {
+      val filteredStreetVehicles = request.streetVehicles.filterNot(it => modesToExclude.contains(it.mode))
+      val r5Response = if (filteredStreetVehicles.isEmpty) {
+        None
+      } else {
+        Some(r5.calcRoute(request.copy(streetVehicles = filteredStreetVehicles)))
+      }
+
+      val definedResp = responses.filter(_.isDefined)
+      if (definedResp.isEmpty) {
+        r5Response
+      } else {
+        definedResp.head.get
+          .copy(
+            definedResp.map(_.get.itineraries).reduce(_ ++ _) ++
+              r5Response.map(_.itineraries).getOrElse(Seq.empty)
+          )
+      }
     }
   }
 }

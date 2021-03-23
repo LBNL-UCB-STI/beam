@@ -30,11 +30,8 @@ trait RouteRequester {
 }
 
 class CchRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) extends RouteRequester {
-  private val nativeCCH: CchWrapper = {
-    val cch = new CchWrapper(workerParams)
-    cch.rebuildNativeCCHWeights(travelTime)
-    cch
-  }
+  private val nativeCCH = CchWrapper(workerParams)
+  nativeCCH.rebuildNativeCCHWeights(travelTime)
 
   override def routeInner(request: RoutingRequest): RoutingResponse = {
     nativeCCH.calcRoute(request)
