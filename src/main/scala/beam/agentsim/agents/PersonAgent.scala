@@ -763,11 +763,11 @@ class PersonAgent(
   }
 
   when(TryingToBoardVehicle) {
-    case Event(Boarded(vehicle), basePersonData: BasePersonData) =>
+    case Event(Boarded(vehicle, _), basePersonData: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable, basePersonData: BasePersonData) =>
+    case Event(NotAvailable(triggerId), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
@@ -812,7 +812,7 @@ class PersonAgent(
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
               case t @ Token(_, manager, _) =>
-                manager ! TryToBoardVehicle(t, self)
+                manager ! TryToBoardVehicle(t, self, getCurrentTriggerId.getOrElse(-1111))
                 return goto(TryingToBoardVehicle)
               case _: ActualVehicle =>
               // That's fine, continue
@@ -1241,7 +1241,7 @@ class PersonAgent(
         ) =>
       log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
+        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule, triggerId)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>

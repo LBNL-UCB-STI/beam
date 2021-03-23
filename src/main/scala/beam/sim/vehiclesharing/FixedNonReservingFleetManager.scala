@@ -102,14 +102,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       }, triggerId)
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
-    case TryToBoardVehicle(token, who) =>
+    case TryToBoardVehicle(token, who, triggerId) =>
       makeUnavailable(token.id, token.streetVehicle) match {
         case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
           log.debug("Checked out " + vehicle.id)
-          who ! Boarded(vehicle)
+          who ! Boarded(vehicle, triggerId)
           collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ =>
-          who ! NotAvailable
+          who ! NotAvailable(triggerId)
       }
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>

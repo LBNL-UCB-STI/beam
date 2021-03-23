@@ -581,8 +581,8 @@ class RideHailAgent(
         Vector(ScheduleTrigger(StartShiftTrigger(Math.max(tickToSchedule, tick)), self))
       }
       if (debugEnabled) outgoingMessages += ev
-      if (debugEnabled) outgoingMessages += NotifyVehicleOutOfService(vehicle.id)
-      rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
+      if (debugEnabled) outgoingMessages += NotifyVehicleOutOfService(vehicle.id, triggerId)
+      rideHailManager ! NotifyVehicleOutOfService(vehicle.id, triggerId)
       if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newShiftToSchedule)
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
     case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
@@ -727,7 +727,7 @@ class RideHailAgent(
   }
 
   when(PassengerScheduleEmpty) {
-    case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, _, _), data) =>
+    case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, triggerId, _), data) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
       if (this.vehicle.primaryFuelLevelInJoules < 0) {
         rideHailManager ! MarkVehicleBatteryDepleted(lastTime.time, this.vehicle.id)
@@ -748,7 +748,7 @@ class RideHailAgent(
                 beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
               )) {
             log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
-            rideHailManager ! NotifyVehicleOutOfService(vehicle.id)
+            rideHailManager ! NotifyVehicleOutOfService(vehicle.id, triggerId)
 
             requestParkingStall()
 
@@ -835,7 +835,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Refueling.EndRefuelTrigger): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
-      handleEndRefuel(energyInJoules, tick, sessionStart.toInt)
+      handleEndRefuel(energyInJoules, tick, sessionStart.toInt, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
         goto(Idle)
       } else {
@@ -872,7 +872,7 @@ class RideHailAgent(
     }
   }
 
-  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int): Unit = {
+  def handleEndRefuel(energyInJoules: Double, tick: Int, sessionStart: Int, triggerId: Long): Unit = {
     vehicle.addFuel(energyInJoules)
     val refuelSessionEvent = new RefuelSessionEvent(
       tick,
@@ -904,7 +904,7 @@ class RideHailAgent(
           )
         if (!vehicle.isCAV) {
           val stall = vehicle.stall.get
-          parkingManager ! ReleaseParkingStall(stall)
+          parkingManager ! ReleaseParkingStall(stall, triggerId)
         }
         val currentLocation = parkingStall.locationUTM
         if (!vehicle.isCAV) vehicle.unsetParkingStall()

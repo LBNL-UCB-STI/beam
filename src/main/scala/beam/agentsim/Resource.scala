@@ -12,7 +12,7 @@ import org.matsim.api.core.v01.Id
 
 object Resource {
 
-  case class ReleaseParkingStall(stall: ParkingStall)
+  case class ReleaseParkingStall(stall: ParkingStall, triggerId: Long) extends HasTriggerId
 
   case class NotifyVehicleIdle(
     resourceId: Id[_],
@@ -24,7 +24,7 @@ object Resource {
   ) extends HasTriggerId
 
   // Optional triggerId and beamVehicleState are only used if the vehicle is completing a Refuel and needs to communicate SOC back
-  case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle])
+  case class NotifyVehicleOutOfService(vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
   case class NotifyVehicleDoneRefuelingAndOutOfService(
     vehicleId: Id[BeamVehicle],
@@ -32,12 +32,12 @@ object Resource {
     triggerId: Long,
     tick: Int,
     beamVehicleState: BeamVehicleState
-  )
+  ) extends HasTriggerId
 
-  case class TryToBoardVehicle(token: Token, who: ActorRef)
+  case class TryToBoardVehicle(token: Token, who: ActorRef, triggerId: Long) extends HasTriggerId
 
-  case class Boarded(vehicle: BeamVehicle)
+  case class Boarded(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
-  case object NotAvailable
+  case class NotAvailable(triggerId: Long) extends HasTriggerId
 
 }

@@ -80,10 +80,11 @@ class RideHailModifyPassengerScheduleManager(
 
   private def sendModifyPassengerScheduleMessage(
     modifyStatus: RideHailModifyPassengerScheduleStatus,
-    stopDriving: Boolean
+    stopDriving: Boolean,
+    triggerId: Long
   ): Unit = {
     if (stopDriving) {
-      modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick), rideHailManagerRef)
+      modifyStatus.rideHailAgent.tell(StopDriving(modifyStatus.tick, triggerId), rideHailManagerRef)
     }
     modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManagerRef)
     log.debug("sending Resume from sendModifyPassengerScheduleMessage to {}", modifyStatus.vehicleId)
@@ -263,7 +264,8 @@ class RideHailModifyPassengerScheduleManager(
                         reservationRequestId = reservationRequestIdOpt
                       )
                   ),
-                  reply.isInstanceOf[InterruptedWhileDriving]
+                  reply.isInstanceOf[InterruptedWhileDriving],
+                  triggerId
                 )
                 rideHailManager.ridehailManagerCustomizationAPI
                   .sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(status.vehicleId, passengerSchedule)
