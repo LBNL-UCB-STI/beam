@@ -31,6 +31,7 @@ case class PythonProcess(processOption: Option[Process]) {
 }
 
 object AnalysisProcessor extends ExponentialLazyLogging {
+
   def firePythonScriptAsync(scriptPath: String, args: String*): PythonProcess = {
     firePythonAsync("python3", scriptPath, args: _*)
   }
