@@ -10,6 +10,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 def lambda_handler(event, context):
+    logger.info("Incoming event: " + str(event))
     headers = {'Content-type': 'application/json'}
 
     instance_region_regex_extractor = '(.*?)_(.*?)_.*'
@@ -23,23 +24,28 @@ def lambda_handler(event, context):
     else:
         instance_name = "NA"
     subject = get_subject_from(event)
-    logger.info('instance: ' + instance + '; region: ' + region + '; subject:' + subject)
     email=get_email_from(event)
+    logger.info('instance: ' + instance + '; region: ' + region + '; subject:' + subject + '; email: ' + email)
     user_slacks_ids=os.environ['USER_SLACK_IDS']
     slack_ids_as_dict = json.loads(user_slacks_ids)
-    channel_id=safe_value_with_default(slack_ids_as_dict, email, 'channel')
-
+    channel_id=safe_value_with_default(slack_ids_as_dict, email, 'here')
+    if channel_id == "here":
+        channel_id = "!here"
+    else:
+        channel_id = "@" + channel_id
+    
     payload = {
         "blocks": [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*<@{channel_id}|cal> EC2 Idle Alarm Triggered*\n> *Alarm Name*\n> {alarm_name}\n> *Instance Name*\n> {instance_name}\n> *Trigger Subject*\n> {subject}\n> *Link to Alarm*\n> https://console.aws.amazon.com/cloudwatch/home?region={region}#alarmsV2:alarm/{alarm_name}\n> *Link to Instance*\n> https://console.aws.amazon.com/ec2/home?region={region}#Instances:instanceId={instance}"
+                    "text": f"*<{channel_id}> EC2 Idle Alarm Triggered *\n> *Alarm Name*\n> {alarm_name}\n> *Instance Name*\n> {instance_name}\n> *Trigger Subject*\n> {subject}\n> *Link to Alarm*\n> https://console.aws.amazon.com/cloudwatch/home?region={region}#alarmsV2:alarm/{alarm_name}\n> *Link to Instance*\n> https://console.aws.amazon.com/ec2/home?region={region}#Instances:instanceId={instance}"
                 }
             }
         ]
     }
+    
     slack_hook = os.environ['SLACK_HOOK']
     logger.info('Sending slack notification about idle instance with payload: ' + str(payload))
     conn = http.client.HTTPSConnection('hooks.slack.com')
@@ -62,6 +68,20 @@ def get_subject_from(event):
     first_record = safe_index(records, 0)
     sns = safe_get(first_record, 'Sns')
     return safe_get_with_default(sns, 'Subject', 'NA')
+    
+def get_email_from(event):
+    records = safe_get(event, 'Records')
+    first_record = safe_index(records, 0)
+    sns = safe_get(first_record, 'Sns')
+    owner_email = safe_get_with_default(sns, 'OwnerEmail', None)
+    if owner_email is None:
+        message = safe_get_with_default(sns, 'Message', '{}')
+        message_as_dict = json.loads(message)
+        alarm_description = safe_get_with_default(message_as_dict, 'AlarmDescription', 'OwnerEmail:NA;')
+        email_from_description_regex_extractor = 'OwnerEmail:(.*);'
+        owner_email = safe_index_with_default(re.findall(email_from_description_regex_extractor, alarm_description), 0, None)
+    return owner_email
+    
     
 def get_instance_name_using(instance_id, region):
     ec2 = boto3.client('ec2', region_name=region)
@@ -114,13 +134,7 @@ def safe_index_with_default(list_obj, index, default):
     if value is None:
         return default
     return value
-
-def get_email_from(event):
-    records = safe_get(event, 'Records')
-    first_record = safe_index(records, 0)
-    sns = safe_get(first_record, 'Sns')
-    return safe_get_with_default(sns, 'OwnerEmail', None)
-
+    
 def safe_value_with_default(list_obj, key, default):
     for item in list_obj:
         value = safe_get(item, key)

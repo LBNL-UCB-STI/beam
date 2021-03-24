@@ -164,7 +164,7 @@ class BeamEventsWriterParquet(
     "locationX"                -> PDouble, //-122.44119629999999, -122.4327195, -122.39781000000197
     "seatingCapacity"          -> PInteger, //168, 19, 29
     "location"                 -> PInteger, //91618, 19450, 31138
-    "cost"                     -> PInteger, //0
+    "cost"                     -> PDouble, //0
     "arrivalTime"              -> PInteger, //14700, 14880, 14853
     "departTime"               -> PInteger, //36062, 36746, 40772
     "departureTime"            -> PInteger, //14400, 14520, 14760

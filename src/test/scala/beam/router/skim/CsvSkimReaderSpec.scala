@@ -1,8 +1,7 @@
 package beam.router.skim
 
-import akka.event.Logging
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
+import beam.router.skim.core.ODSkimmer.{fromCsv, ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
@@ -15,7 +14,7 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
 
   "CsvSkimReader" must "read skims correctly" in {
     val skims =
-      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", ODSkimmer.fromCsv, getDummyLogger()).readAggregatedSkims
+      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", fromCsv, getDummyLogger).readAggregatedSkims
         .map {
           case (skimmerKey, skimmerInternal) =>
             (skimmerKey.asInstanceOf[ODSkimmerKey], skimmerInternal.asInstanceOf[ODSkimmerInternal])
@@ -62,7 +61,7 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
     assert(oDSkimmerInternals.map(fieldMapping).max == maxValue, error(fieldName))
   }
 
-  def getDummyLogger(): Logger = {
+  def getDummyLogger: Logger = {
     new DummyLogging().log
   }
 

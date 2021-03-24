@@ -10,6 +10,9 @@ import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.GetObjectRequest
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io
 import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
@@ -219,6 +222,17 @@ object FileUtils extends LazyLogging {
     copyURLToFile(new URL(source), Paths.get(target).toFile)
   }
 
+  def downloadS3File(source: String, target: String): Unit = {
+    assert(source != null)
+    assert(target != null)
+    val s3Client = AmazonS3ClientBuilder.standard()
+    val localFile = new File(target)
+
+    val keys = source.substring("s3://".length).split("/", 2)
+    logger.info(s"Downloading [$source] to [$target]")
+    s3Client.build().getObject(new GetObjectRequest(keys(0), keys(1)), localFile)
+  }
+
   def getHash(concatParams: Any*): Int = {
     val concatString = concatParams.foldLeft("")(_ + _)
     concatString.hashCode
@@ -296,6 +310,10 @@ object FileUtils extends LazyLogging {
         val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
         downloadFile(srcPath, tmpPath)
         tmpPath
+      } else if (isS3Remote(srcPath, "s3")) {
+        val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
+        downloadS3File(srcPath, tmpPath)
+        tmpPath
       } else
         srcPath
 
@@ -326,6 +344,11 @@ object FileUtils extends LazyLogging {
   }
 
   private def isRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
+    assert(sourceFilePath != null)
+    sourceFilePath.startsWith(remoteIfStartsWith)
+  }
+
+  private def isS3Remote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
     assert(sourceFilePath != null)
     sourceFilePath.startsWith(remoteIfStartsWith)
   }
@@ -423,6 +446,32 @@ object FileUtils extends LazyLogging {
     if (deleteSourceFile) {
       Files.deleteIfExists(filePath)
     }
+  }
+
+  /**
+    * Not recursive (accepts only files)
+    * @param out the output file path
+    * @param files a sequence of pairs zip entry name -> file path
+    */
+  def zipFiles(out: String, files: IndexedSeq[(String, Path)]): String = {
+    import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
+    import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    val existed = files.filter { case (_, path)      => Files.exists(path) && Files.isRegularFile(path) }
+    val notExited = files.filterNot { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
+    notExited.foreach { case (name, _) => logger.error(s"Cannot find $name") }
+
+    using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) { zip =>
+      existed.foreach {
+        case (name, path) =>
+          zip.putNextEntry(new ZipEntry(name))
+          using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
+            IOUtils.copyStream(in, zip)
+          }
+          zip.closeEntry()
+      }
+    }
+    out
   }
 
   def getStreamFromZipFolder(pathToZip: String, fileName: String): Option[InputStream] = {

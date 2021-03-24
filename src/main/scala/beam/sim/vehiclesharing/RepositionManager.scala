@@ -1,15 +1,16 @@
 package beam.sim.vehiclesharing
+
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.skim.TAZSkimmerEvent
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
-import beam.sim.BeamServices
+import beam.router.skim.event.TAZSkimmerEvent
+import beam.sim.{BeamServices, BeamWarmStart}
 import org.matsim.api.core.v01.{Coord, Id}
 
 trait RepositionManager extends Actor with ActorLogging {
@@ -20,7 +21,8 @@ trait RepositionManager extends Actor with ActorLogging {
   val (algorithm, repTime, statTime) = getRepositionAlgorithmType match {
     case Some(algorithmType) =>
       var alg: RepositionAlgorithm = null
-      if (getServices.matsimServices.getIterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
+      if (getServices.matsimServices.getIterationNumber > 0 ||
+          BeamWarmStart.isFullWarmStart(getServices.beamConfig.beam.warmStart)) {
         alg = algorithmType.getInstance(getId, getServices)
         getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
       }

@@ -1,7 +1,6 @@
 package beam.sim.vehiclesharing
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import akka.pattern.{ask, pipe}
@@ -9,15 +8,17 @@ import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor.{
+  GetVehicleTypes,
   MobilityStatusInquiry,
   MobilityStatusResponse,
   ReleaseVehicle,
-  ReleaseVehicleAndReply
+  ReleaseVehicleAndReply,
+  VehicleTypesResponse
 }
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -58,6 +59,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
         vehicleType,
+        managerId = id,
         rand.nextInt()
       )
       vehicle.setManager(Some(self))
@@ -84,6 +86,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
+    case GetVehicleTypes() =>
+      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet)
     case MobilityStatusInquiry(_, whenWhere, _) =>
       // Search box: maxWalkingDistance meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
@@ -92,7 +96,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
-        Token(vehicle.id, self, vehicle.toStreetVehicle)
+        Token(vehicle.id, self, vehicle)
       })
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 

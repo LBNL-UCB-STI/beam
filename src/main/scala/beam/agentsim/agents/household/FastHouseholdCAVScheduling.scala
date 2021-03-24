@@ -162,6 +162,8 @@ class FastHouseholdCAVScheduling(
           prevReq.baselineNonPooledTime,
           BeamMode.CAR,
           cav.beamVehicleType.id,
+          cav.beamVehicleType,
+          beamServices.beamScenario.fuelTypePrices(cav.beamVehicleType.primaryFuelType),
           beamServices.beamScenario
         )
         var serviceTime = prevReq.serviceTime + metric.time
@@ -271,7 +273,8 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
             cav.beamVehicleType.id,
             origin,
             CAV,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           )
           val origLink = beamServices.geo.getNearestR5Edge(
             transportNetwork.streetLayer,
@@ -309,7 +312,8 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                     cav.beamVehicleType.id,
                     origin,
                     CAV,
-                    asDriver = true
+                    asDriver = true,
+                    needsToCalculateCost = true
                   )
                 )
               )
@@ -472,6 +476,8 @@ object HouseholdTripsHelper {
       0,
       defaultMode,
       beamVehicleType.id,
+      beamVehicleType,
+      beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType),
       beamServices.beamScenario
     )
 

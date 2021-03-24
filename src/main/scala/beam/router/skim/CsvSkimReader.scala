@@ -3,6 +3,7 @@ package beam.router.skim
 import java.io.{BufferedReader, File}
 import java.util
 
+import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
 import com.typesafe.scalalogging.Logger
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
@@ -26,7 +27,7 @@ class CsvSkimReader(
   logger: Logger
 ) {
 
-  def readAggregatedSkims: immutable.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+  def readAggregatedSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     if (!new File(aggregatedSkimsFilePath).isFile) {
       logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
       Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
@@ -44,12 +45,11 @@ class CsvSkimReader(
   }
 
   def readSkims(reader: BufferedReader): Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
-    tryReadSkims(reader) match {
-      case Success(skimMap) => skimMap
-      case Failure(ex) =>
+    tryReadSkims(reader).recover {
+      case ex: Throwable =>
         logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
         Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
-    }
+    }.get
   }
 
   private def tryReadSkims(reader: BufferedReader): Try[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = {

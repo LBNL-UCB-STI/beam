@@ -33,7 +33,8 @@ class SimpleRideHailUtilizationTest extends FunSuite with Matchers {
     endLegSecondaryFuelLevel = 4,
     amountPaid = 1,
     None,
-    None
+    None,
+    riders = Vector()
   )
 
   test("Should ignore non-ridehail vehicles") {

@@ -86,7 +86,8 @@ object ArgumentsParser {
     nodeHost: Option[String] = None,
     nodePort: Option[String] = None,
     seedAddress: Option[String] = None,
-    useLocalWorker: Option[Boolean] = None
+    useLocalWorker: Option[Boolean] = None,
+    customStatsProcessorClass: Option[String] = None
   ) {
     val useCluster: Boolean = clusterType.isDefined
   }

@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingType.Residential
@@ -12,7 +13,6 @@ import org.scalatest.{Matchers, WordSpec}
 
 import scala.collection.immutable.HashMap
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
-import scala.util.Random
 
 /**
   * @author Dmitry Openkov
@@ -22,8 +22,9 @@ class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {
         val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, linkTree, totalRows, failedRows) =
-          ParkingZoneFileUtils.fromIterator[Link](linkLevelData)
-        val linkToTazMapping = HashMap(
+          ParkingZoneFileUtils
+            .fromIterator[Link](linkLevelData, vehicleManagerId = VehicleManager.privateVehicleManager.managerId)
+        val linkToTazMapping: Map[Id[Link], Id[TAZ]] = HashMap(
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83661) -> Id.create(100026, classOf[TAZ]),
@@ -34,7 +35,7 @@ class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
 
         println(tazZones.mkString("Array(", ", ", ")"))
         tazZones.length should be(9)
-        val joinZone = tazZones.find(
+        val joinZone: Option[ParkingZone[TAZ]] = tazZones.find(
           zone =>
             zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
               CustomChargingPoint("dcfast", 50.0, DC)

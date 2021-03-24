@@ -1,7 +1,8 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.agentsim.agents.vehicles.ChargingCapability._
 import org.matsim.api.core.v01.Id
 
 case class BeamVehicleType(
@@ -26,7 +27,8 @@ case class BeamVehicleType(
   primaryVehicleEnergyFile: Option[String] = None,
   secondaryVehicleEnergyFile: Option[String] = None,
   sampleProbabilityWithinCategory: Double = 1.0,
-  sampleProbabilityString: Option[String] = None
+  sampleProbabilityString: Option[String] = None,
+  chargingCapability: Option[ChargingCapability] = None
 ) {
 
   def isEV: Boolean = {
@@ -69,5 +71,16 @@ object VehicleCategory {
     Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
       .find(_.toString.equalsIgnoreCase(value))
       .get
+  }
+}
+
+object ChargingCapability {
+  sealed trait ChargingCapability
+  case object XFC extends ChargingCapability
+  case object DCFC extends ChargingCapability
+  case object AC extends ChargingCapability
+
+  def fromString(value: String): ChargingCapability = {
+    Vector(XFC, DCFC, AC).find(_.toString.equalsIgnoreCase(value)).get
   }
 }

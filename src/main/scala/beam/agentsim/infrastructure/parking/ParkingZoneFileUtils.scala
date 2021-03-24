@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import java.io.{BufferedReader, File, IOException}
-
+import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.utils.FileUtils
@@ -9,6 +8,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
+import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -22,12 +22,14 @@ object ParkingZoneFileUtils extends LazyLogging {
     * used to parse a row ofParkingGeoIndexConverterSpec the parking file
     * last row (ReservedFor) is ignored
     */
-  val ParkingFileRowRegex: Regex = """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*).*""".r.unanchored
+  val ParkingFileRowRegex: Regex =
+    """(\w+),(\w+),(\w+),(\w.+),(\d+),(\d+\.{0,1}\d*),?([\w\-]+)?,?(\d+\.{0,1}\d*)?,?([\w\-]+)?""".r.unanchored
 
   /**
     * header for parking files (used for writing new parking files)
     */
-  val ParkingFileHeader: String = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
+  val ParkingFileHeader: String =
+    "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
 
   /**
     * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
@@ -43,7 +45,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     maybeChargingPoint: Option[ChargingPointType]
   ): String = {
     val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
-    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,unused"
+    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,"
   }
 
   /**
@@ -70,8 +72,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     def someRowsFailed: Boolean = failedRows > 0
 
     def totalParkingStalls: Long =
-      if (zones.length == 0) 0
-      else zones.map { _.maxStalls.toLong }.sum
+      zones.map { _.maxStalls.toLong }.sum
 
     def parkingStallsPlainEnglish: String = {
       val count: Long = totalParkingStalls
@@ -122,8 +123,10 @@ object ParkingZoneFileUtils extends LazyLogging {
           case None     => "NoCharger"
           case Some(cp) => s"$cp"
         }
+        val parkingZoneName = parkingZone.parkingZoneName.getOrElse("")
+        val landCostInUSDPerSqft = parkingZone.landCostInUSDPerSqft.getOrElse("")
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft"
       }
     } match {
       case Failure(e) =>
@@ -157,8 +160,39 @@ object ParkingZoneFileUtils extends LazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    header: Boolean = true
-  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) =
+    header: Boolean = true,
+    vehicleManagerId: Id[VehicleManager]
+  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+    val parkingLoadingAccumulator =
+      fromFileToAccumulator(
+        filePath,
+        rand,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor,
+        header,
+        vehicleManagerId
+      )
+    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
+  }
+
+  /**
+    * Loads taz parking data from file, creating a parking zone accumulator
+    * This method allows to read multiple parking files into a single array of parking zones
+    * along with a single search tree to find zones
+    *
+    * @param filePath location in FS of taz parking data file (.csv)
+    * @param header whether or not the file is expected to have a csv header row
+    * @return parking zone accumulator
+    */
+  def fromFileToAccumulator[GEO: GeoLevel](
+    filePath: String,
+    rand: Random,
+    parkingStallCountScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0,
+    header: Boolean = true,
+    vehicleManagerId: Id[VehicleManager],
+    parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
+  ): ParkingLoadingAccumulator[GEO] =
     Try {
       val reader = FileUtils.getReader(filePath)
       if (header) reader.readLine()
@@ -166,7 +200,14 @@ object ParkingZoneFileUtils extends LazyLogging {
     } match {
       case Success(reader) =>
         val parkingLoadingAccumulator: ParkingLoadingAccumulator[GEO] =
-          fromBufferedReader(reader, rand, parkingStallCountScalingFactor, parkingCostScalingFactor)
+          fromBufferedReader(
+            reader,
+            rand,
+            parkingStallCountScalingFactor,
+            parkingCostScalingFactor,
+            vehicleManagerId,
+            parkingLoadingAcc
+          )
         reader.close()
         logger.info(
           s"loaded ${parkingLoadingAccumulator.totalRows} rows as parking zones from $filePath, with ${parkingLoadingAccumulator.parkingStallsPlainEnglish} stalls (${parkingLoadingAccumulator.totalParkingStalls}) in system"
@@ -174,7 +215,7 @@ object ParkingZoneFileUtils extends LazyLogging {
         if (parkingLoadingAccumulator.someRowsFailed) {
           logger.warn(s"${parkingLoadingAccumulator.failedRows} rows of parking data failed to load")
         }
-        (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
+        parkingLoadingAccumulator
       case Failure(e) =>
         throw new java.io.IOException(s"Unable to load parking configuration file with path $filePath.\n$e")
     }
@@ -189,12 +230,14 @@ object ParkingZoneFileUtils extends LazyLogging {
     reader: BufferedReader,
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
-    parkingCostScalingFactor: Double = 1.0
+    parkingCostScalingFactor: Double = 1.0,
+    vehicleManagerId: Id[VehicleManager],
+    parkingLoadingAccumulator: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator()
   ): ParkingLoadingAccumulator[GEO] = {
 
     @tailrec
     def _read(
-      accumulator: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator()
+      accumulator: ParkingLoadingAccumulator[GEO]
     ): ParkingLoadingAccumulator[GEO] = {
       val csvRow = reader.readLine()
       if (csvRow == null) accumulator
@@ -204,7 +247,8 @@ object ParkingZoneFileUtils extends LazyLogging {
           accumulator.nextParkingZoneId,
           rand,
           parkingStallCountScalingFactor,
-          parkingCostScalingFactor
+          parkingCostScalingFactor,
+          vehicleManagerId
         ) match {
           case None =>
             accumulator.countFailedRow
@@ -215,7 +259,7 @@ object ParkingZoneFileUtils extends LazyLogging {
       }
     }
 
-    _read()
+    _read(parkingLoadingAccumulator)
   }
 
   /**
@@ -229,7 +273,8 @@ object ParkingZoneFileUtils extends LazyLogging {
     random: Random = Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    header: Boolean = true
+    header: Boolean = true,
+    vehicleManagerId: Id[VehicleManager]
   ): ParkingLoadingAccumulator[GEO] = {
 
     val maybeWithoutHeader = if (header) csvFileContents.drop(1) else csvFileContents
@@ -243,7 +288,8 @@ object ParkingZoneFileUtils extends LazyLogging {
             accumulator.nextParkingZoneId,
             random,
             parkingStallCountScalingFactor,
-            parkingCostScalingFactor
+            parkingCostScalingFactor,
+            vehicleManagerId
           ) match {
             case None =>
               accumulator.countFailedRow
@@ -293,7 +339,8 @@ object ParkingZoneFileUtils extends LazyLogging {
     nextParkingZoneId: Int,
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
-    parkingCostScalingFactor: Double = 1.0
+    parkingCostScalingFactor: Double = 1.0,
+    vehicleManagerId: Id[VehicleManager],
   ): Option[ParkingLoadingDataRow[GEO]] = {
     csvRow match {
       case ParkingFileRowRegex(
@@ -302,7 +349,10 @@ object ParkingZoneFileUtils extends LazyLogging {
           pricingModelString,
           chargingTypeString,
           numStallsString,
-          feeInCentsString
+          feeInCentsString,
+          parkingZoneNameString,
+          landCostInUSDPerSqftString,
+          reservedForString,
           ) =>
         Try {
           val newCostInDollarsString = (feeInCentsString.toDouble * parkingCostScalingFactor / 100.0).toString
@@ -313,13 +363,38 @@ object ParkingZoneFileUtils extends LazyLogging {
           } else {
             floorNumberOfStalls
           }
+          val vehicleManagerType: Option[VehicleManagerType] =
+            (if (reservedForString == null) "" else reservedForString).trim match {
+              //we had Any and RideHailManager in the taz-parking.csv files
+              //allow the users not to modify existing files
+              case "" | "Any"        => None
+              case "RideHailManager" => Some(VehicleManagerType.Ridehail)
+              case trimmed @ _       => Some(VehicleManagerType.withNameInsensitive(trimmed))
+            }
+
           // parse this row from the source file
           val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)
           val parkingType = ParkingType(parkingTypeString)
           val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
           val chargingPoint = ChargingPointType(chargingTypeString)
           val numStalls = numberOfStallsToCreate
-          val parkingZone = ParkingZone(nextParkingZoneId, taz, parkingType, numStalls, chargingPoint, pricingModel)
+          val parkingZoneName =
+            if (parkingZoneNameString == null || parkingZoneNameString.isEmpty) None else Some(parkingZoneNameString)
+          val landCostInUSDPerSqft =
+            if (landCostInUSDPerSqftString == null || landCostInUSDPerSqftString.isEmpty) None
+            else Some(landCostInUSDPerSqftString.toDouble)
+          val parkingZone =
+            ParkingZone(
+              nextParkingZoneId,
+              taz,
+              parkingType,
+              numStalls,
+              vehicleManagerId,
+              chargingPoint,
+              pricingModel,
+              parkingZoneName,
+              landCostInUSDPerSqft
+            )
 
           ParkingLoadingDataRow(taz, parkingType, parkingZone)
 
@@ -327,7 +402,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           case Success(updatedAccumulator) =>
             Some { updatedAccumulator }
           case Failure(e) =>
-            throw new java.io.IOException(s"Failed to load parking data from row with contents '$csvRow'.\n$e")
+            throw new java.io.IOException(s"Failed to load parking data from row with contents '$csvRow'.", e)
         }
       case _ =>
         throw new java.io.IOException(s"Failed to match row of parking configuration '$csvRow' to expected schema")
@@ -374,16 +449,34 @@ object ParkingZoneFileUtils extends LazyLogging {
   def generateDefaultParkingFromGeoObjects[GEO: GeoLevel](
     geoObjects: Iterable[GEO],
     random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    vehicleManagerId: Id[VehicleManager]
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val result = generateDefaultParking(geoObjects, random, parkingTypes)
+    val parkingLoadingAccumulator =
+      generateDefaultParkingAccumulatorFromGeoObjects(geoObjects, random, parkingTypes, vehicleManagerId)
+    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
+  }
+
+  /**
+    * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
+    * @param geoObjects geo objects that should be used to hold parking stalls
+    * @param parkingTypes the parking types we are generating, by default, the complete set
+    * @return the parking accumulator
+    */
+  def generateDefaultParkingAccumulatorFromGeoObjects[GEO: GeoLevel](
+    geoObjects: Iterable[GEO],
+    random: Random,
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    vehicleManagerId: Id[VehicleManager]
+  ): ParkingLoadingAccumulator[GEO] = {
+    val result = generateDefaultParking(geoObjects, random, parkingTypes, vehicleManagerId)
     logger.info(
       s"generated ${result.totalRows} parking zones,one for each provided geo level, with ${result.parkingStallsPlainEnglish} stalls (${result.totalParkingStalls}) in system"
     )
     if (result.someRowsFailed) {
       logger.warn(s"${result.failedRows} rows of parking data failed to load")
     }
-    (result.zones.toArray, result.tree)
+    result
   }
 
   /**
@@ -395,7 +488,8 @@ object ParkingZoneFileUtils extends LazyLogging {
   def generateDefaultParking[GEO: GeoLevel](
     geoObjects: Iterable[GEO],
     random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    vehicleManagerId: Id[VehicleManager]
   ): ParkingLoadingAccumulator[GEO] = {
 
     val rows: Iterable[String] = for {
@@ -409,6 +503,36 @@ object ParkingZoneFileUtils extends LazyLogging {
       defaultParkingRow(geoObj.getId, parkingType, maybeChargingPoint)
     }
 
-    fromIterator(rows.iterator, random, header = false)
+    fromIterator(rows.iterator, random, header = false, vehicleManagerId = vehicleManagerId)
   }
+
+  /**
+    * Write parking zones to csv.
+    */
+  def toCsv[GEO: GeoLevel](parkingZones: Array[ParkingZone[GEO]], filePath: String): Unit = {
+    val fileContent = parkingZones
+      .map { parkingZone =>
+        List(
+          parkingZone.geoId,
+          parkingZone.parkingType,
+          parkingZone.pricingModel.getOrElse(""),
+          parkingZone.chargingPointType.getOrElse(""),
+          parkingZone.maxStalls,
+          parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
+          parkingZone.parkingZoneName.getOrElse(""),
+          parkingZone.parkingZoneId,
+          parkingZone.landCostInUSDPerSqft.getOrElse("")
+        ).mkString(",")
+      }
+      .mkString(System.lineSeparator())
+
+    FileUtils.writeToFile(
+      filePath,
+      Some("taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,name,parkingZoneId,landCostInUSDPerSqft"),
+      fileContent,
+      None
+    )
+
+  }
+
 }

@@ -20,7 +20,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -66,12 +66,14 @@ object HouseholdActor {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     population: org.matsim.api.core.v01.population.Population,
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -86,12 +88,14 @@ object HouseholdActor {
         router,
         rideHailManager,
         parkingManager,
+        chargingNetworkManager,
         eventsManager,
         population,
         matSimHousehold,
         houseHoldVehicles,
         homeCoord,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
         boundingBox
       )
@@ -102,6 +106,8 @@ object HouseholdActor {
   case class ReleaseVehicle(vehicle: BeamVehicle)
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
+  case class GetVehicleTypes()
+  case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType])
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -126,12 +132,14 @@ object HouseholdActor {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     val population: org.matsim.api.core.v01.population.Population,
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ) extends Actor
@@ -195,6 +203,7 @@ object HouseholdActor {
                 beamScenario,
                 eventsManager,
                 parkingManager,
+                chargingNetworkManager,
                 cav,
                 Seq(),
                 transportNetwork,
@@ -290,11 +299,14 @@ object HouseholdActor {
               router,
               rideHailManager,
               parkingManager,
+              chargingNetworkManager,
               eventsManager,
               person.getId,
               self,
               selectedPlan,
-              fleetManagers ++: sharedVehicleFleets,
+              fleetManagers.toSeq,
+              sharedVehicleFleets,
+              possibleSharedVehicleTypes,
               routeHistory,
               boundingBox
             ),
