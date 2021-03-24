@@ -1,6 +1,6 @@
 package beam.router
 
-import java.io.{FileInputStream, FileOutputStream}
+import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
 import java.time.{LocalDateTime, ZoneOffset}
@@ -11,10 +11,12 @@ import javax.xml.stream.events.{Attribute, Characters, StartElement, XMLEvent}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.util.{Success, Try}
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.router.Modes.BeamMode
 import com.typesafe.scalalogging.StrictLogging
+import scopt.OParser
 
 object PhyssymXmlToOsmConverter extends StrictLogging {
 
@@ -259,11 +261,56 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    val sourcePhyssimNetwork = Paths.get(args(0))
-    val targetOsm = Paths.get(args(1))
+    PhyssymXmlToOsmConverterParams.tryReadParams(args) match {
+      case Success(params)  =>
+        println(s"Started converting ${params.sourceFile} to ${params.targetFile}...")
+        val network = build(params.sourceFile.toPath)
+        network.writeToFile(params.targetFile.toPath)
+        println(s"Finished converting ${params.sourceFile} to ${params.targetFile}")
+      case _ =>
+        System.exit(1)
+    }
+  }
 
-    val network = build(sourcePhyssimNetwork)
-    network.writeToFile(targetOsm)
+}
+
+
+private object PhyssymXmlToOsmConverterParams {
+
+  case class ConverterParams(sourceFile: File = null, targetFile: File = null)
+
+  private val builder = OParser.builder[ConverterParams]
+  private val parser1 = {
+    import builder._
+    OParser.sequence(
+      programName("BeamPhyssymConverter"),
+      head("BeamPhyssymConverter", "0.1"),
+      opt[File](name="sourceFile")
+        .action((x, c) => c.copy(sourceFile = x))
+        .text("sourceFile is a valid Physym network file")
+        .required()
+        .validate { v =>
+          if (v.isFile) success
+          else failure(s"sourceFile [$v] is not a regular file")
+        },
+      opt[File](name="targetFile")
+        .action((x, c) => c.copy(targetFile = x))
+        .text("targetFile is a valid path for the output OSM file")
+        .required(),
+      checkConfig{c =>
+        if (c.sourceFile == c.targetFile) {
+          failure("sourceFile cannot be the same as targetFile")
+        } else {
+          success
+        }
+      }
+    )
+  }
+
+  def tryReadParams(args: Array[String]): Try[ConverterParams] = {
+    OParser.parse(parser1, args, ConverterParams())
+      .toRight(new IllegalArgumentException("Invalid arguments"))
+      .toTry
   }
 
 }
