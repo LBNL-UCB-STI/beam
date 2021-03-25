@@ -497,7 +497,7 @@ class RideHailManager(
           dieIfNoChildren()
       }
 
-    case NotifyVehicleOutOfService(vehicleId) =>
+    case NotifyVehicleOutOfService(vehicleId, _) =>
       rideHailParkingNetwork.notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId)
       rideHailManagerHelper.putOutOfService(vehicleId)
 
