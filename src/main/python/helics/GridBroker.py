@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 import time
 import helics as h
+import json
+import random
 
 iterations = 3
 initstring = "-f 2 --name=mainbroker"
 fedinitstring = "--broker=mainbroker --federates=1"
 deltat = 1.0
 fedname = "GridFederate"
+dataOuputStreamPoint = "PhysicalBounds"
+
+beamFederateName = "CNMFederate/PowerDemand"
+timebin = 300
 
 helicsversion = h.helicsGetVersion()
 print("GRID: Helics version = {}".format(helicsversion))
@@ -48,19 +54,18 @@ for t in range(0, iterations):
     print("GRID: Value federate created")
 
     # Register the publication #
-    pub = h.helicsFederateRegisterTypePublication(cfed, "powerFlow", "double", "")
-    print("GRID: Publication 'powerFlow' registered")
+    pub = h.helicsFederateRegisterTypePublication(cfed, dataOuputStreamPoint, "string", "")
+    print("GRID: Publication '{}' registered".format(dataOuputStreamPoint))
 
     # Subscribe to PI SENDER's publication
-    sub = h.helicsFederateRegisterSubscription(cfed, "BeamFederate/powerOverNextInterval", "")
-    print("GRID: Subscription 'powerOverNextInterval' registered")
+    sub = h.helicsFederateRegisterSubscription(cfed, beamFederateName, "")
+    print("GRID: Subscription '{}' registered".format(beamFederateName))
 
     # Enter execution mode #
     h.helicsFederateEnterExecutingMode(cfed)
     print("GRID: Entering execution mode")
 
     # start execution loop #
-    timebin = 300
     currenttime = -1
     rec_value = 0.0
     time_sleep = 0 # if time_sleep is > 0 then simulation of delay happens for the Helics Grid below in the loop
@@ -74,15 +79,31 @@ for t in range(0, iterations):
             print("GRID: Simulating work (sleep for {} sec) before power flow response".format(time_sleep))
             time.sleep(time_sleep)
 
-        if h.helicsInputIsUpdated(sub):
-            rec_value = h.helicsInputGetString(sub)
-            print("GRID: Received 'powerOverNextInterval' with value = {} at time {} from BeamFederate".format(rec_value, currenttime))
-
-
-            send_value = 12345 # a dummy value
-
-            h.helicsPublicationPublishDouble(pub, send_value)
-            print("GRID: Sending 'powerFlow' with value = {} at time {} to BeamFederate".format(send_value, currenttime))
+        #if h.helicsInputIsUpdated(sub):
+        rec_value = h.helicsInputGetString(sub)
+        print("GRID: Received {} at time {}".format(beamFederateName, currenttime))
+        received_data = json.loads(rec_value)
+        print("")
+        print("****************************************************")
+        print("chargingZoneId, tazId, parkingType, chargingPointType, pricingModel, 'numChargers', vehicleManager, estimatedLoad")
+        for load in received_data:
+            print("{}, {}, {}, {}, {}, {}, {}, {}".format(
+                  load['chargingZoneId'],
+                  load['tazId'],
+                  load['parkingType'],
+                  load['chargingPointType'],
+                  load['pricingModel'],
+                  load['numChargers'],
+                  load['vehicleManager'],
+                  load['estimatedLoad']))
+            del load['estimatedLoad']
+            load['maxLoad'] = 0  # a dummy physical bound
+        print("****************************************************")
+        print("")
+        data_to_send = json.dumps(received_data, separators=(',', ':'))
+        h.helicsPublicationPublishString(pub, data_to_send)
+        h.helicsPublicationPublishDouble(pub, 22.0)
+        print("GRID: Sending {} at time {} to CNMFederate".format(dataOuputStreamPoint, currenttime))
 
 
     h.helicsFederateFinalize(cfed)

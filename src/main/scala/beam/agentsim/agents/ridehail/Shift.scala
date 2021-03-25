@@ -24,7 +24,7 @@ object Shift {
 
   def apply(shiftStr: String) = {
     if (shiftStr.charAt(0).equals('|')) {
-      val coordAndRange = shiftStr.split("\\|")
+      val coordAndRange = shiftStr.split('|')
       if (coordAndRange.size != 3) {
         throw new NumberFormatException(
           s"Shift string malformed, if string begins with | then expecting a second | to enclose the coordinate portion of the shift, but instead found: $shiftStr"

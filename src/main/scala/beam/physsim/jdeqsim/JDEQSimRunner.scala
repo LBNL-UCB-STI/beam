@@ -133,6 +133,7 @@ class JDEQSimRunner(
     SimulationResult(
       iteration = currentPhysSimIter,
       travelTime = travelTimeCalculator.getLinkTravelTimes,
+      volumesAnalyzer = Some(linkStatsGraph.getVolumes),
       eventTypeToNumberOfMessages = eventTypeCounter.getStats,
       carTravelTimeStats = carTravelTimeHandler.compute
     )

@@ -2,6 +2,7 @@ package beam.router.skim
 
 import beam.router
 import beam.router.skim
+import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.router.skim.core.{
   AbstractSkimmer,
   AbstractSkimmerReadOnly,
@@ -11,6 +12,7 @@ import beam.router.skim.core.{
   TransitCrowdingSkimmer
 }
 import beam.router.skim.readonly.{DriveTimeSkims, ODSkims, TAZSkims, TransitCrowdingSkims}
+import beam.sim.config.BeamConfig.Beam.Router
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.MatsimServices
@@ -57,4 +59,14 @@ object Skims {
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
   }
 
+  def skimFileNames(skimCfg: Router.Skim) = IndexedSeq(
+    SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
+    SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
+    SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
+    SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
+  )
+
+  def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =
+    skimFileNames(skimCfg)
+      .map { case (skimType, fileName) => skimType -> (fileName + AGG_SUFFIX) }
 }

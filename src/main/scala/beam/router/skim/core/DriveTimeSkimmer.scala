@@ -3,7 +3,7 @@ package beam.router.skim.core
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.SkimsUtils
+import beam.router.skim.{Skims, SkimsUtils}
 import beam.router.skim.readonly.DriveTimeSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -38,6 +38,7 @@ class DriveTimeSkimmer @Inject()(
   override protected val skimFileHeader: String =
     "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,iterations"
   override protected val skimName: String = config.drive_time_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.DT_SKIMMER
   private val chartName: String = "scatterplot_simulation_vs_reference.png"
   private val histogramName: String = "simulation_vs_reference_histogram.png"
   private val histogramBinSize: Int = 200
@@ -57,27 +58,31 @@ class DriveTimeSkimmer @Inject()(
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
-                  currentSkimInternal.get(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
+                  getCurrentSkimValue(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
                     theSkimInternal =>
                       series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
                       for (_ <- 1 to theSkimInternal.observations)
                         deltasOfObservedSimulatedTimes += theSkimInternal.timeSimulated - timeObserved
-                      currentSkimInternal.update(theSkimKey, theSkimInternal.copy(timeObserved = timeObserved))
+                      currentSkimInternal.put(theSkimKey, theSkimInternal.copy(timeObserved = timeObserved))
                   }
                 }
               }
             }
           }
         }
-      categoryDataset.addSeries("Simulated-Observed", deltasOfObservedSimulatedTimes.toArray, histogramBinSize)
-      val chartPath =
-        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
-      generateChart(series, chartPath)
-      val histogramPath =
-        event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, histogramName)
-      generateHistogram(categoryDataset, histogramPath)
+      if (deltasOfObservedSimulatedTimes.nonEmpty) {
+        categoryDataset.addSeries("Simulated-Observed", deltasOfObservedSimulatedTimes.toArray, histogramBinSize)
+        val chartPath =
+          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, chartName)
+        generateChart(series, chartPath)
+        val histogramPath =
+          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, histogramName)
+        generateHistogram(categoryDataset, histogramPath)
+      } else {
+        logger.warn(s"the skimmer $skimName observed simulated times are empty.")
+      }
     } else {
-      logger.warn(s"the skimmer $skimName does not have access to the observed travel time for calibration")
+      logger.warn(s"the skimmer $skimName does not have access to the observed travel time for calibration.")
     }
 
     super.notifyIterationEnds(event)

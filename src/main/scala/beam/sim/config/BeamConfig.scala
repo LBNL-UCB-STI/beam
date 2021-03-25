@@ -1348,7 +1348,7 @@ object BeamConfig {
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
               ),
               vehicleManagerId =
-                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "ride-hail-default"
+                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "GlobalRHM"
             )
           }
         }
@@ -1730,28 +1730,61 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        gridConnectionEnabled: scala.Boolean,
-        helicsBufferSize: scala.Int,
-        helicsDataInStreamPoint: java.lang.String,
-        helicsDataOutStreamPoint: java.lang.String,
-        helicsFederateName: java.lang.String,
+        chargingPoint: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint,
+        helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
+        case class ChargingPoint(
+          thresholdDCFCinKW: scala.Int,
+          thresholdXFCinKW: scala.Int
+        )
+
+        object ChargingPoint {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
+              thresholdDCFCinKW = if (c.hasPathOrNull("thresholdDCFCinKW")) c.getInt("thresholdDCFCinKW") else 50,
+              thresholdXFCinKW = if (c.hasPathOrNull("thresholdXFCinKW")) c.getInt("thresholdXFCinKW") else 250
+            )
+          }
+        }
+
+        case class Helics(
+          bufferSize: scala.Int,
+          connectionEnabled: scala.Boolean,
+          dataInStreamPoint: java.lang.String,
+          dataOutStreamPoint: java.lang.String,
+          federateName: java.lang.String
+        )
+
+        object Helics {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
+              connectionEnabled = c.hasPathOrNull("connectionEnabled") && c.getBoolean("connectionEnabled"),
+              dataInStreamPoint =
+                if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
+                else "GridFed/PhysicalBounds",
+              dataOutStreamPoint =
+                if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
+              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate"
+            )
+          }
+        }
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            gridConnectionEnabled = c.hasPathOrNull("gridConnectionEnabled") && c.getBoolean("gridConnectionEnabled"),
-            helicsBufferSize = if (c.hasPathOrNull("helicsBufferSize")) c.getInt("helicsBufferSize") else 1000,
-            helicsDataInStreamPoint =
-              if (c.hasPathOrNull("helicsDataInStreamPoint")) c.getString("helicsDataInStreamPoint")
-              else "GridFed/PhysicalBounds",
-            helicsDataOutStreamPoint =
-              if (c.hasPathOrNull("helicsDataOutStreamPoint")) c.getString("helicsDataOutStreamPoint")
-              else "PowerDemand",
-            helicsFederateName =
-              if (c.hasPathOrNull("helicsFederateName")) c.getString("helicsFederateName") else "CNMFederate",
+            chargingPoint = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
+              if (c.hasPathOrNull("chargingPoint")) c.getConfig("chargingPoint")
+              else com.typesafe.config.ConfigFactory.parseString("chargingPoint{}")
+            ),
+            helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
+              if (c.hasPathOrNull("helics")) c.getConfig("helics")
+              else com.typesafe.config.ConfigFactory.parseString("helics{}")
+            ),
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
@@ -3802,35 +3835,52 @@ object BeamConfig {
     }
 
     case class WarmStart(
-      enabled: scala.Boolean,
       path: java.lang.String,
-      routeHistoryFileName: java.lang.String,
-      routeHistoryFilePath: java.lang.String,
+      prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
-      skimsFileName: java.lang.String,
-      skimsFilePath: java.lang.String,
-      skimsPlusFileName: java.lang.String,
-      skimsPlusFilePath: java.lang.String
+      skimsFilePaths: scala.Option[scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm]],
+      `type`: java.lang.String
     )
 
     object WarmStart {
+      case class SkimsFilePaths$Elm(
+        skimType: java.lang.String,
+        skimsFilePath: java.lang.String
+      )
+
+      object SkimsFilePaths$Elm {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm = {
+          BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm(
+            skimType = c.getString("skimType"),
+            skimsFilePath = if (c.hasPathOrNull("skimsFilePath")) c.getString("skimsFilePath") else ""
+          )
+        }
+      }
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
-          enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
-          routeHistoryFileName =
-            if (c.hasPathOrNull("routeHistoryFileName")) c.getString("routeHistoryFileName") else "routeHistory.csv.gz",
-          routeHistoryFilePath =
-            if (c.hasPathOrNull("routeHistoryFilePath")) c.getString("routeHistoryFilePath") else "",
+          prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =
             if (c.hasPathOrNull("samplePopulationIntegerFlag")) c.getInt("samplePopulationIntegerFlag") else 0,
-          skimsFileName = if (c.hasPathOrNull("skimsFileName")) c.getString("skimsFileName") else "skims.csv.gz",
-          skimsFilePath = if (c.hasPathOrNull("skimsFilePath")) c.getString("skimsFilePath") else "",
-          skimsPlusFileName =
-            if (c.hasPathOrNull("skimsPlusFileName")) c.getString("skimsPlusFileName") else "skimsPlus.csv.gz",
-          skimsPlusFilePath = if (c.hasPathOrNull("skimsPlusFilePath")) c.getString("skimsPlusFilePath") else ""
+          skimsFilePaths =
+            if (c.hasPathOrNull("skimsFilePaths"))
+              scala.Some($_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(c.getList("skimsFilePaths")))
+            else None,
+          `type` = if (c.hasPathOrNull("type")) c.getString("type") else "disabled"
         )
+      }
+      private def $_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(
+        cl: com.typesafe.config.ConfigList
+      ): scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm] = {
+        import scala.collection.JavaConverters._
+        cl.asScala
+          .map(
+            cv =>
+              BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
+          )
+          .toList
       }
     }
 
