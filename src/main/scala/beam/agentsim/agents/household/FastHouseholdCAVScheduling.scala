@@ -422,7 +422,7 @@ object HouseholdTripsHelper {
     var totTravelTime = 0
     var firstPickupOfTheDay: Option[MobilityRequest] = None
     breakable {
-      householdPlans.foldLeft(householdNbOfVehicles) {
+      householdPlans.view.filter(x => x.trips.size >= 2).foldLeft(householdNbOfVehicles) {
         case (counter, plan) =>
           val usedCarOut = plan.trips.sliding(2).foldLeft(false) {
             case (usedCar, Seq(prevTrip, curTrip)) =>
