@@ -4,7 +4,6 @@ import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.Timeout
-import akka.pattern.ask
 import akka.pattern.pipe
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
@@ -13,6 +12,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
 import beam.utils.DateUtils
+import beam.utils.logging.pattern.ask
 
 import scala.concurrent.{ExecutionContext, Future}
 

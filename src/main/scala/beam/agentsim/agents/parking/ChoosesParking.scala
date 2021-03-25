@@ -1,6 +1,7 @@
 package beam.agentsim.agents.parking
 
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
+import beam.utils.logging.pattern.ask
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._

@@ -3,7 +3,7 @@ package beam.sim.vehiclesharing
 import java.util.concurrent.TimeUnit
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
@@ -25,6 +25,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
 import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}

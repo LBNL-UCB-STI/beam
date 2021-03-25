@@ -2,7 +2,7 @@ package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
 import akka.actor.Status.{Failure, Success}
 import akka.actor.{Actor, ActorRef}
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
@@ -15,9 +15,9 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
+import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.concurrent.{ExecutionContext, Future}

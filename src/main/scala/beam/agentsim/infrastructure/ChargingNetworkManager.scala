@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.pattern.{ask, pipe}
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent.Finish
@@ -21,7 +21,8 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
-import beam.utils.logging.{LoggingMessageActor, MessageLogger}
+import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit

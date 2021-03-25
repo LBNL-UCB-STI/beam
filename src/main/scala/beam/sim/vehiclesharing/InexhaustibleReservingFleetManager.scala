@@ -1,7 +1,6 @@
 package beam.sim.vehiclesharing
 import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import akka.pattern.ask
 import akka.pattern.pipe
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -22,6 +21,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 
 import scala.util.Random
