@@ -615,6 +615,7 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     instruction 'RUN pip3 install --upgrade setuptools'
     instruction 'RUN pip3 install --upgrade pip'
     instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
+    instruction 'RUN pip3 install -U kaleido'
     environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
     workingDir("/app")
     instruction 'RUN mkdir /app/output'
