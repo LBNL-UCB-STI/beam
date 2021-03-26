@@ -98,9 +98,7 @@ allprojects {
         maven { url "https://repo1.maven.org/maven2" }
         maven { url "https://download.java.net/maven/2/" }
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
-        maven { url "https://dl.bintray.com/andimarek/graphql-java" }
         maven { url "https://maven.geo-solutions.it" }
-        maven { url "https://dl.bintray.com/scalaz/releases" }
         mavenLocal()
         mavenCentral()
         jcenter()
@@ -180,9 +178,11 @@ dependencies {
     compile "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
+    compile(group: 'com.graphql-java', name: 'graphql-java', version: '2018-06-04T04-23-07')
     compile(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
+        exclude group: 'com.graphql-java', module: 'graphql-java'
     }
     compile group: 'com.graphhopper', name: 'graphhopper-core', version: '1.0'
     compile "com.sigopt:sigopt-java:4.9.0"
