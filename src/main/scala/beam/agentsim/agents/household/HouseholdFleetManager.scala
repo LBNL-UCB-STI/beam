@@ -7,7 +7,14 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{GetVehicleTypes, MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle, ReleaseVehicleAndReply, VehicleTypesResponse}
+import beam.agentsim.agents.household.HouseholdActor.{
+  GetVehicleTypes,
+  MobilityStatusInquiry,
+  MobilityStatusResponse,
+  ReleaseVehicle,
+  ReleaseVehicleAndReply,
+  VehicleTypesResponse
+}
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -52,9 +59,11 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
-          (parkingManager ? ParkingInquiry(homeCoord, "init", triggerId = triggerId)).mapTo[ParkingInquiryResponse].map { r =>
-            (id, r)
-          }
+          (parkingManager ? ParkingInquiry(homeCoord, "init", triggerId = triggerId))
+            .mapTo[ParkingInquiryResponse]
+            .map { r =>
+              (id, r)
+            }
       }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
@@ -109,5 +118,6 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
 }
 
 object HouseholdFleetManager {
-  case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)]) extends HasTriggerId
+  case class ResolvedParkingResponses(triggerId: Long, xs: List[(Id[BeamVehicle], ParkingInquiryResponse)])
+      extends HasTriggerId
 }

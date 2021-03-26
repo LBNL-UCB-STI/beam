@@ -46,21 +46,11 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     )
   }
 
-  def tryExtractingSenderId(payload: Any): String = {
-    payload match {
-      case x: MobilityStatusInquiry       => x.personId.toString
-      case x: RoutingRequest              => x.statisticId
-      case x: ParkingInquiry              => x.beamVehicle.map(_.toString).getOrElse("?pi")
-      case x: EmbodyWithCurrentTravelTime => x.vehicleId.toString
-      case _                              => s"Unknown class: ${payload.getClass.getSimpleName}"
-    }
-  }
-
   def extractTriggerId(payload: Any): Long = {
     payload match {
-      case hasTriggerId: HasTriggerId => hasTriggerId.triggerId
+      case hasTriggerId: HasTriggerId                   => hasTriggerId.triggerId
       case Success(status) if status.isInstanceOf[Long] => status.asInstanceOf[Long]
-      case _ => -9998
+      case _                                            => -9998
     }
   }
 
@@ -77,14 +67,17 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     }
     {
       case BeamMessage(sender, receiver, payload) =>
-        val (senderParent, senderName) = userFriendly(sender, payload)
-        val (receiverParent, receiverName) = userFriendly(receiver, payload)
-        val triggerId: Long = extractTriggerId(payload)
-        csvWriter.write("message", senderParent, senderName, receiverParent, receiverName, payload, "", "", triggerId)
-        updateMsgNum()
+        //do not process a temp sender (it's ask pattern which is published with the correct sender at LoggingAskSupport)
+        if (sender.path.parent.name != "temp") {
+          val (senderParent, senderName) = userFriendly(sender)
+          val (receiverParent, receiverName) = userFriendly(receiver)
+          val triggerId: Long = extractTriggerId(payload)
+          csvWriter.write("message", senderParent, senderName, receiverParent, receiverName, payload, "", "", triggerId)
+          updateMsgNum()
+        }
       case BeamFSMMessage(sender, actor, event, tick, triggerId) =>
-        val (senderParent, senderName) = userFriendly(sender, event.event)
-        val (parent, name) = userFriendly(actor, event.event)
+        val (senderParent, senderName) = userFriendly(sender)
+        val (parent, name) = userFriendly(actor)
         csvWriter.write("event", senderParent, senderName, parent, name, event.event, event.stateData, tick, triggerId)
         updateMsgNum()
       case BeamStateTransition(sender, actor, prevState, newState, tick, triggerId) =>
@@ -121,16 +114,6 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
   private def userFriendly(actorRef: ActorRef) = {
     val parent = userFriendlyParent(actorRef)
     (parent, actorRef.path.name)
-  }
-
-  private def userFriendly(actorRef: ActorRef, payload: Any) = {
-    val parent = userFriendlyParent(actorRef)
-    val name = if (parent == "temp") { //means ask pattern
-      tryExtractingSenderId(payload)
-    } else {
-      actorRef.path.name
-    }
-    (parent, name)
   }
 
   private def userFriendlyParent(actorRef: ActorRef) = {

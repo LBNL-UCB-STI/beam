@@ -488,12 +488,6 @@ object BeamRouter {
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
 
     val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
-
-    def statisticId: String = {
-      val sb = new StringBuilder(20, "vehicle: ").append(streetVehicles.head.id)
-      if (personId.isDefined) sb.append("; person: ").append(personId.get)
-      sb.toString()
-    }
   }
 
   sealed trait IntermodalUse

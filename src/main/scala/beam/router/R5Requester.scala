@@ -35,7 +35,8 @@ object R5Requester extends BeamHelper {
       withTransit = true,
       streetVehicles = Vector.empty,
       personId = Some(personId),
-      attributesOfIndividual = Some(personAttribs), triggerId = -1000
+      attributesOfIndividual = Some(personAttribs),
+      triggerId = -1000
     )
   }
 

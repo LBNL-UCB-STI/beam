@@ -74,7 +74,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   }
 
-  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever",
-    triggerId = triggerId)
+  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
+    ParkingInquiry(whenWhere.loc, "wherever", triggerId = triggerId)
 
 }

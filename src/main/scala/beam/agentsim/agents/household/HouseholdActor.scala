@@ -3,7 +3,7 @@ package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
-import akka.pattern._
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
@@ -13,7 +13,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
+import beam.agentsim.agents.ridehail.RideHailAgent.{
+  ModifyPassengerSchedule,
+  ModifyPassengerScheduleAck,
+  ModifyPassengerScheduleAcks
+}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule, PersonIdWithActorRef}
 import beam.agentsim.events.SpaceTime
@@ -30,13 +34,13 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.logging.{LoggingMessageActor, LoggingMessagePublisher}
+import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.households
@@ -148,8 +152,7 @@ object HouseholdActor {
   ) extends Actor
       with HasTickAndTrigger
       with ActorLogging
-      with LoggingMessageActor
-    with LoggingMessagePublisher {
+      with LoggingMessageActor {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
 
@@ -271,23 +274,13 @@ object HouseholdActor {
             Future
               .sequence(
                 routingRequests.map(
-                  req => {
-                    val request = if (req.routeReq.isDefined) {
-                      req.routeReq.get
-                    } else {
-                      req.embodyReq.get
-                    }
-                    publishMessageFromTo(request, self, router)
-                    akka.pattern
-                      .ask(router, request)
+                  req =>
+                    beam.utils.logging.pattern
+                      .ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get })
                       .mapTo[RoutingResponse]
-                  }
                 )
               )
-              .map { responses =>
-                responses.foreach(rsp => publishMessageFromTo(rsp, router, self))
-                RoutingResponses(tick, responses)
-              } pipeTo self
+              .map(RoutingResponses(tick, _)) pipeTo self
           }
         }
         household.members.foreach { person =>
@@ -413,7 +406,7 @@ object HouseholdActor {
               cavPassengerSchedules
                 .filter(_._2.schedule.nonEmpty)
                 .map { cavAndSchedule =>
-                  akka.pattern
+                  beam.utils.logging.pattern
                     .ask(
                       cavAndSchedule._1.getDriver.get,
                       ModifyPassengerSchedule(cavAndSchedule._2, tick, routingResponses.head.triggerId) //todo check1
