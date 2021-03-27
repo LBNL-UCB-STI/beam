@@ -1,6 +1,6 @@
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
-source("/Users/haitamlaarabi/Documents/Workspace/scripts/helpers.R")
-source("/Users/haitamlaarabi/Documents/Workspace/scripts/theme_marain.R")
+source("../common/helpers.R")
+source("../common/theme.R")
 library('colinmisc')
 source("gemini-utils.R")
 library(dplyr)
