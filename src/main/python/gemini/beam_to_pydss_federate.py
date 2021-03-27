@@ -58,7 +58,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     currenttime = -1
     timebin = 300
     # start execution loop
-    for t in range(0, timebin*60*12+1, timebin):
+    for t in range(0, 30*3600-timebin, timebin):
         while currenttime < t:
             currenttime = h.helicsFederateRequestTime(cfed, t)
         isupdated = 0
