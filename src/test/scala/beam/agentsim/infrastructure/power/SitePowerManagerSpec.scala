@@ -29,11 +29,11 @@ class SitePowerManagerSpec
         "SitePowerManagerSpec",
         ConfigFactory
           .parseString("""
-           |akka.log-dead-letters = 10
-           |akka.actor.debug.fsm = true
-           |akka.loglevel = debug
-           |akka.test.timefactor = 2
-           |akka.test.single-expect-default = 10 s""".stripMargin)
+                       |akka.log-dead-letters = 10
+                       |akka.actor.debug.fsm = true
+                       |akka.loglevel = debug
+                       |akka.test.timefactor = 2
+                       |akka.test.single-expect-default = 10 s""".stripMargin)
       )
     )
     with WordSpecLike
