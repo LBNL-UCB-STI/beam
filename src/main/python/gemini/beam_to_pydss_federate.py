@@ -28,7 +28,6 @@ def run_beam_to_pydss_federate(station_bus_pairs):
 
     # create federate
     cfed = h.helicsCreateCombinationFederate("beam_to_pydss_federate", fedinfo)
-    print("beam_to_pydss_federate created")
     logging.info("beam_to_pydss_federate created")
 
     # register publications
@@ -42,17 +41,15 @@ def run_beam_to_pydss_federate(station_bus_pairs):
 
     # Register a publication of control signals
     pubs_control = h.helicsFederateRegisterTypePublication(cfed, "pubs_power_limit_and_lpm_control", "string", "")
-
-    print("publications registered")
+    logging.info("publications registered")
 
     # register subscriptions
     # subscribe to information from TEMPO such that you can map to PyDSS modeled charging stations
     subs_charger_loads = h.helicsFederateRegisterSubscription(cfed, "beamFederate/chargingLoad", "string")
-    print("subscriptions registered")
+    logging.info("subscriptions registered")
 
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
-    print("beam_to_pydss_federate in execution mode")
     logging.info("beam_to_pydss_federate in execution mode")
 
     currenttime = -1
@@ -64,7 +61,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         isupdated = 0
         while isupdated != 1:
             isupdated = h.helicsInputIsUpdated(subs_charger_loads)
-        print("charger loads received at currenttime: " + str(t) + " seconds")
+        logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
         updated_station_ids = []
         #updated_station_q = []
@@ -121,7 +118,6 @@ def run_beam_to_pydss_federate(station_bus_pairs):
 
     # close the federate
     h.helicsFederateFinalize(cfed)
-    #print("mapping federate finalized")
     logging.warning("beam_to_pydss_federate finalized")
 
     h.helicsFederateFree(cfed)
@@ -143,5 +139,5 @@ def load_station_bus_pairs():
 
 if __name__ == "__main__":
     station_bus_pairs = load_station_bus_pairs()
-    print("stations_list_loaded")
+    logging.info("stations_list_loaded")
     run_beam_to_pydss_federate(station_bus_pairs)

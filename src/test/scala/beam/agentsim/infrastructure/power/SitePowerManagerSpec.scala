@@ -22,6 +22,7 @@ import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 
 class SitePowerManagerSpec
     extends TestKit(
@@ -163,7 +164,7 @@ class SitePowerManagerSpec
           0,
           0,
           ActorRef.noSender,
-          List(ConnectionStatus.Connected)
+          ListBuffer(ConnectionStatus.Connected)
         )
         sitePowerManager.dispatchEnergy(
           300,
