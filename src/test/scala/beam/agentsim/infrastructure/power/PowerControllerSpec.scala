@@ -125,6 +125,5 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       verify(beamFederateMock, never()).sync(300)
       verify(beamFederateMock, never()).collectJSON()
     }
-
   }
 }
