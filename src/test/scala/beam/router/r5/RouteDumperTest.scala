@@ -43,7 +43,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       withTransit = false,
       streetVehicles = Vector(streetVehicle),
       attributesOfIndividual = Some(attributesOfIndividual),
-      requestId = 123
+      requestId = 123,
+      triggerId = 0
     )
     val record = RouteDumper.toRecord(request)
     record.get("requestId") shouldBe 123
@@ -112,7 +113,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       leg = beamLeg,
       vehicleId = Id.createVehicleId("car"),
       vehicleTypeId = Id.create("beamVilleCar", classOf[BeamVehicleType]),
-      requestId = 123
+      requestId = 123,
+      triggerId = 0
     )
 
     val record = RouteDumper.toRecord(embodyWithCurrentTravelTime)
@@ -172,7 +174,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       ),
       requestId = 123,
       request = None,
-      isEmbodyWithCurrentTravelTime = false
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = 0
     )
 
     val records = RouteDumper.toRecords(routingResposne)

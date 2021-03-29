@@ -214,7 +214,8 @@ class PersonAgentSpec
         itineraries = Vector(),
         requestId = request1.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        request1.triggerId
       )
 
       // This is the regular routing request.
@@ -250,7 +251,8 @@ class PersonAgentSpec
         ),
         requestId = request2.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        request2.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -411,7 +413,7 @@ class PersonAgentSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-      expectMsgType[RoutingRequest]
+      val request3 = expectMsgType[RoutingRequest]
       val personActor = lastSender
       lastSender ! RoutingResponse(
         itineraries = Vector(
@@ -464,7 +466,8 @@ class PersonAgentSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        request3.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -710,7 +713,7 @@ class PersonAgentSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-      expectMsgType[RoutingRequest]
+      val routingRequest4 = expectMsgType[RoutingRequest]
       val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
@@ -773,7 +776,8 @@ class PersonAgentSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest4.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -800,7 +804,7 @@ class PersonAgentSpec
       assert(personLeavesVehicleEvent.getTime == 34400.0)
 
       events.expectMsgType[ReplanningEvent]
-      expectMsgType[RoutingRequest]
+      val routingRequest5 = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -831,7 +835,8 @@ class PersonAgentSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest5.triggerId
       )
       events.expectMsgType[ModeChoiceEvent]
 
