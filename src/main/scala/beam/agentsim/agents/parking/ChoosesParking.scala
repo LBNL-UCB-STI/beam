@@ -183,10 +183,9 @@ trait ChoosesParking extends {
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes)
         )
-        val futureVehicle2StallResponse = router ? veh2StallRequest
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
-        val futureStall2DestinationResponse = router ? RoutingRequest(
+        val stall2DestinationRequest = RoutingRequest(
           stall.locationUTM,
           beamServices.geo.wgs2Utm(finalPoint.loc),
           currentPoint.time,
@@ -204,6 +203,8 @@ trait ChoosesParking extends {
           ),
           Some(attributes)
         )
+        val futureVehicle2StallResponse = router ? veh2StallRequest
+        val futureStall2DestinationResponse = router ? stall2DestinationRequest
 
         val responses = for {
           vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]

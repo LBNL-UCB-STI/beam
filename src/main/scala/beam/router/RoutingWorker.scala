@@ -95,8 +95,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private var binToCarGraphHopper: Map[Int, GraphHopperWrapper] = _
   private var walkGraphHopper: GraphHopperWrapper = _
   private var cchWrapper: CchWrapper = _
-  private var reqIdToEmbodiedBeamLeg: Map[Int, IndexedSeq[EmbodiedBeamLeg]] = _
+  private var vehIdToEmbodiedBeamLegMixed: Map[Id[BeamVehicle], IndexedSeq[EmbodiedBeamLeg]] = _
+//  private var vehIdToEmbodiedBeamLegBody: Map[Id[BeamVehicle], IndexedSeq[EmbodiedBeamLeg]] = _
   private val hitToCacheCounter = new AtomicInteger(0)
+  private val missCacheCounter = new AtomicInteger(0)
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
@@ -121,7 +123,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       log.info(s"Cch native built in ${e - s} ms")
     }
 
-    def getResponses(drop: Int, take: Int, filePath: String): Array[(Int, EmbodiedBeamLeg)] = {
+    def getResponses(drop: Int, take: Int, filePath: String): Array[(Id[BeamVehicle], EmbodiedBeamLeg)] = {
       val responseRecords = {
         val (it, toClose) = ParquetReader.read(filePath)
         try {
@@ -161,10 +163,10 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           beamPath
         )
 
-
+        val vehId = Id.create(resp.get("beamVehicleId").toString, classOf[BeamVehicle])
         val embodiedBeamLeg = EmbodiedBeamLeg(
           beamLeg,
-          Id.create(resp.get("beamVehicleId").toString, classOf[BeamVehicle]),
+          vehId,
           Id.create(Option(resp.get("beamVehicleTypeId")).map(_.toString).getOrElse("Car"), classOf[BeamVehicleType]),
           resp.get("asDriver").toString.toBoolean,
           resp.get("cost").toString.toDouble,
@@ -173,28 +175,32 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           resp.get("replanningPenalty").toString.toDouble
         )
 
-        reqId -> embodiedBeamLeg
+        vehId -> embodiedBeamLeg
       }
       responses
     }
 
-    val responses = new ListBuffer[(Int, EmbodiedBeamLeg)]()
-//    val portionSize = 500000
-//    val counter = new AtomicInteger(0)
-//    var i = 0
-//    do {
-//      val r = getResponses(i * portionSize, portionSize, "/home/crixal/work/projects/beam/output/sf-light/sf-light__2021-03-16_21-42-35_mdy/ITERS/it.0/0.routingResponse.parquet")
-//      counter.set(r.length)
-//      if (counter.get() != 0) {
-//        responses ++= r
-//      }
-//
-//      i += 1
-//    } while (counter.get() != 0)
+    val responses = new ListBuffer[(Id[BeamVehicle], EmbodiedBeamLeg)]()
+    val portionSize = 500000
+    val counter = new AtomicInteger(0)
+    var i = 0
+    do {
+      val r = getResponses(i * portionSize, portionSize, s"${workerParams.beamConfig.beam.routing.r5.osmMapdbFile}/../../responses/0.routingResponse.parquet")
+      counter.set(r.length)
+      if (counter.get() != 0) {
+        responses ++= r
+      }
 
-    reqIdToEmbodiedBeamLeg = responses.groupBy(_._1).mapValues(_.map(_._2).toIndexedSeq)
+      i += 1
+    } while (counter.get() != 0)
+
+    val vehIdToEmbodiedBeamLegTemp = responses.groupBy(_._1).mapValues(_.map(_._2).toIndexedSeq)
+    vehIdToEmbodiedBeamLegMixed = vehIdToEmbodiedBeamLegTemp//.filterNot(_._2.forall(_.beamVehicleId.toString.contains("body")))
+//    vehIdToEmbodiedBeamLegBody = vehIdToEmbodiedBeamLegTemp.filter(_._2.forall(_.beamVehicleId.toString.contains("body")))
+
 //    reqIdToEmbodiedBeamLeg = responses.filter(x => !x._2.beamVehicleId.toString.contains("ride") && !x._2.beamVehicleId.toString.contains("body")).groupBy(_._1).mapValues(_.map(_._2).toIndexedSeq)
-    log.info(s"Total responses: ${reqIdToEmbodiedBeamLeg.size}")
+    log.info(s"Total mixed responses: ${vehIdToEmbodiedBeamLegMixed.size}")
+//    log.info(s"Total body responses: ${vehIdToEmbodiedBeamLegBody.size}")
 
     askForMoreWork()
   }
@@ -246,11 +252,34 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
       val eventualResponse = Future {
+        val reqId = request.requestId
+        if (reqId == -1) {
+
+        }
+
         latency("request-router-time", Metrics.RegularLevel) {
-//          reqIdToEmbodiedBeamLeg.get(request.requestId).map { v =>
-//            hitToCacheCounter.incrementAndGet()
-//            RoutingResponse(Seq(EmbodiedBeamTrip(v)), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
-//          }.getOrElse {
+          val streetVehicles = request.streetVehicles
+          if (vehIdToEmbodiedBeamLegMixed.keySet.intersect(request.streetVehicles.map(_.id).toSet).nonEmpty) {
+            val embodiedBeamLegsTmp = streetVehicles.map { sv =>
+              vehIdToEmbodiedBeamLegMixed.get(sv.id)
+            }.filter(_.isDefined)
+              .flatMap(_.get)
+              .toList
+
+            val embodiedBeamLegs = embodiedBeamLegsTmp
+              .filter(_.beamLeg.startTime == request.departureTime)
+              .sortBy(_.beamLeg.endTime)
+              .toIndexedSeq
+
+
+            if (embodiedBeamLegs.nonEmpty) {
+              hitToCacheCounter.incrementAndGet()
+              RoutingResponse(Seq(EmbodiedBeamTrip(embodiedBeamLegs)), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+            } else {
+              missCacheCounter.incrementAndGet()
+              r5.calcRoute(request)
+            }
+          } else {
             if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
               // run graphHopper for only cars
               val ghCarResponse = calcCarGhRoute(request)
@@ -309,7 +338,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
             } else {
               r5.calcRoute(request)
             }
-//          }
+          }
         }
       }
       eventualResponse.recover {
@@ -321,6 +350,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       log.info(s"---------- Route responses from cache: ${hitToCacheCounter.get()}")
+      log.info(s"---------- Route responses miss cache: ${missCacheCounter.get()}")
       if (carRouter == "quasiDynamicGH") {
         createCarGraphHoppers(newTravelTime)
       } else if (carRouter == "nativeCCH") {
@@ -337,6 +367,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeRemote(map) =>
       log.info(s"---------- Route responses from cache: ${hitToCacheCounter.get()}")
+      log.info(s"---------- Route responses miss cache: ${missCacheCounter.get()}")
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
