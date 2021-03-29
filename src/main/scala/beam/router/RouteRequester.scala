@@ -17,6 +17,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.reflect.io.Directory
 
 trait RouteRequester {
+
   def route(request: RoutingRequest): RoutingResponse = {
     val carMode = Modes.BeamMode.CAR
     if (!request.withTransit && request.streetVehicles.exists(_.mode == carMode)) {
@@ -58,7 +59,10 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
       .calcRoute(request)
   }
 
-  private def createCarGraphHoppers(workerParams: R5Parameters, travelTime: TravelTime): Map[Int, GraphHopperWrapper] = {
+  private def createCarGraphHoppers(
+    workerParams: R5Parameters,
+    travelTime: TravelTime
+  ): Map[Int, GraphHopperWrapper] = {
     val numOfThreads: Int =
       if (Runtime.getRuntime.availableProcessors() <= 2) 1
       else Runtime.getRuntime.availableProcessors() - 2
@@ -75,7 +79,7 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
     val noOfTimeBins = Math
       .floor(
         Time.parseTime(workerParams.beamConfig.beam.agentsim.endTime) /
-          workerParams.beamConfig.beam.agentsim.timeBinSize
+        workerParams.beamConfig.beam.agentsim.timeBinSize
       )
       .toInt
 
@@ -96,11 +100,11 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
           .map(
             link =>
               link.getId.toString.toLong ->
-                carWeightCalculator.calcTravelTime(
-                  link.getId.toString.toInt,
-                  travelTime,
-                  i * workerParams.beamConfig.beam.agentsim.timeBinSize
-                )
+              carWeightCalculator.calcTravelTime(
+                link.getId.toString.toInt,
+                travelTime,
+                i * workerParams.beamConfig.beam.agentsim.timeBinSize
+            )
           )
           .toMap
 

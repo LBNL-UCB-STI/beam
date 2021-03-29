@@ -363,27 +363,31 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     }
   }
 
-  private def joinResponsesOrCallR5(modesToExclude: List[BeamMode], request: RoutingRequest, responses: Option[RoutingResponse]*) = {
+  private def joinResponsesOrCallR5(
+    modesToExclude: List[BeamMode],
+    request: RoutingRequest,
+    responses: Option[RoutingResponse]*
+  ) = {
     if (modesToExclude.isEmpty) {
       r5.calcRoute(request)
     } else {
       val filteredStreetVehicles = request.streetVehicles.filterNot(it => modesToExclude.contains(it.mode))
-      val r5Response = if (filteredStreetVehicles.isEmpty) {
+      val r5ResponseOption = if (filteredStreetVehicles.isEmpty) {
         None
       } else {
         Some(r5.calcRoute(request.copy(streetVehicles = filteredStreetVehicles)))
       }
 
-      val definedResp = responses.filter(_.isDefined)
-      if (definedResp.isEmpty) {
-        r5Response
-      } else {
-        definedResp.head.get
-          .copy(
-            definedResp.map(_.get.itineraries).reduce(_ ++ _) ++
-              r5Response.map(_.itineraries).getOrElse(Seq.empty)
+      val definedResponses = responses.flatten
+      definedResponses.headOption
+        .map {
+          _.copy(
+            definedResponses.flatMap(_.itineraries) ++
+            r5ResponseOption.map(_.itineraries).getOrElse(Seq.empty)
           )
-      }
+        }
+        .orElse(r5ResponseOption)
+        .getOrElse(r5.calcRoute(request))
     }
   }
 }

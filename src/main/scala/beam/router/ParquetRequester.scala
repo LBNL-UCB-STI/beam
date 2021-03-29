@@ -15,7 +15,6 @@ import java.util.concurrent.{ExecutorService, Executors}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-
 object ParquetRequester extends BeamHelper with LazyLogging {
 
   private val execSvc: ExecutorService = Executors.newFixedThreadPool(
