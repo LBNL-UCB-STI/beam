@@ -29,7 +29,7 @@ class HouseholdSolverActor extends Actor with ActorLogging with LoggingMessageAc
       val ongoingSolver: Future[Unit] = Future { solve }
       ongoingSolver.map(_ => SolutionComplete) pipeTo self
       //ongoingSolver.onComplete(println)
-      context become solving
+      contextBecome(solving)
     case _ =>
   }
 

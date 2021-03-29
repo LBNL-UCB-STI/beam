@@ -504,7 +504,7 @@ class RideHailManager(
       surgePricingManager.incrementIteration()
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-      context.become {
+      contextBecome {
         case Terminated(_) =>
           dieIfNoChildren()
       }

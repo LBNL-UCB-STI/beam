@@ -508,7 +508,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       managerId = vehicleManagerId
     )
-    val inquiry = ParkingInquiry(coord, "init", Some(vehicle))
+    val inquiry = ParkingInquiry(coord, "init", Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
     assert(response.isDefined, "no response")
     assert(zonalVehicleManagers.contains(response.get.stall.managerId), "something is wildly broken")

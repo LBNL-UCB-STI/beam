@@ -14,6 +14,9 @@ trait LoggingMessageActor extends Actor {
     if (context.system.settings.AddLoggingReceive) LoggingMessageReceive(loggedReceive)
     else loggedReceive
 
+  def contextBecome(receive: Receive): Unit =
+    if (context.system.settings.AddLoggingReceive) context.become(LoggingMessageReceive(receive))
+    else context.become(receive)
 }
 
 trait LoggingMessagePublisher extends Actor {

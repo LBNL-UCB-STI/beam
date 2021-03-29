@@ -55,7 +55,7 @@ class Population(
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
       sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
-      context.become(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
+      contextBecome(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
   }
 
   def getVehicleTypes(triggerId: Long, responsesLeft: Int, vehicleTypes: Set[BeamVehicleType]): Receive = {
@@ -63,7 +63,7 @@ class Population(
       finishInitialization(triggerId, vehicleTypes)
     } else {
       case VehicleTypesResponse(sharedVehicleTypes, _) =>
-        context.become(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
+        contextBecome(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
     }
   }
 
@@ -76,7 +76,7 @@ class Population(
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
-        context.become {
+        contextBecome {
           case Terminated(_) =>
             dieIfNoChildren()
         }

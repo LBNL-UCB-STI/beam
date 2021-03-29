@@ -56,7 +56,7 @@ class TransitSystem(
     case Finish =>
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-      context.become {
+      contextBecome {
         case Terminated(_) =>
           dieIfNoChildren()
       }
