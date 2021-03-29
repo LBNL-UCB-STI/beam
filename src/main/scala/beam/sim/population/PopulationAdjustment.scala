@@ -1,18 +1,18 @@
 package beam.sim.population
 
-import java.util.Random
-
-import beam.{agentsim, sim}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.{agentsim, sim}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
 
+import java.util.Random
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * An interface that handles setting/updating attributes for the population.
@@ -63,29 +63,27 @@ trait PopulationAdjustment extends LazyLogging {
     * @param population population from the scenario
     */
   protected final def logModes(population: MPopulation): MPopulation = {
-
-    // initialize all excluded modes to empty array
-    var allExcludedModes: Array[String] = Array.empty
+    // initialize all excluded modes to empty map
+    val excludedModeToCount: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
 
 // check if excluded modes is defined for all individuals
     val allAgentsHaveAttributes = population.getPersons.asScala.forall { entry =>
       val personExcludedModes = Option(
         population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
       ).map(_.toString)
-      // if excluded modes is defined for the person add it to the cumulative list
-      if (personExcludedModes.isDefined && personExcludedModes.get.nonEmpty)
-        allExcludedModes = allExcludedModes ++ personExcludedModes.get.split(",")
+      // if excluded modes is defined for the person add it to the map
+      if (personExcludedModes.isDefined && personExcludedModes.get.nonEmpty) {
+        personExcludedModes.get.split(",").foreach { em =>
+          excludedModeToCount.update(em, excludedModeToCount.getOrElse(em, 1) + 1)
+        }
+      }
       personExcludedModes.isDefined
     }
 
-    if (allExcludedModes.nonEmpty) {
+    if (excludedModeToCount.nonEmpty) {
       logger.info("Modes excluded:")
+      excludedModeToCount.foreach { case (em, counter) => logger.info(s"$em -> $counter") }
     }
-
-    // count the number of excluded modes for each mode type
-    allExcludedModes
-      .groupBy(x => x)
-      .foreach(t => logger.info(s"${t._1} -> ${t._2.length}"))
 
     // log error if excluded modes attributes is missing for at least one person in the population
     if (!allAgentsHaveAttributes) {
