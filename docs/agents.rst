@@ -1,5 +1,5 @@
 BeamAgents
-======
+==========
 
 BEAM is composed of Actors. Some of these Actors are BeamAgents. BeamAgents inherit the Akka FSM trait which provides a domain-specific language for programming agent actions as a finite state machine. 
 
