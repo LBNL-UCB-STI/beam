@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
@@ -27,6 +27,7 @@ import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
 import scala.language.postfixOps
+import scala.concurrent.duration._
 
 /**
   * Created by haitamlaarabi
@@ -66,13 +67,36 @@ class ChargingNetworkManager(
   private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds).toInt
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
+  var timeSpentToPlanEnergyDispatchTrigger: Long = 0
+  var nHandledPlanEnergyDispatchTrigger: Int = 0
+
+  val maybeDebugReport: Option[Cancellable] = if (beamServices.beamConfig.beam.debug.debugEnabled) {
+    Some(context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, DebugReport)(context.dispatcher))
+  } else {
+    None
+  }
+
+  override def postStop: Unit = {
+    maybeDebugReport.foreach(_.cancel())
+    log.info(
+      s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
+    )
+    super.postStop()
+  }
+
   override def loggedReceive: Receive = {
+    case DebugReport =>
+      log.info(
+        s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
+      )
+
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
+      val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
       val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
@@ -118,6 +142,10 @@ class ChargingNetworkManager(
       } else {
         completeChargingAndTheDisconnectionOfAllConnectedVehiclesAtEndOfSimulation(timeBin, physicalBounds)
       }
+
+      val e = System.currentTimeMillis()
+      nHandledPlanEnergyDispatchTrigger += 1
+      timeSpentToPlanEnergyDispatchTrigger += e - s
 
       sender ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
 
@@ -360,6 +388,7 @@ class ChargingNetworkManager(
 }
 
 object ChargingNetworkManager {
+  object DebugReport
   case class ChargingZonesInquiry()
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
   case class ChargingTimeOutTrigger(tick: Int, vehicleId: Id[BeamVehicle], managerId: Id[VehicleManager])

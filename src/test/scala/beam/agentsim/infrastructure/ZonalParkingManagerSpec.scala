@@ -478,27 +478,40 @@ class ZonalParkingManagerSpec
         vehicleManagerId = VehicleManager.privateVehicleManager.managerId
       )
 
-      assertParkingResponse(
+      assertVehicleManager(
         zpm,
         new Coord(166321.0, 1568.0),
-        "1",
-        148,
-        Block(2.88, 3600),
-        ParkingType.Public,
+        VehicleManager.privateVehicleManager.managerId :: sharedFleet1 :: Nil,
         vehicleManagerId = sharedFleet1
       )
 
-      assertParkingResponse(
+      assertVehicleManager(
         zpm,
         new Coord(166500.0, 1500.0),
-        "1",
-        169,
-        Block(77.1 / 100, 3600),
-        ParkingType.Public,
+        VehicleManager.privateVehicleManager.managerId :: sharedFleet2 :: Nil,
         vehicleManagerId = sharedFleet2
       )
 
     }
+  }
+
+  private def assertVehicleManager(
+    zpm: ParkingNetwork,
+    coord: Coord,
+    zonalVehicleManagers: List[Id[VehicleManager]],
+    vehicleManagerId: Id[VehicleManager]
+  ) = {
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+    val vehicle = new BeamVehicle(
+      id = Id.createVehicleId("car-01"),
+      powerTrain = new Powertrain(0.0),
+      beamVehicleType = vehicleType,
+      managerId = vehicleManagerId
+    )
+    val inquiry = ParkingInquiry(coord, "init", Some(vehicle))
+    val response = zpm.processParkingInquiry(inquiry)
+    assert(response.isDefined, "no response")
+    assert(zonalVehicleManagers.contains(response.get.stall.managerId), "something is wildly broken")
   }
 
   private def assertParkingResponse(

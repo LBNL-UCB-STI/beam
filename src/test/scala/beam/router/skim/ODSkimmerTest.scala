@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import beam.router.skim.Skims.SkimType
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
@@ -21,7 +22,7 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
 
   test("Read OD skims from single file with warm start mode") {
     val inputFilePath = s"$basePath/od_for_test.csv.gz"
-    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(inputFilePath, odConstructor)
+    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(SkimType.OD_SKIMMER, inputFilePath, odConstructor)
 
     val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
     assert(skimmer.readOnlySkim.aggregatedFromPastSkims == origData)
@@ -29,7 +30,7 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
 
   test("Read OD skims from multi files in the directory with warm start mode") {
     val skimsFilePath = s"$basePath/multi-part-od-skims"
-    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(skimsFilePath, odConstructor)
+    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(SkimType.OD_SKIMMER, skimsFilePath, odConstructor)
 
     val origData = new CsvSkimReader(
       s"$basePath/od_for_test.csv.gz",
@@ -41,11 +42,25 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
 }
 
 object ODSkimmerTest extends MockitoSugar {
-  private[skim] def createSkimmer[S <: AbstractSkimmer](inputFilePath: String, constructor: BeamServices => S): S = {
+  private[skim] def createSkimmer[S <: AbstractSkimmer](
+    skimType: SkimType.Value,
+    inputFilePath: String,
+    constructor: BeamServices => S
+  ): S = {
+    import scala.collection.JavaConverters._
     val beamConfig = BeamConfig(
       testConfig("test/input/beamville/beam.conf")
-        .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-        .withValue("beam.warmStart.skimsFilePath", ConfigValueFactory.fromAnyRef(inputFilePath))
+        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
+        .withValue(
+          "beam.warmStart.skimsFilePaths",
+          ConfigValueFactory.fromIterable(
+            List(
+              ConfigValueFactory.fromAnyRef(
+                Map("skimType" -> skimType.toString, "skimsFilePath" -> inputFilePath).asJava
+              )
+            ).asJava
+          )
+        )
         .resolve()
     )
     val services = mock[BeamServices]

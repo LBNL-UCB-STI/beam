@@ -10,7 +10,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.router.skim.event.TAZSkimmerEvent
-import beam.sim.BeamServices
+import beam.sim.{BeamServices, BeamWarmStart}
 import beam.utils.logging.LoggingMessageActor
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -22,7 +22,8 @@ trait RepositionManager extends Actor with ActorLogging with LoggingMessageActor
   val (algorithm, repTime, statTime) = getRepositionAlgorithmType match {
     case Some(algorithmType) =>
       var alg: RepositionAlgorithm = null
-      if (getServices.matsimServices.getIterationNumber > 0 || getServices.beamConfig.beam.warmStart.enabled) {
+      if (getServices.matsimServices.getIterationNumber > 0 ||
+          BeamWarmStart.isFullWarmStart(getServices.beamConfig.beam.warmStart)) {
         alg = algorithmType.getInstance(getId, getServices)
         getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
       }
