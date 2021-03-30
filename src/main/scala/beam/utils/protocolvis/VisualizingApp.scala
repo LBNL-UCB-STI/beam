@@ -25,7 +25,7 @@ Order of the messages is not always right because each actor has its own message
  output the output file,
  force allows to overwrite the output without prompt
  person-id the person id which the message sequence should be generated for
-  */
+ */
 object VisualizingApp extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
@@ -34,7 +34,7 @@ object VisualizingApp extends StrictLogging {
         val confirm = confirmOverwrite(cliOptions.output, cliOptions.forceOverwriting)
         val extractorType = if (cliOptions.personId.isEmpty) AllMessages else ByPerson(cliOptions.personId)
         if (confirm) doJob(cliOptions.input, cliOptions.output, extractorType) else println("Exiting...")
-      case None =>
+      case None => System.exit(1)
     }
   }
 
