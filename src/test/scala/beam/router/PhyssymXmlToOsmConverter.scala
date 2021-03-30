@@ -121,7 +121,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
 
     val result: Seq[(String, String)] = buildSequenceForNonNullValues(
       attributes =
-      "lanes"    -> permLanes.getValue,
+      "lanes" -> permLanes.getValue,
       "oneway"   -> (if (Seq("1", "true").contains(oneway.getValue.toLowerCase)) "yes" else "no"),
       "capacity" -> capacity.getValue,
       "maxspeed" -> freeSpeedy.getValue
@@ -136,7 +136,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       .flatMap {
         case BeamMode.CAR.value    => Some("motorcar" -> "yes")
         case BeamMode.BUS.value    => Some("bus"      -> "yes")
-        case BeamMode.RAIL.value   => Some("rail"  -> "yes")
+        case BeamMode.RAIL.value   => Some("rail"     -> "yes")
         case BeamMode.SUBWAY.value => Some("subway"   -> "yes")
         case BeamMode.TRAM.value   => Some("tram"     -> "yes")
         case BeamMode.BIKE.value   => Some("bicycle"  -> "yes")
@@ -196,7 +196,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       xmlStreamWriter.writeCharacters(breakLine)
 
       writeXmlNodes(xmlStreamWriter, nodes)
-      ways.foreach{ way =>
+      ways.foreach { way =>
         xmlStreamWriter.writeCharacters(indentation)
         xmlStreamWriter.writeStartElement("way")
 
@@ -262,7 +262,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
     PhyssymXmlToOsmConverterParams.tryReadParams(args) match {
-      case Success(params)  =>
+      case Success(params) =>
         println(s"Started converting ${params.sourceFile} to ${params.targetFile}...")
         val network = build(params.sourceFile.toPath)
         network.writeToFile(params.targetFile.toPath)
@@ -274,7 +274,6 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
 
 }
 
-
 private object PhyssymXmlToOsmConverterParams {
 
   case class ConverterParams(sourceFile: File = null, targetFile: File = null)
@@ -285,7 +284,7 @@ private object PhyssymXmlToOsmConverterParams {
     OParser.sequence(
       programName("BeamPhyssymConverter"),
       head("BeamPhyssymConverter", "0.1"),
-      opt[File](name="sourceFile")
+      opt[File](name = "sourceFile")
         .action((x, c) => c.copy(sourceFile = x))
         .text("sourceFile is a valid Physym network file")
         .required()
@@ -293,11 +292,11 @@ private object PhyssymXmlToOsmConverterParams {
           if (v.isFile) success
           else failure(s"sourceFile [$v] is not a regular file")
         },
-      opt[File](name="targetFile")
+      opt[File](name = "targetFile")
         .action((x, c) => c.copy(targetFile = x))
         .text("targetFile is a valid path for the output OSM file")
         .required(),
-      checkConfig{c =>
+      checkConfig { c =>
         if (c.sourceFile == c.targetFile) {
           failure("sourceFile cannot be the same as targetFile")
         } else {
@@ -308,7 +307,8 @@ private object PhyssymXmlToOsmConverterParams {
   }
 
   def tryReadParams(args: Array[String]): Try[ConverterParams] = {
-    OParser.parse(parser1, args, ConverterParams())
+    OParser
+      .parse(parser1, args, ConverterParams())
       .toRight(new IllegalArgumentException("Invalid arguments"))
       .toTry
   }
