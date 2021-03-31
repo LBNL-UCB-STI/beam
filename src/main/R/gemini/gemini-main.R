@@ -30,6 +30,7 @@ dataDir <- "/Users/haitamlaarabi/Data/GEMINI/2021March22/370k-warmstart"
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
 plotsDir <- paste(dataDir, "/plots",sep="")
+mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
@@ -188,5 +189,54 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 # MOBILITY
 ##########################################
 
+factor.remap <- c('walk'='Walk','bike'='Bike','rh'='Ridehail Solo','rhp'='Ridehail Pooled','rh_empty'='Ridehail (Empty)','cav'='Personal AV','cav_empty'='Personal AV (Empty)','car'='Car','transit'='Public Transit')
+factor.colors <- c('walk'='#669900','bike'='#FFB164','rh'='#B30C0C','rhp'='#660099','rh_empty'=marain.light.grey,'cav'='#FFE664','cav_empty'=marain.dark.grey,'car'='#8A8A8A','transit'='#0066CC')
+factor.colors.remapped <- factor.colors
+names(factor.colors.remapped) <- factor.remap[names(factor.colors)]
+mode <- data.table(read.csv(pp(mobilityDir,'/mode-split.csv'),row.names=NULL))
+mode[,type:='Modal Shares (%)']
+mode2 <- data.table(read.csv(pp(mobilityDir,'/vmt.csv'),row.names=NULL))
+mode2[,type:='Daily Light-Duty VMT (10^6 miles)']
+mode <- rbindlist(list(mode,mode2),fill=T)
+mode[,X:=NULL]
+mode <- melt(mode,id.vars=c('scenario','technology','label','type'))
+mode <- mode[!variable%in%c('cav_shared','nm')]
+mode <- mode[,variable:=as.character(variable)]
+mode[type=='Modal Shares (%)',value:=value*100]
+mode[,color:=factor(factor.colors[variable])]
+mode[,variable:=factor(revalue(factor(variable),factor.remap),levels=factor.remap)]
+mode[,label:=factor(label,scenarioNames)]
+mode <- as.data.table(mode)
+p <- ggplot(mode[label %in% scenarioNames],aes(x=label,y=value,fill=variable))+
+  geom_bar(stat='identity')+
+  labs(y='',x='Scenario',fill='Mode',title='Mobility Metrics')+
+  theme_marain()+
+  facet_wrap(~type,scales='free_y')+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  #theme(axis.text.x = element_text(angle = 30, hjust=1),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values = factor.colors.remapped)
+ggsave(pp(plotsDir,'/metric-mobility.png'),p,width=8,height=3,units='in')
+# ******************************************************
+
+
+factor.colors <- c('diesel'=marain.dark.grey,'gas'='#8A8A8A','electricity'='#0066CC')
+factor.remap <- c('diesel'='Diesel','gas'='Gasoline','electricity'='Electricity')
+fuel <- data.table(read.csv(pp(mobilityDir,'/fuel-percapita.csv'),row.names=NULL))
+fuel[,X:=NULL]
+fuel <- melt(fuel,id.vars=c('technology','label'))
+fuel[,color:=factor.colors[variable]]
+fuel[,variable:=factor(revalue(factor(variable),factor.remap),levels=factor.remap)]
+fuel[,type:='Light Duty Vehicle Energy per Capita (kWh)']
+fuel[label=='High Fast Chargerh',label:='High Fast Charger']
+fuel[,label:=factor(label,scenarioNames)]
+p <- ggplot(fuel[label%in%scenarioNames],aes(x=label,y=value*100,fill=variable))+
+  geom_bar(stat='identity')+
+  labs(y='',x='Scenario',fill='Fuel Type',title='System Energy Consumption')+
+  theme_marain()+
+  facet_wrap(~type,scales='free_y')+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5), strip.text = element_text(size=rel(1.2)))+
+  #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values = u(fuel$color))
+ggsave(pp(plotsDir,'/metric-fuel.png'),p,width=6,height=3,units='in')
 
 

@@ -119,7 +119,7 @@ object BeamHelicsInterface {
     val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
     helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, "zmq")
-    helics.helicsFederateInfoSetCoreInitString(fedInfo, s"--federates=1 --broker ${brokerIp}")
+    helics.helicsFederateInfoSetCoreInitString(fedInfo, s"--federates=1 --broker_address=tcp://${brokerIp}")
     helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), 1.0)
     helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), 1)
     logger.debug(s"FederateInfo created")
