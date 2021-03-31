@@ -63,6 +63,7 @@ class ChargingNetworkManagerSpec
      |
      |  helics {
      |    connectionEnabled = false
+     |    brokerIp = "127.0.0.1"
      |    federateName = "CNMFederate"
      |    dataOutStreamPoint = ""
      |    dataInStreamPoint = ""
