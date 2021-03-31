@@ -57,6 +57,7 @@ abstract class GraphHopperWrapper(
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
+    request.setAlgorithm(Parameters.Algorithms.ALT_ROUTE)
     prepareRequest(request)
 
     val response = graphHopper.route(request)
