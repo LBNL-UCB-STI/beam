@@ -1752,9 +1752,10 @@ object BeamConfig {
         }
 
         case class Helics(
-          brokerIp: java.lang.String,
           bufferSize: scala.Int,
           connectionEnabled: scala.Boolean,
+          coreInitString: java.lang.String,
+          coreType: java.lang.String,
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String
@@ -1764,9 +1765,12 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
-              brokerIp = if (c.hasPathOrNull("brokerIp")) c.getString("brokerIp") else "127.0.0.1",
               bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
               connectionEnabled = c.hasPathOrNull("connectionEnabled") && c.getBoolean("connectionEnabled"),
+              coreInitString =
+                if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
+                else "--federates=1 --broker_address=tcp://127.0.0.1",
+              coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
               dataInStreamPoint =
                 if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
                 else "GridFed/PhysicalBounds",

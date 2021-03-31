@@ -63,7 +63,8 @@ class ChargingNetworkManagerSpec
      |
      |  helics {
      |    connectionEnabled = false
-     |    brokerIp = "127.0.0.1"
+     |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
+     |    coreType = "zmq"
      |    federateName = "CNMFederate"
      |    dataOutStreamPoint = ""
      |    dataInStreamPoint = ""

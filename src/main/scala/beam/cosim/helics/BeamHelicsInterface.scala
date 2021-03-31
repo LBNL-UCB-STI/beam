@@ -28,13 +28,14 @@ object BeamHelicsInterface {
     */
   def getFederate(
     fedName: String,
-    brokerIp: String,
+    coreType: String,
+    coreInitString: String,
     bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ): BeamFederate = {
     loadHelicsIfNotAlreadyLoaded
-    BeamFederate(fedName, brokerIp, bufferSize, dataOutStreamPointMaybe, dataInStreamPointMaybe)
+    BeamFederate(fedName, coreType, coreInitString, bufferSize, dataOutStreamPointMaybe, dataInStreamPointMaybe)
   }
 
   /**
@@ -49,15 +50,25 @@ object BeamHelicsInterface {
     */
   def getBroker(
     brokerName: String,
-    brokerId: String,
     numFederates: Int,
     fedName: String,
+    coreType: String,
+    coreInitString: String,
     bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ): BeamBroker = {
     loadHelicsIfNotAlreadyLoaded
-    BeamBroker(brokerName, brokerId, numFederates, fedName, bufferSize, dataOutStreamPointMaybe, dataInStreamPointMaybe)
+    BeamBroker(
+      brokerName,
+      numFederates,
+      fedName,
+      coreType,
+      coreInitString,
+      bufferSize,
+      dataOutStreamPointMaybe,
+      dataInStreamPointMaybe
+    )
   }
 
   case class BeamFederateTrigger(tick: Int) extends Trigger
@@ -107,7 +118,8 @@ object BeamHelicsInterface {
 
   case class BeamFederate(
     fedName: String,
-    brokerIp: String,
+    coreType: String,
+    coreInitString: String,
     bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
@@ -118,8 +130,8 @@ object BeamHelicsInterface {
     // **************************
     val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
-    helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, "zmq")
-    helics.helicsFederateInfoSetCoreInitString(fedInfo, s"--federates=1 --broker_address=tcp://${brokerIp}")
+    helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, coreType)
+    helics.helicsFederateInfoSetCoreInitString(fedInfo, coreInitString)
     helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), 1.0)
     helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), 1)
     logger.debug(s"FederateInfo created")
@@ -260,18 +272,18 @@ object BeamHelicsInterface {
 
   case class BeamBroker(
     brokerName: String,
-    brokerId: String,
     numFederates: Int,
     fedName: String,
+    coreType: String,
+    coreInitString: String,
     bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ) extends StrictLogging {
-    private val coreType: String = "zmq"
     private val broker = helics.helicsCreateBroker(coreType, "", s"-f $numFederates --name=$brokerName")
     lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
     private val federate: Option[BeamFederate] = if (isConnected) {
-      Some(getFederate(fedName, brokerId, bufferSize, dataOutStreamPointMaybe, dataInStreamPointMaybe))
+      Some(getFederate(fedName, coreType, coreInitString, bufferSize, dataOutStreamPointMaybe, dataInStreamPointMaybe))
     } else {
       None
     }

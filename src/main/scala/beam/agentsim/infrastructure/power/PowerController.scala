@@ -27,9 +27,13 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
       logger.debug("Init PowerController resources...")
       getFederate(
         helicsConfig.federateName,
-        helicsConfig.brokerIp match {
+        helicsConfig.coreType match {
           case s: String if s.nonEmpty => s
-          case _                       => "127.0.0.1"
+          case _                       => "zmq"
+        },
+        helicsConfig.coreInitString match {
+          case s: String if s.nonEmpty => s
+          case _                       => "--federates=1"
         },
         helicsConfig.bufferSize,
         helicsConfig.dataOutStreamPoint match {
