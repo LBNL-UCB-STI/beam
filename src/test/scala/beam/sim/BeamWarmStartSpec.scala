@@ -24,6 +24,7 @@ class BeamWarmStartSpec
   lazy val testDataPath: Path = Paths.get(getTempDirectoryPath, "warmStartTestData")
 
   override def beforeAll: Unit = {
+    deleteDir(testDataPath)
     createDirs(testDataPath)
   }
 
