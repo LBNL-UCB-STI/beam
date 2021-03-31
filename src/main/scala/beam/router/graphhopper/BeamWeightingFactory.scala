@@ -10,8 +10,11 @@ import com.graphhopper.storage.GraphHopperStorage
 import com.graphhopper.util.PMap
 import com.graphhopper.util.Parameters.Routing
 
-class BeamWeightingFactory(wayId2TravelTime: Map[Long, Double], ghStorage: GraphHopperStorage, encodingManager: EncodingManager)
-  extends DefaultWeightingFactory(ghStorage, encodingManager) {
+class BeamWeightingFactory(
+  wayId2TravelTime: Map[Long, Double],
+  ghStorage: GraphHopperStorage,
+  encodingManager: EncodingManager
+) extends DefaultWeightingFactory(ghStorage, encodingManager) {
   override def createWeighting(profile: Profile, requestHints: PMap, disableTurnCosts: Boolean): Weighting = {
     if (profile.getWeighting == BeamWeighting.Name) {
       createBeamWeighting(profile, requestHints, disableTurnCosts)
