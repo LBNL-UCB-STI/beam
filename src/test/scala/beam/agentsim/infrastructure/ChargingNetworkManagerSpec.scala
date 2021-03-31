@@ -65,6 +65,8 @@ class ChargingNetworkManagerSpec
      |    connectionEnabled = false
      |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
      |    coreType = "zmq"
+     |    timeDeltaProperty = 1.0
+     |    intLogLevel = 1
      |    federateName = "CNMFederate"
      |    dataOutStreamPoint = ""
      |    dataInStreamPoint = ""

@@ -1758,7 +1758,9 @@ object BeamConfig {
           coreType: java.lang.String,
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
-          federateName: java.lang.String
+          federateName: java.lang.String,
+          intLogLevel: scala.Int,
+          timeDeltaProperty: scala.Double
         )
 
         object Helics {
@@ -1776,7 +1778,9 @@ object BeamConfig {
                 else "GridFed/PhysicalBounds",
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
-              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate"
+              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
+              timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
         }

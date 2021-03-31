@@ -25,6 +25,8 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
         "Federate1",
         "zmq",
         "--federates=1",
+        1.0,
+        1,
         1000,
         Some("LIST_MAP_ANY"),
         Some("Federate2/LIST_ANY")
@@ -34,6 +36,8 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
         "Federate2",
         "zmq",
         "--federates=1 --broker_address=tcp://127.0.0.1",
+        1.0,
+        1,
         1000,
         Some("LIST_ANY"),
         Some("Federate1/LIST_MAP_ANY")
