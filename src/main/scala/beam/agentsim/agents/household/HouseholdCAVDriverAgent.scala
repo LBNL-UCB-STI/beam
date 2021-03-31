@@ -97,7 +97,8 @@ class HouseholdCAVDriverAgent(
         requestId,
         triggerToSchedule,
         vehicle.id,
-        tick
+        tick,
+        triggerId
       )
   }
 

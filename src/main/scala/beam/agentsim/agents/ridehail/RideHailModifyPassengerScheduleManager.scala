@@ -8,7 +8,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.Refueling
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
-import beam.agentsim.scheduler.BeamAgentScheduler
+import beam.agentsim.scheduler.{BeamAgentScheduler, HasTriggerId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.sim.config.BeamConfig
 import beam.utils.InterruptIdIdGenerator
@@ -88,7 +88,7 @@ class RideHailModifyPassengerScheduleManager(
     }
     modifyStatus.rideHailAgent.tell(modifyStatus.modifyPassengerSchedule, rideHailManagerRef)
     log.debug("sending Resume from sendModifyPassengerScheduleMessage to {}", modifyStatus.vehicleId)
-    modifyStatus.rideHailAgent.tell(Resume, rideHailManagerRef)
+    modifyStatus.rideHailAgent.tell(Resume(triggerId), rideHailManagerRef)
     interruptIdToModifyPassengerScheduleStatus.put(
       modifyStatus.interruptId,
       modifyStatus.copy(status = ModifyPassengerScheduleSent)
@@ -99,37 +99,38 @@ class RideHailModifyPassengerScheduleManager(
     )
   }
 
-  def cancelRepositionAttempt(vehicleId: Id[Vehicle]): Unit = {
-    repositioningFinished(vehicleId)
+  def cancelRepositionAttempt(vehicleId: Id[Vehicle], triggerId: Long): Unit = {
+    repositioningFinished(vehicleId, triggerId)
   }
 
-  def repositioningFinished(vehicleId: Id[Vehicle]): Unit = {
+  def repositioningFinished(vehicleId: Id[Vehicle], triggerId: Long): Unit = {
     if (waitingToReposition.contains(vehicleId)) {
       waitingToReposition = waitingToReposition - vehicleId
-      checkIfRoundOfRepositioningIsDone()
+      checkIfRoundOfRepositioningIsDone(triggerId)
     } else {
       log.error("Not found in waitingToReposition: {}", vehicleId)
     }
   }
 
-  def checkIfRoundOfRepositioningIsDone(): Unit = {
+  def checkIfRoundOfRepositioningIsDone(triggerId: Long): Unit = {
     if (waitingToReposition.isEmpty) {
       log.debug("Cleaning up from checkIfRoundOfRepositioningIsDone")
       sendCompletionAndScheduleNewTimeout(Reposition, 0)
-      rideHailManager.cleanUp
+      rideHailManager.cleanUp(triggerId)
     }
   }
 
   def modifyPassengerScheduleAckReceived(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger],
-    tick: Int
+    tick: Int,
+    triggerId: Long
   ): Unit = {
     clearModifyStatusFromCacheWithVehicleId(vehicleId)
     if (triggersToSchedule.nonEmpty) {
       allTriggersInWave = triggersToSchedule ++ allTriggersInWave
     }
-    repositioningFinished(vehicleId)
+    repositioningFinished(vehicleId, triggerId)
   }
 
   def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
@@ -175,7 +176,8 @@ class RideHailModifyPassengerScheduleManager(
         tick,
         veh._1,
         veh._2.rideHailAgent,
-        HoldForPlanning
+        HoldForPlanning,
+        triggerId
       )
     }
     numInterruptRepliesPending = rideHailManager.rideHailManagerHelper.getIdleAndInServiceVehicles.size
@@ -216,7 +218,7 @@ class RideHailModifyPassengerScheduleManager(
                   reply.getClass.getCanonicalName,
                   reply.interruptId
                 )
-                cancelRepositionAttempt(reply.vehicleId)
+                cancelRepositionAttempt(reply.vehicleId, triggerId)
                 log.debug(
                   "sending Resume from sendNewPassengerScheduleToVehicle when repositioning to {}",
                   reply.vehicleId
@@ -281,7 +283,7 @@ class RideHailModifyPassengerScheduleManager(
               reply.vehicleId,
               reply.tick
             )
-            cancelRepositionAttempt(reply.vehicleId)
+            cancelRepositionAttempt(reply.vehicleId, triggerId)
         }
       case None =>
         // This is a non-buffered modify scenario, we still need to send Interrupt
@@ -290,7 +292,8 @@ class RideHailModifyPassengerScheduleManager(
           tick,
           rideHailVehicleId,
           rideHailAgentRef,
-          SingleReservation
+          SingleReservation,
+          triggerId
         )
     }
   }
@@ -300,7 +303,8 @@ class RideHailModifyPassengerScheduleManager(
     tick: Int,
     vehicleId: Id[Vehicle],
     rideHailAgent: ActorRef,
-    interruptOrigin: InterruptOrigin
+    interruptOrigin: InterruptOrigin,
+    triggerId: Long
   ): Unit = {
     if (!isPendingReservation(vehicleId)) {
       val rideHailModifyPassengerScheduleStatus = RideHailModifyPassengerScheduleStatus(
@@ -319,7 +323,7 @@ class RideHailModifyPassengerScheduleManager(
       saveModifyStatusInCache(rideHailModifyPassengerScheduleStatus)
       sendInterruptMessage(rideHailModifyPassengerScheduleStatus, modifyPassengerSchedule.triggerId)
     } else {
-      cancelRepositionAttempt(vehicleId)
+      cancelRepositionAttempt(vehicleId, triggerId)
       log.debug(
         "RideHailModifyPassengerScheduleManager- message ignored as repositioning cannot overwrite reserve: {}",
         vehicleId
@@ -354,13 +358,13 @@ class RideHailModifyPassengerScheduleManager(
     }
   }
 
-  def cleanUpCaches: Unit = {
+  def cleanUpCaches(triggerId: Long): Unit = {
     interruptIdToModifyPassengerScheduleStatus.values.foreach { status =>
       status.status match {
         case ModifyPassengerScheduleSent =>
         case _ =>
           log.debug("sending Resume from cleanUpCaches to {}", status.vehicleId)
-          status.rideHailAgent.tell(Resume, rideHailManagerRef)
+          status.rideHailAgent.tell(Resume(triggerId), rideHailManagerRef)
       }
     }
     vehicleIdToModifyPassengerScheduleStatus.clear
@@ -453,7 +457,7 @@ case class RideHailModifyPassengerScheduleStatus(
   status: InterruptMessageStatus
 )
 
-case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: Id[Vehicle])
+case class ReduceAwaitingRepositioningAckMessagesByOne(vehicleId: Id[Vehicle], triggerId: Long) extends HasTriggerId
 
 object RideHailModifyPassengerScheduleManager {
   def nextRideHailAgentInterruptId: Int = InterruptIdIdGenerator.nextId

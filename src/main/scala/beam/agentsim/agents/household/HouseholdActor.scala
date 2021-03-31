@@ -1,6 +1,5 @@
 package beam.agentsim.agents.household
 
-import java.util.concurrent.TimeUnit
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
 import akka.pattern.pipe
@@ -8,7 +7,6 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
-import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
@@ -25,9 +23,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
 import beam.router.BeamRouter.RoutingResponse
-import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
@@ -46,6 +42,7 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.households
 import org.matsim.households.Household
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -280,7 +277,7 @@ object HouseholdActor {
                       .mapTo[RoutingResponse]
                 )
               )
-              .map(RoutingResponses(tick, _)) pipeTo self
+              .map(RoutingResponses(tick, _, triggerId)) pipeTo self
           }
         }
         household.members.foreach { person =>
@@ -326,7 +323,7 @@ object HouseholdActor {
         }
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
 
-      case RoutingResponses(tick, routingResponses) =>
+      case RoutingResponses(tick, routingResponses, triggerId) =>
         // Check if there are any broken routes, for now we cancel the whole cav plan if this happens and give a warning
         // a more robust implementation would re-plan but without the person who's mobility led to the bad route
         if (routingResponses.exists(_.itineraries.isEmpty)) {
@@ -409,20 +406,20 @@ object HouseholdActor {
                   beam.utils.logging.pattern
                     .ask(
                       cavAndSchedule._1.getDriver.get,
-                      ModifyPassengerSchedule(cavAndSchedule._2, tick, routingResponses.head.triggerId) //todo check1
+                      ModifyPassengerSchedule(cavAndSchedule._2, tick, triggerId)
                     )
                     .mapTo[ModifyPassengerScheduleAck]
                 }
                 .toList
             )
-            .map(ModifyPassengerScheduleAcks)
+            .map(list => ModifyPassengerScheduleAcks(list, triggerId))
             .pipeTo(self)
         }
 
       case Status.Failure(reason) =>
         throw new RuntimeException(reason)
 
-      case ModifyPassengerScheduleAcks(acks) =>
+      case ModifyPassengerScheduleAcks(acks, _) =>
         val (_, triggerId) = releaseTickAndTriggerId()
         completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
 

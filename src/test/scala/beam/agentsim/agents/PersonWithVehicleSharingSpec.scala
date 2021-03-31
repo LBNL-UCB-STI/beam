@@ -635,7 +635,7 @@ class PersonWithVehicleSharingSpec
       person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
-      mockSharedVehicleFleet.lastSender ! NotAvailable
+      mockSharedVehicleFleet.lastSender ! NotAvailable(0)
 
       person2EntersVehicleEvents.expectNoMessage()
 

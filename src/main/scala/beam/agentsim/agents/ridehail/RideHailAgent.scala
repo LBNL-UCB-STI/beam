@@ -131,14 +131,15 @@ object RideHailAgent {
     reservationRequestId: Option[Int] = None,
     triggersToSchedule: Vector[ScheduleTrigger],
     vehicleId: Id[Vehicle],
-    tick: Int
-  )
+    tick: Int,
+    triggerId: Long
+  ) extends HasTriggerId
 
-  case class ModifyPassengerScheduleAcks(acks: List[ModifyPassengerScheduleAck])
+  case class ModifyPassengerScheduleAcks(acks: List[ModifyPassengerScheduleAck], triggerId: Long) extends HasTriggerId
 
   case class Interrupt(interruptId: Int, tick: Int, triggerId: Long) extends HasTriggerId
 
-  case class Resume(triggerId: Long)
+  case class Resume(triggerId: Long) extends HasTriggerId
 
   sealed trait InterruptReply {
     val interruptId: Int
@@ -290,6 +291,7 @@ class RideHailAgent(
         Vector(),
         vehicle.id,
         tick,
+        triggerId
       )
 
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
@@ -502,7 +504,7 @@ class RideHailAgent(
     case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       goto(OfflineInterrupted) replying InterruptedWhileOffline(interruptId, vehicle.id, latestObservedTick, triggerId)
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       stay
     case ev @ Event(
@@ -533,7 +535,7 @@ class RideHailAgent(
       stay replying CompletionNotice(triggerId)
   }
   when(OfflineInterrupted) {
-    case Event(Resume, _) =>
+    case Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.Offline.Resume)")
       goto(Offline)
     case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
@@ -645,6 +647,7 @@ class RideHailAgent(
           triggerToSchedule,
           vehicle.id,
           tick,
+          triggerId
         )
       } else {
         val currentLeg = data.passengerSchedule.schedule.view.drop(data.currentLegPassengerScheduleIndex).head._1
@@ -680,9 +683,10 @@ class RideHailAgent(
           triggerToSchedule,
           vehicle.id,
           tick,
+          triggerId
         )
       }
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
     case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
@@ -788,7 +792,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
@@ -812,7 +816,7 @@ class RideHailAgent(
       myUnhandled(ev)
   }
   when(InQueueInterrupted) {
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       goto(InQueue)
     case ev @ Event(_, _) =>
       stash
@@ -827,7 +831,7 @@ class RideHailAgent(
         latestObservedTick,
         triggerId
       )
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.Refueling): {}", ev)
       stay
     case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(tick, sessionStart, energyInJoules, _), triggerId), _) =>
@@ -843,7 +847,7 @@ class RideHailAgent(
       }
   }
   when(RefuelingInterrupted) {
-    case Event(Resume, _) =>
+    case Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.Refueling.Resume)")
       goto(Refueling)
     case ev @ Event(_, _) =>

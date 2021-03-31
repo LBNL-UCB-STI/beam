@@ -531,7 +531,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         // In this case our passenger schedule isn't empty so we go directly to idle interrupted
         goto(IdleInterrupted) using stripLiterallyDrivingData(data).asInstanceOf[T]
       }
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       goto(Driving)
     case ev @ Event(TriggerWithId(EndLegTrigger(_), _), _) =>
@@ -684,7 +684,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
   when(WaitingToDriveInterrupted) {
-    case ev @ Event(Resume, _) =>
+    case ev @ Event(Resume(_), _) =>
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       goto(WaitingToDrive)
 
