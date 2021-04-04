@@ -1,5 +1,6 @@
 package beam.sim.vehiclesharing
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id

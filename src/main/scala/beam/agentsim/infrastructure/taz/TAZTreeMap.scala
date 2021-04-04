@@ -2,10 +2,8 @@ package beam.agentsim.infrastructure.taz
 
 import java.io._
 import java.util
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
@@ -15,9 +13,22 @@ import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
 
-class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
+import scala.annotation.tailrec
+import scala.collection.concurrent.TrieMap
 
-  val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
+/**
+  * TAZTreeMap manages a quadTree to find the closest TAZ to any coordinate.
+  *
+  * @param tazQuadTree quadtree containing the TAZs
+  * @param useCache Currently [as of 10-2020] the use of the TAZ quadtree cache is less performant than just keeping it off (better to reduce calls to TAZ quadtree
+  *                 by avoiding unnecessary queries). The caching mechanism is however still useful for debugging and as a quickfix/confirmation if TAZ quadtree queries
+  *                 suddenly increase due to code change.
+  */
+class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false) {
+
+  private val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
+  val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
+  private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
@@ -25,6 +36,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
 
   for (taz: TAZ <- tazQuadTree.values().asScala) {
     stringIdToTAZMapping.put(taz.tazId.toString, taz)
+    idToTAZMapping.put(taz.tazId, taz)
   }
 
   def getTAZ(loc: Coord): TAZ = {
@@ -32,8 +44,11 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
   }
 
   def getTAZ(x: Double, y: Double): TAZ = {
-    // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
-    tazQuadTree.getClosest(x, y)
+    if (useCache) {
+      cache.getOrElseUpdate((x, y), tazQuadTree.getClosest(x, y))
+    } else {
+      tazQuadTree.getClosest(x, y)
+    }
   }
 
   def getTAZ(tazId: String): Option[TAZ] = {
@@ -45,7 +60,6 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ]) {
   }
 
   def getTAZInRadius(x: Double, y: Double, radius: Double): util.Collection[TAZ] = {
-    // TODO: is this enough precise, or we want to get the exact TAZ where the coordinate is located?
     tazQuadTree.getDisk(x, y, radius)
   }
 
@@ -191,6 +205,40 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  /**
+    * performs a concentric ring search from the present location to find elements up to the SearchMaxRadius
+    * @param quadTree tree to search
+    * @param searchCenter central location from which concentric discs will be built with an expanding radius
+    * @param startRadius the beginning search radius
+    * @param maxRadius search constrained to this maximum search radius
+    * @param f function to check the elements. It must return Some if found an appropriate element and None otherwise.
+    * @return the result of function f applied to the found element. None if there's no appropriate elements.
+    */
+  def ringSearch[A, B](
+    quadTree: QuadTree[A],
+    searchCenter: Coord,
+    startRadius: Double,
+    maxRadius: Double,
+    radiusMultiplication: Double
+  )(f: A => Option[B]): Option[B] = {
+
+    @tailrec
+    def _find(innerRadius: Double, outerRadius: Double): Option[B] = {
+      if (innerRadius > maxRadius) None
+      else {
+        val elementStream = quadTree
+          .getRing(searchCenter.getX, searchCenter.getY, innerRadius, outerRadius)
+          .asScala
+          .toStream
+        val result = elementStream.flatMap(f(_)).headOption
+        if (result.isDefined) result
+        else _find(outerRadius, outerRadius * radiusMultiplication)
+      }
+    }
+
+    _find(0.0, startRadius)
   }
 
 }

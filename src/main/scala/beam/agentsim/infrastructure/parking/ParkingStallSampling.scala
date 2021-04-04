@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
-
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Coord
@@ -10,6 +9,8 @@ import org.matsim.api.core.v01.Coord
   * sampling methods for randomly generating stall locations from aggregate information
   */
 object ParkingStallSampling {
+
+  type GeoSampling[GEO] = (Random, Location, GEO, Double) => Location
 
   /**
     * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability

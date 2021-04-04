@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, FSM, LoggingFSM, Stash}
+import akka.actor.{ActorRef, BeamLoggingFSM, FSM, LoggingFSM, Stash}
 import akka.util
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.scheduler.Trigger
@@ -26,10 +26,11 @@ object BeamAgent {
 
 case class InitializeTrigger(tick: Int) extends Trigger
 
-trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTickAndTrigger {
+trait BeamAgent[T] extends BeamLoggingFSM[BeamAgentState, T] with Stash with HasTickAndTrigger {
 
   val scheduler: ActorRef
   val eventsManager: EventsManager
+  val eventBuilderActor: ActorRef
 
   protected implicit val timeout: util.Timeout = akka.util.Timeout(5000, TimeUnit.SECONDS)
 
@@ -40,8 +41,9 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTick
       reason match {
         case FSM.Shutdown =>
           log.error(
-            "BeamAgent Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception. In state {}\n",
-            currentState
+            "BeamAgent Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception. In state {}, with stateData {}\n",
+            currentState,
+            stateData
           )
         case _ =>
       }
@@ -53,19 +55,27 @@ trait BeamAgent[T] extends LoggingFSM[BeamAgentState, T] with Stash with HasTick
   def logPrefix(): String
 
   def logInfo(msg: => String): Unit = {
-    log.info("{} {}", getPrefix, msg)
+    if (log.isInfoEnabled) {
+      log.info("{} {}", getPrefix, msg)
+    }
   }
 
   def logWarn(msg: => String): Unit = {
-    log.warning("{} {}", getPrefix, msg)
+    if (log.isWarningEnabled) {
+      log.warning("{} {}", getPrefix, msg)
+    }
   }
 
   def logError(msg: => String): Unit = {
-    log.error("{} {}", getPrefix, msg)
+    if (log.isErrorEnabled) {
+      log.error("{} {}", getPrefix, msg)
+    }
   }
 
   def logDebug(msg: => String): Unit = {
-    log.debug("{} {}", getPrefix, msg)
+    if (log.isDebugEnabled) {
+      log.debug("{} {}", () => getPrefix, msg)
+    }
   }
 
   def getPrefix: String = {

@@ -24,7 +24,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       Id.create("beamVilleCar", classOf[BeamVehicleType]),
       new SpaceTime(new Coord(origin.getX, origin.getY), time),
       Modes.BeamMode.CAR,
-      asDriver = true
+      asDriver = true,
+      needsToCalculateCost = true
     )
     val attributesOfIndividual = AttributesOfIndividual(
       HouseholdAttributes("1", 200, 300, 400, 500),

@@ -34,7 +34,7 @@ class RideHailReplaceAllocationSpec extends FlatSpec with BeamHelper with Mockit
       scenario.getConfig,
       new AbstractModule() {
         override def install(): Unit = {
-          install(module(config, beamConfig, scenario, beamScenario))
+          install(module(config, beamConfig, scenario, beamScenario, None))
           addControlerListenerBinding().toInstance(iterationCounter)
         }
       }

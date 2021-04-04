@@ -2,15 +2,11 @@ package beam.sim
 
 import java.util.concurrent.TimeUnit
 
-import beam.analysis.plots.PersonTravelTimeAnalysis
-import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
-
-import scala.io.Source
 
 class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
@@ -20,7 +16,7 @@ class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper wi
       val baseConf = ConfigFactory
         .parseString(s"""
                        |beam.agentsim.lastIteration = 1
-                       |beam.warmStart.enabled = true
+                       |beam.warmStart.type = full
                        |beam.warmStart.path = test/input/sf-light/warmstart
                      """.stripMargin)
         .withFallback(testConfig("test/input/sf-light/sf-light.conf"))

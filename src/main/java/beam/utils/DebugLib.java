@@ -26,4 +26,9 @@ public class DebugLib {
         return message + String.format("%.2f (GB)", jvmMemoryInUseInGigabytes);
     }
 
+    public static void busyWait(int nanos) {
+        long start = System.nanoTime();
+        while(System.nanoTime() - start < nanos);
+    }
+
 }

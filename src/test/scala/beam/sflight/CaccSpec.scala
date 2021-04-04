@@ -29,14 +29,19 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
   }
 
   private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
+    // beam.outputs.collectAndCreateBeamAnalysisAndGraphs needs to be enabled for this test, as it is trying to access *.averageTravelTimes.csv
     val config = ConfigFactory
-      .parseString(s"""
+      .parseString(
+        s"""
+            |beam.actorSystemName = "CaccSpec"
+            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
                      |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.lastIteration = $iterationNumber
-                     |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
-                     |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
-                     |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
-                   """.stripMargin)
+            |beam.agentsim.lastIteration = $iterationNumber
+            |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
+            |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
+            |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
       .resolve()
 

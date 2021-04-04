@@ -86,9 +86,9 @@ class MultinomialLogit[A, T](
           // build the cumulative distribution function (cdf) by transforming alternatives into a list
           // in ascending order of thresholds (== descending order of alternative utilities)
           // by successive draw thresholds
-          val asProbabilitySpread: List[MultinomialLogit.MNLSample[A]] =
+          val asProbabilitySpread: Vector[MultinomialLogit.MNLSample[A]] =
             altsWithUtility
-              .foldLeft((0.0, List.empty[MultinomialLogit.MNLSample[A]])) {
+              .foldLeft((0.0, Vector.empty[MultinomialLogit.MNLSample[A]])) {
                 case ((prefix, stackedProbabilitiesList), AlternativeWithUtility(alt, utility, expUtility)) =>
                   val probability: Double = expUtility / sumOfExponentialUtilities
                   val nextDrawThreshold: Double = prefix + probability

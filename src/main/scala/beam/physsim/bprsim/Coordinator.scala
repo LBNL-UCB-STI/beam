@@ -2,6 +2,7 @@ package beam.physsim.bprsim
 
 import java.util.concurrent.{Executors, TimeUnit}
 
+import beam.utils.ConcurrentUtils.parallelExecution
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.events.Event
@@ -10,8 +11,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   *
@@ -84,11 +84,6 @@ class Coordinator(
           sorted.foreach(eventManager.processEvent)
         }(eventEC)
     )(eventEC)
-  }
-
-  private def parallelExecution[A](functions: Seq[() => A]): Seq[A] = {
-    val future = Future.sequence(functions.map(f => Future { f() }))
-    Await.result(future, Duration.Inf)
   }
 
 }

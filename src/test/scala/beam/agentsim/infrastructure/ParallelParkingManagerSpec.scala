@@ -1,12 +1,11 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.TimeUnit
-
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -20,6 +19,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 
+import java.util.concurrent.TimeUnit
 import scala.util.Random
 
 class ParallelParkingManagerSpec
@@ -51,7 +51,9 @@ class ParallelParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  val emergencyId0: Id[TAZ] = Id.create("emergency-0", classOf[TAZ])
+  private val managers = Map[Id[VehicleManager], VehicleManager](
+    VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
+  )
 
   describe("ParallelParkingManager with no parking") {
     it("should return a response with an emergency stall") {
@@ -65,17 +67,16 @@ class ParallelParkingManagerSpec
           xMax = 833000,
           yMax = 10000000
         ) // one TAZ at agent coordinate
-        parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
-            tazTreeMap,
-            Array.empty[ParkingZone],
-            Map.empty,
-            8,
-            geo,
-            randomSeed,
-            boundingBox,
-          )
+        parkingManager = ParallelParkingManager.init(
+          beamConfig,
+          tazTreeMap,
+          Array.empty[ParkingZone[TAZ]],
+          Map.empty,
+          8,
+          geo,
+          randomSeed,
+          boundingBox,
+          managers
         )
       } {
 
@@ -88,12 +89,13 @@ class ParallelParkingManagerSpec
             inquiry.destinationUtm.getY - 2000
           ),
           new Random(randomSeed),
-          tazId = emergencyId0,
+          tazId = TAZ.EmergencyTAZId,
+          geoId = TAZ.EmergencyTAZId,
         )
 
-        parkingManager ! inquiry
-
-        expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+        val response = parkingManager.processParkingInquiry(inquiry)
+        assert(response.isDefined, "no response")
+        assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
       }
     }
   }
@@ -103,17 +105,16 @@ class ParallelParkingManagerSpec
 
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
-      val parkingManager = system.actorOf(
-        ParallelParkingManager.props(
-          beamConfig,
-          tazTreeMap,
-          Array.empty[ParkingZone],
-          Map.empty,
-          8,
-          geo,
-          randomSeed,
-          boundingBox,
-        )
+      val parkingManager = ParallelParkingManager.init(
+        beamConfig,
+        tazTreeMap,
+        Array.empty[ParkingZone[TAZ]],
+        Map.empty,
+        8,
+        geo,
+        randomSeed,
+        boundingBox,
+        managers
       )
 
       val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
@@ -125,12 +126,13 @@ class ParallelParkingManagerSpec
           inquiry.destinationUtm.getY - 2000
         ),
         new Random(randomSeed),
-        tazId = emergencyId0,
+        tazId = TAZ.EmergencyTAZId,
+        geoId = TAZ.EmergencyTAZId,
       )
 
-      parkingManager ! inquiry
-
-      expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+      val response = parkingManager.processParkingInquiry(inquiry)
+      assert(response.isDefined, "no response")
+      assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
     }
   }
 
@@ -147,22 +149,26 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,unused
+            |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
-        parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
-            tazTreeMap,
-            parking.zones,
-            parking.tree,
-            8,
-            geo,
-            randomSeed,
-            boundingBox,
+        parking = ParkingZoneFileUtils
+          .fromIterator[TAZ](
+            oneParkingOption,
+            random,
+            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
           )
+        parkingManager = ParallelParkingManager.init(
+          beamConfig,
+          tazTreeMap,
+          parking.zones.toArray,
+          parking.tree,
+          8,
+          geo,
+          randomSeed,
+          boundingBox,
+          managers
         )
       } {
 
@@ -171,23 +177,30 @@ class ParallelParkingManagerSpec
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
+            Id.create(1, classOf[TAZ]),
             0,
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace
+            ParkingType.Workplace,
+            VehicleManager.privateVehicleManager.managerId
           )
-        parkingManager ! firstInquiry
-        expectMsg(ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId))
+        val response1 = parkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(
+          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId),
+          "something is wildly broken"
+        )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        parkingManager ! secondInquiry
-        expectMsgPF() {
-          case res @ ParkingInquiryResponse(stall, responseId)
-              if stall.tazId == emergencyId0 && responseId == secondInquiry.requestId =>
+        val response2 = parkingManager.processParkingInquiry(secondInquiry)
+        response2 match {
+          case Some(res @ ParkingInquiryResponse(stall, responseId))
+              if stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
             res
+          case _ => assert(response2.isDefined, "no response")
         }
       }
     }
@@ -206,23 +219,27 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,unused
+          |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, random)
-        parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
-            tazTreeMap,
-            parking.zones,
-            parking.tree,
-            8,
-            geo,
-            randomSeed,
-            boundingBox,
-          )
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](
+          oneParkingOption,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
         )
+        parkingManager = ParallelParkingManager.init(
+          beamConfig,
+          tazTreeMap,
+          parking.zones.toArray,
+          parking.tree,
+          8,
+          geo,
+          randomSeed,
+          boundingBox,
+          managers
+        )
+
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
         val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
@@ -232,25 +249,35 @@ class ParallelParkingManagerSpec
         val expectedStall =
           ParkingStall(
             expectedTAZId,
+            expectedTAZId,
             expectedParkingZoneId,
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace
+            ParkingType.Workplace,
+            VehicleManager.privateVehicleManager.managerId
           )
 
         // request the stall
-        parkingManager ! firstInquiry
-        expectMsg(ParkingInquiryResponse(expectedStall, firstInquiry.requestId))
+        val response1 = parkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(
+          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId),
+          "something is wildly broken"
+        )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId, expectedTAZId)
-        parkingManager ! releaseParkingStall
+        val releaseParkingStall = ReleaseParkingStall(expectedStall)
+        parkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
-        parkingManager ! secondInquiry
-        expectMsg(ParkingInquiryResponse(expectedStall, secondInquiry.requestId))
+        val response2 = parkingManager.processParkingInquiry(secondInquiry)
+        assert(response2.isDefined, "no response")
+        assert(
+          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -283,28 +310,34 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator(parkingConfiguration, random)
-        parkingManager = system.actorOf(
-          ParallelParkingManager.props(
-            beamConfig,
-            tazTreeMap,
-            parking.zones,
-            parking.tree,
-            1, // this test will work only in a single cluster because clusters are fully separated
-            geo,
-            randomSeed,
-            boundingBox,
-          )
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](
+          parkingConfiguration,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
+        parkingManager = ParallelParkingManager.init(
+          beamConfig,
+          tazTreeMap,
+          parking.zones.toArray,
+          parking.tree,
+          1, // this test will work only in a single cluster because clusters are fully separated
+          geo,
+          randomSeed,
+          boundingBox,
+          managers
         )
       } {
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
           req = ParkingInquiry(middleOfWorld, "work")
-          _ = parkingManager ! req
-          counted = expectMsgPF[Int]() {
-            case res: ParkingInquiryResponse =>
-              if (res.stall.tazId != emergencyId0) 1 else 0
+          response1 = parkingManager.processParkingInquiry(req)
+          counted = response1 match {
+            case Some(res @ ParkingInquiryResponse(_, _)) =>
+              if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
+            case _ =>
+              assert(response1.isDefined, "no response")
+              0
           }
         } yield {
           counted
@@ -321,15 +354,15 @@ class ParallelParkingManagerSpec
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-      val (zones, searchTree) = ZonalParkingManager.loadParkingZones(
+      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
         "test/input/beamville/parking/taz-parking.csv",
-        "/not_set",
+        tazMap.tazQuadTree,
         1.0,
         1.0,
         new Random(randomSeed),
       )
-      val zpm = system.actorOf(
-        ParallelParkingManager.props(
+      val zpm =
+        ParallelParkingManager.init(
           beamConfig,
           tazMap,
           zones,
@@ -338,8 +371,8 @@ class ParallelParkingManagerSpec
           geo,
           randomSeed,
           boundingBox,
+          managers
         )
-      )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
 
@@ -350,7 +383,7 @@ class ParallelParkingManagerSpec
   }
 
   private def assertParkingResponse(
-    spm: ActorRef,
+    spm: ParkingNetwork,
     coord: Coord,
     tazId: String,
     parkingZoneId: Int,
@@ -358,10 +391,22 @@ class ParallelParkingManagerSpec
     parkingType: ParkingType
   ) = {
     val inquiry = ParkingInquiry(coord, "init")
-    spm ! inquiry
+    val response = spm.processParkingInquiry(inquiry)
+    val tazId1 = Id.create(tazId, classOf[TAZ])
     val expectedStall =
-      ParkingStall(Id.create(tazId, classOf[TAZ]), parkingZoneId, coord, 0.0, None, Some(pricingModel), parkingType)
-    expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+      ParkingStall(
+        tazId1,
+        tazId1,
+        parkingZoneId,
+        coord,
+        0.0,
+        None,
+        Some(pricingModel),
+        parkingType,
+        VehicleManager.privateVehicleManager.managerId
+      )
+    assert(response.isDefined, "no response")
+    assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
   }
 
   override def afterAll: Unit = {

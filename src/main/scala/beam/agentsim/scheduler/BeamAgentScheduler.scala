@@ -3,7 +3,7 @@ package beam.agentsim.scheduler
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
+import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -122,6 +122,8 @@ object BeamAgentScheduler {
 
 }
 
+case object BeamAgentSchedulerTimer
+
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
   stopTick: Int,
@@ -194,7 +196,7 @@ class BeamAgentScheduler(
     super.aroundPostStop()
   }
 
-  def receive: Receive = LoggingReceive {
+  def receive: Receive = BeamLoggingReceive {
     case StartSchedule(it) =>
       log.info(s"starting scheduler at iteration $it")
       this.startSender = sender()
@@ -271,6 +273,8 @@ class BeamAgentScheduler(
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
             }
           } else {
+            // Send to the stuck agent in order to spy it's internal state in debugger
+            x.agent ! BeamAgentSchedulerTimer
 //            monitorStuckDetectionState match {
 //              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
 //                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
@@ -438,7 +442,7 @@ class BeamAgentScheduler(
     if (awaitingResponse.keySet().isEmpty) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(10)}"
+      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(3)}"
     }
   }
 

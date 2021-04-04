@@ -107,6 +107,13 @@ object Modes {
           TransportMode.pt
         )
 
+    case object BIKE_TRANSIT
+        extends BeamMode(
+          value = "bike_transit",
+          Some(Right(TransitModes.TRANSIT)),
+          TransportMode.pt
+        )
+
     val chainBasedModes = Seq(CAR, BIKE)
 
     val transitModes =
@@ -125,14 +132,17 @@ object Modes {
         RIDE_HAIL_POOLED,
         RIDE_HAIL_TRANSIT,
         DRIVE_TRANSIT,
-        WALK_TRANSIT
+        WALK_TRANSIT,
+        BIKE_TRANSIT
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {
-      if (stringMode.equals("")) {
+      if (stringMode.equals("") || stringMode.equals("other")) {
         None
       } else if (stringMode.equalsIgnoreCase("drive")) {
         Some(CAR)
+      } else if (stringMode.equalsIgnoreCase("transit_walk")) {
+        Some(WALK_TRANSIT)
       } else {
         Some(BeamMode.withValue(stringMode))
       }
@@ -208,6 +218,15 @@ object Modes {
     case TransitModes.RAIL      => BeamMode.RAIL
     case TransitModes.TRAM      => BeamMode.TRAM
     case _                      => throw new IllegalArgumentException
+  }
+
+  def getAccessVehicleMode(mode: BeamMode): BeamMode = mode match {
+    case BeamMode.TRANSIT           => throw new IllegalArgumentException("access vehicle is unknown")
+    case BeamMode.WALK_TRANSIT      => BeamMode.WALK
+    case BeamMode.DRIVE_TRANSIT     => BeamMode.CAR
+    case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
+    case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE
+    case _                          => throw new IllegalArgumentException("not a transit mode: " + mode.value)
   }
 
 }

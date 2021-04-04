@@ -11,7 +11,7 @@ import com.graphhopper.util.Parameters.Routing
 class BeamGraphHopper(wayId2TravelTime: Map[Long, Double]) extends GraphHopper {
 
   override def createWeighting(profile: Profile, hints: PMap, disableTurnCosts: Boolean): Weighting = {
-    if (profile.getWeighting == BeamGraphHopper.weightingName) {
+    if (profile.getWeighting == BeamWeighting.Name) {
       createBeamWeighting(profile, hints, disableTurnCosts)
     } else {
       super.createWeighting(profile, hints, disableTurnCosts)
@@ -35,9 +35,4 @@ class BeamGraphHopper(wayId2TravelTime: Map[Long, Double]) extends GraphHopper {
 
     new BeamWeighting(encoder, turnCostProvider, wayId2TravelTime)
   }
-}
-
-object BeamGraphHopper {
-  val profile = "beam_car"
-  val weightingName = "beam"
 }

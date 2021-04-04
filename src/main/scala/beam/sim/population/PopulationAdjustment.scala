@@ -1,18 +1,18 @@
 package beam.sim.population
 
-import java.util.Random
-
-import beam.agentsim
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.{agentsim, sim}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
 
+import java.util.Random
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 /**
   * An interface that handles setting/updating attributes for the population.
@@ -63,33 +63,31 @@ trait PopulationAdjustment extends LazyLogging {
     * @param population population from the scenario
     */
   protected final def logModes(population: MPopulation): MPopulation = {
-
-    // initialize all excluded modes to empty array
-    var allExcludedModes: Array[String] = Array.empty
+    // initialize all excluded modes to empty map
+    val excludedModeToCount: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
 
 // check if excluded modes is defined for all individuals
     val allAgentsHaveAttributes = population.getPersons.asScala.forall { entry =>
       val personExcludedModes = Option(
         population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
       ).map(_.toString)
-      // if excluded modes is defined for the person add it to the cumulative list
-      if (personExcludedModes.isDefined && personExcludedModes.get.nonEmpty)
-        allExcludedModes = allExcludedModes ++ personExcludedModes.get.split(",")
+      // if excluded modes is defined for the person add it to the map
+      if (personExcludedModes.isDefined && personExcludedModes.get.nonEmpty) {
+        personExcludedModes.get.split(",").foreach { em =>
+          excludedModeToCount.update(em, excludedModeToCount.getOrElse(em, 1) + 1)
+        }
+      }
       personExcludedModes.isDefined
     }
 
-    if (allExcludedModes.nonEmpty) {
+    if (excludedModeToCount.nonEmpty) {
       logger.info("Modes excluded:")
+      excludedModeToCount.foreach { case (em, counter) => logger.info(s"$em -> $counter") }
     }
-
-    // count the number of excluded modes for each mode type
-    allExcludedModes
-      .groupBy(x => x)
-      .foreach(t => logger.info(s"${t._1} -> ${t._2.length}"))
 
     // log error if excluded modes attributes is missing for at least one person in the population
     if (!allAgentsHaveAttributes) {
-      logger.error("Not all agents have person attributes - is attributes file missing ?")
+      logger.warn("Not all agents have person attributes - is attributes file missing ?")
     }
     population
   }
@@ -176,6 +174,7 @@ object PopulationAdjustment extends LazyLogging {
   val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
   val BEAM_ATTRIBUTES = "beam-attributes"
+  val CAR_RIDE_HAIL_ONLY = "CAR_RIDE_HAIL_ONLY"
 
   /**
     * Generates the population adjustment interface based on the configuration set
@@ -195,6 +194,8 @@ object PopulationAdjustment extends LazyLogging {
         ExcludeHalfTransit(beamServices)
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
+      case CAR_RIDE_HAIL_ONLY =>
+        new CarRideHailOnly(beamServices)
       case adjClass =>
         try {
           Class
@@ -233,7 +234,21 @@ object PopulationAdjustment extends LazyLogging {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-    val availableModes: Seq[BeamMode] = BeamMode.allModes.filterNot { mode =>
+    val initialAvailableModes = person.getCustomAttributes.isEmpty match {
+      case true =>
+        BeamMode.allModes
+      case false =>
+        person.getCustomAttributes.containsKey("beam-attributes") match {
+          case true =>
+            person.getCustomAttributes
+              .get("beam-attributes")
+              .asInstanceOf[sim.population.AttributesOfIndividual]
+              .availableModes
+          case false =>
+            BeamMode.allModes
+        }
+    }
+    val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
     // Read person attribute "income" and default it to 0 if not set

@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
@@ -16,7 +17,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
-import beam.router.skim.AbstractSkimmerEvent
+import beam.router.skim.core.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -32,7 +33,7 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
@@ -42,6 +43,7 @@ class PersonWithPersonalVehiclePlanSpec
     with TestKitBase
     with SimRunnerForTest
     with BeforeAndAfterAll
+    with BeforeAndAfter
     with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
@@ -83,10 +85,12 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleId = Id.createVehicleId("car-dummyAgent")
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -107,6 +111,7 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val parkingLocation = new Coord(167138.4, 1117.0)
       val parkingManager = system.actorOf(Props(new AnotherTrivialParkingManager(parkingLocation)))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         Props(
@@ -120,12 +125,14 @@ class PersonWithPersonalVehiclePlanSpec
             self,
             self,
             parkingManager,
+            self,
             eventsManager,
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -312,10 +319,12 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleId = Id.createVehicleId("bicycle-dummyAgent")
+      val vehicleType = beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
+        vehicleType,
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -335,6 +344,7 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager()))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         Props(
@@ -348,12 +358,14 @@ class PersonWithPersonalVehiclePlanSpec
             self,
             self,
             parkingManager,
+            self,
             eventsManager,
             population,
             household,
             Map(beamVehicle.id -> beamVehicle),
             new Coord(0.0, 0.0),
             Vector(),
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -451,15 +463,18 @@ class PersonWithPersonalVehiclePlanSpec
           }
         }
       )
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
       val car2 = new BeamVehicle(
         Id.createVehicleId("car-2"),
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
@@ -481,6 +496,7 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -493,12 +509,14 @@ class PersonWithPersonalVehiclePlanSpec
           self,
           self,
           parkingManager,
+          self,
           eventsManager,
           population,
           household,
           Map(car1.id -> car1, car2.id -> car2),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -557,10 +575,12 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleId = Id.createVehicleId("car-1")
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       val beamVehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+        vehicleType,
+        managerId = VehicleManager.privateVehicleManager.managerId,
       )
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -579,6 +599,7 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -591,12 +612,14 @@ class PersonWithPersonalVehiclePlanSpec
           self,
           self,
           parkingManager,
+          self,
           eventsManager,
           population,
           household,
           Map(beamVehicle.id -> beamVehicle),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -730,8 +753,16 @@ class PersonWithPersonalVehiclePlanSpec
   }
 
   override def afterAll(): Unit = {
-    shutdown()
     super.afterAll()
+  }
+
+  after {
+    import scala.concurrent.duration._
+    import scala.language.postfixOps
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    receiveWhile(1500 millis) {
+      case _: CompletionNotice =>
+    }
   }
 
 }
