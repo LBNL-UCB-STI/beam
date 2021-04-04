@@ -2,7 +2,7 @@ package beam.router
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import java.time.{LocalDateTime, ZoneOffset}
 import java.time.format.DateTimeFormatter
 import javax.xml.namespace.QName
@@ -15,6 +15,10 @@ import scala.util.{Success, Try}
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.router.Modes.BeamMode
+import beam.router.PhyssymXmlToOsmConverterParams.OutputType
+import beam.router.PhyssymXmlToOsmConverterParams.OutputType.OutputType
+import beam.utils.FileUtils
+import com.conveyal.osmlib.{Node => ConveyalOsmNode, OSM => ConveyalOsm, Way => ConveyalOsmWay}
 import com.typesafe.scalalogging.StrictLogging
 import scopt.OParser
 
@@ -30,10 +34,12 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     var canProcessLink = false
     var canProcessLinkAttributes = false
     var canProcessAttribute = false
+
     var isWayId = false
     var isHighway = false
+    var wayCounter = 1L
 
-    var wayId: String = null
+    var wayId: String = String.valueOf(wayCounter)
     var wayInnerTags: mutable.Buffer[(String, String)] = null
     var source_destination: (String, String) = null
 
@@ -62,6 +68,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
               startElement.getAttributeByName(new QName("to")).getValue
             )
             wayInnerTags = buildLinkProps(startElement)
+            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
           case "attributes" if canProcessLink =>
             canProcessLinkAttributes = true
           case "attribute" if canProcessLinkAttributes && tagNameHasKind(startElement, "origid") =>
@@ -77,9 +84,8 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       } else if (nextEvent.isEndElement) {
         val endElement = nextEvent.asEndElement()
         endElement.getName.getLocalPart match {
-          case "nodes" => canProcessNode = false
+          case "nodes"                  => canProcessNode = false
           case "link" if canProcessLink =>
-            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
           case "links" if canProcessLink =>
             canProcessLink = false
           case "attributes" if canProcessLinkAttributes => canProcessLinkAttributes = false
@@ -95,14 +101,15 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
         val charactersValue = characters.getData
         if (!isBlank(charactersValue)) {
           if (isWayId) {
-            wayId = charactersValue
+            wayId = String.valueOf(wayCounter)
+            wayCounter += 1
           } else if (isHighway) {
             wayInnerTags += "highway" -> charactersValue
           }
         }
       }
     }
-    logger.info("Network loaded")
+    logger.info(s"Network loaded with # nodes: [${nodes.size}] and # links: [${links.size}]")
     new OsmNetwork(nodes.values.toSeq, links)
   }
 
@@ -183,7 +190,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     private val zoned = LocalDateTime.now.atZone(ZoneOffset.UTC)
     private val timeStampStr = DateTimeFormatter.ISO_INSTANT.format(zoned)
 
-    def writeToFile(path: Path): Unit = {
+    def writeToXml(path: Path): Unit = {
       logger.info(s"Writing conversion in the file [$path]")
       val xmlOutputFactory = XMLOutputFactory.newInstance
 
@@ -213,6 +220,19 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       }
       xmlStreamWriter.writeEndDocument()
       logger.info(s"Finished conversion. File: [$path]")
+    }
+
+    def writeToPbf(path: Path): Unit = {
+      val conveyalOsm = new ConveyalOsm(null)
+      nodes.foreach { node =>
+        conveyalOsm.nodes.put(node.id.toLong, toConveyalNode(node))
+      }
+      ways.foreach { way =>
+        conveyalOsm.ways.put(way.id.toLong, toConveyalWay(way))
+      }
+      FileUtils.using(new FileOutputStream(path.toFile)) { fos =>
+        conveyalOsm.writePbf(fos)
+      }
     }
 
     private def writeWayTags(xmlStreamWriter: XMLStreamWriter, way: Way): Unit = {
@@ -260,26 +280,63 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     }
   }
 
+  private def toConveyalNode(node: Node) = {
+    new ConveyalOsmNode(node.wgsCoordinate.latitude, node.wgsCoordinate.longitude)
+  }
+
+  private def toConveyalWay(way: Way) = {
+    val osmWay = new ConveyalOsmWay()
+    way.attributes.foreach { attribute =>
+      osmWay.addTag(attribute._1, attribute._2)
+    }
+    osmWay.nodes = Array(way.from.toLong, way.to.toLong)
+    osmWay
+  }
+
   def main(args: Array[String]): Unit = {
     PhyssymXmlToOsmConverterParams.tryReadParams(args) match {
       case Success(params) =>
-        println(s"Started converting ${params.sourceFile} to ${params.targetFile}...")
-        val network = build(params.sourceFile.toPath)
-        network.writeToFile(params.targetFile.toPath)
-        println(s"Finished converting ${params.sourceFile} to ${params.targetFile}")
+        val sourceFile: Path = params.sourceFile.toPath
+        val network: OsmNetwork = build(sourceFile)
+        val (doConvert, destinationPath) = params.outputType match {
+          case OutputType.Pbf =>
+            (network.writeToPbf _, withSuffix(params.targetFile, ".pbf"))
+          case OutputType.Osm =>
+            (network.writeToXml _, withSuffix(params.targetFile, ".osm"))
+        }
+        logger.info(s"Started converting ${params.sourceFile} to $destinationPath")
+        doConvert(destinationPath)
+        logger.info(s"Finished converting ${params.sourceFile} to $destinationPath")
       case _ =>
         System.exit(1)
     }
   }
 
+  private def withSuffix(file: File, suffix: String): Path = {
+    if (file.getName.endsWith(suffix)) {
+      file.toPath
+    } else {
+      val newName = file.getName + suffix
+      file.toPath.resolveSibling(newName)
+    }
+  }
 }
 
 private object PhyssymXmlToOsmConverterParams {
 
-  case class ConverterParams(sourceFile: File = null, targetFile: File = null)
+  object OutputType extends Enumeration {
+    type OutputType = Value
+    val Pbf: OutputType.Value = Value("pbf")
+    val Osm: OutputType.Value = Value("osm")
+  }
+
+  case class ConverterParams(sourceFile: File = null, targetFile: File = null, outputType: OutputType = OutputType.Pbf)
 
   private val builder = OParser.builder[ConverterParams]
   private val parser1 = {
+    implicit val outputTypeRead: scopt.Read[OutputType.Value] =
+      scopt.Read.reads(OutputType.withName)
+
     import builder._
     OParser.sequence(
       programName("BeamPhyssymConverter"),
@@ -295,6 +352,10 @@ private object PhyssymXmlToOsmConverterParams {
       opt[File](name = "targetFile")
         .action((x, c) => c.copy(targetFile = x))
         .text("targetFile is a valid path for the output OSM file")
+        .required(),
+      opt[OutputType](name = "outputType")
+        .action((x, c) => c.copy(outputType = x))
+        .text(s"outputType is one of the values [${OutputType.values.map(_.toString).mkString(" | ")}]")
         .required(),
       checkConfig { c =>
         if (c.sourceFile == c.targetFile) {
