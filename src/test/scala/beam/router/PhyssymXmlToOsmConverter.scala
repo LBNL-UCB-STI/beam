@@ -33,13 +33,10 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     var links: mutable.ArrayBuffer[Way] = null
     var canProcessLink = false
     var canProcessLinkAttributes = false
-    var canProcessAttribute = false
 
-    var isWayId = false
     var isHighway = false
-    var wayCounter = 1L
 
-    var wayId: String = String.valueOf(wayCounter)
+    var wayId: String = null
     var wayInnerTags: mutable.Buffer[(String, String)] = null
     var source_destination: (String, String) = null
 
@@ -67,15 +64,13 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
               startElement.getAttributeByName(new QName("from")).getValue,
               startElement.getAttributeByName(new QName("to")).getValue
             )
+            wayId = startElement.getAttributeByName(new QName("id")).getValue
             wayInnerTags = buildLinkProps(startElement)
           case "attributes" if canProcessLink =>
             canProcessLinkAttributes = true
           case "attribute" if canProcessLinkAttributes && tagNameHasKind(startElement, "origid") =>
-            canProcessAttribute = true
-            isWayId = true
             isHighway = false
           case "attribute" if canProcessLinkAttributes && tagNameHasKind(startElement, "type") =>
-            isWayId = false
             isHighway = true
           case somethingElse =>
             logger.warn(s"Unidentified tag: [$somethingElse]")
@@ -83,29 +78,27 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       } else if (nextEvent.isEndElement) {
         val endElement = nextEvent.asEndElement()
         endElement.getName.getLocalPart match {
+          case "network" =>
           case "nodes"                  => canProcessNode = false
-          case "link" if canProcessLink =>
-            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
+          case "node" if canProcessNode =>
           case "links" if canProcessLink =>
             canProcessLink = false
-          case "attributes" if canProcessLinkAttributes => canProcessLinkAttributes = false
-          case "attribute" if canProcessLinkAttributes && isWayId =>
-            isWayId = false
-          case "attribute" if canProcessLinkAttributes && isHighway =>
-            isHighway = false
+          case "link" if canProcessLink =>
+            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
+          case "attributes" if canProcessLinkAttributes =>
+            canProcessLinkAttributes = false
+          case "attribute" if canProcessLinkAttributes =>
+            if (isHighway) {
+              isHighway = false
+            }
           case somethingElse =>
-            logger.warn(s"Something not predicted $somethingElse")
+            logger.warn(s"Something not predicted. canProcessLinks: [$canProcessLink]; [canProcessLinkAttributes: [$canProcessLinkAttributes]; canProcessNode: [$canProcessNode]; somethingElse: [$somethingElse]")
         }
       } else if (nextEvent.isCharacters) {
         val characters: Characters = nextEvent.asCharacters()
         val charactersValue = characters.getData
-        if (!isBlank(charactersValue)) {
-          if (isWayId) {
-            wayId = String.valueOf(wayCounter)
-            wayCounter += 1
-          } else if (isHighway) {
+        if (!isBlank(charactersValue) && isHighway) {
             wayInnerTags += "highway" -> charactersValue
-          }
         }
       }
     }
@@ -147,9 +140,8 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
         case BeamMode.SUBWAY.value => Some("subway"   -> "yes")
         case BeamMode.TRAM.value   => Some("tram"     -> "yes")
         case BeamMode.BIKE.value   => Some("bicycle"  -> "yes")
-        case somethingElse: String =>
-          logger.warn(s"$somethingElse is handled but is not tested")
-          Some(somethingElse -> "yes")
+        case somethingElseNotFoundOnOsmDocumentation: String =>
+          Some(somethingElseNotFoundOnOsmDocumentation -> "yes")
       }
       .toSeq
   }
