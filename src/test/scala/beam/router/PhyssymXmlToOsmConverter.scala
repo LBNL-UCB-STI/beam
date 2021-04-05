@@ -78,7 +78,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       } else if (nextEvent.isEndElement) {
         val endElement = nextEvent.asEndElement()
         endElement.getName.getLocalPart match {
-          case "network" =>
+          case "network"                =>
           case "nodes"                  => canProcessNode = false
           case "node" if canProcessNode =>
           case "links" if canProcessLink =>
@@ -92,13 +92,15 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
               isHighway = false
             }
           case somethingElse =>
-            logger.warn(s"Something not predicted. canProcessLinks: [$canProcessLink]; [canProcessLinkAttributes: [$canProcessLinkAttributes]; canProcessNode: [$canProcessNode]; somethingElse: [$somethingElse]")
+            logger.warn(
+              s"Something not predicted. canProcessLinks: [$canProcessLink]; [canProcessLinkAttributes: [$canProcessLinkAttributes]; canProcessNode: [$canProcessNode]; somethingElse: [$somethingElse]"
+            )
         }
       } else if (nextEvent.isCharacters) {
         val characters: Characters = nextEvent.asCharacters()
         val charactersValue = characters.getData
         if (!isBlank(charactersValue) && isHighway) {
-            wayInnerTags += "highway" -> charactersValue
+          wayInnerTags += "highway" -> charactersValue
         }
       }
     }
