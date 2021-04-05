@@ -71,7 +71,7 @@ class ParallelParkingManagerUtilSpec extends WordSpecLike with Matchers {
     "Handle empty tazTreeMap" in {
       val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
-      val parkingZones = Array.empty[ParkingZone]
+      val parkingZones = Array.empty[ParkingZone[TAZ]]
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 2)
 

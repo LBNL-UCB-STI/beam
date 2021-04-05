@@ -8,15 +8,16 @@ buildscript {
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
+        gradlePluginPortal()
     }
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
-        classpath 'com.bmuschko:gradle-docker-plugin:3.6.1'
     }
 }
+
 
 plugins {
     id "net.ltgt.apt" version "0.5"
@@ -24,6 +25,8 @@ plugins {
     id "org.scoverage" version "2.5.0"
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.0"
+    id 'com.bmuschko.docker-java-application' version '6.6.1'
+    id 'org.ajoberstar.grgit' version '4.0.2'
 }
 
 apply plugin: 'java'
@@ -35,10 +38,9 @@ apply plugin: 'kr.motd.sphinx'
 apply plugin: 'application'
 apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
-apply plugin: 'com.bmuschko.docker-java-application'
 
 group = 'beam'
-version = '0.8.0'
+version = '0.8.6'
 
 description = """"""
 
@@ -89,6 +91,7 @@ allprojects {
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
+        maven { url "https://central.maven.org/maven2" }
         maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://dl.bintray.com/matsim/matsim" }
         maven { url "https://maven.conveyal.com/" }
@@ -107,7 +110,7 @@ allprojects {
 }
 
 
-configurations{
+configurations {
     scalaCompilerPlugin
 }
 
@@ -158,7 +161,7 @@ dependencies {
     compile('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0') {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
-    compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.4.1-3'
+    compile 'com.github.LBNL-UCB-STI:helics-wrapper:v2.6.1'
 
     // GPLv3
     compile group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
@@ -243,6 +246,8 @@ dependencies {
     compile "com.github.vagmcs:optimus_${scalaBinaryVersion}:3.1.0"
     compile "com.github.vagmcs:optimus-solver-oj_${scalaBinaryVersion}:3.1.0"
 
+    compile group: 'io.spray', name: 'spray-json_2.12', version: '1.3.5'
+
     ////////////////////////////////////
     ///Performance Monitoring (Kamon)///
     ////////////////////////////////////
@@ -253,11 +258,6 @@ dependencies {
 
     compile("org.influxdb:influxdb-java:2.16")
 
-//    compile("io.kamon:kamon-akka-2.5_${scalaBinaryVersion}:${kamonVersion}")
-//    compile("io.kamon:kamon-statsd_${scalaBinaryVersion}:${kamonVersion}")
-//    compile "io.kamon:kamon-influxdb_${scalaBinaryVersion}:0.6.9"
-//    compile("io.kamon:kamon-log-reporter_${scalaBinaryVersion}:${kamonVersion}")
-
     /////////////
     // Akka Dependencies
     ////////////
@@ -265,22 +265,14 @@ dependencies {
     // CORE Akka //
     compile group: 'com.typesafe.akka', name: "akka-actor_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-slf4j_${scalaBinaryVersion}", version: akkaBinaryVersion
-    //compile group: 'com.typesafe.akka', name: "akka-persistence_${scalaBinaryVersion}", version: akkaBinaryVersion
-    //compile group: 'com.typesafe.akka', name: "akka-remote_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster_${scalaBinaryVersion}", version: akkaBinaryVersion
     compile group: 'com.typesafe.akka', name: "akka-cluster-tools_${scalaBinaryVersion}", version: akkaBinaryVersion
-    //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.9'
 
-    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.10"
+    compile group: 'com.typesafe.akka', name: "akka-http_${scalaBinaryVersion}", version: "10.1.12"
     compile group: 'de.heikoseeberger', name: "akka-http-circe_${scalaBinaryVersion}", version: "1.25.2"
 
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
-
-    // 3rd Party Akka //
-    //compile group: 'org.iq80.leveldb', name: 'leveldb', version: '0.7'
-    //compile group: 'org.fusesource.leveldbjni', name: 'leveldbjni-all', version: '1.8'
-    //compile group: 'com.google.protobuf', name: 'protobuf-java', version: '2.5.0'
 
     scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.3.1", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
@@ -318,35 +310,33 @@ scalafmt {
 }
 
 configurations.all {
-        resolutionStrategy {
-            eachDependency { DependencyResolveDetails dependencyResolveDetails ->
-                final requestedDependency = dependencyResolveDetails.requested
-                if (requestedDependency.name != 'beam-utilities') {
-                    force 'javax.media:jai_core:1.1.3'
-                }
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
+            final requestedDependency = dependencyResolveDetails.requested
+            if (requestedDependency.name != 'beam-utilities') {
+                force 'javax.media:jai_core:1.1.3'
             }
         }
-        exclude group: 'javax.media', module: 'jai_codec'
-        exclude group: 'javax.media', module: 'jai_imageio'
+    }
+    exclude group: 'javax.media', module: 'jai_codec'
+    exclude group: 'javax.media', module: 'jai_imageio'
 }
 
 //compileScala.dependsOn(scalafmtAll)
 
 tasks.withType(ScalaCompile) {
-    if ( project.hasProperty("report") ) {
+    if (project.hasProperty("report")) {
         def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
-                              "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
-                              "-P:scapegoat:reports:html:xml",
-                              "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:ComparingUnrelatedTypes:TryGet:EitherGet",
-                              "-P:scapegoat:verbose:false",
-                              "-P:scapegoat:consoleOutput:true"]
+                                    "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
+                                    "-P:scapegoat:reports:html:xml",
+                                    "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:ComparingUnrelatedTypes:TryGet:EitherGet",
+                                    "-P:scapegoat:verbose:false",
+                                    "-P:scapegoat:consoleOutput:true"]
         scalaCompileOptions.additionalParameters = additionalParameters + ["-unchecked", "-deprecation", "-feature"]
     } else {
-        scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature",  "-Xfatal-warnings"]
+        scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
     }
 }
-
-
 
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
@@ -421,7 +411,7 @@ task generateConfig {
                     "--scala",
                     "--pn", "beam.sim.config",
                     "--cn", "BeamConfig",
-                    "--dd", "src/main/scala/beam/sim/" //This is temp location. Actual location will be updated by below copy command
+                    "--dd", "src/main/scala/beam/sim/" //This is temp location. Actual location will be updated by copyConfigWithoutTimeStamp
             ]
         }
     }
@@ -437,6 +427,7 @@ task copyConfigWithoutTimeStamp(type: Copy) {
 task removeTempConfig(type: Delete) {
     delete 'src/main/scala/beam/sim/BeamConfig.scala'
 }
+
 generateConfig.finalizedBy(copyConfigWithoutTimeStamp)
 copyConfigWithoutTimeStamp.finalizedBy(removeTempConfig)
 
@@ -504,10 +495,20 @@ def jmx = ["-Dcom.sun.management.jmxremote", "-Dcom.sun.management.jmxremote.por
 
 def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 
+def profilerTypeConfig = project.findProperty('profiler_type') ?: ""
+
+def profilerOption = []
+if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
+    profilerOption = jfr
+} else if (profilerTypeConfig.toString().equalsIgnoreCase('cpumem')) {
+    profilerOption = jfrWithMem
+}
+
+
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + logGC + jmx
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + profilerOption + logGC + jmx
 println(applicationDefaultJvmArgs)
 
 run {
@@ -598,29 +599,68 @@ docker {
         username = System.getenv("DOCKER_USER")
         password = System.getenv("DOCKER_PASSWORD")
     }
-
-    javaApplication {
-        baseImage = 'beammodel/miniconda3'
-        maintainer = 'LBNL Beam Team'
-        tag = "beammodel/beam:$version"
-    }
 }
 
-dockerDistTar {
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
+
+// Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
+// Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
+task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
+    from 'beammodel/miniconda3'
+    label(['maintainer': 'LBNL Beam Team'])
     instruction 'RUN apt-get update && apt-get -y install python3 python3-pip python3-rtree libproj-dev proj-data proj-bin libgeos-dev npm'
+    instruction 'RUN alias python=python3'
     instruction 'RUN pip3 install --upgrade setuptools'
+    instruction 'RUN pip3 install --upgrade pip'
     instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
-    addFile 'src/main/python/events_analysis/', 'src/main/python/events_analysis/'
-    addFile 'test/', 'test/'
+    instruction 'RUN pip3 install -U kaleido'
+    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
+    workingDir("/app")
+    instruction 'RUN mkdir /app/output'
+    // Beam dependencies, resources and compiled Java classes
+    copyFile("libs", "libs")
+    copyFile("resources", "resources")
+    copyFile("classes", "classes")
+    // Test scenarios
+    copyFile("test/input/common", "test/input/common")
+    copyFile("test/input/dtd", "test/input/dtd")
+    copyFile("test/input/beamville", "test/input/beamville")
+    copyFile("test/input/sf-light", "test/input/sf-light")
+
+    addFile 'src/main/python', 'src/main/python'
+    addFile 'entrypoint.sh', 'entrypoint.sh'
+    runCommand('chmod +x /app/entrypoint.sh')
+    entryPoint('/app/entrypoint.sh')
 }
 
-dockerCopyDistResources {
-    from('src/main/python/events_analysis/') {
-        into('src/main/python/events_analysis/')
+task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
+
+task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
+    repository = "beammodel/beam"
+    tag = version
+    targetImageId buildImageWithoutTags.getImageId()
+}
+
+dockerSyncBuildContext {
+    from('src/main/python') {
+        into('src/main/python')
     }
-    from('test/') {
-        into('test/')
+    from('test/input/common') {
+        into('test/input/common')
     }
+    from('test/input/dtd') {
+        into('test/input/dtd')
+    }
+    from('test/input/beamville') {
+        into('test/input/beamville')
+    }
+    from('test/input/sf-light') {
+        into('test/input/sf-light')
+    }
+
+    from file('docker/entrypoint.sh')
 }
 
 jmh {
@@ -629,6 +669,3 @@ jmh {
     duplicateClassesStrategy = 'exclude'
     zip64 = true
 }
-
-
-

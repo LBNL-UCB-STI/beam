@@ -23,7 +23,7 @@ sealed abstract class RelaxationExperiment(
   val shouldWritePhysSimEvents: Boolean,
   val javaRnd: java.util.Random
 ) {
-  def run(prevTravelTime: TravelTime): TravelTime
+  def run(prevTravelTime: TravelTime): SimulationResult
 }
 
 object RelaxationExperiment extends LazyLogging {
@@ -192,7 +192,7 @@ class Normal(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -233,7 +233,7 @@ class Experiment_2_0(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -276,7 +276,7 @@ class Experiment_2_1(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -319,7 +319,7 @@ class Experiment_3_0(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -365,7 +365,7 @@ class Experiment_4_0(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new ApproxPhysSim(
       beamConfig,
       agentSimScenario,
@@ -411,7 +411,7 @@ class Experiment_5_0(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     if (iterationNumber == 0) {
       val sim = new ApproxPhysSim(
         beamConfig,
@@ -474,7 +474,7 @@ class Experiment_5_1(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     if (iterationNumber == 0) {
       val sim = new ApproxPhysSim(
         beamConfig,
@@ -537,7 +537,7 @@ class Experiment_5_2(
       shouldWritePhysSimEvents,
       javaRnd
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     if (iterationNumber == 0) {
       val sim = new ApproxPhysSim(
         beamConfig,

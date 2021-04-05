@@ -1,7 +1,8 @@
 package beam.utils.scenario
 
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -222,7 +223,13 @@ class UrbanSimScenarioLoader(
           vehicleIds.add(vehicle.getId)
           val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
           val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-          val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType, rand.nextInt)
+          val beamVehicle = new BeamVehicle(
+            bvId,
+            powerTrain,
+            beamVehicleType,
+            managerId = VehicleManager.privateVehicleManager.managerId,
+            rand.nextInt
+          )
           beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
         }

@@ -2,18 +2,24 @@ package beam.sim
 
 import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
-import java.util.concurrent.TimeUnit
 
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
-import beam.sim.config.BeamConfig
+import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
+import beam.sim.population.PopulationScaling
+import beam.utils.FileUtils
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.slf4j.LoggerFactory
 
-class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with IntegrationSpecCommon {
+class BeamWarmStartSpec
+    extends WordSpecLike
+    with Matchers
+    with BeforeAndAfterAll
+    with IntegrationSpecCommon
+    with BeamHelper {
 
   lazy val testDataPath: Path = Paths.get(getTempDirectoryPath, "warmStartTestData")
 
@@ -258,10 +264,67 @@ class BeamWarmStartSpec extends WordSpecLike with Matchers with BeforeAndAfterAl
 
   private def getWarmStart(casePath: Path): BeamWarmStart = {
     val conf = baseConfig
-      .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
-    BeamWarmStart(BeamConfig(conf))
+    BeamWarmStart(BeamConfig(conf), 30)
+  }
+
+  "Warmstart" should {
+
+    "sample population when sampling enabled" in {
+      loadScenarioAndGetPopulationSize(0.5, true, 1) < 30 should be(true)
+    }
+
+    "not sample population when sampling disabled" in {
+      loadScenarioAndGetPopulationSize(0.5, true, 0) shouldBe (50)
+    }
+
+    "should not impact population sampling when warmstart disabled" in {
+      loadScenarioAndGetPopulationSize(0.5, false, 0) < 30 should be(true)
+      loadScenarioAndGetPopulationSize(0.5, false, 1) < 30 should be(true)
+    }
+  }
+
+  private def loadScenarioAndGetPopulationSize(
+    agentSampleSizeAsFractionOfPopulation: Double,
+    warmstartEnabled: Boolean,
+    samplePopulationIntegerFlag: Int
+  ): Int = {
+    val beamConfig = BeamConfig(
+      baseConfig
+        .withValue(
+          "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
+          ConfigValueFactory.fromAnyRef(agentSampleSizeAsFractionOfPopulation)
+        )
+        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef(if (warmstartEnabled) "full" else "disabled"))
+        .withValue(
+          "beam.warmStart.samplePopulationIntegerFlag",
+          ConfigValueFactory.fromAnyRef(samplePopulationIntegerFlag)
+        )
+        .resolve()
+    )
+    val beamScenario = loadScenario(beamConfig)
+    val configBuilder = new MatSimBeamConfigBuilder(baseConfig)
+    val matsimConfig = configBuilder.buildMatSimConf()
+    matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+    FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+
+    val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+    scenario.setNetwork(beamScenario.network)
+
+    val injector = org.matsim.core.controler.Injector.createInjector(
+      scenario.getConfig,
+      module(baseConfig, beamConfig, scenario, beamScenario)
+    )
+
+    val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+
+    // during sampling the household vehicles are written out, which is not relevant here (providing temporary folder for it)
+    val temporaryOutputDirectory = Files.createTempDirectory("dummyOutputDirectory").toString
+    PopulationScaling.samplePopulation(scenario, beamScenario, beamConfig, beamServices, temporaryOutputDirectory)
+
+    scenario.getPopulation.getPersons.size()
   }
 }
 

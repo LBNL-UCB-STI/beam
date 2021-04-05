@@ -78,6 +78,15 @@ object ModeChosenAnalysisObject extends OutputDataDescriptor {
       .add(
         OutputDataDescription(
           getClass.getSimpleName,
+          modeChoiceRelativePath,
+          "bike_transit",
+          "bike to transit chosen as travel mode"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName,
           referenceModeChoiceRelativePath,
           "iterations",
           "Bike chosen as travel mode"
@@ -144,6 +153,15 @@ object ModeChosenAnalysisObject extends OutputDataDescriptor {
           referenceModeChoiceRelativePath,
           "walk_transit",
           "Walk to transit chosen as travel mode"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName,
+          referenceModeChoiceRelativePath,
+          "bike_transit",
+          "bike to transit chosen as travel mode"
         )
       )
     list

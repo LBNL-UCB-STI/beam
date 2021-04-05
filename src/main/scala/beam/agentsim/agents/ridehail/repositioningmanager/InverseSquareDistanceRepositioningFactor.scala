@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.H3TAZ
 import beam.router.BeamRouter.Location
@@ -85,7 +85,7 @@ class InverseSquareDistanceRepositioningFactor(
       }
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
         wantToRepos.flatMap { rha =>
-          findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId, clusters).map { loc =>
+          findWhereToReposition(tick, rha.latestUpdatedLocationUTM.loc, rha.vehicleId, clusters).map { loc =>
             rha -> loc
           }
         }
@@ -99,14 +99,16 @@ class InverseSquareDistanceRepositioningFactor(
         .filter { vehAndNewLoc =>
           beamServices.skims.od_skimmer
             .getTimeDistanceAndCost(
-              vehAndNewLoc._1.currentLocationUTM.loc,
+              vehAndNewLoc._1.latestUpdatedLocationUTM.loc,
               vehAndNewLoc._2,
               tick,
               CAR,
               vehAndNewLoc._1.vehicleType.id,
+              vehAndNewLoc._1.vehicleType,
+              beamServices.beamScenario.fuelTypePrices(vehAndNewLoc._1.vehicleType.primaryFuelType),
               beamServices.beamScenario
             )
-            .distance <= rideHailManager.vehicleManager
+            .distance <= rideHailManager.rideHailManagerHelper
             .getVehicleState(vehAndNewLoc._1.vehicleId)
             .totalRemainingRange - range
         }

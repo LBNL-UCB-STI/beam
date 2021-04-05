@@ -1,247 +1,169 @@
 package beam.agentsim.agents.ridehail
 
-import scala.util.{Failure, Random, Success, Try}
-
-import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams
-}
-import beam.agentsim.infrastructure.parking.{
-  ParkingMNL,
-  ParkingType,
-  ParkingZone,
-  ParkingZoneFileUtils,
-  ParkingZoneSearch
-}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.Resource
+import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
+import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
+import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.parking.ParkingZone
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingNetwork, ParkingStall}
+import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
-import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import beam.sim.Geofence
+import beam.utils.metrics.SimpleCounter
+import org.matsim.api.core.v01.Coord
 
-class RideHailDepotParkingManager(
-  parkingFilePath: String,
-  tazFilePath: String,
-  valueOfTime: Double,
-  tazTreeMap: TAZTreeMap,
-  random: Random,
-  boundingBox: Envelope,
-  distFunction: (Location, Location) => Double,
-  mnlParams: ParkingMNL.ParkingMNLConfig,
-  parkingStallCountScalingFactor: Double = 1.0
-) extends LazyLogging {
+import scala.collection.mutable
 
-  // load parking from a parking file, or generate it using the TAZ beam input
-  val (
-    rideHailParkingStalls: Array[ParkingZone],
-    rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearchTree[TAZ]
-  ) = if (parkingFilePath.isEmpty) {
-    logger.info(s"no parking file found. generating ubiquitous ride hail parking")
-    ParkingZoneFileUtils
-      .generateDefaultParkingFromTazfile(
-        tazFilePath,
-        random,
-        Seq(ParkingType.Workplace)
-      )
-  } else {
-    Try {
-      ParkingZoneFileUtils.fromFile(parkingFilePath, random, parkingStallCountScalingFactor)
-    } match {
-      case Success((stalls, tree)) =>
-        logger.info(s"generating ride hail parking from file $parkingFilePath")
-        (stalls, tree)
-      case Failure(e) =>
-        logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
-        logger.info(s"generating ubiquitous ride hail parking")
-        ParkingZoneFileUtils
-          .generateDefaultParkingFromTazfile(
-            tazFilePath,
-            random,
-            Seq(ParkingType.Workplace)
-          )
-    }
-  }
-
-  // track the usage of the RHM agency parking
-  var totalStallsInUse: Long = 0
-  var totalStallsAvailable: Long = 0
-
-  val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
-    ParkingZoneSearchConfiguration(
-      RideHailDepotParkingManager.SearchStartRadius,
-      RideHailDepotParkingManager.SearchMaxRadius,
-      boundingBox,
-      distFunction
-    )
+trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
 
   /**
-    * searches for a nearby [[ParkingZone]] depot for CAV Ride Hail Agents and returns a [[ParkingStall]] in that zone.
-    *
-    * all parking stalls are expected to be associated with a TAZ stored in the beamScenario.tazTreeMap.
-    * the position of the stall will be at the centroid of the TAZ.
+    * Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
     *
     * @param locationUtm the position of this agent
-    * @return the id of a ParkingZone, or, nothing if no parking zones are found with availability
+    * @param beamVehicle the [[BeamVehicle]] associated with the driver
+    * @param currentTick
+    * @param findDepotAttributes extensible data structure allowing customization of data to be passed to DepotManager
+    * @return the ParkingStall, or, nothing if no parking is available
     */
   def findDepot(
     locationUtm: Location,
-    parkingDuration: Double
-  ): Option[ParkingStall] = {
-
-    val parkingZoneSearchParams: ParkingZoneSearchParams =
-      ParkingZoneSearchParams(
-        locationUtm,
-        parkingDuration,
-        mnlParams,
-        rideHailParkingSearchTree,
-        rideHailParkingStalls,
-        tazTreeMap.tazQuadTree,
-        random
-      )
-
-    // current implementation here expects all RHA depot stalls are charging-capable
-    // and all inquiries are for the purpose of fast charging
-    val parkingZoneFilterFunction: ParkingZone => Boolean = (zone: ParkingZone) => true
-
-    // generates a coordinate for an embodied ParkingStall from a ParkingZone,
-    // treating the TAZ centroid as a "depot" location
-    val parkingZoneLocSamplingFunction: ParkingZone => Location =
-      (zone: ParkingZone) => {
-        tazTreeMap.getTAZ(zone.tazId) match {
-          case None =>
-            logger.error(s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the TAZTreeMap")
-            TAZ.DefaultTAZ.coord
-          case Some(taz) =>
-            taz.coord
-        }
-      }
-
-    // adds multinomial logit parameters to a ParkingAlternative
-    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
-      (parkingAlternative: ParkingAlternative) => {
-
-        val distance: Double = distFunction(locationUtm, parkingAlternative.coord)
-
-        val averagePersonWalkingSpeed = 1.4 // in m/s
-        val hourInSeconds = 3600
-
-        val rangeAnxietyFactor: Double = 0.0 // RHAs are told to charge before this point
-        val distanceFactor: Double = (distance / averagePersonWalkingSpeed / hourInSeconds) * valueOfTime
-        val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
-
-        Map(
-          ParkingMNL.Parameters.WalkingEgressCost -> distanceFactor,
-          ParkingMNL.Parameters.ParkingTicketCost -> parkingCostsPriceFactor,
-          ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
-        )
-      }
-
-    for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, _, parkingZonesSeen, parkingZonesSampled, iterations) <- ParkingZoneSearch
-        .incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction
-        )
-      taz <- tazTreeMap.getTAZ(parkingStall.tazId)
-    } yield {
-
-      logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
-
-      // override the sampled stall coordinate with the TAZ centroid -
-      // we want all agents who park in this TAZ to park in the same location.
-      parkingStall.copy(
-        locationUTM = taz.coord
-      )
-    }
-  }
+    beamVehicle: BeamVehicle,
+    currentTick: Int,
+    findDepotAttributes: Option[FindDepotAttributes] = None
+  ): Option[ParkingStall]
 
   /**
-    * when agent arrives at ParkingZone, this will claim their stall, or will fail with None if no stalls are available.
+    * Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
     *
-    *
-    *
-    * the failure should set off a queueing logic to occur.
-    *
-    * @param parkingStall the parking stall that the agent was given
-    * @return None on failure -> queue this agent and let them know when more parking becomes available
+    * @param vehicleId
+    * @return the optional [[ParkingStall]] of the vehicle if it was found in the internal tracking, None if
+    *         the vehicle was not found.
     */
-  def findAndClaimStallAtDepot(parkingStall: ParkingStall): Option[ParkingStall] = {
-    if (parkingStall.parkingZoneId < 0 || rideHailParkingStalls.length <= parkingStall.parkingZoneId) None
-    else {
-      val parkingZone: ParkingZone = rideHailParkingStalls(parkingStall.parkingZoneId)
-      if (parkingZone.stallsAvailable == 0) {
-        None
-      } else {
-        val success = ParkingZone.claimStall(parkingZone).value
-        if (!success) {
-          None
-        } else {
-          totalStallsInUse += 1
-          totalStallsAvailable -= 1
-          Some {
-            parkingStall
-          }
-        }
-      }
-    }
-  }
+  def notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId: VehicleId): Option[ParkingStall]
 
   /**
-    * releases a single stall in use at this Depot
+    * Makes an attempt to "claim" the parking stall passed in as an argument and returns a [[StartRefuelSessionTrigger]]
+    * or puts the vehicle into a queue.
     *
-    * @param parkingStall stall we want to release
-    * @return None on failure
+    * @param beamVehicle
+    * @param originalParkingStallFoundDuringAssignment
+    * @param tick
+    * @param vehicleQueuePriority
+    * @param source
+    * @return vector of [[ScheduleTrigger]] objects
     */
-  def releaseStall(parkingStall: ParkingStall): Option[Unit] = {
-    if (parkingStall.parkingZoneId < 0 || rideHailParkingStalls.length <= parkingStall.parkingZoneId) None
-    else {
-      val parkingZone: ParkingZone = rideHailParkingStalls(parkingStall.parkingZoneId)
-      val success = ParkingZone.releaseStall(parkingZone).value
-      if (!success) None
-      else
-        Some {
-          totalStallsInUse -= 1
-          totalStallsAvailable += 1
-          ()
-        }
+  def attemptToRefuel(
+    beamVehicle: BeamVehicle,
+    originalParkingStallFoundDuringAssignment: ParkingStall,
+    tick: Int,
+    vehicleQueuePriority: Double,
+    source: RefuelSource
+  ): (Vector[ScheduleTrigger], Option[Int])
 
-    }
-  }
+  /**
+    * This vehicle is no longer charging and should be removed from internal tracking data.
+    *
+    * @param vehicle
+    * @return the stall if found and successfully removed
+    */
+  def removeFromCharging(vehicle: VehicleId, tick: Int): Option[ParkingStall]
+
+  /**
+    * Given a parkingZoneId, dequeue the next vehicle that is waiting to charge.
+    *
+    * @param parkingZoneId
+    * @param tick
+    * @return
+    */
+  def dequeueNextVehicleForRefuelingFrom(
+    parkingZoneId: Int,
+    tick: Int
+  ): Option[ChargingQueueEntry]
+
+  /**
+    * Give depot manager opportunity to internalize geofences associated with fleet.
+    *
+    * @param vehicleIdToGeofenceMap
+    */
+  def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]])
+
+  /**
+    * Is the [[vehicleId]] currently on the way to a refueling depot to charge or actively charging?
+    *
+    * @param vehicleId
+    * @return
+    */
+  def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean
+
+  /**
+    * Notify this [[RideHailDepotParkingManager]] that vehicles are on the way to the depot for the purpose of refueling.
+    *
+    * @param newVehiclesHeadedToDepot
+    */
+  def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit
+
+  /**
+    * Is the [[vehicleId]] currently on the way to a refueling depot to charge?
+    *
+    * @param vehicleId
+    * @return
+    */
+  def isOnWayToRefuelingDepot(vehicleId: VehicleId): Boolean
+
+  /**
+    * Gives back the ParkingZones managed by the RidehailDepotParkingManager
+    * @return
+    */
+  def getParkingZones(): Array[ParkingZone[GEO]]
+
+  /**
+    * Gets the location in UTM for a parking zone.
+    *
+    * @param parkingZoneId ID of the parking zone
+    * @return Parking zone location in UTM.
+    */
+  def getParkingZoneLocationUtm(parkingZoneId: Int): Coord
+
+  /**
+    *
+    * @param inquiry
+    * @param parallelizationCounterOption
+    * @return
+    */
+  override def processParkingInquiry(
+    inquiry: ParkingInquiry,
+    parallelizationCounterOption: Option[SimpleCounter] = None
+  ): Option[ParkingInquiryResponse] = None
+
+  /**
+    *
+    * @param release
+    */
+  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = Unit
+
 }
 
-object RideHailDepotParkingManager {
-  // a ride hail agent is searching for a charging depot and is not in service of an activity.
-  // for this reason, a higher max radius is reasonable.
-  val SearchStartRadius: Double = 500.0 // meters
-  val SearchMaxRadius: Int = 80465 // 50 miles, in meters
+trait FindDepotAttributes {}
 
-  def apply(
-    parkingFilePath: String,
-    tazFilePath: String,
-    valueOfTime: Double,
-    tazTreeMap: TAZTreeMap,
-    random: Random,
-    boundingBox: Envelope,
-    distFunction: (Location, Location) => Double,
-    parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
-    parkingStallCountScalingFactor: Double
-  ): RideHailDepotParkingManager = {
-    new RideHailDepotParkingManager(
-      parkingFilePath,
-      tazFilePath,
-      valueOfTime,
-      tazTreeMap,
-      random,
-      boundingBox,
-      distFunction,
-      parkingMNLConfig,
-      parkingStallCountScalingFactor
+case class ParkingZoneDepotData(
+  vehiclesOnWayToDepot: mutable.Set[VehicleId],
+  chargingVehicles: mutable.Set[VehicleId],
+  chargingQueue: mutable.PriorityQueue[ChargingQueueEntry],
+  numPhantomVehiclesCharging: Int,
+  numPhantomVehiclesQueued: Int,
+  serviceTimeOfQueuedPhantomVehicles: Int
+)
+
+object ParkingZoneDepotData {
+  case class ChargingQueueEntry(beamVehicle: BeamVehicle, parkingStall: ParkingStall, priority: Double)
+
+  def empty: ParkingZoneDepotData =
+    ParkingZoneDepotData(
+      mutable.Set.empty[VehicleId],
+      mutable.Set.empty[VehicleId],
+      mutable.PriorityQueue.empty[ChargingQueueEntry](Ordering.by[ChargingQueueEntry, Double](_.priority)),
+      0,
+      0,
+      0
     )
-  }
 }

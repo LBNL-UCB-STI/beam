@@ -1,8 +1,9 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
@@ -79,7 +80,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   val sortedTimeBinToActivitiesWeight: Vector[(Int, Double)] = timeBinToActivitiesWeight.toVector.sortBy {
     case (timeBin, weight) => timeBin
   }
-  logger.info(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
+  logger.debug(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: ${horizon}")
@@ -101,7 +102,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       }
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
         wantToRepos.flatMap { rha =>
-          findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
+          findWhereToReposition(tick, rha.getCurrentLocationUTM(tick, beamServices), rha.vehicleId).map { loc =>
             rha -> loc
           }
         }
@@ -109,21 +110,25 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       logger.debug(
         s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
       )
+
       // Filter out vehicles that don't have enough range
       newPositions
         .filter { vehAndNewLoc =>
-          beamServices.skims.od_skimmer
-            .getTimeDistanceAndCost(
-              vehAndNewLoc._1.currentLocationUTM.loc,
+          BeamRouter
+            .computeTravelTimeAndDistanceAndCost(
+              vehAndNewLoc._1.getCurrentLocationUTM(tick, beamServices),
               vehAndNewLoc._2,
               tick,
               CAR,
               vehAndNewLoc._1.vehicleType.id,
-              beamServices.beamScenario
+              vehAndNewLoc._1.vehicleType,
+              beamServices.beamScenario.fuelTypePrices(vehAndNewLoc._1.vehicleType.primaryFuelType),
+              beamServices.beamScenario,
+              beamServices.skims.od_skimmer
             )
-            .distance <= rideHailManager.vehicleManager
-            .getVehicleState(vehAndNewLoc._1.vehicleId)
-            .totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+            .distance <= rideHailManager
+            .resources(vehAndNewLoc._1.vehicleId)
+            .getTotalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
         }
         .map(tup => (tup._1.vehicleId, tup._2))
         .toVector

@@ -1,15 +1,17 @@
 package beam.sim.metrics
 
-import java.io.File
-
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
 import beam.sim.{BeamScenario, BeamServices}
+import org.matsim.api.core.v01.Id
 import org.matsim.core.scenario.MutableScenario
 
+import java.io.File
 import scala.util.Random
 
 object BeamStaticMetricsWriter {
@@ -78,7 +80,7 @@ object BeamStaticMetricsWriter {
             beamConfig.beam.agentsim.taz.parkingFilePath
           )
         } else if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
-          (beamConfig.beam.agentsim.taz.parkingFilePath, "")
+          ("", beamConfig.beam.agentsim.taz.parkingFilePath)
         } else {
           ("", "")
         }
@@ -88,7 +90,13 @@ object BeamStaticMetricsWriter {
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
         val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
         val (chargingDepots, _) =
-          ParkingZoneFileUtils.fromFile(chargingDepotsFilePath, rand, parkingStallCountScalingFactor)
+          ParkingZoneFileUtils.fromFile[TAZ](
+            chargingDepotsFilePath,
+            rand,
+            parkingStallCountScalingFactor,
+            vehicleManagerId =
+              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          )
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
@@ -105,7 +113,12 @@ object BeamStaticMetricsWriter {
         if (publicFastChargerFilePath.nonEmpty) {
           val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
           val (publicChargers, _) =
-            ParkingZoneFileUtils.fromFile(publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
+            ParkingZoneFileUtils.fromFile[TAZ](
+              publicFastChargerFilePath,
+              rand,
+              parkingStallCountScalingFactor,
+              vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+            )
 
           publicChargers.foreach(
             publicCharger =>
