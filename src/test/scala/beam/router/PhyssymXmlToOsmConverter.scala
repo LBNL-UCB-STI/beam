@@ -68,7 +68,6 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
               startElement.getAttributeByName(new QName("to")).getValue
             )
             wayInnerTags = buildLinkProps(startElement)
-            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
           case "attributes" if canProcessLink =>
             canProcessLinkAttributes = true
           case "attribute" if canProcessLinkAttributes && tagNameHasKind(startElement, "origid") =>
@@ -86,6 +85,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
         endElement.getName.getLocalPart match {
           case "nodes"                  => canProcessNode = false
           case "link" if canProcessLink =>
+            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
           case "links" if canProcessLink =>
             canProcessLink = false
           case "attributes" if canProcessLinkAttributes => canProcessLinkAttributes = false
