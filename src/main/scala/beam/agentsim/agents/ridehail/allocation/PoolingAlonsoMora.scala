@@ -91,7 +91,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long,
   ): AllocationResponse = {
     rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toAllocate: Set[RideHailRequest] = Set()
@@ -271,7 +272,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       needsToCalculateCost = true
                     )
                   ),
-                  triggerId = -1234 //todo
+                  triggerId = triggerId
                 )
                 scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
                 Some(routingRequest)

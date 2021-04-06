@@ -109,12 +109,13 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def allocateVehiclesToCustomers(
     tick: Int,
     beamServices: BeamServices,
-    dispatchProductType: DispatchProductType
+    dispatchProductType: DispatchProductType,
+    triggerId: Long,
   ): AllocationResponse = {
     moveNonMatchingDispatchProductTypeToSecondaryBuffer(dispatchProductType)
 
     val allocationResponse =
-      allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests), beamServices)
+      allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests), beamServices, triggerId)
     allocationResponse match {
       case VehicleAllocations(allocations) =>
         allocations.foreach {
@@ -151,7 +152,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long,
   ): AllocationResponse = {
     // closest request
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()

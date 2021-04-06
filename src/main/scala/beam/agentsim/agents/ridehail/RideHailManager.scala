@@ -1497,7 +1497,12 @@ class RideHailManager(
     var allRoutesRequired: Vector[RoutingRequest] = Vector()
     log.debug("findAllocationsAndProcess @ {}", tick)
 
-    rideHailResourceAllocationManager.allocateVehiclesToCustomers(tick, beamServices, getDispatchProductType(tick)) match {
+    rideHailResourceAllocationManager.allocateVehiclesToCustomers(
+      tick,
+      beamServices,
+      getDispatchProductType(tick),
+      triggerId
+    ) match {
       case VehicleAllocations(allocations) =>
         allocations.foreach {
           case RoutingRequiredToAllocateVehicle(request, routesRequired) =>
