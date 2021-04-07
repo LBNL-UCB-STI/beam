@@ -353,7 +353,9 @@ class PersonAgent(
               }
             } else 0.0
 
-          val nextActIdx = currentTour(personData).tripIndexOfElement(nextAct) - 1
+          val tripIndexOfElement = currentTour(personData).tripIndexOfElement(nextAct)
+            .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
+          val nextActIdx = tripIndexOfElement - 1
           currentTour(personData).trips
             .slice(nextActIdx, currentTour(personData).trips.length)
             .sliding(2, 1)
