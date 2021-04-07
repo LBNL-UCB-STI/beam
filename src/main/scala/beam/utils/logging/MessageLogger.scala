@@ -47,7 +47,8 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     payload match {
       case hasTriggerId: HasTriggerId                   => hasTriggerId.triggerId
       case Success(status) if status.isInstanceOf[Long] => status.asInstanceOf[Long]
-      case _                                            => -9998
+      case (x: HasTriggerId, _)                         => x.triggerId
+      case _                                            => -1
     }
   }
 

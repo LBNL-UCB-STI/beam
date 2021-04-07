@@ -113,9 +113,9 @@ class TransitDriverAgent(
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   val myUnhandled: StateFunction = {
-    case Event(TransitReservationRequest(fromIdx, toIdx, passenger), data) =>
+    case Event(TransitReservationRequest(fromIdx, toIdx, passenger, triggerId), data) =>
       val slice = legs.slice(fromIdx, toIdx)
-      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger), data))
+      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger, triggerId), data))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>

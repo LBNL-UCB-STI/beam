@@ -488,7 +488,7 @@ class PersonAgentSpec
         AlightVehicleTrigger(30000, busPassengerLeg.beamVehicleId),
         personActor
       )
-      lastSender ! ReservationResponse(Right(ReserveConfirmInfo()))
+      lastSender ! ReservationResponse(Right(ReserveConfirmInfo()), 0)
 
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -520,7 +520,8 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        )
+        ),
+        0
       )
 
       //expects a message of type PersonEntersVehicleEvent
@@ -794,7 +795,8 @@ class PersonAgentSpec
       lastSender ! ReservationResponse(
         Right(
           ReserveConfirmInfo()
-        )
+        ),
+        0
       )
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -866,7 +868,8 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        )
+        ),
+        0
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]

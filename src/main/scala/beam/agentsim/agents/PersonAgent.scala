@@ -575,11 +575,11 @@ class PersonAgent(
 
   when(WaitingForReservationConfirmation) {
     // TRANSIT SUCCESS
-    case Event(ReservationResponse(Right(response)), data: BasePersonData) =>
+    case Event(ReservationResponse(Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     // TRANSIT FAILURE
     case Event(
-        ReservationResponse(Left(firstErrorResponse)),
+        ReservationResponse(Left(firstErrorResponse), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
@@ -892,7 +892,8 @@ class PersonAgent(
       val resRequest = TransitReservationRequest(
         nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
         nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
-        PersonIdWithActorRef(id, self)
+        PersonIdWithActorRef(id, self),
+        getCurrentTriggerIdOrGenerate,
       )
       TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
@@ -954,7 +955,8 @@ class PersonAgent(
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
         legSegment.last.beamLeg,
-        PersonIdWithActorRef(id, self)
+        PersonIdWithActorRef(id, self),
+        getCurrentTriggerIdOrGenerate,
       )
       context.actorSelection(
         householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId).toString)

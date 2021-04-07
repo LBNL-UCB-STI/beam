@@ -143,7 +143,7 @@ object RideHailManager {
     tick: Int,
     routingResponses: Seq[RoutingResponse],
     triggerId: Long
-  )
+  ) extends HasTriggerId
 
   case class PoolingInfo(timeFactor: Double, costFactor: Double)
 
