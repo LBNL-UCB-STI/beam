@@ -811,7 +811,7 @@ class PersonAgent(
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
               case t @ Token(_, manager, _) =>
-                manager ! TryToBoardVehicle(t, self, getCurrentTriggerId.getOrElse(-1111))
+                manager ! TryToBoardVehicle(t, self, getCurrentTriggerIdOrGenerate)
                 return goto(TryingToBoardVehicle)
               case _: ActualVehicle =>
               // That's fine, continue
@@ -912,7 +912,7 @@ class PersonAgent(
         nextLeg.isPooledTrip,
         requestTime = _currentTick,
         quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
-        triggerId = getCurrentTriggerId.getOrElse(-1111),
+        triggerId = getCurrentTriggerIdOrGenerate,
       )
 
       eventsManager.processEvent(
@@ -1072,7 +1072,7 @@ class PersonAgent(
                 if (activity.getType.equals("Home")) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
-                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh, getCurrentTriggerId.getOrElse(-1111))
+                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
                 } else {
                   currentTourPersonalVehicle

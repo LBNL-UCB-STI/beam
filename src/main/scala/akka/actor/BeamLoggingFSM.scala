@@ -75,7 +75,7 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
   private def currentTickAndTriggerId: (Int, Long) = {
     this match {
       case x: HasTickAndTrigger =>
-        (x.getCurrentTick.getOrElse(-1111), x.getCurrentTriggerId.getOrElse(-1111L))
+        (x.getCurrentTick.getOrElse(-1), x.getCurrentTriggerIdOrGenerate)
       case _ => (-9999, -9999L)
     }
   }

@@ -923,7 +923,7 @@ class RideHailAgent(
           PassengerSchedule(),
           vehicle.getState,
           geofence,
-          getCurrentTriggerId.getOrElse(-1111),
+          getCurrentTriggerIdOrGenerate,
         )
       )
     } else {
@@ -970,7 +970,7 @@ class RideHailAgent(
       destinationUtm,
       "fast-charge",
       beamVehicle = Some(vehicle),
-      triggerId = getCurrentTriggerId.getOrElse(-1111)
+      triggerId = getCurrentTriggerIdOrGenerate
     )
     parkingManager ! inquiry
   }

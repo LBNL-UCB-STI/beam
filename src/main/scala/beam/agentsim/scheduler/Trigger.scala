@@ -10,6 +10,6 @@ trait HasTriggerId {
 
 object Trigger {
 
-  case class TriggerWithId(trigger: Trigger, triggerId: Long)
+  case class TriggerWithId(trigger: Trigger, triggerId: Long) extends HasTriggerId
 
 }

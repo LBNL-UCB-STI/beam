@@ -160,7 +160,7 @@ class TransitDriverAgent(
     // This is because other agents may still want to interact with us until then.
     case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! ScheduleKillTrigger(self)
+      scheduler ! ScheduleKillTrigger(self, triggerId)
       scheduler ! CompletionNotice(triggerId)
       stay
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>

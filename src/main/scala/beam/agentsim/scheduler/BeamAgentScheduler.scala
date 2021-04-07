@@ -46,9 +46,10 @@ object BeamAgentScheduler {
   case class DoSimStep(tick: Int) extends SchedulerMessage
 
   case class CompletionNotice(
-    id: Long,
+    triggerId: Long,
     newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
   ) extends SchedulerMessage
+      with HasTriggerId
 
   case object Monitor extends SchedulerMessage
 
@@ -58,7 +59,7 @@ object BeamAgentScheduler {
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage
 
-  case class ScheduleKillTrigger(agent: ActorRef) extends SchedulerMessage
+  case class ScheduleKillTrigger(agent: ActorRef, triggerId: Long) extends SchedulerMessage with HasTriggerId
 
   case class KillTrigger(tick: Int) extends Trigger
 
@@ -240,7 +241,7 @@ class BeamAgentScheduler(
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
 
-    case ScheduleKillTrigger(agent: ActorRef) =>
+    case ScheduleKillTrigger(agent: ActorRef, _) =>
       context.watch(agent)
       scheduleTrigger(ScheduleTrigger(KillTrigger(nowInSeconds + maxWindow), agent))
 

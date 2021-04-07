@@ -64,7 +64,7 @@ trait ChoosesParking extends {
         remainingTripData,
         attributes.valueOfTime,
         parkingDuration,
-        triggerId = getCurrentTriggerId.getOrElse(-1111),
+        triggerId = getCurrentTriggerIdOrGenerate,
       )
   }
 
@@ -116,7 +116,7 @@ trait ChoosesParking extends {
 
     case Event(StateTimeout, data) =>
       val stall = currentBeamVehicle.stall.get
-      parkingManager ! ReleaseParkingStall(stall, getCurrentTriggerId.getOrElse(-1111))
+      parkingManager ! ReleaseParkingStall(stall, getCurrentTriggerIdOrGenerate)
       currentBeamVehicle.unsetParkingStall()
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
@@ -185,7 +185,7 @@ trait ChoosesParking extends {
           Some(id),
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes),
-          triggerId = getCurrentTriggerId.getOrElse(-1111),
+          triggerId = getCurrentTriggerIdOrGenerate,
         )
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
@@ -207,7 +207,7 @@ trait ChoosesParking extends {
             )
           ),
           Some(attributes),
-          triggerId = getCurrentTriggerId.getOrElse(-1111),
+          triggerId = getCurrentTriggerIdOrGenerate,
         )
 
         val responses = for {
