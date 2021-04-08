@@ -110,7 +110,7 @@ allprojects {
 }
 
 
-configurations{
+configurations {
     scalaCompilerPlugin
 }
 
@@ -310,35 +310,33 @@ scalafmt {
 }
 
 configurations.all {
-        resolutionStrategy {
-            eachDependency { DependencyResolveDetails dependencyResolveDetails ->
-                final requestedDependency = dependencyResolveDetails.requested
-                if (requestedDependency.name != 'beam-utilities') {
-                    force 'javax.media:jai_core:1.1.3'
-                }
+    resolutionStrategy {
+        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
+            final requestedDependency = dependencyResolveDetails.requested
+            if (requestedDependency.name != 'beam-utilities') {
+                force 'javax.media:jai_core:1.1.3'
             }
         }
-        exclude group: 'javax.media', module: 'jai_codec'
-        exclude group: 'javax.media', module: 'jai_imageio'
+    }
+    exclude group: 'javax.media', module: 'jai_codec'
+    exclude group: 'javax.media', module: 'jai_imageio'
 }
 
 //compileScala.dependsOn(scalafmtAll)
 
 tasks.withType(ScalaCompile) {
-    if ( project.hasProperty("report") ) {
+    if (project.hasProperty("report")) {
         def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
-                              "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
-                              "-P:scapegoat:reports:html:xml",
-                              "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:ComparingUnrelatedTypes:TryGet:EitherGet",
-                              "-P:scapegoat:verbose:false",
-                              "-P:scapegoat:consoleOutput:true"]
+                                    "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
+                                    "-P:scapegoat:reports:html:xml",
+                                    "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:ComparingUnrelatedTypes:TryGet:EitherGet",
+                                    "-P:scapegoat:verbose:false",
+                                    "-P:scapegoat:consoleOutput:true"]
         scalaCompileOptions.additionalParameters = additionalParameters + ["-unchecked", "-deprecation", "-feature"]
     } else {
-        scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature",  "-Xfatal-warnings"]
+        scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
     }
 }
-
-
 
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
@@ -500,10 +498,9 @@ def logbackConfig = project.findProperty('logbackCfg') ?: "logback_prod.xml"
 def profilerTypeConfig = project.findProperty('profiler_type') ?: ""
 
 def profilerOption = []
-if( profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
+if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
     profilerOption = jfr
-}
-else if (profilerTypeConfig.toString().equalsIgnoreCase('cpumem')){
+} else if (profilerTypeConfig.toString().equalsIgnoreCase('cpumem')) {
     profilerOption = jfrWithMem
 }
 
@@ -614,10 +611,14 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     from 'beammodel/miniconda3'
     label(['maintainer': 'LBNL Beam Team'])
     instruction 'RUN apt-get update && apt-get -y install python3 python3-pip python3-rtree libproj-dev proj-data proj-bin libgeos-dev npm'
+    instruction 'RUN alias python=python3'
     instruction 'RUN pip3 install --upgrade setuptools'
+    instruction 'RUN pip3 install --upgrade pip'
     instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
+    instruction 'RUN pip3 install -U kaleido'
     environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
     workingDir("/app")
+    instruction 'RUN mkdir /app/output'
     // Beam dependencies, resources and compiled Java classes
     copyFile("libs", "libs")
     copyFile("resources", "resources")
@@ -634,13 +635,12 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     entryPoint('/app/entrypoint.sh')
 }
 
-task buildImage(type: DockerBuildImage, dependsOn: createDockerfile) {
-}
+task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
-task tagImage(type: DockerTagImage, dependsOn: buildImage) {
+task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
     repository = "beammodel/beam"
     tag = version
-    targetImageId buildImage.getImageId()
+    targetImageId buildImageWithoutTags.getImageId()
 }
 
 dockerSyncBuildContext {
