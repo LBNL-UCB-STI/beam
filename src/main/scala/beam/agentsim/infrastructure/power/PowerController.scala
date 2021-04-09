@@ -119,22 +119,6 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
         }.toMap
       case _ =>
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
-        import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
-        import spray.json.{JsNumber, JsString, JsValue, _}
-        val msgToPublish = estimatedLoad.get.map {
-          case (station, powerInKW) =>
-            Map(
-              "managerId"         -> station.zone.managerId,
-              "tazId"             -> station.zone.tazId.toString,
-              "parkingType"       -> station.zone.parkingType.toString,
-              "chargingPointType" -> station.zone.chargingPointType.toString,
-              "numChargers"       -> station.zone.numChargers,
-              "estimatedLoad"     -> powerInKW
-            )
-        }
-        val strMsg = msgToPublish.toList.toJson(ListMapAnyJsonFormat).compactPrint.stripMargin
-        logger.info(s"currentTime: $currentTime")
-        logger.info(s"$strMsg")
         unlimitedPhysicalBounds
     }
     currentBin = currentTime / cnmConfig.timeStepInSeconds
