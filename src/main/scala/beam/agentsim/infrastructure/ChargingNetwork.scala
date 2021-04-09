@@ -12,6 +12,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * Created by haitamlaarabi
@@ -21,22 +22,23 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     extends LazyLogging {
   import ChargingNetwork._
 
-  private val chargingStationMap: Map[String, ChargingStation] =
+  private val chargingZoneKeyToChargingStationMap: Map[String, ChargingStation] =
     chargingStationsQTree.values().asScala.map(z => z.id -> ChargingStation(z)).toMap
 
-  val chargingStations: List[ChargingStation] = chargingStationMap.values.toList
+  val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
   /**
     *
     * @return all vehicles still connected to a charging point
     */
-  def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.connectedVehicles)
+  def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
   /**
     *
     * @return all vehicles, connected, and the ones waiting in line
     */
-  def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingStationMap.flatMap(_._2.vehicles)
+  def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
 
   /**
     * lookup a station from attributes
@@ -50,7 +52,7 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     parkingType: ParkingType,
     chargingPointType: ChargingPointType
   ): Option[ChargingStation] =
-    chargingStationMap.get(constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType))
+    chargingZoneKeyToChargingStationMap.get(constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType))
 
   /**
     * lookup information about charging vehicle
@@ -68,7 +70,8 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
   /**
     * clear charging vehicle map
     */
-  def clearAllMappedStations(): Unit = chargingStationMap.foreach(_._2.clearAllVehiclesFromTheStation())
+  def clearAllMappedStations(): Unit =
+    chargingZoneKeyToChargingStationMap.foreach(_._2.clearAllVehiclesFromTheStation())
 
   /**
     * Connect to charging point or add to waiting line
@@ -146,11 +149,11 @@ object ChargingNetwork {
       theSender: ActorRef
     ): ChargingVehicle = this.synchronized {
       if (numAvailableChargers > 0) {
-        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender, List(Connected))
+        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender, ListBuffer(Connected))
         connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
         chargingVehicle
       } else {
-        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, -1, theSender, List(Waiting))
+        val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, -1, theSender, ListBuffer(Waiting))
         waitingLineInternal.enqueue(chargingVehicle)
         chargingVehicle
       }
@@ -174,7 +177,8 @@ object ChargingNetwork {
       */
     private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
-        val v = waitingLineInternal.dequeue().updateStatus(tick)
+        val v = waitingLineInternal.dequeue().copy(sessionStartTime = tick)
+        v.updateStatus(Connected)
         connectedVehiclesInternal.put(v.vehicle.id, v)
         v
       }.toList
@@ -193,21 +197,14 @@ object ChargingNetwork {
     stall: ParkingStall,
     chargingStation: ChargingStation,
     arrivalTime: Int,
-    var sessionStartTime: Int,
+    sessionStartTime: Int,
     theSender: ActorRef,
-    var connectionStatus: List[ConnectionStatus.ConnectionStatus],
-    var chargingSessions: List[ChargingCycle] = List.empty[ChargingCycle]
+    connectionStatus: ListBuffer[ConnectionStatus.ConnectionStatus],
+    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
-
     private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
-      connectionStatus = connectionStatus :+ status
-      this
-    }
-
-    private[ChargingNetwork] def updateStatus(startTime: Int): ChargingVehicle = {
-      sessionStartTime = startTime
-      connectionStatus = connectionStatus :+ Connected
+      connectionStatus.append(status)
       this
     }
 
@@ -223,7 +220,8 @@ object ChargingNetwork {
         case Some(cycle: ChargingCycle) if startTime == cycle.startTime && duration < cycle.duration =>
           // this means that charging cycle was abruptly interrupted
           val cycle = ChargingCycle(startTime, energy, duration)
-          chargingSessions = chargingSessions.dropRight(1) :+ cycle
+          chargingSessions.remove(chargingSessions.length - 1)
+          chargingSessions.append(cycle)
           Some(cycle)
         case Some(cycle: ChargingCycle) if startTime == cycle.startTime =>
           // keep existing charging cycle
@@ -235,10 +233,11 @@ object ChargingNetwork {
           None
         case _ =>
           val cycle = ChargingCycle(startTime, energy, duration)
-          chargingSessions = chargingSessions :+ cycle
+          chargingSessions.append(cycle)
           Some(cycle)
       }
 
+    def latestChargingCycle: Option[ChargingCycle] = chargingSessions.lastOption
     def computeSessionEnergy: Double = chargingSessions.map(_.energy).sum
     def computeSessionDuration: Long = chargingSessions.map(_.duration).sum
 

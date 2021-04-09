@@ -320,7 +320,7 @@ class ChargingNetworkManager(
     * @param chargingVehicle vehicle charging information
     */
   private def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
-    chargingVehicle.chargingSessions.lastOption.foreach { cycle =>
+    chargingVehicle.latestChargingCycle.foreach { cycle =>
       val vehicle = chargingVehicle.vehicle
       log.debug(s"Charging vehicle $vehicle. Stall ${vehicle.stall}. Provided energy of = ${cycle.energy} J")
       vehicle.addFuel(cycle.energy)

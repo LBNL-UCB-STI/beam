@@ -24,7 +24,7 @@ library(ggmap)
 scaleup <- TRUE
 expFactor <- (7.75/0.315) * 27.0 / 21.3
 loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
-severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW") 
+severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
 dataDir <- "/Users/haitamlaarabi/Data/GEMINI/2021March22/370k-warmstart"
@@ -88,7 +88,7 @@ p <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   theme_marain() +
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
-  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") + 
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in')
 
@@ -120,11 +120,11 @@ register_google(key = google_api_key_1)
 oakland_map <- ggmap::get_googlemap("oakland california", zoom = 14, maptype = "roadmap")
 
 # Plot it
-ggmap(oakland_map) + 
-  theme_void() + 
-  ggtitle("terrain") + 
+ggmap(oakland_map) +
+  theme_void() +
+  ggtitle("terrain") +
   theme(
-    plot.title = element_text(colour = "orange"), 
+    plot.title = element_text(colour = "orange"),
     panel.border = element_rect(colour = "grey", fill=NA, size=2)
   )
 toplot <- all.loads[name=='Baseline'&hour.bin2 %in% c(6, 9, 18, 0)]
@@ -152,7 +152,7 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   theme_marain() +
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
-  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") + 
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
   facet_wrap(~factor(name,scenarioNames),ncol = 3)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=7,units='in')
