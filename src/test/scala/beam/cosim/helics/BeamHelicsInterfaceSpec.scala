@@ -19,8 +19,29 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
 
   "Running a broker and two federates" must "result is message being transmitted back and forth" in {
     lazy val beamBroker =
-      getBroker("Broker", 2, "Federate1", 1000, Some("LIST_MAP_ANY"), Some("Federate2/LIST_ANY"))
-    lazy val beamFederate = getFederate("Federate2", 1000, Some("LIST_ANY"), Some("Federate1/LIST_MAP_ANY"))
+      getBroker(
+        "Broker",
+        2,
+        "Federate1",
+        "zmq",
+        "--federates=1",
+        1.0,
+        1,
+        1000,
+        Some("LIST_MAP_ANY"),
+        Some("Federate2/LIST_ANY")
+      )
+    lazy val beamFederate =
+      getFederate(
+        "Federate2",
+        "zmq",
+        "--federates=1 --broker_address=tcp://127.0.0.1",
+        1.0,
+        1,
+        1000,
+        Some("LIST_ANY"),
+        Some("Federate1/LIST_MAP_ANY")
+      )
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {

@@ -46,32 +46,36 @@ class SitePowerManagerSpec
 
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
-                                               |beam.router.skim = {
-                                               |  keepKLatestSkims = 1
-                                               |  writeSkimsInterval = 1
-                                               |  writeAggregatedSkimsInterval = 1
-                                               |  taz-skimmer {
-                                               |    name = "taz-skimmer"
-                                               |    fileBaseName = "skimsTAZ"
-                                               |  }
-                                               |}
-                                               |beam.agentsim.chargingNetworkManager {
-                                               |  timeStepInSeconds = 300
-                                               |
-                                               |  helics {
-                                               |    connectionEnabled = false
-                                               |    federateName = "CNMFederate"
-                                               |    dataOutStreamPoint = ""
-                                               |    dataInStreamPoint = ""
-                                               |    bufferSize = 100
-                                               |  }
-                                               |
-                                               |  chargingPoint {
-                                               |    thresholdXFCinKW = 250
-                                               |    thresholdDCFCinKW = 50
-                                               |  }
-                                               |}
-                                               |""".stripMargin))
+       |beam.router.skim = {
+       |  keepKLatestSkims = 1
+       |  writeSkimsInterval = 1
+       |  writeAggregatedSkimsInterval = 1
+       |  taz-skimmer {
+       |    name = "taz-skimmer"
+       |    fileBaseName = "skimsTAZ"
+       |  }
+       |}
+       |beam.agentsim.chargingNetworkManager {
+       |  timeStepInSeconds = 300
+       |
+       |  helics {
+       |    connectionEnabled = false
+       |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
+       |    coreType = "zmq"
+       |    timeDeltaProperty = 1.0
+       |    intLogLevel = 1
+       |    federateName = "CNMFederate"
+       |    dataOutStreamPoint = ""
+       |    dataInStreamPoint = ""
+       |    bufferSize = 100
+       |  }
+       |
+       |  chargingPoint {
+       |    thresholdXFCinKW = 250
+       |    thresholdDCFCinKW = 50
+       |  }
+       |}
+       |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
   private val beamConfig: BeamConfig = BeamConfig(conf)
   private val matsimConfig = new MatSimBeamConfigBuilder(conf).buildMatSimConf()
