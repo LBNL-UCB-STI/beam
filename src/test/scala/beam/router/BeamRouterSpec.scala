@@ -127,7 +127,8 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
-      h3taz = null
+      h3taz = null,
+      freightCarriers = IndexedSeq.empty,
     )
   }
 

@@ -361,7 +361,7 @@ class BeamMobsimIteration(
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
   // Vehicle Managers
-  val vehicleManagers: Map[Id[VehicleManager], VehicleManager] = prepareVehicleManagers()
+  val vehicleManagers: Map[Id[VehicleManager], VehicleManager] = prepareVehicleManagers(beamScenario)
 
   // Parking Network Manager
   private val parkingNetworkInfo = ParkingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
@@ -510,7 +510,7 @@ class BeamMobsimIteration(
     cancellable
   }
 
-  def prepareVehicleManagers(): Map[Id[VehicleManager], VehicleManager] = {
+  def prepareVehicleManagers(beamScenario: BeamScenario): Map[Id[VehicleManager], VehicleManager] = {
     val managers = mutable.HashMap.empty[Id[VehicleManager], VehicleManager]
     managers.put(VehicleManager.privateVehicleManager.managerId, VehicleManager.privateVehicleManager)
     managers.put(VehicleManager.transitVehicleManager.managerId, VehicleManager.transitVehicleManager)
@@ -533,7 +533,11 @@ class BeamMobsimIteration(
         )
       )
     }
-    managers.toMap
+    val freightManagers = beamScenario.freightCarriers.map { carrier =>
+      val id = Id.create(carrier.carrierId.toString, classOf[VehicleManager])
+      id -> VehicleManager(id, VehicleManagerType.Freight)
+    }.toMap
+    managers.toMap ++ freightManagers
   }
 
   override def receive: PartialFunction[Any, Unit] = {

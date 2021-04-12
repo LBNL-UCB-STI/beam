@@ -57,6 +57,7 @@ object BeamConfig {
     object Agentsim {
       case class Agents(
         bodyType: java.lang.String,
+        freight: BeamConfig.Beam.Agentsim.Agents.Freight,
         households: BeamConfig.Beam.Agentsim.Agents.Households,
         modalBehaviors: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
         modeIncentive: BeamConfig.Beam.Agentsim.Agents.ModeIncentive,
@@ -71,6 +72,70 @@ object BeamConfig {
       )
 
       object Agents {
+        case class Freight(
+          carrierParkingFilePaths: scala.Option[
+            scala.List[BeamConfig.Beam.Agentsim.Agents.Freight.CarrierParkingFilePaths$Elm]
+          ],
+          carriersFilePath: java.lang.String,
+          enabled: scala.Boolean,
+          plansFilePath: java.lang.String,
+          toursFilePath: java.lang.String
+        )
+
+        object Freight {
+          case class CarrierParkingFilePaths$Elm(
+            carrierId: java.lang.String,
+            parkingFilePath: java.lang.String
+          )
+
+          object CarrierParkingFilePaths$Elm {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Agentsim.Agents.Freight.CarrierParkingFilePaths$Elm = {
+              BeamConfig.Beam.Agentsim.Agents.Freight.CarrierParkingFilePaths$Elm(
+                carrierId = if (c.hasPathOrNull("carrierId")) c.getString("carrierId") else "",
+                parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else ""
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight = {
+            BeamConfig.Beam.Agentsim.Agents.Freight(
+              carrierParkingFilePaths =
+                if (c.hasPathOrNull("carrierParkingFilePaths"))
+                  scala.Some(
+                    $_LBeamConfig_Beam_Agentsim_Agents_Freight_CarrierParkingFilePaths$Elm(
+                      c.getList("carrierParkingFilePaths")
+                    )
+                  )
+                else None,
+              carriersFilePath =
+                if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
+                else "/test/input/beamville/freight/freight-carriers.csv",
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              plansFilePath =
+                if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
+                else "/test/input/beamville/freight/payload-plans.csv",
+              toursFilePath =
+                if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
+                else "/test/input/beamville/freight/freight-tours.csv"
+            )
+          }
+          private def $_LBeamConfig_Beam_Agentsim_Agents_Freight_CarrierParkingFilePaths$Elm(
+            cl: com.typesafe.config.ConfigList
+          ): scala.List[BeamConfig.Beam.Agentsim.Agents.Freight.CarrierParkingFilePaths$Elm] = {
+            import scala.collection.JavaConverters._
+            cl.asScala
+              .map(
+                cv =>
+                  BeamConfig.Beam.Agentsim.Agents.Freight
+                    .CarrierParkingFilePaths$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
+              )
+              .toList
+          }
+        }
+
         case class Households(
           inputFilePath: java.lang.String,
           inputHouseholdAttributesFilePath: java.lang.String
@@ -1681,6 +1746,10 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents = {
           BeamConfig.Beam.Agentsim.Agents(
             bodyType = if (c.hasPathOrNull("bodyType")) c.getString("bodyType") else "BODY-TYPE-DEFAULT",
+            freight = BeamConfig.Beam.Agentsim.Agents.Freight(
+              if (c.hasPathOrNull("freight")) c.getConfig("freight")
+              else com.typesafe.config.ConfigFactory.parseString("freight{}")
+            ),
             households = BeamConfig.Beam.Agentsim.Agents.Households(
               if (c.hasPathOrNull("households")) c.getConfig("households")
               else com.typesafe.config.ConfigFactory.parseString("households{}")
