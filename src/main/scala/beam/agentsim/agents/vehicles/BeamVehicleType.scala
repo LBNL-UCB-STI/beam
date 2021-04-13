@@ -29,7 +29,7 @@ case class BeamVehicleType(
   sampleProbabilityWithinCategory: Double = 1.0,
   sampleProbabilityString: Option[String] = None,
   chargingCapability: Option[ChargingCapability] = None,
-  payloadCapacity: Option[Double] = None,
+  payloadCapacityInKg: Option[Double] = None,
 ) {
 
   def isEV: Boolean = {

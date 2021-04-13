@@ -24,7 +24,6 @@ object FreightRequestType extends Enum[FreightRequestType] {
 
 case class FreightTour(
   tourId: Id[FreightTour],
-  vehicleId: Id[BeamVehicle], //the value equals to the value of tourId
   departureTimeInSec: Int,
   warehouseLocation: Coord,
   maxTourDurationInSec: Int,
@@ -44,7 +43,7 @@ case class PayloadPlan(
 
 case class FreightCarrier(
   carrierId: Id[FreightCarrier],
-  tourMap: Map[Id[BeamVehicle], FreightTour],
+  tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]],
   payloadPlans: Map[Id[PayloadPlan], PayloadPlan],
   fleet: Map[Id[BeamVehicle], BeamVehicle],
   plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],

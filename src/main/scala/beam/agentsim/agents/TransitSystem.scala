@@ -124,9 +124,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
     val vehicleType = getVehicleType(route, mode)
     mode match {
       case BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA if vehicleType != null =>
-        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-          .map(new Powertrain(_))
-          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+        val powertrain = Powertrain(Option(vehicleType.primaryFuelConsumptionInJoulePerMeter))
 
         val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
 
