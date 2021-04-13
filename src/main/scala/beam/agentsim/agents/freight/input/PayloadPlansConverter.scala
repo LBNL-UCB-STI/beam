@@ -125,7 +125,7 @@ object PayloadPlansConverter {
 
       val plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
         plans.values.groupBy(_.tourId).filterKeys(carrierTourIds).mapValues(_.toIndexedSeq.sortBy(_.sequenceRank))
-      val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.reduce(_ ++ _).map(_.payloadId).toSet
+      val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.flatten.map(_.payloadId).toSet
       val payloadMap = plans.filterKeys(carrierPlanIds)
 
       FreightCarrier(carrierId, tourMap, payloadMap, vehicleMap, plansPerTour)
@@ -150,7 +150,7 @@ object PayloadPlansConverter {
       .toIndexedSeq
   }
 
-  def createFreightVehicle(
+  private def createFreightVehicle(
     vehicleId: Id[Vehicle],
     vehicleType: BeamVehicleType,
     carrierId: Id[FreightCarrier],
@@ -203,7 +203,8 @@ object PayloadPlansConverter {
         val tourInitialActivity = createActivity("Warehouse", tour.warehouseLocation, tour.departureTimeInSec)
         val firstLeg: Leg = createLeg(tour.departureTimeInSec)
 
-        val plans: IndexedSeq[PayloadPlan] = plansPerTour(tour.tourId)
+        val plans: IndexedSeq[PayloadPlan] =
+          plansPerTour.getOrElse(tour.tourId, throw new IllegalArgumentException(s"Tour ${tour.tourId} has no plans"))
         val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
           val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
           val activityType = plan.requestType.toString
