@@ -38,12 +38,12 @@ case class BeamPath(
     throw new IllegalStateException("Total travel time and total sum by edges are not same")
   }
 
-  def toShortString: String =
-    if (linkIds.nonEmpty) {
-      s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"
-    } else {
-      ""
+  def toShortString: String = {
+    linkIds.headOption match {
+      case Some(head) => s"$head .. ${linkIds(linkIds.size - 1)}"
+      case None       => ""
     }
+  }
 
   def updateStartTime(newStartTime: Int): BeamPath =
     this.copy(
@@ -60,17 +60,18 @@ case class BeamPath(
     )
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def linkAtTime(tick: Int): Int = {
     tick - startPoint.time match {
       case secondsAlongPath if secondsAlongPath <= 0 || linkIds.size <= 1 =>
+        // TODO: there is a likely bug here because linkIds.size can be 0(zero)
         linkIds.head
       case secondsAlongPath if secondsAlongPath > linkTravelTime.tail.sum =>
         linkIds.last
       case secondsAlongPath =>
-        if (linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) < 0) {
-          val i = 0
-        }
-        linkIds.tail(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
+        val linkTravelTimeTail = linkTravelTime.drop(1)
+        val index = linkTravelTimeTail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1
+        linkIds.drop(1)(index)
     }
   }
 }
