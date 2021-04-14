@@ -1754,9 +1754,13 @@ object BeamConfig {
         case class Helics(
           bufferSize: scala.Int,
           connectionEnabled: scala.Boolean,
+          coreInitString: java.lang.String,
+          coreType: java.lang.String,
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
-          federateName: java.lang.String
+          federateName: java.lang.String,
+          intLogLevel: scala.Int,
+          timeDeltaProperty: scala.Double
         )
 
         object Helics {
@@ -1765,12 +1769,18 @@ object BeamConfig {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
               connectionEnabled = c.hasPathOrNull("connectionEnabled") && c.getBoolean("connectionEnabled"),
+              coreInitString =
+                if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
+                else "--federates=1 --broker_address=tcp://127.0.0.1",
+              coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
               dataInStreamPoint =
                 if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
                 else "GridFed/PhysicalBounds",
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
-              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate"
+              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
+              timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
         }

@@ -267,17 +267,6 @@ Metrics which contain a single number with a count of different types of ride ha
     beam-run-RH-ev-non-cav,
     beam-run-RH-non-ev-non-cav
 
-Ride hail EV (electric vehicle), CAV (connected and automated vehicle) metrics::
-
-    rh-ev-cav-count,
-    rh-ev-cav-distance,
-    rh-ev-nocav-count,
-    rh-ev-nocav-distance,
-    rh-noev-cav-count,
-    rh-noev-cav-distance,
-    rh-noev-nocav-count,
-    rh-noev-nocav-distance
-
 Various metrics for all vehicles/persons::
 
     parking,
@@ -294,6 +283,19 @@ Various metrics for ride hail
     ride-hail-trip-distance,
     ride-hail-inquiry-served (graph is not added to a grafana dashboard),
     ride-hail-allocation-reserved (graph is not added to a grafana dashboard)
+
+**Metrics which impact performance**
+
+Ride hail EV (electric vehicle), CAV (connected and automated vehicle) metrics::
+
+    rh-ev-cav-count,
+    rh-ev-cav-distance,
+    rh-ev-nocav-count,
+    rh-ev-nocav-distance,
+    rh-noev-cav-count,
+    rh-noev-cav-distance,
+    rh-noev-nocav-count,
+    rh-noev-nocav-distance
 
 New metrics
 ^^^^^^^^^^^^^^^^
