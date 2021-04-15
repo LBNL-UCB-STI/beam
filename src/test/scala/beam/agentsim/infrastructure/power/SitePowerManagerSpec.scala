@@ -107,6 +107,7 @@ class SitePowerManagerSpec
       Some(dummyChargingZone.chargingPointType),
       Some(dummyChargingZone.pricingModel),
       dummyChargingZone.parkingType,
+      reservedFor = Seq.empty,
       managerId = VehicleManager.privateVehicleManager.managerId,
     )
     val v1 = new BeamVehicle(

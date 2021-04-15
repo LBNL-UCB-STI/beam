@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure
 
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
@@ -20,6 +21,7 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
+  reservedFor: Seq[VehicleCategory],
   managerId: Id[VehicleManager]
 )
 
@@ -41,6 +43,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
+    reservedFor = Seq.empty,
     VehicleManager.privateVehicleManager.managerId
   )
 
@@ -71,6 +74,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
+      reservedFor = Seq.empty,
       VehicleManager.privateVehicleManager.managerId
     )
   }
@@ -97,6 +101,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
+    reservedFor = Seq.empty,
     VehicleManager.privateVehicleManager.managerId
   )
 
@@ -123,6 +128,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
+      parkingAlternative.parkingZone.reservedFor,
       vehicleManagerId
     )
   }

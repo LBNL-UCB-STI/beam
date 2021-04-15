@@ -184,6 +184,7 @@ class ParallelParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            reservedFor = Seq.empty,
             VehicleManager.privateVehicleManager.managerId
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
@@ -256,6 +257,7 @@ class ParallelParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            reservedFor = Seq.empty,
             VehicleManager.privateVehicleManager.managerId
           )
 
@@ -403,6 +405,7 @@ class ParallelParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
+        reservedFor = Seq.empty,
         VehicleManager.privateVehicleManager.managerId
       )
     assert(response.isDefined, "no response")

@@ -129,6 +129,7 @@ class ChargingNetworkManagerSpec
       Some(chargingType),
       Some(pricingModel),
       ParkingType.Public,
+      reservedFor = Seq.empty,
       managerId = VehicleManager.privateVehicleManager.managerId
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _

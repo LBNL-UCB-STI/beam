@@ -222,6 +222,7 @@ object ParkingZoneSearch {
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,
+              parkingZone.reservedFor,
               parkingZone.vehicleManagerId
             )
 

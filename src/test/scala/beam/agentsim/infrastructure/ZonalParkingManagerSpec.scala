@@ -153,6 +153,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            reservedFor = Seq.empty,
             VehicleManager.privateVehicleManager.managerId
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
@@ -219,6 +220,7 @@ class ZonalParkingManagerSpec
             Some(xfcChargingPoint),
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            reservedFor = IndexedSeq.empty,
             VehicleManager.privateVehicleManager.managerId
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
@@ -286,6 +288,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            reservedFor = Seq.empty,
             VehicleManager.privateVehicleManager.managerId
           )
 
@@ -533,6 +536,7 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
+        reservedFor = Seq.empty,
         vehicleManagerId
       )
     assert(response.isDefined, "no response")
