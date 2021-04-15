@@ -46,13 +46,11 @@ object ParkingNetworkInfo extends LazyLogging {
   ): ParkingNetwork = {
     import beamServices._
     val managerName = beamConfig.beam.agentsim.taz.parkingManager.name
+    val carrierParkingFilePath = beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath
     val parkingFilePaths = {
       val sharedVehicleFleetTypes = beamConfig.beam.agentsim.agents.vehicles.sharedFleets.map(Fleets.lookup)
-      val carriers = beamConfig.beam.agentsim.agents.freight.carrierParkingFilePaths.getOrElse(List.empty)
       ZonalParkingManager.getDefaultParkingZones(beamConfig) ++ sharedVehicleFleetTypes.map(
         fleetType => fleetType.managerId -> fleetType.parkingFilePath
-      ) ++ carriers.map(
-        carrierPath => Id.create(carrierPath.carrierId, classOf[VehicleManager]) -> carrierPath.parkingFilePath
       )
     }
     logger.info(s"Starting parking manager: $managerName")
@@ -65,11 +63,12 @@ object ParkingNetworkInfo extends LazyLogging {
               beamScenario.beamConfig,
               beamScenario.tazTreeMap.tazQuadTree,
               beamScenario.tazTreeMap.idToTAZMapping,
-              identity[TAZ],
+              identity[TAZ](_),
               geo,
               beamRouter,
               envelopeInUTM,
               parkingFilePaths,
+              carrierParkingFilePath.toIndexedSeq,
               vehicleManagers
             )
           case "link" =>
@@ -82,6 +81,7 @@ object ParkingNetworkInfo extends LazyLogging {
               beamRouter,
               envelopeInUTM,
               parkingFilePaths,
+              carrierParkingFilePath.toIndexedSeq,
               vehicleManagers
             )
           case _ =>
@@ -99,6 +99,7 @@ object ParkingNetworkInfo extends LazyLogging {
             geo,
             envelopeInUTM,
             parkingFilePaths,
+            carrierParkingFilePath.toIndexedSeq,
             vehicleManagers
           )
       case "PARALLEL" =>
@@ -108,6 +109,7 @@ object ParkingNetworkInfo extends LazyLogging {
           geo,
           envelopeInUTM,
           parkingFilePaths,
+          carrierParkingFilePath.toIndexedSeq,
           vehicleManagers
         )
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")

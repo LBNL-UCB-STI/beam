@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.ZonalParkingManager.{loadParkingZones, mnlMultiplierParametersFromConfig}
@@ -75,6 +76,7 @@ class HierarchicalParkingManager(
       LinkLevelOperations.DefaultLinkId,
       ParkingType.Public,
       UbiqiutousParkingAvailability,
+      Seq.empty,
       VehicleManager.privateVehicleManager.managerId
     )
 
@@ -233,6 +235,7 @@ object HierarchicalParkingManager {
     */
   case class ParkingZoneDescription(
     parkingType: ParkingType,
+    reservedFor: Seq[VehicleCategory],
     vehicleManagerId: Id[VehicleManager],
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel]
@@ -243,6 +246,7 @@ object HierarchicalParkingManager {
     def describeParkingZone(zone: ParkingZone[_]): ParkingZoneDescription = {
       new ParkingZoneDescription(
         zone.parkingType,
+        zone.reservedFor,
         zone.vehicleManagerId,
         zone.chargingPointType,
         zone.pricingModel
@@ -287,6 +291,7 @@ object HierarchicalParkingManager {
     geo: GeoUtils,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    depotFilePaths: IndexedSeq[String],
     vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ParkingNetwork = {
     HierarchicalParkingManager(
@@ -297,6 +302,7 @@ object HierarchicalParkingManager {
       geo,
       boundingBox,
       parkingFilePaths,
+      depotFilePaths,
       vehicleManagers = vehicleManagers
     )
   }
@@ -309,6 +315,7 @@ object HierarchicalParkingManager {
     geo: GeoUtils,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    depotFilePaths: IndexedSeq[String],
     vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): HierarchicalParkingManager = {
 
@@ -325,7 +332,14 @@ object HierarchicalParkingManager {
     }
 
     val (parkingZones, _) =
-      loadParkingZones(parkingFilePaths, linkQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, rand)
+      loadParkingZones(
+        parkingFilePaths,
+        depotFilePaths,
+        linkQuadTree,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor,
+        rand
+      )
 
     new HierarchicalParkingManager(
       tazMap,
@@ -373,6 +387,7 @@ object HierarchicalParkingManager {
           parkingType = description.parkingType,
           stallsAvailable = numStalls,
           maxStalls = numStalls,
+          reservedFor = description.reservedFor,
           vehicleManagerId = description.vehicleManagerId,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
@@ -436,6 +451,7 @@ object HierarchicalParkingManager {
             parkingType = description.parkingType,
             stallsAvailable = numStalls,
             maxStalls = numStalls,
+            reservedFor = description.reservedFor,
             vehicleManagerId = description.vehicleManagerId,
             chargingPointType = description.chargingPointType,
             pricingModel = description.pricingModel,

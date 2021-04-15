@@ -8,6 +8,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.matsim.core.scenario.MutableScenario
 
@@ -95,7 +96,7 @@ object BeamStaticMetricsWriter {
             rand,
             parkingStallCountScalingFactor,
             vehicleManagerId =
-              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+              Some(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId.createId[VehicleManager])
           )
 
         var cntChargingDepots = 0
@@ -117,7 +118,7 @@ object BeamStaticMetricsWriter {
               publicFastChargerFilePath,
               rand,
               parkingStallCountScalingFactor,
-              vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+              vehicleManagerId = Some(VehicleManager.privateVehicleManager.managerId)
             )
 
           publicChargers.foreach(

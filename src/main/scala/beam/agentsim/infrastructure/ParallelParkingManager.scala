@@ -75,7 +75,7 @@ class ParallelParkingManager(
         beamConfig,
         tazTreeMap.tazQuadTree,
         tazTreeMap.idToTAZMapping,
-        identity[TAZ],
+        identity[TAZ](_),
         zones,
         searchTree,
         geo,
@@ -144,6 +144,7 @@ object ParallelParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    depotFilePaths: IndexedSeq[String],
     vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ParkingNetwork = {
     val numClusters =
@@ -154,6 +155,7 @@ object ParallelParkingManager extends LazyLogging {
     val seed = beamConfig.matsim.modules.global.randomSeed
     val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
       parkingFilePaths,
+      depotFilePaths,
       tazTreeMap.tazQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,

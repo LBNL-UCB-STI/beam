@@ -155,7 +155,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
             "test/input/sf-light/link-parking.csv.gz",
             new Random(42),
             0.13,
-            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+            vehicleManagerId = Some(VehicleManager.privateVehicleManager.managerId)
           )
         val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones)
         tree should equal(lookupTree)

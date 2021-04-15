@@ -152,6 +152,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
       UbiqiutousParkingAvailability,
+      Seq.empty,
       VehicleManager.privateVehicleManager.managerId
     )
 
@@ -235,6 +236,10 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
+        val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(
+          vehicle => zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
+        )
+
         val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
           val isSameVehicleManager = vehicle.managerId == zone.vehicleManagerId
           val privateVehicleManagerChargerAcceptRidehailAndCarsharing = zone.vehicleManagerId == VehicleManager.privateVehicleManager.managerId &&
@@ -270,6 +275,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         rideHailFastChargingOnly &&
         validParkingType &&
         canThisCarParkHere &&
+        isValidCategory &&
         isValidVehicleManager &&
         validChargingCapability
       }
@@ -548,6 +554,7 @@ object ZonalParkingManager extends LazyLogging {
     geo: GeoUtils,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    depotFilePaths: IndexedSeq[String],
     vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ZonalParkingManager[GEO] = {
 
@@ -561,7 +568,14 @@ object ZonalParkingManager extends LazyLogging {
     }
 
     val (stalls, searchTree) =
-      loadParkingZones(parkingFilePaths, geoQuadTree, parkingStallCountScalingFactor, parkingCostScalingFactor, random)
+      loadParkingZones(
+        parkingFilePaths,
+        depotFilePaths,
+        geoQuadTree,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor,
+        random
+      )
 
     ZonalParkingManager(
       beamConfig,
@@ -586,6 +600,7 @@ object ZonalParkingManager extends LazyLogging {
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     loadParkingZones(
       Map(VehicleManager.privateVehicleManager.managerId -> parkingFilePath),
+      IndexedSeq.empty,
       geoQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,
@@ -595,6 +610,7 @@ object ZonalParkingManager extends LazyLogging {
 
   def loadParkingZones[GEO: GeoLevel](
     parkingFilePaths: Map[Id[VehicleManager], String],
+    depotFilePaths: IndexedSeq[String],
     geoQuadTree: QuadTree[GEO],
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
@@ -616,7 +632,7 @@ object ZonalParkingManager extends LazyLogging {
               random,
               parkingStallCountScalingFactor,
               parkingCostScalingFactor,
-              vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+              vehicleManagerId = Some(VehicleManager.privateVehicleManager.managerId)
             )
           } match {
             case Success(accumulator) => accumulator
@@ -631,7 +647,8 @@ object ZonalParkingManager extends LazyLogging {
         }
       case None => new ParkingLoadingAccumulator[GEO]()
     }
-    val otherParkingFiles = parkingFilePaths - VehicleManager.privateVehicleManager.managerId
+    val otherParkingFiles = (parkingFilePaths - VehicleManager.privateVehicleManager.managerId).toIndexedSeq
+      .map { case (vehicleManagerId, filePath) => Some(vehicleManagerId) -> filePath } ++ depotFilePaths.map(None -> _)
     val parkingLoadingAccumulator = otherParkingFiles.foldLeft(initialAccumulator) {
       case (acc, (vehicleManagerId, filePath)) =>
         filePath.trim match {
@@ -721,6 +738,7 @@ object ZonalParkingManager extends LazyLogging {
     beamRouter: ActorRef,
     boundingBox: Envelope,
     parkingFilePaths: Map[Id[VehicleManager], String],
+    depotFilePaths: IndexedSeq[String],
     vehicleManagers: Map[Id[VehicleManager], VehicleManager]
   ): ParkingNetwork = {
     ZonalParkingManager(
@@ -731,6 +749,7 @@ object ZonalParkingManager extends LazyLogging {
       geo,
       boundingBox,
       parkingFilePaths,
+      depotFilePaths,
       vehicleManagers
     )
   }

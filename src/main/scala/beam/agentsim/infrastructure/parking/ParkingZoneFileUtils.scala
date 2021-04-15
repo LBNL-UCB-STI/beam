@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -161,7 +162,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
     header: Boolean = true,
-    vehicleManagerId: Id[VehicleManager]
+    vehicleManagerId: Option[Id[VehicleManager]]
   ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val parkingLoadingAccumulator =
       fromFileToAccumulator(
@@ -190,7 +191,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
     header: Boolean = true,
-    vehicleManagerId: Id[VehicleManager],
+    vehicleManagerId: Option[Id[VehicleManager]],
     parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
   ): ParkingLoadingAccumulator[GEO] =
     Try {
@@ -231,7 +232,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    vehicleManagerId: Id[VehicleManager],
+    vehicleManagerId: Option[Id[VehicleManager]],
     parkingLoadingAccumulator: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator()
   ): ParkingLoadingAccumulator[GEO] = {
 
@@ -289,7 +290,7 @@ object ParkingZoneFileUtils extends LazyLogging {
             random,
             parkingStallCountScalingFactor,
             parkingCostScalingFactor,
-            vehicleManagerId
+            Some(vehicleManagerId)
           ) match {
             case None =>
               accumulator.countFailedRow
@@ -340,7 +341,7 @@ object ParkingZoneFileUtils extends LazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    vehicleManagerId: Id[VehicleManager],
+    maybeVehicleManagerId: Option[Id[VehicleManager]],
   ): Option[ParkingLoadingDataRow[GEO]] = {
     csvRow match {
       case ParkingFileRowRegex(
@@ -363,13 +364,12 @@ object ParkingZoneFileUtils extends LazyLogging {
           } else {
             floorNumberOfStalls
           }
-          val vehicleManagerType: Option[VehicleManagerType] =
-            (if (reservedForString == null) "" else reservedForString).trim match {
-              //we had Any and RideHailManager in the taz-parking.csv files
-              //allow the users not to modify existing files
-              case "" | "Any"        => None
-              case "RideHailManager" => Some(VehicleManagerType.Ridehail)
-              case trimmed @ _       => Some(VehicleManagerType.withNameInsensitive(trimmed))
+          val (vehicleManagerId, reservedFor) =
+            maybeVehicleManagerId match {
+              case Some(managerId) => (managerId, toCategories(reservedForString, tazString))
+              case None if reservedForString == null || reservedForString.trim.isEmpty =>
+                throw new IOException(s"No manager id set for $tazString")
+              case None => (reservedForString.trim.createId[VehicleManager], IndexedSeq.empty)
             }
 
           // parse this row from the source file
@@ -389,6 +389,7 @@ object ParkingZoneFileUtils extends LazyLogging {
               taz,
               parkingType,
               numStalls,
+              reservedFor,
               vehicleManagerId,
               chargingPoint,
               pricingModel,
@@ -406,6 +407,27 @@ object ParkingZoneFileUtils extends LazyLogging {
         }
       case _ =>
         throw new java.io.IOException(s"Failed to match row of parking configuration '$csvRow' to expected schema")
+    }
+  }
+
+  private def toCategories(categoryName: String, geoId: String): IndexedSeq[VehicleCategory.VehicleCategory] = {
+    (if (categoryName == null) "" else categoryName).trim.toLowerCase match {
+      //we had Any, Ridehail and RideHailManager in the taz-parking.csv files
+      //allow the users not to modify existing files
+      case "" | "any" => IndexedSeq.empty
+      case value =>
+        val maybeCategories =
+          value
+            .split('|')
+            .map(categoryStr => categoryStr -> VehicleCategory.fromStringOptional(categoryStr))
+            .toIndexedSeq
+        maybeCategories.foreach {
+          case (categoryStr, maybeCategory) =>
+            if (maybeCategory.isEmpty) {
+              logger.error(s"Wrong category '$categoryStr' for zone $geoId, ignoring the category")
+            }
+        }
+        maybeCategories.flatMap { case (_, maybeCategory) => maybeCategory }
     }
   }
 

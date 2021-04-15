@@ -98,7 +98,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           parkingFilePath,
           random,
           parkingStallCountScalingFactor,
-          vehicleManagerId = vehicleManagerId
+          vehicleManagerId = Some(vehicleManagerId)
         )
     } match {
       case Success((stalls, tree)) =>

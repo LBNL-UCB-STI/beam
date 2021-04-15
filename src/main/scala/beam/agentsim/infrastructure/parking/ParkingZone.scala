@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleManagerType
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.agents.vehicles.VehicleManager
 import com.typesafe.scalalogging.LazyLogging
@@ -23,6 +23,7 @@ class ParkingZone[GEO](
   val parkingType: ParkingType,
   var stallsAvailable: Int,
   val maxStalls: Int,
+  val reservedFor: Seq[VehicleCategory],
   val vehicleManagerId: Id[VehicleManager],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
@@ -56,6 +57,7 @@ class ParkingZone[GEO](
       this.parkingType,
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
+      this.reservedFor,
       this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel,
@@ -63,6 +65,9 @@ class ParkingZone[GEO](
       this.landCostInUSDPerSqft
     )
   }
+
+  def isDefaultVehicleManager: Boolean = vehicleManagerId == VehicleManager.privateVehicleManager.managerId
+
 }
 
 object ParkingZone extends LazyLogging {
@@ -88,6 +93,7 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     numStalls: Int = 0,
+    reservedFor: Seq[VehicleCategory],
     vehicleManagerId: Id[VehicleManager],
     chargingType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
@@ -100,6 +106,7 @@ object ParkingZone extends LazyLogging {
       parkingType,
       numStalls,
       numStalls,
+      reservedFor,
       vehicleManagerId,
       chargingType,
       pricingModel,

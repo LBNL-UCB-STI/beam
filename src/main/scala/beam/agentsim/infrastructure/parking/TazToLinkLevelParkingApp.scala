@@ -54,7 +54,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     ParkingZoneFileUtils.fromFile[TAZ](
       argsMap("taz-parking"),
       new Random(),
-      vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+      vehicleManagerId = Some(VehicleManager.privateVehicleManager.managerId)
     )
 
   val linkToTaz = LinkLevelOperations.getLinkToTazMapping(network, tazMap)
@@ -79,6 +79,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           stallsAvailable = zone.stallsAvailable,
           maxStalls = zone.maxStalls,
+          reservedFor = zone.reservedFor,
           vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
@@ -132,6 +133,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           stallsAvailable = numZones,
           maxStalls = numZones,
+          reservedFor = zone.reservedFor,
           vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,

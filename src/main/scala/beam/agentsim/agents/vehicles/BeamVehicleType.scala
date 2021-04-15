@@ -68,10 +68,11 @@ object VehicleCategory {
   case object LightDutyTruck extends VehicleCategory
   case object HeavyDutyTruck extends VehicleCategory
 
-  def fromString(value: String): VehicleCategory = {
+  def fromString(value: String): VehicleCategory = fromStringOptional(value).get
+
+  def fromStringOptional(value: String): Option[VehicleCategory] = {
     Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
       .find(_.toString.equalsIgnoreCase(value))
-      .get
   }
 }
 

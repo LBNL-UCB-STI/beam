@@ -453,6 +453,7 @@ class ZonalParkingManagerSpec
         geo,
         boundingBox,
         parkingFilePaths,
+        IndexedSeq.empty,
         managers2
       )
 
@@ -646,6 +647,7 @@ object ZonalParkingManagerSpec {
                   taz.tazId,
                   ParkingType.Workplace,
                   5,
+                  IndexedSeq.empty,
                   VehicleManager.privateVehicleManager.managerId,
                   None,
                   Some(FlatFee(3.0))
