@@ -660,7 +660,6 @@ object ZonalParkingManager extends LazyLogging {
                 random,
                 parkingStallCountScalingFactor,
                 parkingCostScalingFactor,
-                header = true,
                 vehicleManagerId,
                 acc
               )
@@ -703,7 +702,6 @@ object ZonalParkingManager extends LazyLogging {
       random,
       1.0,
       1.0,
-      true,
       VehicleManager.privateVehicleManager.managerId
     )
     new ZonalParkingManager(

@@ -159,7 +159,7 @@ class HierarchicalParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
@@ -231,7 +231,7 @@ class HierarchicalParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator

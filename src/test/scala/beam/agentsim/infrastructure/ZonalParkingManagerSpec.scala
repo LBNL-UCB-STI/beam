@@ -10,7 +10,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCateg
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -78,7 +78,7 @@ class ZonalParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         config = beamConfig
-        emptyParkingDescription: Iterator[String] = Iterator.empty
+        emptyParkingDescription: Iterator[String] = Iterator.single(ParkingZoneFileUtils.ParkingFileHeader)
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           tazTreeMap,
           geo,
@@ -126,7 +126,7 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
@@ -186,7 +186,7 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
                                                |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -257,7 +257,7 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
@@ -622,7 +622,7 @@ object ZonalParkingManagerSpec {
 
   // using a split of numStalls, create a parking input for all-work, $0-cost parking alternatives with varying stall counts
   def makeParkingConfiguration(split: List[Int]): Iterator[String] = {
-    val header = "taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor"
+    val header = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
     val result = split.zipWithIndex
       .map {
         case (stalls, i) =>

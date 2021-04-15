@@ -44,8 +44,18 @@ trait GenericCsvReader {
     preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
   )(
     implicit ct: ClassTag[T]
+  ): (Iterator[T], Closeable) =
+    readFromReaderAs(FileUtils.readerFromStream(stream), mapper, filterPredicate, preference)
+
+  def readFromReaderAs[T](
+    reader: java.io.Reader,
+    mapper: java.util.Map[String, String] => T,
+    filterPredicate: T => Boolean = (_: T) => true,
+    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
+  )(
+    implicit ct: ClassTag[T]
   ): (Iterator[T], Closeable) = {
-    val csvRdr = new CsvMapReader(FileUtils.readerFromStream(stream), preference)
+    val csvRdr = new CsvMapReader(reader, preference)
     read[T](csvRdr, mapper, filterPredicate)
   }
 
