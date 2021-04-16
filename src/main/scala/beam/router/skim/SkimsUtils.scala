@@ -220,10 +220,12 @@ object SkimsUtils extends LazyLogging {
       )
     }
 
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val maxSkimCount = series.map(_._1).max
     val bucketsNum = Math.min(maxSkimCount, 4)
     val buckets = (1 to bucketsNum).map(_ * maxSkimCount / bucketsNum)
-    def getClosest(num: Double) = buckets.minBy(v => math.abs(v - num))
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    def getClosest(num: Double): Int = buckets.minBy(v => math.abs(v - num))
 
     var dataset = new XYSeriesCollection()
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()

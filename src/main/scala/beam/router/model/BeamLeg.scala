@@ -133,20 +133,20 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    if (legs.isEmpty) {
-      legs
-    } else {
-      var latestEndTime = legs.head.startTime - 1
-      var newLeg = legs.head
-      for (leg <- legs) yield {
-        if (leg.startTime < latestEndTime) {
-          newLeg = leg.updateStartTime(latestEndTime)
-        } else {
-          newLeg = leg
+    legs.headOption match {
+      case None => legs
+      case Some(headLeg) =>
+        var latestEndTime = headLeg.startTime - 1
+        var newLeg = headLeg
+        for (leg <- legs) yield {
+          if (leg.startTime < latestEndTime) {
+            newLeg = leg.updateStartTime(latestEndTime)
+          } else {
+            newLeg = leg
+          }
+          latestEndTime = newLeg.endTime
+          newLeg
         }
-        latestEndTime = newLeg.endTime
-        newLeg
-      }
     }
   }
 }

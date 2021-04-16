@@ -65,9 +65,11 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
 
   private def toHousehold(node: Node, houseHoldIdToAttributes: HouseHoldIdToAttributes): Household = {
     val id = node.attributes("id").toString
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    val incomeHead = (node \ "income").head
     Household(
       householdId = id,
-      income = toIncome((node \ "income").head),
+      income = toIncome(incomeHead),
       locationX = houseHoldIdToAttributes(id).homeCoordX,
       locationY = houseHoldIdToAttributes(id).homeCoordY
     )
