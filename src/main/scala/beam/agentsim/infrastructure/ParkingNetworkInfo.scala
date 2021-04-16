@@ -49,7 +49,7 @@ object ParkingNetworkInfo extends LazyLogging {
     val carrierParkingFilePath = beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath
     val parkingFilePaths = {
       val sharedVehicleFleetTypes = beamConfig.beam.agentsim.agents.vehicles.sharedFleets.map(Fleets.lookup)
-      ZonalParkingManager.getDefaultParkingZones(beamConfig) ++ sharedVehicleFleetTypes.map(
+      ZonalParkingManager.getDefaultParkingFile(beamConfig) ++ sharedVehicleFleetTypes.map(
         fleetType => fleetType.managerId -> fleetType.parkingFilePath
       )
     }

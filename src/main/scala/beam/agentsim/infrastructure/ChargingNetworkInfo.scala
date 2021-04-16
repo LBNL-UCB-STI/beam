@@ -16,7 +16,8 @@ case class ChargingNetworkInfo(
   vehicleManagers: Map[Id[VehicleManager], VehicleManager]
 ) {
   import ChargingNetworkInfo._
-  private[infrastructure] val chargingZoneList: QuadTree[ChargingZone] = loadChargingZones(beamServices, envelopeInUTM)
+  private[infrastructure] val chargingZoneMap: Map[Id[VehicleManager], QuadTree[ChargingZone]] =
+    loadChargingZones(beamServices, envelopeInUTM)
 }
 
 object ChargingNetworkInfo {
@@ -26,14 +27,15 @@ object ChargingNetworkInfo {
     * @param beamServices BeamServices
     * @return QuadTree of ChargingZone
     */
-  private def loadChargingZones(beamServices: BeamServices, envelopeInUTM: Envelope): QuadTree[ChargingZone] = {
+  private def loadChargingZones(beamServices: BeamServices, envelopeInUTM: Envelope) = {
     import beamServices._
-    val parkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
+    val carrierParkingFilePath = beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
     val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
     val random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val (zones, _) = ZonalParkingManager.loadParkingZones[TAZ](
-      parkingFilePath,
+      ZonalParkingManager.getDefaultParkingFile(beamConfig),
+      carrierParkingFilePath.toIndexedSeq,
       beamScenario.tazTreeMap.tazQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,
@@ -49,27 +51,31 @@ object ChargingNetworkInfo {
     envelopeInUTM.expandToInclude(xs.min, ys.min)
     envelopeInUTM.expandToInclude(xs.max, ys.max)
 
-    val stationsQuadTree = new QuadTree[ChargingZone](
-      envelopeInUTM.getMinX,
-      envelopeInUTM.getMinY,
-      envelopeInUTM.getMaxX,
-      envelopeInUTM.getMaxY
-    )
-    zonesWithCharger.foreach {
-      case (zone, taz) =>
-        stationsQuadTree.put(
-          taz.coord.getX,
-          taz.coord.getY,
-          ChargingZone(
-            zone.geoId,
-            zone.parkingType,
-            zone.maxStalls,
-            zone.chargingPointType.get,
-            zone.pricingModel.get,
-            zone.vehicleManagerId
-          )
+    zonesWithCharger
+      .groupBy { case (zone, _) => zone.vehicleManagerId }
+      .mapValues { zones =>
+        val stationsQuadTree = new QuadTree[ChargingZone](
+          envelopeInUTM.getMinX,
+          envelopeInUTM.getMinY,
+          envelopeInUTM.getMaxX,
+          envelopeInUTM.getMaxY
         )
-    }
-    stationsQuadTree
+        zones.foreach {
+          case (zone, taz) =>
+            stationsQuadTree.put(
+              taz.coord.getX,
+              taz.coord.getY,
+              ChargingZone(
+                zone.geoId,
+                zone.parkingType,
+                zone.maxStalls,
+                zone.chargingPointType.get,
+                zone.pricingModel.get,
+                zone.vehicleManagerId
+              )
+            )
+        }
+        stationsQuadTree
+      }
   }
 }

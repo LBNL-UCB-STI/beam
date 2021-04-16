@@ -783,7 +783,7 @@ object ZonalParkingManager extends LazyLogging {
     )
   }
 
-  def getDefaultParkingZones(beamConfig: BeamConfig): Map[Id[VehicleManager], String] = Map(
+  def getDefaultParkingFile(beamConfig: BeamConfig): Map[Id[VehicleManager], String] = Map(
     VehicleManager.privateVehicleManager.managerId -> beamConfig.beam.agentsim.taz.parkingFilePath,
   )
 }

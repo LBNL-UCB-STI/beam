@@ -103,7 +103,6 @@ trait ChoosesParking extends {
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
           currentBeamVehicle,
-          VehicleManager.privateVehicleManager.managerId
         )
         goto(ReleasingChargingPoint) using data
       } else {
