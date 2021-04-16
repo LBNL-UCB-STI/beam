@@ -161,7 +161,7 @@ class ChargingNetworkManager(
     case ChargingPlugRequest(tick, vehicle) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV | vehicle.isPHEV) {
-        val chargingNetwork = chargingNetworkMap(vehicle.managerId)
+        val chargingNetwork = chargingNetworkMap(ParkingNetwork.getVehicleManagerIdForParking(vehicle, vehicleManagers))
         // connecting the current vehicle
         chargingNetwork.attemptToConnectVehicle(tick, vehicle, sender) match {
           case Some(ChargingVehicle(vehicle, _, station, _, _, _, status, _)) if status.last == Waiting =>
@@ -190,7 +190,7 @@ class ChargingNetworkManager(
     case ChargingUnplugRequest(tick, vehicle) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
-      val chargingNetwork = chargingNetworkMap(vehicle.managerId)
+      val chargingNetwork = chargingNetworkMap(ParkingNetwork.getVehicleManagerIdForParking(vehicle, vehicleManagers))
       chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) =>
           val prevStartTime = chargingVehicle.chargingSessions.last.startTime
