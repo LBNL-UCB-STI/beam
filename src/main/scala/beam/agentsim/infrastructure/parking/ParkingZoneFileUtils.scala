@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.FileUtils
 import beam.utils.csv.GenericCsvReader
-import com.typesafe.scalalogging.LazyLogging
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
@@ -17,7 +17,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success, Try}
 
 // utilities to read/write parking zone information from/to a file
-object ParkingZoneFileUtils extends LazyLogging {
+object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
   type jMap = java.util.Map[String, String]
 
