@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
@@ -51,7 +51,7 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
                       case Some(chargingPoint) =>
                         chargingPoint should equal(ChargingPointType.TeslaSuperCharger)
                     }
-
+                    parkingZone.reservedFor should be(Seq(VehicleCategory.Car, VehicleCategory.LightDutyTruck))
                 }
             }
           }
@@ -175,7 +175,7 @@ object ParkingZoneFileUtilsSpec {
 
     val validRow: Iterator[String] =
       s"""taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,
+         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,car|LightDutyTruck
       """.stripMargin.split("\n").toIterator
 
     val validRowWithEmpties: Iterator[String] =

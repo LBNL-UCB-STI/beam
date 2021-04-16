@@ -339,11 +339,10 @@ object ParkingZoneFileUtils extends LazyLogging {
     parkingCostScalingFactor: Double = 1.0,
     maybeVehicleManagerId: Option[Id[VehicleManager]],
   ): Option[ParkingLoadingDataRow[GEO]] = {
-    def throwWrongSchema = {
-      throw new IOException(s"Failed to match row of parking configuration '$csvRow' to expected schema")
+    if (!validateCsvRow(csvRow)) {
+      logger.error(s"Failed to match row of parking configuration '$csvRow' to expected schema")
+      return None
     }
-
-    if (!validateCsvRow(csvRow)) throwWrongSchema
     val tazString = csvRow.get("taz")
     val parkingTypeString = csvRow.get("parkingType")
     val pricingModelString = csvRow.get("pricingModel")
@@ -356,8 +355,6 @@ object ParkingZoneFileUtils extends LazyLogging {
     Try {
       val feeInCents = feeInCentsString.toDouble
       val numStallsDouble = numStallsString.toDouble
-      if (feeInCents < 0) throwWrongSchema
-      if (numStallsDouble < 0) throwWrongSchema
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
       val expectedNumberOfStalls = numStallsDouble * parkingStallCountScalingFactor
       val floorNumberOfStalls = math.floor(expectedNumberOfStalls).toInt
@@ -410,13 +407,16 @@ object ParkingZoneFileUtils extends LazyLogging {
   }
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
-    Seq("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents")
+    val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents")
       .forall(
         key => {
           val value = csvRow.get(key)
           value != null && value.nonEmpty
         }
       )
+    allRequiredPresented &&
+    Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
+    Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
   }
 
   private def toCategories(categoryName: String, geoId: String): IndexedSeq[VehicleCategory.VehicleCategory] = {
