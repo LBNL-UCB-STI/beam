@@ -20,11 +20,12 @@ import scala.util.Random
   * @author Dmitry Openkov
   */
 class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar {
+  private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
 
   "PayloadPlansConverter" should {
     "read Payload Plans" in {
       val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
-        PayloadPlansConverter.readPayloadPlans("test/input/beamville/freight/payload-plans-spec.csv")
+        PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv")
       payloadPlans should have size 8
       val plan7 = payloadPlans("payload-7".createId)
       plan7.payloadId should be("payload-7".createId)
@@ -40,7 +41,7 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
     }
 
     "read Freight Tours" in {
-      val tours = PayloadPlansConverter.readFreightTours("test/input/beamville/freight/freight-tours-spec.csv")
+      val tours = PayloadPlansConverter.readFreightTours(s"$freightInputDir/freight-tours.csv")
       tours should have size 4
       val tour3 = tours("tour-3".createId)
       tour3.tourId should be("tour-3".createId)
@@ -125,11 +126,11 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
 
   private def readCarriers: IndexedSeq[FreightCarrier] = {
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
-      PayloadPlansConverter.readPayloadPlans("test/input/beamville/freight/payload-plans-spec.csv")
-    val tours = PayloadPlansConverter.readFreightTours("test/input/beamville/freight/freight-tours-spec.csv")
+      PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv")
+    val tours = PayloadPlansConverter.readFreightTours(s"$freightInputDir/freight-tours.csv")
     val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
     val freightCarriers: IndexedSeq[FreightCarrier] = PayloadPlansConverter.readFreightCarriers(
-      "test/input/beamville/freight/freight-carriers-spec.csv",
+      s"$freightInputDir/freight-carriers.csv",
       tours,
       payloadPlans,
       vehicleTypes,
