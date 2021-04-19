@@ -27,6 +27,7 @@ class ParkingZone[GEO](
   val vehicleManagerId: Id[VehicleManager],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
+  val timeRestrictions: Map[VehicleCategory, Range],
   val parkingZoneName: Option[String],
   val landCostInUSDPerSqft: Option[Double]
 ) {
@@ -61,6 +62,7 @@ class ParkingZone[GEO](
       this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel,
+      this.timeRestrictions,
       this.parkingZoneName,
       this.landCostInUSDPerSqft
     )
@@ -97,6 +99,7 @@ object ParkingZone extends LazyLogging {
     vehicleManagerId: Id[VehicleManager],
     chargingType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
+    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     parkingZoneName: Option[String] = None,
     landCostInUSDPerSqft: Option[Double] = None
   ): ParkingZone[GEO] =
@@ -110,6 +113,7 @@ object ParkingZone extends LazyLogging {
       vehicleManagerId,
       chargingType,
       pricingModel,
+      timeRestrictions,
       parkingZoneName,
       landCostInUSDPerSqft
     )

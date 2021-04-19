@@ -6,6 +6,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -15,6 +16,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
+import org.apache.commons.math3.geometry.Space
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -51,6 +53,7 @@ class HierarchicalParkingManagerSpec
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
+  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
@@ -87,13 +90,13 @@ class HierarchicalParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val inquiry = ParkingInquiry(centerSpaceTime, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
-            inquiry.destinationUtm.getX + 2000,
-            inquiry.destinationUtm.getX - 2000,
-            inquiry.destinationUtm.getY + 2000,
-            inquiry.destinationUtm.getY - 2000
+            inquiry.destinationUtm.loc.getX + 2000,
+            inquiry.destinationUtm.loc.getX - 2000,
+            inquiry.destinationUtm.loc.getY + 2000,
+            inquiry.destinationUtm.loc.getY - 2000
           ),
           new Random(randomSeed),
           tazId = TAZ.EmergencyTAZId,
@@ -128,13 +131,13 @@ class HierarchicalParkingManagerSpec
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
 
-      val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+      val inquiry = ParkingInquiry(centerSpaceTime, "work")
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
-          inquiry.destinationUtm.getX + 2000,
-          inquiry.destinationUtm.getX - 2000,
-          inquiry.destinationUtm.getY + 2000,
-          inquiry.destinationUtm.getY - 2000
+          inquiry.destinationUtm.loc.getX + 2000,
+          inquiry.destinationUtm.loc.getX - 2000,
+          inquiry.destinationUtm.loc.getY + 2000,
+          inquiry.destinationUtm.loc.getY - 2000
         ),
         new Random(randomSeed),
         tazId = TAZ.EmergencyTAZId,
@@ -186,7 +189,7 @@ class HierarchicalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(centerSpaceTime, "work")
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -208,7 +211,7 @@ class HierarchicalParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val secondInquiry = ParkingInquiry(centerSpaceTime, "work")
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
           case Some(res @ ParkingInquiryResponse(stall, responseId))
@@ -259,8 +262,8 @@ class HierarchicalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(centerSpaceTime, "work")
+        val secondInquiry = ParkingInquiry(centerSpaceTime, "work")
         val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
@@ -351,7 +354,7 @@ class HierarchicalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work")
+          req = ParkingInquiry(SpaceTime(middleOfWorld, 0), "work")
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _)) =>
@@ -415,7 +418,7 @@ class HierarchicalParkingManagerSpec
     pricingModel: PricingModel,
     parkingType: ParkingType
   ): Any = {
-    val inquiry = ParkingInquiry(coord, "init")
+    val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init")
     val response = spm.processParkingInquiry(inquiry)
     response match {
       case Some(rsp @ ParkingInquiryResponse(stall, _)) =>

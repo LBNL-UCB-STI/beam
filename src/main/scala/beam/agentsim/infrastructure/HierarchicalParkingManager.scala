@@ -99,7 +99,8 @@ class HierarchicalParkingManager(
     val (parkingStall: ParkingStall, parkingZone: ParkingZone[Link]) = tazLinks.get(tazParkingZone.geoId) match {
       case Some(linkQuadTree) =>
         val foundZoneDescription = ParkingZoneDescription.describeParkingZone(tazParkingZone)
-        val startingPoint = linkQuadTree.getClosest(inquiry.destinationUtm.getX, inquiry.destinationUtm.getY).getCoord
+        val startingPoint =
+          linkQuadTree.getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY).getCoord
         TAZTreeMap.ringSearch(
           linkQuadTree,
           startingPoint,
@@ -130,7 +131,7 @@ class HierarchicalParkingManager(
               zone
             }
             logger.warn("Actually tazLink zones {}", tazLinkZones)
-            lastResortStallAndZone(inquiry.destinationUtm)
+            lastResortStallAndZone(inquiry.destinationUtm.loc)
         }
       case None => //no corresponding links, this means it's a special zone
         tazParkingStall.geoId match {
@@ -140,7 +141,7 @@ class HierarchicalParkingManager(
             tazParkingStall.copy(geoId = LinkLevelOperations.EmergencyLinkId) -> DefaultParkingZone
           case _ =>
             logger.warn("Cannot find TAZ with id {}", tazParkingZone.geoId)
-            lastResortStallAndZone(inquiry.destinationUtm)
+            lastResortStallAndZone(inquiry.destinationUtm.loc)
         }
     }
 
@@ -238,7 +239,10 @@ object HierarchicalParkingManager {
     reservedFor: Seq[VehicleCategory],
     vehicleManagerId: Id[VehicleManager],
     chargingPointType: Option[ChargingPointType],
-    pricingModel: Option[PricingModel]
+    pricingModel: Option[PricingModel],
+    timeRestrictions: Map[VehicleCategory, Range],
+    parkingZoneName: Option[String],
+    landCostInUSDPerSqft: Option[Double],
   )
 
   object ParkingZoneDescription {
@@ -249,7 +253,10 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.vehicleManagerId,
         zone.chargingPointType,
-        zone.pricingModel
+        zone.pricingModel,
+        zone.timeRestrictions,
+        zone.parkingZoneName,
+        zone.landCostInUSDPerSqft,
       )
     }
   }
@@ -391,8 +398,9 @@ object HierarchicalParkingManager {
           vehicleManagerId = description.vehicleManagerId,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
-          parkingZoneName = None, // FIXME ?!
-          landCostInUSDPerSqft = None // FIXME ?!
+          timeRestrictions = description.timeRestrictions,
+          parkingZoneName = description.parkingZoneName,
+          landCostInUSDPerSqft = description.landCostInUSDPerSqft,
         )
     }
     //link zone to taz zone map
@@ -455,8 +463,9 @@ object HierarchicalParkingManager {
             vehicleManagerId = description.vehicleManagerId,
             chargingPointType = description.chargingPointType,
             pricingModel = description.pricingModel,
-            parkingZoneName = None, // FIXME ?!
-            landCostInUSDPerSqft = None // FIXME ?!
+            timeRestrictions = description.timeRestrictions,
+            parkingZoneName = description.parkingZoneName,
+            landCostInUSDPerSqft = description.landCostInUSDPerSqft,
           )
       }
       .toArray

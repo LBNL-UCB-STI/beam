@@ -92,7 +92,7 @@ class ParallelParkingManager(
   ): Option[ParkingInquiryResponse] = {
     parallelizationCounterOption.map(_.count("all"))
     val foundCluster = workers.find { w =>
-      val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm)
+      val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm.loc)
       w.cluster.convexHull.contains(point)
     }
 
@@ -116,7 +116,7 @@ class ParallelParkingManager(
   }
 
   private def findTazId(inquiry: ParkingInquiry): Id[TAZ] = {
-    tazTreeMap.getTAZ(inquiry.destinationUtm.getX, inquiry.destinationUtm.getY) match {
+    tazTreeMap.getTAZ(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY) match {
       case null => TAZ.EmergencyTAZId
       case taz  => taz.tazId
     }

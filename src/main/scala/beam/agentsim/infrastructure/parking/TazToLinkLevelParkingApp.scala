@@ -83,8 +83,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
-          parkingZoneName = None, // FIXME?
-          landCostInUSDPerSqft = None // FIXME?
+          timeRestrictions = zone.timeRestrictions,
+          parkingZoneName = zone.parkingZoneName,
+          landCostInUSDPerSqft = zone.landCostInUSDPerSqft,
         )
     }
     .toArray
@@ -137,8 +138,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
-          parkingZoneName = None, // FIXME ?
-          landCostInUSDPerSqft = None // FIXME ?
+          timeRestrictions = zone.timeRestrictions,
+          parkingZoneName = zone.parkingZoneName,
+          landCostInUSDPerSqft = zone.landCostInUSDPerSqft,
         )
       }
     }

@@ -205,7 +205,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
     val parkingZoneSearchParams: ParkingZoneSearchParams[GEO] =
       ParkingZoneSearchParams(
-        inquiry.destinationUtm,
+        inquiry.destinationUtm.loc,
         inquiry.parkingDuration,
         mnlMultiplierParameters,
         zoneSearchTree,
@@ -240,6 +240,13 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
           vehicle => zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
         )
 
+        val isValidTime = inquiry.beamVehicle.forall(
+          vehicle =>
+            zone.timeRestrictions
+              .get(vehicle.beamVehicleType.vehicleCategory)
+              .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
+        )
+
         val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
           ParkingNetwork.getVehicleManagerIdForParking(vehicle, vehicleManagers) == zone.vehicleManagerId
         }
@@ -272,6 +279,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         validParkingType &&
         canThisCarParkHere &&
         isValidCategory &&
+        isValidTime &&
         isValidVehicleManager &&
         validChargingCapability
       }
@@ -286,7 +294,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
             )
             new Coord()
           case Some(taz) =>
-            GeoLevel[GEO].geoSampling(rand, inquiry.destinationUtm, taz, zone.availability)
+            GeoLevel[GEO].geoSampling(rand, inquiry.destinationUtm.loc, taz, zone.availability)
         }
       }
 
@@ -294,7 +302,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
     val parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double] =
       (parkingAlternative: ParkingAlternative[GEO]) => {
 
-        val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm, parkingAlternative.coord)
+        val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm.loc, parkingAlternative.coord)
 
         // end-of-day parking durations are set to zero, which will be mis-interpreted here
         val parkingDuration: Option[Int] =
@@ -399,15 +407,16 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         case None =>
           inquiry.activityType match {
             case "init" | "home" =>
-              val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm, GeoLevel[GEO].defaultGeoId)
+              val newStall =
+                ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
               ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
             case _ =>
               // didn't find any stalls, so, as a last resort, create a very expensive stall
               val boxAroundRequest = new Envelope(
-                inquiry.destinationUtm.getX + 2000,
-                inquiry.destinationUtm.getX - 2000,
-                inquiry.destinationUtm.getY + 2000,
-                inquiry.destinationUtm.getY - 2000
+                inquiry.destinationUtm.loc.getX + 2000,
+                inquiry.destinationUtm.loc.getX - 2000,
+                inquiry.destinationUtm.loc.getY + 2000,
+                inquiry.destinationUtm.loc.getY - 2000
               )
               val newStall =
                 ParkingStall.lastResortStall(

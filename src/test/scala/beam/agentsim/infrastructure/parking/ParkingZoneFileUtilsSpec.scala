@@ -52,6 +52,12 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
                         chargingPoint should equal(ChargingPointType.TeslaSuperCharger)
                     }
                     parkingZone.reservedFor should be(Seq(VehicleCategory.Car, VehicleCategory.LightDutyTruck))
+                    parkingZone.timeRestrictions should be(
+                      Map(
+                        VehicleCategory.Car            -> Range(3600, 43200),
+                        VehicleCategory.LightDutyTruck -> Range(48600, 61200)
+                      )
+                    )
                 }
             }
           }
@@ -161,6 +167,18 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
         tree should equal(lookupTree)
       }
     }
+
+    "Time restriction parser" when {
+      "parses time restriction" should {
+        "extract correct values" in {
+          val restrictions = ParkingZoneFileUtils.parseTimeRestrictions("Car:1-12|LightDutyTruck:13:30-17")
+          restrictions should be(
+            Map(VehicleCategory.Car -> Range(3600, 43200), VehicleCategory.LightDutyTruck -> Range(48600, 61200))
+          )
+        }
+      }
+    }
+
   }
 }
 
@@ -174,8 +192,8 @@ object ParkingZoneFileUtilsSpec {
     val testPricingModel: String = "FlatFee"
 
     val validRow: Iterator[String] =
-      s"""taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,car|LightDutyTruck
+      s"""taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor,timeRestrictions
+         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,car|LightDutyTruck,Car:1-12|LightDutyTruck:13:30-17
       """.stripMargin.split("\n").toIterator
 
     val validRowWithEmpties: Iterator[String] =

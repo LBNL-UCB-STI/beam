@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
@@ -25,7 +26,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * header for parking files (used for writing new parking files)
     */
   val ParkingFileHeader: String =
-    "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
+    "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor,timeRestrictions"
 
   /**
     * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
@@ -41,7 +42,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     maybeChargingPoint: Option[ChargingPointType]
   ): String = {
     val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
-    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,,,"
+    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,,,,"
   }
 
   /**
@@ -121,8 +122,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         }
         val parkingZoneName = parkingZone.parkingZoneName.getOrElse("")
         val landCostInUSDPerSqft = parkingZone.landCostInUSDPerSqft.getOrElse("")
+        val reservedFor = parkingZone.reservedFor.mkString("|")
+        val timeRestrictions = parkingZone.timeRestrictions.map(toString).mkString("|")
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft,$reservedFor,$timeRestrictions"
       }
     } match {
       case Failure(e) =>
@@ -204,6 +207,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           }
           parkingLoadingAccumulator
         case Failure(e) =>
+          logger.error("Failure", e)
           throw new java.io.IOException(s"Unable to load parking configuration file with path $filePath.\n$e")
       }
     }
@@ -326,8 +330,51 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     }
   }
 
+  private val TimeRestriction = """(\w+):(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+  private[parking] def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleCategory, Range] = {
+
+    def parseTimeRestriction(timeRestrictionString: String): Option[(VehicleCategory, Range)] = {
+      timeRestrictionString match {
+        case TimeRestriction(
+            categoryStr,
+            hour1,
+            minute1,
+            hour2,
+            minute2,
+            ) =>
+          val category = VehicleCategory.fromString(categoryStr)
+          val from = hour1.toInt * 3600 + Option(minute1).map(_.toInt).getOrElse(0) * 60
+          val to = hour2.toInt * 3600 + Option(minute2).map(_.toInt).getOrElse(0) * 60
+          Some(category -> Range(from, to))
+        case _ =>
+          logger.error(s"Cannot parse time restriction data: $timeRestrictionString")
+          None
+      }
+    }
+
+    // values look like LightDutyTruck:00:00-14:00|Car:14:00-18:00|Bike:18:00-24:00
+    Option(timeRestrictionsString)
+      .getOrElse("")
+      .split('|')
+      .map(_.trim)
+      .filterNot(_.isEmpty)
+      .flatMap(parseTimeRestriction)
+      .toMap
+
+  }
+
+  private def toString(restriction: (VehicleCategory, Range)): String = {
+    val (category, range) = restriction
+    val fromHour = range.start / 3600
+    val fromMin = range.start % 3600 / 60
+    val toHour = range.end / 3600
+    val toMin = range.end % 3600 / 60
+    "%s:%d:%02d-%d:%02d".format(category, fromHour, fromMin, toHour, toMin)
+  }
+
   /**
     * parses a row of parking configuration into the data structures used to represent it
+    *
     * @param csvRow the comma-separated parking attributes
     * @return a ParkingZone and it's corresponding ParkingType and Taz Id
     */
@@ -352,6 +399,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val parkingZoneNameString = csvRow.get("parkingZoneName")
     val landCostInUSDPerSqftString = csvRow.get("landCostInUSDPerSqft")
     val reservedForString = csvRow.get("reservedFor")
+    val timeRestrictionsString = csvRow.get("timeRestrictions")
     Try {
       val feeInCents = feeInCentsString.toDouble
       val numStallsDouble = numStallsString.toDouble
@@ -375,6 +423,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)
       val parkingType = ParkingType(parkingTypeString)
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
+      val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
       val numStalls = numberOfStallsToCreate
       val parkingZoneName =
@@ -392,6 +441,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           vehicleManagerId,
           chargingPoint,
           pricingModel,
+          timeRestrictions,
           parkingZoneName,
           landCostInUSDPerSqft
         )

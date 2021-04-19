@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorSystem
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingZone}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -43,7 +44,7 @@ class ParkingManagerBenchmark(
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
         possibleParkingLocations.flatMap {
           case (coord, actType) =>
-            parkingManagerActor.processParkingInquiry(ParkingInquiry(coord, actType))
+            parkingManagerActor.processParkingInquiry(ParkingInquiry(SpaceTime(coord, 0), actType))
         }.toList
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")
