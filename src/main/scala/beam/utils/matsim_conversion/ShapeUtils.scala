@@ -159,15 +159,6 @@ object ShapeUtils {
     }).toArray
   }
 
-  private def closestToPoint(referencePoint: Double, elems: Array[CsvTaz]): CsvTaz = {
-    elems.reduce { (a, b) =>
-      val comparison1 = (a, Math.abs(referencePoint - a.coordY))
-      val comparison2 = (b, Math.abs(referencePoint - b.coordY))
-      val closest = Seq(comparison1, comparison2) minBy (_._2)
-      closest._1
-    }
-  }
-
   def quadTreeBounds[A: HasQuadBounds](elements: Iterable[A]): QuadTreeBounds = {
     val A = implicitly[HasQuadBounds[A]]
     var minX: Double = Double.MaxValue

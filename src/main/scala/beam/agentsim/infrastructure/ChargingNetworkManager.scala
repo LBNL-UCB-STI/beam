@@ -26,8 +26,8 @@ import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
-import scala.language.postfixOps
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * Created by haitamlaarabi
@@ -106,7 +106,7 @@ class ChargingNetworkManager(
 
       val allConnectedVehicles = chargingNetworkMap.flatMap(_._2.connectedVehicles)
       val triggers = allConnectedVehicles.par.flatMap {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _)) =>
+        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, _, _)) =>
           // Refuel
           handleRefueling(chargingVehicle)
           // Calculate the energy to charge each vehicle connected to the a charging station
@@ -115,7 +115,7 @@ class ChargingNetworkManager(
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
-              handleEndCharging(timeBin, chargingVehicle, synchronize = true, triggerId = triggerId)
+              handleEndCharging(timeBin, chargingVehicle, triggerId = triggerId)
               None
             case cycle if chargingNotCompleteUsing(cycle) =>
               log.debug(
@@ -146,6 +146,7 @@ class ChargingNetworkManager(
       val e = System.currentTimeMillis()
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
+      log.info(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
 
       sender ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
 
@@ -154,7 +155,7 @@ class ChargingNetworkManager(
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicleId) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) =>
-          handleEndCharging(tick, chargingVehicle, synchronize = false, triggerId = triggerId)
+          handleEndCharging(tick, chargingVehicle, triggerId = triggerId) // We don't inform Actors that a private vehicle has ended charging because we don't know which agent should be informed
         case _ => log.debug(s"Vehicle $vehicleId is already disconnected")
       }
       sender ! CompletionNotice(triggerId)
@@ -165,7 +166,7 @@ class ChargingNetworkManager(
         val chargingNetwork = chargingNetworkMap(vehicleManager)
         // connecting the current vehicle
         chargingNetwork.attemptToConnectVehicle(tick, vehicle, sender) match {
-          case chargingVehicle @ ChargingVehicle(vehicle, _, station, _, _, _) if chargingVehicle.status == Waiting =>
+          case Some(ChargingVehicle(vehicle, _, station, _, _, _, status, _)) if status.last == Waiting =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station $station, with {}/{} vehicles connected and {} in waiting line",
               station.connectedVehicles.size,
@@ -175,8 +176,10 @@ class ChargingNetworkManager(
             log.debug(s"connected vehicles: ${station.connectedVehicles.keys.mkString(",")}")
             log.debug(s"waiting vehicles: ${station.waitingLineVehicles.keys.mkString(",")}")
             sender ! WaitingInLine(tick, vehicle.id, triggerId)
-          case chargingVehicle: ChargingVehicle =>
+          case Some(chargingVehicle: ChargingVehicle) =>
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
+          case _ =>
+            log.debug(s"attempt to connect vehicle ${vehicle.id} to charger failed!")
         }
       } else {
         sender ! Failure(
@@ -192,13 +195,13 @@ class ChargingNetworkManager(
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) =>
-          val prevStartTime = chargingVehicle.latestChargingCycle.get.startTime
+          val prevStartTime = chargingVehicle.chargingSessions.last.startTime
           val startTime = Math.min(tick, prevStartTime)
           val endTime = Math.max(tick, prevStartTime)
           val duration = endTime - startTime
           val (chargeDurationAtTick, energyToChargeAtTick) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
           chargingVehicle.processChargingCycle(startTime, energyToChargeAtTick, chargeDurationAtTick)
-          handleEndCharging(tick, chargingVehicle, Some(sender), synchronize = false, triggerId = triggerId)
+          handleEndCharging(tick, chargingVehicle, Some(sender), triggerId = triggerId)
         case _ =>
           log.debug(s"Vehicle $vehicle is already disconnected at $tick")
           sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
@@ -247,8 +250,8 @@ class ChargingNetworkManager(
     chargingNetworkMap
       .flatMap(_._2.vehicles)
       .map {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _)) =>
-          if (chargingVehicle.status == Connected) {
+        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, status, _)) =>
+          if (status.last == Connected) {
             val (duration, energy) =
               dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
             chargingVehicle.processChargingCycle(tick, energy, duration)
@@ -271,7 +274,7 @@ class ChargingNetworkManager(
     * @param chargingVehicle charging vehicle information
     */
   private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle, triggerId: Long): Unit = {
-    val ChargingVehicle(vehicle, stall, _, _, _, theSender) = chargingVehicle
+    val ChargingVehicle(vehicle, stall, _, _, _, theSender, _, _) = chargingVehicle
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.connectToChargingPoint(tick)
@@ -295,26 +298,24 @@ class ChargingNetworkManager(
     tick: Int,
     chargingVehicle: ChargingVehicle,
     currentSenderMaybe: Option[ActorRef] = None,
-    synchronize: Boolean,
     triggerId: Long
   ): Unit = {
-    val ChargingVehicle(vehicle, stall, _, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, stall, _, _, _, _, _, _) = chargingVehicle
     val chargingNetwork = chargingNetworkMap(stall.managerId)
-    (if (synchronize) {
-       chargingNetwork.synchronized {
-         chargingNetwork.disconnectVehicle(tick, chargingVehicle)
-       }
-     } else chargingNetwork.disconnectVehicle(tick, chargingVehicle)) match {
-      case Some(processedWaitingLine) =>
+    chargingNetwork.disconnectVehicle(chargingVehicle) match {
+      case Some(cv) =>
+        log.debug(s"Vehicle ${chargingVehicle.vehicle} has been disconnected from the charging station")
         handleRefueling(chargingVehicle)
         handleEndChargingHelper(tick, chargingVehicle)
         vehicle.disconnectFromChargingPoint()
         parkingManager ! ReleaseParkingStall(vehicle.stall.get, triggerId)
         vehicle.unsetParkingStall()
         currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id, triggerId))
-        processedWaitingLine.foreach(handleStartCharging(tick, _, triggerId))
-      case _ =>
-        log.debug(s"Vehicle $vehicle is already disconnected at $tick")
+        chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _, triggerId))
+      case None =>
+        log.error(
+          s"Vehicle ${chargingVehicle.vehicle} failed to disconnect. Check the debug logs if it has been already disconnected. Otherwise something is broken!!"
+        )
     }
   }
 
@@ -403,7 +404,6 @@ object ChargingNetworkManager {
   case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
   final case class ChargingZone(
-    chargingZoneId: Int,
     tazId: Id[TAZ],
     parkingType: ParkingType,
     numChargers: Int,
@@ -411,70 +411,22 @@ object ChargingNetworkManager {
     pricingModel: PricingModel,
     managerId: Id[VehicleManager]
   ) {
-    val uniqueId: String = s"($managerId,$tazId,$chargingZoneId,$parkingType,$chargingPointType)"
+    val id: String = constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType)
     override def equals(that: Any): Boolean =
       that match {
         case that: ChargingZone =>
           that.hashCode() == hashCode
         case _ => false
       }
-    override def hashCode: Int = uniqueId.hashCode()
+    override def hashCode: Int = id.hashCode()
   }
 
-  object ChargingZone {
-
-    /**
-      * Construct charging zone from the parking stall
-      * @param stall ParkingStall
-      * @return ChargingZone
-      */
-    def to(stall: ParkingStall): ChargingZone = ChargingZone(
-      stall.parkingZoneId,
-      stall.tazId,
-      stall.parkingType,
-      1,
-      stall.chargingPointType.get,
-      stall.pricingModel.get,
-      stall.managerId
-    )
-
-    /**
-      * convert to ChargingZone from Map
-      * @param charging Map of String keys and Any values
-      * @return ChargingZone
-      */
-    def to(charging: Map[String, Any]): ChargingZone = {
-      ChargingZone(
-        charging("chargingZoneId").asInstanceOf[Int],
-        Id.create(charging("tazId").asInstanceOf[String], classOf[TAZ]),
-        ParkingType(charging("parkingType").asInstanceOf[String]),
-        charging("numChargers").asInstanceOf[Int],
-        ChargingPointType(charging("chargingPointType").asInstanceOf[String]).get,
-        PricingModel(
-          charging("pricingModel").asInstanceOf[String],
-          charging("costInDollars").asInstanceOf[Double].toString
-        ).get,
-        Id.create(charging("managerId").asInstanceOf[String], classOf[VehicleManager])
-      )
-    }
-
-    /**
-      * Convert chargingZone to a Map
-      * @param chargingZone ChargingZone
-      * @return Map of String keys and Any values
-      */
-    def from(chargingZone: ChargingZone): Map[String, Any] = {
-      Map(
-        "chargingZoneId"    -> chargingZone.chargingZoneId,
-        "tazId"             -> chargingZone.tazId.toString,
-        "parkingType"       -> chargingZone.parkingType.toString,
-        "numChargers"       -> chargingZone.numChargers,
-        "chargingPointType" -> chargingZone.chargingPointType.toString,
-        "pricingModel"      -> chargingZone.pricingModel.toString,
-        "vehicleManager"    -> chargingZone.managerId
-      )
-    }
-  }
+  def constructChargingZoneKey(
+    managerId: Id[VehicleManager],
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    chargingPointType: ChargingPointType
+  ): String = s"cs_${managerId}_${tazId}_${parkingType}_${chargingPointType}"
 
   def props(
     beamServices: BeamServices,
