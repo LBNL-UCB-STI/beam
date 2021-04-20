@@ -1,21 +1,6 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  BUS,
-  CABLE_CAR,
-  CAR,
-  CAV,
-  FERRY,
-  FUNICULAR,
-  GONDOLA,
-  RAIL,
-  RIDE_HAIL,
-  SUBWAY,
-  TRAM,
-  TRANSIT,
-  WALK
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAR_HOV2, CAR_HOV3, CAV, WALK}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -36,8 +21,16 @@ object Modes {
   sealed abstract class BeamMode(
     val value: String,
     val r5Mode: Option[Either[LegMode, TransitModes]],
-    val matsimMode: String
+    val matsimMode: String,
+    val isCar: Boolean = false // introduced because of HOV2 and HOV3, which should be equal to CAR
   ) extends StringEnumEntry {
+
+    import BeamMode._
+
+    override def equals(obj: Any): Boolean = obj match {
+      case mode: BeamMode if mode.isCar => this.isCar
+      case _                            => super.equals(obj)
+    }
 
     def isTransit: Boolean = isR5TransitMode(this)
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
@@ -46,11 +39,26 @@ object Modes {
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
 
+    def isCar(stringMode: String): Boolean =
+      stringMode.equalsIgnoreCase(CAR.value) ||
+      stringMode.equalsIgnoreCase(CAR_HOV2.value) ||
+      stringMode.equalsIgnoreCase(CAR_HOV3.value)
+
     override val values: immutable.IndexedSeq[BeamMode] = findValues
+
+    case object HOV2_TELEPORTATION extends BeamMode(value = "hov2_teleportation", None, "", isCar = false)
+
+    case object HOV3_TELEPORTATION extends BeamMode(value = "hov3_teleportation", None, "", isCar = false)
 
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
-    case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
+    case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car, isCar = true)
+
+    // car with 1 guaranteed additional passenger
+    case object CAR_HOV2 extends BeamMode(value = "car_hov2", Some(Left(LegMode.CAR)), TransportMode.car, isCar = true)
+
+    // car with 2 guaranteed additional passengers
+    case object CAR_HOV3 extends BeamMode(value = "car_hov3", Some(Left(LegMode.CAR)), TransportMode.car, isCar = true)
 
     case object CAV extends BeamMode(value = "cav", Some(Left(LegMode.CAR)), TransportMode.car)
 
