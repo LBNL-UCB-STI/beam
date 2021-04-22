@@ -810,8 +810,7 @@ trait BeamHelper extends LazyLogging {
           beamScenario.freightCarriers,
           scenario.getPopulation.getFactory,
           scenario.getHouseholds.getFactory,
-          convertWgs2Utm,
-          geoUtils
+          if (convertWgs2Utm) Some(geoUtils) else None
         )
 
       val allowedModes = Seq(BeamMode.CAR.value)

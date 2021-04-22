@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, Dead
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{
   RideHailDepotParkingManager,
@@ -135,6 +136,12 @@ class BeamMobsim @Inject()(
 
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
+    val freightReplanners = {
+      beamScenario.freightCarriers.map(carrier => new FreightReplanner(beamServices, carrier, skims.od_skimmer))
+    }
+    ConcurrentUtils.parallelExecution(
+      freightReplanners.map(replanner => () => replanner.replanning(matsimServices.getIterationNumber))
+    )(scala.concurrent.ExecutionContext.global)
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")

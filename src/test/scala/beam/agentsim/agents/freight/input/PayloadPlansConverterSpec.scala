@@ -108,8 +108,7 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
         readCarriers,
         populationFactory,
         householdFactory,
-        convertWgs2Utm = false,
-        SimpleGeoUtils()
+        None,
       )
 
       personPlans should have size 3

@@ -95,6 +95,10 @@ object PayloadPlansConverter {
                 s"Vehicle type for vehicle $vehicleId not found: ${firstRow.vehicleTypeId}"
               )
             )
+            if (vehicleType.payloadCapacityInKg.isEmpty)
+              throw new IllegalArgumentException(
+                s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
+              )
             createFreightVehicle(vehicleId, vehicleType, carrierId, firstRow.depotLocation, rnd.nextInt())
         }
         .toIndexedSeq
@@ -176,79 +180,83 @@ object PayloadPlansConverter {
     carriers: IndexedSeq[FreightCarrier],
     personFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory,
-    convertWgs2Utm: Boolean,
-    geo: GeoUtils
+    geoConverter: Option[GeoUtils],
   ): IndexedSeq[(Household, Plan)] = {
-    def createActivity(activityType: String, location: Coord, endTime: Int) = {
-      val coord = if (convertWgs2Utm) geo.wgs2Utm(location) else location
-      val act = PopulationUtils.createActivityFromCoord(activityType, coord)
-      if (endTime >= 0) {
-        act.setEndTime(endTime)
-      }
-      act
-    }
-
-    def createLeg(departureTime: Int) = {
-      val leg = PopulationUtils.createLeg(BeamMode.CAR.value)
-      leg.setDepartureTime(departureTime)
-      leg
-    }
-
-    def createPersonPlan(
-      tours: IndexedSeq[FreightTour],
-      plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
-      person: Person
-    ) = {
-      val allToursPlanElements = tours.flatMap { tour =>
-        val tourInitialActivity = createActivity("Warehouse", tour.warehouseLocation, tour.departureTimeInSec)
-        val firstLeg: Leg = createLeg(tour.departureTimeInSec)
-
-        val plans: IndexedSeq[PayloadPlan] =
-          plansPerTour.getOrElse(tour.tourId, throw new IllegalArgumentException(s"Tour ${tour.tourId} has no plans"))
-        val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
-          val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
-          val activityType = plan.requestType.toString
-          val activity = createActivity(activityType, plan.location, activityEndTime)
-          val leg: Leg = createLeg(activityEndTime)
-          Seq(activity, leg)
-        }
-
-        tourInitialActivity +: firstLeg +: planElements
-      }
-
-      val finalActivity = createActivity("Warehouse", tours.head.warehouseLocation, -1)
-      val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
-
-      val currentPlan = PopulationUtils.createPlan(person)
-      allPlanElements.foreach {
-        case activity: Activity => currentPlan.addActivity(activity)
-        case leg: Leg           => currentPlan.addLeg(leg)
-        case _                  => throw new UnknownError() //shouldn't happen
-      }
-      currentPlan
-    }
 
     carriers.flatMap { carrier =>
       carrier.tourMap.map {
         case (vehicleId, tours) =>
-          val personId = Id.createPersonId(s"freight-agent-$vehicleId")
+          val personId = createPersonId(vehicleId)
           val person = personFactory.createPerson(personId)
 
-          val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person)
+          val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person, geoConverter)
 
           person.addPlan(currentPlan)
           person.setSelectedPlan(currentPlan)
 
-          val freightHouseholdId = s"freight-household-$vehicleId".createId[Household]
+          val freightHouseholdId = createHouseholdId(vehicleId)
           val household: Household = householdsFactory.createHousehold(freightHouseholdId)
           household.setIncome(new IncomeImpl(44444, Income.IncomePeriod.year))
           household.getMemberIds.add(personId)
           household.getVehicleIds.add(vehicleId)
-          household.getAttributes
 
           (household, currentPlan)
       }
     }
   }
 
+  private def createActivity(activityType: String, location: Coord, endTime: Int, geo: Option[GeoUtils]) = {
+    val coord = geo.map(_.wgs2Utm(location)).getOrElse(location)
+    val act = PopulationUtils.createActivityFromCoord(activityType, coord)
+    if (endTime >= 0) {
+      act.setEndTime(endTime)
+    }
+    act
+  }
+
+  private def createLeg(departureTime: Int) = {
+    val leg = PopulationUtils.createLeg(BeamMode.CAR.value)
+    leg.setDepartureTime(departureTime)
+    leg
+  }
+
+  def createPersonPlan(
+    tours: IndexedSeq[FreightTour],
+    plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
+    person: Person,
+    geoConverter: Option[GeoUtils],
+  ): Plan = {
+    val allToursPlanElements = tours.flatMap { tour =>
+      val tourInitialActivity =
+        createActivity("Warehouse", tour.warehouseLocation, tour.departureTimeInSec, geoConverter)
+      val firstLeg: Leg = createLeg(tour.departureTimeInSec)
+
+      val plans: IndexedSeq[PayloadPlan] =
+        plansPerTour.getOrElse(tour.tourId, throw new IllegalArgumentException(s"Tour ${tour.tourId} has no plans"))
+      val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
+        val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
+        val activityType = plan.requestType.toString
+        val activity = createActivity(activityType, plan.location, activityEndTime, geoConverter)
+        val leg: Leg = createLeg(activityEndTime)
+        Seq(activity, leg)
+      }
+
+      tourInitialActivity +: firstLeg +: planElements
+    }
+
+    val finalActivity = createActivity("Warehouse", tours.head.warehouseLocation, -1, geoConverter)
+    val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
+
+    val currentPlan = PopulationUtils.createPlan(person)
+    allPlanElements.foreach {
+      case activity: Activity => currentPlan.addActivity(activity)
+      case leg: Leg           => currentPlan.addLeg(leg)
+      case _                  => throw new UnknownError() //shouldn't happen
+    }
+    currentPlan
+  }
+
+  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = Id.createPersonId(s"freight-agent-$vehicleId")
+
+  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household] = s"freight-household-$vehicleId".createId
 }

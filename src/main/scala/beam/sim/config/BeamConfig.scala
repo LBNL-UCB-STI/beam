@@ -77,10 +77,23 @@ object BeamConfig {
           carriersFilePath: java.lang.String,
           enabled: scala.Boolean,
           plansFilePath: java.lang.String,
+          replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           toursFilePath: java.lang.String
         )
 
         object Freight {
+          case class Replanning(
+            endIteration: scala.Int
+          )
+
+          object Replanning {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight.Replanning = {
+              BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
+                endIteration = if (c.hasPathOrNull("endIteration")) c.getInt("endIteration") else -1
+              )
+            }
+          }
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight = {
             BeamConfig.Beam.Agentsim.Agents.Freight(
@@ -93,6 +106,10 @@ object BeamConfig {
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
+              replanning = BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
+                if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
+                else com.typesafe.config.ConfigFactory.parseString("replanning{}")
+              ),
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
                 else "/test/input/beamville/freight/freight-tours.csv"
