@@ -24,7 +24,7 @@ class ParkingZone[GEO](
   var stallsAvailable: Int,
   val maxStalls: Int,
   val reservedFor: Seq[VehicleCategory],
-  val vehicleManagerId: Id[VehicleManager],
+  val vehicleManager: Option[Id[VehicleManager]],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
@@ -59,7 +59,7 @@ class ParkingZone[GEO](
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
       this.reservedFor,
-      this.vehicleManagerId,
+      this.vehicleManager,
       this.chargingPointType,
       this.pricingModel,
       this.timeRestrictions,
@@ -67,9 +67,6 @@ class ParkingZone[GEO](
       this.landCostInUSDPerSqft
     )
   }
-
-  def isDefaultVehicleManager: Boolean = vehicleManagerId == VehicleManager.privateVehicleManager.managerId
-
 }
 
 object ParkingZone extends LazyLogging {
@@ -96,7 +93,7 @@ object ParkingZone extends LazyLogging {
     parkingType: ParkingType,
     numStalls: Int = 0,
     reservedFor: Seq[VehicleCategory],
-    vehicleManagerId: Id[VehicleManager],
+    vehicleManagerId: Option[Id[VehicleManager]] = None,
     chargingType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,

@@ -2,10 +2,9 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
-import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
+import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.toJtsCoordinate
@@ -43,11 +42,8 @@ class ParallelParkingManager(
   searchTree: ZoneSearchTree[TAZ],
   geo: GeoUtils,
   seed: Int,
-  boundingBox: Envelope,
-  vehicleManagers: Map[Id[VehicleManager], VehicleManager]
-) extends ParkingNetwork {
-
-  override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
+  boundingBox: Envelope
+) extends ParkingNetwork[TAZ] {
 
   private val workers: Vector[Worker] = clusters.zipWithIndex.map {
     case (cluster, i) =>
@@ -80,8 +76,7 @@ class ParallelParkingManager(
         searchTree,
         geo,
         new Random(seed),
-        boundingBox,
-        vehicleManagers
+        boundingBox
       )
     Worker(actor, cluster)
   }
@@ -126,6 +121,8 @@ class ParallelParkingManager(
     clusters.flatMap { worker =>
       worker.cluster.tazes.view.map(_.tazId).map(_ -> worker)
     }.toMap
+
+  override def getParkingZones(): Array[ParkingZone[TAZ]] = zones
 }
 
 object ParallelParkingManager extends LazyLogging {
@@ -143,10 +140,9 @@ object ParallelParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     boundingBox: Envelope,
-    parkingFilePaths: Map[Id[VehicleManager], String],
-    depotFilePaths: IndexedSeq[String],
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
-  ): ParkingNetwork = {
+    parkingFilePath: String,
+    depotFilePaths: IndexedSeq[String]
+  ): ParkingNetwork[TAZ] = {
     val numClusters =
       Math.min(tazTreeMap.tazQuadTree.size(), beamConfig.beam.agentsim.taz.parkingManager.parallel.numberOfClusters)
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
@@ -154,14 +150,14 @@ object ParallelParkingManager extends LazyLogging {
     val random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val seed = beamConfig.matsim.modules.global.randomSeed
     val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
-      parkingFilePaths,
+      parkingFilePath,
       depotFilePaths,
       tazTreeMap.tazQuadTree,
       parkingStallCountScalingFactor,
       parkingCostScalingFactor,
       random
     )
-    init(beamConfig, tazTreeMap, zones, searchTree, numClusters, geo, seed, boundingBox, vehicleManagers)
+    init(beamConfig, tazTreeMap, zones, searchTree, numClusters, geo, seed, boundingBox)
   }
 
   def init(
@@ -172,9 +168,8 @@ object ParallelParkingManager extends LazyLogging {
     numClusters: Int,
     geo: GeoUtils,
     seed: Int,
-    boundingBox: Envelope,
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
-  ): ParkingNetwork = {
+    boundingBox: Envelope
+  ): ParkingNetwork[TAZ] = {
     val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters, seed.toLong)
     new ParallelParkingManager(
       beamConfig,
@@ -184,8 +179,7 @@ object ParallelParkingManager extends LazyLogging {
       searchTree,
       geo,
       seed,
-      boundingBox,
-      vehicleManagers
+      boundingBox
     )
   }
 
@@ -196,7 +190,7 @@ object ParallelParkingManager extends LazyLogging {
     presentation: String
   )
 
-  private case class Worker(actor: ParkingNetwork, cluster: ParkingCluster)
+  private case class Worker(actor: ParkingNetwork[TAZ], cluster: ParkingCluster)
 
   private[infrastructure] def createClusters(
     tazTreeMap: TAZTreeMap,

@@ -5,7 +5,6 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
@@ -16,7 +15,6 @@ import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
-import org.apache.commons.math3.geometry.Space
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -58,10 +56,6 @@ class HierarchicalParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  private val managers = Map[Id[VehicleManager], VehicleManager](
-    VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
-  )
-
   describe("HierarchicalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
@@ -85,7 +79,6 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers,
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
@@ -127,7 +120,6 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers,
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
 
@@ -169,8 +161,7 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator[Link](
           oneParkingOption,
-          random,
-          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+          random
         )
         parkingManager = HierarchicalParkingManager.init(
           tazTreeMap,
@@ -183,7 +174,6 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers,
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
@@ -200,8 +190,7 @@ class HierarchicalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.privateVehicleManager.managerId
+            reservedFor = Seq.empty
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
@@ -243,8 +232,7 @@ class HierarchicalParkingManagerSpec
         parking = ParkingZoneFileUtils
           .fromIterator[Link](
             oneParkingOption,
-            random,
-            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+            random
           )
         parkingManager = HierarchicalParkingManager.init(
           tazTreeMap,
@@ -257,7 +245,6 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers,
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
@@ -276,8 +263,7 @@ class HierarchicalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.privateVehicleManager.managerId,
+            reservedFor = Seq.empty
           )
 
         // request the stall
@@ -333,8 +319,7 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator[Link](
           parkingConfiguration,
-          random,
-          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+          random
         )
         parkingManager = HierarchicalParkingManager.init(
           tazTreeMap,
@@ -347,7 +332,6 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
-          managers,
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
@@ -398,7 +382,6 @@ class HierarchicalParkingManagerSpec
         // the number of stalls on TAZ and link levels will not match because of big number of stalls
         // which don't fit into Int precision
         checkThatNumberOfStallsMatch = false,
-        managers,
         beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
       )
 
@@ -411,7 +394,7 @@ class HierarchicalParkingManagerSpec
   }
 
   private def assertParkingResponse(
-    spm: ParkingNetwork,
+    spm: ParkingNetwork[_],
     coord: Coord,
     tazId: String,
     parkingZoneId: Int,

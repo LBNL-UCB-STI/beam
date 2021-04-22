@@ -22,7 +22,7 @@ case class ParkingStall(
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
   reservedFor: Seq[VehicleCategory],
-  managerId: Id[VehicleManager]
+  vehicleManager: Option[Id[VehicleManager]] = None
 )
 
 object ParkingStall {
@@ -43,8 +43,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = Seq.empty,
-    VehicleManager.privateVehicleManager.managerId
+    reservedFor = Seq.empty
   )
 
   /**
@@ -74,8 +73,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = Seq.empty,
-      VehicleManager.privateVehicleManager.managerId
+      reservedFor = Seq.empty
     )
   }
 
@@ -101,8 +99,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = Seq.empty,
-    VehicleManager.privateVehicleManager.managerId
+    reservedFor = Seq.empty
   )
 
   /**
@@ -111,11 +108,7 @@ object ParkingStall {
     * @param parkingAlternative
     * @return
     */
-  def fromParkingAlternative[GEO](
-    tazId: Id[TAZ],
-    parkingAlternative: ParkingAlternative[GEO],
-    vehicleManagerId: Id[VehicleManager]
-  )(
+  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(
     implicit gl: GeoLevel[GEO]
   ): ParkingStall = {
     import GeoLevel.ops._
@@ -128,8 +121,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      parkingAlternative.parkingZone.reservedFor,
-      vehicleManagerId
+      parkingAlternative.parkingZone.reservedFor
     )
   }
 

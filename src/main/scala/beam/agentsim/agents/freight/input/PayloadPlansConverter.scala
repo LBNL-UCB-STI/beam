@@ -169,7 +169,7 @@ object PayloadPlansConverter {
       beamVehicleId,
       powertrain,
       vehicleType,
-      managerId = carrierId.toString.createId[VehicleManager],
+      vehicleManager = Some(carrierId.toString.createId[VehicleManager]),
       randomSeed
     )
     vehicle.spaceTime = SpaceTime(initialLocation, 0)

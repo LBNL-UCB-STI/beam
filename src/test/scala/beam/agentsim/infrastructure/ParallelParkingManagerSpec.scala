@@ -5,10 +5,9 @@ import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneFileUtils, PricingModel}
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
@@ -53,10 +52,6 @@ class ParallelParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
-  private val managers = Map[Id[VehicleManager], VehicleManager](
-    VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
-  )
-
   describe("ParallelParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
@@ -77,8 +72,7 @@ class ParallelParkingManagerSpec
           8,
           geo,
           randomSeed,
-          boundingBox,
-          managers
+          boundingBox
         )
       } {
 
@@ -115,8 +109,7 @@ class ParallelParkingManagerSpec
         8,
         geo,
         randomSeed,
-        boundingBox,
-        managers
+        boundingBox
       )
 
       val inquiry = ParkingInquiry(centerSpaceTime, "work")
@@ -155,12 +148,7 @@ class ParallelParkingManagerSpec
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils
-          .fromIterator[TAZ](
-            oneParkingOption,
-            random,
-            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
-          )
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, random)
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
@@ -169,8 +157,7 @@ class ParallelParkingManagerSpec
           8,
           geo,
           randomSeed,
-          boundingBox,
-          managers
+          boundingBox
         )
       } {
 
@@ -186,8 +173,7 @@ class ParallelParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.privateVehicleManager.managerId
+            reservedFor = Seq.empty
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
@@ -226,11 +212,7 @@ class ParallelParkingManagerSpec
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](
-          oneParkingOption,
-          random,
-          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
-        )
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, random)
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
@@ -239,8 +221,7 @@ class ParallelParkingManagerSpec
           8,
           geo,
           randomSeed,
-          boundingBox,
-          managers
+          boundingBox
         )
 
       } {
@@ -259,8 +240,7 @@ class ParallelParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.privateVehicleManager.managerId
+            reservedFor = Seq.empty
           )
 
         // request the stall
@@ -314,11 +294,7 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](
-          parkingConfiguration,
-          random,
-          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
-        )
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, random)
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
@@ -327,8 +303,7 @@ class ParallelParkingManagerSpec
           1, // this test will work only in a single cluster because clusters are fully separated
           geo,
           randomSeed,
-          boundingBox,
-          managers
+          boundingBox
         )
       } {
 
@@ -374,8 +349,7 @@ class ParallelParkingManagerSpec
           8,
           geo,
           randomSeed,
-          boundingBox,
-          managers
+          boundingBox
         )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
@@ -387,7 +361,7 @@ class ParallelParkingManagerSpec
   }
 
   private def assertParkingResponse(
-    spm: ParkingNetwork,
+    spm: ParkingNetwork[_],
     coord: Coord,
     tazId: String,
     parkingZoneId: Int,
@@ -407,8 +381,7 @@ class ParallelParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        reservedFor = Seq.empty,
-        VehicleManager.privateVehicleManager.managerId
+        reservedFor = Seq.empty
       )
     assert(response.isDefined, "no response")
     assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")

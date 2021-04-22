@@ -18,7 +18,7 @@ import scala.collection.mutable.ListBuffer
   * Created by haitamlaarabi
   */
 
-class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: QuadTree[ChargingZone])
+class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleManager: Option[Id[VehicleManager]])
     extends LazyLogging {
   import ChargingNetwork._
 
@@ -52,7 +52,9 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     parkingType: ParkingType,
     chargingPointType: ChargingPointType
   ): Option[ChargingStation] =
-    chargingZoneKeyToChargingStationMap.get(constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType))
+    chargingZoneKeyToChargingStationMap.get(
+      constructChargingZoneKey(vehicleManager, tazId, parkingType, chargingPointType)
+    )
 
   /**
     * lookup information about charging vehicle
@@ -65,7 +67,7 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     * get name of the vehicle manager
     * @return VehicleManager
     */
-  def vehicleManagerId: Id[VehicleManager] = managerId
+  //def vehicleManagerId: Id[VehicleManager] = managerId
 
   /**
     * clear charging vehicle map
@@ -86,7 +88,7 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
           case Some(station) => Some(station.connect(tick, vehicle, stall, theSender))
           case _ =>
             logger.error(
-              s"CNM cannot find a $managerId station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
+              s"CNM cannot find a $vehicleManager station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
             )
             None
         }
