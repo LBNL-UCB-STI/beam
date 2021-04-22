@@ -41,7 +41,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     maybeChargingPoint: Option[ChargingPointType]
   ): String = {
     val chargingPointStr = maybeChargingPoint.map(_.toString).getOrElse("NoCharger")
-    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,,,,"
+    s"$geoId,$parkingType,${PricingModel.FlatFee(0)},$chargingPointStr,${ParkingZone.UbiqiutousParkingAvailability},0,,,,,"
   }
 
   /**
