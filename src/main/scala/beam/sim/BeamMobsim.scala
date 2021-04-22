@@ -136,11 +136,13 @@ class BeamMobsim @Inject()(
 
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
-    val freightReplanners = {
-      beamScenario.freightCarriers.map(carrier => new FreightReplanner(beamServices, carrier, skims.od_skimmer))
-    }
     ConcurrentUtils.parallelExecution(
-      freightReplanners.map(replanner => () => replanner.replanning(matsimServices.getIterationNumber))
+      beamScenario.freightCarriers.map(
+        carrier =>
+          () =>
+            new FreightReplanner(beamServices, skims.od_skimmer)
+              .replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
+      )
     )(scala.concurrent.ExecutionContext.global)
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {

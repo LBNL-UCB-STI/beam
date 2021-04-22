@@ -6,11 +6,13 @@ import beam.jspritwrapper._
 import beam.router.Modes.BeamMode
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Plan
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 
+import java.util
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
@@ -19,44 +21,59 @@ import scala.language.implicitConversions
   */
 class FreightReplanner(
   beamServices: BeamServices,
-  freightCarrier: FreightCarrier,
   skimmer: ODSkims,
 ) extends LazyLogging {
 
-  private def needReplanning(iteration: Int): Boolean = {
-    val enabled = beamServices.beamConfig.beam.agentsim.agents.freight.enabled
-    val endIteration = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.endIteration
-    val currentIteration = iteration
-    enabled && currentIteration > 0 && currentIteration <= endIteration && freightCarrier.tourMap.nonEmpty
-  }
-
-  def replanning(iteration: Int): Unit = {
-    if (needReplanning(iteration)) {
-      val solution = solve()
-      val population = beamServices.matsimServices.getScenario.getPopulation
-      solution.routes.groupBy(_.vehicle).foreach {
-        case (vehicle, routes) =>
-          val vehicleId = Id.createVehicleId(vehicle.id)
-          val person = population.getPersons.get(PayloadPlansConverter.createPersonId(vehicleId))
-          val oldPlans = person.getPlans.asScala.toIndexedSeq
-
-          val startTime = freightCarrier.tourMap(vehicleId).head.departureTimeInSec
-
-          val (tours, plansPerTour) = convertToFreightTours(routes, startTime, 15 * 60)
-
-          val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
-          val currentPlan: Plan = PayloadPlansConverter
-            .createPersonPlan(tours, plansPerTour, person, if (convertWgs2Utm) Some(beamServices.geo) else None)
-
-          person.addPlan(currentPlan)
-          person.setSelectedPlan(currentPlan)
-          oldPlans.foreach(plan => person.removePlan(plan))
-          println(person)
-      }
+  def replanIfNeeded(
+    freightCarrier: FreightCarrier,
+    iteration: Int,
+    freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight
+  ): Unit = {
+    if (FreightReplanner.needReplanning(iteration, freightCarrier, freightConfig)) {
+      replan(freightCarrier)
     }
   }
 
-  private def convertToFreightTours(routes: IndexedSeq[Route], startTime: Int, timeIntervalBetweenTours: Int) = {
+  def replan(freightCarrier: FreightCarrier): Unit = {
+    val solution = solve(freightCarrier)
+    val population = beamServices.matsimServices.getScenario.getPopulation.getPersons
+    val newPlans = convertToPlans(solution, population, freightCarrier)
+
+    newPlans.foreach { newPlan =>
+      val person = newPlan.getPerson
+      val oldPlans = person.getPlans.asScala.toIndexedSeq
+      person.addPlan(newPlan)
+      person.setSelectedPlan(newPlan)
+      oldPlans.foreach(plan => person.removePlan(plan))
+    }
+  }
+
+  private def convertToPlans(
+    solution: Solution,
+    population: util.Map[Id[Person], _ <: Person],
+    freightCarrier: FreightCarrier
+  ) = {
+    solution.routes.groupBy(_.vehicle).map {
+      case (vehicle, routes) =>
+        val vehicleId = Id.createVehicleId(vehicle.id)
+        val person = population.get(PayloadPlansConverter.createPersonId(vehicleId))
+
+        val startTime = freightCarrier.tourMap(vehicleId).head.departureTimeInSec
+
+        val (tours, plansPerTour) = convertToFreightTours(routes, startTime, 15 * 60, freightCarrier.payloadPlans)
+
+        val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
+        PayloadPlansConverter
+          .createPersonPlan(tours, plansPerTour, person, if (convertWgs2Utm) Some(beamServices.geo) else None)
+    }
+  }
+
+  private def convertToFreightTours(
+    routes: IndexedSeq[Route],
+    startTime: Int,
+    timeIntervalBetweenTours: Int,
+    payloadPlans: Map[Id[PayloadPlan], PayloadPlan]
+  ): (IndexedSeq[FreightTour], Map[Id[FreightTour], IndexedSeq[PayloadPlan]]) = {
     val routesAndTours = routes.zipWithIndex.foldLeft(IndexedSeq.empty[(Route, FreightTour)]) {
       case (acc, (route, i)) =>
         val tourStartTime: Double = acc.lastOption
@@ -81,7 +98,7 @@ class FreightReplanner(
               case _: Dropoff => FreightRequestType.Unloading
               case _: Pickup  => FreightRequestType.Loading
             }
-            val payloadPlan = freightCarrier.payloadPlans(activity.service.id.createId)
+            val payloadPlan = payloadPlans(activity.service.id.createId)
             PayloadPlan(
               activity.service.id.createId,
               i,
@@ -115,32 +132,33 @@ class FreightReplanner(
     Location(x, y)
   }
 
-  private def calculateCost(
-    from: Location,
-    to: Location,
-    departureTime: Double,
-    maybeVehicle: Option[Vehicle]
-  ): TimeDistanceCost = {
-    val beamVehicleType = (for {
-      vehicle     <- maybeVehicle
-      vehicleType <- freightCarrier.fleet.get(Id.createVehicleId(vehicle.id))
-    } yield vehicleType.beamVehicleType).getOrElse(freightCarrier.fleet.values.head.beamVehicleType)
+  private def solve(freightCarrier: FreightCarrier): Solution = {
 
-    val fuelPrice: Double = beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType)
-    val skim = skimmer.getTimeDistanceAndCost(
-      from,
-      to,
-      departureTime,
-      BeamMode.CAR,
-      beamVehicleType.id,
-      beamVehicleType,
-      fuelPrice,
-      beamServices.beamScenario
-    )
-    TimeDistanceCost(skim.time, skim.distance, skim.cost)
-  }
+    def calculateCost(
+      from: Location,
+      to: Location,
+      departureTime: Double,
+      maybeVehicle: Option[Vehicle]
+    ): TimeDistanceCost = {
+      val beamVehicleType = (for {
+        vehicle     <- maybeVehicle
+        vehicleType <- freightCarrier.fleet.get(Id.createVehicleId(vehicle.id))
+      } yield vehicleType.beamVehicleType).getOrElse(freightCarrier.fleet.values.head.beamVehicleType)
 
-  private def solve(): Solution = {
+      val fuelPrice: Double = beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType)
+      val skim = skimmer.getTimeDistanceAndCost(
+        from,
+        to,
+        departureTime,
+        BeamMode.CAR,
+        beamVehicleType.id,
+        beamVehicleType,
+        fuelPrice,
+        beamServices.beamScenario
+      )
+      TimeDistanceCost(skim.time, skim.distance, skim.cost)
+    }
+
     def toService(payloadPlan: PayloadPlan): Service = {
       val serviceId = payloadPlan.payloadId.toString
       payloadPlan.requestType match {
@@ -173,5 +191,17 @@ class FreightReplanner(
       )
     )
     solution
+  }
+}
+
+object FreightReplanner {
+  private def needReplanning(
+    iteration: Int,
+    freightCarrier: FreightCarrier,
+    freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight
+  ): Boolean = {
+    val enabled = freightConfig.enabled
+    val endIteration = freightConfig.replanning.endIteration
+    enabled && iteration > 0 && iteration <= endIteration && freightCarrier.tourMap.nonEmpty
   }
 }
