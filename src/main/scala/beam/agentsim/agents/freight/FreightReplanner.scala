@@ -35,7 +35,8 @@ class FreightReplanner(
   }
 
   def replan(freightCarrier: FreightCarrier): Unit = {
-    val solution = solve(freightCarrier)
+    val strategyName = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.strategy
+    val solution = solve(freightCarrier, strategyName)
     val population = beamServices.matsimServices.getScenario.getPopulation.getPersons
     val intervalBetweenTours = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.timeIntervalBetweenTours
     val newPlans = convertToPlans(solution, population, freightCarrier, intervalBetweenTours)
@@ -50,12 +51,12 @@ class FreightReplanner(
   }
 
   private def convertToPlans(
-    solution: Solution,
+    routes: IndexedSeq[Route],
     population: util.Map[Id[Person], _ <: Person],
     freightCarrier: FreightCarrier,
     intervalBetweenTours: Int
   ): Iterable[Plan] = {
-    solution.routes.groupBy(_.vehicle).map {
+    routes.groupBy(_.vehicle).map {
       case (vehicle, routes) =>
         val vehicleId = Id.createVehicleId(vehicle.id)
         val person = population.get(PayloadPlansConverter.createPersonId(vehicleId))
@@ -135,7 +136,7 @@ class FreightReplanner(
     Location(x, y)
   }
 
-  private def solve(freightCarrier: FreightCarrier): Solution = {
+  private def solve(freightCarrier: FreightCarrier, strategyName: String): IndexedSeq[Route] = {
 
     def calculateCost(
       from: Location,
@@ -172,18 +173,49 @@ class FreightReplanner(
       }
     }
 
-    val vehicles = freightCarrier.fleet.values.map { beamVehicle =>
+    def toJspritVehicle(beamVehicle: BeamVehicle) = {
       Vehicle(
         beamVehicle.id.toString,
         getVehicleHouseholdLocation(beamVehicle),
         beamVehicle.beamVehicleType.payloadCapacityInKg.get
       )
-    }.toIndexedSeq
-    val services = freightCarrier.payloadPlans.values.map(plan => toService(plan)).toIndexedSeq
-    val solution = JspritWrapper.solve(Problem(vehicles, services, Some(calculateCost)))
-    if (solution.unassigned.nonEmpty) {
-      logger.warn(s"Some plans are unassigned for freight carrier ${freightCarrier.carrierId}")
     }
+
+    def solveForTheWholeFeet: Solution = {
+      val vehicles = freightCarrier.fleet.values.map(toJspritVehicle).toIndexedSeq
+      val services = freightCarrier.payloadPlans.values.map(toService).toIndexedSeq
+      JspritWrapper.solve(Problem(vehicles, services, Some(calculateCost)))
+    }
+
+    def solveForVehicleTour: Solution = {
+      import cats.Monoid
+      implicit val solutionMonoid: Monoid[Solution] = new Monoid[Solution] {
+        override def combine(x: Solution, y: Solution): Solution =
+          Solution(x.routes ++ y.routes, x.unassigned ++ y.unassigned)
+
+        override def empty: Solution = Solution(IndexedSeq.empty, IndexedSeq.empty)
+      }
+
+      val tourSolutions = for {
+        (vehicleId, tours) <- freightCarrier.tourMap
+        beamVehicle = freightCarrier.fleet(vehicleId)
+        vehicles = IndexedSeq(toJspritVehicle(beamVehicle))
+        tour <- tours
+        services = freightCarrier.plansPerTour(tour.tourId).map(toService)
+      } yield JspritWrapper.solve(Problem(vehicles, services, Some(calculateCost)))
+
+      Monoid.combineAll(tourSolutions)
+    }
+
+    val strategy = strategyName match {
+      case "wholeFleet" => solveForTheWholeFeet
+      case "singleTour" => solveForVehicleTour
+      case _ =>
+        logger.error("Unknown freight replanning strategy {}, using 'vehicleTour'", strategyName)
+        solveForVehicleTour
+    }
+
+    val solution = strategy
     solution.routes.foreach(
       route =>
         logger.debug(
@@ -193,7 +225,11 @@ class FreightReplanner(
           route.activities.size
       )
     )
-    solution
+
+    if (solution.unassigned.nonEmpty) {
+      logger.warn(s"Some plans are unassigned for freight carrier ${freightCarrier.carrierId}")
+    }
+    solution.routes
   }
 }
 
