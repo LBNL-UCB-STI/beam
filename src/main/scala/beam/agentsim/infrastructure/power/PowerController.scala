@@ -62,14 +62,11 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+    estimatedLoadMaybe: Option[Map[ChargingStation, PowerInKW]] = None
   ): Map[ChargingStation, PhysicalBounds] = {
-    physicalBounds = beamFederateOption match {
-      case Some(beamFederate)
-          if helicsConfig.connectionEnabled && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) =>
-        logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
-        // PUBLISH
-        val msgToPublish = estimatedLoad.get.map {
+    val msgToPublish = estimatedLoadMaybe match {
+      case Some(estimatedLoad) =>
+        val msg = estimatedLoad.map {
           case (station, powerInKW) =>
             Map(
               "managerId"         -> station.zone.managerId,
@@ -79,9 +76,17 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
               "numChargers"       -> station.zone.numChargers,
               "estimatedLoad"     -> powerInKW
             )
-        }
-        beamFederate.publishJSON(msgToPublish.toList)
-
+        }.toList
+        logger.info("msgToPublish({})\n{}", currentTime, msg)
+        msg
+      case _ => List.empty[Map[String, Any]]
+    }
+    physicalBounds = beamFederateOption match {
+      case Some(beamFederate)
+          if helicsConfig.connectionEnabled && estimatedLoadMaybe.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) =>
+        logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
+        // PUBLISH
+        beamFederate.publishJSON(msgToPublish)
         var gridBounds = List.empty[Map[String, Any]]
         while (gridBounds.isEmpty) {
           // SYNC
@@ -91,8 +96,8 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
           // Sleep
           Thread.sleep(1)
         }
+        logger.info("gridBounds({})\n{}", currentTime, msgToPublish)
 
-        logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
           val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
           val chargingNetwork = chargingNetworkMap(managerId)
