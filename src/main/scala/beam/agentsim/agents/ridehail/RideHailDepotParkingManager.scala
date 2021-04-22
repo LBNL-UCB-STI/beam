@@ -4,7 +4,7 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingNetwork}
+import beam.agentsim.infrastructure.parking.ParkingNetwork
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
-abstract class RideHailDepotParkingManager[GEO: GeoLevel] extends ParkingNetwork[GEO] {
+trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
 
   /**
     * Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
