@@ -9,7 +9,7 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import java.util
@@ -37,7 +37,8 @@ class FreightReplanner(
   def replan(freightCarrier: FreightCarrier): Unit = {
     val solution = solve(freightCarrier)
     val population = beamServices.matsimServices.getScenario.getPopulation.getPersons
-    val newPlans = convertToPlans(solution, population, freightCarrier)
+    val intervalBetweenTours = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.timeIntervalBetweenTours
+    val newPlans = convertToPlans(solution, population, freightCarrier, intervalBetweenTours)
 
     newPlans.foreach { newPlan =>
       val person = newPlan.getPerson
@@ -51,8 +52,9 @@ class FreightReplanner(
   private def convertToPlans(
     solution: Solution,
     population: util.Map[Id[Person], _ <: Person],
-    freightCarrier: FreightCarrier
-  ) = {
+    freightCarrier: FreightCarrier,
+    intervalBetweenTours: Int
+  ): Iterable[Plan] = {
     solution.routes.groupBy(_.vehicle).map {
       case (vehicle, routes) =>
         val vehicleId = Id.createVehicleId(vehicle.id)
@@ -60,7 +62,8 @@ class FreightReplanner(
 
         val startTime = freightCarrier.tourMap(vehicleId).head.departureTimeInSec
 
-        val (tours, plansPerTour) = convertToFreightTours(routes, startTime, 15 * 60, freightCarrier.payloadPlans)
+        val (tours, plansPerTour) =
+          convertToFreightTours(routes, startTime, intervalBetweenTours, freightCarrier.payloadPlans)
 
         val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
         PayloadPlansConverter

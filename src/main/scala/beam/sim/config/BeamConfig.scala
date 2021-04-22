@@ -83,14 +83,17 @@ object BeamConfig {
 
         object Freight {
           case class Replanning(
-            endIteration: scala.Int
+            endIteration: scala.Int,
+            timeIntervalBetweenTours: scala.Int
           )
 
           object Replanning {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight.Replanning = {
               BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
-                endIteration = if (c.hasPathOrNull("endIteration")) c.getInt("endIteration") else -1
+                endIteration = if (c.hasPathOrNull("endIteration")) c.getInt("endIteration") else -1,
+                timeIntervalBetweenTours =
+                  if (c.hasPathOrNull("timeIntervalBetweenTours")) c.getInt("timeIntervalBetweenTours") else 1800
               )
             }
           }
