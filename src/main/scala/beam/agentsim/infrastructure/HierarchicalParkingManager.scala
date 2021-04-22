@@ -39,11 +39,8 @@ class HierarchicalParkingManager(
   boundingBox: Envelope,
   mnlMultiplierParameters: ParkingMNLConfig,
   checkThatNumberOfStallsMatch: Boolean = false,
-  vehicleManagers: Map[Id[VehicleManager], VehicleManager],
   chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
-) extends ParkingNetwork {
-
-  override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
+) extends ParkingNetwork[Link] {
 
   private val actualLinkParkingZones: Array[ParkingZone[Link]] = HierarchicalParkingManager.collapse(parkingZones)
 
@@ -66,7 +63,6 @@ class HierarchicalParkingManager(
     maxSearchRadius,
     boundingBox,
     mnlMultiplierParameters,
-    vehicleManagers,
     chargingPointConfig
   )
 
@@ -76,8 +72,7 @@ class HierarchicalParkingManager(
       LinkLevelOperations.DefaultLinkId,
       ParkingType.Public,
       UbiqiutousParkingAvailability,
-      Seq.empty,
-      VehicleManager.privateVehicleManager.managerId
+      Seq.empty
     )
 
   private val linkZoneSearchMap: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] =
@@ -223,6 +218,7 @@ class HierarchicalParkingManager(
     newStall -> DefaultParkingZone
   }
 
+  override def getParkingZones(): Array[ParkingZone[Link]] = parkingZones
 }
 
 object HierarchicalParkingManager {
@@ -237,12 +233,12 @@ object HierarchicalParkingManager {
   case class ParkingZoneDescription(
     parkingType: ParkingType,
     reservedFor: Seq[VehicleCategory],
-    vehicleManagerId: Id[VehicleManager],
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
     timeRestrictions: Map[VehicleCategory, Range],
     parkingZoneName: Option[String],
     landCostInUSDPerSqft: Option[Double],
+    vehicleManager: Option[Id[VehicleManager]] = None,
   )
 
   object ParkingZoneDescription {
@@ -251,12 +247,12 @@ object HierarchicalParkingManager {
       new ParkingZoneDescription(
         zone.parkingType,
         zone.reservedFor,
-        zone.vehicleManagerId,
         zone.chargingPointType,
         zone.pricingModel,
         zone.timeRestrictions,
         zone.parkingZoneName,
         zone.landCostInUSDPerSqft,
+        zone.vehicleManager
       )
     }
   }
@@ -272,9 +268,8 @@ object HierarchicalParkingManager {
     boundingBox: Envelope,
     mnlMultiplierParameters: ParkingMNLConfig,
     checkThatNumberOfStallsMatch: Boolean = false,
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager],
     chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
-  ): ParkingNetwork =
+  ): ParkingNetwork[Link] =
     new HierarchicalParkingManager(
       tazMap,
       linkToTAZMapping,
@@ -286,7 +281,6 @@ object HierarchicalParkingManager {
       boundingBox,
       mnlMultiplierParameters,
       checkThatNumberOfStallsMatch,
-      vehicleManagers,
       chargingPointConfig
     )
 
@@ -297,10 +291,9 @@ object HierarchicalParkingManager {
     linkToTAZMapping: Map[Link, TAZ],
     geo: GeoUtils,
     boundingBox: Envelope,
-    parkingFilePaths: Map[Id[VehicleManager], String],
-    depotFilePaths: IndexedSeq[String],
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
-  ): ParkingNetwork = {
+    parkingFilePath: String,
+    depotFilePaths: IndexedSeq[String]
+  ): ParkingNetwork[Link] = {
     HierarchicalParkingManager(
       beamConfig,
       tazMap,
@@ -308,9 +301,8 @@ object HierarchicalParkingManager {
       linkToTAZMapping,
       geo,
       boundingBox,
-      parkingFilePaths,
-      depotFilePaths,
-      vehicleManagers = vehicleManagers
+      parkingFilePath,
+      depotFilePaths
     )
   }
 
@@ -321,9 +313,8 @@ object HierarchicalParkingManager {
     linkToTAZMapping: Map[Link, TAZ],
     geo: GeoUtils,
     boundingBox: Envelope,
-    parkingFilePaths: Map[Id[VehicleManager], String],
-    depotFilePaths: IndexedSeq[String],
-    vehicleManagers: Map[Id[VehicleManager], VehicleManager]
+    parkingFilePath: String,
+    depotFilePaths: IndexedSeq[String]
   ): HierarchicalParkingManager = {
 
     val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
@@ -340,7 +331,7 @@ object HierarchicalParkingManager {
 
     val (parkingZones, _) =
       loadParkingZones(
-        parkingFilePaths,
+        parkingFilePath,
         depotFilePaths,
         linkQuadTree,
         parkingStallCountScalingFactor,
@@ -358,7 +349,6 @@ object HierarchicalParkingManager {
       maxSearchRadius,
       boundingBox,
       mnlMultiplierParameters,
-      vehicleManagers = vehicleManagers,
       chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
     )
   }
@@ -395,7 +385,7 @@ object HierarchicalParkingManager {
           stallsAvailable = numStalls,
           maxStalls = numStalls,
           reservedFor = description.reservedFor,
-          vehicleManagerId = description.vehicleManagerId,
+          vehicleManager = description.vehicleManager,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
           timeRestrictions = description.timeRestrictions,
@@ -460,7 +450,7 @@ object HierarchicalParkingManager {
             stallsAvailable = numStalls,
             maxStalls = numStalls,
             reservedFor = description.reservedFor,
-            vehicleManagerId = description.vehicleManagerId,
+            vehicleManager = description.vehicleManager,
             chargingPointType = description.chargingPointType,
             pricingModel = description.pricingModel,
             timeRestrictions = description.timeRestrictions,

@@ -5,7 +5,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartRefuelSessionTrigg
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.charging.StallAssignmentStrategy
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
@@ -74,8 +74,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   parkingStallCountScalingFactor: Double = 1.0,
   beamServices: BeamServices,
   skims: Skims,
-  outputDirectory: OutputDirectoryHierarchy,
-  override val vehicleManagerId: Id[VehicleManager]
+  outputDirectory: OutputDirectoryHierarchy
 ) extends RideHailDepotParkingManager[GEO] {
 
   // load parking from a parking file, or generate it using the geo beam input
@@ -85,21 +84,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
     ParkingZoneFileUtils
-      .generateDefaultParkingFromGeoObjects(
-        geoQuadTree.values().asScala,
-        random,
-        Seq(ParkingType.Workplace),
-        vehicleManagerId
-      )
+      .generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random, Seq(ParkingType.Workplace))
   } else {
     Try {
-      ParkingZoneFileUtils
-        .fromFile[GEO](
-          parkingFilePath,
-          random,
-          parkingStallCountScalingFactor,
-          vehicleManagerId = Some(vehicleManagerId)
-        )
+      ParkingZoneFileUtils.fromFile[GEO](parkingFilePath, random, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
         logger.info(s"generating ride hail parking from file $parkingFilePath")
@@ -108,12 +96,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
         logger.info(s"generating ubiquitous ride hail parking")
         ParkingZoneFileUtils
-          .generateDefaultParkingFromGeoObjects(
-            geoQuadTree.values().asScala,
-            random,
-            Seq(ParkingType.Workplace),
-            vehicleManagerId
-          )
+          .generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random, Seq(ParkingType.Workplace))
     }
   }
 
@@ -282,7 +265,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           .refuelingSessionDurationAndEnergyInJoulesForStall(
             Some(
               ParkingStall
-                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative, vehicleManagerId)
+                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative)
             ),
             None,
             None,
@@ -691,8 +674,7 @@ object DefaultRideHailDepotParkingManager {
     parkingStallCountScalingFactor: Double,
     beamServices: BeamServices,
     skims: Skims,
-    outputDirectory: OutputDirectoryHierarchy,
-    vehicleManagerId: Id[VehicleManager]
+    outputDirectory: OutputDirectoryHierarchy
   ): RideHailDepotParkingManager[TAZ] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -706,8 +688,7 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices: BeamServices,
       skims = skims: Skims,
-      outputDirectory = outputDirectory: OutputDirectoryHierarchy,
-      vehicleManagerId = vehicleManagerId
+      outputDirectory = outputDirectory: OutputDirectoryHierarchy
     )
   }
 
@@ -723,8 +704,7 @@ object DefaultRideHailDepotParkingManager {
     parkingStallCountScalingFactor: Double,
     beamServices: BeamServices,
     skims: Skims,
-    outputDirectory: OutputDirectoryHierarchy,
-    vehicleManagerId: Id[VehicleManager]
+    outputDirectory: OutputDirectoryHierarchy
   ): RideHailDepotParkingManager[Link] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -738,8 +718,7 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices,
       skims = skims,
-      outputDirectory = outputDirectory,
-      vehicleManagerId = vehicleManagerId
+      outputDirectory = outputDirectory
     )
   }
 }

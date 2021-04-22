@@ -53,17 +53,18 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
 
   val dummyChargingZone: ChargingZone = ChargingZone(
     tazFromBeamville.tazId,
+    tazFromBeamville.tazId,
     ParkingType.Public,
     1,
     ChargingPointType.ChargingStationType1,
     PricingModel.FlatFee(0.0),
-    VehicleManager.privateVehicleManager.managerId
+    None
   )
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
   val dummyPhysicalBounds = Map(
-    "tazId"                   -> dummyChargingZone.tazId.toString,
+    "tazId"                   -> dummyChargingZone.geoId.toString,
     "power_limit_lower"       -> 5678.90,
     "power_limit_upper"       -> 5678.90,
     "lmp_with_control_signal" -> 0.0
@@ -86,12 +87,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Id[VehicleManager], ChargingNetwork](
-        VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
-          VehicleManager.privateVehicleManager.managerId,
-          zoneTree
-        )
-      ),
+      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(zoneTree, None)),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = Some(beamFederateMock)
@@ -111,12 +107,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when not connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Id[VehicleManager], ChargingNetwork](
-        VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
-          VehicleManager.privateVehicleManager.managerId,
-          zoneTree
-        )
-      ),
+      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(zoneTree, None)),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = None

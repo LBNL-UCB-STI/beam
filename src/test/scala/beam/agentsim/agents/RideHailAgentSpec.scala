@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, ShiftEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager}
+import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -64,17 +64,7 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ParkingNetworkManager.props(
-      services,
-      ParkingNetworkInfo(
-        services,
-        boundingBox,
-        Map[Id[VehicleManager], VehicleManager](
-          VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
-          VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
-        )
-      )
-    ),
+    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
     "ParkingManager"
   )
 
@@ -166,8 +156,8 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          managerId =
-            Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          vehicleManager =
+            Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -247,7 +237,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -319,7 +309,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager])),
         )
       beamVehicle.setManager(Some(self))
 

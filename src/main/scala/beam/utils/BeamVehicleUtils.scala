@@ -45,8 +45,7 @@ object BeamVehicleUtils {
             vehicleId,
             powerTrain,
             vehicleType,
-            managerId = VehicleManager.privateVehicleManager.managerId,
-            rand.nextInt
+            randomSeed = rand.nextInt
           )
         acc += ((vehicleId, beamVehicle))
         acc
