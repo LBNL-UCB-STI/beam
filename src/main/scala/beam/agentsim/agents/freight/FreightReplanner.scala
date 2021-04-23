@@ -15,6 +15,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import java.util
 import scala.collection.JavaConverters._
 import scala.language.implicitConversions
+import scala.util.Random
 
 /**
   * @author Dmitry Openkov
@@ -22,6 +23,7 @@ import scala.language.implicitConversions
 class FreightReplanner(
   beamServices: BeamServices,
   skimmer: ODSkims,
+  rnd: Random,
 ) extends LazyLogging {
 
   def replanIfNeeded(
@@ -174,9 +176,20 @@ class FreightReplanner(
       )
     }
 
+    def randomTimeAround(time: Int): Int = {
+      val halfInterval = 3600
+      val low = Math.max(time - halfInterval, 0)
+      low + rnd.nextInt(2 * halfInterval)
+    }
+
     def solveForTheWholeFeet: Solution = {
       val vehicles =
-        freightCarrier.fleet.values.map(beamVehicle => toJspritVehicle(beamVehicle, departureTime)).toIndexedSeq
+        freightCarrier.fleet.values
+          .map(beamVehicle => {
+            val departure = randomTimeAround(departureTime)
+            toJspritVehicle(beamVehicle, departure)
+          })
+          .toIndexedSeq
       val services = freightCarrier.payloadPlans.values.map(toService).toIndexedSeq
       JspritWrapper.solve(Problem(vehicles, services, Some(calculateCost)))
     }

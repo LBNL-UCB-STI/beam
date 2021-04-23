@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Random
 
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
@@ -131,12 +132,15 @@ class BeamMobsim @Inject()(
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
     ConcurrentUtils.parallelExecution(
-      beamScenario.freightCarriers.map(
-        carrier =>
+      beamScenario.freightCarriers.zipWithIndex.map {
+        case (carrier, i) =>
           () =>
-            new FreightReplanner(beamServices, skims.od_skimmer)
-              .replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
-      )
+            new FreightReplanner(
+              beamServices,
+              skims.od_skimmer,
+              new Random(beamConfig.matsim.modules.global.randomSeed + i)
+            ).replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
+      }
     )(scala.concurrent.ExecutionContext.global)
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
