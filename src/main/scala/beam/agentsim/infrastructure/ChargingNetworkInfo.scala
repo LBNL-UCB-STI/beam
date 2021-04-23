@@ -40,7 +40,11 @@ object ChargingNetworkInfo {
       random
     )
     val zonesWithCharger =
-      zones.filter(_.chargingPointType.isDefined).map(z => (z, beamScenario.tazTreeMap.getTAZ(z.geoId).get))
+      zones.filter(_.chargingPointType.isDefined).map { z =>
+        val test = beamScenario.tazTreeMap.getTAZ(z.geoId)
+        println(test)
+        (z, beamScenario.tazTreeMap.getTAZ(z.geoId).get)
+      }
     val coordinates = zonesWithCharger.map(_._2.coord)
     val xs = coordinates.map(_.getX)
     val ys = coordinates.map(_.getY)
