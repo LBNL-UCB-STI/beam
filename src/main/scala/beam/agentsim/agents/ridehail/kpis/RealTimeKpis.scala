@@ -69,7 +69,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   def storeObservation(event: TAZSkimmerEvent): Unit = {
     val kpi = beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI.getKpiRegistry
       .withName(event.key)
-    storeObservation(event.value, kpi, event.time, event.coord)
+    storeObservation(event.value, kpi, event.time, beamServices.beamScenario.tazTreeMap.getTAZ(event.tazId).get.coord)
   }
 
   /**

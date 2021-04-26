@@ -68,16 +68,6 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
       case Some(estimatedLoad) =>
         val msg = estimatedLoad.map {
           case (station, powerInKW) =>
-            logger.info(
-              "msgToPublish,{},{},{},{},{},{},{}",
-              currentTime,
-              station.zone.managerId,
-              station.zone.tazId.toString,
-              station.zone.parkingType.toString,
-              station.zone.chargingPointType.toString,
-              station.zone.numChargers,
-              powerInKW
-            )
             Map(
               "managerId"         -> station.zone.managerId,
               "tazId"             -> station.zone.tazId.toString,

@@ -27,13 +27,43 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     * @return power (in Kilo Watt) over planning horizon
     */
   def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
+//    val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
     val plans = allChargingStations.par
       .map { station =>
-        station -> observedPowerDemandInKW(tick, station.zone).getOrElse(estimatePowerDemandInKW(tick, station.zone))
+        val estimatedLoad =
+          observedPowerDemandInKW(tick, station.zone).getOrElse(estimatePowerDemandInKW(tick, station.zone))
+//        logger.info(
+//          "estimatePowerDemandInKW,{},{},{},{},{},{},{},{},{}",
+//          tick,
+//          previousTimeBin,
+//          station.zone.managerId,
+//          station.zone.tazId.toString,
+//          station.zone.parkingType.toString,
+//          station.zone.chargingPointType.toString,
+//          station.zone.numChargers,
+//          station.zone.id,
+//          estimatedLoad
+//        )
+        station -> estimatedLoad
       }
       .seq
       .toMap
     if (plans.isEmpty) logger.error(s"Charging Replan did not produce allocations")
+//    tazSkimmer.getPartialSkim(previousTimeBin, "CNM").foreach {
+//      case (k, v) =>
+//        logger.info(
+//          "getPartialSkim,{},{},{},{},{},{},{},{},{}",
+//          tick,
+//          k.time,
+//          "",
+//          k.taz.toString,
+//          "",
+//          "",
+//          "",
+//          k.key,
+//          v.value * v.observations
+//        )
+//    }
     plans
   }
 
@@ -47,8 +77,9 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     if (!tazSkimmer.isLatestSkimEmpty) {
       val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
       beamServices.skims.taz_skimmer.getLatestSkim(currentTimeBin, zone.tazId, "CNM", zone.id) match {
-        case Some(skim) => Some(skim.value * skim.observations)
-        case None       => Some(0.0)
+        case Some(skim) =>
+          Some((skim.value * skim.observations / 3.6e+6) / (cnmConfig.timeStepInSeconds / 3600.0))
+        case None => Some(0.0)
       }
     } else None
   }
@@ -63,8 +94,9 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
     val cz @ ChargingZone(tazId, _, _, _, _, _) = chargingZone
     tazSkimmer.getPartialSkim(previousTimeBin, tazId, "CNM", cz.id) match {
-      case Some(skim) => skim.value * skim.observations
-      case None       => 0.0
+      case Some(skim) =>
+        (skim.value * skim.observations / 3.6e+6) / (cnmConfig.timeStepInSeconds / 3600.0)
+      case None => 0.0
     }
   }
 
@@ -111,9 +143,9 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     beamServices.matsimServices.getEvents.processEvent(
       event.TAZSkimmerEvent(
         cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),
-        stall.locationUTM,
+        chargingStation.zone.tazId,
         chargingStation.zone.id,
-        if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0),
+        requiredEnergy,
         beamServices,
         "CNM"
       )
