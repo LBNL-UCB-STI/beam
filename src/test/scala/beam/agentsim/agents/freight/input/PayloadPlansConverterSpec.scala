@@ -1,6 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan, PayloadType}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.common.SimpleGeoUtils
 import beam.utils.BeamVehicleUtils
 import org.matsim.api.core.v01.{Coord, Id}
@@ -10,6 +11,7 @@ import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFac
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
+import org.scalactic.Equality
 import org.scalatestplus.mockito.MockitoSugar
 
 import java.util
@@ -21,15 +23,16 @@ import scala.util.Random
   */
 class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar {
   private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
+  private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
 
   "PayloadPlansConverter" should {
     "read Payload Plans" in {
       val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
-        PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv")
+        PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv", tazMap, new Random(2333L))
       payloadPlans should have size 8
       val plan7 = payloadPlans("payload-7".createId)
       plan7.payloadId should be("payload-7".createId)
-      plan7.location should be(new Coord(170451.590, 3267.464))
+      plan7.location should be(new Coord(168160.35027718433, 3126.262044268827))
       plan7.estimatedTimeOfArrivalInSec should be(18000)
       plan7.arrivalTimeWindowInSec should be(1800)
       plan7.operationDurationInSec should be(500)
@@ -46,7 +49,7 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
       val tour3 = tours("tour-3".createId)
       tour3.tourId should be("tour-3".createId)
       tour3.departureTimeInSec should be(15000)
-      tour3.warehouseLocation should be(new Coord(166321.9, 1568.87))
+      tour3.warehouseLocation should be(new Coord(170308.4, 2964.6))
       tour3.maxTourDurationInSec should be(36000)
     }
 
@@ -64,7 +67,7 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
       carrier1.tourMap(Id.createVehicleId("freight-2")).head should have(
         'tourId ("tour-1".createId[FreightTour]),
         'departureTimeInSec (1000),
-        'warehouseLocation (new Coord(166321.9, 1568.87)),
+        'warehouseLocation (new Coord(170525.60810804204, 3616.646677168515)),
         'maxTourDurationInSec (36000),
       )
       carrier1.plansPerTour should have size 3
@@ -114,18 +117,24 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
       personPlans should have size 3
       val plan1 = personPlans(Id.createPersonId("freight-agent-freight-1"))
       plan1.getPlanElements should have size 15
-      plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(new Coord(170102.4, 1962.535))
-      plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(new Coord(170451.590, 3267.464))
+      plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
+        new Coord(168588.65984900188, 1454.8989514493483)
+      )
+      plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(
+        new Coord(169863.89737672394, 2359.15017571258)
+      )
       val plan4 = personPlans(Id.createPersonId("freight-agent-freight-2-1"))
       plan4.getPlanElements should have size 5
-      plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(new Coord(170452.590, 3262.464))
+      plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
+        new Coord(170282.22499250135, 3960.714261754291)
+      )
       plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Warehouse")
     }
   }
 
   private def readCarriers: IndexedSeq[FreightCarrier] = {
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
-      PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv")
+      PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv", tazMap, new Random(4324L))
     val tours = PayloadPlansConverter.readFreightTours(s"$freightInputDir/freight-tours.csv")
     val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
     val freightCarriers: IndexedSeq[FreightCarrier] = PayloadPlansConverter.readFreightCarriers(
@@ -133,6 +142,7 @@ class PayloadPlansConverterSpec extends WordSpec with Matchers with MockitoSugar
       tours,
       payloadPlans,
       vehicleTypes,
+      tazMap,
       new Random(73737L)
     )
     freightCarriers

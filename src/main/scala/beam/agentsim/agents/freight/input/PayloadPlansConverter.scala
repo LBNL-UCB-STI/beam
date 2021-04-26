@@ -4,8 +4,10 @@ import beam.agentsim.agents.freight._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
+import beam.utils.MathUtils
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population._
@@ -41,9 +43,17 @@ object PayloadPlansConverter {
       .mapValues(_.head)
   }
 
-  private def createVehicleId(tourId: Id[FreightTour]): Id[Vehicle] = Id.createVehicleId(s"freight-$tourId")
+  private def distributeInTaz(location: Coord, tazTree: TAZTreeMap, rnd: Random): Coord = {
+    val taz = tazTree.getTAZ(location)
+    if (taz == null) {
+      location
+    } else {
+      val (dx, dy) = MathUtils.randomPointInCircle(taz.areaInSquareMeters / Math.PI, rnd)
+      new Coord(taz.coord.getX + dx, taz.coord.getY + dy)
+    }
+  }
 
-  def readPayloadPlans(path: String): Map[Id[PayloadPlan], PayloadPlan] = {
+  def readPayloadPlans(path: String, tazTree: TAZTreeMap, rnd: Random): Map[Id[PayloadPlan], PayloadPlan] = {
     GenericCsvReader
       .readAsSeq[PayloadPlan](path) { row =>
         //payloadId,sequenceRank,tourId,payloadType,weightInKg,requestType,locationX,locationY,estimatedTimeOfArrivalInSec,arrivalTimeWindowInSec,operationDurationInSec
@@ -54,7 +64,7 @@ object PayloadPlansConverter {
           row.get("payloadType").createId[PayloadType],
           row.get("weightInKg").toDouble,
           FreightRequestType.withNameInsensitive(row.get("requestType")),
-          new Coord(row.get("locationX").toDouble, row.get("locationY").toDouble),
+          distributeInTaz(new Coord(row.get("locationX").toDouble, row.get("locationY").toDouble), tazTree, rnd),
           row.get("estimatedTimeOfArrivalInSec").toInt,
           row.get("arrivalTimeWindowInSec").toInt,
           row.get("operationDurationInSec").toInt
@@ -69,6 +79,7 @@ object PayloadPlansConverter {
     tours: Map[Id[FreightTour], FreightTour],
     plans: Map[Id[PayloadPlan], PayloadPlan],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    tazTree: TAZTreeMap,
     rnd: Random,
   ): IndexedSeq[FreightCarrier] = {
 
@@ -83,7 +94,8 @@ object PayloadPlansConverter {
     def createCarrierVehicles(
       carrierId: Id[FreightCarrier],
       carrierRows: IndexedSeq[FreightCarrierRow],
-    ) = {
+      depotLocation: Coord,
+    ): IndexedSeq[BeamVehicle] = {
       val vehicles: IndexedSeq[BeamVehicle] = carrierRows
         .groupBy(_.vehicleId)
         .map {
@@ -99,14 +111,15 @@ object PayloadPlansConverter {
               throw new IllegalArgumentException(
                 s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
               )
-            createFreightVehicle(vehicleId, vehicleType, carrierId, firstRow.depotLocation, rnd.nextInt())
+            createFreightVehicle(vehicleId, vehicleType, carrierId, depotLocation, rnd.nextInt())
         }
         .toIndexedSeq
       vehicles
     }
 
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
-      val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows)
+      val depotLocation: Coord = distributeInTaz(carrierRows.head.depotLocation, tazTree, rnd)
+      val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, depotLocation)
       val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
@@ -115,12 +128,15 @@ object PayloadPlansConverter {
           rows
             .map(
               row =>
-                tours.getOrElse(
-                  row.tourId,
-                  throw new IllegalArgumentException(
-                    s"Tour with id ${row.tourId} does not exist; check freight-tours.csv"
+                tours
+                  .getOrElse(
+                    row.tourId,
+                    throw new IllegalArgumentException(
+                      s"Tour with id ${row.tourId} does not exist; check freight-tours.csv"
+                    )
                   )
-              )
+                  //setting the tour warehouse location to be the carrier depot location
+                  .copy(warehouseLocation = depotLocation)
             )
             .sortBy(_.departureTimeInSec)
         }
