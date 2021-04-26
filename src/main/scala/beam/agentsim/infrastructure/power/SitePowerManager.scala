@@ -77,9 +77,8 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     if (!tazSkimmer.isLatestSkimEmpty) {
       val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
       beamServices.skims.taz_skimmer.getLatestSkim(currentTimeBin, zone.tazId, "CNM", zone.id) match {
-        case Some(skim) =>
-          Some((skim.value * skim.observations / 3.6e+6) / (cnmConfig.timeStepInSeconds / 3600.0))
-        case None => Some(0.0)
+        case Some(skim) => Some(skim.value * skim.observations)
+        case None       => Some(0.0)
       }
     } else None
   }
@@ -94,9 +93,8 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
     val cz @ ChargingZone(tazId, _, _, _, _, _) = chargingZone
     tazSkimmer.getPartialSkim(previousTimeBin, tazId, "CNM", cz.id) match {
-      case Some(skim) =>
-        (skim.value * skim.observations / 3.6e+6) / (cnmConfig.timeStepInSeconds / 3600.0)
-      case None => 0.0
+      case Some(skim) => skim.value * skim.observations
+      case None       => 0.0
     }
   }
 
@@ -145,7 +143,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
         cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),
         chargingStation.zone.tazId,
         chargingStation.zone.id,
-        requiredEnergy,
+        if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0),
         beamServices,
         "CNM"
       )
