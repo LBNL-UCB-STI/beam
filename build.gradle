@@ -640,7 +640,7 @@ task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) 
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
     repository = "beammodel/beam"
-    tag = 'production-gemini-develop-3'
+    tag = 'production-gemini-develop-4'
     targetImageId buildImageWithoutTags.getImageId()
 }
 

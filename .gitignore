@@ -56,3 +56,5 @@ src/main/scala/beam/sandbox
 test/scala/beam/sandbox
 log-path_IS_UNDEFINED/
 .Rproj.user
+/prepare_for_pack/production/sfbay/gemini/
+/prepare_for_pack/production.zip
