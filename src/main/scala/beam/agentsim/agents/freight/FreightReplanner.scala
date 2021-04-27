@@ -56,7 +56,7 @@ class FreightReplanner(
     oldPlans.foreach(plan => person.removePlan(plan))
   }
 
-  private def convertToPlans(
+  private[freight] def convertToPlans(
     routes: IndexedSeq[Route],
     population: util.Map[Id[Person], _ <: Person],
     freightCarrier: FreightCarrier
@@ -130,7 +130,11 @@ class FreightReplanner(
     Location(x, y)
   }
 
-  private def solve(freightCarrier: FreightCarrier, strategyName: String, departureTime: Int): IndexedSeq[Route] = {
+  private[freight] def solve(
+    freightCarrier: FreightCarrier,
+    strategyName: String,
+    departureTime: Int
+  ): IndexedSeq[Route] = {
 
     def calculateCost(
       from: Location,
