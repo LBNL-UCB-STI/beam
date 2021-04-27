@@ -1,21 +1,22 @@
 package beam.router.skim.event
 
-import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
+import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamServices
-import org.matsim.api.core.v01.Id
-import beam.agentsim.infrastructure.taz._
+import org.matsim.api.core.v01.Coord
 
-case class TAZSkimmerEvent(
+case class H3TAZSkimmerEvent(
   time: Int,
-  tazId: Id[TAZ],
+  coord: Coord,
   key: String,
   value: Double,
   beamServices: BeamServices,
   actor: String = "default"
 ) extends AbstractSkimmerEvent(time) {
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.taz_skimmer.name
-  override def getKey: AbstractSkimmerKey = TAZSkimmerKey(time, tazId, H3TAZ.emptyH3, actor, key)
+  private val hexIndex = beamServices.beamScenario.h3taz.getIndex(coord)
+  private val idTaz = beamServices.beamScenario.h3taz.getTAZ(hexIndex)
+  override def getKey: AbstractSkimmerKey = TAZSkimmerKey(time, idTaz, hexIndex, actor, key)
   override def getSkimmerInternal: AbstractSkimmerInternal =
     TAZSkimmerInternal(value, 1, beamServices.matsimServices.getIterationNumber + 1)
 }

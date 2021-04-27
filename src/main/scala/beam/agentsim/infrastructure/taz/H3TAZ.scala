@@ -53,7 +53,11 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     }
 
   def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
-  def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
+
+  def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = {
+    val indices = tazToH3TAZMapping.filter(_._2 == tazId).keys
+    if (indices.isEmpty) List(H3TAZ.emptyH3) else indices
+  }
   def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
@@ -76,6 +80,7 @@ object H3TAZ {
   type HexIndex = String
   private val H3 = com.uber.h3core.H3Core.newInstance
   val H3Projection = "EPSG:4326"
+  val emptyH3 = "None"
 
   def writeToShp(filename: String, h3Tazs: Iterable[(HexIndex, String, Double)]): Unit = {
     val gf = new GeometryFactory()

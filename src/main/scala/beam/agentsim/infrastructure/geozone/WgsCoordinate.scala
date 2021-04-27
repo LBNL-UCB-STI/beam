@@ -16,8 +16,17 @@ object WgsCoordinate {
 
   implicit def apply(wgsCoord: Coord): WgsCoordinate = {
     require(!GeoUtils.isInvalidWgsCoordinate(wgsCoord), s"Provided coordinate $wgsCoord is not in WGS")
-    GeoUtils.GeoUtilsWgs.utm2Wgs(wgsCoord)
     WgsCoordinate(latitude = wgsCoord.getY, longitude = wgsCoord.getX)
+  }
+
+  private val geoUtilsUtm: GeoUtils = new GeoUtils {
+    override def localCRS: String = "epsg:26910"
+  }
+
+  def fromUtm(longitude: Double, latitude: Double): WgsCoordinate = {
+    val utmCoordinate = new Coord(longitude, latitude)
+    val wgsCoordinate = geoUtilsUtm.utm2Wgs(utmCoordinate)
+    WgsCoordinate(wgsCoordinate)
   }
 
 }

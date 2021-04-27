@@ -267,8 +267,10 @@ trait ChoosesMode {
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
-            val tripIndex = tour.tripIndexOfElement(nextAct)
-            if (tripIndex == 0 || tripIndex == tour.trips.size - 1) {
+            val tripIndexOfElement = tour
+              .tripIndexOfElement(nextAct)
+              .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
+            if (tripIndexOfElement == 0 || tripIndexOfElement == tour.trips.size - 1) {
               newlyAvailableBeamVehicles
             } else {
               Vector()
@@ -414,8 +416,11 @@ trait ChoosesMode {
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+          val tripIndexOfElement = currentTour(choosesModeData.personData)
+            .tripIndexOfElement(nextAct)
+            .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
           (
-            currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
+            tripIndexOfElement,
             choosesModeData.personData.currentTourPersonalVehicle
           ) match {
             case (0, _) if !choosesModeData.isWithinTripReplanning =>
@@ -1175,8 +1180,11 @@ trait ChoosesMode {
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
         case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
+          val tripIndexOfElement = currentTour(choosesModeData.personData)
+            .tripIndexOfElement(nextAct)
+            .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
           (
-            currentTour(choosesModeData.personData).tripIndexOfElement(nextAct),
+            tripIndexOfElement,
             personData.hasDeparted
           ) match {
             case (0 | LastTripIndex, false) =>

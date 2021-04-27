@@ -62,67 +62,70 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+    estimatedLoadMaybe: Option[Map[ChargingStation, PowerInKW]] = None
   ): Map[ChargingStation, PhysicalBounds] = {
-    if (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) {
-      physicalBounds = beamFederateOption match {
-        case Some(beamFederate) if helicsConfig.connectionEnabled && estimatedLoad.isDefined =>
-          logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
-          // PUBLISH
-          val msgToPublish = estimatedLoad.get.map {
-            case (station, powerInKW) =>
-              Map(
-                "managerId"         -> station.zone.managerId,
-                "tazId"             -> station.zone.tazId.toString,
-                "parkingType"       -> station.zone.parkingType.toString,
-                "chargingPointType" -> station.zone.chargingPointType.toString,
-                "numChargers"       -> station.zone.numChargers,
-                "estimatedLoad"     -> powerInKW
-              )
-          }
-          beamFederate.publishJSON(msgToPublish.toList)
-
-          var gridBounds = List.empty[Map[String, Any]]
-          while (gridBounds.isEmpty) {
-            // SYNC
-            beamFederate.sync(currentTime)
-            // COLLECT
-            gridBounds = beamFederate.collectJSON()
-            // Sleep
-            Thread.sleep(1)
-          }
-
-          logger.debug("Obtained power from the grid {}...", gridBounds)
-          gridBounds.flatMap { x =>
-            val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
-            val chargingNetwork = chargingNetworkMap(managerId)
-            chargingNetwork.lookupStation(
-              Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
-              ParkingType(x("parkingType").asInstanceOf[String]),
-              ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
-            ) match {
-              case Some(station) =>
-                Some(
-                  station -> PhysicalBounds(
-                    station,
-                    x("power_limit_upper").asInstanceOf[PowerInKW],
-                    x("power_limit_lower").asInstanceOf[PowerInKW],
-                    x("lmp_with_control_signal").asInstanceOf[Double]
-                  )
-                )
-              case _ =>
-                logger.error(
-                  "Cannot find the charging station correspondent to what has been received from the co-simulation"
-                )
-                None
-            }
-          }.toMap
-        case _ =>
-          logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
-          unlimitedPhysicalBounds
-      }
-      currentBin = currentTime / cnmConfig.timeStepInSeconds
+    val msgToPublish = estimatedLoadMaybe match {
+      case Some(estimatedLoad) =>
+        val msg = estimatedLoad.map {
+          case (station, powerInKW) =>
+            Map(
+              "managerId"         -> station.zone.managerId,
+              "tazId"             -> station.zone.tazId.toString,
+              "parkingType"       -> station.zone.parkingType.toString,
+              "chargingPointType" -> station.zone.chargingPointType.toString,
+              "numChargers"       -> station.zone.numChargers,
+              "estimatedLoad"     -> powerInKW
+            )
+        }.toList
+        msg
+      case _ => List.empty[Map[String, Any]]
     }
+    physicalBounds = beamFederateOption match {
+      case Some(beamFederate)
+          if helicsConfig.connectionEnabled && estimatedLoadMaybe.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) =>
+        logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
+        // PUBLISH
+        beamFederate.publishJSON(msgToPublish)
+        var gridBounds = List.empty[Map[String, Any]]
+        while (gridBounds.isEmpty) {
+          // SYNC
+          beamFederate.sync(currentTime)
+          // COLLECT
+          gridBounds = beamFederate.collectJSON()
+          // Sleep
+          Thread.sleep(1)
+        }
+        logger.info("gridBounds({})\n{}", currentTime, msgToPublish)
+
+        gridBounds.flatMap { x =>
+          val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
+          val chargingNetwork = chargingNetworkMap(managerId)
+          chargingNetwork.lookupStation(
+            Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
+            ParkingType(x("parkingType").asInstanceOf[String]),
+            ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
+          ) match {
+            case Some(station) =>
+              Some(
+                station -> PhysicalBounds(
+                  station,
+                  x("power_limit_upper").asInstanceOf[PowerInKW],
+                  x("power_limit_lower").asInstanceOf[PowerInKW],
+                  x("lmp_with_control_signal").asInstanceOf[Double]
+                )
+              )
+            case _ =>
+              logger.error(
+                "Cannot find the charging station correspondent to what has been received from the co-simulation"
+              )
+              None
+          }
+        }.toMap
+      case _ =>
+        logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
+        unlimitedPhysicalBounds
+    }
+    currentBin = currentTime / cnmConfig.timeStepInSeconds
     physicalBounds
   }
 
