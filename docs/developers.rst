@@ -434,6 +434,32 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 .. _Kamon Datadog integration: http://kamon.io/documentation/kamon-datadog/0.6.6/overview/
 
 
+
+Capturing most messages that BEAM Actors generate
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+BEAM uses triggerId to trace down all the actor interactions starting from TriggerWithId Event that is sent by the Scheduler. When developing a new message types extend it from HasTriggerId trait in order to trace these messages.
+In order to enable saving messages to csv files one needs to add the following property to beam.conf file::
+
+   akka.actor.debug.receive=true
+
+The files are saved in the iteration directories, ie $RUN_OUTPUT_DIR$/ITERS/it.0/0.actor_messages_0.csv.gz. There may be multiple of these files per iteration. For the scenario sf-light-1k about 400Mb of gzipped data generated.
+
+The files contains the following columns
+
++ type: one of the following types (transition, event, message)
++ sender_parent
++ sender_name
++ receiver_parent
++ receiver_name
++ payload: message content or previous state in case of type = transition
++ state: FSM state or next state in case of type = transition
++ tick: current tick
++ triggerId: the triggerId which started the message sequence (if available)
+
+VisualizingApp can convert these files to a sequence diagram. Please see how to run it at scala doc in beam.utils.protocolvis.VisualizingApp class.
+
+
 Tagging Tests for Periodic CI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
