@@ -21,7 +21,7 @@ Order of the messages is not always right because each actor has its own message
   Parameters:
 --input output/sf-light/run_name__2021-03-29_19-04-50_vnh/ITERS/it.0
 --output docs/uml/choose_mode.puml
---diagram-type Sequence | ActorAsState
+--diagram-type Sequence | ActorAsState | SingleActorAsState
 --force
 --person-id 010900-2012001379980-0-560057
 
@@ -47,6 +47,7 @@ object VisualizingApp extends StrictLogging {
   private def doJob(inputFile: Path, output: Path, extractorType: ExtractorType, diagramType: DiagramType): Unit = {
     import java.time.temporal.ChronoUnit.SECONDS
     val startTime = LocalDateTime.now()
+    logger.info(s"Generating diagram $diagramType")
     logger.info(s"Start reading from $inputFile")
     val (csvStream, closable) = MessageReader.readData(inputFile)
     val extractor = Extractors.messageExtractor(extractorType)
@@ -65,22 +66,10 @@ object VisualizingApp extends StrictLogging {
 
   private def appropriateProcessor(diagramType: DiagramType): (Iterator[RowData], Path) => Unit =
     diagramType match {
-      case DiagramType.Sequence =>
-        (data, path) =>
-          processAndWrite(data, SequenceDiagram.processMessages, SequenceDiagram.serializer, path)
-      case DiagramType.ActorAsState =>
-        (data, path) =>
-          processAndWrite(data, ActorAsState.processMessages, ActorAsState.serializer, path)
+      case DiagramType.Sequence           => SequenceDiagram.process
+      case DiagramType.ActorAsState       => ActorAsState.process
+      case DiagramType.SingleActorAsState => ActorAsState.processBySingleActor
     }
-
-  private def processAndWrite[T](
-    messages: Iterator[RowData],
-    processor: Iterator[RowData] => IndexedSeq[T],
-    serializer: T => String,
-    path: Path
-  ): Unit = {
-    PumlWriter.writeData(processor(messages), path)(serializer)
-  }
 
   private def confirmOverwrite(path: Path, force: Boolean): Boolean = {
     val exists = if (force) false else Files.exists(path)
@@ -139,7 +128,7 @@ object VisualizingApp extends StrictLogging {
           .required()
           .valueName("<diagram type>")
           .action((x, c) => c.copy(diagramType = x))
-          .text("Sequence | ActorAsState"),
+          .text("Sequence | ActorAsState | SingleActorAsState"),
       )
     }
     OParser.parse(parser1, args, CliOptions())
@@ -160,6 +149,7 @@ object VisualizingApp extends StrictLogging {
 
     case object Sequence extends DiagramType
     case object ActorAsState extends DiagramType
+    case object SingleActorAsState extends DiagramType
   }
 
 }

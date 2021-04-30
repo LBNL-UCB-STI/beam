@@ -1,7 +1,6 @@
 package beam.utils.protocolvis
 
 import beam.utils.protocolvis.MessageReader._
-import beam.utils.protocolvis.PumlWriter.writeData
 
 import java.nio.file.Path
 import scala.util.matching.Regex
@@ -10,6 +9,10 @@ import scala.util.matching.Regex
   * @author Dmitry Openkov
   */
 object SequenceDiagram {
+
+  def process(messages: Iterator[RowData], output: Path): Unit = {
+    PumlWriter.writeData(processMessages(messages), output)(serializer)
+  }
 
   def processMessages(messages: Iterator[RowData]): IndexedSeq[PumlEntry] = {
     fixTransitionEvent(messages)
@@ -40,12 +43,12 @@ object SequenceDiagram {
     val isParentHousehold = actor.parent.startsWith("population/")
     val looksLikeId = personIdRegex.pattern.matcher(actor.name).matches()
     val actorName = (isParentPopulation, isParentHousehold, looksLikeId) match {
-      case (true, _, true)                                    => "Household"
-      case (false, true, true)                                => "Person"
-      case (false, true, false)                               => s"HouseholdFleetManager:${actor.name}"
-      case _ if (actor.name.startsWith("TransitDriverAgent")) => "TransitDriverAgent"
-      case _ if (actor.name.startsWith("rideHailAgent"))      => "RideHailAgent"
-      case _                                                  => actor.name
+      case (true, _, true)                                  => "Household"
+      case (false, true, true)                              => "Person"
+      case (false, true, false)                             => s"HouseholdFleetManager:${actor.name}"
+      case _ if actor.name.startsWith("TransitDriverAgent") => "TransitDriverAgent"
+      case _ if actor.name.startsWith("rideHailAgent")      => "RideHailAgent"
+      case _                                                => actor.name
     }
     actorName.replace('-', '_')
   }
