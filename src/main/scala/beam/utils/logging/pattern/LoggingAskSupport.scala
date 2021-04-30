@@ -5,6 +5,7 @@ import akka.util.Timeout
 import beam.utils.logging.MessageLogger.BeamMessage
 
 import scala.concurrent.Future
+import scala.util.Success
 
 /**
   * @author Dmitry Openkov
@@ -37,9 +38,19 @@ final class LoggingAskableActorRef(val actorRef: ActorRef) extends AnyVal {
     if (context.system.settings.AddLoggingReceive) {
       context.system.eventStream.publish(BeamMessage(sender, actorRef, message))
     }
-    akka.pattern
+    val futureResponse = akka.pattern
       .ask(actorRef)
       .ask(message)(timeout, sender)
+    if (context.system.settings.AddLoggingReceive) {
+      import scala.concurrent.ExecutionContext.Implicits.global
+      futureResponse.andThen {
+        case Success(msg) =>
+          //hopefully when ask pattern is used the response comes from the destination actor
+          //so we just swap sender and actor being asked
+          context.system.eventStream.publish(BeamMessage(actorRef, sender, msg))
+      }
+    } else futureResponse
+
   }
 
 }
