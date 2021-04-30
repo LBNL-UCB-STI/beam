@@ -1,12 +1,15 @@
 package beam.utils.protocolvis
 
 import beam.utils.protocolvis.Extractors.{AllMessages, ByPerson, ExtractorType}
+import beam.utils.protocolvis.MessageReader.RowData
 import com.typesafe.scalalogging.StrictLogging
+import enumeratum.{Enum, EnumEntry}
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 import java.time.LocalDateTime
 import scala.annotation.tailrec
+import scala.collection.immutable
 import scala.util.{Failure, Success, Try}
 
 /* Converts beam actor messages to a sequence diagram. This messages are written when the beam config file contains
@@ -18,11 +21,13 @@ Order of the messages is not always right because each actor has its own message
   Parameters:
 --input output/sf-light/run_name__2021-03-29_19-04-50_vnh/ITERS/it.0
 --output docs/uml/choose_mode.puml
+--diagram-type Sequence | ActorAsState
 --force
 --person-id 010900-2012001379980-0-560057
 
  input directory where to read message files,
  output the output file,
+ diagram-type the type of diagram to generate
  force allows to overwrite the output without prompt
  person-id the person id which the message sequence should be generated for
  */
@@ -33,28 +38,48 @@ object VisualizingApp extends StrictLogging {
       case Some(cliOptions) =>
         val confirm = confirmOverwrite(cliOptions.output, cliOptions.forceOverwriting)
         val extractorType = if (cliOptions.personId.isEmpty) AllMessages else ByPerson(cliOptions.personId)
-        if (confirm) doJob(cliOptions.input, cliOptions.output, extractorType) else println("Exiting...")
+        if (confirm) doJob(cliOptions.input, cliOptions.output, extractorType, cliOptions.diagramType)
+        else println("Exiting...")
       case None => System.exit(1)
     }
   }
 
-  private def doJob(inputFile: Path, output: Path, extractorType: ExtractorType): Unit = {
+  private def doJob(inputFile: Path, output: Path, extractorType: ExtractorType, diagramType: DiagramType): Unit = {
     import java.time.temporal.ChronoUnit.SECONDS
     val startTime = LocalDateTime.now()
     logger.info(s"Start reading from $inputFile")
     val (csvStream, closable) = MessageReader.readData(inputFile)
     val extractor = Extractors.messageExtractor(extractorType)
     val triedExtracted = Try(extractor(csvStream))
-    Try(closable.close())
     triedExtracted match {
       case Failure(exception) =>
         println(exception.getMessage)
       case Success(extracted) =>
-        val puml: IndexedSeq[SequenceDiagram.PumlEntry] = SequenceDiagram.processMessages(extracted)
-        PumlWriter.writeData(puml, output)(SequenceDiagram.serializer)
+        val processor = appropriateProcessor(diagramType)
+        processor(extracted, output)
     }
+    Try(closable.close())
     val endTime = LocalDateTime.now()
     logger.info(s"Exiting, execution time = ${SECONDS.between(startTime, endTime)} seconds")
+  }
+
+  private def appropriateProcessor(diagramType: DiagramType): (Iterator[RowData], Path) => Unit =
+    diagramType match {
+      case DiagramType.Sequence =>
+        (data, path) =>
+          processAndWrite(data, SequenceDiagram.processMessages, SequenceDiagram.serializer, path)
+      case DiagramType.ActorAsState =>
+        (data, path) =>
+          processAndWrite(data, ActorAsState.processMessages, ActorAsState.serializer, path)
+    }
+
+  private def processAndWrite[T](
+    messages: Iterator[RowData],
+    processor: Iterator[RowData] => IndexedSeq[T],
+    serializer: T => String,
+    path: Path
+  ): Unit = {
+    PumlWriter.writeData(processor(messages), path)(serializer)
   }
 
   private def confirmOverwrite(path: Path, force: Boolean): Boolean = {
@@ -86,6 +111,7 @@ object VisualizingApp extends StrictLogging {
 
   private def parseArgs(args: Array[String]): Option[CliOptions] = {
     import scopt.OParser
+    implicit val diagramTypeRead: scopt.Read[DiagramType] = scopt.Read.reads(DiagramType.withNameInsensitive)
     val builder = OParser.builder[CliOptions]
     val parser1 = {
       import builder._
@@ -109,6 +135,11 @@ object VisualizingApp extends StrictLogging {
           .optional()
           .action((x, c) => c.copy(personId = x))
           .text("person id to build the message sequence for"),
+        opt[DiagramType]('d', "diagram-type")
+          .required()
+          .valueName("<diagram type>")
+          .action((x, c) => c.copy(diagramType = x))
+          .text("Sequence | ActorAsState"),
       )
     }
     OParser.parse(parser1, args, CliOptions())
@@ -117,8 +148,18 @@ object VisualizingApp extends StrictLogging {
   case class CliOptions(
     input: Path = Paths.get("."),
     output: Path = Paths.get("."),
+    diagramType: DiagramType = DiagramType.Sequence,
     forceOverwriting: Boolean = false,
     personId: String = "",
   )
+
+  sealed abstract class DiagramType extends EnumEntry
+
+  object DiagramType extends Enum[DiagramType] {
+    val values: immutable.IndexedSeq[DiagramType] = findValues
+
+    case object Sequence extends DiagramType
+    case object ActorAsState extends DiagramType
+  }
 
 }

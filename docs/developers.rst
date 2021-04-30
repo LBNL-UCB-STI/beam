@@ -453,7 +453,7 @@ The files contains the following columns
 + receiver_parent
 + receiver_name
 + payload: message content or previous state in case of type = transition
-+ state: FSM state or next state in case of type = transition
++ state: FSM data or next state in case of type = transition
 + tick: current tick
 + triggerId: the triggerId which started the message sequence (if available)
 

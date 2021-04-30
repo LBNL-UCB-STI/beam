@@ -21,10 +21,12 @@ object Extractors {
     row.sender.name == personId || row.receiver.name == personId
   }
 
-  def messageExtractor(extractorType: ExtractorType): Function[Iterator[RowData], IndexedSeq[RowData]] =
+  def messageExtractor(extractorType: ExtractorType): Function[Iterator[RowData], Iterator[RowData]] =
     extractorType match {
-      case AllMessages  => _.toIndexedSeq
-      case ByPerson(id) => byPerson(id)
+      case AllMessages => identity
+      case ByPerson(id) =>
+        iterator =>
+          byPerson(id)(iterator).iterator
     }
 
   sealed trait ExtractorType
