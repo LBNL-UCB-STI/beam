@@ -21,7 +21,7 @@ Order of the messages is not always right because each actor has its own message
   Parameters:
 --input output/sf-light/run_name__2021-03-29_19-04-50_vnh/ITERS/it.0
 --output docs/uml/choose_mode.puml
---diagram-type Sequence | ActorAsState | SingleActorAsState
+--diagram-type Sequence | ActorAsState | AgentState | SingleActorAsState
 --force
 --person-id 010900-2012001379980-0-560057
 
@@ -68,6 +68,7 @@ object VisualizingApp extends StrictLogging {
     diagramType match {
       case DiagramType.Sequence           => SequenceDiagram.process
       case DiagramType.ActorAsState       => ActorAsState.process
+      case DiagramType.AgentState         => AgentStateDiagram.process
       case DiagramType.SingleActorAsState => ActorAsState.processBySingleActor
     }
 
@@ -128,7 +129,7 @@ object VisualizingApp extends StrictLogging {
           .required()
           .valueName("<diagram type>")
           .action((x, c) => c.copy(diagramType = x))
-          .text("Sequence | ActorAsState | SingleActorAsState"),
+          .text("Sequence | ActorAsState | AgentState | SingleActorAsState"),
       )
     }
     OParser.parse(parser1, args, CliOptions())
@@ -149,6 +150,7 @@ object VisualizingApp extends StrictLogging {
 
     case object Sequence extends DiagramType
     case object ActorAsState extends DiagramType
+    case object AgentState extends DiagramType
     case object SingleActorAsState extends DiagramType
   }
 

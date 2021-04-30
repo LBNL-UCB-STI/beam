@@ -23,21 +23,27 @@ object ActorAsState {
   def processBySingleActor(messages: Iterator[RowData], outputDir: Path): Unit = {
     val transitions = toTransitions(messages)
     val allStates = getAllStates(transitions)
-    val singleActorStates = allStates.zipWithIndex.map {
-      case (state, i) =>
-        val shortName: String = toShortName(state, i)
-        val thisStateTransitions =
-          transitions.filter(transition => transition.fromState == state || transition.toState == state)
-        val entries = toPumlEntries(thisStateTransitions)
-        shortName -> entries
-    }
-    singleActorStates.foreach {
+    val singleActorStates: Map[String, IndexedSeq[StateDiagramEntry]] = allStates.map { state =>
+      val thisStateTransitions =
+        transitions.filter(transition => transition.fromState == state || transition.toState == state)
+      val entries = toPumlEntries(thisStateTransitions)
+      toShortName(state) -> entries
+    }.toMap
+
+    writeToDir(singleActorStates, outputDir)
+  }
+
+  private[protocolvis] def writeToDir(
+    actorStates: Map[String, IndexedSeq[StateDiagramEntry]],
+    outputDir: Path
+  ): Unit = {
+    actorStates.foreach {
       case (shortName, entries) =>
         PumlWriter.writeData(entries, outputDir.resolve(shortName + ".puml"))(serializer)
     }
   }
 
-  private def toTransitions(messages: Iterator[RowData]): immutable.IndexedSeq[StateTransition] = {
+  private[protocolvis] def toTransitions(messages: Iterator[RowData]): immutable.IndexedSeq[StateTransition] = {
     messages
       .collect {
         case Event(sender, receiver, payload, _, triggerId) => Message(sender, receiver, payload, triggerId)
@@ -56,15 +62,11 @@ object ActorAsState {
       .toIndexedSeq
   }
 
-  private def toPumlEntries(
+  private[protocolvis] def toPumlEntries(
     transitions: immutable.IndexedSeq[StateTransition]
   ): immutable.IndexedSeq[StateDiagramEntry] = {
     val allStates = getAllStates(transitions)
-    val stateToShortName = allStates.zipWithIndex.map {
-      case (state, i) =>
-        val shortName: String = toShortName(state, i)
-        state -> shortName
-    }.toMap
+    val stateToShortName = allStates.map(state => state -> toShortName(state)).toMap
 
     val descriptions = stateToShortName.map {
       case (state, shortName) =>
@@ -82,10 +84,8 @@ object ActorAsState {
     descriptions ++ convertedTransitions
   }
 
-  private def toShortName(state: String, i: Int) = {
-    val onlyLetters = new String(state.toCharArray.filter(_.isLetterOrDigit))
-    val shortName = onlyLetters + i
-    shortName
+  private[protocolvis] def toShortName(state: String): String = {
+    state.replaceAll("[^A-Za-z0-9]+", "_")
   }
 
   private def getAllStates(transitions: immutable.IndexedSeq[StateTransition]) =
