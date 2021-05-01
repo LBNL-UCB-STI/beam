@@ -11,14 +11,12 @@ object CencusTrackReader extends LazyLogging {
     val maybeState = Option(rec.get("STATEFP"))
     val maybeCountry = Option(rec.get("COUNTYFP"))
     val maybeTract = Option(rec.get("TRACTCE"))
-    val maybePopulation = Option(rec.get("POPULATION")).map(_.toInt)
     val maybeLatitude = Option(rec.get("LATITUDE")).map(_.toDouble)
     val maybeLongitude = Option(rec.get("LONGITUDE")).map(_.toDouble)
     val cencusTrack = for {
       state      <- maybeState
       country    <- maybeCountry
       tract      <- maybeTract
-      population <- maybePopulation
       latitude   <- maybeLatitude
       longitude  <- maybeLongitude
     } yield
@@ -26,7 +24,6 @@ object CencusTrackReader extends LazyLogging {
         state = state,
         country = country,
         tract = tract,
-        population = population,
         latitude = latitude,
         longitude = longitude
       )
@@ -44,5 +41,10 @@ object CencusTrackReader extends LazyLogging {
     } finally {
       Try(toClose.close())
     }
+  }
+
+  def main(args: Array[String]): Unit = {
+    val xs = readFromCsv("""C:\Users\User\Downloads\tracts_centroids_geometric.csv (1)\tracts_centroids_geometric.csv""")
+    println(xs)
   }
 }

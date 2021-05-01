@@ -9,7 +9,6 @@ package object geotype_spatial_sequencing {
     state: String,
     country: String,
     tract: String,
-    population: Int,
     latitude: Double,
     longitude: Double
   ) {
