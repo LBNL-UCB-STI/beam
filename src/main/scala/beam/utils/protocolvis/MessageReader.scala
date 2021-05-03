@@ -56,7 +56,10 @@ object MessageReader {
 
     def getTick(record: util.Map[String, String]) = {
       val tickStr = record.get("tick")
-      val tick = if (tickStr == null || tickStr == "") -1 else tickStr.toInt
+      val tick =
+        if (tickStr == null || tickStr == "") -1
+        else if (tickStr.contains('.')) Math.round(tickStr.toDouble).toInt
+        else tickStr.toInt
       tick
     }
 
