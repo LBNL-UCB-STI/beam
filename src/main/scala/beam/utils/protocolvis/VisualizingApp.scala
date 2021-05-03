@@ -54,7 +54,7 @@ object VisualizingApp extends StrictLogging {
     val triedExtracted = Try(extractor(csvStream))
     triedExtracted match {
       case Failure(exception) =>
-        println(exception.getMessage)
+        exception.printStackTrace()
       case Success(extracted) =>
         val processor = appropriateProcessor(diagramType)
         processor(extracted, output)

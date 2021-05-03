@@ -16,15 +16,37 @@ object SequenceDiagram {
 
   def processMessages(messages: Iterator[RowData]): IndexedSeq[PumlEntry] = {
     fixTransitionEvent(messages)
-      .map {
-        case Event(sender, receiver, payload, _, _) =>
-          Interaction(userFriendlyActorName(sender), userFriendlyActorName(receiver), userFriendlyPayload(payload))
-        case Message(sender, receiver, payload, _) =>
-          Interaction(userFriendlyActorName(sender), userFriendlyActorName(receiver), userFriendlyPayload(payload))
-        case Transition(_, receiver, _, state, _) =>
-          Note(userFriendlyActorName(receiver), state)
+      .foldLeft((IndexedSeq.empty[PumlEntry], -1)) {
+        case ((acc, prevTick), row) =>
+          val (entry, currentTick) = row match {
+            case Event(sender, receiver, payload, _, tick, _) =>
+              (
+                Interaction(
+                  userFriendlyActorName(sender),
+                  userFriendlyActorName(receiver),
+                  userFriendlyPayload(payload)
+                ),
+                tick
+              )
+            case Message(sender, receiver, payload, _) =>
+              (
+                Interaction(
+                  userFriendlyActorName(sender),
+                  userFriendlyActorName(receiver),
+                  userFriendlyPayload(payload)
+                ),
+                -1
+              )
+            case Transition(_, receiver, _, state, tick, _) =>
+              (Note(userFriendlyActorName(receiver), state), tick)
+          }
+          if (currentTick >= 0 && currentTick != prevTick) {
+            (acc :+ Delay(s"tick = $currentTick") :+ entry, currentTick)
+          } else {
+            (acc :+ entry, prevTick)
+          }
       }
-  }
+  }._1
 
   private val PayloadRegex: Regex = """\(?(\w+)\(([^()]+).*\)?""".r
 
@@ -71,11 +93,13 @@ object SequenceDiagram {
   sealed trait PumlEntry
 
   case class Note(over: String, value: String) extends PumlEntry
+  case class Delay(value: String) extends PumlEntry
 
   case class Interaction(from: String, to: String, payload: String) extends PumlEntry
 
   def serializer: PumlEntry => String = {
     case Note(over, value)              => s"""rnote over "$over": $value"""
+    case Delay(value)                   => s"""...$value..."""
     case Interaction(from, to, payload) => s""""$from" -> "$to": $payload"""
   }
 }

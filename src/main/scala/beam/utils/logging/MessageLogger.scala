@@ -4,6 +4,7 @@ import akka.actor.FSM.Event
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.scheduler.HasTriggerId
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage}
 import beam.utils.csv.CsvWriter
 import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, BeamStateTransition, NUM_MESSAGES_PER_FILE}
@@ -78,7 +79,21 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
         val (parent, name) = userFriendly(actor)
         val eventTriggerId: Long = extractTriggerId(event.event)
         val triggerId = Math.max(agentTriggerId, eventTriggerId)
-        csvWriter.write("event", senderParent, senderName, parent, name, event.event, event.stateData, tick, triggerId)
+        val actualTick = event.event match {
+          case TriggerWithId(trigger, _) => trigger.tick
+          case _                         => tick
+        }
+        csvWriter.write(
+          "event",
+          senderParent,
+          senderName,
+          parent,
+          name,
+          event.event,
+          event.stateData,
+          actualTick,
+          triggerId
+        )
         updateMsgNum()
       case BeamStateTransition(sender, actor, prevState, newState, tick, triggerId) =>
         val (senderParent, senderName) = userFriendly(sender)

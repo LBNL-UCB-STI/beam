@@ -4,6 +4,7 @@ import beam.utils.csv.GenericCsvReader
 
 import java.io.Closeable
 import java.nio.file.{Files, Path}
+import java.util
 import scala.util.Try
 
 /**
@@ -47,10 +48,16 @@ object MessageReader {
   private def escapeNull(str: String) = if (str == null) "" else str
 
   private def rowToRowData(row: java.util.Map[String, String]): RowData = {
-    def extractActor(record: java.util.Map[String, String], position: String) = {
+    def extractActor(record: util.Map[String, String], position: String) = {
       val parent = escapeNull(record.get(s"${position}_parent"))
       val name = escapeNull(record.get(s"${position}_name"))
       Actor(parent, name)
+    }
+
+    def getTick(record: util.Map[String, String]) = {
+      val tickStr = record.get("tick")
+      val tick = if (tickStr == null || tickStr == "") -1 else tickStr.toInt
+      tick
     }
 
     row.get("type") match {
@@ -67,6 +74,7 @@ object MessageReader {
           extractActor(row, "receiver"),
           row.get("payload"),
           row.get("state"),
+          getTick(row),
           row.get("triggerId").toLong
         )
       case "transition" =>
@@ -75,6 +83,7 @@ object MessageReader {
           extractActor(row, "receiver"),
           row.get("payload"),
           row.get("state"),
+          getTick(row),
           row.get("triggerId").toLong
         )
     }
@@ -93,6 +102,7 @@ object MessageReader {
     receiver: Actor,
     payload: String,
     data: String,
+    tick: Int,
     triggerId: Long,
   ) extends RowData
 
@@ -108,6 +118,7 @@ object MessageReader {
     receiver: Actor,
     prevState: String,
     state: String,
+    tick: Int,
     triggerId: Long,
   ) extends RowData
 
