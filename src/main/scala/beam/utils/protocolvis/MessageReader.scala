@@ -69,6 +69,7 @@ object MessageReader {
           extractActor(row, "sender"),
           extractActor(row, "receiver"),
           row.get("payload"),
+          getTick(row),
           row.get("triggerId").toLong
         )
       case "event" =>
@@ -113,6 +114,7 @@ object MessageReader {
     sender: Actor,
     receiver: Actor,
     payload: String,
+    tick: Int,
     triggerId: Long,
   ) extends RowData
 

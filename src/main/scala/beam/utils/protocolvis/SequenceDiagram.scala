@@ -28,14 +28,14 @@ object SequenceDiagram {
                 ),
                 tick
               )
-            case Message(sender, receiver, payload, _) =>
+            case Message(sender, receiver, payload, tick, _) =>
               (
                 Interaction(
                   userFriendlyActorName(sender),
                   userFriendlyActorName(receiver),
                   userFriendlyPayload(payload)
                 ),
-                -1
+                tick
               )
             case Transition(_, receiver, _, state, tick, _) =>
               (Note(userFriendlyActorName(receiver), state), tick)

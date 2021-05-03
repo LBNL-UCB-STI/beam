@@ -44,12 +44,13 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     )
   }
 
-  def extractTriggerId(payload: Any): Long = {
+  def extractTickAndTriggerId(payload: Any): (Int, Long) = {
     payload match {
-      case hasTriggerId: HasTriggerId                   => hasTriggerId.triggerId
-      case Success(status) if status.isInstanceOf[Long] => status.asInstanceOf[Long]
-      case (x: HasTriggerId, _)                         => x.triggerId
-      case _                                            => -1
+      case TriggerWithId(trigger, triggerId)            => (trigger.tick, triggerId)
+      case hasTriggerId: HasTriggerId                   => (-1, hasTriggerId.triggerId)
+      case Success(status) if status.isInstanceOf[Long] => (-1, status.asInstanceOf[Long])
+      case (x: HasTriggerId, _)                         => (-1, x.triggerId)
+      case _                                            => (-1, -1)
     }
   }
 
@@ -70,19 +71,26 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
         if (sender.path.parent.name != "temp") {
           val (senderParent, senderName) = userFriendly(sender)
           val (receiverParent, receiverName) = userFriendly(receiver)
-          val triggerId: Long = extractTriggerId(payload)
-          csvWriter.write("message", senderParent, senderName, receiverParent, receiverName, payload, "", "", triggerId)
+          val (tick, triggerId) = extractTickAndTriggerId(payload)
+          csvWriter.write(
+            "message",
+            senderParent,
+            senderName,
+            receiverParent,
+            receiverName,
+            payload,
+            "",
+            tick,
+            triggerId
+          )
           updateMsgNum()
         }
       case BeamFSMMessage(sender, actor, event, tick, agentTriggerId) =>
         val (senderParent, senderName) = userFriendly(sender)
         val (parent, name) = userFriendly(actor)
-        val eventTriggerId: Long = extractTriggerId(event.event)
+        val (payloadTick, eventTriggerId) = extractTickAndTriggerId(event.event)
         val triggerId = Math.max(agentTriggerId, eventTriggerId)
-        val actualTick = event.event match {
-          case TriggerWithId(trigger, _) => trigger.tick
-          case _                         => tick
-        }
+        val actualTick = Math.max(tick, payloadTick)
         csvWriter.write(
           "event",
           senderParent,

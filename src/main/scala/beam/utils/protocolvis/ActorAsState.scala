@@ -46,8 +46,8 @@ object ActorAsState {
   private[protocolvis] def toTransitions(messages: Iterator[RowData]): immutable.IndexedSeq[StateTransition] = {
     messages
       .collect {
-        case Event(sender, receiver, payload, _, triggerId) => Message(sender, receiver, payload, triggerId)
-        case msg: Message                                   => msg
+        case Event(sender, receiver, payload, _, tick, triggerId) => Message(sender, receiver, payload, tick, triggerId)
+        case msg: Message                                         => msg
       }
       .foldLeft(Map.empty[StateTransition, StateTransition]) { (acc, message) =>
         val stateTransition = StateTransition(
