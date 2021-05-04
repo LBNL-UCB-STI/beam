@@ -2,7 +2,6 @@ package beam.router.skim
 
 import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
-
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.BeamRouter.Location
@@ -11,6 +10,8 @@ import beam.router.Modes.BeamMode.{
   BIKE,
   BIKE_TRANSIT,
   CAR,
+  CAR_HOV2,
+  CAR_HOV3,
   CAV,
   DRIVE_TRANSIT,
   RIDE_HAIL,
@@ -62,6 +63,8 @@ object SkimsUtils extends LazyLogging {
   val speedMeterPerSec: Map[BeamMode, Double] = Map(
     CAV               -> carSpeedMeterPerSec,
     CAR               -> carSpeedMeterPerSec,
+    CAR_HOV2          -> carSpeedMeterPerSec,
+    CAR_HOV3          -> carSpeedMeterPerSec,
     WALK              -> walkSpeedMeterPerSec,
     BIKE              -> bicycleSpeedMeterPerSec,
     WALK_TRANSIT      -> transitSpeedMeterPerSec,

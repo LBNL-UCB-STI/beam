@@ -80,7 +80,7 @@ object EmbodiedBeamTrip {
           theMode = RIDE_HAIL
         }
       } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
-        theMode = CAR
+        theMode = leg.beamLeg.mode // to keep HOV2 or HOV3 as trip mode, instead of resetting it to CAR
       } else if (theMode == WALK && leg.beamLeg.mode == CAV) {
         theMode = CAV
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {

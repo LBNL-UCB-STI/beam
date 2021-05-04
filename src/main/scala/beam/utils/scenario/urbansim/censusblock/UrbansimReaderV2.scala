@@ -53,7 +53,7 @@ class UrbansimReaderV2(
     val tripReader = new TripReader(inputTripsPath)
     val modes = tripReader
       .iterator()
-      .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
+      .map(tripElement => PlanMerger.tripKey(tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
       .toMap
     val merger = new PlanMerger(modes)
 

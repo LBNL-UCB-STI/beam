@@ -3,9 +3,16 @@ package beam.utils.scenario.urbansim.censusblock.merger
 import beam.utils.scenario.urbansim.censusblock.entities.{Activity, InputPlanElement, Leg}
 import beam.utils.scenario.{PersonId, PlanElement}
 
-import scala.math._
+object PlanMerger {
+
+  def tripKey(person: String, time: Double): (String, Double) = {
+    (person, math.floor(time))
+  }
+}
 
 class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputPlanElement, PlanElement] {
+
+  import PlanMerger._
 
   private var activityPersonOpt: Option[String] = None
   private var timeOpt: Option[Double] = None
@@ -21,8 +28,8 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
       case Leg =>
         val modeOpt = for {
           activityPerson <- activityPersonOpt
-          time           <- timeOpt.map(floor)
-          inputRes       <- trips.get((activityPerson, time))
+          time           <- timeOpt
+          inputRes       <- trips.get(tripKey(activityPerson, time))
           outputRes = convertMode(inputRes)
         } yield outputRes
 
@@ -58,6 +65,12 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
   }
 
   private def convertMode(inputMode: String): String = inputMode match {
+//    case "HOV2"           => "hov2_teleportation"
+//    case "HOV3"           => "hov3_teleportation"
+//    case "HOV2"           => "car_hov2"
+//    case "HOV3"           => "car_hov3"
+    case "HOV2"           => "car"
+    case "HOV3"           => "car"
     case "DRIVEALONEPAY"  => "car"
     case "DRIVEALONEFREE" => "car"
     case "WALK"           => "walk"

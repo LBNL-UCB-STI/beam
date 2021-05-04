@@ -27,7 +27,17 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  CAR,
+  CAV,
+  HOV2_TELEPORTATION,
+  HOV3_TELEPORTATION,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -179,9 +189,13 @@ object PersonAgent {
 
   case class PersonDepartureTrigger(tick: Int) extends Trigger
 
+  case class TeleportationEndsTrigger(tick: Int) extends Trigger
+
   case object PerformingActivity extends BeamAgentState
 
   case object ChoosingMode extends Traveling
+
+  case object Teleporting extends Traveling
 
   case object WaitingForDeparture extends Traveling
 
@@ -353,7 +367,8 @@ class PersonAgent(
               }
             } else 0.0
 
-          val tripIndexOfElement = currentTour(personData).tripIndexOfElement(nextAct)
+          val tripIndexOfElement = currentTour(personData)
+            .tripIndexOfElement(nextAct)
             .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
           val nextActIdx = tripIndexOfElement - 1
           currentTour(personData).trips
@@ -463,28 +478,85 @@ class PersonAgent(
         case Some(nextAct) =>
           logDebug(s"wants to go to ${nextAct.getType} @ $tick")
           holdTickAndTriggerId(tick, triggerId)
-          val modeOfNextLeg = _experiencedBeamPlan.getPlanElements
-            .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
-            case leg: Leg =>
-              BeamMode.fromString(leg.getMode)
-            case _ => None
+          val indexOfNextActivity = _experiencedBeamPlan.getPlanElements.indexOf(nextAct)
+          val modeOfNextLeg = _experiencedBeamPlan.getPlanElements.get(indexOfNextActivity - 1) match {
+            case leg: Leg => BeamMode.fromString(leg.getMode)
+            case _        => None
           }
+          // If the mode of the next leg is defined and is CAV, use it, otherwise,
+          // If we don't have a current tour mode (i.e. are not on a tour aka at home),
+          // use the mode of the next leg as the new tour mode.
+          val nextTourMode = modeOfNextLeg match {
+            case Some(CAV) =>
+              Some(CAV)
+            case _ =>
+              data.currentTourMode.orElse(modeOfNextLeg)
+          }
+          val personData = data.copy(
+            currentTourMode = nextTourMode,
+            numberOfReplanningAttempts = 0
+          )
           goto(ChoosingMode) using ChoosesModeData(
-            personData = data.copy(
-              // If the mode of the next leg is defined and is CAV, use it, otherwise,
-              // If we don't have a current tour mode (i.e. are not on a tour aka at home),
-              // use the mode of the next leg as the new tour mode.
-              currentTourMode = modeOfNextLeg match {
-                case Some(CAV) =>
-                  Some(CAV)
-                case _ =>
-                  data.currentTourMode.orElse(modeOfNextLeg)
-              },
-              numberOfReplanningAttempts = 0
-            ),
+            personData = personData,
             SpaceTime(currentActivity(data).getCoord, _currentTick.get)
           )
       }
+  }
+
+  when(Teleporting) {
+    case Event(
+        TriggerWithId(PersonDepartureTrigger(tick), triggerId),
+        data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
+        ) =>
+      // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
+      // hail a ride. We stay at the party until our Uber is there.
+      eventsManager.processEvent(
+        new ActivityEndEvent(
+          tick,
+          id,
+          currentActivity(data).getLinkId,
+          currentActivity(data).getFacilityId,
+          currentActivity(data).getType
+        )
+      )
+      assert(currentActivity(data).getLinkId != null)
+      eventsManager.processEvent(
+        new PersonDepartureEvent(
+          tick,
+          id,
+          currentActivity(data).getLinkId,
+          currentTrip.tripClassifier.value
+        )
+      )
+
+      val arrivalTime = tick + currentTrip.totalTravelTimeInSecs
+      scheduler ! CompletionNotice(
+        triggerId,
+        Vector(ScheduleTrigger(TeleportationEndsTrigger(arrivalTime), self))
+      )
+
+      stay() using data.copy(hasDeparted = true)
+
+    case Event(
+        TriggerWithId(TeleportationEndsTrigger(tick), triggerId),
+        data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, true, _, _, _)
+        ) =>
+      holdTickAndTriggerId(tick, triggerId)
+
+      val teleportationEvent = new TeleportationEvent(
+        time = tick,
+        person = id,
+        departureTime = currentTrip.legs.head.beamLeg.startTime,
+        arrivalTime = tick,
+        startX = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getX,
+        startY = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getY,
+        endX = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getX,
+        endY = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getY,
+        currentTourMode = data.currentTourMode.map(_.value)
+      )
+      eventsManager.processEvent(teleportationEvent)
+
+      goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
   }
 
   when(WaitingForDeparture) {
@@ -966,6 +1038,75 @@ class PersonAgent(
         StateTimeout,
         data @ BasePersonData(
           currentActivityIndex,
+          _,
+          _,
+          _,
+          currentTourMode @ Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
+          _,
+          _,
+          _,
+          _,
+          _,
+          _,
+          _
+        )
+        ) =>
+      nextActivity(data) match {
+        case Some(activity) =>
+          val (tick, triggerId) = releaseTickAndTriggerId()
+          val endTime =
+            if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
+              activity.getEndTime
+            } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
+              tick
+            } else {
+              // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+              // TODO consider ending the day here to match MATSim convention for start/end activity
+              tick + 60 * 10
+            }
+          val newEndTime = if (lastTickOfSimulation >= tick) {
+            Math.min(lastTickOfSimulation, endTime)
+          } else {
+            endTime
+          }
+
+          assert(activity.getLinkId != null)
+          eventsManager.processEvent(
+            new PersonArrivalEvent(tick, id, activity.getLinkId, CAR.value)
+          )
+
+          eventsManager.processEvent(
+            new ActivityStartEvent(
+              tick,
+              id,
+              activity.getLinkId,
+              activity.getFacilityId,
+              activity.getType
+            )
+          )
+          scheduler ! CompletionNotice(
+            triggerId,
+            Vector(ScheduleTrigger(ActivityEndTrigger(newEndTime.toInt), self))
+          )
+          goto(PerformingActivity) using data.copy(
+            currentActivityIndex = currentActivityIndex + 1,
+            currentTrip = None,
+            restOfCurrentTrip = List(),
+            currentTourPersonalVehicle = None,
+            currentTourMode = if (activity.getType.equals("Home")) None else currentTourMode,
+            hasDeparted = false
+          )
+        case None =>
+          logDebug("PersonAgent nextActivity returned None")
+          val (_, triggerId) = releaseTickAndTriggerId()
+          scheduler ! CompletionNotice(triggerId)
+          stop
+      }
+
+    case Event(
+        StateTimeout,
+        data @ BasePersonData(
+          currentActivityIndex,
           Some(currentTrip),
           _,
           _,
@@ -989,9 +1130,8 @@ class PersonAgent(
             } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
               tick
             } else {
-              //           logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
-              // minutes.")
-              //TODO consider ending the day here to match MATSim convention for start/end activity
+              // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+              // TODO consider ending the day here to match MATSim convention for start/end activity
               tick + 60 * 10
             }
           val newEndTime = if (lastTickOfSimulation >= tick) {
@@ -1043,22 +1183,21 @@ class PersonAgent(
             )
           )
 
-          correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach {
-            carLeg =>
-              eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
+          correctedTrip.legs.filter(x => x.beamLeg.mode == CAR || x.beamLeg.mode == CAV).foreach { carLeg =>
+            eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
           }
 
           resetFuelConsumed()
 
-          eventsManager.processEvent(
-            new ActivityStartEvent(
-              tick,
-              id,
-              activity.getLinkId,
-              activity.getFacilityId,
-              activity.getType
-            )
+          val activityStartEvent = new ActivityStartEvent(
+            tick,
+            id,
+            activity.getLinkId,
+            activity.getFacilityId,
+            activity.getType
           )
+          eventsManager.processEvent(activityStartEvent)
+
           scheduler ! CompletionNotice(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(newEndTime.toInt), self))
@@ -1090,6 +1229,12 @@ class PersonAgent(
           scheduler ! CompletionNotice(triggerId)
           stop
       }
+
+//    case event =>
+//      logDebug(s"PersonAgent nextActivity returned None. event is $event")
+//      val (_, triggerId) = releaseTickAndTriggerId()
+//      scheduler ! CompletionNotice(triggerId)
+//      stop
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {

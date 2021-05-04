@@ -34,6 +34,7 @@ class SimpleRideHailUtilizationTest extends FunSuite with Matchers {
     amountPaid = 1,
     None,
     None,
+    None,
     riders = Vector()
   )
 
