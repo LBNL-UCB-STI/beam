@@ -11,7 +11,7 @@ object Extractors {
     val (_, seq) = stream.foldLeft(Set.empty[Long] -> IndexedSeq.empty[RowData]) {
       case ((ids, seq), row) =>
         if (isSenderOrReceiver(personId, row)) (if (row.triggerId >= 0) ids + row.triggerId else ids, seq :+ row)
-        else if (ids.contains(row.triggerId)) (ids + row.triggerId, seq :+ row)
+        else if (ids.contains(row.triggerId)) (ids, seq :+ row)
         else (ids, seq)
     }
     seq
