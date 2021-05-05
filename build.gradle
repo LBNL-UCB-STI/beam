@@ -301,6 +301,10 @@ dependencies {
 
     compile "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
     scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
+
+    // AWS S3
+    testCompile group: 'software.amazon.awssdk', name: 's3', version: '2.16.54'
+
 }
 
 // Autoformatting using scalafmt
