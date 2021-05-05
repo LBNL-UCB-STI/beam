@@ -1,12 +1,14 @@
 package scripts
 
-import java.nio.file.{Files, Path}
-
-import scala.collection.JavaConverters._
-
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.transfer.{TransferManager, TransferManagerBuilder}
+import com.typesafe.scalalogging.StrictLogging
+import org.apache.commons.io.FileUtils
+import org.ini4j.Wini
+
+import java.nio.file.{Files, Path}
+import scala.collection.JavaConverters._
 
 
 class S3Adapter(accessKey: String, secretKey: String, region: String) {
@@ -17,7 +19,7 @@ class S3Adapter(accessKey: String, secretKey: String, region: String) {
     .standard()
     .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
     .withRegion(region)
-    .build();
+    .build()
 
   def listBucketNames: Set[String] = {
     s3Client
@@ -45,7 +47,6 @@ class S3Adapter(accessKey: String, secretKey: String, region: String) {
     downloadBucketDirectoryInternal(bucketName, bucketDirectory, destinationPath)
   }
 
-
   private def downloadBucketDirectoryInternal(
     bucketName: String,
     bucketDirectory: String,
@@ -60,26 +61,27 @@ class S3Adapter(accessKey: String, secretKey: String, region: String) {
     downloader.waitForCompletion()
   }
 
-  def downloadFolder(folderName: String, destinationPath: Path): Seq[Path] = {
-    Seq.empty
-  }
-
 }
 
-object S3Adapter {
+object S3Adapter extends StrictLogging {
 
-  def fromCredentialFile(profile: String, filePath: Path): S3Adapter = {
-    null
+  def fromCredentialFile(filePath: Path, profile: String): S3Adapter = {
+    val ini = new Wini(filePath.toFile)
+    val accessKey = ini.get(profile, "aws_access_key_id", classOf[String])
+    val secretKey = ini.get(profile, "aws_secret_access_key", classOf[String])
+    val region = ini.get(profile, "region", classOf[String])
+    new S3Adapter(accessKey, secretKey, region)
   }
 
   def fromCredential(profile: String): S3Adapter = {
-    val prop = new Properties()
-    prop.load(new FileReader("~/.config"))
+    val f = FileUtils.getUserDirectory.toPath.resolve(".aws").resolve("credentials")
+    fromCredentialFile(f, profile)
   }
 
   def fromCredentialDefault(): S3Adapter = {
     fromCredential("default")
   }
+
 }
 case class CopyResult(set: Set[Path]) {
   lazy val totalSizeInBytes: Long = {
