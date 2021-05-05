@@ -58,18 +58,19 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
       advance()
     }
 
+    if (debugMessages) {
+      //storing incoming event into beam messages csv file
+      val (tick, triggerId) = currentTickAndTriggerId
+      val msg = BeamFSMMessage(context.sender(), context.self, event, tick, triggerId)
+      context.system.eventStream.publish(msg)
+    }
+
     val oldState = stateName
     super.processEvent(event, source)
     val newState = stateName
 
     if (debugEvent && oldState != newState)
       log.debug("###FSM-transition### actor:" + self.toString() + " transition: " + oldState + " -> " + newState)
-
-    if (debugMessages) {
-      val (tick, triggerId) = currentTickAndTriggerId
-      val msg = BeamFSMMessage(context.sender(), context.self, event, tick, triggerId)
-      context.system.eventStream.publish(msg)
-    }
   }
 
   private def currentTickAndTriggerId: (Int, Long) = {
