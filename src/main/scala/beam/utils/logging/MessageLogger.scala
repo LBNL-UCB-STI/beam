@@ -3,9 +3,9 @@ package beam.utils.logging
 import akka.actor.FSM.Event
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.BeamMobsimIteration.IterationEndsMessage
 import beam.utils.csv.CsvWriter
 import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, BeamStateTransition, NUM_MESSAGES_PER_FILE}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -18,7 +18,7 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
   context.system.eventStream.subscribe(self, classOf[BeamMessage])
   context.system.eventStream.subscribe(self, classOf[BeamFSMMessage])
   context.system.eventStream.subscribe(self, classOf[BeamStateTransition[Any]])
-  context.system.eventStream.subscribe(self, classOf[IterationEndsMessage])
+  context.system.eventStream.subscribe(self, Finish.getClass)
 
   private var msgNum = 0
   private var fileNum = 0
@@ -67,8 +67,8 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
       val (parent, name) = userFriendly(actor)
       csvWriter.write("transition", senderParent, senderName, parent, name, prevState, newState, tick, triggerId)
       updateMsgNum()
-    case IterationEndsMessage(num) =>
-      log.info(s"Finishing iteration $num")
+    case Finish =>
+      log.debug(s"Finishing iteration")
       csvWriter.close()
       context.stop(self)
   }
@@ -147,6 +147,6 @@ object MessageLogger {
     triggerId: Long
   )
 
-    def props(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy): Props =
+  def props(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy): Props =
     Props(new MessageLogger(iterationNumber, controllerIO))
 }

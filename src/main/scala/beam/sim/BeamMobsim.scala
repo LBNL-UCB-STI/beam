@@ -28,7 +28,6 @@ import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
-import beam.sim.BeamMobsimIteration.IterationEndsMessage
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -336,11 +335,14 @@ class BeamMobsimIteration(
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
-  private val messageLogger = context.actorOf(
-    MessageLogger.props(beamServices.matsimServices.getIterationNumber, beamServices.matsimServices.getControlerIO),
-    s"MessageLogger-${beamServices.matsimServices.getIterationNumber}"
-  )
-  context.watch(messageLogger)
+  if (context.system.settings.AddLoggingReceive) {
+    context.watch(
+      context.actorOf(
+        MessageLogger.props(beamServices.matsimServices.getIterationNumber, beamServices.matsimServices.getControlerIO),
+        s"MessageLogger-${beamServices.matsimServices.getIterationNumber}"
+      )
+    )
+  }
 
   var runSender: ActorRef = _
   private val errorListener = context.actorOf(ErrorListener.props())
@@ -570,9 +572,9 @@ class BeamMobsimIteration(
 
     case Terminated(x) =>
       log.debug(s"Terminated {}", x)
-      if (context.children.size == 1) {
-        context.system.eventStream.publish(IterationEndsMessage(beamServices.matsimServices.getIterationNumber))
-        log.debug("Remaining single: {}", context.children)
+      if (context.children.size == 1 && context.children.head.path.name.startsWith("MessageLogger-")) {
+        context.system.eventStream.publish(Finish)
+        log.debug("Remaining MessageLogger: {}", context.children)
       } else if (context.children.isEmpty) {
         // Await eventBuilder message queue to be processed, before ending iteration
         beamServices.eventBuilderActor ! FlushEvents
@@ -633,8 +635,4 @@ class BeamMobsimIteration(
     )
   }
 
-}
-
-object BeamMobsimIteration {
-  case class IterationEndsMessage(iteration: Int)
 }
