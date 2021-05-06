@@ -28,6 +28,7 @@ import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
+import beam.sim.BeamMobsimIteration.IterationEndsMessage
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -36,7 +37,7 @@ import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
-import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.{LoggingMessageActor, MessageLogger}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -335,6 +336,12 @@ class BeamMobsimIteration(
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
+  private val messageLogger = context.actorOf(
+    MessageLogger.props(beamServices.matsimServices.getIterationNumber, beamServices.matsimServices.getControlerIO),
+    s"MessageLogger-${beamServices.matsimServices.getIterationNumber}"
+  )
+  context.watch(messageLogger)
+
   var runSender: ActorRef = _
   private val errorListener = context.actorOf(ErrorListener.props())
   context.watch(errorListener)
@@ -561,8 +568,12 @@ class BeamMobsimIteration(
         context.stop(debugActorWithTimerActorRef)
       }
 
-    case Terminated(_) =>
-      if (context.children.isEmpty) {
+    case Terminated(x) =>
+      log.debug(s"Terminated {}", x)
+      if (context.children.size == 1) {
+        context.system.eventStream.publish(IterationEndsMessage(beamServices.matsimServices.getIterationNumber))
+        log.debug("Remaining single: {}", context.children)
+      } else if (context.children.isEmpty) {
         // Await eventBuilder message queue to be processed, before ending iteration
         beamServices.eventBuilderActor ! FlushEvents
       } else {
@@ -622,4 +633,8 @@ class BeamMobsimIteration(
     )
   }
 
+}
+
+object BeamMobsimIteration {
+  case class IterationEndsMessage(iteration: Int)
 }

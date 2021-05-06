@@ -26,10 +26,8 @@ import beam.router.BeamRouter.ODSkimmerReady
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
 import beam.router.{BeamRouter, RouteHistory}
-import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
-import beam.utils.logging.MessageLogger
 import beam.utils.watcher.MethodWatcher
 import org.matsim.core.router.util.TravelTime
 
@@ -126,8 +124,6 @@ class BeamSim @Inject()(
 
   val startAndEndEventListeners: List[BasicEventHandler with IterationStartsListener with IterationEndsListener] =
     List(routeDumper)
-
-  private val messageLogger = actorSystem.actorOf(MessageLogger.props(beamServices.matsimServices.getControlerIO))
 
   val carTravelTimeFromPtes: List[CarTripStatsFromPathTraversalEventHandler] = {
     val normalCarTravelTime = new CarTripStatsFromPathTraversalEventHandler(
@@ -293,7 +289,6 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
-    actorSystem.eventStream.publish(IterationStartsMessage(event.getIteration))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
         beamServices.beamCustomizationAPI.getEventBuilders(beamServices.matsimServices.getEvents)
@@ -356,7 +351,6 @@ class BeamSim @Inject()(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    actorSystem.eventStream.publish(IterationEndsMessage(event.getIteration))
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
@@ -746,11 +740,4 @@ class BeamSim @Inject()(
     )
   }
 
-}
-
-object BeamSim {
-  case object StartupMessage
-  case object ShutdownMessage
-  case class IterationStartsMessage(iteration: Int)
-  case class IterationEndsMessage(iteration: Int)
 }

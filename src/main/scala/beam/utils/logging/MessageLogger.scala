@@ -5,7 +5,7 @@ import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.BeamSim.{IterationEndsMessage, IterationStartsMessage}
+import beam.sim.BeamMobsimIteration.IterationEndsMessage
 import beam.utils.csv.CsvWriter
 import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, BeamStateTransition, NUM_MESSAGES_PER_FILE}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -13,21 +13,65 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 /**
   * @author Dmitry Openkov
   */
-class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with ActorLogging {
+class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy) extends Actor with ActorLogging {
 
-  override def preStart(): Unit = {
-    context.system.eventStream.subscribe(self, classOf[BeamMessage])
-    context.system.eventStream.subscribe(self, classOf[BeamFSMMessage])
-    context.system.eventStream.subscribe(self, classOf[BeamStateTransition[Any]])
-    context.system.eventStream.subscribe(self, classOf[IterationEndsMessage])
-    context.system.eventStream.subscribe(self, classOf[IterationStartsMessage])
-  }
+  context.system.eventStream.subscribe(self, classOf[BeamMessage])
+  context.system.eventStream.subscribe(self, classOf[BeamFSMMessage])
+  context.system.eventStream.subscribe(self, classOf[BeamStateTransition[Any]])
+  context.system.eventStream.subscribe(self, classOf[IterationEndsMessage])
 
   private var msgNum = 0
   private var fileNum = 0
-  private var csvWriter: CsvWriter = _
+  private var csvWriter: CsvWriter = createCsvWriter(iterationNumber, fileNum)
 
-  override def receive: Receive = logMessages
+  override def receive: Receive = {
+    case BeamMessage(sender, receiver, payload) =>
+      //do not process a temp sender (it's ask pattern which is published with the correct sender at LoggingAskSupport)
+      if (sender.path.parent.name != "temp") {
+        val (senderParent, senderName) = userFriendly(sender)
+        val (receiverParent, receiverName) = userFriendly(receiver)
+        val (tick, triggerId) = extractTickAndTriggerId(payload)
+        csvWriter.write(
+          "message",
+          senderParent,
+          senderName,
+          receiverParent,
+          receiverName,
+          payload,
+          "",
+          tick,
+          triggerId
+        )
+        updateMsgNum()
+      }
+    case BeamFSMMessage(sender, actor, event, tick, agentTriggerId) =>
+      val (senderParent, senderName) = userFriendly(sender)
+      val (parent, name) = userFriendly(actor)
+      val (payloadTick, eventTriggerId) = extractTickAndTriggerId(event.event)
+      val triggerId = Math.max(agentTriggerId, eventTriggerId)
+      val actualTick = Math.max(tick, payloadTick)
+      csvWriter.write(
+        "event",
+        senderParent,
+        senderName,
+        parent,
+        name,
+        event.event,
+        event.stateData,
+        actualTick,
+        triggerId
+      )
+      updateMsgNum()
+    case BeamStateTransition(sender, actor, prevState, newState, tick, triggerId) =>
+      val (senderParent, senderName) = userFriendly(sender)
+      val (parent, name) = userFriendly(actor)
+      csvWriter.write("transition", senderParent, senderName, parent, name, prevState, newState, tick, triggerId)
+      updateMsgNum()
+    case IterationEndsMessage(num) =>
+      log.info(s"Finishing iteration $num")
+      csvWriter.close()
+      context.stop(self)
+  }
 
   private def createCsvWriter(iterationNumber: Int, fileNum: Int) = {
     CsvWriter(
@@ -54,78 +98,14 @@ class MessageLogger(controllerIO: OutputDirectoryHierarchy) extends Actor with A
     }
   }
 
-  def writeMessagesToCsv(iterationNumber: Int): Receive = {
-    def updateMsgNum(): Unit = {
-      msgNum = msgNum + 1
-      if (msgNum >= NUM_MESSAGES_PER_FILE - 1) {
-        csvWriter.close()
-        msgNum = 0
-        fileNum = fileNum + 1
-        csvWriter = createCsvWriter(iterationNumber, fileNum)
-        context.become(writeMessagesToCsv(iterationNumber))
-      }
-    }
-    {
-      case BeamMessage(sender, receiver, payload) =>
-        //do not process a temp sender (it's ask pattern which is published with the correct sender at LoggingAskSupport)
-        if (sender.path.parent.name != "temp") {
-          val (senderParent, senderName) = userFriendly(sender)
-          val (receiverParent, receiverName) = userFriendly(receiver)
-          val (tick, triggerId) = extractTickAndTriggerId(payload)
-          csvWriter.write(
-            "message",
-            senderParent,
-            senderName,
-            receiverParent,
-            receiverName,
-            payload,
-            "",
-            tick,
-            triggerId
-          )
-          updateMsgNum()
-        }
-      case BeamFSMMessage(sender, actor, event, tick, agentTriggerId) =>
-        val (senderParent, senderName) = userFriendly(sender)
-        val (parent, name) = userFriendly(actor)
-        val (payloadTick, eventTriggerId) = extractTickAndTriggerId(event.event)
-        val triggerId = Math.max(agentTriggerId, eventTriggerId)
-        val actualTick = Math.max(tick, payloadTick)
-        csvWriter.write(
-          "event",
-          senderParent,
-          senderName,
-          parent,
-          name,
-          event.event,
-          event.stateData,
-          actualTick,
-          triggerId
-        )
-        updateMsgNum()
-      case BeamStateTransition(sender, actor, prevState, newState, tick, triggerId) =>
-        val (senderParent, senderName) = userFriendly(sender)
-        val (parent, name) = userFriendly(actor)
-        csvWriter.write("transition", senderParent, senderName, parent, name, prevState, newState, tick, triggerId)
-        updateMsgNum()
-      case IterationEndsMessage(_) =>
-        csvWriter.close()
-        context.become(logMessages)
-    }
-  }
-
-  def logMessages: Receive = {
-    case BeamMessage(sender, receiver, payload) =>
-      log.debug("{} -> {}, {}", sender, receiver, payload)
-    case BeamFSMMessage(_, actor, event, _, _) =>
-      log.debug("FSM: actor={}, even={}, {}", actor, event.event, event.stateData)
-    case BeamStateTransition(_, actor, prevState, newState, _, _) =>
-      log.debug("State: actor={}, {} -> {}", actor, prevState, newState)
-    case IterationStartsMessage(iterationNumber) =>
+  private def updateMsgNum(): Unit = {
+    msgNum = msgNum + 1
+    if (msgNum >= NUM_MESSAGES_PER_FILE - 1) {
+      csvWriter.close()
       msgNum = 0
-      fileNum = 0
+      fileNum = fileNum + 1
       csvWriter = createCsvWriter(iterationNumber, fileNum)
-      context.become(writeMessagesToCsv(iterationNumber))
+    }
   }
 
   override def postStop(): Unit = {
@@ -167,5 +147,6 @@ object MessageLogger {
     triggerId: Long
   )
 
-  def props(controllerIO: OutputDirectoryHierarchy): Props = Props(new MessageLogger(controllerIO))
+    def props(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy): Props =
+    Props(new MessageLogger(iterationNumber, controllerIO))
 }
