@@ -96,7 +96,6 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
           Thread.sleep(1)
         }
         logger.info("gridBounds({})\n{}", currentTime, msgToPublish)
-
         gridBounds.flatMap { x =>
           val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
           val chargingNetwork = chargingNetworkMap(managerId)

@@ -396,6 +396,9 @@ class BeamRouter(
       case None => //No matching id. No need to log since this is more for analysis
     }
 
+  // TODO: availableWorkers is a SET (not sortedSet).
+  // does not makes sense return THE FIRST available worker;
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   private def removeAndReturnFirstAvailableWorker(): Worker = {
     val worker = availableWorkers.head
     availableWorkers.remove(worker)

@@ -116,6 +116,7 @@ class JointDistribution(
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def getRangeList(keyValueTuple: (String, Either[String, CustomRange])*): Array[Map[String, String]] = {
     mappedArray
       .filter { map =>

@@ -23,6 +23,7 @@ object MathUtils {
     * @param list the list of data
     * @return median of the given list
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def median(list: java.util.List[java.lang.Double]): Double = {
     if (list.isEmpty) {
       0
@@ -85,6 +86,7 @@ object MathUtils {
     * Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def logSumExp(a: Iterable[Double]): Double = {
     a.size match {
       case 0 => Double.NegativeInfinity;

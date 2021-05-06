@@ -21,11 +21,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.rideHailManagerHelper
       .getClosestIdleVehiclesWithinRadiusByETA(
-        inquiry.pickUpLocationUTM,
-        inquiry.destinationUTM,
-        rideHailManager.radiusInMeters,
-        inquiry.departAt,
-        maxWaitTimeInSec,
+        pickupLocation = inquiry.pickUpLocationUTM,
+        dropOffLocation = inquiry.destinationUTM,
+        radius = rideHailManager.radiusInMeters,
+        customerRequestTime = inquiry.departAt,
+        maxWaitingTimeInSec = maxWaitTimeInSec,
         includeRepositioningVehicles = true
       ) match {
       case Some(agentETA) =>
@@ -107,11 +107,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           val request2Utm = RideHailRequest.projectCoordinatesToUtm(request2, beamServices)
           rideHailManager.rideHailManagerHelper
             .getClosestIdleVehiclesWithinRadiusByETA(
-              request1Utm.pickUpLocationUTM,
-              request1Utm.destinationUTM,
-              rideHailManager.radiusInMeters,
-              tick,
-              maxWaitTimeInSec,
+              pickupLocation = request1Utm.pickUpLocationUTM,
+              dropOffLocation = request1Utm.destinationUTM,
+              radius = rideHailManager.radiusInMeters,
+              customerRequestTime = tick,
+              maxWaitingTimeInSec = maxWaitTimeInSec,
               excludeRideHailVehicles = alreadyAllocated,
               includeRepositioningVehicles = true
             ) match {

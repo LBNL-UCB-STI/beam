@@ -20,7 +20,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
     aggregateSkims(getPartialSkim(time, taz, H3TAZ.emptyH3, actor, key))
 
   def getPartialSkim(time: Int, actor: String): Map[TAZSkimmerKey, TAZSkimmerInternal] = {
-    currentSkim
+    currentSkimSitePowerManager
       .filter(x => x._1.asInstanceOf[TAZSkimmerKey].time == time && x._1.asInstanceOf[TAZSkimmerKey].actor == actor)
       .map(x => x._1.asInstanceOf[TAZSkimmerKey] -> x._2.asInstanceOf[TAZSkimmerInternal])
   }
