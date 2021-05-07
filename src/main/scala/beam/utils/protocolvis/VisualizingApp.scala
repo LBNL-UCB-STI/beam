@@ -10,13 +10,10 @@ import java.nio.file.{Files, Path, Paths}
 import java.time.LocalDateTime
 import scala.annotation.tailrec
 import scala.collection.immutable
-import scala.util.{Failure, Success, Try}
 
 /* Converts beam actor messages to a sequence diagram. This messages are written when the beam config file contains
 akka.actor.debug.receive=true
 In this case beam produces files like 0.actor_messages_0.csv.gz in each iteration folder.
-
-Order of the messages is not always right because each actor has its own message queue.
 
   Parameters:
 --input output/sf-light/run_name__2021-03-29_19-04-50_vnh/ITERS/it.0
@@ -36,7 +33,7 @@ object VisualizingApp extends StrictLogging {
   def main(args: Array[String]): Unit = {
     parseArgs(args) match {
       case Some(cliOptions) =>
-        val confirm = confirmOverwrite(cliOptions.output, cliOptions.forceOverwriting)
+        val confirm = if (cliOptions.forceOverwriting) true else confirmOverwrite(cliOptions.output)
         val extractorType = if (cliOptions.personId.isEmpty) AllMessages else ByPerson(cliOptions.personId)
         if (confirm) doJob(cliOptions.input, cliOptions.output, extractorType, cliOptions.diagramType)
         else println("Exiting...")
@@ -50,16 +47,17 @@ object VisualizingApp extends StrictLogging {
     logger.info(s"Generating diagram $diagramType")
     logger.info(s"Start reading from $inputFile")
     val (csvStream, closable) = MessageReader.readData(inputFile)
-    val extractor = Extractors.messageExtractor(extractorType)
-    val triedExtracted = Try(extractor(csvStream))
-    triedExtracted match {
-      case Failure(exception) =>
+    try {
+      val extractor = Extractors.messageExtractor(extractorType)
+      val processor = appropriateProcessor(diagramType)
+      val extracted = extractor(csvStream)
+      processor(extracted, output)
+    } catch {
+      case exception: Throwable =>
         exception.printStackTrace()
-      case Success(extracted) =>
-        val processor = appropriateProcessor(diagramType)
-        processor(extracted, output)
+    } finally {
+      closable.close()
     }
-    Try(closable.close())
     val endTime = LocalDateTime.now()
     logger.info(s"Exiting, execution time = ${SECONDS.between(startTime, endTime)} seconds, data written to $output")
   }
@@ -72,9 +70,11 @@ object VisualizingApp extends StrictLogging {
       case DiagramType.SingleActorAsState => ActorAsState.processBySingleActor
     }
 
-  private def confirmOverwrite(path: Path, force: Boolean): Boolean = {
-    val exists = if (force) false else Files.exists(path)
-    if (exists) askUserYesNoQuestion("File exits. Overwrite? (Y/n)", default = true) else true
+  private def confirmOverwrite(path: Path): Boolean = {
+    if (Files.exists(path))
+      askUserYesNoQuestion("File exits. Overwrite? (Y/n)", default = true)
+    else
+      true
   }
 
   @tailrec
@@ -91,9 +91,9 @@ object VisualizingApp extends StrictLogging {
 
   private def parseYesNoString(str: String): Option[Boolean] = {
     str.trim.toLowerCase match {
-      case "y" | "yes"   => Some(true)
+      case "y" | "yes" => Some(true)
       case "n" | "no"  => Some(false)
-      case _     => None
+      case _           => None
     }
   }
 
@@ -109,7 +109,7 @@ object VisualizingApp extends StrictLogging {
           .required()
           .valueName("<file>")
           .action((x, c) => c.copy(input = x.toPath))
-          .text("csv file with BEAM message sequence"),
+          .text("Directory or file containing csv file with BEAM message sequence"),
         opt[File]('o', "output")
           .required()
           .valueName("<file>")

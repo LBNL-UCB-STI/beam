@@ -1,6 +1,7 @@
 package beam.utils.protocolvis
 
 import beam.utils.csv.GenericCsvReader
+import com.typesafe.scalalogging.LazyLogging
 
 import java.io.Closeable
 import java.nio.file.{Files, Path}
@@ -10,7 +11,7 @@ import scala.util.Try
 /**
   * @author Dmitry Openkov
   */
-object MessageReader {
+object MessageReader extends LazyLogging {
 
   def readData(path: Path): (Iterator[RowData], Closeable) = {
 
@@ -56,11 +57,15 @@ object MessageReader {
 
     def getTick(record: util.Map[String, String]) = {
       val tickStr = record.get("tick")
-      val tick =
-        if (tickStr == null || tickStr == "") -1
-        else if (tickStr.contains('.')) Math.round(tickStr.toDouble).toInt
-        else tickStr.toInt
-      tick
+      if (tickStr == null || tickStr == "") -1
+      else if (tickStr.contains('.')) Math.round(tickStr.toDouble).toInt
+      else tickStr.toInt
+    }
+
+    def getTriggerId(record: util.Map[String, String]) = {
+      val triggerIdStr = record.get("triggerId")
+      if (triggerIdStr == null || triggerIdStr == "") -1
+      else triggerIdStr.toLong
     }
 
     row.get("type") match {
@@ -70,7 +75,7 @@ object MessageReader {
           extractActor(row, "receiver"),
           row.get("payload"),
           getTick(row),
-          row.get("triggerId").toLong
+          getTriggerId(row)
         )
       case "event" =>
         Event(
@@ -79,7 +84,7 @@ object MessageReader {
           row.get("payload"),
           row.get("state"),
           getTick(row),
-          row.get("triggerId").toLong
+          getTriggerId(row)
         )
       case "transition" =>
         Transition(
@@ -88,8 +93,11 @@ object MessageReader {
           row.get("payload"),
           row.get("state"),
           getTick(row),
-          row.get("triggerId").toLong
+          getTriggerId(row)
         )
+      case x @ _ =>
+        logger.error("Receiving a wrong message type: {}", x)
+        throw new IllegalArgumentException(s"Cannot handle row: $row")
     }
   }
 
