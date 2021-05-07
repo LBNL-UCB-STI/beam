@@ -184,7 +184,7 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
           streetVehicles = streetVehicles,
           attributesOfIndividual = maybeAttributes,
           streetVehiclesUseIntermodalUse = Access,
-          triggerId = -1235
+          triggerId = -1
         )
         val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
         ElementIndexToRoutingResponse(idx, maybeRoutingResponse)

@@ -52,7 +52,7 @@ object RideHailRequest {
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
     new Coord(Double.NaN, Double.NaN),
-    triggerId = -777L
+    triggerId = -1
   )
 
   /**

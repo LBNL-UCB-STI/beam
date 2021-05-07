@@ -519,7 +519,7 @@ object BeamRouter {
   object RoutingResponse {
 
     val dummyRoutingResponse: Some[RoutingResponse] = Some(
-      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false, -777L)
+      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false, -1)
     )
   }
 

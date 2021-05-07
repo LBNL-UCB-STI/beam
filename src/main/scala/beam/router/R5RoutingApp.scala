@@ -113,7 +113,7 @@ object R5RoutingApp extends BeamHelper {
       withTransit = false,
       personId = Some(personId),
       streetVehicles = Vector(bodyStreetVehicle),
-      triggerId = -1000
+      triggerId = -1
     )
 
     println(routingRequest.asJson.toString())
