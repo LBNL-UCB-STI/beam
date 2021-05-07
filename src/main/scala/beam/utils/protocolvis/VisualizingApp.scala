@@ -91,10 +91,8 @@ object VisualizingApp extends StrictLogging {
 
   private def parseYesNoString(str: String): Option[Boolean] = {
     str.trim.toLowerCase match {
-      case "y"   => Some(true)
-      case "yes" => Some(true)
-      case "n"   => Some(false)
-      case "no"  => Some(false)
+      case "y" | "yes"   => Some(true)
+      case "n" | "no"  => Some(false)
       case _     => None
     }
   }
