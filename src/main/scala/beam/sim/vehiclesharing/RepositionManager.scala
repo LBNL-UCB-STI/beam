@@ -1,6 +1,6 @@
 package beam.sim.vehiclesharing
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{ActorLogging, ActorRef}
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -14,7 +14,7 @@ import beam.sim.{BeamServices, BeamWarmStart}
 import beam.utils.logging.LoggingMessageActor
 import org.matsim.api.core.v01.{Coord, Id}
 
-trait RepositionManager extends Actor with ActorLogging with LoggingMessageActor {
+trait RepositionManager extends LoggingMessageActor with ActorLogging {
 
   var currentTick = 0
   val eos = 108000

@@ -2,7 +2,7 @@ package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
@@ -39,9 +39,8 @@ class Population(
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
   boundingBox: Envelope
-) extends Actor
-    with ActorLogging
-    with LoggingMessageActor {
+) extends LoggingMessageActor
+    with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
   // by themselves. So we do not restart them.

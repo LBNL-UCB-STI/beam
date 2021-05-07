@@ -2,7 +2,7 @@ package beam.sim.vehiclesharing
 
 import java.util.concurrent.TimeUnit
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
+import akka.actor.{ActorLogging, ActorRef, Stash}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
@@ -45,11 +45,10 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val beamServices: BeamServices,
   val maxWalkingDistance: Int,
   val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging
     with Stash
-    with RepositionManager
-    with LoggingMessageActor {
+    with RepositionManager {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher

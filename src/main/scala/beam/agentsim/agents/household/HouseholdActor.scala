@@ -1,7 +1,7 @@
 package beam.agentsim.agents.household
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
@@ -146,10 +146,9 @@ object HouseholdActor {
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
     boundingBox: Envelope
-  ) extends Actor
+  ) extends LoggingMessageActor
       with HasTickAndTrigger
-      with ActorLogging
-      with LoggingMessageActor {
+      with ActorLogging {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
 

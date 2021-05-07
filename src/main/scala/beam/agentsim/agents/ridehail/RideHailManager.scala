@@ -1,17 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  BeamLoggingReceive,
-  Cancellable,
-  OneForOneStrategy,
-  Props,
-  Stash,
-  Terminated
-}
+import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, OneForOneStrategy, Props, Stash, Terminated}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource._
@@ -245,10 +235,9 @@ class RideHailManager(
   val routeHistory: RouteHistory,
   val rideHailFleetInitializer: RideHailFleetInitializer,
   val rideHailParkingNetwork: RideHailDepotParkingManager[_]
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging
-    with Stash
-    with LoggingMessageActor {
+    with Stash {
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   override val supervisorStrategy: OneForOneStrategy =

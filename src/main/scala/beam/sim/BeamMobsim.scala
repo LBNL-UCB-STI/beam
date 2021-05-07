@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -327,10 +327,9 @@ class BeamMobsimIteration(
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging
-    with MetricsSupport
-    with LoggingMessageActor {
+    with MetricsSupport {
 
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim

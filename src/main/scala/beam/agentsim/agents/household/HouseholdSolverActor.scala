@@ -1,6 +1,6 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{ActorLogging, Props}
 import akka.pattern.pipe
 import beam.utils.logging.LoggingMessageActor
 import optimus.optimization._
@@ -20,7 +20,7 @@ object HouseholdSolverActor {
   }
 }
 
-class HouseholdSolverActor extends Actor with ActorLogging with LoggingMessageActor {
+class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
   import context._
 
   override def loggedReceive: Receive = {

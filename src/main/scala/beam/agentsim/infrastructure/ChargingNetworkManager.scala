@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
+import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
@@ -38,9 +38,8 @@ class ChargingNetworkManager(
   chargingNetworkInfo: ChargingNetworkInfo,
   parkingManager: ActorRef,
   scheduler: ActorRef
-) extends Actor
-    with ActorLogging
-    with LoggingMessageActor {
+) extends LoggingMessageActor
+    with ActorLogging {
   import ChargingNetworkManager._
   import ConnectionStatus._
   import beamServices._

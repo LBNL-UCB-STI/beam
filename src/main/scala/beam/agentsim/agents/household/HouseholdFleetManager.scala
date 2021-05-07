@@ -1,7 +1,7 @@
 package beam.agentsim.agents.household
 import java.util.concurrent.TimeUnit
 import akka.actor.Status.{Failure, Success}
-import akka.actor.{Actor, ActorRef}
+import akka.actor.ActorRef
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
@@ -30,9 +30,8 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.concurrent.{ExecutionContext, Future}
 
 class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
-    extends Actor
-    with ExponentialLazyLogging
-    with LoggingMessageActor {
+    extends LoggingMessageActor
+    with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
 

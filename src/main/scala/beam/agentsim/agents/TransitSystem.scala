@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -35,9 +35,8 @@ class TransitSystem(
   val geo: GeoUtils,
   val networkHelper: NetworkHelper,
   val eventsManager: EventsManager
-) extends Actor
-    with ActorLogging
-    with LoggingMessageActor {
+) extends LoggingMessageActor
+    with ActorLogging {
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {

@@ -2,7 +2,7 @@ package beam.agentsim.scheduler
 
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
-import akka.actor.{Actor, ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -129,9 +129,8 @@ class BeamAgentScheduler(
   stopTick: Int,
   val maxWindow: Int,
   val stuckFinder: StuckFinder
-) extends Actor
-    with ActorLogging
-    with LoggingMessageActor {
+) extends LoggingMessageActor
+    with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 

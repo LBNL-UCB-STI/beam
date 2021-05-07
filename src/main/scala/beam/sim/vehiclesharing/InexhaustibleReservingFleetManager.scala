@@ -1,6 +1,6 @@
 package beam.sim.vehiclesharing
 import java.util.concurrent.TimeUnit
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{ActorLogging, ActorRef}
 import akka.pattern.pipe
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -31,9 +31,8 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long
-) extends Actor
-    with ActorLogging
-    with LoggingMessageActor {
+) extends LoggingMessageActor
+    with ActorLogging {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private val rand: Random = new Random(randomSeed)

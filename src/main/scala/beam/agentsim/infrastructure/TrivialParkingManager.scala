@@ -16,7 +16,7 @@ class TrivialParkingManager extends Actor {
 }
 
 // Abundant parking, but only at one fixed location. For testing.
-class AnotherTrivialParkingManager(location: Coord) extends Actor with LoggingMessageActor {
+class AnotherTrivialParkingManager(location: Coord) extends LoggingMessageActor {
   private var nextStallNum = 0
 
   override def loggedReceive: Receive = {
