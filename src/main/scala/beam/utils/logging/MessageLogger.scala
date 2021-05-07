@@ -90,11 +90,11 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
 
   def extractTickAndTriggerId(payload: Any): (Int, Long) = {
     payload match {
-      case TriggerWithId(trigger, triggerId)            => (trigger.tick, triggerId)
-      case hasTriggerId: HasTriggerId                   => (-1, hasTriggerId.triggerId)
-      case Success(status) if status.isInstanceOf[Long] => (-1, status.asInstanceOf[Long])
-      case (x: HasTriggerId, _)                         => (-1, x.triggerId)
-      case _                                            => (-1, -1)
+      case TriggerWithId(trigger, triggerId) => (trigger.tick, triggerId)
+      case hasTriggerId: HasTriggerId        => (-1, hasTriggerId.triggerId)
+      case Success(status: Long)             => (-1, status)
+      case (x: HasTriggerId, _)              => (-1, x.triggerId)
+      case _                                 => (-1, -1)
     }
   }
 
