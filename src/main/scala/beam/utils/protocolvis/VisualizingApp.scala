@@ -12,7 +12,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable
 
 /* Converts beam actor messages to a sequence diagram. This messages are written when the beam config file contains
-akka.actor.debug.receive=true
+beam.debug.messageLogging=true
 In this case beam produces files like 0.actor_messages_0.csv.gz in each iteration folder.
 
   Parameters:

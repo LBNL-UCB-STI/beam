@@ -28,6 +28,7 @@ import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
+import beam.sim.config.BeamConfig.Beam
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessageActor
@@ -151,6 +152,7 @@ object HouseholdActor {
       with ActorLogging {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
+    implicit val debug: Beam.Debug = beamServices.beamConfig.beam.debug
 
     override val supervisorStrategy: OneForOneStrategy =
       OneForOneStrategy(maxNrOfRetries = 0) {
@@ -187,7 +189,10 @@ object HouseholdActor {
         val fleetManagers = vehiclesByCategory.map {
           case (category, vs) =>
             val fleetManager =
-              context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
+              context.actorOf(
+                Props(new HouseholdFleetManager(parkingManager, vs, homeCoord, beamServices.beamConfig.beam.debug)),
+                category.toString
+              )
             context.watch(fleetManager)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
             fleetManager

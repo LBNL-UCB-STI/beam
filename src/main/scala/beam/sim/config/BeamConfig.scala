@@ -2193,6 +2193,7 @@ object BeamConfig {
       debugActorTimerIntervalInSec: scala.Int,
       debugEnabled: scala.Boolean,
       memoryConsumptionDisplayTimeoutInSec: scala.Int,
+      messageLogging: scala.Boolean,
       secondsToWaitToClearRoutedOutstandingWork: scala.Int,
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
@@ -2355,6 +2356,7 @@ object BeamConfig {
             if (c.hasPathOrNull("memoryConsumptionDisplayTimeoutInSec"))
               c.getInt("memoryConsumptionDisplayTimeoutInSec")
             else 0,
+          messageLogging = c.hasPathOrNull("messageLogging") && c.getBoolean("messageLogging"),
           secondsToWaitToClearRoutedOutstandingWork =
             if (c.hasPathOrNull("secondsToWaitToClearRoutedOutstandingWork"))
               c.getInt("secondsToWaitToClearRoutedOutstandingWork")

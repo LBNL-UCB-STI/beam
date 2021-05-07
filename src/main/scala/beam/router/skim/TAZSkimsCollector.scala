@@ -11,6 +11,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.DateUtils
 import beam.utils.logging.pattern.ask
 
@@ -22,6 +23,7 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
   import TAZSkimsCollector._
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+  private implicit val debug: Debug = beamServices.beamConfig.beam.debug
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
   private val timeBin: Int = 300
 

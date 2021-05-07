@@ -42,6 +42,7 @@ import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils._
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import beam.utils.logging.pattern.ask
@@ -240,6 +241,7 @@ class RideHailManager(
     with Stash {
 
   implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  implicit val debug: Debug = beamServices.beamConfig.beam.debug
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 0) {
       case e: Exception => {

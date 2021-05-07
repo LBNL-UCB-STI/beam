@@ -5,6 +5,7 @@
 package akka.actor
 
 import beam.agentsim.agents.HasTickAndTrigger
+import beam.utils.logging.LoggingMessageActor.messageLoggingEnabled
 import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamStateTransition}
 
 trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
@@ -15,7 +16,7 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
 
   private[akka] override val debugEvent = context.system.settings.FsmDebugEvent
 
-  private val debugMessages = context.system.settings.AddLoggingReceive
+  val debugMessages: Boolean = messageLoggingEnabled(context.system.settings.config)
 
   private val events = new Array[Event](logDepth)
   private val states = new Array[AnyRef](logDepth)

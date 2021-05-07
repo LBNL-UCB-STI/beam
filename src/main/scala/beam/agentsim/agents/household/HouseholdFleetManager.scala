@@ -23,14 +23,19 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.HasTriggerId
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehicle], BeamVehicle], homeCoord: Coord)
-    extends LoggingMessageActor
+class HouseholdFleetManager(
+  parkingManager: ActorRef,
+  vehicles: Map[Id[BeamVehicle], BeamVehicle],
+  homeCoord: Coord,
+  implicit val debug: Debug,
+) extends LoggingMessageActor
     with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher

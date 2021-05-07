@@ -2,6 +2,7 @@ package beam.utils.logging.pattern
 
 import akka.actor.{ActorContext, ActorRef}
 import akka.util.Timeout
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.MessageLogger.BeamMessage
 
 import scala.concurrent.Future
@@ -17,31 +18,32 @@ trait LoggingAskSupport {
   def ask(
     actorRef: ActorRef,
     message: Any
-  )(implicit context: ActorContext, timeout: Timeout, sender: ActorRef): Future[Any] =
-    actorRef.internalAsk(message, context, timeout, sender)
+  )(implicit context: ActorContext, timeout: Timeout, sender: ActorRef, debug: Debug): Future[Any] =
+    actorRef.internalAsk(message, context, timeout, sender, debug)
 }
 
 final class LoggingAskableActorRef(val actorRef: ActorRef) extends AnyVal {
 
-  def ask(message: Any)(implicit context: ActorContext, timeout: Timeout, sender: ActorRef): Future[Any] =
-    internalAsk(message, context, timeout, sender)
+  def ask(message: Any)(implicit context: ActorContext, timeout: Timeout, sender: ActorRef, debug: Debug): Future[Any] =
+    internalAsk(message, context, timeout, sender, debug)
 
-  def ?(message: Any)(implicit context: ActorContext, timeout: Timeout, sender: ActorRef): Future[Any] =
-    internalAsk(message, context, timeout, sender)
+  def ?(message: Any)(implicit context: ActorContext, timeout: Timeout, sender: ActorRef, debug: Debug): Future[Any] =
+    internalAsk(message, context, timeout, sender, debug)
 
   private[pattern] def internalAsk(
     message: Any,
     context: ActorContext,
     timeout: Timeout,
-    sender: ActorRef
+    sender: ActorRef,
+    debug: Debug,
   ): Future[Any] = {
-    if (context.system.settings.AddLoggingReceive) {
+    if (debug.messageLogging) {
       context.system.eventStream.publish(BeamMessage(sender, actorRef, message))
     }
     val futureResponse = akka.pattern
       .ask(actorRef)
       .ask(message)(timeout, sender)
-    if (context.system.settings.AddLoggingReceive) {
+    if (debug.messageLogging) {
       import scala.concurrent.ExecutionContext.Implicits.global
       futureResponse.andThen {
         case Success(msg) =>

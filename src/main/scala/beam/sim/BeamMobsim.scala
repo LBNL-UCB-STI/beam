@@ -334,7 +334,7 @@ class BeamMobsimIteration(
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
 
-  if (context.system.settings.AddLoggingReceive) {
+  if (beamServices.beamConfig.beam.debug.messageLogging) {
     context.watch(
       context.actorOf(
         MessageLogger.props(beamServices.matsimServices.getIterationNumber, beamServices.matsimServices.getControlerIO),

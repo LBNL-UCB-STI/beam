@@ -24,6 +24,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
@@ -52,6 +53,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+  private implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
   private val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 

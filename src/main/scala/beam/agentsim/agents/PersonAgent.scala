@@ -33,6 +33,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
@@ -263,6 +264,7 @@ class PersonAgent(
     with ExponentialLazyLogging {
 
   override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
+  implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
