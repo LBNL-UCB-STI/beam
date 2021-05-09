@@ -16,7 +16,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try;
 
 object Network2ShapeFile extends LazyLogging {
-
+  /* Link attributes to be written into SHP file */
   case class NetworkLink(
     fromNode: Node,
     toNode: Node,
@@ -30,9 +30,13 @@ object Network2ShapeFile extends LazyLogging {
     lanes: Double
   ) {
 
+    /* Coordinate of toNode in com.vividsolutions format */
     def vividCoordTo: Coordinate = new Coordinate(toNode.getCoord.getX, toNode.getCoord.getY)
+
+    /* Coordinate of fromNode in com.vividsolutions format */
     def vividCoordFrom: Coordinate = new Coordinate(fromNode.getCoord.getX, fromNode.getCoord.getY)
 
+    /* returns SimpleFeature for shapefile writer */
     def toFeature(
       geometryFactory: GeometryFactory,
       featureBuilder: SimpleFeatureBuilder
@@ -53,7 +57,8 @@ object Network2ShapeFile extends LazyLogging {
       }
     }
 
-    // the order should match fields order in NetworkLink.nameToType
+    /* returns link attributes as Array[Object] to generate SimpleFeature
+       the order should match fields order in NetworkLink.nameToType  */
     private def attributesArray: Array[Object] = {
       Array(
         id,
@@ -72,7 +77,9 @@ object Network2ShapeFile extends LazyLogging {
 
   object NetworkLink {
 
-    // the order should match values order in NetworkLink.attributesArray
+    /* returns map of field name to field type
+       required for SimpleFeatureTypeBuilder
+       the order should match values order in NetworkLink.attributesArray */
     val nameToType = IndexedSeq(
       "ID"        -> classOf[java.lang.String],
       "fromID"    -> classOf[java.lang.String],
@@ -86,6 +93,7 @@ object Network2ShapeFile extends LazyLogging {
       "lanes"     -> classOf[java.lang.Double]
     )
 
+    /* creates a NetworkLink object from Link object */
     def apply(link: Link): NetworkLink = {
       val linkType = NetworkUtils.getType(link)
       val modes: String = Try(link.getAllowedModes.asScala.mkString(",")) getOrElse ""
@@ -106,6 +114,7 @@ object Network2ShapeFile extends LazyLogging {
     }
   }
 
+  /* create a SimpleFeatureBuilder with NetworkLink fields and types */
   private def createFeatureBuilder(crs: CoordinateReferenceSystem): SimpleFeatureBuilder = {
     val typeBuilder = new SimpleFeatureTypeBuilder()
     typeBuilder.setName("link")
@@ -120,6 +129,7 @@ object Network2ShapeFile extends LazyLogging {
     new SimpleFeatureBuilder(typeBuilder.buildFeatureType())
   }
 
+  /* the main function to convert matsim network file to shapefile with filtering of links */
   def networkToShapeFile(
     matsimNetworkPath: String,
     outputShapeFilePath: String,
@@ -146,6 +156,7 @@ object Network2ShapeFile extends LazyLogging {
     logger.info("Done");
   }
 
+  /* the main method to run transformation from matsim network into SHP file */
   def main(args: Array[String]): Unit = {
     val matsimNetworkPath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/physsim-network.xml"
     val outputShapeFilePath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/output-physsim-network.shp"
