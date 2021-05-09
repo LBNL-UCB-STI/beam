@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, LineString}
 import org.geotools.feature.simple.{SimpleFeatureBuilder, SimpleFeatureTypeBuilder}
@@ -151,9 +152,15 @@ object Network2ShapeFile extends LazyLogging {
     val crsString = "epsg:26910"
     val crs = MGC.getCRS(crsString)
 
-    val envelope = new Envelope(546253.221, 551299.898, 4180795.862, 4176718.516)
+    val geoUtils = new GeoUtils {
+      override def localCRS: String = crsString
+    }
+
+    val envelopeWGS = new Envelope(-122.48632, -122.41355, 37.77463, 37.74184)
+    val envelopeUTM = geoUtils.wgs2Utm(envelopeWGS)
+
     def filter(networkLink: NetworkLink): Boolean = {
-      envelope.contains(networkLink.vividCoordTo) || envelope.contains(networkLink.vividCoordFrom)
+      envelopeUTM.contains(networkLink.vividCoordTo) || envelopeUTM.contains(networkLink.vividCoordFrom)
     }
 
     networkToShapeFile(matsimNetworkPath, outputShapeFilePath, crs, filter)
