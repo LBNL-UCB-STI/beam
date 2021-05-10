@@ -35,11 +35,6 @@ class S3WrapperTest extends FunSuite {
       s3.allBucketFiles(bucketName)
     }
 
-    val tmp = allBucketFiles.filter(_.key.startsWith("beamville/"))
-    println(tmp.map(_.key).mkString("\n"))
-    println(s"@@@ totalSize of [$bucketName/beamville] : ${tmp.map(_.sizeInBytes).sum}")
-
-
     val allBucketKeys = allBucketFiles.map(_.key)
 
     assert(expectedKeysToExist.subsetOf(allBucketKeys))
