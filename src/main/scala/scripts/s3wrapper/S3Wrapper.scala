@@ -32,9 +32,9 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
   private lazy val cachedBuckets = new AtomicReference[Set[S3Bucket]](listBucketNamesInternal)
 
   /**
-    * Retrieve all available buckets available
+    * Retrieve all available buckets and its region. It is equivalent of the following command
     * `aws s3 ls` or `aws s3api list-buckets --query "Buckets[].Name"`
-    * combined with
+    * combined with the following
     * `aws s3api get-bucket-location --bucket my-bucket` per each bucket
     * It also update internal cache with returned buckets
     *
@@ -119,7 +119,7 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
       throw new IllegalArgumentException(s"Destination path [$destinationPath] must be a directory")
     }
     if (Files.exists(destinationPath.resolve(bucketName))) {
-      throw new IllegalArgumentException(s"Destination path [$destinationPath] cannot contain a directory with the bucket name [$bucketName]")
+      throw new IllegalArgumentException(s"Destination path [$destinationPath] already contains a directory with the name [$bucketName]")
     }
 
     val transferManager: TransferManager = TransferManagerBuilder.standard
@@ -142,8 +142,6 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
 }
 
 object S3Wrapper extends StrictLogging {
-
-  val directories = Map.empty[String, S3RemoteDirectory]
 
   def fromCredentialDefault(): S3Wrapper = {
     fromCredential("default")
