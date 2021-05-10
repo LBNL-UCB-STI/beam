@@ -170,27 +170,8 @@ object S3Wrapper extends StrictLogging {
     val ini = new Wini(filePath.toFile)
     val accessKey = ini.get(profile, "aws_access_key_id", classOf[String])
     val secretKey = ini.get(profile, "aws_secret_access_key", classOf[String])
-//    val theRegion = region.getOrElse(ini.get(profile, "region", classOf[String]))
-
-//    if (hasSomeNullOrEmpty(accessKey, secretKey, theRegion)) {
-//      val msg = s"The file [$filePath] must define values for 'aws_access_key_id', " +
-//        s"'aws_secret_access_key' and 'region' for profile [$profile]"
-//      throw new IllegalStateException(msg)
-//    }
 
     new S3Wrapper(accessKey, secretKey)
-  }
-
-  private def toResource(summary: S3ObjectSummary): S3RemoteResource = {
-    if (summary.getKey.endsWith("/")) {
-      S3RemoteDirectory(summary.getKey)
-    } else {
-      S3RemoteFile(summary.getKey, summary.getSize)
-    }
-  }
-
-  private def hasSomeNullOrEmpty(args: String*): Boolean = {
-    args.contains(null) || args.exists(_.trim.isEmpty)
   }
 
   private def validateNotBlank(field: String, fieldValue: String): Unit = {
