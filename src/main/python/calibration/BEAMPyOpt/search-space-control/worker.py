@@ -17,9 +17,10 @@ rel_nudge_stages = list(range(init_runs,total_rel_nudge_trials+1, parallel_run))
 
 # constants
 finaliteration = '0'
+
 p = 24 # intercepts
 q = 13 # last iterations
-
+r = 77
 # Methods
 
 def create_conf_copies(no_iters, which_stage):
@@ -36,7 +37,7 @@ def ext_change(param, picked_conf_file, filename):
     elif param == 'save':
         os.rename(filename, filename[:-3] + 'conf')
 
-def change_conf(input_vector, filename):
+def change_conf(input_vector, capacity_input_vector, filename):
     with open(filename, 'r') as fin:
         file_text=fin.readlines()
 
@@ -190,7 +191,6 @@ def recipe():
 
 
 def fire_BEAM(number):
-    import os
     print('BEAM fired on '+str(os.getpid())+' PID.')
     picked_conf_file = copy_urbansim_config % number   # label the file
     os.chdir(beam)
