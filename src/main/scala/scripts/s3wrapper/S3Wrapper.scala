@@ -15,7 +15,6 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
-
 class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with StrictLogging {
   validateNotBlank("accessKey", accessKey)
   validateNotBlank("secretKey", secretKey)
@@ -82,9 +81,7 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
   private def allBucketFiles(request: ListObjectsV2Request, acc: Set[S3RemoteFile], max: Int): Set[S3RemoteFile] = {
     if (max > 0) {
       val result: ListObjectsV2Result = s3Client.listObjectsV2(request)
-      val resultKeys = result
-        .getObjectSummaries
-        .asScala
+      val resultKeys = result.getObjectSummaries.asScala
         .map(o => S3RemoteFile(o.getKey, o.getSize))
         .toSet
       if (result.isTruncated) {
@@ -119,17 +116,22 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
       throw new IllegalArgumentException(s"Destination path [$destinationPath] must be a directory")
     }
     if (Files.exists(destinationPath.resolve(bucketName))) {
-      throw new IllegalArgumentException(s"Destination path [$destinationPath] already contains a directory with the name [$bucketName]")
+      throw new IllegalArgumentException(
+        s"Destination path [$destinationPath] already contains a directory with the name [$bucketName]"
+      )
     }
 
     val transferManager: TransferManager = TransferManagerBuilder.standard
       .withS3Client(s3Client)
       .build
 
-    val downloader: MultipleFileDownload = transferManager.downloadDirectory(bucketName, keysStartingWith, destinationPath.toFile)
+    val downloader: MultipleFileDownload =
+      transferManager.downloadDirectory(bucketName, keysStartingWith, destinationPath.toFile)
     logger.info(s"Downloading directory [$keysStartingWith] from bucket [$bucketName] to [$destinationPath] started.")
     downloader.waitForCompletion()
-    logger.info(s"Downloading directory [$keysStartingWith] from bucket [$bucketName] to [$destinationPath] has finished.")
+    logger.info(
+      s"Downloading directory [$keysStartingWith] from bucket [$bucketName] to [$destinationPath] has finished."
+    )
   }
 
   /**
@@ -177,4 +179,3 @@ object S3Wrapper extends StrictLogging {
   }
 
 }
-
