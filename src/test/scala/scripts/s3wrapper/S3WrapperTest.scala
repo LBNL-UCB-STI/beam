@@ -1,4 +1,4 @@
-package scripts.s3wrapper
+/* package scripts.s3wrapper
 
 import beam.tags.Integration
 import beam.utils.FileUtils
@@ -71,3 +71,4 @@ class S3WrapperTest extends FunSuite {
     }
   }
 }
+*/
