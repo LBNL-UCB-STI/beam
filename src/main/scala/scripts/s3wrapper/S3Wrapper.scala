@@ -1,3 +1,4 @@
+/*
 package scripts.s3wrapper
 
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
@@ -179,3 +180,4 @@ object S3Wrapper extends StrictLogging {
   }
 
 }
+*/
