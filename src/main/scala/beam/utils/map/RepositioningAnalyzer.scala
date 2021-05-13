@@ -97,7 +97,7 @@ object RepositioningAnalyzer extends LazyLogging {
           }
           .filter(
             x =>
-              x.planElementType == "activity" && x.activityEndTime.isDefined && !x.activityEndTime
+              x.planElementType == PlanElement.Activity && x.activityEndTime.isDefined && !x.activityEndTime
                 .contains(Double.NegativeInfinity)
           )
           .map { planElement =>

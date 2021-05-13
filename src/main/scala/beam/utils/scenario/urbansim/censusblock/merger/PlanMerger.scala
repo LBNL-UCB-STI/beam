@@ -45,7 +45,7 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
       0,
       0,
       planSelected = true,
-      inputPlanElement.activityElement.toString,
+      PlanElement.PlanElementType(inputPlanElement.activityElement.toString),
       inputPlanElement.planElementIndex,
       inputPlanElement.ActivityType,
       inputPlanElement.x,

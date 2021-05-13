@@ -58,7 +58,7 @@ class UrbanSimScenarioSource(
       PlanElement(
         personId = PersonId(plan.personId),
         planIndex = 0, // TODO FIXME!
-        planElementType = plan.planElement,
+        planElementType = PlanElement.PlanElementType(plan.planElement),
         planElementIndex = plan.planElementIndex,
         planScore = 0, // TODO: DataExchange.PlanElement does not have score
         planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected

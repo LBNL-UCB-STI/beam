@@ -34,7 +34,7 @@ object CsvPlanElementReader extends PlanElementReader {
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore").toDouble,
       planSelected = getIfNotNull(rec, "planSelected").toBoolean,
-      planElementType = planElementType,
+      planElementType = PlanElement.PlanElementType(planElementType),
       planElementIndex = planElementIndex,
       activityType = activityType,
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),

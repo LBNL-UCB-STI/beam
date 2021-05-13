@@ -8,6 +8,7 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
@@ -98,19 +99,24 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val plans = Await.result(plansF, 500.seconds)
-    val persons = Await.result(personsF, 500.seconds)
-    val households = Await.result(householdsF, 500.seconds)
+    val plansProbablyWithHOV: Iterable[PlanElement] = Await.result(plansF, 500.seconds)
+    val persons: Iterable[PersonInfo] = Await.result(personsF, 500.seconds)
+    val households: Iterable[HouseholdInfo] = Await.result(householdsF, 500.seconds)
+
+//    HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+//    val plans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansProbablyWithHOV, persons, households)
+    val plans = plansProbablyWithHOV
 
     val householdIds = households.map(_.householdId.id).toSet
 
-    val personsWithPlans = getPersonsWithPlan(persons, plans)
+    val personsWithPlans: Iterable[PersonInfo] = getPersonsWithPlan(persons, plans)
       .filter(p => householdIds.contains(p.householdId.id))
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
+    val householdsWithMembers: Iterable[HouseholdInfo] =
+      households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
     logger.info("Applying households...")
@@ -270,7 +276,7 @@ class UrbanSimScenarioLoader(
         None
     }
     val planTripStats = planElements.toSeq
-      .filter(_.planElementType == "activity")
+      .filter(_.planElementType == PlanElement.Activity)
       .sliding(2)
       .flatMap {
         case Seq(firstElement, secondElement, _*) =>
@@ -557,14 +563,14 @@ class UrbanSimScenarioLoader(
           person.setSelectedPlan(plan)
         }
         val planElement = planInfo.planElementType
-        if (planElement.equalsIgnoreCase("leg")) {
+        if (planElement == PlanElement.Leg) {
           planInfo.legMode match {
             case Some(mode) =>
               PopulationUtils.createAndAddLeg(plan, mode)
             case None =>
               PopulationUtils.createAndAddLeg(plan, "")
           }
-        } else if (planElement.equalsIgnoreCase("activity")) {
+        } else if (planElement == PlanElement.Activity) {
           assert(
             planInfo.activityLocationX.isDefined,
             s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
