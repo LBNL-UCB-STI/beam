@@ -208,7 +208,7 @@ dependencies {
     compile "org.scala-lang:scala-compiler:2.12.12"
 
     // TEST Scala //
-    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.7'
+    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.9'
     testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
@@ -303,7 +303,7 @@ dependencies {
     scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
 
     // AWS S3
-    testCompile group: 'software.amazon.awssdk', name: 's3', version: '2.16.61'
+    compile group: 'software.amazon.awssdk', name: 's3', version: '2.16.61'
     compile group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
 
 }
