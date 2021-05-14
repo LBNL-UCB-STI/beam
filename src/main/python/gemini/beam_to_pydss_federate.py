@@ -38,6 +38,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     #     station_id = station_bus_pairs[s][0]
     #     pubs_station_loads[station_id] = h.helicsFederateRegisterTypePublication(cfed, station_id, "string_vector", "")
 
+    print("Register a publication of control signals")
 
     # Register a publication of control signals
     pubs_control = h.helicsFederateRegisterTypePublication(cfed, "pubs_power_limit_and_lpm_control", "string", "")
@@ -52,6 +53,8 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     h.helicsFederateEnterExecutingMode(cfed)
     logging.info("beam_to_pydss_federate in execution mode")
 
+    print("entered execution mode")
+
     currenttime = -1
     timebin = 300
     # start execution loop
@@ -61,6 +64,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         isupdated = 0
         while isupdated != 1:
             isupdated = h.helicsInputIsUpdated(subs_charger_loads)
+        print("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
         updated_station_ids = []

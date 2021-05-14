@@ -103,17 +103,17 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
-        val poolingTravelTimeOveheadFactor =
-          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOveheadFactor
+        val poolingTravelTimeOverheadFactor =
+          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOverheadFactor
         ODSkimmerInternal(
-          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOverheadFactor,
           generalizedTimeInS = 0,
           generalizedCost = 0,
           distanceInM = solo.distanceInM,
           cost = getRideHailCost(
             RIDE_HAIL_POOLED,
             solo.distanceInM,
-            solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+            solo.travelTimeInS * poolingTravelTimeOverheadFactor,
             beamConfig
           ),
           energy = 0.0,

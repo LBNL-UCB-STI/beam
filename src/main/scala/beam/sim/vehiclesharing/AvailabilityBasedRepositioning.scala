@@ -49,7 +49,11 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => beamServices.skims.taz_skimmer.getLatestSkim(i, idTAZ, vehicleManager.toString, label))
+      .map(
+        i =>
+          beamServices.skims.taz_skimmer
+            .getPreviousIterationSkim(i, vehicleManager.toString, Some(idTAZ), Some(label), None)
+      )
       .toVector
       .flatten
   }

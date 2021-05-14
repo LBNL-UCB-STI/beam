@@ -1756,7 +1756,9 @@ object BeamConfig {
           connectionEnabled: scala.Boolean,
           coreInitString: java.lang.String,
           coreType: java.lang.String,
+          dataInStreamLogFile: java.lang.String,
           dataInStreamPoint: java.lang.String,
+          dataOutStreamLogFile: java.lang.String,
           dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String,
           intLogLevel: scala.Int,
@@ -1773,9 +1775,15 @@ object BeamConfig {
                 if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
                 else "--federates=1 --broker_address=tcp://127.0.0.1",
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
+              dataInStreamLogFile =
+                if (c.hasPathOrNull("dataInStreamLogFile")) c.getString("dataInStreamLogFile")
+                else "/test/input/beamville",
               dataInStreamPoint =
                 if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
                 else "GridFed/PhysicalBounds",
+              dataOutStreamLogFile =
+                if (c.hasPathOrNull("dataOutStreamLogFile")) c.getString("dataOutStreamLogFile")
+                else "/test/input/beamville",
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
               federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
@@ -3482,7 +3490,7 @@ object BeamConfig {
         case class OriginDestinationSkimmer(
           fileBaseName: java.lang.String,
           name: java.lang.String,
-          poolingTravelTimeOveheadFactor: scala.Double,
+          poolingTravelTimeOverheadFactor: scala.Double,
           writeAllModeSkimsForPeakNonPeakPeriodsInterval: scala.Int,
           writeFullSkimsInterval: scala.Int
         )
@@ -3493,8 +3501,8 @@ object BeamConfig {
             BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsOD",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "od-skimmer",
-              poolingTravelTimeOveheadFactor =
-                if (c.hasPathOrNull("poolingTravelTimeOveheadFactor")) c.getDouble("poolingTravelTimeOveheadFactor")
+              poolingTravelTimeOverheadFactor =
+                if (c.hasPathOrNull("poolingTravelTimeOverheadFactor")) c.getDouble("poolingTravelTimeOverheadFactor")
                 else 1.21,
               writeAllModeSkimsForPeakNonPeakPeriodsInterval =
                 if (c.hasPathOrNull("writeAllModeSkimsForPeakNonPeakPeriodsInterval"))
@@ -3508,6 +3516,7 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
+          geoHierarchy: java.lang.String,
           name: java.lang.String
         )
 
@@ -3516,6 +3525,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
+              geoHierarchy = if (c.hasPathOrNull("geoHierarchy")) c.getString("geoHierarchy") else "TAZ",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
             )
           }

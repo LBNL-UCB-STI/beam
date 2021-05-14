@@ -443,10 +443,10 @@ class RideHailManager(
       rideHailManagerHelper.getIdleVehicles.foreach {
         case (_, agentLocation) =>
           val currentLocation = agentLocation.getCurrentLocationUTM(tick, beamServices)
-          val idTaz = beamServices.beamScenario.tazTreeMap.getTAZ(currentLocation).tazId
+          val tazCoord = beamServices.beamScenario.tazTreeMap.getTAZ(currentLocation).coord
           val skimmerEvent = TAZSkimmerEvent(
             tick,
-            idTaz,
+            tazCoord,
             "idleRHVehicles",
             1.0,
             beamServices,

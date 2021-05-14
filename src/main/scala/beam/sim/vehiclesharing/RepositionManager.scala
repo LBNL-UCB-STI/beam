@@ -73,9 +73,8 @@ trait RepositionManager extends Actor with ActorLogging {
   }
 
   protected def collectData(time: Int, loc: Coord, varLabel: String): Unit = {
-    val idTaz = getServices.beamScenario.tazTreeMap.getTAZ(loc).tazId
     getServices.matsimServices.getEvents.processEvent(
-      TAZSkimmerEvent(time, idTaz, varLabel, 1.0, getServices, "RepositionManager")
+      TAZSkimmerEvent(time, loc, varLabel, 1.0, getServices, "RepositionManager")
     )
   }
 }
