@@ -1,40 +1,75 @@
 package beam.router.skim.readonly
 
-import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.core.AbstractSkimmerReadOnly
+import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
+import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
 import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamScenario
 import org.matsim.api.core.v01.Id
 
 case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
-  def isPartialSkimEmpty: Boolean = isEmpty
+  def getCurrentSkim(
+    time: Int,
+    actor: String,
+    tazMaybe: Option[Id[TAZ]],
+    keyMaybe: Option[String],
+    hexMaybe: Option[String]
+  ): Option[TAZSkimmerInternal] = {
+    if (currentSkim.isEmpty) None
+    else
+      getSkim(currentSkim, time, actor, tazMaybe, keyMaybe, hexMaybe)
+  }
 
-  def getPartialSkim(time: Int, taz: Id[TAZ], hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
-    getCurrentSkimValue(TAZSkimmerKey(time, taz, hex, actor, key)).asInstanceOf[Option[TAZSkimmerInternal]]
+  def getPreviousIterationSkim(
+    time: Int,
+    actor: String,
+    tazMaybe: Option[Id[TAZ]],
+    keyMaybe: Option[String],
+    hexMaybe: Option[String]
+  ): Option[TAZSkimmerInternal] = {
+    if (pastSkims.isEmpty) None
+    else
+      getSkim(pastSkims(currentIteration - 1), time, actor, tazMaybe, keyMaybe, hexMaybe)
+  }
 
-  def getPartialSkim(time: Int, hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
-    getPartialSkim(time, beamScenario.h3taz.getTAZ(hex), hex, actor, key)
+  private def getSkim(
+    theSkim: scala.collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal],
+    time: Int,
+    actor: String,
+    tazMaybe: Option[Id[TAZ]],
+    keyMaybe: Option[String],
+    hexMaybe: Option[String]
+  ): Option[TAZSkimmerInternal] = {
+    val geoHierarchy = beamScenario.beamConfig.beam.router.skim.taz_skimmer.geoHierarchy
+    if (tazMaybe.isEmpty || keyMaybe.isEmpty || (hexMaybe.isEmpty && geoHierarchy == "H3")) {
+      aggregateSkims(
+        theSkim
+          .filter { s =>
+            val s2 = s._1.asInstanceOf[TAZSkimmerKey]
+            tazMaybe.forall(_ == s2.taz) && s2.time == time && s2.actor == actor && keyMaybe
+              .forall(_ == s2.key) && hexMaybe
+              .forall(_ == s2.hex)
+          }
+          .map(_._2.asInstanceOf[TAZSkimmerInternal])
+      )
+    } else
+      geoHierarchy match {
+        case "TAZ" =>
+          theSkim
+            .get(TAZSkimmerKey(time, tazMaybe.get, H3TAZ.emptyH3, actor, keyMaybe.get))
+            .asInstanceOf[Option[TAZSkimmerInternal]]
 
-  def getPartialSkim(time: Int, taz: Id[TAZ], actor: String, key: String): Option[TAZSkimmerInternal] =
-    aggregateSkims(beamScenario.h3taz.getIndices(taz).flatMap(getPartialSkim(time, taz, _, actor, key)))
+        case "H3" =>
+          theSkim
+            .get(TAZSkimmerKey(time, tazMaybe.get, hexMaybe.get, actor, keyMaybe.get))
+            .asInstanceOf[Option[TAZSkimmerInternal]]
+        case _ =>
+          theSkim
+            .get(TAZSkimmerKey(time, TAZTreeMap.emptyTAZId, H3TAZ.emptyH3, actor, keyMaybe.get))
+            .asInstanceOf[Option[TAZSkimmerInternal]]
+      }
 
-  def isLatestSkimEmpty: Boolean = pastSkims.isEmpty
-
-  def getLatestSkim(time: Int, taz: Id[TAZ], hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
-    pastSkims
-      .get(currentIteration - 1)
-      .flatMap(_.get(TAZSkimmerKey(time, taz, hex, actor, key)))
-      .asInstanceOf[Option[TAZSkimmerInternal]]
-
-  def getLatestSkim(time: Int, hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
-    getLatestSkim(time, beamScenario.h3taz.getTAZ(hex), hex, actor, key)
-
-  def getLatestSkim(time: Int, taz: Id[TAZ], actor: String, key: String): Option[TAZSkimmerInternal] =
-    aggregateSkims(beamScenario.h3taz.getIndices(taz).flatMap(getLatestSkim(time, taz, _, actor, key)))
-
-  def getAggregatedSkim(time: Int, taz: Id[TAZ], hex: String, actor: String, key: String): Option[TAZSkimmerInternal] =
-    aggregatedFromPastSkims.get(TAZSkimmerKey(time, taz, hex, actor, key)).asInstanceOf[Option[TAZSkimmerInternal]]
+  }
 
   private def aggregateSkims(skims: Iterable[TAZSkimmerInternal]): Option[TAZSkimmerInternal] = {
     try {
@@ -46,7 +81,7 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
               case Some(accSkim) =>
                 Some(
                   TAZSkimmerInternal(
-                    value = (accSkim.value * accSkim.observations + skim.value + skim.observations) / (accSkim.observations + skim.observations),
+                    value = (accSkim.value * accSkim.observations + skim.value * skim.observations) / (accSkim.observations + skim.observations),
                     observations = accSkim.observations + skim.observations,
                     iterations = accSkim.iterations
                   )

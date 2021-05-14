@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
+import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
 import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toCoord, H3, HexIndex}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -8,15 +9,14 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.StrictLogging
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Network
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
+
 import scala.collection.JavaConverters._
 import scala.collection._
-
-import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
   private def cfg = beamConfig.beam.agentsim.h3taz
@@ -40,21 +40,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elemets"
   )
 
-  private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
-    ProfilingUtils.timed("Constructed tazToH3TAZMapping", str => logger.info(str)) {
-      fillBoxResult.par
-        .map { hex =>
-          val centroid = getCentroid(hex)
-          val tazId = tazTreeMap.getTAZ(centroid.getX, centroid.getY).tazId
-          (hex, tazId)
-        }
-        .toMap
-        .seq
-    }
-
-  def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
-  def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
-  def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
+  def getAll: Iterable[HexIndex] = fillBoxResult
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
 
@@ -76,6 +62,7 @@ object H3TAZ {
   type HexIndex = String
   private val H3 = com.uber.h3core.H3Core.newInstance
   val H3Projection = "EPSG:4326"
+  val emptyH3 = "None"
 
   def writeToShp(filename: String, h3Tazs: Iterable[(HexIndex, String, Double)]): Unit = {
     val gf = new GeometryFactory()

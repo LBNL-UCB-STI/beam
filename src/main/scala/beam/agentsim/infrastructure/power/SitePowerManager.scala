@@ -44,13 +44,17 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     * @return power in KW
     */
   private def observedPowerDemandInKW(tick: Int, zone: ChargingZone): Option[Double] = {
-    if (!tazSkimmer.isLatestSkimEmpty) {
-      val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
-      beamServices.skims.taz_skimmer.getLatestSkim(currentTimeBin, zone.tazId, "CNM", zone.id) match {
-        case Some(skim) => Some(skim.value * skim.observations)
-        case None       => Some(0.0)
-      }
-    } else None
+    val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
+    beamServices.skims.taz_skimmer.getPreviousIterationSkim(
+      currentTimeBin,
+      "CNM",
+      Some(zone.tazId),
+      Some(zone.id),
+      None
+    ) match {
+      case Some(skim) => Some(skim.value * skim.observations)
+      case _          => None
+    }
   }
 
   /**
@@ -62,7 +66,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
   private def estimatePowerDemandInKW(tick: Int, chargingZone: ChargingZone): Double = {
     val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
     val cz @ ChargingZone(tazId, _, _, _, _, _) = chargingZone
-    tazSkimmer.getPartialSkim(previousTimeBin, tazId, "CNM", cz.id) match {
+    tazSkimmer.getCurrentSkim(previousTimeBin, "CNM", Some(tazId), Some(cz.id), None) match {
       case Some(skim) => skim.value * skim.observations
       case None       => 0.0
     }
@@ -111,7 +115,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     beamServices.matsimServices.getEvents.processEvent(
       event.TAZSkimmerEvent(
         cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),
-        stall.locationUTM,
+        beamServices.beamScenario.tazTreeMap.getTAZ(chargingStation.zone.tazId).get.coord,
         chargingStation.zone.id,
         if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0),
         beamServices,

@@ -44,19 +44,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     * @param time time in seconds
     */
   def storeObservation(value: Double, kpi: Kpi, time: Int): Unit = {
-    storeObservation(value, kpi, time, None)
-  }
-
-  /**
-    * Store an observation of a KPI with at a particular time and location
-    *
-    * @param value observation to be stored
-    * @param kpi kpi characterizing the observation
-    * @param time time in seconds
-    * @param location location as a Coord
-    */
-  def storeObservation(value: Double, kpi: Kpi, time: Int, location: Coord): Unit = {
-    storeObservation(value, kpi, time, Some(location))
+    storeObservation(value, kpi, time, None, None)
   }
 
   /**
@@ -69,7 +57,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   def storeObservation(event: TAZSkimmerEvent): Unit = {
     val kpi = beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI.getKpiRegistry
       .withName(event.key)
-    storeObservation(event.value, kpi, event.time, event.coord)
+    storeObservation(event.value, kpi, event.time, event.getTazIndex, event.getHexIndex)
   }
 
   /**
@@ -80,17 +68,15 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     * @param time
     * @param locationOpt
     */
-  private def storeObservation(value: Double, kpi: Kpi, time: Int, locationOpt: Option[Coord]) = {
+  private def storeObservation(
+    value: Double,
+    kpi: Kpi,
+    time: Int,
+    idTazMaybe: Option[Id[TAZ]],
+    hexIndexMaybe: Option[String]
+  ) = {
     val (quarterHour, halfHour, hour) = timeInSecondsToBins(time)
-    val (hexIndex, tazId) = locationOpt match {
-      case Some(location) =>
-        val hexIndex = beamServices.beamScenario.h3taz.getIndex(location)
-        val idTaz = beamServices.beamScenario.tazTreeMap.getTAZ(location.getX, location.getY).tazId
-        (Some(hexIndex), Some(idTaz))
-      case None =>
-        (None, None)
-    }
-    putObservation(IndexedSpatioTemporalKpi(kpi, time, quarterHour, halfHour, hour, hexIndex, tazId), value)
+    putObservation(IndexedSpatioTemporalKpi(kpi, time, quarterHour, halfHour, hour, hexIndexMaybe, idTazMaybe), value)
   }
 
   /**
@@ -111,8 +97,13 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     location: Coord,
     temporalAggregation: Option[TemporalAggregation] = None
   ) = {
-    val hexIndex = beamServices.beamScenario.h3taz.getIndex(location)
-    getObservations(kpi, time, temporalAggregation, None, Some(beamServices.beamScenario.h3taz.getTAZ(hexIndex)))
+    getObservations(
+      kpi,
+      time,
+      temporalAggregation,
+      Some(beamServices.beamScenario.h3taz.getIndex(location)),
+      Some(beamServices.beamScenario.tazTreeMap.getTAZ(location).tazId)
+    )
   }
 
   /**
@@ -133,7 +124,13 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     location: Coord,
     temporalAggregation: Option[TemporalAggregation] = None
   ) = {
-    getObservations(kpi, time, temporalAggregation, Some(beamServices.beamScenario.h3taz.getIndex(location)), None)
+    getObservations(
+      kpi,
+      time,
+      temporalAggregation,
+      Some(beamServices.beamScenario.h3taz.getIndex(location)),
+      Some(beamServices.beamScenario.tazTreeMap.getTAZ(location).tazId)
+    )
   }
 
   /**
