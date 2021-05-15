@@ -35,7 +35,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.FunSpecLike
+import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatestplus.mockito.MockitoSugar
 
 import java.util.concurrent.TimeUnit
@@ -44,7 +44,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 
 class PersonAndTransitDriverSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
     with MockitoSugar
