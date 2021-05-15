@@ -10,7 +10,6 @@ import os
 
 
 def run_beam_to_pydss_federate(station_bus_pairs):
-    logging.basicConfig(filename='beam_to_pydss_federate.log', level=logging.DEBUG, filemode='w')
     fedinfo = h.helicsCreateFederateInfo()
 
     # set the name
@@ -142,6 +141,7 @@ def load_station_bus_pairs():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(filename='beam_to_pydss_federate.log', level=logging.DEBUG, filemode='w')
     station_bus_pairs = load_station_bus_pairs()
     logging.info("stations_list_loaded")
     run_beam_to_pydss_federate(station_bus_pairs)
