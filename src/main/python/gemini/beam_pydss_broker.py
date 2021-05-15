@@ -4,6 +4,7 @@ import helics as h
 
 # helics_recorder beam_recorder.txt --output=recording_output.txt
 # Create broker #
+print("Script started")
 broker = h.helicsCreateBroker("zmq", "", "-f 3 --name=BeamHelicsBroker")
 isConnected = h.helicsBrokerIsConnected(broker)
 if isConnected == 1:
