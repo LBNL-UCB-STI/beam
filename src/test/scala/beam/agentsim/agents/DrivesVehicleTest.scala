@@ -10,7 +10,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.vehicles.Vehicle
-import org.scalatest.{Assertion, AnyFunSuite}
+import org.scalatest.Assertion
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable.ArrayBuffer
 
