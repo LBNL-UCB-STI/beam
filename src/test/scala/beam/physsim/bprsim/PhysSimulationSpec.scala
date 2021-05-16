@@ -5,15 +5,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{
-  ActivityEndEvent,
-  Event,
-  HasLinkId,
-  LinkEnterEvent,
-  LinkLeaveEvent,
-  PersonDepartureEvent,
-  VehicleLeavesTrafficEvent
-}
+import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, HasLinkId, LinkEnterEvent, LinkLeaveEvent, PersonDepartureEvent, VehicleLeavesTrafficEvent}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.api.internal.HasPersonId
 import org.matsim.core.config.{Config => MatsimConfig}
@@ -25,6 +17,9 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -33,7 +28,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @author Dmitry Openkov
   */
-class PhysSimulationSpec extends WordSpecLike with Matchers {
+class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
 
   val config: Config = testConfig("test/input/beamville/beam.conf").resolve()
 

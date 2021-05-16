@@ -1,12 +1,12 @@
 package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
-
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
+class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
   val trialsPerTest: Int = 100
   "testAvailabilityAwareSampling" when {
     "square TAZ with agent destination near corner" when {

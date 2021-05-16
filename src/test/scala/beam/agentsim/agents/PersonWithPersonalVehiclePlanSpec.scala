@@ -36,7 +36,6 @@ import org.scalatest.matchers.should.Matchers._
 
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
-import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -46,7 +45,6 @@ class PersonWithPersonalVehiclePlanSpec
     with SimRunnerForTest
     with BeforeAndAfterAll
     with BeforeAndAfter
-    with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
 

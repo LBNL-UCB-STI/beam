@@ -16,8 +16,9 @@ import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
 import scala.util.Random
@@ -34,9 +35,8 @@ class ParallelParkingManagerSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MockitoSugar
     with ImplicitSender
     with Matchers
     with BeamvilleFixtures {

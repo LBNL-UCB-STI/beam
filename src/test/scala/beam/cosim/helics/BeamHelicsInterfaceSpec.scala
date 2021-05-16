@@ -2,14 +2,16 @@ package beam.cosim.helics
 
 import beam.sim.BeamHelper
 import com.java.helics.helics
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
 import beam.cosim.helics.BeamHelicsInterface._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
-class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
   override def beforeAll(): Unit = loadHelicsIfNotAlreadyLoaded
 
   override def afterAll(): Unit = {

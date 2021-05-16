@@ -37,7 +37,6 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
-import org.scalatestplus.mockito.MockitoSugar
 
 import scala.collection.{mutable, JavaConverters}
 
@@ -46,7 +45,6 @@ class PersonAgentSpec
     with TestKitBase
     with SimRunnerForTest
     with BeforeAndAfter
-    with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
 
