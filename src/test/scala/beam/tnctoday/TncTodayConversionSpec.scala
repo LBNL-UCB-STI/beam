@@ -2,7 +2,9 @@ package beam.tnctoday
 
 import com.typesafe.scalalogging.StrictLogging
 import json.converter.{TazOutput, TncToday}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 class TncTodayConversionSpec extends AnyWordSpecLike with Matchers with StrictLogging {
 

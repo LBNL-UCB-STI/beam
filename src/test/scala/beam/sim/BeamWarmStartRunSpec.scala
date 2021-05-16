@@ -6,7 +6,10 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAllConfigMap
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
