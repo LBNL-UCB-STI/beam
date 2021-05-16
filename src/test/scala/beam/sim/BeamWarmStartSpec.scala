@@ -15,7 +15,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import org.slf4j.LoggerFactory
 
 class BeamWarmStartSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with IntegrationSpecCommon

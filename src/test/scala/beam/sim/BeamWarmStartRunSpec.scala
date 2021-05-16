@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
 
-class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
   "Beam WarmStart" must {
     "run sf-light scenario for two iteration with warmstart" in {

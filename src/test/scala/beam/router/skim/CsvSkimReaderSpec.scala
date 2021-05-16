@@ -10,7 +10,7 @@ import org.scalatest.{Assertion, FlatSpec, Matchers}
 /**
   * This spec tests that CsvSkimReader reads skims correctly.
   */
-class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
+class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "CsvSkimReader" must "read skims correctly" in {
     val skims =

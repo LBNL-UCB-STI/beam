@@ -26,7 +26,7 @@ import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with Matchers
     with ImplicitSender

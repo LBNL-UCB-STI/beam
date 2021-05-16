@@ -10,7 +10,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Coord
 import org.scalatest.{FlatSpec, Matchers}
 
-class R5IssueVisitingTooManySpatialIndexCells extends FlatSpec with Matchers {
+class R5IssueVisitingTooManySpatialIndexCells extends AnyFlatSpec with Matchers {
 
   class GeoUtilsTestImpl(localCRSString: String) extends GeoUtils {
     override def localCRS: String = localCRSString

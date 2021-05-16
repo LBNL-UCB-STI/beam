@@ -19,7 +19,7 @@ import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
 import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
-class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper with MockitoSugar with GivenWhenThen {
+class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHelper with MockitoSugar with GivenWhenThen {
 
   val MODE = "Car"
 

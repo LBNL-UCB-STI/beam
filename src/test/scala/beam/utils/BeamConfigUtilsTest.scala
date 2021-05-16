@@ -6,7 +6,7 @@ import org.scalatest.{Matchers, WordSpecLike}
 
 import scala.collection.immutable.Map
 
-class BeamConfigUtilsTest extends WordSpecLike with Matchers {
+class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
   def getCollector(map: Map[String, Array[String]]): BeamConfigUtils.ConfigPathsCollector =
     new BeamConfigUtils.ConfigPathsCollector((path: String) => {

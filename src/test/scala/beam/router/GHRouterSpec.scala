@@ -26,7 +26,7 @@ import org.scalatestplus.mockito.MockitoSugar
 
 import scala.language.postfixOps
 
-class GHRouterSpec extends WordSpecLike with Matchers with BeamHelper {
+class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
   lazy val config: Config = ConfigFactory
     .parseString(

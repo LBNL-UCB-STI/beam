@@ -15,11 +15,13 @@ import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest._
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
 class AgentsimWithMaximallyBadRouterSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with BadRouterForTest

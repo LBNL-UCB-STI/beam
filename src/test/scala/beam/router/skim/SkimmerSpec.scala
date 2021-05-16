@@ -34,7 +34,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.{immutable, mutable}
 import scala.util.control.NonFatal
 
-class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
+class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
   import SkimmerSpec._
 
   "Skimmer" must "write skims to hard drive" in {

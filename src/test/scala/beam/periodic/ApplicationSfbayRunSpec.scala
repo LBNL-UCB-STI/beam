@@ -1,14 +1,16 @@
 package beam.periodic
 
 import java.nio.file.Paths
-
 import beam.sim.BeamHelper
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndAfterAllConfigMap with BeamHelper {
+class ApplicationSfbayRunSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAllConfigMap with BeamHelper {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"

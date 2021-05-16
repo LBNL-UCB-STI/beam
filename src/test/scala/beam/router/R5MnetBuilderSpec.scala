@@ -9,7 +9,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.network.NetworkWriter
 import org.scalatest.FlatSpec
 
-class R5MnetBuilderSpec extends FlatSpec {
+class R5MnetBuilderSpec extends AnyFlatSpec {
 
   it should "do something" in {
     val config = testConfig("test/input/beamville/beam.conf").resolve()

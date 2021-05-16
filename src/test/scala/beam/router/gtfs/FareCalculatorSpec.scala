@@ -9,7 +9,7 @@ import org.scalatest.WordSpecLike
 
 import scala.language.postfixOps
 
-class FareCalculatorSpec extends WordSpecLike with BeamHelper {
+class FareCalculatorSpec extends AnyWordSpecLike with BeamHelper {
 
   "Using sf-light calculator" when {
     val config = testConfig("test/input/sf-light/sf-light.conf").resolve()

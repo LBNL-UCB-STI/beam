@@ -2,7 +2,7 @@ package beam.utils
 
 import org.scalatest.{Matchers, WordSpecLike}
 
-class SummaryVehicleStatsParserTest extends WordSpecLike with Matchers {
+class SummaryVehicleStatsParserTest extends AnyWordSpecLike with Matchers {
   "stats parser " should {
     "split stats names " in {
       SummaryVehicleStatsParser.splitToStatVehicle("") shouldBe None

@@ -17,7 +17,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
 
-class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 

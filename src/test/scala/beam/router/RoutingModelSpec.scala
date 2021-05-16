@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent}
 import org.scalatest.{FlatSpec, Matchers}
 
-class RoutingModelSpec extends FlatSpec with Matchers {
+class RoutingModelSpec extends AnyFlatSpec with Matchers {
 
   it should "produce link events from a typical car leg, given a constant travel time function" in {
     def travelTime(enterTime: Int, linkId: Int) = 1000

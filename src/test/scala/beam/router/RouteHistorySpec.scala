@@ -8,7 +8,7 @@ import scala.util.Random
 import beam.router.RouteHistory.RouteHistoryADT
 import org.scalatest.{BeforeAndAfter, FlatSpec}
 
-class RouteHistorySpec extends FlatSpec with BeforeAndAfter {
+class RouteHistorySpec extends AnyFlatSpec with BeforeAndAfter {
 
   private val routeHistoryAsObject: RouteHistoryADT =
     TrieMap(

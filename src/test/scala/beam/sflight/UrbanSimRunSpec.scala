@@ -14,7 +14,7 @@ import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecL
   * Created by colinsheppard
   */
 
-class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"

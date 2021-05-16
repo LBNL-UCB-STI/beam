@@ -3,7 +3,7 @@ import java.io.{File, PrintWriter}
 
 import org.scalatest.{Matchers, WordSpecLike}
 
-class DuplicateConfigKeySpec extends WordSpecLike with Matchers {
+class DuplicateConfigKeySpec extends AnyWordSpecLike with Matchers {
 
   val dummyConfString: String =
     """

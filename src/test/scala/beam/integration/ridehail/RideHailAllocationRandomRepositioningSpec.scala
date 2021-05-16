@@ -26,7 +26,7 @@ class RideHailAllocationRandomRepositioningSpec extends AnyFlatSpec with BeamHel
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
     scenario.setNetwork(beamScenario.network)
 
-    val iterationCounter = mock[IterationEndsListener]
+    val iterationCounter = mock(classOf[IterationEndsListener])
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {

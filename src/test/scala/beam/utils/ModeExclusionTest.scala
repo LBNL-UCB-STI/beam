@@ -11,7 +11,7 @@ import org.matsim.core.scenario.ScenarioBuilder
 import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
 import org.scalatestplus.mockito.MockitoSugar
 
-class ModeExclusionTest extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach with BeamHelper {
+class ModeExclusionTest extends AnyWordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach with BeamHelper {
 
   private val config = testConfig("test/input/beamville/beam.conf").resolve()
   private val beamConfigBase = BeamConfig(config)

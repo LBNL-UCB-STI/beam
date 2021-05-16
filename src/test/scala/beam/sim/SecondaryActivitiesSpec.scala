@@ -22,7 +22,7 @@ import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 class SecondaryActivitiesSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeamHelper
     with GenericEventsSpec

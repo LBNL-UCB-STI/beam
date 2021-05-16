@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
   *
   * @author Dmitry Openkov
   */
-class FileUtilsSpec extends WordSpecLike with Matchers {
+class FileUtilsSpec extends AnyWordSpecLike with Matchers {
 
   val skimPath: Path = Paths.get(System.getenv("PWD"), "test/test-resources/beam/od-skims/multi-part-od-skims")
 

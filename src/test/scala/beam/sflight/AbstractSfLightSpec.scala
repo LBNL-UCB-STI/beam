@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec(val name: String)
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest

@@ -107,7 +107,7 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
   }
 
   private def buildActivity(activityType: String): Activity = {
-    val result = mock[Activity]
+    val result = mock(classOf[Activity])
     Mockito.when(result.getType).thenReturn(activityType)
     result
   }

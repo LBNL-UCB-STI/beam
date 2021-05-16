@@ -5,7 +5,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.mutable
 
-class LinkCoordinateTest extends FlatSpecLike with Matchers {
+class LinkCoordinateTest extends AnyFlatSpecLike with Matchers {
   "parser" should "parse attributes" in {
     val linkxml = (<links>
         <link id="91712" to="28921" from="34052.5465465"/>

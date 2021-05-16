@@ -4,7 +4,7 @@ import java.io.File
 import com.vividsolutions.jts.geom.Coordinate
 import org.scalatest.{FlatSpec, Matchers}
 
-class RoutingFrameworkGraphReaderSpec extends FlatSpec with Matchers {
+class RoutingFrameworkGraphReaderSpec extends AnyFlatSpec with Matchers {
   private val routingFrameworkGraph = new RoutingFrameworkGraphReaderImpl()
 
   "RoutingFramework graph reader" must "correctly read generated graph" in {

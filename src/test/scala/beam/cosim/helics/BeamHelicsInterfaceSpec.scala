@@ -6,6 +6,7 @@ import org.scalatest.BeforeAndAfterAll
 import beam.cosim.helics.BeamHelicsInterface._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._

@@ -9,7 +9,7 @@ import org.scalatestplus.junit.JUnitRunner
 import scala.collection.mutable
 
 @RunWith(classOf[JUnitRunner])
-class InfluxDbSimulationMetricCollectorTest extends WordSpecLike with Matchers {
+class InfluxDbSimulationMetricCollectorTest extends AnyWordSpecLike with Matchers {
 
   val concurrentMap = new ConcurrentHashMap[String, Long]()
   val metricName = "test_name"

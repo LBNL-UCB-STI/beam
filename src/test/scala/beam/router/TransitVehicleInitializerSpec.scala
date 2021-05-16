@@ -10,7 +10,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.scalatestplus.mockito.MockitoSugar
 import org.scalatest.{Matchers, WordSpecLike}
 
-class TransitVehicleInitializerSpec extends WordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {
+class TransitVehicleInitializerSpec extends AnyWordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {
   "getVehicleType" should {
     val transitInitializer: TransitVehicleInitializer = init
 

@@ -8,7 +8,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.scalatest.{Matchers, WordSpecLike}
 
-class PlansSamplerAppSpec extends WordSpecLike with Matchers {
+class PlansSamplerAppSpec extends AnyWordSpecLike with Matchers {
 
   val inputData: Array[String] = Array(
     "test/input/sf-light/sample/1k/population.xml.gz",

@@ -15,7 +15,7 @@ import org.scalatest.{FlatSpec, Matchers}
   *
   * @author Dmitry Openkov
   */
-class TransitCrowdingSkimsTest extends FlatSpec with Matchers with BeamHelper {
+class TransitCrowdingSkimsTest extends AnyFlatSpec with Matchers with BeamHelper {
 
   val constr: BeamServices => TransitCrowdingSkimmer =
     services => new TransitCrowdingSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)

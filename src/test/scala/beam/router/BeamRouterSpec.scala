@@ -20,9 +20,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
-import org.scalatest.FlatSpec
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
@@ -30,7 +29,7 @@ import scala.collection.concurrent.TrieMap
 /**
   * Specs for BeamRouter
   */
-class BeamRouterSpec extends FlatSpec with MockitoSugar {
+class BeamRouterSpec extends AnyFlatSpec {
   it should "use odSkim travel times for car" in {
     val beamScenario = getBeamScenario(1.0)
 
@@ -74,8 +73,8 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       BeamRouter.replaceTravelTimeForCarModeWithODSkims(
         walkRoutingResponse,
         odSkims,
-        mock[BeamScenario],
-        mock[GeoUtils]
+        mock(classOf[BeamScenario]),
+        mock(classOf[GeoUtils])
       )
     assert(
       updatedRoutingResponse.itineraries.head.beamLegs.head.duration != updatedDuration,

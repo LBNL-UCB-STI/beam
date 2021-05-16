@@ -14,7 +14,7 @@ import org.mockito.Mockito.when
 import org.scalatest.FlatSpec
 import org.scalatestplus.mockito.MockitoSugar
 
-class BikeLaneAdjustmentSpec extends FlatSpec {
+class BikeLaneAdjustmentSpec extends AnyFlatSpec {
 
   import beam.router.r5.BikeLaneAdjustmentSpec._
 
