@@ -1,6 +1,7 @@
 package beam.utils
 
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 class SummaryVehicleStatsParserTest extends AnyWordSpecLike with Matchers {
   "stats parser " should {

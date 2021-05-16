@@ -3,7 +3,8 @@ package beam.utils
 import beam.utils.data.ctpp.JointDistribution
 import beam.utils.data.ctpp.JointDistribution.CustomRange
 import org.apache.commons.math3.random.MersenneTwister
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 class JointDistributionTest extends AnyWordSpecLike with Matchers {
 

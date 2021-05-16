@@ -6,7 +6,8 @@ import beam.agentsim.events.SpaceTime
 import beam.sim.{CircularGeofence, Geofence}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
