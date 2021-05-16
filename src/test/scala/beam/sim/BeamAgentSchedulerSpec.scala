@@ -15,15 +15,17 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
 import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.must.Matchers
 
 class BeamAgentSchedulerSpec
     extends TestKit(
       ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MustMatchers
+    with Matchers
     with ImplicitSender {
 
   lazy val config: BeamConfig = BeamConfig(system.settings.config)

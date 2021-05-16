@@ -11,7 +11,9 @@ import beam.utils.FileUtils
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 import org.slf4j.LoggerFactory
 
 class BeamWarmStartSpec

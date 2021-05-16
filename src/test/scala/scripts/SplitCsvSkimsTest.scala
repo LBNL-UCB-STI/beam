@@ -6,7 +6,7 @@ import beam.router.skim.CsvSkimReader
 import beam.router.skim.core.ODSkimmer.fromCsv
 import beam.sim.BeamWarmStart
 import com.typesafe.scalalogging.StrictLogging
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.reflect.io.File
 
