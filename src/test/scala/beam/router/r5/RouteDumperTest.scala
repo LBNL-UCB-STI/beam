@@ -11,10 +11,12 @@ import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.apache.avro.generic.GenericData
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 import scala.collection.JavaConverters._
 
-class RouteDumperTest extends FunSuite with Matchers {
+class RouteDumperTest extends AnyFunSuite with Matchers {
   test("Should be able to convert RoutingRequest to Record") {
     val origin = new Location(166027.034662, 2208.12088093)
     val time = 3000

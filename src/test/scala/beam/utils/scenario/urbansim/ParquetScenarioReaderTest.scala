@@ -16,7 +16,7 @@ class GenericRecordMock(val map: java.util.Map[String, AnyRef]) extends GenericR
   override def getSchema: Schema = ???
 }
 
-class ParquetScenarioReaderTest extends WordSpec with Matchers with MockitoSugar {
+class ParquetScenarioReaderTest extends AnyWordSpec with Matchers with MockitoSugar {
   "A ParquetScenarioReader" should {
     "get the value by key returns value" when {
       "it is not null" in {

@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.collection.JavaConverters._
 import scala.util.Random

@@ -12,7 +12,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
-class NoAttributeShapeWriterTest extends FunSuite with BeforeAndAfterAll with Matchers {
+class NoAttributeShapeWriterTest extends AnyFunSuite with BeforeAndAfterAll with Matchers {
   private val geometryFactory: GeometryFactory = new GeometryFactory()
 
   test("Should be able to write Point with attributes") {

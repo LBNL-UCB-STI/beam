@@ -4,6 +4,7 @@ import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig, TestConst
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /**

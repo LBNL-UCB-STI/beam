@@ -13,7 +13,7 @@ import org.mockito.Mockito._
 import org.scalatest.FunSuite
 import org.scalatestplus.mockito.MockitoSugar
 
-class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
+class ODSkimmerTest extends AnyFunSuite with MockitoSugar with StrictLogging {
 
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)

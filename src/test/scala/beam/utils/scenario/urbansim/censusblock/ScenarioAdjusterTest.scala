@@ -12,7 +12,7 @@ import org.scalatest.{FunSuite, Matchers}
 
 import scala.collection.JavaConverters._
 
-class ScenarioAdjusterTest extends FunSuite with Matchers {
+class ScenarioAdjusterTest extends AnyFunSuite with Matchers {
 
   test("adjust should work properly when allModes = 0") {
     val peoplePerNode: Int = 1000

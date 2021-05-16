@@ -1,8 +1,8 @@
 package beam.physsim.cchRoutingAssignment
 import java.io.File
-
 import com.vividsolutions.jts.geom.Coordinate
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class RoutingFrameworkGraphReaderSpec extends AnyFlatSpec with Matchers {
   private val routingFrameworkGraph = new RoutingFrameworkGraphReaderImpl()

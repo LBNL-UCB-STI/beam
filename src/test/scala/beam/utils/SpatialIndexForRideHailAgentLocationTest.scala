@@ -10,7 +10,7 @@ import org.scalatest.{FunSuite, Matchers}
 
 import scala.collection.JavaConverters._
 
-class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
+class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers {
   // #####################################################################################
   // If one day this test breaks then most probably it is because of the changes in `RideHailAgentLocation.equals`
   // #####################################################################################

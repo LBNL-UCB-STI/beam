@@ -2,7 +2,7 @@ package beam.utils.osm
 
 import org.scalatest.{Matchers, OptionValues, WordSpec}
 
-class OsmSpeedConverterTest extends WordSpec with Matchers with OptionValues {
+class OsmSpeedConverterTest extends AnyWordSpec with Matchers with OptionValues {
   "An OsmSpeedConverter" should {
     "be able to convert any OSM supported unit to km/h" in {
       OsmSpeedConverter.osmSpeedUnit2kmph("10").value shouldBe BigDecimal(10)

@@ -21,7 +21,7 @@ private case class TestAttributes(
   double: Double
 ) extends Attributes
 
-class ShapeWriterTest extends FunSuite with BeforeAndAfterAll with Matchers {
+class ShapeWriterTest extends AnyFunSuite with BeforeAndAfterAll with Matchers {
   private val geometryFactory: GeometryFactory = new GeometryFactory()
 
   test("Should be able to write Point with attributes") {

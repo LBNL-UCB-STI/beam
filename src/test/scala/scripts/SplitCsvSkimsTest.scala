@@ -10,7 +10,7 @@ import org.scalatest.FunSuite
 
 import scala.reflect.io.File
 
-class SplitCsvSkimsTest extends FunSuite with StrictLogging {
+class SplitCsvSkimsTest extends AnyFunSuite with StrictLogging {
 
   test("Split skims file to parts") {
     val basePath = System.getenv("PWD")

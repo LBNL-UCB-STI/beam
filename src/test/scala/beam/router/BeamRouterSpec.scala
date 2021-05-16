@@ -104,7 +104,7 @@ class BeamRouterSpec extends AnyFlatSpec {
     )
     val vehicleTypes = Map(vehicleType.id                -> vehicleType)
     val fuelTypePrices = Map(vehicleType.primaryFuelType -> 10.0)
-    val tazMap = mock[TAZTreeMap]
+    val tazMap = mock(classOf[TAZTreeMap])
     when(tazMap.getTAZ(any[java.lang.Double](), any[java.lang.Double]()))
       .thenReturn(TAZ.DefaultTAZ)
 
@@ -112,15 +112,15 @@ class BeamRouterSpec extends AnyFlatSpec {
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
       TrieMap.empty,
-      vehicleEnergy = mock[VehicleEnergy],
+      vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       ),
       ptFares = PtFares(List.empty),
-      transportNetwork = mock[TransportNetwork],
-      network = mock[Network],
+      transportNetwork = mock(classOf[TransportNetwork]),
+      network = mock(classOf[Network]),
       tazTreeMap = tazMap,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
@@ -165,7 +165,7 @@ class BeamRouterSpec extends AnyFlatSpec {
   }
 
   private def getSkimMock(skim: Skim): ODSkims = {
-    val odSkims = mock[ODSkims]
+    val odSkims = mock(classOf[ODSkims])
     when(
       odSkims.getTimeDistanceAndCost(
         any[Location],

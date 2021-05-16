@@ -4,7 +4,7 @@ import beam.sim.common.GeoUtils
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.{FunSuite, Matchers}
 
-class GeoUtilsTest extends FunSuite with Matchers {
+class GeoUtilsTest extends AnyFunSuite with Matchers {
   implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(0.01)
 
   test("distFormula should work properly") {

@@ -2,6 +2,9 @@ package beam.integration
 
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
   * Created by fdariasm on 29/08/2017

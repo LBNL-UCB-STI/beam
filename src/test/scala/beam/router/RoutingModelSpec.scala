@@ -7,7 +7,8 @@ import beam.router.model.RoutingModel
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{LinkEnterEvent, LinkLeaveEvent}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 class RoutingModelSpec extends AnyFlatSpec with Matchers {
 
