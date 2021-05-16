@@ -3,7 +3,9 @@ package beam.sim
 import java.io.File
 import java.nio.file.Files
 
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.Try
 import scala.collection.JavaConverters._

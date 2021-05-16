@@ -3,7 +3,8 @@ package beam.sim.metrics
 import java.util.concurrent.ConcurrentHashMap
 
 import org.junit.runner.RunWith
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.junit.JUnitRunner
 
 import scala.collection.mutable

@@ -209,6 +209,7 @@ dependencies {
 
     // TEST Scala //
     testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.8'
+    testCompile group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
     testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
 
     // 3rd Party Scala //
