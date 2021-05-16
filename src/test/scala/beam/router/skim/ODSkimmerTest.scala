@@ -40,7 +40,7 @@ class ODSkimmerTest extends AnyFunSuite with StrictLogging {
   }
 }
 
-object ODSkimmerTest extends MockitoSugar {
+object ODSkimmerTest {
   private[skim] def createSkimmer[S <: AbstractSkimmer](
     skimType: SkimType.Value,
     inputFilePath: String,
@@ -62,12 +62,12 @@ object ODSkimmerTest extends MockitoSugar {
         )
         .resolve()
     )
-    val services = mock[BeamServices]
+    val services = mock(classOf[BeamServices])
     when(services.beamConfig).thenReturn(beamConfig)
     when(services.beamScenario).thenReturn(mock[BeamScenario])
     when(services.matsimServices).thenReturn(mock[MatsimServices])
 
-    val event = mock[IterationStartsEvent]
+    val event = mock(classOf[IterationStartsEvent])
     when(event.getIteration).thenReturn(0)
 
     val skimmer = constructor(services)
