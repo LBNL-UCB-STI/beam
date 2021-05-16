@@ -6,7 +6,9 @@ import beam.utils.plan.sampling.PlansSampler
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
+
 
 class PlansSamplerAppSpec extends AnyWordSpecLike with Matchers {
 

@@ -1,5 +1,7 @@
 package beam.utils
-import org.scalatest.{Matchers, WordSpec}
+
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
 class ParquetReaderTest extends AnyWordSpec with Matchers {
   "ParquetReader" should {
