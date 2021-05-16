@@ -11,7 +11,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.mockito.Mockito.{mock, when}
 import org.scalatest.flatspec.AnyFlatSpec
 
-
 class BikeLaneAdjustmentSpec extends AnyFlatSpec {
 
   import beam.router.r5.BikeLaneAdjustmentSpec._
