@@ -9,7 +9,8 @@ import beam.router.skim.Skims.SkimType
 import beam.router.skim.core.TransitCrowdingSkimmer
 import beam.sim.{BeamHelper, BeamServices}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 /**
   *

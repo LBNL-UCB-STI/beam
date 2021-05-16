@@ -10,10 +10,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.mockito.Mockito._
-import org.scalatest.FunSuite
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.funsuite.AnyFunSuite
 
-class ODSkimmerTest extends AnyFunSuite with MockitoSugar with StrictLogging {
+class ODSkimmerTest extends AnyFunSuite with StrictLogging {
 
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)

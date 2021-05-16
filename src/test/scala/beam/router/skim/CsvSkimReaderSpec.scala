@@ -1,11 +1,13 @@
 package beam.router.skim
 
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.core.ODSkimmer.{fromCsv, ODSkimmerInternal, ODSkimmerKey}
+import beam.router.skim.core.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey, fromCsv}
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
 /**
   * This spec tests that CsvSkimReader reads skims correctly.
