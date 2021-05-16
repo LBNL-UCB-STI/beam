@@ -17,7 +17,6 @@ class AbstractSfLightSpec(val name: String)
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest
-    with Matchers
     with ImplicitSender {
   lazy implicit val system: ActorSystem = ActorSystem(name, ConfigFactory.parseString("""
       |akka.test.timefactor=10""".stripMargin))

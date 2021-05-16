@@ -4,7 +4,9 @@ import java.io.BufferedReader
 import java.nio.file.{Path, Paths}
 
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.wordspec.AnyWordSpecLike
 import scala.collection.JavaConverters._
 
 /**
