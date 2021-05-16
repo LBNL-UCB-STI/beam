@@ -14,10 +14,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class RoutingFrameworkTravelTimeCalculatorSpec
-    extends AnyFlatSpec
-    with Matchers
-    with BeforeAndAfterEach {
+class RoutingFrameworkTravelTimeCalculatorSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
   private val beamConfig = BeamConfig(testConfig("test/input/beamville/beam.conf").resolve())
   private val wrapper = mock(classOf[RoutingFrameworkWrapper])
   private val infoHolder = mock(classOf[OsmInfoHolder])

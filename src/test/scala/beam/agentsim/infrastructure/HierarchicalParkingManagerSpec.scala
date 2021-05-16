@@ -18,7 +18,7 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.mockito.Mockito.{when, mock}
+import org.mockito.Mockito.{mock, when}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers

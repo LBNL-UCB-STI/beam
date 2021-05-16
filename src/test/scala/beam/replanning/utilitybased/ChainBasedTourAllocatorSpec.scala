@@ -18,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-import scala.collection.{JavaConverters, immutable}
+import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
 class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHelper with GivenWhenThen {

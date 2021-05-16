@@ -26,7 +26,12 @@ import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.util.Try
 
-class EventsFileSpec extends AnyFlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
+class EventsFileSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))

@@ -15,11 +15,7 @@ import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
 import org.mockito.Mockito
 
-class RideHailSurgePricingManagerSpec
-    extends AnyWordSpecLike
-    with Matchers
-    with BeamHelper
-    with BeforeAndAfterAll {
+class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()

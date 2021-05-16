@@ -1,7 +1,7 @@
 package beam.router.skim
 
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.core.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey, fromCsv}
+import beam.router.skim.core.ODSkimmer.{fromCsv, ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
