@@ -1,5 +1,6 @@
 package beam.analysis.plots.filterevent
 
+import beam.agentsim.events.ModeChoiceEvent
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig

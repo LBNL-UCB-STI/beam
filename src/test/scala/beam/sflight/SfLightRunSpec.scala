@@ -1,7 +1,6 @@
 package beam.sflight
 
 import java.nio.file.Paths
-
 import beam.agentsim.events.ModeChoiceEvent
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -109,9 +108,7 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
       itrDir.list should have length totalIterations
       itrDir
         .listFiles()
-        .foreach(
-          itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz"))
-        )
+        .foreach(itr => exactly(1, itr.list.toList) should endWith(".events.csv").or(endWith(".events.csv.gz")))
     }
   }
 
