@@ -14,10 +14,9 @@ import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
-import org.scalatest.Matchers._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funspec.AnyFunSpecLike
-import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers
 
 class BeamAgentSchedulerSpec
     extends TestKit(

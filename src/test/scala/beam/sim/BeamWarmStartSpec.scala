@@ -14,6 +14,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.slf4j.LoggerFactory
 
 class BeamWarmStartSpec

@@ -11,11 +11,14 @@ import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.tags.{ExcludeRegular, Periodic}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.must.Matchers
 
 import scala.language.postfixOps
 
 class SfLightRoutePopulationSpec
     extends AbstractSfLightSpec("SfLightRoutePopulationSpec")
+    with Matchers
     with Inside
     with LoneElement {
 

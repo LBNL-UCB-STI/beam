@@ -17,6 +17,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 /**
   * Created by colinsheppard

@@ -64,8 +64,8 @@ object ODSkimmerTest {
     )
     val services = mock(classOf[BeamServices])
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.beamScenario).thenReturn(mock[BeamScenario])
-    when(services.matsimServices).thenReturn(mock[MatsimServices])
+    when(services.beamScenario).thenReturn(mock(classOf[BeamScenario]))
+    when(services.matsimServices).thenReturn(mock(classOf[MatsimServices]))
 
     val event = mock(classOf[IterationStartsEvent])
     when(event.getIteration).thenReturn(0)
