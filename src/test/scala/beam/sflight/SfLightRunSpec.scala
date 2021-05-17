@@ -114,9 +114,9 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
     }
   }
 
-   private def directoryHasOnlyOneEventsFile(itr: File): Assertion = {
-     assertResult(1) {
-       itr.list.count(fileName => fileName.endsWith(".events.csv") || fileName.endsWith(".events.csv.gz"))
-     }
+  private def directoryHasOnlyOneEventsFile(itr: File): Assertion = {
+    assertResult(1) {
+      itr.list.count(fileName => fileName.endsWith(".events.csv") || fileName.endsWith(".events.csv.gz"))
+    }
   }
 }

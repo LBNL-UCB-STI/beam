@@ -13,11 +13,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class ModeExclusionTest
-    extends AnyWordSpecLike
-    with Matchers
-    with BeforeAndAfterEach
-    with BeamHelper {
+class ModeExclusionTest extends AnyWordSpecLike with Matchers with BeforeAndAfterEach with BeamHelper {
 
   private val config = testConfig("test/input/beamville/beam.conf").resolve()
   private val beamConfigBase = BeamConfig(config)
