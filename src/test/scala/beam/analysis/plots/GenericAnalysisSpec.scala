@@ -5,9 +5,8 @@ import beam.agentsim.agents.GenericEventsSpec
 import beam.analysis.IterationSummaryAnalysis
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.matchers.should.Matchers
 
-class GenericAnalysisSpec extends GenericEventsSpec with Matchers {
+class GenericAnalysisSpec extends GenericEventsSpec {
 
   var summaryStats: util.Map[lang.String, lang.Double] = _
 

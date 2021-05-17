@@ -4,8 +4,7 @@ import beam.utils.scenario.urbansim.DataExchange._
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
-import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 

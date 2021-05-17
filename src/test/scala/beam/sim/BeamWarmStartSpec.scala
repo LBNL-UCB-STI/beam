@@ -273,7 +273,7 @@ class BeamWarmStartSpec
     BeamWarmStart(BeamConfig(conf), 30)
   }
 
-  "Warmstart" should {
+  "Warmstart" must {
 
     "sample population when sampling enabled" in {
       loadScenarioAndGetPopulationSize(0.5, true, 1) < 30 should be(true)
