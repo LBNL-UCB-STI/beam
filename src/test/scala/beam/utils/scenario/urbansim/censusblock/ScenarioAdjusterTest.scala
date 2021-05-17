@@ -1,14 +1,14 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import java.util.UUID
-
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig.Beam.Urbansim
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
