@@ -9,7 +9,6 @@ import org.matsim.utils.objectattributes.ObjectAttributes
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
-
 class PlansSamplerAppSpec extends AnyWordSpecLike with Matchers {
 
   val inputData: Array[String] = Array(
