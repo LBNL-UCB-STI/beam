@@ -13,10 +13,12 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.{Assertion, BeforeAndAfterAllConfigMap, ConfigMap}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
+import java.io.File
 
 /**
   * Created by colinsheppard
@@ -108,8 +110,13 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
       itrDir.list should have length totalIterations
       itrDir
         .listFiles()
-        .foreach(itr => exactly(1, itr.list.toList) should endWith(".events.csv").or(endWith(".events.csv.gz")))
+        .foreach(directoryHasOnlyOneEventsFile)
     }
   }
 
+   private def directoryHasOnlyOneEventsFile(itr: File): Assertion = {
+     assertResult(1) {
+       itr.list.count(fileName => fileName.endsWith(".events.csv") || fileName.endsWith(".events.csv.gz"))
+     }
+  }
 }
