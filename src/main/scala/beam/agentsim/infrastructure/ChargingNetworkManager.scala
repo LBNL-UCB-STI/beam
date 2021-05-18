@@ -304,8 +304,14 @@ class ChargingNetworkManager(
         handleRefueling(chargingVehicle)
         handleEndChargingHelper(tick, chargingVehicle)
         vehicle.disconnectFromChargingPoint()
-        parkingManager ! ReleaseParkingStall(vehicle.stall.get)
-        vehicle.unsetParkingStall()
+        vehicle.stall match {
+          case Some(stall) =>
+            parkingManager ! ReleaseParkingStall(stall)
+            vehicle.unsetParkingStall()
+
+          case None => log.error(s"Vehicle ${vehicle.id.toString} does not have a stall. ParkingManager won't get ReleaseParkingStall event.")
+        }
+
         currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
         chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _))
       case None =>
