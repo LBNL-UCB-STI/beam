@@ -74,6 +74,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
+    skimModes: Set[BeamMode] = Set.empty,
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ): Props = {
@@ -96,6 +97,7 @@ object HouseholdActor {
         homeCoord,
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
+        skimModes,
         routeHistory,
         boundingBox
       )
@@ -140,6 +142,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
+    skimModes: Set[BeamMode] = Set.empty,
     routeHistory: RouteHistory,
     boundingBox: Envelope
   ) extends Actor
@@ -307,6 +310,7 @@ object HouseholdActor {
               fleetManagers.toSeq,
               sharedVehicleFleets,
               possibleSharedVehicleTypes,
+              skimModes,
               routeHistory,
               boundingBox
             ),

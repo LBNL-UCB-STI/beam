@@ -1,10 +1,13 @@
 package beam.analysis
 
-import beam.agentsim.events.ModeChoiceOccurredEvent
-import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.TripDataOrTrip
+import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.events.{ModeChoiceOccurredEvent, SpaceTime}
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg}
 import beam.sim.BeamServices
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
@@ -22,15 +25,16 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
   private var csvWriter: CsvWriter = _
   private var csvFilePath: String = _
 
-  def getTripCategory(alternatives: IndexedSeq[EmbodiedBeamTrip]): Int = {
+  def getTripCategory(alternatives: IndexedSeq[TripDataOrTrip]): Int = {
     def legIsNotEmpty(leg: EmbodiedBeamLeg): Boolean =
       leg.beamLeg.travelPath.linkIds.nonEmpty || leg.beamLeg.travelPath.transitStops.nonEmpty
 
+    //we consider that skim trips have at least one non empty leg
     val allAlternativesHasAtLeastOneNonEmptyLeg = alternatives
-      .foldLeft(true)((acc, trip) => {
-        val tripContainsOneNonEmptyLeg = trip.legs.exists(l => legIsNotEmpty(l))
-        acc && tripContainsOneNonEmptyLeg
-      })
+      .collect {
+        case Right(trip) => trip
+      }
+      .forall(_.legs.exists(legIsNotEmpty))
 
     if (allAlternativesHasAtLeastOneNonEmptyLeg) alternatives.size else 0
   }
@@ -42,7 +46,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
         mco.alternatives.zipWithIndex
           .foreach {
-            case (trip: EmbodiedBeamTrip, idx) =>
+            case (Right(trip), idx) =>
               val tripType = trip.tripClassifier.value.toLowerCase()
               (mco.modeCostTimeTransfers.get(tripType), mco.alternativesUtility.get(tripType)) match {
                 case (Some(tripCostTimeTransfer), Some(tripUtility)) =>
@@ -64,7 +68,43 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
                 case _ =>
               }
 
-            case _ =>
+            case (Left(tripData), idx) =>
+              val tripType = tripData.tripClassifier.value.toLowerCase()
+              (mco.modeCostTimeTransfers.get(tripType), mco.alternativesUtility.get(tripType)) match {
+                case (Some(tripCostTimeTransfer), Some(tripUtility)) =>
+                  val duration = Math.round(tripData.time).toInt
+                  writeAlternative(
+                    mco.personId,
+                    idx,
+                    idx == mco.chosenAlternativeIdx,
+                    tripCostTimeTransfer,
+                    tripUtility,
+                    duration,
+                    tripType,
+                    EmbodiedBeamLeg(
+                      BeamLeg(
+                        Math.round(mco.time).toInt,
+                        tripData.tripClassifier,
+                        Math.round(tripData.time).toInt,
+                        BeamPath(
+                          IndexedSeq.empty,
+                          IndexedSeq.empty,
+                          None,
+                          SpaceTime(0, 0, 0),
+                          SpaceTime(0, 0, 0),
+                          tripData.distance
+                        )
+                      ),
+                      Id.createVehicleId("Unknown"),
+                      Id.create("Unknown", classOf[BeamVehicleType]),
+                      asDriver = false,
+                      tripData.cost,
+                      unbecomeDriverOnCompletion = false
+                    ),
+                    tripCategory
+                  )
+                case _ =>
+              }
           }
 
       case _ =>

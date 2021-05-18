@@ -3,13 +3,15 @@ package beam.agentsim.agents.modalbehaviors
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.TripDataOrTrip
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -51,14 +53,14 @@ trait ModeChoiceCalculator {
   }
 
   def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[TripDataOrTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
     person: Option[Person] = None
-  ): Option[EmbodiedBeamTrip]
+  ): Option[TripDataOrTrip]
 
   def utilityOf(
-    alternative: EmbodiedBeamTrip,
+    alternative: TripDataOrTrip,
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): Double
@@ -102,18 +104,21 @@ trait ModeChoiceCalculator {
   }
 
   def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: ListBuffer[TripDataOrTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double
 
-  final def chooseRandomAlternativeIndex(alternatives: Seq[EmbodiedBeamTrip]): Int = {
+  final def chooseRandomAlternativeIndex(alternatives: Seq[TripDataOrTrip]): Int = {
     if (alternatives.nonEmpty) {
       Random.nextInt(alternatives.size)
     } else {
       throw new IllegalArgumentException("Cannot choose from an empty choice set.")
     }
   }
+
+  def extractTripClassifier(tripData: TripDataOrTrip): BeamMode =
+    tripData.fold(_.tripClassifier, _.tripClassifier)
 }
 
 object ModeChoiceCalculator {
@@ -191,4 +196,15 @@ object ModeChoiceCalculator {
   case object level3 extends automationLevel
   case object level4 extends automationLevel
   case object level5 extends automationLevel
+
+  case class TripChoiceData(
+    time: Double,
+    distance: Double,
+    cost: Double,
+    tripClassifier: BeamMode,
+    vehicleInTrip: Option[Id[BeamVehicle]]
+  )
+
+  type TripDataOrTrip = Either[TripChoiceData, EmbodiedBeamTrip]
+
 }

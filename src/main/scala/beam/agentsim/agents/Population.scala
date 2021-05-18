@@ -1,7 +1,6 @@
 package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
@@ -12,6 +11,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.replanning.AddSupplementaryTrips
+import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
@@ -92,6 +92,14 @@ class Population(
   }
 
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
+    val currentIteration = beamServices.matsimServices.getIterationNumber
+    val useSkimsStartingFromIteration =
+      beamServices.beamConfig.beam.agentsim.agents.modeChoice.useSkimsStartingFromIteration
+    val useSkimsForModes =
+      beamServices.beamConfig.beam.agentsim.agents.modeChoice.useSkimsForModes.getOrElse(List.empty)
+    val skimModes =
+      if (currentIteration >= useSkimsStartingFromIteration) useSkimsForModes.flatMap(BeamMode.fromString).toSet
+      else Set.empty[BeamMode]
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
       if (scenario.getHouseholds.getHouseholdAttributes
@@ -141,6 +149,7 @@ class Population(
           homeCoord,
           sharedVehicleFleets,
           sharedVehicleTypes,
+          skimModes,
           routeHistory,
           boundingBox
         ),

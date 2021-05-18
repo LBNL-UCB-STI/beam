@@ -90,7 +90,7 @@ class BeamScoringFunctionFactory @Inject()(
       override def handleEvent(event: Event): Unit = {
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
-            trips.append(modeChoiceEvent.chosenTrip)
+            modeChoiceEvent.chosenTrip.foreach(trips.append(_))
           case _: ReplanningEvent =>
             // FIXME? If this happens often, maybe we can optimize it:
             // trips is list buffer meaning removing is O(n)
@@ -140,7 +140,7 @@ class BeamScoringFunctionFactory @Inject()(
             leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         }
 
-        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
+        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips.map(Right(_)), person, attributes)
         val personActivities = person.getSelectedPlan.getPlanElements.asScala
           .collect {
             case activity: Activity => activity
@@ -199,7 +199,7 @@ class BeamScoringFunctionFactory @Inject()(
           val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("")
           val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
           val mode = trip.tripClassifier
-          val score = modeChoiceCalculator.utilityOf(trip, attributes, tripPurpose)
+          val score = modeChoiceCalculator.utilityOf(Right(trip), attributes, tripPurpose)
           val cost = trip.costEstimate
           s"$personId,$tripIndex,$departureTime,$totalTravelTimeInSecs,$mode,$cost,$score"
         } mkString "\n"

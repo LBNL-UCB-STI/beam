@@ -1,8 +1,8 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.TripDataOrTrip
 import beam.router.Modes
-import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -15,11 +15,11 @@ import scala.collection.mutable.ListBuffer
 class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalculator {
 
   override def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[TripDataOrTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
     person: Option[Person] = None
-  ): Option[EmbodiedBeamTrip] = {
+  ): Option[TripDataOrTrip] = {
     if (alternatives.nonEmpty) {
       Some(alternatives(chooseRandomAlternativeIndex(alternatives)))
     } else {
@@ -28,7 +28,7 @@ class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalc
   }
 
   override def utilityOf(
-    alternative: EmbodiedBeamTrip,
+    alternative: TripDataOrTrip,
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): Double = 0.0
@@ -42,7 +42,7 @@ class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalc
   ): Double = 0.0
 
   override def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: ListBuffer[TripDataOrTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0

@@ -258,7 +258,7 @@ trait ChoosesParking extends {
       val newRestOfTrip = leg1 +: (leg2 +: data.restOfCurrentTrip.filter { leg =>
         !legsToDrop.exists(dropLeg => dropLeg.beamLeg == leg.beamLeg)
       }).toVector
-      val newCurrentTripLegs = data.currentTrip.get.legs
+      val newCurrentTripLegs = data.currentTrip.get.right.get.legs
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
@@ -283,7 +283,7 @@ trait ChoosesParking extends {
       )
 
       goto(WaitingToDrive) using data.copy(
-        currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+        currentTrip = Some(Right(EmbodiedBeamTrip(newCurrentTripLegs))),
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0,

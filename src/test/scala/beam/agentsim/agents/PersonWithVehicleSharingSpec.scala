@@ -141,6 +141,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -293,6 +294,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -462,7 +464,7 @@ class PersonWithVehicleSharingSpec
         isEmbodyWithCurrentTravelTime = false
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
-      assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
+      assert(modeChoiceEvent.chosenTrip.fold(_.tripClassifier, _.tripClassifier) == CAR)
 
       expectMsgType[CompletionNotice]
     }
@@ -542,6 +544,7 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

@@ -1,10 +1,12 @@
 package beam.agentsim.events;
 
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator;
 import beam.router.model.EmbodiedBeamTrip;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.internal.HasPersonId;
+import scala.util.Either;
 
 import java.util.Map;
 
@@ -24,7 +26,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
     public final static String ATTRIBUTE_TRIP_LENGTH = "length";
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
-    public final EmbodiedBeamTrip chosenTrip;
+    public final Either<ModeChoiceCalculator.TripChoiceData, EmbodiedBeamTrip> chosenTrip;
     public final Id<Person> personId;
     public final String mode;
     public final String currentTourMode;
@@ -37,7 +39,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
-                           Integer tourIndex, EmbodiedBeamTrip chosenTrip) {
+                           Integer tourIndex, Either<ModeChoiceCalculator.TripChoiceData, EmbodiedBeamTrip> chosenTrip) {
         super(time);
 
         this.personId = personId;

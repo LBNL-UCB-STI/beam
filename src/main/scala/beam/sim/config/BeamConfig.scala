@@ -59,6 +59,7 @@ object BeamConfig {
         bodyType: java.lang.String,
         households: BeamConfig.Beam.Agentsim.Agents.Households,
         modalBehaviors: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
+        modeChoice: BeamConfig.Beam.Agentsim.Agents.ModeChoice,
         modeIncentive: BeamConfig.Beam.Agentsim.Agents.ModeIncentive,
         parking: BeamConfig.Beam.Agentsim.Agents.Parking,
         plans: BeamConfig.Beam.Agentsim.Agents.Plans,
@@ -590,6 +591,24 @@ object BeamConfig {
                 if (c.hasPathOrNull("poolingMultiplier")) c.getConfig("poolingMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("poolingMultiplier{}")
               )
+            )
+          }
+        }
+
+        case class ModeChoice(
+          useSkimsForModes: scala.Option[scala.List[java.lang.String]],
+          useSkimsStartingFromIteration: scala.Int
+        )
+
+        object ModeChoice {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModeChoice = {
+            BeamConfig.Beam.Agentsim.Agents.ModeChoice(
+              useSkimsForModes =
+                if (c.hasPathOrNull("useSkimsForModes")) scala.Some($_L$_str(c.getList("useSkimsForModes"))) else None,
+              useSkimsStartingFromIteration =
+                if (c.hasPathOrNull("useSkimsStartingFromIteration")) c.getInt("useSkimsStartingFromIteration")
+                else 999999999
             )
           }
         }
@@ -1688,6 +1707,10 @@ object BeamConfig {
             modalBehaviors = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(
               if (c.hasPathOrNull("modalBehaviors")) c.getConfig("modalBehaviors")
               else com.typesafe.config.ConfigFactory.parseString("modalBehaviors{}")
+            ),
+            modeChoice = BeamConfig.Beam.Agentsim.Agents.ModeChoice(
+              if (c.hasPathOrNull("modeChoice")) c.getConfig("modeChoice")
+              else com.typesafe.config.ConfigFactory.parseString("modeChoice{}")
             ),
             modeIncentive = BeamConfig.Beam.Agentsim.Agents.ModeIncentive(
               if (c.hasPathOrNull("modeIncentive")) c.getConfig("modeIncentive")

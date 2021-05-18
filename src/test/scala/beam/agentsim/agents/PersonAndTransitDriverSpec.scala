@@ -369,6 +369,7 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )

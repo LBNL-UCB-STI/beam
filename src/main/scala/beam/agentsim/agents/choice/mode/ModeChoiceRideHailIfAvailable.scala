@@ -1,9 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.TripDataOrTrip
 import beam.router.Modes
 import beam.router.Modes.BeamMode.RIDE_HAIL
-import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
@@ -20,13 +20,13 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
   override lazy val beamConfig: BeamConfig = beamServices.beamConfig
 
   override def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[TripDataOrTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
     person: Option[Person] = None
-  ): Option[EmbodiedBeamTrip] = {
+  ): Option[TripDataOrTrip] = {
     val containsRideHailAlt = alternatives.zipWithIndex.collect {
-      case (trip, idx) if trip.tripClassifier == RIDE_HAIL => idx
+      case (trip, idx) if extractTripClassifier(trip) == RIDE_HAIL => idx
     }
     if (containsRideHailAlt.nonEmpty) {
       Some(alternatives(containsRideHailAlt.head))
@@ -38,7 +38,7 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
   }
 
   override def utilityOf(
-    alternative: EmbodiedBeamTrip,
+    alternative: TripDataOrTrip,
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): Double = 0.0
@@ -52,7 +52,7 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
   ): Double = 0.0
 
   override def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: ListBuffer[TripDataOrTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0

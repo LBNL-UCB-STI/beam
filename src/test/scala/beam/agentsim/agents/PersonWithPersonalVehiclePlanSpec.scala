@@ -133,6 +133,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             Set.empty,
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -366,6 +367,7 @@ class PersonWithPersonalVehiclePlanSpec
             new Coord(0.0, 0.0),
             Vector(),
             Set.empty,
+            Set.empty,
             new RouteHistory(beamConfig),
             boundingBox
           )
@@ -517,6 +519,7 @@ class PersonWithPersonalVehiclePlanSpec
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -619,6 +622,7 @@ class PersonWithPersonalVehiclePlanSpec
           Map(beamVehicle.id -> beamVehicle),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           Set.empty,
           new RouteHistory(beamConfig),
           boundingBox

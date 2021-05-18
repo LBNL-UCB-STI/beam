@@ -194,6 +194,7 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
+          Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
         )
@@ -403,6 +404,7 @@ class PersonAgentSpec
           vehicles = Map(),
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           Set.empty,
           new RouteHistory(beamConfig),
           boundingBox
@@ -702,6 +704,7 @@ class PersonAgentSpec
           Map(),
           new Coord(0.0, 0.0),
           Vector(),
+          Set.empty,
           Set.empty,
           new RouteHistory(beamConfig),
           boundingBox

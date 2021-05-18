@@ -1,6 +1,6 @@
 package beam.agentsim.events
 
-import beam.router.model.EmbodiedBeamTrip
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.TripDataOrTrip
 import org.matsim.api.core.v01.events.Event
 
 object ModeChoiceOccurredEvent {
@@ -12,7 +12,7 @@ object ModeChoiceOccurredEvent {
   def apply(
     time: Double,
     personId: String,
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[TripDataOrTrip],
     modeCostTimeTransfers: Map[String, AltCostTimeTransfer],
     alternativesUtility: Map[String, AltUtility],
     chosenAlternativeIdx: Int
@@ -30,7 +30,7 @@ object ModeChoiceOccurredEvent {
 case class ModeChoiceOccurredEvent(
   time: Double,
   personId: String,
-  alternatives: IndexedSeq[EmbodiedBeamTrip],
+  alternatives: IndexedSeq[TripDataOrTrip],
   modeCostTimeTransfers: Map[String, ModeChoiceOccurredEvent.AltCostTimeTransfer],
   alternativesUtility: Map[String, ModeChoiceOccurredEvent.AltUtility],
   chosenAlternativeIdx: Int

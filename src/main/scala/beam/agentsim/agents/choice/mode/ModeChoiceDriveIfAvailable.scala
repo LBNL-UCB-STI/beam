@@ -1,9 +1,9 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.TripDataOrTrip
 import beam.router.Modes
 import beam.router.Modes.BeamMode.CAR
-import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
@@ -19,13 +19,13 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
   override lazy val beamConfig: BeamConfig = beamServices.beamConfig
 
   def apply(
-    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    alternatives: IndexedSeq[TripDataOrTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
     person: Option[Person] = None
-  ): Option[EmbodiedBeamTrip] = {
+  ): Option[TripDataOrTrip] = {
     val containsDriveAlt = alternatives.zipWithIndex.collect {
-      case (trip, idx) if trip.tripClassifier == CAR => idx
+      case (trip, idx) if extractTripClassifier(trip) == CAR => idx
     }
     if (containsDriveAlt.nonEmpty) {
       Some(alternatives(containsDriveAlt.head))
@@ -37,7 +37,7 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
   }
 
   override def utilityOf(
-    alternative: EmbodiedBeamTrip,
+    alternative: TripDataOrTrip,
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): Double = 0.0
@@ -51,7 +51,7 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
   ) = 0.0
 
   override def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: ListBuffer[TripDataOrTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
