@@ -11,10 +11,10 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.{TripChoiceData, TripDataOrTrip}
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -33,8 +33,6 @@ import org.matsim.core.utils.misc.Time
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import beam.router.{Modes, RoutingWorker}
-
-import scala.collection.mutable
 
 /**
   * BEAM
@@ -153,6 +151,7 @@ trait ChoosesMode {
             _,
             _,
             _,
+            _,
             ) =>
           self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
         // Only need to get available street vehicles if our mode requires such a vehicle
@@ -172,6 +171,7 @@ trait ChoosesMode {
               _
             ),
             currentLocation,
+            _,
             _,
             _,
             _,
@@ -237,9 +237,10 @@ trait ChoosesMode {
   private def needRoutingRequest(
     vehicles: Vector[StreetVehicle],
     sharedVehicles: IndexedSeq[StreetVehicle],
-    availableModes: Seq[BeamMode]
+    availableModes: Seq[BeamMode],
+    existedSkimModes: Set[BeamMode],
   ) = {
-    val newAvailableModes: Set[BeamMode] = availableModes.toSet -- skimModes
+    val newAvailableModes: Set[BeamMode] = availableModes.toSet -- existedSkimModes
     val newVehicles = vehicles.filter(vehicle => newAvailableModes.contains(vehicle.mode))
     val accessModes = (newAvailableModes.filter(_.isTransit) - TRANSIT).map(Modes.getAccessVehicleMode)
     val newSharedVehicles = sharedVehicles.filter(vehicle => accessModes.contains(vehicle.mode))
@@ -359,17 +360,41 @@ trait ChoosesMode {
         }
       }
 
+      def createSkimData = {
+        if (skimModes.nonEmpty) {
+          val currentLocation = choosesModeData.currentLocation.loc
+          val nextActivityLocation = nextAct.getCoord
+          val origTaz = beamScenario.tazTreeMap.getTAZ(currentLocation.getX, currentLocation.getY).tazId
+          val destTaz = beamScenario.tazTreeMap.getTAZ(nextActivityLocation.getX, nextActivityLocation.getY).tazId
+          val existedSkimModes = skimModes.filter(
+            mode =>
+              beamServices.skims.od_skimmer
+                .containsValue(origTaz, destTaz, departTime, mode)
+          )
+          Some(SkimData(origTaz, destTaz, existedSkimModes))
+        } else {
+          None
+        }
+      }
+
+      val skimData: Option[SkimData] = createSkimData
+      val existedSkimModes = skimData.map(_.existedSkimModes).getOrElse(Set.empty)
       var responsePlaceholders = ChoosesModeResponsePlaceholders()
       var requestId: Option[Int] = None
       // Form and send requests
 
       correctedCurrentTourMode match {
         case None =>
-          val hasRideHail = availableModes.contains(RIDE_HAIL) && !skimModes.contains(RIDE_HAIL)
+          val hasRideHail = availableModes.contains(RIDE_HAIL) && !existedSkimModes.contains(RIDE_HAIL)
           val hasRideHailTransit = hasRideHail && !choosesModeData.isWithinTripReplanning &&
-          !skimModes.contains(RIDE_HAIL_TRANSIT)
+          !existedSkimModes.contains(RIDE_HAIL_TRANSIT)
           val (needRouting, availableVehicles, availableSharedVehicles, withTransit) =
-            needRoutingRequest(newlyAvailableBeamVehicles.map(_.streetVehicle), dummySharedVehicles, availableModes)
+            needRoutingRequest(
+              newlyAvailableBeamVehicles.map(_.streetVehicle),
+              dummySharedVehicles,
+              availableModes,
+              existedSkimModes
+            )
           responsePlaceholders = makeResponsePlaceholders(
             withRouting = needRouting,
             withRideHail = hasRideHail,
@@ -388,22 +413,22 @@ trait ChoosesMode {
             actually = needRouting
           )
         case Some(WALK) =>
-          val needRouting = !skimModes.contains(WALK)
+          val needRouting = !existedSkimModes.contains(WALK)
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), actually = needRouting)
         case Some(WALK_TRANSIT) =>
-          val needRouting = !skimModes.contains(WALK_TRANSIT)
+          val needRouting = !existedSkimModes.contains(WALK_TRANSIT)
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle), actually = needRouting)
         case Some(CAV) =>
-          val needRequest = !skimModes.contains(CAV)
+          val needRequest = !existedSkimModes.contains(CAV)
           // Request from household the trip legs to put into trip
           if (needRequest) {
             householdRef ! CavTripLegsRequest(bodyVehiclePersonId, currentActivity(choosesModeData.personData))
           }
           responsePlaceholders = makeResponsePlaceholders(withPrivateCAV = needRequest)
         case Some(mode @ (CAR | BIKE)) =>
-          val needRouting = !skimModes.contains(mode)
+          val needRouting = !existedSkimModes.contains(mode)
           if (needRouting) {
             val maybeLeg = _experiencedBeamPlan.getPlanElements
               .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
@@ -437,7 +462,7 @@ trait ChoosesMode {
           }
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting)
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
-          val needRouting = !skimModes.contains(mode)
+          val needRouting = !existedSkimModes.contains(mode)
           if (needRouting) {
             val vehicleMode = Modes.getAccessVehicleMode(mode)
             val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
@@ -475,13 +500,13 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting)
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
-          val withTransit = !skimModes.contains(WALK_TRANSIT)
-          val needRouting = withTransit || !skimModes.contains(WALK)
+          val withTransit = !existedSkimModes.contains(WALK_TRANSIT)
+          val needRouting = withTransit || !existedSkimModes.contains(WALK)
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting)
           makeRequestWith(withTransit = withTransit, Vector(bodyStreetVehicle), actually = needRouting)
         case Some(mode @ (RIDE_HAIL | RIDE_HAIL_POOLED)) =>
-          val needRideHailRequest = !skimModes.contains(mode)
-          val needRouting = !skimModes.contains(WALK)
+          val needRideHailRequest = !existedSkimModes.contains(mode)
+          val needRouting = !existedSkimModes.contains(WALK)
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting, withRideHail = needRideHailRequest)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle), actually = needRouting) // We need a WALK alternative if RH fails
           if (needRideHailRequest) {
@@ -489,16 +514,16 @@ trait ChoosesMode {
           }
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
           // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
-          val needRideHailRequest = !skimModes.contains(RIDE_HAIL)
-          val withTransit = !skimModes.contains(WALK_TRANSIT)
-          val needRouting = withTransit || !skimModes.contains(WALK)
+          val needRideHailRequest = !existedSkimModes.contains(RIDE_HAIL)
+          val withTransit = !existedSkimModes.contains(WALK_TRANSIT)
+          val needRouting = withTransit || !existedSkimModes.contains(WALK)
           responsePlaceholders = makeResponsePlaceholders(withRouting = needRouting, withRideHail = needRideHailRequest)
           makeRequestWith(withTransit = withTransit, Vector(bodyStreetVehicle), actually = needRouting)
           if (needRideHailRequest) {
             makeRideHailRequest()
           }
         case Some(RIDE_HAIL_TRANSIT) =>
-          val needRideHailRequest = !skimModes.contains(RIDE_HAIL_TRANSIT)
+          val needRideHailRequest = !existedSkimModes.contains(RIDE_HAIL_TRANSIT)
           responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = needRideHailRequest)
           if (needRideHailRequest) {
             requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
@@ -518,6 +543,7 @@ trait ChoosesMode {
         cavTripLegs = responsePlaceholders.cavTripLegs,
         routingFinished = choosesModeData.routingFinished
         || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse,
+        skimData = skimData,
       )
       stay() using newPersonData
     /*
@@ -1124,111 +1150,58 @@ trait ChoosesMode {
     }
   }
 
-  private def getSkimData(
-    choosesModeData: ChoosesModeData,
-    nextAct: Activity,
-    possibleSkimModes: Set[BeamMode]
+  private def getSkimItineraries(
+    skimData: SkimData,
+    possibleSkimModes: Set[BeamMode],
+    availablePersonalStreetVehicles: IndexedSeq[VehicleOrToken]
   ): Set[TripChoiceData] = {
     val skimmer = beamServices.skims.od_skimmer
-    val currentLocation = choosesModeData.currentLocation.loc
-    val nextActivityLocation = nextAct.getCoord
-
-    val categoryToType = mutable.Map.empty[VehicleCategory, BeamVehicleType]
-
-    def findTypeByCategory(category: VehicleCategory) = {
-      categoryToType.getOrElseUpdate(
-        category,
-        choosesModeData.availablePersonalStreetVehicles
-          .collectFirst {
-            case vehicle if vehicle.vehicle.beamVehicleType.vehicleCategory == category =>
-              vehicle.vehicle.beamVehicleType
-          }
-          .orElse(beamScenario.vehicleTypes.values.find(_.vehicleCategory == category))
-          .get
-      )
-    }
-
-    def getSimplifiedMode(mode: BeamMode): BeamMode = mode match {
-      case CAR | RIDE_HAIL | RIDE_HAIL_POOLED | RIDE_HAIL_TRANSIT => CAR
-      case BUS | WALK_TRANSIT | DRIVE_TRANSIT | BIKE_TRANSIT      => TRANSIT
-      case _                                                      => mode
-    }
-
-    def getVehicleType(simplifiedMode: BeamMode): BeamVehicleType = simplifiedMode match {
-      case CAR => findTypeByCategory(VehicleCategory.Car)
-      case CAV =>
-        choosesModeData.availablePersonalStreetVehicles
-          .collectFirst {
-            case vehicle if vehicle.vehicle.isCAV => vehicle.vehicle.beamVehicleType
-          }
-          .getOrElse(findTypeByCategory(VehicleCategory.Car))
-
-      case BIKE => findTypeByCategory(VehicleCategory.Bike)
-      case WALK => body.beamVehicleType
-      case TRANSIT =>
-        val carType = findTypeByCategory(VehicleCategory.Car)
-        carType.copy(
-          id = Id.create("imaginary-transit", classOf[BeamVehicleType]),
-          //make 2 times cheaper comparing to a car
-          primaryFuelConsumptionInJoulePerMeter = carType.primaryFuelConsumptionInJoulePerMeter / 2
-        )
-      case _ =>
-        logger.error("Wrong mode {}", simplifiedMode)
-        body.beamVehicleType
-    }
-
     val departTime = _currentTick.get
-    val modeToVehicleType = mutable.Map.empty[BeamMode, BeamVehicleType]
+
+    def getAppropriateVehicleForMode(mode: BeamMode) = {
+      mode match {
+        case CAR =>
+          availablePersonalStreetVehicles
+            .find { token =>
+              val vehicle = token.vehicle
+              vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car && !vehicle.isCAV
+            }
+            .map(_.id)
+        case CAV =>
+          availablePersonalStreetVehicles.find(_.vehicle.isCAV).map(_.id)
+        case WALK => Some(body.id)
+        case BIKE =>
+          availablePersonalStreetVehicles
+            .find(
+              _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
+            )
+            .map(_.id)
+        case WALK_TRANSIT => Some(body.id)
+        case DRIVE_TRANSIT =>
+          availablePersonalStreetVehicles
+            .find(
+              _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
+            )
+            .map(_.id)
+        case BIKE_TRANSIT =>
+          availablePersonalStreetVehicles
+            .find(
+              _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
+            )
+            .map(_.id)
+        case _ => None
+      }
+    }
 
     val skims = possibleSkimModes.map { mode =>
-      val simplifiedMode = getSimplifiedMode(mode)
-      val vehicleType = modeToVehicleType.getOrElseUpdate(simplifiedMode, getVehicleType(simplifiedMode))
-      val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
-      mode -> skimmer.getTimeDistanceAndCost(
-        currentLocation,
-        nextActivityLocation,
-        departTime,
-        mode,
-        vehicleType.id,
-        vehicleType,
-        fuelPrice,
-        beamScenario
-      )
+      mode -> skimmer
+        .getTimeDistanceAndCost(skimData.origTaz, skimData.destTaz, departTime, mode)
+        .get // we checked before that the value exists
     }
+
     skims.map {
       case (mode, skim) =>
-        val vehicle: Option[Id[BeamVehicle]] = mode match {
-          case CAR =>
-            choosesModeData.availablePersonalStreetVehicles
-              .find { token =>
-                val vehicle = token.vehicle
-                vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car && !vehicle.isCAV
-              }
-              .map(_.id)
-          case CAV =>
-            choosesModeData.availablePersonalStreetVehicles.find(_.vehicle.isCAV).map(_.id)
-          case WALK => Some(body.id)
-          case BIKE =>
-            choosesModeData.availablePersonalStreetVehicles
-              .find(
-                _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
-              )
-              .map(_.id)
-          case WALK_TRANSIT => Some(body.id)
-          case DRIVE_TRANSIT =>
-            choosesModeData.availablePersonalStreetVehicles
-              .find(
-                _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
-              )
-              .map(_.id)
-          case BIKE_TRANSIT =>
-            choosesModeData.availablePersonalStreetVehicles
-              .find(
-                _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
-              )
-              .map(_.id)
-          case _ => None
-        }
+        val vehicle: Option[Id[BeamVehicle]] = getAppropriateVehicleForMode(mode)
         TripChoiceData(skim.time, skim.distance, skim.cost, mode, vehicle)
     }
 
@@ -1259,6 +1232,7 @@ trait ChoosesMode {
           _,
           true,
           _,
+          skimData,
         ),
         _,
         _,
@@ -1349,20 +1323,19 @@ trait ChoosesMode {
       val filteredItinerariesForChoice =
         combinedItinerariesForChoice.filter(trip => possibleModes.contains(trip.tripClassifier))
 
-      val realModes = filteredItinerariesForChoice.map(_.tripClassifier).toSet
-      val possibleSkimModes = (possibleModes -- realModes) & skimModes
-
-      val skimDataItineraries = getSkimData(choosesModeData, nextAct, possibleSkimModes)
+      val skimDataItineraries = skimData match {
+        case Some(data) =>
+          val realModes = filteredItinerariesForChoice.map(_.tripClassifier).toSet
+          val possibleSkimModes = (possibleModes -- realModes) & data.existedSkimModes
+          getSkimItineraries(data, possibleSkimModes, choosesModeData.availablePersonalStreetVehicles)
+        case None => Set.empty
+      }
 
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual]
       val availableAlts = Some(filteredItinerariesForChoice.map(_.tripClassifier).mkString(":"))
-
-      if (skimDataItineraries.exists(_.tripClassifier == CAR)) {
-        System.currentTimeMillis()
-      }
 
       modeChoiceCalculator(
         filteredItinerariesForChoice.map(Right(_)) ++ skimDataItineraries.map(Left(_)),
@@ -1602,6 +1575,8 @@ object ChoosesMode {
 
   case class VehicleOnTrip(vehicleId: Id[BeamVehicle], tripIdentifier: TripIdentifier)
 
+  case class SkimData(origTaz: Id[TAZ], destTaz: Id[TAZ], existedSkimModes: Set[BeamMode])
+
   case class ChoosesModeData(
     personData: BasePersonData,
     currentLocation: SpaceTime,
@@ -1624,6 +1599,7 @@ object ChoosesMode {
     availableAlternatives: Option[String] = None,
     routingFinished: Boolean = false,
     routingRequestToLegMap: Map[Int, TripIdentifier] = Map.empty,
+    skimData: Option[SkimData] = None
   ) extends PersonData {
     override def currentVehicle: VehicleStack = personData.currentVehicle
 

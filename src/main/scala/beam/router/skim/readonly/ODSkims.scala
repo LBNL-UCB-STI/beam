@@ -145,27 +145,42 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     )
-    getSkimValue(departureTime, mode, origTaz, destTaz) match {
-      case Some(skimValue) =>
-        beamScenario.vehicleTypes.get(vehicleTypeId) match {
-          case Some(vehicleType) if vehicleType.automationLevel == 4 =>
-            skimValue.toSkimExternalForLevel4CAV
-          case _ =>
-            skimValue.toSkimExternal
-        }
-      case None =>
-        getSkimDefaultValue(
-          mode,
-          originUTM,
-          new Coord(destinationUTM.getX, destinationUTM.getY),
-          departureTime,
-          vehicleTypeId,
-          vehicleType,
-          fuelPrice,
-          beamScenario
-        )
+    getTimeDistanceAndCost(origTaz, destTaz, departureTime, mode, vehicleTypeId) getOrElse getSkimDefaultValue(
+      mode,
+      originUTM,
+      new Coord(destinationUTM.getX, destinationUTM.getY),
+      departureTime,
+      vehicleTypeId,
+      vehicleType,
+      fuelPrice,
+      beamScenario
+    )
+  }
+
+  def getTimeDistanceAndCost(
+    origTaz: Id[TAZ],
+    destTaz: Id[TAZ],
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
+  ): Option[Skim] = {
+    getSkimValue(departureTime, mode, origTaz, destTaz) map { skimValue =>
+      beamScenario.vehicleTypes.get(vehicleTypeId) match {
+        case Some(vehicleType) if vehicleType.automationLevel == 4 =>
+          skimValue.toSkimExternalForLevel4CAV
+        case _ =>
+          skimValue.toSkimExternal
+      }
+
     }
   }
+
+  def getTimeDistanceAndCost(
+    origTaz: Id[TAZ],
+    destTaz: Id[TAZ],
+    departureTime: Int,
+    mode: BeamMode,
+  ): Option[Skim] = getSkimValue(departureTime, mode, origTaz, destTaz).map(_.toSkimExternal)
 
   def getExcerptData(
     timePeriodString: String,
@@ -250,9 +265,35 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
         .get(currentIteration - 1)
         .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
         .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
-        .map(_.asInstanceOf[ODSkimmerInternal])
     }
     res.map(_.asInstanceOf[ODSkimmerInternal])
+  }
+
+  def containsValue(
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
+    mode: BeamMode,
+    beamScenario: BeamScenario,
+    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] = None, //If multiple times the same origin/destination is used, it
+    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] = None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+  ): Boolean = {
+    val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
+      beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
+    )
+    val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
+      beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
+    )
+    containsValue(origTaz, destTaz, departureTime, mode)
+  }
+
+  def containsValue(
+    origTaz: Id[TAZ],
+    destTaz: Id[TAZ],
+    departureTime: Int,
+    mode: BeamMode,
+  ): Boolean = {
+    getSkimValue(departureTime, mode, origTaz, destTaz).isDefined
   }
 
 }
