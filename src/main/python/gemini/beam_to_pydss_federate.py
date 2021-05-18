@@ -54,15 +54,18 @@ def run_beam_to_pydss_federate(station_bus_pairs):
 
     print("entered execution mode")
 
-    currenttime = -1
+    def syncTime(requestedtime):
+        grantedtime = -1
+        while grantedtime < requestedtime:
+            grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
+
     timebin = 300
     # start execution loop
     for t in range(0, 30*3600-timebin, timebin):
-        while currenttime < t:
-            currenttime = h.helicsFederateRequestTime(cfed, t)
+        syncTime(t)
         isupdated = 0
-        while isupdated != 1:
-            isupdated = h.helicsInputIsUpdated(subs_charger_loads)
+        # while isupdated != 1:
+        #     isupdated = h.helicsInputIsUpdated(subs_charger_loads)
         print("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
@@ -78,7 +81,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
             charger_type = station['chargingPointType']
             n_plugs = station['numChargers']
             manager_id = station['managerId']
-            station_id = 'cs_'+str(manager_id)+'_'+str(taz)+'_'+str(parking_type)+'_'+str(charger_type)+'_'+str(n_plugs)
+            station_id = 'cs_'+str(manager_id)+'_'+str(taz)+'_'+str(parking_type)+'_'+str(charger_type)
             station_load = station['estimatedLoad']
             updated_station_ids.append(station_id)
             updated_station_loads.append(station_load)
@@ -118,6 +121,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         #h.helicsPublicationPublishString(pubs_power_limit_upper, power_limit_upper)
         #h.helicsPublicationPublishString(pubs_power_limit_lower, power_limit_lower)
         #h.helicsPublicationPublishString(pubs_lmp_control, lmp_with_control_signal)
+        syncTime(t+1)
 
     # close the federate
     h.helicsFederateFinalize(cfed)

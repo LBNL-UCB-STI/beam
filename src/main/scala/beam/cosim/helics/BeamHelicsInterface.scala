@@ -206,9 +206,10 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return raw message in string format
       */
-    private def collectRaw(): String = {
+    private def syncThenCollectRaw(time: Int): String = {
       dataInStreamHandle
         .map { handle =>
+          sync(time)
           val buffer = new Array[Byte](bufferSize)
           val bufferInt = new Array[Int](1)
           helics.helicsInputGetString(handle, buffer, bufferInt)
@@ -223,8 +224,8 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return Message in List of Maps format
       */
-    def collectJSON(): List[Map[String, Any]] = {
-      val message = collectRaw()
+    def syncThenCollectJSON(time: Int): List[Map[String, Any]] = {
+      val message = syncThenCollectRaw(time)
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         try {
@@ -241,8 +242,8 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return message in list of Strings format
       */
-    def collectAny(): List[Any] = {
-      val message = collectRaw()
+    def syncThenCollectAny(time: Int): List[Any] = {
+      val message = syncThenCollectRaw(time)
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         message.split(",").toList

@@ -68,6 +68,7 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
       case Some(estimatedLoad) =>
         val msg = estimatedLoad.map {
           case (station, powerInKW) =>
+            logger.info(s"DELETE-THIS-${station.zone.id},$powerInKW,$currentTime")
             Map(
               "managerId"         -> station.zone.managerId,
               "tazId"             -> station.zone.tazId.toString,
@@ -86,15 +87,11 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
         beamFederate.publishJSON(msgToPublish)
-        var gridBounds = List.empty[Map[String, Any]]
-        while (gridBounds.isEmpty) {
-          // SYNC
-          beamFederate.sync(currentTime)
-          // COLLECT
-          gridBounds = beamFederate.collectJSON()
-          // Sleep
-          Thread.sleep(1)
-        }
+        // SYNC 1
+        beamFederate.sync(currentTime)
+        // SYNC 2 then Collect
+        val gridBounds = beamFederate.syncThenCollectJSON(currentTime + 1)
+        // PROCESS
         gridBounds.flatMap { x =>
           val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
           val chargingNetwork = chargingNetworkMap(managerId)
