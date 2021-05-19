@@ -85,19 +85,22 @@ class BeamScoringFunctionFactory @Inject()(
       private var finalScore = 0.0
       private val trips = mutable.ListBuffer[EmbodiedBeamTrip]()
       private var leavingParkingEventScore = 0.0
+      private var lastTripIsReal = false
       var rideHailDepart = 0
 
       override def handleEvent(event: Event): Unit = {
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
+            // put the chosen trip to trips only if it's a real one (not got from skim value)
             modeChoiceEvent.chosenTrip.foreach(trips.append(_))
+            lastTripIsReal = modeChoiceEvent.chosenTrip.isRight
           case _: ReplanningEvent =>
             // FIXME? If this happens often, maybe we can optimize it:
             // trips is list buffer meaning removing is O(n)
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
-          case e: PersonArrivalEvent =>
+          case e: PersonArrivalEvent if lastTripIsReal =>
             // Here we modify the last leg of the trip (the dummy walk leg) to have the right arrival time
             // This will therefore now accounts for dynamic delays or difference between quoted ride hail trip time and actual
             val bodyVehicleId = trips.head.legs.head.beamVehicleId
