@@ -7,7 +7,7 @@ import sys
 # Create broker #
 print("Script started")
 nbFed = 3
-if len(sys.argv) > 0:
+if len(sys.argv) > 1:
     nbFed = int(sys.argv[1])
 brokerSetting = "-f {} --name=BeamHelicsBroker".format(nbFed)
 print("broker setting: {}".format(brokerSetting))
