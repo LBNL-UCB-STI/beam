@@ -1,9 +1,8 @@
 import os
 
-basefolder1 = "/Users/haitamlaarabi/Documents/Workspace/beam/production-gemini-develop/output/sf-light/"
-basefolder2 = basefolder1+"/sf-light-25k-xml__2021-05-18_16-53-10_sqr"
-beamLog_out = "{}/beamLog2.out".format(basefolder2)
-beamLog_out_csv = "{}/beamLog2.csv".format(basefolder2)
+basefolder = "/Users/haitamlaarabi/Data/GEMINI/2021March22/370k-warmstart/output"
+beamLog_out = "{}/beamLog.out".format(basefolder)
+beamLog_out_csv = "{}/beamLog.csv".format(basefolder)
 file1 = open(beamLog_out, 'r')
 Lines = file1.readlines()
 file2 = open(beamLog_out_csv, 'w')

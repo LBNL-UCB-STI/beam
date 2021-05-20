@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -65,12 +65,17 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
 
   /**
     * Collect rough power demand per vehicle
-    * @param chargingVehicle vehicle charging information
-    * @param chargingSession latest charging sessions to collect
+    * @param time start time of charging cycle
+    * @param duration duration of charging cycle
+    * @param vehicle vehicle charging
+    * @param station the station where vehicle is charging
     */
-  def collectObservedLoadInKW(chargingVehicle: ChargingVehicle, chargingSession: ChargingCycle): Unit = {
-    import chargingSession._
-    import chargingVehicle._
+  def collectObservedLoadInKW(
+    time: Int,
+    duration: Int,
+    vehicle: BeamVehicle,
+    station: ChargingStation
+  ): Unit = {
     // Collect data on load demand
     val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(
       sessionDurationLimit = Some(duration),
@@ -79,18 +84,13 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     )
     val requiredLoad = if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0)
     temporaryLoadEstimate.synchronized {
-      val requiredLoadAcc = temporaryLoadEstimate.getOrElse(chargingStation, 0.0) + requiredLoad
-      temporaryLoadEstimate.put(chargingStation, requiredLoadAcc)
+      val requiredLoadAcc = temporaryLoadEstimate.getOrElse(station, 0.0) + requiredLoad
+      temporaryLoadEstimate.put(station, requiredLoadAcc)
     }
+    val timeBin = cnmConfig.timeStepInSeconds * (time / cnmConfig.timeStepInSeconds)
+    val location = beamServices.beamScenario.tazTreeMap.getTAZ(station.zone.tazId).get.coord
     beamServices.matsimServices.getEvents.processEvent(
-      event.TAZSkimmerEvent(
-        cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),
-        beamServices.beamScenario.tazTreeMap.getTAZ(chargingStation.zone.tazId).get.coord,
-        chargingStation.zone.id,
-        requiredLoad,
-        beamServices,
-        "CNM"
-      )
+      event.TAZSkimmerEvent(timeBin, location, station.zone.id, requiredLoad, beamServices, "CNM")
     )
   }
 }

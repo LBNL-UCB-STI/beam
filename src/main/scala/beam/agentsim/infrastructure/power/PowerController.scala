@@ -39,7 +39,7 @@ class PowerController(
       case Some(estimatedLoad) =>
         val msg = estimatedLoad.map {
           case (station, powerInKW) =>
-            logger.info(s"DELETE-THIS-${station.zone.id},$powerInKW,$currentTime")
+            //logger.info(s"DELETE-THIS-${station.zone.id},$powerInKW,$currentTime")
             Map(
               "managerId"         -> station.zone.managerId,
               "tazId"             -> station.zone.tazId.toString,
