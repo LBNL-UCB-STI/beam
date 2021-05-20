@@ -112,11 +112,11 @@ class ChargingNetworkManager(
           val (chargingDuration, energyToCharge) =
             dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
           if (chargingDuration > 0 && energyToCharge == 0) {
-            logger.error(
+            log.error(
               s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
             )
           } else if (chargingDuration == 0 && energyToCharge > 0) {
-            logger.error(
+            log.error(
               s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken!!"
             )
           }
