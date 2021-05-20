@@ -104,19 +104,18 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         # Let's uncomment this and send dummy control signal to BEAM
         ## send updated signal to BEAM
         all_stations_with_control = []
-        for station_id in updated_station_ids:
-            #station_id = pairing[0]
-            station_info = station_id.split("_")
+        for station in charger_load_json:
             station_with_control = {
-                'managerId': str(station_info[1]),
-                'tazId': str(station_info[2]),
-                'parkingType': str(station_info[3]),
-                'chargingPointType': str(station_info[4]),
-                'power_limit_upper': 0,
-                'power_limit_lower': 0,
+                'managerId': str(station['managerId']),
+                'tazId': str(station['tazId']),
+                'parkingType': str(station['parkingType']),
+                'chargingPointType': str(station['chargingPointType']),
+                'power_limit_upper': station['estimatedLoad'],
+                'power_limit_lower': station['estimatedLoad'],
                 'lmp_with_control_signal': 0
             }
             all_stations_with_control.append(station_with_control)
+
         h.helicsPublicationPublishString(pubs_control, json.dumps(all_stations_with_control, separators=(',', ':')))
         #h.helicsPublicationPublishString(pubs_power_limit_upper, power_limit_upper)
         #h.helicsPublicationPublishString(pubs_power_limit_lower, power_limit_lower)

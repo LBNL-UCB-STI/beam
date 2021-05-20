@@ -111,6 +111,15 @@ class ChargingNetworkManager(
           // Calculate the energy to charge each vehicle connected to the a charging station
           val (chargingDuration, energyToCharge) =
             dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
+          if (chargingDuration > 0 && energyToCharge == 0) {
+            logger.error(
+              s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
+            )
+          } else if (chargingDuration == 0 && energyToCharge > 0) {
+            logger.error(
+              s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken!!"
+            )
+          }
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
