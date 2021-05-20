@@ -55,17 +55,16 @@ object MessageReader extends LazyLogging {
       Actor(parent, name)
     }
 
-    def getTick(record: util.Map[String, String]) = {
-      val tickStr = record.get("tick")
-      if (tickStr == null || tickStr == "") -1
-      else if (tickStr.contains('.')) Math.round(tickStr.toDouble).toInt
-      else tickStr.toInt
-    }
-
-    def getTriggerId(record: util.Map[String, String]) = {
-      val triggerIdStr = record.get("triggerId")
-      if (triggerIdStr == null || triggerIdStr == "") -1
-      else triggerIdStr.toLong
+    def getLong(name: String, record: util.Map[String, String]) = {
+      val str = record.get(name)
+      if (str == null || str == "")
+        throw new IllegalArgumentException(s"$name is empty in record $record")
+      Try(
+        if (str.contains('.')) Math.round(str.toDouble).toInt
+        else str.toInt
+      ).getOrElse(
+        throw new IllegalArgumentException(s"$name is not a number in record $record")
+      )
     }
 
     row.get("type") match {
@@ -74,8 +73,8 @@ object MessageReader extends LazyLogging {
           extractActor(row, "sender"),
           extractActor(row, "receiver"),
           row.get("payload"),
-          getTick(row),
-          getTriggerId(row)
+          getLong("tick", row),
+          getLong("triggerId", row)
         )
       case "event" =>
         Event(
@@ -83,8 +82,8 @@ object MessageReader extends LazyLogging {
           extractActor(row, "receiver"),
           row.get("payload"),
           row.get("state"),
-          getTick(row),
-          getTriggerId(row)
+          getLong("tick", row),
+          getLong("triggerId", row)
         )
       case "transition" =>
         Transition(
@@ -92,8 +91,8 @@ object MessageReader extends LazyLogging {
           extractActor(row, "receiver"),
           row.get("payload"),
           row.get("state"),
-          getTick(row),
-          getTriggerId(row)
+          getLong("tick", row),
+          getLong("triggerId", row)
         )
       case x @ _ =>
         logger.error("Receiving a wrong message type: {}", x)
