@@ -31,7 +31,10 @@ HELICS_OUTPUT_MOVE_TO_OUTPUT = '''
   -    finalPath="${finalPath}/helics_output" 
   -    mkdir "$finalPath"
   -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/*.log "$finalPath"
-  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"'''
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"
+  -    cd "$finalPath"
+  -    sudo gzip -9 *
+  -    cd - '''
 
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
