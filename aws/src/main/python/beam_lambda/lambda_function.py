@@ -7,6 +7,35 @@ import glob
 import base64
 from botocore.errorfactory import ClientError
 
+HELICS_RUN = '''pip install helics
+  -    cd /home/ubuntu/git/beam/src/main/python/gemini
+  -    now="$(date +"%Y_%m_%d_%I_%M_%p")"
+  -    python beam_pydss_broker.py > output_${now}_broker.log &
+  -    sleep 5s
+  -    python beam_to_pydss_federate.py > output_${now}_federate.log &
+  -    sleep 5s
+  -    helics_recorder beam_recorder.txt --output=recording_output.txt > output_${now}_recorder.log &
+  -    sleep 5s
+  -    cd /home/ubuntu/git/beam
+  -    '''
+
+HELICS_OUTPUT_MOVE_TO_OUTPUT = '''
+  -    opth="output"
+  -    echo $opth
+  -    finalPath=""
+  -    for file in $opth/*; do
+  -       for path2 in $file/*; do
+  -         finalPath="$path2";
+  -       done;
+  -    done;
+  -    finalPath="${finalPath}/helics_output" 
+  -    mkdir "$finalPath"
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/*.log "$finalPath"
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"
+  -    cd "$finalPath"
+  -    sudo gzip -9 *
+  -    cd - '''
+
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
