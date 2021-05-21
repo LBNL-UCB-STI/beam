@@ -22,7 +22,7 @@ HELICS_RUN = '''pip install helics
   -    cd /home/ubuntu/git/beam
   -    '''
 
-HELICS_OUTPUT_MOVE_TO_OUTPUT = '''
+HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
   -    opth="output"
   -    echo $opth
   -    finalPath=""
@@ -592,6 +592,7 @@ def deploy_handler(event, context):
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
+    run_helics = event.get('run_helics', False)
     profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
@@ -620,11 +621,12 @@ def deploy_handler(event, context):
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
-    selected_script = ""
+    selected_script = CONFIG_SCRIPT
     if run_grafana:
         selected_script = CONFIG_SCRIPT_WITH_GRAFANA
-    else:
-        selected_script = CONFIG_SCRIPT
+
+    if run_helics:
+        selected_script = HELICS_RUN + selected_script + HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT
 
     params = configs
     if s3_publish:
@@ -676,10 +678,13 @@ def deploy_handler(event, context):
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+            txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
             if run_grafana:
-                txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
+                txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(dns=host)
+
+            if run_helics:
+                txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
 
             runNum += 1
     else:
