@@ -17,7 +17,7 @@ import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.{Modes, RoutingWorker}
+import beam.router.{Modes, Router, RoutingWorker}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
@@ -40,6 +40,7 @@ import org.matsim.vehicles.Vehicle
 
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport
+    with Router
     with StrictLogging {
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike

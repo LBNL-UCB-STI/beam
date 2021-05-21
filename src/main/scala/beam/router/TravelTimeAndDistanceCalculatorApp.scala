@@ -3,41 +3,33 @@ package beam.router
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.TazToLinkLevelParkingApp.{argsMap, logger}
 import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode.CAR
+import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import com.typesafe.scalalogging.StrictLogging
+import com.conveyal.osmlib.OSM
 import org.matsim.api.core.v01.Id
 
 import java.io.Closeable
+import java.nio.file.Paths
 
 case class InputParameters(
   departureTime: Int,
   configPath: String,
   linkstatsFilename: String,
+  router: String,
   csvPath: String,
   csvOutPath: String
 )
 case class CsvInputRow(id: Int, origin: Location, destination: Location)
 case class CsvOutputRow(id: Int, origin: Location, destination: Location, travelTime: Int, distance: Double)
 
-class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends BeamHelper {
-  val manualArgs = Array[String]("--config", parameters.configPath)
-  val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)
-
-  val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
-  val beamConfig = BeamConfig(cfg)
-  val timeBinSizeInSeconds = beamConfig.beam.agentsim.timeBinSize
-  val maxHour = DateUtils.getMaxHour(beamConfig)
-  val travelTime = new LinkTravelTimeContainer(parameters.linkstatsFilename, timeBinSizeInSeconds, maxHour)
-  val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
-  val r5Router = new R5Wrapper(workerParams, travelTime, travelTimeNoiseFraction)
+class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParameters) extends BeamHelper {
 
   val geoUtils = new GeoUtils {
     override def localCRS: String = "epsg:32631"
@@ -60,7 +52,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
 
     val request =
       RoutingRequest(originUTM, destinationUTM, parameters.departureTime, withTransit = false, None, streetVehicles)
-    val response = r5Router.calcRoute(request)
+    val response = router.calcRoute(request)
 
     if (response.itineraries.isEmpty) {
       logger.error("No itineraries found")
@@ -119,8 +111,33 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
 
 }
 
-// TODO configurable router R5/GH/NativeCCH
 object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
+  def graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
+
+  def id2Link: Map[Int, (Location, Location)] =
+    workerParams.networkHelper.allLinks
+      .map(x => x.getId.toString.toInt -> (x.getFromNode.getCoord -> x.getToNode.getCoord))
+      .toMap
+
+  private def createCarGraphHopper(): CarGraphHopperWrapper = {
+    GraphHopperWrapper.createCarGraphDirectoryFromR5(
+      "quasiDynamicGH",
+      workerParams.transportNetwork,
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
+      graphHopperDir,
+      Map.empty
+    )
+
+    new CarGraphHopperWrapper(
+      carRouter = "quasiDynamicGH",
+      graphDir = graphHopperDir,
+      geo = workerParams.geo,
+      vehicleTypes = workerParams.vehicleTypes,
+      fuelTypePrices = workerParams.fuelTypePrices,
+      wayId2TravelTime = Map.empty, // TODO check
+      id2Link = id2Link
+    )
+  }
 
   def parseArgs(args: Array[String]) = {
     args
@@ -130,6 +147,7 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
         case Array("--departure-time", filePath: String) => ("departure-time", filePath)
         case Array("--config-path", filePath: String)    => ("config-path", filePath)
         case Array("--linkstats", filePath: String)      => ("linkstats", filePath)
+        case Array("--router", filePath: String)         => ("router", filePath)
         case Array("--csv-path", filePath: String)       => ("csv-path", filePath)
         case Array("--out", filePath: String)            => ("out", filePath)
         case arg @ _ =>
@@ -140,12 +158,13 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
 
   val argsMap = parseArgs(args)
 
-  if (argsMap.size != 5) {
+  if (argsMap.size != 6) {
     println("""
       |Usage: 
       | --departure-time 0
       | --config-path test/input/beamville/beam.conf
       | --linkstats test/input/beamville/linkstats.csv.gz
+      | --router R5|GH
       | --csv-path test/input/beamville/input.csv
       | --out test/input/beamville/output.csv
     """.stripMargin)
@@ -158,11 +177,30 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
     departureTime = argsMap("departure-time").toInt,
     configPath = argsMap("config-path"),
     linkstatsFilename = argsMap("linkstats"),
+    router = argsMap("router").toUpperCase,
     csvPath = argsMap("csv-path"),
     csvOutPath = argsMap("out")
   )
+  val manualArgs = Array[String]("--config", parameters.configPath)
+  val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)
 
-  val app = new TravelTimeAndDistanceCalculatorApp(parameters)
+  val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+  val beamConfig = BeamConfig(cfg)
+  val timeBinSizeInSeconds = beamConfig.beam.agentsim.timeBinSize
+  val maxHour = DateUtils.getMaxHour(beamConfig)
+  val travelTime = new LinkTravelTimeContainer(parameters.linkstatsFilename, timeBinSizeInSeconds, maxHour)
+  val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
+
+  val router =
+    if (parameters.router == "R5") {
+      logger.info("Using R5 router")
+      new R5Wrapper(workerParams, travelTime, travelTimeNoiseFraction)
+    } else {
+      logger.info("Using GraphHopper router")
+      createCarGraphHopper()
+    }
+
+  val app = new TravelTimeAndDistanceCalculatorApp(router, parameters)
   val results = app.processCsv()
   app.writeCsv(results)
 }
