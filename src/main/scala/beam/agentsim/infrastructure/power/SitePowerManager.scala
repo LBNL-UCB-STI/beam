@@ -1,9 +1,8 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.skim.event
 import beam.sim.BeamServices
@@ -11,14 +10,16 @@ import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
+import scala.collection.mutable
+
 class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamServices: BeamServices)
     extends LazyLogging {
   import SitePowerManager._
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
-  private val tazSkimmer = beamServices.skims.taz_skimmer
   private lazy val allChargingStations = chargingNetworkMap.flatMap(_._2.chargingStations).toList.distinct
   private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
+  private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
 
   /**
     * Get required power for electrical vehicles
@@ -28,48 +29,12 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     */
   def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
     val plans = allChargingStations.par
-      .map { station =>
-        station -> observedPowerDemandInKW(tick, station.zone).getOrElse(estimatePowerDemandInKW(tick, station.zone))
-      }
+      .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
       .seq
       .toMap
+    temporaryLoadEstimate.clear()
     if (plans.isEmpty) logger.error(s"Charging Replan did not produce allocations")
     plans
-  }
-
-  /**
-    * get observed power from previous iteration
-    * @param tick timeBin
-    * @param zone the Charging Zone
-    * @return power in KW
-    */
-  private def observedPowerDemandInKW(tick: Int, zone: ChargingZone): Option[Double] = {
-    val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
-    beamServices.skims.taz_skimmer.getPreviousIterationSkim(
-      currentTimeBin,
-      "CNM",
-      Some(zone.tazId),
-      Some(zone.id),
-      None
-    ) match {
-      case Some(skim) => Some(skim.value * skim.observations)
-      case _          => None
-    }
-  }
-
-  /**
-    * get estimated power from current partial skim
-    * @param tick timeBin
-    * @param chargingZone the Charging Zone
-    * @return Power in kW
-    */
-  private def estimatePowerDemandInKW(tick: Int, chargingZone: ChargingZone): Double = {
-    val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
-    val cz @ ChargingZone(tazId, _, _, _, _, _) = chargingZone
-    tazSkimmer.getCurrentSkim(previousTimeBin, "CNM", Some(tazId), Some(cz.id), None) match {
-      case Some(skim) => skim.value * skim.observations
-      case None       => 0.0
-    }
   }
 
   /**
@@ -100,27 +65,32 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
 
   /**
     * Collect rough power demand per vehicle
-    * @param chargingVehicle vehicle charging information
-    * @param chargingSession latest charging sessions to collect
+    * @param time start time of charging cycle
+    * @param duration duration of charging cycle
+    * @param vehicle vehicle charging
+    * @param station the station where vehicle is charging
     */
-  def collectObservedLoadInKW(chargingVehicle: ChargingVehicle, chargingSession: ChargingCycle): Unit = {
-    import chargingSession._
-    import chargingVehicle._
+  def collectObservedLoadInKW(
+    time: Int,
+    duration: Int,
+    vehicle: BeamVehicle,
+    station: ChargingStation
+  ): Unit = {
     // Collect data on load demand
     val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(
       sessionDurationLimit = Some(duration),
       stateOfChargeLimit = None,
       chargingPowerLimit = None
     )
+    val requiredLoad = if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0)
+    temporaryLoadEstimate.synchronized {
+      val requiredLoadAcc = temporaryLoadEstimate.getOrElse(station, 0.0) + requiredLoad
+      temporaryLoadEstimate.put(station, requiredLoadAcc)
+    }
+    val timeBin = cnmConfig.timeStepInSeconds * (time / cnmConfig.timeStepInSeconds)
+    val location = beamServices.beamScenario.tazTreeMap.getTAZ(station.zone.tazId).get.coord
     beamServices.matsimServices.getEvents.processEvent(
-      event.TAZSkimmerEvent(
-        cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),
-        beamServices.beamScenario.tazTreeMap.getTAZ(chargingStation.zone.tazId).get.coord,
-        chargingStation.zone.id,
-        if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0),
-        beamServices,
-        "CNM"
-      )
+      event.TAZSkimmerEvent(timeBin, location, station.zone.id, requiredLoad, beamServices, "CNM")
     )
   }
 }

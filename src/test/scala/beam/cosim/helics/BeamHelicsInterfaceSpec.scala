@@ -62,7 +62,7 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
     val time1 = beamFederate.sync(1)
     time1 should be(1.0)
 
-    val (time2, response) = (beamFederate.sync(2), beamFederate.collectJSON())
+    val (time2, response) = (beamFederate.sync(2), beamFederate.syncThenCollectJSON())
     time2 should be(2.0)
     response.size should be(1)
     response.head should contain("key"   -> "foo")
@@ -75,7 +75,7 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
     beamBroker.getBrokersFederate.isDefined should be(true)
     val beamFederate = beamBroker.getBrokersFederate.get
 
-    val (time1, message) = (beamFederate.sync(1), beamFederate.collectAny())
+    val (time1, message) = (beamFederate.sync(1), beamFederate.syncThenCollectAny())
     time1 should be(1.0)
     message.mkString(",").trim should be("foo,123456")
 

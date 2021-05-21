@@ -1,6 +1,7 @@
 package beam.utils.scripts
 
 import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.infrastructure.ChargingNetworkManager
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
@@ -61,6 +62,15 @@ object FailFast extends LazyLogging {
     if (config.beam.physsim.writeRouteHistoryInterval < 0) {
       throw new RuntimeException(
         "Wrong value of Route History file writing iteration"
+      )
+    }
+
+    // HELICS
+    if (!ChargingNetworkManager.connectToHELICS(config)) {
+      throw new RuntimeException(
+        "Simulation fails after 3 attempts to connect to the helics network. " +
+        " The solution would be either to flag beam.agentsim.chargingNetworkManager.helics.connectionEnabled as false" +
+        " or to ensure that helics broker and sufficient number of helics federates are running and accessible"
       )
     }
   }

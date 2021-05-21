@@ -10,6 +10,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
+import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -188,6 +189,13 @@ object ChargingNetwork {
       connectedVehiclesInternal.clear()
       waitingLineInternal.clear()
     }
+
+    override def equals(that: Any): Boolean =
+      that match {
+        case that: ChargingStation => this.zone.equals(that.zone)
+        case _                     => false
+      }
+    override def hashCode: Int = this.zone.hashCode()
   }
 
   final case class ChargingCycle(startTime: Int, energy: Double, duration: Int)

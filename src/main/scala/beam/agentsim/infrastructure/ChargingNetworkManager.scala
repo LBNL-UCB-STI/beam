@@ -18,14 +18,16 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.cosim.helics.BeamHelicsInterface.{getFederate, unloadHelics, BeamFederate}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NonFatal
 
 /**
   * Created by haitamlaarabi
@@ -51,7 +53,7 @@ class ChargingNetworkManager(
     new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, chargingZoneList)
   )
   private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
-  private val powerController = new PowerController(chargingNetworkMap, beamConfig)
+  private val powerController = new PowerController(chargingNetworkMap, beamConfig, beamFederateOption)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
   import powerController._
@@ -109,6 +111,15 @@ class ChargingNetworkManager(
           // Calculate the energy to charge each vehicle connected to the a charging station
           val (chargingDuration, energyToCharge) =
             dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
+          if (chargingDuration > 0 && energyToCharge == 0) {
+            log.error(
+              s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
+            )
+          } else if (chargingDuration == 0 && energyToCharge > 0) {
+            log.error(
+              s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken!!"
+            )
+          }
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
@@ -207,7 +218,7 @@ class ChargingNetworkManager(
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
       chargingNetworkMap.foreach(_._2.clearAllMappedStations())
-      powerController.close()
+      disconnectFromHELICS()
       context.children.foreach(_ ! Finish)
       context.stop(self)
   }
@@ -304,8 +315,15 @@ class ChargingNetworkManager(
         handleRefueling(chargingVehicle)
         handleEndChargingHelper(tick, chargingVehicle)
         vehicle.disconnectFromChargingPoint()
-        parkingManager ! ReleaseParkingStall(vehicle.stall.get)
-        vehicle.unsetParkingStall()
+        vehicle.stall match {
+          case Some(stall) =>
+            parkingManager ! ReleaseParkingStall(stall)
+            vehicle.unsetParkingStall()
+          case None =>
+            log.error(
+              s"Vehicle ${vehicle.id.toString} does not have a stall. ParkingManager won't get ReleaseParkingStall event."
+            )
+        }
         currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
         chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _))
       case None =>
@@ -320,11 +338,14 @@ class ChargingNetworkManager(
     * @param chargingVehicle vehicle charging information
     */
   private def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
-    chargingVehicle.latestChargingCycle.foreach { cycle =>
-      val vehicle = chargingVehicle.vehicle
-      log.debug(s"Charging vehicle $vehicle. Stall ${vehicle.stall}. Provided energy of = ${cycle.energy} J")
-      vehicle.addFuel(cycle.energy)
-      collectObservedLoadInKW(chargingVehicle, cycle)
+    chargingVehicle.latestChargingCycle.foreach {
+      case ChargingCycle(startTime, energy, duration) =>
+        collectObservedLoadInKW(startTime, duration, chargingVehicle.vehicle, chargingVehicle.chargingStation)
+        chargingVehicle.vehicle.addFuel(energy)
+        log.debug(
+          s"Charging vehicle ${chargingVehicle.vehicle}. " +
+          s"Stall ${chargingVehicle.vehicle.stall}. Provided energy of = $energy J"
+        )
     }
   }
 
@@ -384,7 +405,8 @@ class ChargingNetworkManager(
   }
 }
 
-object ChargingNetworkManager {
+object ChargingNetworkManager extends LazyLogging {
+  var beamFederateOption: Option[BeamFederate] = None
   object DebugReport
   case class ChargingZonesInquiry()
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
@@ -431,4 +453,67 @@ object ChargingNetworkManager {
     Props(new ChargingNetworkManager(beamServices, chargingNetworkInfo, parkingManager, scheduler))
   }
 
+  def connectToHELICS(beamConfig: BeamConfig): Boolean = {
+    val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.helics
+    beamFederateOption = if (helicsConfig.connectionEnabled) {
+      var counter = 1
+      var fed = attemptConnectionToHELICS(beamConfig)
+      while (fed.isEmpty && counter <= 3) {
+        logger.error(s"Failed to connect to helics network. Connection attempt in 60 seconds [$counter/3]")
+        Thread.sleep(60000)
+        fed = attemptConnectionToHELICS(beamConfig)
+        counter += 1
+      }
+      fed
+    } else None
+    !helicsConfig.connectionEnabled || beamFederateOption.isDefined
+  }
+
+  def disconnectFromHELICS(): Unit = {
+
+    /**
+      * closing helics connection
+      */
+    logger.debug("Release Helics resources...")
+    beamFederateOption
+      .fold(logger.debug("Not connected to grid, just releasing helics resources")) { beamFederate =>
+        beamFederate.close()
+        try {
+          logger.debug("Destroying BeamFederate")
+          unloadHelics()
+        } catch {
+          case NonFatal(ex) =>
+            logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
+        }
+      }
+  }
+
+  private def attemptConnectionToHELICS(beamConfig: BeamConfig): Option[BeamFederate] = {
+    import scala.util.{Failure, Try}
+    val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.helics
+    logger.info("Connecting to helics network for CNM...")
+    Try {
+      logger.debug("Init BeamFederate...")
+      getFederate(
+        helicsConfig.federateName,
+        helicsConfig.coreType,
+        helicsConfig.coreInitString,
+        helicsConfig.timeDeltaProperty,
+        helicsConfig.intLogLevel,
+        helicsConfig.bufferSize,
+        helicsConfig.dataOutStreamPoint match {
+          case s: String if s.nonEmpty => Some(s)
+          case _                       => None
+        },
+        helicsConfig.dataInStreamPoint match {
+          case s: String if s.nonEmpty => Some(s)
+          case _                       => None
+        }
+      )
+    }.recoverWith {
+      case e =>
+        logger.warn("Cannot init BeamFederate: {} as connection to helics failed", e.getMessage)
+        Failure(e)
+    }.toOption
+  }
 }
