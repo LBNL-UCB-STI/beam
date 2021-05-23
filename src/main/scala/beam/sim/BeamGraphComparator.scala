@@ -143,61 +143,63 @@ object BeamGraphComparator extends LazyLogging {
       FileUtils.getFile(new File(event.getServices.getControlerIO.getIterationPath(i))).listFiles())
         .filter(f => FilenameUtils.getExtension(f.getName).equalsIgnoreCase("png"))
     }
-    val numberOfIterations = files.size
-    val fileNameRegex = "([0-9]*).(.*)(.png)".r
-    // Group all yielded files based on the graph names (file name w/o iteration prefixes)
-    val fileNames = files.reduce(_ ++ _) map { f =>
-      (f.getName match {
-        case fileNameRegex(_, name, _) => name
-        case _                         => ""
-      }) -> f
-    }
 
-    val knownChartPrefixes = List(
-      "rideHail",
-      "passengerPerTrip",
-      "legHistogram",
-      "averageTravelTimes",
-      "energyUse",
-      "modeChoice",
-      "physsim",
-      "realizedMode",
-      "tripHistogram",
-      "freeFlowSpeedDistribution"
-    )
-    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy (
-      grouping =>
-        knownChartPrefixes
-          .collectFirst { case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
-          .getOrElse("Misc")
-    )
-    val subGroups = mutable.HashMap.empty[(String, String), Map[String, Array[(String, File)]]]
-    // set priorities for the grouped chart files
-    chartsGroupedByPrefix.foreach(gc => {
-      if (gc._2.size == 1) {
-        val key = gc._2.headOption.map(_._1).getOrElse("")
-        key match {
-          case "modeChoice"   => subGroups.put("P01" -> key, gc._2)
-          case "energyUse"    => subGroups.put("P02" -> key, gc._2)
-          case "realizedMode" => subGroups.put("P03" -> key, gc._2)
-          case "misc"         => subGroups.put("P50" -> key, gc._2)
-          case _ =>
-            val map = subGroups.getOrElse("P04" -> key, Map.empty)
-            subGroups.put("P04" -> key, gc._2 ++ map)
-        }
-      } else
-        subGroups.put("P04" + gc._1.headOption.getOrElse("") -> gc._1, gc._2)
-    })
-    //Generate graph comparison html element and write it to the html page at desired location
-    val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
-    val htmlElem = this.generateHtml(subGroups, numberOfIterations, event)
-    try {
-      bw.write(htmlElem.mkString)
-    } catch {
-      case e: IOException => logger.error("exception occurred due to ", e)
-    } finally {
-      bw.close()
+    if (files.nonEmpty) {
+      val fileNameRegex = "([0-9]*).(.*)(.png)".r
+      // Group all yielded files based on the graph names (file name w/o iteration prefixes)
+      val fileNames = files.reduce(_ ++ _) map { f =>
+        (f.getName match {
+          case fileNameRegex(_, name, _) => name
+          case _                         => ""
+        }) -> f
+      }
+
+      val knownChartPrefixes = List(
+        "rideHail",
+        "passengerPerTrip",
+        "legHistogram",
+        "averageTravelTimes",
+        "energyUse",
+        "modeChoice",
+        "physsim",
+        "realizedMode",
+        "tripHistogram",
+        "freeFlowSpeedDistribution"
+      )
+      val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy (
+        grouping =>
+          knownChartPrefixes
+            .collectFirst { case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
+            .getOrElse("Misc")
+      )
+      val subGroups = mutable.HashMap.empty[(String, String), Map[String, Array[(String, File)]]]
+      // set priorities for the grouped chart files
+      chartsGroupedByPrefix.foreach(gc => {
+        if (gc._2.size == 1) {
+          val key = gc._2.headOption.map(_._1).getOrElse("")
+          key match {
+            case "modeChoice"   => subGroups.put("P01" -> key, gc._2)
+            case "energyUse"    => subGroups.put("P02" -> key, gc._2)
+            case "realizedMode" => subGroups.put("P03" -> key, gc._2)
+            case "misc"         => subGroups.put("P50" -> key, gc._2)
+            case _ =>
+              val map = subGroups.getOrElse("P04" -> key, Map.empty)
+              subGroups.put("P04" -> key, gc._2 ++ map)
+          }
+        } else
+          subGroups.put("P04" + gc._1.headOption.getOrElse("") -> gc._1, gc._2)
+      })
+      //Generate graph comparison html element and write it to the html page at desired location
+      val bw = new BufferedWriter(new FileWriter(event.getServices.getControlerIO.getOutputPath + "/comparison.html"))
+      val numberOfIterations = files.size
+      val htmlElem = this.generateHtml(subGroups, numberOfIterations, event)
+      try {
+        bw.write(htmlElem.mkString)
+      } catch {
+        case e: IOException => logger.error("exception occurred due to ", e)
+      } finally {
+        bw.close()
+      }
     }
   }
-
 }
