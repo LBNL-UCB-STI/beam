@@ -1,8 +1,9 @@
 package beam.sim
 
-import beam.utils.MathUtils
 import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
+import beam.utils.MathUtils
 import ch.qos.logback.classic.util.ContextInitializer
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.AbstractModule
 
 import scala.collection.JavaConverters._
@@ -14,6 +15,8 @@ object RunBeam extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
     println(beamAsciiArt)
+
+    Thread.setDefaultUncaughtExceptionHandler(UnhandledExceptionHandler);
 
     println(s"Received ${args.length} arguments: ${args.toList}")
     println(s"Java version: ${System.getProperty("java.version")}")
@@ -39,4 +42,12 @@ object RunBeam extends BeamHelper {
     abstractModule
   }
 
+}
+
+object UnhandledExceptionHandler extends Thread.UncaughtExceptionHandler() with LazyLogging {
+  override def uncaughtException(t: Thread, e: Throwable): Unit = {
+    logger.error(s"Unhandled exception caught: $e")
+    logger.error("Terminating application.")
+    System.exit(1)
+  }
 }
