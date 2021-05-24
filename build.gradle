@@ -12,7 +12,7 @@ buildscript {
     }
     dependencies {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
-        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.41"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
     }
@@ -303,7 +303,7 @@ dependencies {
     scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
 
     // AWS S3
-    compile group: 'software.amazon.awssdk', name: 's3', version: '2.16.61'
+    compile group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
     // compile group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
 
 }
