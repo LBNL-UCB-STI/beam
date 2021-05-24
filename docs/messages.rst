@@ -32,7 +32,7 @@ The files contains the following columns
 How to visualize them
 ^^^^^^^^^^^^^^^^^^^^^
 
-VisualizingApp can convert these files to different diagrams. It creates a `PlantUML`_ files that can be easily converted to pictures. You can run it with gradle with the following command::
+VisualizingApp can convert these files to different diagrams. It creates `PlantUML`_ files that can be easily converted to pictures. You can run it with gradle with the following command::
 
 $ ./gradlew :execute -PmainClass=beam.utils.protocolvis.VisualizingApp -PappArgs=["'--input', 'output/sf-light/sf-light_2021-05-03_10-50-55_cxc/ITERS/it.0', '--output', 'docs/uml/sequence1.puml', '--diagram-type', 'Sequence', '--force', '--person-id', '010900-2012001379980-0-560057'"]
 
