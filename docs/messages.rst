@@ -7,7 +7,7 @@ Auto Capturing Beam Messages
 Capturing most messages that BEAM Actors generate
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-BEAM uses triggerId to trace down all the actor interactions starting from TriggerWithId Event that is sent by the Scheduler. When developing a new message types extend it from HasTriggerId trait in order to trace these messages.
+BEAM uses triggerId to trace down all the actor interactions starting from TriggerWithId Event that is sent by the Scheduler. When developing a new message type, extend it from HasTriggerId trait in order to trace these messages.
 In order to enable saving messages to csv files one needs to add the following property to beam.conf file::
 
    beam.debug.messageLogging=true
