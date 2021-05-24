@@ -124,12 +124,21 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
       .toMap
 
   private def createCarGraphHopper(): CarGraphHopperWrapper = {
+    val wayId2TravelTime =
+      workerParams.networkHelper.allLinks.toSeq
+        .map(
+          l =>
+            l.getId.toString.toLong ->
+            travelTime.getLinkTravelTime(l, parameters.departureTime.toDouble, null, null)
+        )
+        .toMap
+
     GraphHopperWrapper.createCarGraphDirectoryFromR5(
       "quasiDynamicGH",
       workerParams.transportNetwork,
       new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
       graphHopperDir,
-      Map.empty
+      wayId2TravelTime
     )
 
     new CarGraphHopperWrapper(
@@ -138,7 +147,7 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
       geo = workerParams.geo,
       vehicleTypes = workerParams.vehicleTypes,
       fuelTypePrices = workerParams.fuelTypePrices,
-      wayId2TravelTime = Map.empty, // TODO check
+      wayId2TravelTime = wayId2TravelTime,
       id2Link = id2Link
     )
   }
@@ -177,7 +186,7 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
 
   logger.info("args = {}", argsMap)
 
-  val parameters = InputParameters(
+  val parameters: InputParameters = InputParameters(
     departureTime = argsMap("departure-time").toInt,
     configPath = argsMap("config-path"),
     linkstatsFilename = argsMap("linkstats"),
