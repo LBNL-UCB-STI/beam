@@ -26,8 +26,8 @@ case class InputParameters(
   csvPath: String,
   csvOutPath: String
 )
-case class CsvInputRow(id: Int, origin: Location, destination: Location)
-case class CsvOutputRow(id: Int, origin: Location, destination: Location, travelTime: Int, distance: Double)
+case class CsvInputRow(id: Int, originUTM: Location, destinationUTM: Location)
+case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, travelTime: Int, distance: Double)
 
 class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParameters) extends BeamHelper {
 
@@ -36,14 +36,11 @@ class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParame
   }
 
   def processRow(row: CsvInputRow): CsvOutputRow = {
-    val originUTM = geoUtils.wgs2Utm(row.origin)
-    val destinationUTM = geoUtils.wgs2Utm(row.destination)
-
     val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
       StreetVehicle(
         Id.createVehicleId("1"),
         Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
-        new SpaceTime(originUTM, time = parameters.departureTime),
+        new SpaceTime(row.originUTM, time = parameters.departureTime),
         CAR,
         asDriver = true,
         needsToCalculateCost = true
@@ -51,7 +48,14 @@ class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParame
     )
 
     val request =
-      RoutingRequest(originUTM, destinationUTM, parameters.departureTime, withTransit = false, None, streetVehicles)
+      RoutingRequest(
+        row.originUTM,
+        row.destinationUTM,
+        parameters.departureTime,
+        withTransit = false,
+        None,
+        streetVehicles
+      )
     val response = router.calcRoute(request)
 
     if (response.itineraries.isEmpty) {
@@ -61,8 +65,8 @@ class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParame
 
     CsvOutputRow(
       row.id,
-      geoUtils.utm2Wgs(originUTM),
-      geoUtils.utm2Wgs(destinationUTM),
+      row.originUTM,
+      row.destinationUTM,
       response.itineraries.head.totalTravelTimeInSecs,
       response.itineraries.head.legs.lastOption.map(_.beamLeg.travelPath.distanceInM).getOrElse(0)
     )
@@ -95,10 +99,10 @@ class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParame
           writer.writeRow(
             Seq(
               row.id,
-              row.origin.getX,
-              row.origin.getY,
-              row.destination.getX,
-              row.destination.getY,
+              row.originUTM.getX,
+              row.originUTM.getY,
+              row.destinationUTM.getX,
+              row.destinationUTM.getY,
               row.travelTime,
               row.distance
             )
