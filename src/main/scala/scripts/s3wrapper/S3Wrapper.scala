@@ -32,14 +32,14 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
   private lazy val cachedBuckets = new AtomicReference[Set[S3Bucket]](listBucketNamesInternal)
 
   /**
-    * Retrieve all available buckets and its region. It is equivalent of the following command
-    * `aws s3 ls` or `aws s3api list-buckets --query "Buckets[].Name"`
-    * combined with the following
-    * `aws s3api get-bucket-location --bucket my-bucket` per each bucket
-    * It also update internal cache with returned buckets
-    *
-    * @return
-    */
+ * Retrieve all available buckets and its region. It is equivalent of the following command
+ * `aws s3 ls` or `aws s3api list-buckets --query "Buckets[].Name"`
+ * combined with the following
+ * `aws s3api get-bucket-location --bucket my-bucket` per each bucket
+ * It also update internal cache with returned buckets
+ *
+ * @return
+ */
   def buckets: Set[S3Bucket] = {
     cachedBuckets.get()
   }
@@ -62,15 +62,15 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
   }
 
   /**
-    * Get recursively all keys belongs to some bucket. Since AWS API limits to 1000
-    * the maximum amount of keys per request, it might be needed to apply multiple requests
-    * The CLI equivalent command is as following:
-    * `aws s3 ls --summarize --recursive s3://beam-admin-reports/ --profile beam`
-    *
-    * @param bucketName  the name of the bucket
-    * @param maxRequests the maximum number of requests. Default value is unlimited in practical terms (Int.MaxValue)
-    * @return a set with all keys from the bucket
-    */
+ * Get recursively all keys belongs to some bucket. Since AWS API limits to 1000
+ * the maximum amount of keys per request, it might be needed to apply multiple requests
+ * The CLI equivalent command is as following:
+ * `aws s3 ls --summarize --recursive s3://beam-admin-reports/ --profile beam`
+ *
+ * @param bucketName  the name of the bucket
+ * @param maxRequests the maximum number of requests. Default value is unlimited in practical terms (Int.MaxValue)
+ * @return a set with all keys from the bucket
+ */
   def allBucketFiles(bucketName: String, maxRequests: Int = Int.MaxValue): Set[S3RemoteFile] = {
     val request = new ListObjectsV2Request()
       .withBucketName(bucketName)
@@ -98,20 +98,20 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
   }
 
   /**
-    * Download the full bucket and save into the destination path
-    * @param bucketName the bucket name
-    * @param destinationPath the destination path
-    */
+ * Download the full bucket and save into the destination path
+ * @param bucketName the bucket name
+ * @param destinationPath the destination path
+ */
   def downloadBucket(bucketName: String, destinationPath: Path): Unit = {
     download(bucketName, wholeDirectory, destinationPath)
   }
 
   /**
-    * Download all files, directories and subdirectories accordingly to the parameters
-    * @param bucketName the bucket name
-    * @param keysStartingWith the object key is composed its full path
-    * @param destinationPath the directory which downloaded data will be saved
-    */
+ * Download all files, directories and subdirectories accordingly to the parameters
+ * @param bucketName the bucket name
+ * @param keysStartingWith the object key is composed its full path
+ * @param destinationPath the directory which downloaded data will be saved
+ */
   final def download(bucketName: String, keysStartingWith: String, destinationPath: Path): Unit = {
     if (!Files.isDirectory(destinationPath)) {
       throw new IllegalArgumentException(s"Destination path [$destinationPath] must be a directory")
@@ -136,9 +136,9 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
   }
 
   /**
-    * Call aws shutdown method.
-    * shutdown method states "shuts down this client object, releasing any resources that might be held open."
-    */
+ * Call aws shutdown method.
+ * shutdown method states "shuts down this client object, releasing any resources that might be held open."
+ */
   override def close(): Unit = {
     s3Client.shutdown()
   }
@@ -180,4 +180,4 @@ object S3Wrapper extends StrictLogging {
   }
 
 }
-*/
+ */
