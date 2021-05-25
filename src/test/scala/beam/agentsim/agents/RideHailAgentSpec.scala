@@ -27,17 +27,16 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.{BeforeAndAfter, FunSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
 
 //#Test needs to be updated/fixed on LBNL side
 class RideHailAgentSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
-    with MockitoSugar
     with ImplicitSender
     with BeforeAndAfter
     with BeamvilleFixtures {

@@ -1,9 +1,10 @@
 package beam.agentsim.agents.choice.logit
 
 import scala.util.Random
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class MultinomialLogitSpec extends WordSpecLike with Matchers {
+class MultinomialLogitSpec extends AnyWordSpecLike with Matchers {
 
   "An MNL Model with standard data" must {
     val utilityFunctions = Map(

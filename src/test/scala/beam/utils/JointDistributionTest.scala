@@ -3,9 +3,10 @@ package beam.utils
 import beam.utils.data.ctpp.JointDistribution
 import beam.utils.data.ctpp.JointDistribution.CustomRange
 import org.apache.commons.math3.random.MersenneTwister
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class JointDistributionTest extends WordSpecLike with Matchers {
+class JointDistributionTest extends AnyWordSpecLike with Matchers {
 
   val jointDistribution: JointDistribution = JointDistribution.fromCsvFile(
     pathToCsv = "test/input/beamville/test-data/joint-distribution.csv",

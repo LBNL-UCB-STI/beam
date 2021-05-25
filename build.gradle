@@ -11,10 +11,10 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
-        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"
+        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final' // can be upgraded to 2.2.0
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"  // can be upgraded to 0.37
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
-        classpath 'cz.alenkacz:gradle-scalafmt:1.7.0'
+        classpath 'cz.alenkacz:gradle-scalafmt:1.7.0' // can be upgraded to 1.14.0
     }
 }
 
@@ -208,8 +208,9 @@ dependencies {
     compile "org.scala-lang:scala-compiler:2.12.12"
 
     // TEST Scala //
-    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.0.8'
-    testRuntime "org.pegdown:pegdown:1.4.2" // HTML report for scalatest
+    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.8'
+    testCompile group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
+    testCompile group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
 
     // 3rd Party Scala //
 

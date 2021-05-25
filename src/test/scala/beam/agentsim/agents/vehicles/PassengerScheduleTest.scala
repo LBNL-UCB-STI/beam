@@ -2,7 +2,6 @@ package beam.agentsim.agents.vehicles
 
 import java.io.FileInputStream
 import java.nio.charset.StandardCharsets
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.router.Modes.BeamMode.WALK
@@ -12,9 +11,11 @@ import beam.utils.FileUtils
 import org.apache.commons.io.IOUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
+import org.mockito.Mockito
 import org.mockito.Mockito._
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{FunSpecLike, Matchers, _}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.immutable.TreeMap
 
@@ -23,12 +24,11 @@ import scala.collection.immutable.TreeMap
   */
 class PassengerScheduleTest
     extends TestKit(ActorSystem("PassengerScheduleTest"))
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
     with Matchers
-    with ImplicitSender
-    with MockitoSugar {
-  val services: BeamServices = mock[BeamServices](withSettings().stubOnly())
+    with ImplicitSender {
+  val services: BeamServices = Mockito.mock(classOf[BeamServices], withSettings().stubOnly())
 
   describe("A PassengerSchedule") {
 

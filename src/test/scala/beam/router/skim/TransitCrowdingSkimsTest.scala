@@ -9,13 +9,14 @@ import beam.router.skim.Skims.SkimType
 import beam.router.skim.core.TransitCrowdingSkimmer
 import beam.sim.{BeamHelper, BeamServices}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 /**
   *
   * @author Dmitry Openkov
   */
-class TransitCrowdingSkimsTest extends FlatSpec with Matchers with BeamHelper {
+class TransitCrowdingSkimsTest extends AnyFlatSpec with Matchers with BeamHelper {
 
   val constr: BeamServices => TransitCrowdingSkimmer =
     services => new TransitCrowdingSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
