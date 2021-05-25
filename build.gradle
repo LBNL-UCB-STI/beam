@@ -227,7 +227,7 @@ dependencies {
     compile group: 'com.beachape', name: "enumeratum-circe_${scalaBinaryVersion}", version: "1.6.1"
 
     compile "com.github.scopt:scopt_${scalaBinaryVersion}:4.0.0-RC2"
-    compile "net.codingwell:scala-guice_${scalaBinaryVersion}:5.0.1"  // DI
+    compile "net.codingwell:scala-guice_${scalaBinaryVersion}:4.1.0"  // DI
     compile('com.github.carueda:tscfg:v' + tscfgVersion) { // config
         exclude group: 'org.scala-lang.modules', module: 'scala-xml_2.11'
         exclude group: 'com.typesafe', module: 'config'
