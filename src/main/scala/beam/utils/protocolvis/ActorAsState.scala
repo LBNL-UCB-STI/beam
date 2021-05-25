@@ -20,17 +20,17 @@ object ActorAsState {
     toPumlEntries(transitions)
   }
 
-  def processBySingleActor(messages: Iterator[RowData], outputDir: Path): Unit = {
+  def processForEachActor(messages: Iterator[RowData], outputDir: Path): Unit = {
     val transitions = toTransitions(messages)
-    val allStates = getAllStates(transitions)
-    val singleActorStates: Map[String, IndexedSeq[StateDiagramEntry]] = allStates.map { state =>
-      val thisStateTransitions =
-        transitions.filter(transition => transition.fromState == state || transition.toState == state)
-      val entries = toPumlEntries(thisStateTransitions)
-      toShortName(state) -> entries
+    val allActors = getAllStates(transitions)
+    val actorToDiagramEntries: Map[String, IndexedSeq[StateDiagramEntry]] = allActors.map { actor =>
+      val thisActorTransitions =
+        transitions.filter(transition => transition.fromState == actor || transition.toState == actor)
+      val entries = toPumlEntries(thisActorTransitions)
+      toShortName(actor) -> entries
     }.toMap
 
-    writeToDir(singleActorStates, outputDir)
+    writeToDir(actorToDiagramEntries, outputDir)
   }
 
   private[protocolvis] def writeToDir(

@@ -47,6 +47,12 @@ object VisualizingApp extends StrictLogging {
     logger.info(s"Generating diagram $diagramType")
     logger.info(s"Start reading from $inputFile")
     val (csvStream, closable) = MessageReader.readData(inputFile)
+    if (diagramType.isMultiFileOutput) {
+      if (!Files.exists(output))
+        Files.createDirectories(output)
+      else if (!Files.isDirectory(output))
+        throw new IllegalArgumentException(s"$output is not a directory")
+    }
     try {
       val extractor = Extractors.messageExtractor(extractorType)
       val processor = appropriateProcessor(diagramType)
@@ -67,7 +73,7 @@ object VisualizingApp extends StrictLogging {
       case DiagramType.Sequence           => SequenceDiagram.process
       case DiagramType.ActorAsState       => ActorAsState.process
       case DiagramType.AgentState         => AgentStateDiagram.process
-      case DiagramType.SingleActorAsState => ActorAsState.processBySingleActor
+      case DiagramType.SingleActorAsState => ActorAsState.processForEachActor
     }
 
   private def confirmOverwrite(path: Path): Boolean = {
@@ -141,15 +147,15 @@ object VisualizingApp extends StrictLogging {
     personId: String = "",
   )
 
-  sealed abstract class DiagramType extends EnumEntry
+  sealed abstract class DiagramType(val isMultiFileOutput: Boolean) extends EnumEntry
 
   object DiagramType extends Enum[DiagramType] {
     val values: immutable.IndexedSeq[DiagramType] = findValues
 
-    case object Sequence extends DiagramType
-    case object ActorAsState extends DiagramType
-    case object AgentState extends DiagramType
-    case object SingleActorAsState extends DiagramType
+    case object Sequence extends DiagramType(isMultiFileOutput = false)
+    case object ActorAsState extends DiagramType(isMultiFileOutput = false)
+    case object AgentState extends DiagramType(isMultiFileOutput = true)
+    case object SingleActorAsState extends DiagramType(isMultiFileOutput = true)
   }
 
 }
