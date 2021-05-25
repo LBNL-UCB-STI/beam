@@ -49,6 +49,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 def scalaBinaryVersion = "2.12"
+def scalaBinaryFullVersion = "2.12.12"
 def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.13.0"
 def slf4jVersion = "1.7.25"
@@ -279,7 +280,7 @@ dependencies {
     // TEST Akka //
     testCompile group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
-    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.4.7", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
+    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryFullVersion}:1.4.7", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.3.1"
 
     compile 'org.apache.commons:commons-compress:1.18'
 
