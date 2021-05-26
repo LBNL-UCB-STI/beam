@@ -59,7 +59,8 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
-  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
+  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.values.view.flatMap(_.lookupVehicle(vehicleId)).headOption
 
   /**
     * get name of the vehicle manager
@@ -129,12 +130,15 @@ object ChargingNetwork {
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
     def numAvailableChargers: Int = zone.numChargers - connectedVehiclesInternal.size
-    def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = connectedVehiclesInternal.toMap
+    def connectedVehicles: collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehiclesInternal
 
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
 
     def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehicles ++ waitingLineVehicles
+
+    def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+      connectedVehiclesInternal.get(vehicleId).orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
 
     /**
       * add vehicle to connected list and connect to charging point
