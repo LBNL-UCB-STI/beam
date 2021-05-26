@@ -14,7 +14,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 trait FleetType {
-  val managerId: Id[VehicleManager]
+  val vehicleManager: Id[VehicleManager]
   val parkingFilePath: String
 
   def props(
@@ -25,7 +25,7 @@ trait FleetType {
 }
 
 case class FixedNonReservingFleetByTAZ(
-  managerId: Id[VehicleManager],
+  vehicleManager: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
@@ -76,7 +76,7 @@ case class FixedNonReservingFleetByTAZ(
     )
     Props(
       new FixedNonReservingFleetManager(
-        id = managerId,
+        id = vehicleManager,
         parkingManager = parkingManager,
         locations = initialLocation,
         vehicleType = vehicleType,
@@ -90,7 +90,7 @@ case class FixedNonReservingFleetByTAZ(
 }
 
 case class FixedNonReservingFleet(
-  managerId: Id[VehicleManager],
+  vehicleManager: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.FixedNonReserving
 ) extends FleetType {
@@ -110,7 +110,7 @@ case class FixedNonReservingFleet(
     )
     Props(
       new FixedNonReservingFleetManager(
-        managerId,
+        vehicleManager,
         parkingManager,
         initialSharedVehicleLocations,
         vehicleType,
@@ -123,7 +123,7 @@ case class FixedNonReservingFleet(
 }
 
 case class InexhaustibleReservingFleet(
-  managerId: Id[VehicleManager],
+  vehicleManager: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.InexhaustibleReserving
 ) extends FleetType {
@@ -138,7 +138,7 @@ case class InexhaustibleReservingFleet(
     )
     Props(
       new InexhaustibleReservingFleetManager(
-        managerId,
+        vehicleManager,
         parkingManager,
         vehicleType,
         beamServices.beamConfig.matsim.modules.global.randomSeed

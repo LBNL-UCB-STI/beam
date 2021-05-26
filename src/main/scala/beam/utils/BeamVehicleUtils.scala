@@ -45,8 +45,7 @@ object BeamVehicleUtils {
             vehicleId,
             powerTrain,
             vehicleType,
-            managerId = VehicleManager.privateVehicleManager.managerId,
-            rand.nextInt
+            randomSeed = rand.nextInt
           )
         acc += ((vehicleId, beamVehicle))
         acc
@@ -93,6 +92,7 @@ object BeamVehicleUtils {
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
         val chargingCapability = Option(line.get("chargingCapability")).map(ChargingCapability.fromString)
+        val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -117,7 +117,8 @@ object BeamVehicleUtils {
           secondaryVehicleEnergyFile,
           sampleProbabilityWithinCategory,
           sampleProbabilityString,
-          chargingCapability
+          chargingCapability,
+          payloadCapacity,
         )
         z += ((vehicleTypeId, bvt))
     }.toMap

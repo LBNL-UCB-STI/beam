@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 
-class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: ParkingNetworkInfo)
+class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: ParkingAndChargingInfrastructure)
     extends beam.utils.CriticalActor
     with ActorLogging {
   import beamServices._
@@ -23,12 +23,10 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: Park
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
-  private val privateCarsParkingNetwork = parkingNetworkInfo.getPrivateCarsParkingNetwork
-
-  private val isParallelizedPublicParking = privateCarsParkingNetwork.isInstanceOf[ParallelParkingManager]
+  private val privateCarsParkingNetwork = parkingNetworkInfo.parkingNetworks
 
   override def receive: Receive = {
-    case inquiry: ParkingInquiry if isParallelizedPublicParking =>
+    case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.name == "PARALLEL" =>
       privateCarsParkingNetwork.processParkingInquiry(inquiry, Some(counter)).map(sender() ! _)
     case inquiry: ParkingInquiry      => privateCarsParkingNetwork.processParkingInquiry(inquiry, None).map(sender() ! _)
     case release: ReleaseParkingStall => privateCarsParkingNetwork.processReleaseParkingStall(release)
@@ -42,7 +40,7 @@ object ParkingNetworkManager extends LazyLogging {
 
   def props(
     services: BeamServices,
-    parkingNetworkInfo: ParkingNetworkInfo
+    parkingNetworkInfo: ParkingAndChargingInfrastructure
   ): Props = {
     Props(new ParkingNetworkManager(services, parkingNetworkInfo))
   }

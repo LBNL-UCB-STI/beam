@@ -5,6 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, Dead
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
+import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{
   RideHailDepotParkingManager,
@@ -12,15 +13,10 @@ import beam.agentsim.agents.ridehail.{
   RideHailManager,
   RideHailSurgePricingManager
 }
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
-import beam.agentsim.infrastructure.{
-  ChargingNetworkInfo,
-  ChargingNetworkManager,
-  ParkingNetworkInfo,
-  ParkingNetworkManager
-}
+import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingAndChargingInfrastructure, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
@@ -49,9 +45,9 @@ import org.matsim.households.Households
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.util.Random
 
 class BeamMobsim @Inject()(
   val beamServices: BeamServices,
@@ -135,6 +131,17 @@ class BeamMobsim @Inject()(
 
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
+    ConcurrentUtils.parallelExecution(
+      beamScenario.freightCarriers.zipWithIndex.map {
+        case (carrier, i) =>
+          () =>
+            new FreightReplanner(
+              beamServices,
+              skims.od_skimmer,
+              new Random(beamConfig.matsim.modules.global.randomSeed + i)
+            ).replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
+      }
+    )(scala.concurrent.ExecutionContext.global)
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
@@ -360,37 +367,31 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
-  // Vehicle Managers
-  val vehicleManagers: Map[Id[VehicleManager], VehicleManager] = prepareVehicleManagers()
-
+  private val parkingAndChargingInfrastructure = ParkingAndChargingInfrastructure(beamServices, envelopeInUTM)
   // Parking Network Manager
-  private val parkingNetworkInfo = ParkingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
   private val parkingNetworkManager = context.actorOf(
     ParkingNetworkManager
-      .props(beamServices, parkingNetworkInfo)
+      .props(beamServices, parkingAndChargingInfrastructure)
       .withDispatcher("parking-network-manager-pinned-dispatcher"),
     "ParkingNetworkManager"
   )
   context.watch(parkingNetworkManager)
 
   // Charging Network Manager
-  private val chargingNetworkInfo = ChargingNetworkInfo(beamServices, envelopeInUTM, vehicleManagers)
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, chargingNetworkInfo, parkingNetworkManager, scheduler)
+      .props(beamServices, parkingAndChargingInfrastructure, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
   context.watch(chargingNetworkManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
-  val rideHailManagerId: Id[VehicleManager] =
-    vehicleManagers.filter(_._2.managerType == VehicleManagerType.Ridehail).head._1
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
   private val rideHailManager = context.actorOf(
     Props(
       new RideHailManager(
-        rideHailManagerId,
+        VehicleManager.createId(beamConfig.beam.agentsim.agents.rideHail.vehicleManager),
         beamServices,
         beamScenario,
         beamScenario.transportNetwork,
@@ -407,7 +408,7 @@ class BeamMobsimIteration(
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
         rideHailFleetInitializer,
-        parkingNetworkInfo.getRideHailParking.asInstanceOf[RideHailDepotParkingManager[_]]
+        parkingAndChargingInfrastructure.rideHailParkingNetworkMap.asInstanceOf[RideHailDepotParkingManager[_]]
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
@@ -508,32 +509,6 @@ class BeamMobsimIteration(
     )
 
     cancellable
-  }
-
-  def prepareVehicleManagers(): Map[Id[VehicleManager], VehicleManager] = {
-    val managers = mutable.HashMap.empty[Id[VehicleManager], VehicleManager]
-    managers.put(VehicleManager.privateVehicleManager.managerId, VehicleManager.privateVehicleManager)
-    managers.put(VehicleManager.transitVehicleManager.managerId, VehicleManager.transitVehicleManager)
-    managers.put(VehicleManager.bodiesVehicleManager.managerId, VehicleManager.bodiesVehicleManager)
-    val rideHailVehicleManager: VehicleManager =
-      VehicleManager.create(
-        Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),
-        Some(VehicleCategory.Car),
-        isRideHail = true
-      )
-    managers.put(rideHailVehicleManager.managerId, rideHailVehicleManager)
-    config.agents.vehicles.sharedFleets.map { fleetConfig =>
-      val sharedId = Id.create(fleetConfig.name, classOf[VehicleManager])
-      managers.put(
-        sharedId,
-        VehicleManager.create(
-          sharedId,
-          Some(VehicleCategory.Car),
-          isShared = true
-        )
-      )
-    }
-    managers.toMap
   }
 
   override def receive: PartialFunction[Any, Unit] = {

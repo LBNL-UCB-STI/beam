@@ -948,7 +948,8 @@ class RideHailAgent(
     val rideHailAgentLocation =
       RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
-    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", beamVehicle = Some(vehicle))
+    val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
+    val inquiry = ParkingInquiry(SpaceTime(destinationUtm, time), "fast-charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry
   }
 

@@ -1,10 +1,8 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZoneSearch}
-import beam.router.BeamRouter.Location
+import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.utils.ParkingManagerIdGenerator
 
 /**
@@ -20,7 +18,7 @@ import beam.utils.ParkingManagerIdGenerator
   * @param requestId       a unique ID generated for this inquiry
   */
 case class ParkingInquiry(
-  destinationUtm: Location,
+  destinationUtm: SpaceTime,
   activityType: String,
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,

@@ -1,20 +1,12 @@
 package beam.sim.vehiclesharing
 
-import java.util.concurrent.TimeUnit
 import akka.actor.Status.Success
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  GetVehicleTypes,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply,
-  VehicleTypesResponse
-}
+import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.Token
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -29,6 +21,7 @@ import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.CoordUtils
 
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -59,7 +52,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + ix),
         new Powertrain(0.0),
         vehicleType,
-        managerId = id,
+        vehicleManager = Some(id),
         rand.nextInt()
       )
       vehicle.setManager(Some(self))
@@ -123,7 +116,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere, "wherever")
 
   override def getId: Id[VehicleManager] = id
   override def queryAvailableVehicles: List[BeamVehicle] =

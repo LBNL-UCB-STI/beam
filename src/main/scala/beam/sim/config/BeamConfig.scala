@@ -57,6 +57,7 @@ object BeamConfig {
     object Agentsim {
       case class Agents(
         bodyType: java.lang.String,
+        freight: BeamConfig.Beam.Agentsim.Agents.Freight,
         households: BeamConfig.Beam.Agentsim.Agents.Households,
         modalBehaviors: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors,
         modeIncentive: BeamConfig.Beam.Agentsim.Agents.ModeIncentive,
@@ -71,6 +72,56 @@ object BeamConfig {
       )
 
       object Agents {
+        case class Freight(
+          carrierParkingFilePath: scala.Option[java.lang.String],
+          carriersFilePath: java.lang.String,
+          enabled: scala.Boolean,
+          plansFilePath: java.lang.String,
+          replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
+          toursFilePath: java.lang.String
+        )
+
+        object Freight {
+          case class Replanning(
+            departureTime: scala.Int,
+            disableAfterIteration: scala.Int,
+            strategy: java.lang.String
+          )
+
+          object Replanning {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight.Replanning = {
+              BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
+                departureTime = if (c.hasPathOrNull("departureTime")) c.getInt("departureTime") else 28800,
+                disableAfterIteration =
+                  if (c.hasPathOrNull("disableAfterIteration")) c.getInt("disableAfterIteration") else -1,
+                strategy = if (c.hasPathOrNull("strategy")) c.getString("strategy") else "singleTour"
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight = {
+            BeamConfig.Beam.Agentsim.Agents.Freight(
+              carrierParkingFilePath =
+                if (c.hasPathOrNull("carrierParkingFilePath")) Some(c.getString("carrierParkingFilePath")) else None,
+              carriersFilePath =
+                if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
+                else "/test/input/beamville/freight/freight-carriers.csv",
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              plansFilePath =
+                if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
+                else "/test/input/beamville/freight/payload-plans.csv",
+              replanning = BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
+                if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
+                else com.typesafe.config.ConfigFactory.parseString("replanning{}")
+              ),
+              toursFilePath =
+                if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
+                else "/test/input/beamville/freight/freight-tours.csv"
+            )
+          }
+        }
+
         case class Households(
           inputFilePath: java.lang.String,
           inputHouseholdAttributesFilePath: java.lang.String
@@ -737,7 +788,7 @@ object BeamConfig {
           repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager,
           rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager,
           surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
-          vehicleManagerId: java.lang.String
+          vehicleManager: java.lang.String
         )
 
         object RideHail {
@@ -1347,8 +1398,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
               ),
-              vehicleManagerId =
-                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "GlobalRHM"
+              vehicleManager = if (c.hasPathOrNull("vehicleManager")) c.getString("vehicleManager") else "GlobalRHM"
             )
           }
         }
@@ -1681,6 +1731,10 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents = {
           BeamConfig.Beam.Agentsim.Agents(
             bodyType = if (c.hasPathOrNull("bodyType")) c.getString("bodyType") else "BODY-TYPE-DEFAULT",
+            freight = BeamConfig.Beam.Agentsim.Agents.Freight(
+              if (c.hasPathOrNull("freight")) c.getConfig("freight")
+              else com.typesafe.config.ConfigFactory.parseString("freight{}")
+            ),
             households = BeamConfig.Beam.Agentsim.Agents.Households(
               if (c.hasPathOrNull("households")) c.getConfig("households")
               else com.typesafe.config.ConfigFactory.parseString("households{}")

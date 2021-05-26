@@ -57,7 +57,7 @@ trait ChoosesParking extends {
       val remainingTripData = calculateRemainingTripData(personData)
 
       parkingManager ! ParkingInquiry(
-        destinationUtm,
+        SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
         nextActivityType,
         Some(this.currentBeamVehicle),
         remainingTripData,
@@ -103,7 +103,6 @@ trait ChoosesParking extends {
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
           currentBeamVehicle,
-          VehicleManager.privateVehicleManager.managerId
         )
         goto(ReleasingChargingPoint) using data
       } else {

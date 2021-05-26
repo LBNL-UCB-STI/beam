@@ -1,19 +1,9 @@
 package beam.sim.vehiclesharing
-import java.util.concurrent.TimeUnit
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import akka.pattern.ask
-import akka.pattern.pipe
-
-import scala.concurrent.ExecutionContext.Implicits.global
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  GetVehicleTypes,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  VehicleTypesResponse
-}
+import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -23,10 +13,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import org.matsim.api.core.v01.Id
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
-  managerId: Id[VehicleManager],
+  vehicleManager: Id[VehicleManager],
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long
@@ -51,7 +43,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
-        managerId = managerId,
+        vehicleManager = Some(vehicleManager),
         rand.nextInt()
       )
       nextVehicleIndex += 1
@@ -72,6 +64,6 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   }
 
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere.loc, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere, "wherever")
 
 }

@@ -22,6 +22,21 @@ trait GenericCsvReader {
     read[T](csvRdr, mapper, filterPredicate)
   }
 
+  def readAsSeq[T](
+    path: String,
+    filterPredicate: T => Boolean = (_: T) => true,
+    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
+  )(mapper: java.util.Map[String, String] => T)(
+    implicit ct: ClassTag[T]
+  ): IndexedSeq[T] = {
+    val (iter: Iterator[T], toClose: Closeable) = GenericCsvReader.readAs[T](path, mapper, filterPredicate, preference)
+    try {
+      iter.toIndexedSeq
+    } finally {
+      toClose.close()
+    }
+  }
+
   def readFromStreamAs[T](
     stream: java.io.InputStream,
     mapper: java.util.Map[String, String] => T,
@@ -29,8 +44,18 @@ trait GenericCsvReader {
     preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
   )(
     implicit ct: ClassTag[T]
+  ): (Iterator[T], Closeable) =
+    readFromReaderAs(FileUtils.readerFromStream(stream), mapper, filterPredicate, preference)
+
+  def readFromReaderAs[T](
+    reader: java.io.Reader,
+    mapper: java.util.Map[String, String] => T,
+    filterPredicate: T => Boolean = (_: T) => true,
+    preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
+  )(
+    implicit ct: ClassTag[T]
   ): (Iterator[T], Closeable) = {
-    val csvRdr = new CsvMapReader(FileUtils.readerFromStream(stream), preference)
+    val csvRdr = new CsvMapReader(reader, preference)
     read[T](csvRdr, mapper, filterPredicate)
   }
 
