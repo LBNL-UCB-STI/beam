@@ -19,6 +19,7 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.vividsolutions.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.funspec.AnyFunSpecLike
@@ -468,18 +469,27 @@ class ZonalParkingManagerSpec
       val sharedFleet1 = Id.create("shared-fleet-1", classOf[VehicleManager])
       val sharedFleet2 = Id.create("shared-fleet-2", classOf[VehicleManager])
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val (zones, searchTree) = ParkingAndChargingInfrastructure.loadParkingZones[TAZ](
+        "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
+        IndexedSeq(
+          "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
+          "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv"
+        ),
+        null, //it is required only in case of failures
+        1.0,
+        1.0,
+        randomSeed,
+      )
       val zpm = ZonalParkingManager(
         beamConfig,
         tazMap.tazQuadTree,
         tazMap.idToTAZMapping,
         identity[TAZ](_),
+        zones,
+        searchTree,
         geo,
+        new Random(randomSeed),
         boundingBox,
-        "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
-        IndexedSeq(
-          "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
-          "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv"
-        )
       )
 
       assertParkingResponse(

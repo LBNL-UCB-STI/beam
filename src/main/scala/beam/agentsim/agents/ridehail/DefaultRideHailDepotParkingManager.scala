@@ -647,13 +647,6 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
     parkingStallOpt
   }
-
-  /**
-    * Gives back the ParkingZones managed by the RidehailDepotParkingManager
-    *
-    * @return
-    */
-  override def getParkingZones(): Array[ParkingZone[GEO]] = rideHailParkingZones
 }
 
 object DefaultRideHailDepotParkingManager {

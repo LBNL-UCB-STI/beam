@@ -1,13 +1,11 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.ChargingCapability
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
-import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
   ParkingZoneSearchConfiguration,
@@ -24,8 +22,7 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Random
 
 class ZonalParkingManager[GEO: GeoLevel](
   geoQuadTree: QuadTree[GEO],
@@ -115,8 +112,6 @@ class ZonalParkingManager[GEO: GeoLevel](
 
     logger.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
   }
-
-  override def getParkingZones(): Array[ParkingZone[GEO]] = parkingZones
 }
 
 class ZonalParkingManagerFunctions[GEO: GeoLevel](
@@ -496,13 +491,6 @@ object ZonalParkingManager extends LazyLogging {
     random: Random,
     boundingBox: Envelope
   ): ZonalParkingManager[GEO] = {
-
-    val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
-    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
-    val chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
-
-    val mnlMultiplierParameters = mnlMultiplierParametersFromConfig(beamConfig)
-
     new ZonalParkingManager(
       geoQuadTree,
       idToGeoMapping,
@@ -511,11 +499,11 @@ object ZonalParkingManager extends LazyLogging {
       parkingZones,
       searchTree,
       random,
-      minSearchRadius,
-      maxSearchRadius,
+      beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+      beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
       boundingBox,
-      mnlMultiplierParameters,
-      chargingPointConfig
+      mnlMultiplierParametersFromConfig(beamConfig),
+      beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
     )
   }
 
@@ -537,123 +525,6 @@ object ZonalParkingManager extends LazyLogging {
         mnlParamsFromConfig.homeActivityPrefersResidentialParkingMultiplier
       )
     )
-  }
-
-  /**
-    * constructs a ZonalParkingManager from file
-    *
-    * @return an instance of the ZonalParkingManager class
-    */
-  def apply[GEO: GeoLevel](
-    beamConfig: BeamConfig,
-    geoQuadTree: QuadTree[GEO],
-    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-    geoToTAZ: GEO => TAZ,
-    geo: GeoUtils,
-    boundingBox: Envelope,
-    parkingFilePath: String,
-    depotFilePaths: IndexedSeq[String]
-  ): ZonalParkingManager[GEO] = {
-
-    // generate or load parking
-    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-
-    val random = {
-      val seed = beamConfig.matsim.modules.global.randomSeed
-      new Random(seed)
-    }
-
-    val (stalls, searchTree) =
-      loadParkingZones(
-        parkingFilePath,
-        depotFilePaths,
-        geoQuadTree,
-        parkingStallCountScalingFactor,
-        parkingCostScalingFactor,
-        random
-      )
-
-    ZonalParkingManager(
-      beamConfig,
-      geoQuadTree,
-      idToGeoMapping,
-      geoToTAZ,
-      stalls,
-      searchTree,
-      geo,
-      random,
-      boundingBox
-    )
-  }
-
-  def loadParkingZones[GEO: GeoLevel](
-    parkingFilePath: String,
-    geoQuadTree: QuadTree[GEO],
-    parkingStallCountScalingFactor: Double,
-    parkingCostScalingFactor: Double,
-    random: Random
-  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    loadParkingZones(
-      parkingFilePath,
-      IndexedSeq.empty,
-      geoQuadTree,
-      parkingStallCountScalingFactor,
-      parkingCostScalingFactor,
-      random
-    )
-  }
-
-  def loadParkingZones[GEO: GeoLevel](
-    parkingFilePath: String,
-    depotFilePaths: IndexedSeq[String],
-    geoQuadTree: QuadTree[GEO],
-    parkingStallCountScalingFactor: Double,
-    parkingCostScalingFactor: Double,
-    random: Random
-  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val initialAccumulator: ParkingLoadingAccumulator[GEO] = if (parkingFilePath.isEmpty) {
-      ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(geoQuadTree.values().asScala, random)
-    } else {
-      Try {
-        ParkingZoneFileUtils.fromFileToAccumulator(
-          parkingFilePath,
-          random,
-          parkingStallCountScalingFactor,
-          parkingCostScalingFactor
-        )
-      } match {
-        case Success(accumulator) => accumulator
-        case Failure(e) =>
-          logger.error(s"unable to read contents of provided parking file $parkingFilePath", e)
-          ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
-            geoQuadTree.values().asScala,
-            random
-          )
-      }
-    }
-    val parkingLoadingAccumulator = depotFilePaths.foldLeft(initialAccumulator) {
-      case (acc, filePath) =>
-        filePath.trim match {
-          case "" => acc
-          case depotParkingFilePath @ _ =>
-            Try {
-              ParkingZoneFileUtils.fromFileToAccumulator(
-                depotParkingFilePath,
-                random,
-                parkingStallCountScalingFactor,
-                parkingCostScalingFactor,
-                acc
-              )
-            } match {
-              case Success(accumulator) => accumulator
-              case Failure(e) =>
-                logger.error(s"unable to read contents of provided parking file $depotParkingFilePath", e)
-                acc
-            }
-        }
-    }
-    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
   }
 
   /**
@@ -700,35 +571,6 @@ object ZonalParkingManager extends LazyLogging {
   }
 
   /**
-    * builds a ZonalParkingManager Actor
-    *
-    * @param beamRouter Actor responsible for routing decisions (deprecated/previously unused)
-    * @return
-    */
-  def init[GEO: GeoLevel](
-    beamConfig: BeamConfig,
-    geoQuadTree: QuadTree[GEO],
-    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-    geoToTAZ: GEO => TAZ,
-    geo: GeoUtils,
-    beamRouter: ActorRef,
-    boundingBox: Envelope,
-    parkingFilePath: String,
-    depotFilePaths: IndexedSeq[String]
-  ): ParkingNetwork[GEO] = {
-    ZonalParkingManager(
-      beamConfig,
-      geoQuadTree,
-      idToGeoMapping,
-      geoToTAZ,
-      geo,
-      boundingBox,
-      parkingFilePath,
-      depotFilePaths
-    )
-  }
-
-  /**
     * builds a ZonalParkingManager Actor with provided parkingZones and geoQuadTree
     *
     * @return
@@ -738,11 +580,10 @@ object ZonalParkingManager extends LazyLogging {
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
     geoToTAZ: GEO => TAZ,
-    parkingZones: Array[ParkingZone[GEO]],
-    searchTree: ZoneSearchTree[GEO],
     geo: GeoUtils,
-    random: Random,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    parkingZones: Array[ParkingZone[GEO]],
+    searchTree: ZoneSearchTree[GEO]
   ): ParkingNetwork[GEO] = {
     ZonalParkingManager(
       beamConfig,
@@ -752,7 +593,7 @@ object ZonalParkingManager extends LazyLogging {
       parkingZones,
       searchTree,
       geo,
-      random,
+      new Random(beamConfig.matsim.modules.global.randomSeed),
       boundingBox
     )
   }

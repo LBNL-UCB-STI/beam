@@ -4,7 +4,7 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
-import beam.agentsim.infrastructure.ZonalParkingManager.{loadParkingZones, mnlMultiplierParametersFromConfig}
+import beam.agentsim.infrastructure.ZonalParkingManager.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingMNL.ParkingMNLConfig
 import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
@@ -154,7 +154,7 @@ class HierarchicalParkingManager(
     Some(ParkingInquiryResponse(parkingStall, inquiry.requestId))
   }
 
-  override def processReleaseParkingStall(release: ReleaseParkingStall) = {
+  override def processReleaseParkingStall(release: ReleaseParkingStall): Unit = {
     val parkingZoneId = release.stall.parkingZoneId
     if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
       // this is an infinitely available resource; no update required
@@ -217,8 +217,6 @@ class HierarchicalParkingManager(
     )
     newStall -> DefaultParkingZone
   }
-
-  override def getParkingZones(): Array[ParkingZone[Link]] = parkingZones
 }
 
 object HierarchicalParkingManager {
@@ -287,68 +285,21 @@ object HierarchicalParkingManager {
   def init(
     beamConfig: BeamConfig,
     tazMap: TAZTreeMap,
-    linkQuadTree: QuadTree[Link],
     linkToTAZMapping: Map[Link, TAZ],
     geo: GeoUtils,
     boundingBox: Envelope,
-    parkingFilePath: String,
-    depotFilePaths: IndexedSeq[String]
+    stalls: Array[ParkingZone[Link]]
   ): ParkingNetwork[Link] = {
-    HierarchicalParkingManager(
-      beamConfig,
-      tazMap,
-      linkQuadTree,
-      linkToTAZMapping,
-      geo,
-      boundingBox,
-      parkingFilePath,
-      depotFilePaths
-    )
-  }
-
-  def apply(
-    beamConfig: BeamConfig,
-    tazMap: TAZTreeMap,
-    linkQuadTree: QuadTree[Link],
-    linkToTAZMapping: Map[Link, TAZ],
-    geo: GeoUtils,
-    boundingBox: Envelope,
-    parkingFilePath: String,
-    depotFilePaths: IndexedSeq[String]
-  ): HierarchicalParkingManager = {
-
-    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-
-    val minSearchRadius = beamConfig.beam.agentsim.agents.parking.minSearchRadius
-    val maxSearchRadius = beamConfig.beam.agentsim.agents.parking.maxSearchRadius
-    val mnlMultiplierParameters = mnlMultiplierParametersFromConfig(beamConfig)
-
-    val rand = {
-      val seed = beamConfig.matsim.modules.global.randomSeed
-      new Random(seed)
-    }
-
-    val (parkingZones, _) =
-      loadParkingZones(
-        parkingFilePath,
-        depotFilePaths,
-        linkQuadTree,
-        parkingStallCountScalingFactor,
-        parkingCostScalingFactor,
-        rand
-      )
-
     new HierarchicalParkingManager(
       tazMap,
       linkToTAZMapping,
-      parkingZones,
-      rand,
+      stalls,
+      new Random(beamConfig.matsim.modules.global.randomSeed),
       geo,
-      minSearchRadius,
-      maxSearchRadius,
+      beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+      beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
       boundingBox,
-      mnlMultiplierParameters,
+      mnlMultiplierParametersFromConfig(beamConfig),
       chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
     )
   }

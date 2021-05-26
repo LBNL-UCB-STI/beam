@@ -13,6 +13,4 @@ abstract class ParkingNetwork[GEO: GeoLevel] extends LazyLogging {
   ): Option[ParkingInquiryResponse]
 
   def processReleaseParkingStall(release: ReleaseParkingStall)
-
-  def getParkingZones(): Array[ParkingZone[GEO]]
 }

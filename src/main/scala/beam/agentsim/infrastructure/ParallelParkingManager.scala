@@ -72,11 +72,10 @@ class ParallelParkingManager(
         tazTreeMap.tazQuadTree,
         tazTreeMap.idToTAZMapping,
         identity[TAZ](_),
-        zones,
-        searchTree,
         geo,
-        new Random(seed),
-        boundingBox
+        boundingBox,
+        zones,
+        searchTree
       )
     Worker(actor, cluster)
   }
@@ -121,8 +120,6 @@ class ParallelParkingManager(
     clusters.flatMap { worker =>
       worker.cluster.tazes.view.map(_.tazId).map(_ -> worker)
     }.toMap
-
-  override def getParkingZones(): Array[ParkingZone[TAZ]] = zones
 }
 
 object ParallelParkingManager extends LazyLogging {
@@ -131,33 +128,22 @@ object ParallelParkingManager extends LazyLogging {
   case class ParkingSearchResult(response: ParkingInquiryResponse, originalSender: ActorRef, worker: ActorRef)
 
   /**
-    * builds a ParallelParkingManager Actor
+    * builds a ParallelParkingManager
     *
     * @return
     */
   def init(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
+    zones: Array[ParkingZone[TAZ]],
+    searchTree: ZoneSearchTree[TAZ],
     geo: GeoUtils,
-    boundingBox: Envelope,
-    parkingFilePath: String,
-    depotFilePaths: IndexedSeq[String]
+    boundingBox: Envelope
   ): ParkingNetwork[TAZ] = {
+    val seed = beamConfig.matsim.modules.global.randomSeed
     val numClusters =
       Math.min(tazTreeMap.tazQuadTree.size(), beamConfig.beam.agentsim.taz.parkingManager.parallel.numberOfClusters)
-    val parkingStallCountScalingFactor = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-    val parkingCostScalingFactor = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
-    val random = new Random(beamConfig.matsim.modules.global.randomSeed)
-    val seed = beamConfig.matsim.modules.global.randomSeed
-    val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
-      parkingFilePath,
-      depotFilePaths,
-      tazTreeMap.tazQuadTree,
-      parkingStallCountScalingFactor,
-      parkingCostScalingFactor,
-      random
-    )
-    init(beamConfig, tazTreeMap, zones, searchTree, numClusters, geo, seed, boundingBox)
+    init(beamConfig, tazTreeMap, zones, searchTree, geo, boundingBox, numClusters, seed)
   }
 
   def init(
@@ -165,22 +151,13 @@ object ParallelParkingManager extends LazyLogging {
     tazTreeMap: TAZTreeMap,
     zones: Array[ParkingZone[TAZ]],
     searchTree: ZoneSearchTree[TAZ],
-    numClusters: Int,
     geo: GeoUtils,
-    seed: Int,
-    boundingBox: Envelope
+    boundingBox: Envelope,
+    numClusters: Int,
+    seed: Int
   ): ParkingNetwork[TAZ] = {
     val clusters: Vector[ParkingCluster] = createClusters(tazTreeMap, zones, numClusters, seed.toLong)
-    new ParallelParkingManager(
-      beamConfig,
-      tazTreeMap,
-      clusters,
-      zones,
-      searchTree,
-      geo,
-      seed,
-      boundingBox
-    )
+    new ParallelParkingManager(beamConfig, tazTreeMap, clusters, zones, searchTree, geo, seed, boundingBox)
   }
 
   private[infrastructure] case class ParkingCluster(

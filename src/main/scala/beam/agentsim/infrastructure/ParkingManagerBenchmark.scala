@@ -114,12 +114,13 @@ object ParkingManagerBenchmark extends StrictLogging {
       pathToParking: String
     ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
       logger.info("Start loading parking zones from {}", pathToParking)
-      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[GEO](
+      val (zones, searchTree) = ParkingAndChargingInfrastructure.loadParkingZones[GEO](
         pathToParking,
+        IndexedSeq.empty[String],
         quadTree,
         parkingStallCountScalingFactor,
         parkingCostScalingFactor,
-        new Random(seed)
+        seed
       )
       logger.info(s"Number of zones: ${zones.length}")
       logger.info(s"Number of parking stalls: ${zones.map(_.stallsAvailable.toLong).sum}")
@@ -190,16 +191,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         val parkingManager = managerType match {
           case "parallel" =>
             val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
-            ParallelParkingManager.init(
-              beamConfig,
-              tazTreeMap,
-              zones,
-              searchTree,
-              6,
-              geoUtils,
-              42,
-              boundingBox
-            )
+            ParallelParkingManager.init(beamConfig, tazTreeMap, zones, searchTree, geoUtils, boundingBox, 6, 42)
           case "zonal" =>
             createZonalParkingManager(isLink = false)
           case "hierarchical" =>

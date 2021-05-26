@@ -69,10 +69,10 @@ class ParallelParkingManagerSpec
           tazTreeMap,
           Array.empty[ParkingZone[TAZ]],
           Map.empty,
-          8,
           geo,
-          randomSeed,
-          boundingBox
+          boundingBox,
+          8,
+          randomSeed
         )
       } {
 
@@ -106,10 +106,10 @@ class ParallelParkingManagerSpec
         tazTreeMap,
         Array.empty[ParkingZone[TAZ]],
         Map.empty,
-        8,
         geo,
-        randomSeed,
-        boundingBox
+        boundingBox,
+        8,
+        randomSeed
       )
 
       val inquiry = ParkingInquiry(centerSpaceTime, "work")
@@ -154,10 +154,10 @@ class ParallelParkingManagerSpec
           tazTreeMap,
           parking.zones.toArray,
           parking.tree,
-          8,
           geo,
-          randomSeed,
-          boundingBox
+          boundingBox,
+          8,
+          randomSeed
         )
       } {
 
@@ -218,10 +218,10 @@ class ParallelParkingManagerSpec
           tazTreeMap,
           parking.zones.toArray,
           parking.tree,
-          8,
           geo,
-          randomSeed,
-          boundingBox
+          boundingBox,
+          8,
+          randomSeed
         )
 
       } {
@@ -300,10 +300,10 @@ class ParallelParkingManagerSpec
           tazTreeMap,
           parking.zones.toArray,
           parking.tree,
-          1, // this test will work only in a single cluster because clusters are fully separated
           geo,
-          randomSeed,
-          boundingBox
+          boundingBox,
+          1, // this test will work only in a single cluster because clusters are fully separated
+          randomSeed
         )
       } {
 
@@ -333,12 +333,13 @@ class ParallelParkingManagerSpec
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[TAZ](
+      val (zones, searchTree) = ParkingAndChargingInfrastructure.loadParkingZones[TAZ](
         "test/input/beamville/parking/taz-parking.csv",
+        IndexedSeq.empty[String],
         tazMap.tazQuadTree,
         1.0,
         1.0,
-        new Random(randomSeed),
+        randomSeed
       )
       val zpm =
         ParallelParkingManager.init(
@@ -346,10 +347,10 @@ class ParallelParkingManagerSpec
           tazMap,
           zones,
           searchTree,
-          8,
           geo,
-          randomSeed,
-          boundingBox
+          boundingBox,
+          8,
+          randomSeed
         )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
