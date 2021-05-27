@@ -128,17 +128,23 @@ class BeamRouter(
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   if (beamScenario.beamConfig.beam.useLocalWorker) {
-    val localWorker = context.actorOf(
-      RoutingWorker.props(
-        beamScenario,
-        transportNetwork,
-        networkHelper,
-        fareCalculator,
-        tollCalculator
-      ),
-      "router-worker"
-    )
-    localNodes += localWorker
+    val numOfThreads: Int =
+      if (Runtime.getRuntime.availableProcessors() <= 2) 1
+      else Runtime.getRuntime.availableProcessors() - 2
+    for {
+      i <- 1 to numOfThreads
+      localWorker = context.actorOf(
+        RoutingWorker.props(
+          beamScenario,
+          transportNetwork,
+          networkHelper,
+          fareCalculator,
+          tollCalculator
+        ),
+        s"router-worker-$i"
+      )
+    } yield (localNodes += localWorker)
+
     //TODO: Add Deathwatch to remove node
   }
 

@@ -4,9 +4,7 @@ import java.io.File
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.{ExecutorService, Executors}
 import akka.actor._
-import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
@@ -25,7 +23,6 @@ import com.conveyal.osmlib.OSM
 import com.conveyal.r5.api.util._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransportNetwork
-import com.google.common.util.concurrent.{AtomicDouble, ThreadFactoryBuilder}
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
@@ -35,9 +32,10 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{Await, Future}
 import scala.language.postfixOps
 import scala.reflect.io.Directory
+import scala.util.Try
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
 
@@ -56,25 +54,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     )
     .toInt
 
-  private val numOfThreads: Int =
-    if (Runtime.getRuntime.availableProcessors() <= 2) 1
-    else Runtime.getRuntime.availableProcessors() - 2
-  private val execSvc: ExecutorService = Executors.newFixedThreadPool(
-    numOfThreads,
-    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
-  )
-  private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(execSvc)
-
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
   private var msgs = 0
   private var firstMsgTime: Option[ZonedDateTime] = None
   log.info("R5RoutingWorker_v2[{}] `{}` is ready", hashCode(), self.path)
-  log.info(
-    "Num of available processors: {}. Will use: {}",
-    Runtime.getRuntime.availableProcessors(),
-    numOfThreads
-  )
 
   private def getNameAndHashCode: String = s"R5RoutingWorker_v2[${hashCode()}], Path: `${self.path}`"
 
@@ -112,7 +96,6 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   override def postStop(): Unit = {
     tickTask.cancel()
-    execSvc.shutdown()
   }
 
   // Let the dispatcher on which the Future in receive will be running
@@ -156,7 +139,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     case request: RoutingRequest =>
       msgs = msgs + 1
       if (firstMsgTime.isEmpty) firstMsgTime = Some(ZonedDateTime.now(ZoneOffset.UTC))
-      val eventualResponse = Future {
+      val eventualResponse = Try {
         latency("request-router-time", Metrics.RegularLevel) {
           if (!request.withTransit && (carRouter == "staticGH" || carRouter == "quasiDynamicGH")) {
             // run graphHopper for only cars
@@ -192,11 +175,12 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           }
         }
       }
-      eventualResponse.recover {
+      val result = eventualResponse.recover {
         case e =>
           log.error(e, "calcRoute failed")
           RoutingFailure(e, request.requestId)
-      } pipeTo sender
+      }.get
+      sender ! result
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
@@ -256,6 +240,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   }
 
   private def createCarGraphHoppers(travelTime: TravelTime): Unit = {
+    import scala.concurrent.ExecutionContext.Implicits.global
     // Clean up GHs variable and than calculate new ones
     binToCarGraphHopper = Map()
     new Directory(new File(carGraphHopperDir)).deleteRecursively()
