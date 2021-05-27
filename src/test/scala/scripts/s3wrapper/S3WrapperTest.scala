@@ -1,4 +1,4 @@
-/* package scripts.s3wrapper
+package scripts.s3wrapper
 
 import beam.tags.Integration
 import beam.utils.FileUtils
@@ -7,7 +7,6 @@ import org.scalatest.{Assertion, FunSuite, Ignore}
 
 import java.nio.file.{Files, Path, Paths}
 
-@Ignore
 class S3WrapperTest extends FunSuite {
 
   test("buckets returns available buckets and its regions", Integration) {
@@ -71,4 +70,3 @@ class S3WrapperTest extends FunSuite {
     }
   }
 }
- */
