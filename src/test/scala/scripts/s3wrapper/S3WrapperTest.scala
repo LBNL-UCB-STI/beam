@@ -3,11 +3,12 @@ package scripts.s3wrapper
 import beam.tags.Integration
 import beam.utils.FileUtils
 import org.apache.commons.io.{FileUtils => ApacheFileUtils}
-import org.scalatest.{Assertion, FunSuite, Ignore}
+import org.scalatest.Assertion
+import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.file.{Files, Path, Paths}
 
-class S3WrapperTest extends FunSuite {
+class S3WrapperTest extends AnyFunSuite {
 
   test("buckets returns available buckets and its regions", Integration) {
     val expectedBucketsToExist = Set(
