@@ -11,6 +11,8 @@ import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.must.Matchers._
 
 import scala.language.postfixOps
 

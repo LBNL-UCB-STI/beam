@@ -5,12 +5,14 @@ import beam.router.skim.core.ODSkimmer.{fromCsv, ODSkimmerInternal, ODSkimmerKey
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
 /**
   * This spec tests that CsvSkimReader reads skims correctly.
   */
-class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
+class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "CsvSkimReader" must "read skims correctly" in {
     val skims =

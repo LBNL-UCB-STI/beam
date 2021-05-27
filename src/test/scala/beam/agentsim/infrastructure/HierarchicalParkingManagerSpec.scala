@@ -18,9 +18,10 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.mockito.Mockito.when
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
 import scala.util.Random
@@ -37,9 +38,8 @@ class HierarchicalParkingManagerSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MockitoSugar
     with ImplicitSender
     with Matchers
     with BeamHelper
@@ -430,7 +430,7 @@ class HierarchicalParkingManagerSpec
   }
 }
 
-object HierarchicalParkingManagerSpec extends MockitoSugar {
+object HierarchicalParkingManagerSpec {
   private def mockLinks(tazTreeMap: TAZTreeMap): Map[Link, TAZ] = {
     tazTreeMap.getTAZs
       .flatMap { taz =>
@@ -442,7 +442,7 @@ object HierarchicalParkingManagerSpec extends MockitoSugar {
   }
 
   def mockLink(coord: Coord, id: Long, len: Double): Link = {
-    val link = mock[Link]
+    val link = mock(classOf[Link])
     when(link.getCoord).thenReturn(coord)
     when(link.getId).thenReturn(Id.createLinkId(id))
     when(link.getLength).thenReturn(len)

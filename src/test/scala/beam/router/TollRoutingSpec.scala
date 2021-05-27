@@ -25,8 +25,9 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
@@ -34,11 +35,10 @@ class TollRoutingSpec
     extends TestKit(
       ActorSystem("TollRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with BeamHelper
     with ImplicitSender
-    with MockitoSugar
     with BeforeAndAfterAll {
 
   var router: ActorRef = _
@@ -60,7 +60,7 @@ class TollRoutingSpec
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
-    fareCalculator = mock[FareCalculator]
+    fareCalculator = mock(classOf[FareCalculator])
     when(fareCalculator.getFareSegments(any(), any(), any(), any(), any())).thenReturn(Vector[BeamFareSegment]())
     val tollCalculator = new TollCalculator(beamConfig)
     router = system.actorOf(
@@ -74,7 +74,7 @@ class TollRoutingSpec
         scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator,
-        eventsManager = mock[EventsManager]
+        eventsManager = mock(classOf[EventsManager])
       )
     )
   }
@@ -141,7 +141,7 @@ class TollRoutingSpec
           scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator,
-          eventsManager = mock[EventsManager]
+          eventsManager = mock(classOf[EventsManager])
         )
       )
       moreExpensiveRouter ! request

@@ -20,17 +20,17 @@ import org.matsim.core.config.ConfigUtils
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.Vehicle
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
 class TimeDependentRoutingSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with Matchers
     with ImplicitSender
-    with MockitoSugar
     with SimRunnerForTest
     with RouterForTest
     with BeforeAndAfterAll {

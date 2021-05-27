@@ -35,17 +35,16 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.{BeforeAndAfter, FunSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.{mutable, JavaConverters}
 
 class PersonAgentSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
     with BeforeAndAfter
-    with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
 

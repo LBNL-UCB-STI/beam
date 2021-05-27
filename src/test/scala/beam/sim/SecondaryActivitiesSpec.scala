@@ -14,7 +14,9 @@ import org.matsim.api.core.v01.events.{ActivityEndEvent, Event}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -22,7 +24,7 @@ import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 class SecondaryActivitiesSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeamHelper
     with GenericEventsSpec

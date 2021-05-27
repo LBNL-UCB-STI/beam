@@ -18,8 +18,9 @@ import beam.utils.{DateUtils, StuckFinder, TestConfigUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
@@ -36,11 +37,10 @@ class ChargingNetworkManagerSpec
            |akka.test.single-expect-default = 10 s""".stripMargin)
       )
     )
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with BeamHelper
     with ImplicitSender
-    with MockitoSugar
     with BeforeAndAfterEach {
 
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"

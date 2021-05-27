@@ -1,14 +1,13 @@
 package beam.router
 
 import java.io.{File, PrintWriter}
-
 import scala.collection.concurrent.TrieMap
 import scala.util.Random
-
 import beam.router.RouteHistory.RouteHistoryADT
-import org.scalatest.{BeforeAndAfter, FlatSpec}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
 
-class RouteHistorySpec extends FlatSpec with BeforeAndAfter {
+class RouteHistorySpec extends AnyFlatSpec with BeforeAndAfter {
 
   private val routeHistoryAsObject: RouteHistoryADT =
     TrieMap(

@@ -1,7 +1,6 @@
 package beam.router.skim
 
 import java.io.File
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
@@ -27,14 +26,15 @@ import org.matsim.core.controler.events.{IterationStartsEvent, ShutdownEvent}
 import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownListener}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.{immutable, mutable}
 import scala.util.control.NonFatal
 
-class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
+class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
   import SkimmerSpec._
 
   "Skimmer" must "write skims to hard drive" in {

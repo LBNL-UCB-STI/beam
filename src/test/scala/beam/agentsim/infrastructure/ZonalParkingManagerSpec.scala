@@ -20,8 +20,8 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
@@ -29,10 +29,9 @@ import scala.io.Source
 import scala.util.Random
 
 class ZonalParkingManagerSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
-    with MockitoSugar
     with ImplicitSender
     with Matchers
     with BeamvilleFixtures {

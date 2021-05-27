@@ -15,12 +15,13 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 
-class MatchingAlgorithmsForRideHailSpec extends FlatSpec with Matchers with BeamHelper {
+class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "Running Alonso Mora Algorithm" must "creates a consistent plan" in {
     val config = ConfigFactory

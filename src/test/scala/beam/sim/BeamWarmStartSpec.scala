@@ -11,11 +11,14 @@ import beam.utils.FileUtils
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.slf4j.LoggerFactory
 
 class BeamWarmStartSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with IntegrationSpecCommon
@@ -270,7 +273,7 @@ class BeamWarmStartSpec
     BeamWarmStart(BeamConfig(conf), 30)
   }
 
-  "Warmstart" should {
+  "Warmstart" must {
 
     "sample population when sampling enabled" in {
       loadScenarioAndGetPopulationSize(0.5, true, 1) < 30 should be(true)
