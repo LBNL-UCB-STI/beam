@@ -125,9 +125,9 @@ dependencies {
     ////////////////////////////
     // Java dependencies
     ////////////////////////////
-    compile group: 'com.google.inject', name: 'guice', version: '5.0.1'
-    compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '5.0.1'
-    compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '5.0.1'
+    compile group: 'com.google.inject', name: 'guice', version: '4.1.0'
+    compile group: 'com.google.inject.extensions', name: 'guice-assistedinject', version: '4.1.0'
+    compile group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
     compile group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
     compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
     compile group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.13'
