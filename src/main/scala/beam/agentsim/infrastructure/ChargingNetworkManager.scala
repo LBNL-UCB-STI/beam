@@ -103,7 +103,7 @@ class ChargingNetworkManager(
 
       val allConnectedVehicles = chargingNetworkMap.flatMap(_._2.connectedVehicles)
       val triggers = allConnectedVehicles.par.flatMap {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, _, _)) =>
+        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, station, _, _, _, _, _)) =>
           // Refuel
           handleRefueling(chargingVehicle)
           // Calculate the energy to charge each vehicle connected to the a charging station
@@ -127,7 +127,7 @@ class ChargingNetworkManager(
               // charging is going to end during this current session
               Some(
                 ScheduleTrigger(
-                  ChargingTimeOutTrigger(timeBin + cycle.duration, vehicle.id, stall.managerId),
+                  ChargingTimeOutTrigger(timeBin + cycle.duration, vehicle.id, stall.managerId, station.zone.id),
                   self
                 )
               )
@@ -147,10 +147,10 @@ class ChargingNetworkManager(
 
       sender ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
 
-    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager), triggerId) =>
+    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicleId, vehicleManager, chargingZoneId), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle $vehicleId at $tick")
       val chargingNetwork = chargingNetworkMap(vehicleManager)
-      chargingNetwork.lookupVehicle(vehicleId) match { // not taking into consideration vehicles waiting in line
+      chargingNetwork.lookupVehicle(vehicleId, chargingZoneId) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) =>
           handleEndCharging(tick, chargingVehicle) // We don't inform Actors that a private vehicle has ended charging because we don't know which agent should be informed
         case _ => log.debug(s"Vehicle $vehicleId is already disconnected")
@@ -186,11 +186,11 @@ class ChargingNetworkManager(
         )
       }
 
-    case ChargingUnplugRequest(tick, vehicle, vehicleManager) =>
+    case ChargingUnplugRequest(tick, vehicle, vehicleManager, chargingZoneId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       val chargingNetwork = chargingNetworkMap(vehicleManager)
-      chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
+      chargingNetwork.lookupVehicle(vehicle.id, chargingZoneId) match { // not taking into consideration vehicles waiting in line
         case Some(chargingVehicle) =>
           val prevStartTime = chargingVehicle.chargingSessions.last.startTime
           val startTime = Math.min(tick, prevStartTime)
@@ -247,7 +247,7 @@ class ChargingNetworkManager(
     chargingNetworkMap
       .flatMap(_._2.vehicles)
       .map {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, status, _)) =>
+        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, station, _, _, _, status, _)) =>
           if (status.last == Connected) {
             val (duration, energy) =
               dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
@@ -257,7 +257,8 @@ class ChargingNetworkManager(
             ChargingTimeOutTrigger(
               nextTimeBin(tick) - 1,
               vehicle.id,
-              stall.managerId
+              stall.managerId,
+              station.zone.id,
             ),
             self
           )
@@ -271,18 +272,18 @@ class ChargingNetworkManager(
     * @param chargingVehicle charging vehicle information
     */
   private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    val ChargingVehicle(vehicle, stall, _, _, _, theSender, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, stall, station, _, _, theSender, _, _) = chargingVehicle
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
-    vehicle.connectToChargingPoint(tick)
-    theSender ! StartingRefuelSession(tick, vehicle.id)
+    vehicle.connectToChargingPoint(tick, station.zone.id)
+    theSender ! StartingRefuelSession(tick, vehicle.id, station.zone.id)
     handleStartChargingHelper(tick, chargingVehicle)
     val (chargeDurationAtTick, energyToChargeAtTick) =
       dispatchEnergy(nextTimeBin(tick) - tick, chargingVehicle, physicalBounds)
     chargingVehicle.processChargingCycle(tick, energyToChargeAtTick, chargeDurationAtTick)
     val endTime = chargingVehicle.computeSessionEndTime
     if (endTime < nextTimeBin(tick))
-      scheduler ! ScheduleTrigger(ChargingTimeOutTrigger(endTime, vehicle.id, stall.managerId), self)
+      scheduler ! ScheduleTrigger(ChargingTimeOutTrigger(endTime, vehicle.id, stall.managerId, station.zone.id), self)
   }
 
   /**
@@ -388,11 +389,20 @@ object ChargingNetworkManager {
   object DebugReport
   case class ChargingZonesInquiry()
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
-  case class ChargingTimeOutTrigger(tick: Int, vehicleId: Id[BeamVehicle], managerId: Id[VehicleManager])
-      extends Trigger
+  case class ChargingTimeOutTrigger(
+    tick: Int,
+    vehicleId: Id[BeamVehicle],
+    managerId: Id[VehicleManager],
+    chargingZoneId: String
+  ) extends Trigger
   case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, managerId: Id[VehicleManager])
-  case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, managerId: Id[VehicleManager])
-  case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
+  case class ChargingUnplugRequest(
+    tick: Int,
+    vehicle: BeamVehicle,
+    managerId: Id[VehicleManager],
+    chargingZoneId: String
+  )
+  case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], chargingZoneId: String)
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
   case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle])
   case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle])

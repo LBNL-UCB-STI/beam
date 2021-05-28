@@ -59,8 +59,9 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
-  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
-    chargingZoneKeyToChargingStationMap.values.view.flatMap(_.lookupVehicle(vehicleId)).headOption
+  def lookupVehicle(vehicleId: Id[BeamVehicle], chargingZoneId: String): Option[ChargingVehicle] = {
+    chargingZoneKeyToChargingStationMap.get(chargingZoneId).flatMap(_.lookupVehicle(vehicleId))
+  }
 
   /**
     * get name of the vehicle manager
