@@ -9,6 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.nio.file.{Files, Path, Paths}
 
 class S3WrapperTest extends AnyFunSuite {
+  private val credentialProfile: String = "gradle"
 
   test("buckets returns available buckets and its regions", Integration) {
     val expectedBucketsToExist = Set(
@@ -18,7 +19,7 @@ class S3WrapperTest extends AnyFunSuite {
       S3Bucket("beam-config", "us-west-2")
     )
 
-    FileUtils.using(S3Wrapper.fromCredential("beam", "us-west-2")) { s3 =>
+    FileUtils.using(S3Wrapper.fromCredential(credentialProfile, "us-west-2")) { s3 =>
       val resultBuckets = s3.buckets
 
       assert(expectedBucketsToExist.subsetOf(resultBuckets))
@@ -32,7 +33,7 @@ class S3WrapperTest extends AnyFunSuite {
     )
 
     val bucketName = "beam-config"
-    val allBucketFiles = FileUtils.using(S3Wrapper.fromCredential("beam")) { s3 =>
+    val allBucketFiles = FileUtils.using(S3Wrapper.fromCredential(credentialProfile)) { s3 =>
       s3.allBucketFiles(bucketName)
     }
 
@@ -60,7 +61,7 @@ class S3WrapperTest extends AnyFunSuite {
     val tempDestination = Files.createTempDirectory("s3test-download-dir")
     val expectedFilesToExist = filesRelativePath.map(f => tempDestination.resolve(f))
     try {
-      FileUtils.using(S3Wrapper.fromCredential("beam")) { s3 =>
+      FileUtils.using(S3Wrapper.fromCredential(credentialProfile)) { s3 =>
         s3.download(bucketName, keysStartingWith, tempDestination)
       }
 
