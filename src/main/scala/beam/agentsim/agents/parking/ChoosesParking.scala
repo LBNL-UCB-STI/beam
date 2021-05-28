@@ -67,7 +67,7 @@ trait ChoosesParking extends {
   }
 
   when(ConnectingToChargingPoint) {
-    case _ @Event(StartingRefuelSession(tick, vehicleId, chargingZoneId), data) =>
+    case _ @Event(StartingRefuelSession(tick, vehicleId), data) =>
       log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule
       goto(DrivingInterrupted) using data
@@ -98,19 +98,17 @@ trait ChoosesParking extends {
       stay using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, _) = releaseTickAndTriggerId()
-      currentBeamVehicle.getConnectedChargerId() match {
-        case Some(chargingZoneId) =>
-          log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
-          chargingNetworkManager ! ChargingUnplugRequest(
-            tick,
-            currentBeamVehicle,
-            VehicleManager.privateVehicleManager.managerId,
-            chargingZoneId,
-          )
-          goto(ReleasingChargingPoint) using data
-        case None =>
-          handleReleasingParkingSpot(tick, data)
-          goto(WaitingToDrive) using data
+      if (currentBeamVehicle.isConnectedToChargingPoint()) {
+        log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
+        chargingNetworkManager ! ChargingUnplugRequest(
+          tick,
+          currentBeamVehicle,
+          VehicleManager.privateVehicleManager.managerId
+        )
+        goto(ReleasingChargingPoint) using data
+      } else {
+        handleReleasingParkingSpot(tick, data)
+        goto(WaitingToDrive) using data
       }
 
     case Event(StateTimeout, data) =>

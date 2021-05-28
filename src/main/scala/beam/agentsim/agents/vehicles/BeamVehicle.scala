@@ -92,7 +92,7 @@ class BeamVehicle(
 
   private val chargerRWLock = new ReentrantReadWriteLock()
 
-  private var connectedToChargerId: Option[String] = None
+  private var connectedToCharger: Boolean = false
 
   private var chargerConnectedTick: Option[Int] = None
   private var chargerConnectedPrimaryFuel: Option[Double] = None
@@ -147,10 +147,10 @@ class BeamVehicle(
     *
     * @param startTick
     */
-  def connectToChargingPoint(startTick: Int, chargingZoneId: String): Unit = {
+  def connectToChargingPoint(startTick: Int): Unit = {
     if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
       chargerRWLock.write {
-        connectedToChargerId = Some(chargingZoneId)
+        connectedToCharger = true
         chargerConnectedTick = Some(startTick)
         chargerConnectedPrimaryFuel = Some(primaryFuelLevelInJoules)
       }
@@ -162,7 +162,7 @@ class BeamVehicle(
 
   def disconnectFromChargingPoint(): Unit = {
     chargerRWLock.write {
-      connectedToChargerId = None
+      connectedToCharger = false
       chargerConnectedTick = None
       chargerConnectedPrimaryFuel = None
     }
@@ -170,19 +170,13 @@ class BeamVehicle(
 
   def isConnectedToChargingPoint(): Boolean = {
     chargerRWLock.read {
-      connectedToChargerId.isDefined
+      connectedToCharger
     }
   }
 
   def getChargerConnectedTick(): Int = {
     chargerRWLock.read {
       chargerConnectedTick.getOrElse(0)
-    }
-  }
-
-  def getConnectedChargerId(): Option[String] = {
-    chargerRWLock.read {
-      connectedToChargerId
     }
   }
 
@@ -512,7 +506,7 @@ class BeamVehicle(
     }
 
     chargerRWLock.write {
-      connectedToChargerId = None
+      connectedToCharger = false
       chargerConnectedTick = None
     }
   }

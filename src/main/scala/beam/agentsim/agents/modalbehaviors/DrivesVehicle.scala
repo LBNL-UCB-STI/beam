@@ -864,7 +864,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   def handleStartCharging(currentTick: Int, vehicle: BeamVehicle): Unit = {
     log.debug("Starting refuel session for {} in tick {}.", vehicle.id, currentTick)
     log.debug("Vehicle {} connects to charger @ stall {}", vehicle.id, vehicle.stall.get)
-    vehicle.connectToChargingPoint(currentTick, "Unknown")
+    vehicle.connectToChargingPoint(currentTick)
     val chargingPlugInEvent = new ChargingPlugInEvent(
       tick = currentTick,
       stall = vehicle.stall.get,
