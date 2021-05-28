@@ -11,8 +11,8 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final' // can be upgraded to 2.2.0
-        classpath "jp.classmethod.aws:gradle-aws-plugin:0.35"  // can be upgraded to 0.37
+        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath "jp.classmethod.aws:gradle-aws-plugin:0.41"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
         classpath 'cz.alenkacz:gradle-scalafmt:1.7.0' // can be upgraded to 1.14.0
     }
@@ -142,8 +142,8 @@ dependencies {
     compile group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
     compile group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
 
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.4'
-    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.12', version: '2.9.4'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.3'
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_2.12', version: '2.12.3'
     compile group: 'javax.inject', name: 'javax.inject', version: '1'
     compile group: 'jdom', name: 'jdom', version: '1.1'
     compile group: 'org.jdom', name: 'jdom2', version: '2.0.5'
@@ -302,6 +302,11 @@ dependencies {
 
     compile "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
     scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
+
+    // AWS S3
+    compile group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
+    compile group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
+
 }
 
 // Autoformatting using scalafmt
