@@ -3,15 +3,40 @@ package scripts.s3wrapper
 import beam.tags.Integration
 import beam.utils.FileUtils
 import org.apache.commons.io.{FileUtils => ApacheFileUtils}
-import org.scalatest.Assertion
+import org.scalatest.{Assertion, Ignore}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.nio.file.{Files, Path, Paths}
+import scala.util.Random
 
+@Ignore
 class S3WrapperTest extends AnyFunSuite {
-  private val credentialProfile: String = "gradle"
+  private val credentialProfile: String = "beam"
 
-  test("buckets returns available buckets and its regions", Integration) {
+  test("create and delete bucket") {
+    val regionToCreateBucket = "us-west-2"
+    FileUtils.using(S3Wrapper.fromCredential(credentialProfile, regionToCreateBucket)) { s3 =>
+      val bucketToBeCreatedName = s"beam-s3wrapper-integration-test-${Random.alphanumeric.take(10).mkString.toLowerCase}"
+      val bucketToBeCreatedExists = () => s3.doesBucketExists(bucketToBeCreatedName)
+      assume(!bucketToBeCreatedExists())
+      try {
+        s3.createBucket(bucketToBeCreatedName, regionToCreateBucket)
+        assert(bucketToBeCreatedExists())
+      } finally {
+        s3.removeBucket(bucketToBeCreatedName)
+      }
+      assert(!bucketToBeCreatedExists())
+    }
+  }
+
+  test("check bucket exist", Integration) {
+    FileUtils.using(S3Wrapper.fromCredential(credentialProfile, "us-west-2")) { s3 =>
+      assert(s3.doesBucketExists("beam"))
+      assert(!s3.doesBucketExists("some-crazy-name-supposed-to-not-exist"))
+    }
+  }
+
+  test("returns available buckets and its regions", Integration) {
     val expectedBucketsToExist = Set(
       S3Bucket("beam-admin-reports", "us-east-2"),
       S3Bucket("beam-builds", "us-east-2"),
@@ -42,7 +67,7 @@ class S3WrapperTest extends AnyFunSuite {
     assert(expectedKeysToExist.subsetOf(allBucketKeys))
   }
 
-  test("download bucket directory as long as is setup in the ~/.aws/credentials file", Integration) {
+  test("download bucket directory", Integration) {
     val expectedFilesToExist = Set(
       Paths.get("beamville", "r5", "bus.zip"),
       Paths.get("beamville", "r5", "bus", "agency.txt"),

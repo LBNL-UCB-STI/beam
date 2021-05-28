@@ -1,7 +1,7 @@
 package scripts.s3wrapper
 
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
-import com.amazonaws.services.s3.model.{ListObjectsV2Request, ListObjectsV2Result, S3ObjectSummary}
+import com.amazonaws.services.s3.model.{CreateBucketRequest, ListObjectsV2Request, ListObjectsV2Result}
 import com.amazonaws.services.s3.transfer.{MultipleFileDownload, TransferManager, TransferManagerBuilder}
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3ClientBuilder}
 import com.typesafe.scalalogging.StrictLogging
@@ -127,11 +127,65 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
 
     val downloader: MultipleFileDownload =
       transferManager.downloadDirectory(bucketName, keysStartingWith, destinationPath.toFile)
+
     logger.info(s"Downloading directory [$keysStartingWith] from bucket [$bucketName] to [$destinationPath] started.")
     downloader.waitForCompletion()
     logger.info(
       s"Downloading directory [$keysStartingWith] from bucket [$bucketName] to [$destinationPath] has finished."
     )
+  }
+
+  def uploadFile(bucketName: String, destinationKey: String, fileSourcePath: Path): Unit = {
+    if (!Files.isDirectory(fileSourcePath)) {
+      throw new IllegalArgumentException(s"Destination path [$fileSourcePath] must be a directory")
+    }
+
+    val transferManager: TransferManager = TransferManagerBuilder.standard
+      .withS3Client(s3Client)
+      .build
+
+    val uploader = transferManager.upload(bucketName, destinationKey, fileSourcePath.toFile)
+    uploader.waitForCompletion()
+  }
+
+  def deleteRemoteObject(bucketName: String, objectKey: String): Unit = {
+    s3Client.deleteObject(bucketName, objectKey)
+  }
+
+  /**
+    * Create a bucket in a specific region
+    * @param bucketName the value of bucketName
+    * @param region the region which bucket must be created
+    */
+  def createBucket(bucketName: String, region: String): Unit = {
+    val request = new CreateBucketRequest(bucketName, region)
+    s3Client.createBucket(request)
+  }
+
+  /**
+    * Create the specified bucket accordingly to the param @bucket
+    * @param bucket the wrapper object containing name and region
+    */
+  def createBucket(bucket: S3Bucket): Unit = {
+    createBucket(bucket.name, bucket.region)
+  }
+
+  /**
+    * Delete the @bucketName if and only if the bucket is empty
+    * @param bucketName the name of the bucket
+    */
+  def removeBucket(bucketName: String): Unit = {
+    s3Client.deleteBucket(bucketName)
+  }
+
+  /**
+    * Checks if the specified bucket exists (Amazon S3 buckets are named in a global namespace)
+    * Is just a wrapper around doesBucketExistV2 sdk library
+    * @param bucketName the name of the bucket
+    * @return the value true if the @bucketName exists in S3; the value false if @bucketName does not exists in S3
+    */
+  def doesBucketExists(bucketName: String): Boolean = {
+    s3Client.doesBucketExistV2(bucketName)
   }
 
   /**
@@ -145,6 +199,10 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
 
 object S3Wrapper extends StrictLogging {
 
+  /**
+    *  Search for credentials in the section [default] of  ~/.aws/credentials file
+    * @return an instance of S3Wrapper
+    */
   def fromCredentialDefault(): S3Wrapper = {
     fromCredential("default")
   }
