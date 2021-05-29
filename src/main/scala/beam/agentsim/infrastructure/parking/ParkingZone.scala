@@ -1,12 +1,14 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
 import scala.language.higherKinds
+
+trait ParkingZoneId
 
 /**
   * stores the number of stalls in use for a zone of parking stalls with a common set of attributes
@@ -18,7 +20,7 @@ import scala.language.higherKinds
   * @param pricingModel if this stall has pricing, this is the type of pricing
   */
 class ParkingZone[GEO](
-  val parkingZoneId: Int,
+  val parkingZoneId: Id[ParkingZoneId],
   val geoId: Id[GEO],
   val parkingType: ParkingType,
   var stallsAvailable: Int,
@@ -41,8 +43,8 @@ class ParkingZone[GEO](
 
   override def toString: String = {
     val chargeString = chargingPointType match {
-      case None    => "chargingType = None"
-      case Some(c) => s" chargingType = $c"
+      case None    => "chargingPointType = None"
+      case Some(c) => s" chargingPointType = $c"
     }
     val pricingString = pricingModel match {
       case None    => "pricingModel = None"
@@ -67,11 +69,18 @@ class ParkingZone[GEO](
       this.landCostInUSDPerSqft
     )
   }
+
+  override def equals(that: Any): Boolean =
+    that match {
+      case that: ParkingZone[_] => that.hashCode() == hashCode
+      case _                    => false
+    }
+  override def hashCode: Int = parkingZoneId.hashCode()
 }
 
 object ParkingZone extends LazyLogging {
 
-  val DefaultParkingZoneId: Int = -1
+  val DefaultParkingZoneId: Id[ParkingZoneId] = Id.create("default", classOf[ParkingZoneId])
 
   // used in place of Int.MaxValue to avoid possible buffer overrun due to async failures
   // in other words, while stallsAvailable of a ParkingZone should never exceed the numStalls
@@ -83,37 +92,75 @@ object ParkingZone extends LazyLogging {
   /**
     * creates a new StallValues object
     *
-    * @param chargingType if this stall has charging, this is the type of charging
+    * @param chargingPointType if this stall has charging, this is the type of charging
     * @param pricingModel if this stall has pricing, this is the type of pricing
     * @return a new StallValues object
     */
-  def apply[GEO](
-    parkingZoneId: Int,
+  private def apply[GEO](
+    parkingZoneId: Id[ParkingZoneId],
     geoId: Id[GEO],
     parkingType: ParkingType,
-    numStalls: Int = 0,
-    reservedFor: Seq[VehicleCategory],
+    stallsAvailable: Int = 0,
+    maxStalls: Int = 0,
+    reservedFor: Seq[VehicleCategory] = Seq.empty[VehicleCategory],
     vehicleManagerId: Option[Id[VehicleManager]] = None,
-    chargingType: Option[ChargingPointType] = None,
+    chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     parkingZoneName: Option[String] = None,
     landCostInUSDPerSqft: Option[Double] = None
   ): ParkingZone[GEO] =
-    new ParkingZone(
+    new ParkingZone[GEO](
       parkingZoneId,
       geoId,
       parkingType,
-      numStalls,
-      numStalls,
+      stallsAvailable,
+      maxStalls,
       reservedFor,
       vehicleManagerId,
-      chargingType,
+      chargingPointType,
       pricingModel,
       timeRestrictions,
       parkingZoneName,
-      landCostInUSDPerSqft
+      landCostInUSDPerSqft,
     )
+
+  def defaultInit[GEO](geoId: Id[GEO], parkingType: ParkingType, numStalls: Int): ParkingZone[GEO] = {
+    init[GEO](Some(DefaultParkingZoneId), geoId, parkingType, numStalls)
+  }
+
+  def init[GEO](
+    parkingZoneIdMaybe: Option[Id[ParkingZoneId]],
+    geoId: Id[GEO],
+    parkingType: ParkingType,
+    maxStalls: Int = 0,
+    reservedFor: Seq[VehicleCategory] = Seq.empty[VehicleCategory],
+    vehicleManagerId: Option[Id[VehicleManager]] = None,
+    chargingPointType: Option[ChargingPointType] = None,
+    pricingModel: Option[PricingModel] = None,
+    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    parkingZoneName: Option[String] = None,
+    landCostInUSDPerSqft: Option[Double] = None
+  ): ParkingZone[GEO] = {
+    val parkingZoneId = parkingZoneIdMaybe match {
+      case Some(parkingZoneId) => parkingZoneId
+      case _                   => constructParkingZoneKey(vehicleManagerId, geoId, parkingType, chargingPointType, pricingModel)
+    }
+    ParkingZone[GEO](
+      parkingZoneId,
+      geoId,
+      parkingType,
+      maxStalls,
+      maxStalls,
+      reservedFor,
+      vehicleManagerId,
+      chargingPointType,
+      pricingModel,
+      timeRestrictions,
+      parkingZoneName,
+      landCostInUSDPerSqft,
+    )
+  }
 
   /**
     * increment the count of stalls in use
@@ -158,8 +205,11 @@ object ParkingZone extends LazyLogging {
     * @param parkingZoneId an array index
     * @return Optional ParkingZone
     */
-  def getParkingZone[GEO](parkingZones: Array[ParkingZone[GEO]], parkingZoneId: Int): Option[ParkingZone[GEO]] = {
-    if (parkingZoneId < 0 || parkingZones.length <= parkingZoneId) {
+  def getParkingZone[GEO](
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+    parkingZoneId: Id[ParkingZoneId]
+  ): Option[ParkingZone[GEO]] = {
+    if (!parkingZones.contains(parkingZoneId)) {
       logger.warn(s"attempting to access parking zone with illegal parkingZoneId $parkingZoneId, will be ignored")
       None
     } else {
@@ -168,4 +218,32 @@ object ParkingZone extends LazyLogging {
       }
     }
   }
+
+  /**
+    * construct ID of a Parking Zone
+    * @param vehicleManager Vehicle Manager
+    * @param geoId TAZ ID
+    * @param parkingType Parking Type
+    * @param chargingPointType Charging Point Type
+    * @return
+    */
+  def constructParkingZoneKey(
+    vehicleManager: Option[Id[VehicleManager]],
+    geoId: Id[_],
+    parkingType: ParkingType,
+    chargingPointType: Option[ChargingPointType],
+    pricingModel: Option[PricingModel]
+  ): Id[ParkingZoneId] = {
+    val zoneId =
+      s"cs_${vehicleManager.map(_.toString).getOrElse("NoManager")}_${geoId}_${parkingType}_${chargingPointType
+        .getOrElse("NoCharger")}_${pricingModel.getOrElse("NoPricing")}"
+    createId(zoneId)
+  }
+
+  /**
+    * create Id
+    * @param zoneId the zone Id
+    * @return
+    */
+  def createId(zoneId: String): Id[ParkingZoneId] = Id.create(zoneId, classOf[ParkingZoneId])
 }

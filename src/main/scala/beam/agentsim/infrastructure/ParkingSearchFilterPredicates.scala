@@ -46,7 +46,7 @@ object ParkingSearchFilterPredicates {
     activityTypeLowerCased: String
   ): Boolean =
     activityTypeLowerCased match {
-      case "fast-charge" =>
+      case "charge" =>
         zone.chargingPointType match {
           case Some(chargingPointType) => ChargingPointType.isFastCharger(chargingPointType)
           case None                    => false // requiring fast chargers only
@@ -59,8 +59,8 @@ object ParkingSearchFilterPredicates {
     beamVehicleOption: Option[BeamVehicle],
   ): Boolean =
     activityTypeLowerCased match {
-      case "fast-charge" => true
-      case "init"        => false
+      case "charge" => true
+      case "init"   => false
       case _ =>
         beamVehicleOption match {
           case Some(beamVehicle) =>

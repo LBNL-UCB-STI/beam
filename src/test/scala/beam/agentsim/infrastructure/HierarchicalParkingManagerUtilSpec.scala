@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingType.Residential
@@ -31,20 +30,19 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ]),
         )
         private val (tazZones, linkToTaz) =
-          HierarchicalParkingManager.convertToTazParkingZones(linkZones.toArray, linkToTazMapping)
+          HierarchicalParkingManager.convertToTazParkingZones(linkZones.toMap, linkToTazMapping)
 
         println(tazZones.mkString("Array(", ", ", ")"))
-        tazZones.length should be(9)
-        val joinZone: Option[ParkingZone[TAZ]] = tazZones.find(
-          zone =>
-            zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
-              CustomChargingPoint("dcfast", 50.0, DC)
+        tazZones.size should be(9)
+        val joinZone: Option[ParkingZone[TAZ]] = tazZones.values.find { zone =>
+          zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
+            CustomChargingPoint("dcfast", 50.0, DC)
           )
-        )
+        }
 
         joinZone shouldBe defined
         joinZone.get.maxStalls should be(1100)
-        tazZones.count(_.geoId.toString == "100100") should be(2)
+        tazZones.count(_._2.geoId.toString == "100100") should be(2)
       }
     }
     "creates taz link quad tree mapping" should {

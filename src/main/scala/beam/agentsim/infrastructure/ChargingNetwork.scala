@@ -2,15 +2,12 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{constructChargingZoneKey, ChargingZone}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingType, ParkingZone, ParkingZoneId, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -18,12 +15,14 @@ import scala.collection.mutable.ListBuffer
   * Created by haitamlaarabi
   */
 
-class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleManager: Option[Id[VehicleManager]])
-    extends LazyLogging {
+class ChargingNetwork[GEO: GeoLevel](
+  chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+  vehicleManager: Option[Id[VehicleManager]]
+) extends LazyLogging {
   import ChargingNetwork._
 
-  private val chargingZoneKeyToChargingStationMap: Map[String, ChargingStation] =
-    chargingStationsQTree.values().asScala.map(z => z.id -> ChargingStation(z)).toMap
+  private val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
+    chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
 
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
@@ -48,13 +47,22 @@ class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleMana
     * @return
     */
   def lookupStation(
-    tazId: Id[TAZ],
+    geoId: Id[_],
     parkingType: ParkingType,
-    chargingPointType: ChargingPointType
+    chargingPointType: Option[ChargingPointType],
+    pricingModel: Option[PricingModel]
   ): Option[ChargingStation] =
     chargingZoneKeyToChargingStationMap.get(
-      constructChargingZoneKey(vehicleManager, tazId, parkingType, chargingPointType)
+      ParkingZone.constructParkingZoneKey(vehicleManager, geoId, parkingType, chargingPointType, pricingModel)
     )
+
+  /**
+    * lookup
+    * @param stall Parking Stall
+    * @return
+    */
+  def lookupStation(stall: ParkingStall): Option[ChargingStation] =
+    lookupStation(stall.geoId, stall.parkingType, stall.chargingPointType, stall.pricingModel)
 
   /**
     * lookup information about charging vehicle
@@ -62,12 +70,6 @@ class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleMana
     * @return charging vehicle
     */
   def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
-
-  /**
-    * get name of the vehicle manager
-    * @return VehicleManager
-    */
-  //def vehicleManagerId: Id[VehicleManager] = managerId
 
   /**
     * clear charging vehicle map
@@ -84,7 +86,7 @@ class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleMana
   def attemptToConnectVehicle(tick: Int, vehicle: BeamVehicle, theSender: ActorRef): Option[ChargingVehicle] = {
     vehicle.stall match {
       case Some(stall) =>
-        lookupStation(stall.tazId, stall.parkingType, stall.chargingPointType.get) match {
+        lookupStation(stall) match {
           case Some(station) => Some(station.connect(tick, vehicle, stall, theSender))
           case _ =>
             logger.error(
@@ -124,13 +126,21 @@ object ChargingNetwork {
     val Waiting, Connected, Disconnected, NotConnected = Value
   }
 
-  final case class ChargingStation(zone: ChargingZone) {
+  def init[GEO: GeoLevel](
+    allZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
+  ): Map[Option[Id[VehicleManager]], ChargingNetwork[GEO]] = {
+    allZones.filter(_._2.chargingPointType.isDefined).groupBy(_._2.vehicleManager).map {
+      case (vehManagerMaybe, zones) => vehManagerMaybe -> new ChargingNetwork(zones, vehManagerMaybe)
+    }
+  }
+
+  final case class ChargingStation(zone: ParkingZone[_]) {
     import ConnectionStatus._
     private val connectedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
     private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
-    def numAvailableChargers: Int = zone.numChargers - connectedVehiclesInternal.size
+    def numAvailableChargers: Int = zone.maxStalls - connectedVehiclesInternal.size
     def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = connectedVehiclesInternal.toMap
 
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =

@@ -52,6 +52,7 @@ import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -929,7 +930,10 @@ class RideHailManager(
     )
   }
 
-  def addOrRemoveVehicleFromCharging(vehicleId: VehicleId, tick: Int): (Vector[ScheduleTrigger], Option[Int]) = {
+  def addOrRemoveVehicleFromCharging(
+    vehicleId: VehicleId,
+    tick: Int
+  ): (Vector[ScheduleTrigger], Option[Id[ParkingZoneId]]) = {
     rideHailParkingNetwork.notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         val beamVehicle = resources(vehicleId)
@@ -1032,7 +1036,7 @@ class RideHailManager(
 
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
     val destinationUtm: SpaceTime = rideHailAgentLocation.latestUpdatedLocationUTM
-    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", Some(beamVehicle), None)
+    val inquiry = ParkingInquiry(destinationUtm, "charge", Some(beamVehicle), None)
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
   }

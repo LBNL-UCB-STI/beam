@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.Id
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork], beamConfig: BeamConfig)
+class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork[_]], beamConfig: BeamConfig)
     extends LazyLogging {
   import SitePowerManager._
 
@@ -49,8 +49,9 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
   } else None
 
   private var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
-  private val chargingStationsMap = chargingNetworkMap.flatMap(_._2.chargingStations).map(s => s.zone -> s).toMap
-  private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(chargingStationsMap.values.toList.distinct).value
+  private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
+    chargingNetworkMap.flatMap(_._2.chargingStations).toArray.distinct
+  ).value
   private var currentBin = -1
 
   /**
@@ -76,7 +77,7 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
               "taz"               -> station.zone.geoId.toString,
               "parkingType"       -> station.zone.parkingType.toString,
               "chargingPointType" -> station.zone.chargingPointType.toString,
-              "numChargers"       -> station.zone.numChargers,
+              "numChargers"       -> station.zone.maxStalls,
               "estimatedLoad"     -> powerInKW
             )
         }
@@ -102,7 +103,8 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
           chargingNetwork.lookupStation(
             Id.create(x("taz").asInstanceOf[String], classOf[TAZ]),
             ParkingType(x("parkingType").asInstanceOf[String]),
-            ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
+            ChargingPointType(x("chargingPointType").asInstanceOf[String]),
+            PricingModel(x("pricingModel").asInstanceOf[String], x("feeInCents").asInstanceOf[String])
           ) match {
             case Some(station) =>
               Some(

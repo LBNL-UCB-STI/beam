@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.ZonalParkingManager.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingMNL.ParkingMNLConfig
-import beam.agentsim.infrastructure.parking.ParkingZone.{DefaultParkingZoneId, UbiqiutousParkingAvailability}
+import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -31,7 +31,7 @@ import scala.util.Random
 class HierarchicalParkingManager(
   tazMap: TAZTreeMap,
   linkToTAZMapping: Map[Link, TAZ],
-  parkingZones: Array[ParkingZone[Link]],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
   rand: Random,
   geo: GeoUtils,
   minSearchRadius: Double,
@@ -42,16 +42,17 @@ class HierarchicalParkingManager(
   chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
 ) extends ParkingNetwork[Link] {
 
-  private val actualLinkParkingZones: Array[ParkingZone[Link]] = HierarchicalParkingManager.collapse(parkingZones)
+  private val actualLinkParkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]] =
+    HierarchicalParkingManager.collapse(parkingZones)
 
   private val tazLinks: Map[Id[TAZ], QuadTree[Link]] = createTazLinkQuadTreeMapping(linkToTAZMapping)
   private val (tazParkingZones, linkZoneToTazZoneMap) =
     convertToTazParkingZones(actualLinkParkingZones, linkToTAZMapping.map {
       case (link, taz) => link.getId -> taz.tazId
     })
-  private val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones)
+  private val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones.values.toSeq)
 
-  private val tazSearchFunctions: ZonalParkingManagerFunctions[TAZ] = new ZonalParkingManagerFunctions[TAZ](
+  private val tazSearchFunctions: ParkingAndChargingFunctions[TAZ] = new ParkingAndChargingFunctions[TAZ](
     tazMap.tazQuadTree,
     tazMap.idToTAZMapping,
     identity[TAZ],
@@ -67,12 +68,10 @@ class HierarchicalParkingManager(
   )
 
   val DefaultParkingZone: ParkingZone[Link] =
-    ParkingZone(
-      DefaultParkingZoneId,
+    ParkingZone.defaultInit(
       LinkLevelOperations.DefaultLinkId,
       ParkingType.Public,
-      UbiqiutousParkingAvailability,
-      Seq.empty
+      UbiqiutousParkingAvailability
     )
 
   private val linkZoneSearchMap: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] =
@@ -159,7 +158,7 @@ class HierarchicalParkingManager(
     if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
       // this is an infinitely available resource; no update required
       logger.debug("Releasing a stall in the default/emergency zone")
-    } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || actualLinkParkingZones.length <= parkingZoneId) {
+    } else if (!actualLinkParkingZones.contains(parkingZoneId)) {
       logger.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
     } else {
       val linkZone = actualLinkParkingZones(parkingZoneId)
@@ -258,7 +257,7 @@ object HierarchicalParkingManager {
   def init(
     tazMap: TAZTreeMap,
     linkToTAZMapping: Map[Link, TAZ],
-    parkingZones: Array[ParkingZone[Link]],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
     rand: Random,
     geo: GeoUtils,
     minSearchRadius: Double,
@@ -288,7 +287,7 @@ object HierarchicalParkingManager {
     linkToTAZMapping: Map[Link, TAZ],
     geo: GeoUtils,
     boundingBox: Envelope,
-    stalls: Array[ParkingZone[Link]]
+    stalls: Map[Id[ParkingZoneId], ParkingZone[Link]]
   ): ParkingNetwork[Link] = {
     new HierarchicalParkingManager(
       tazMap,
@@ -311,10 +310,10 @@ object HierarchicalParkingManager {
     * @return taz parking zones, link zone id -> taz zone id map
     */
   private[infrastructure] def convertToTazParkingZones(
-    parkingZones: Array[ParkingZone[Link]],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
     linkToTAZMapping: Map[Id[Link], Id[TAZ]]
-  ): (Array[ParkingZone[TAZ]], Map[Int, Int]) = {
-    val tazZonesMap = parkingZones.groupBy(zone => linkToTAZMapping(zone.geoId))
+  ): (Map[Id[ParkingZoneId], ParkingZone[TAZ]], Map[Id[ParkingZoneId], Id[ParkingZoneId]]) = {
+    val tazZonesMap = parkingZones.values.groupBy(zone => linkToTAZMapping(zone.geoId))
 
     // list of parking zone description including TAZ and link zones
     val tazZoneDescriptions = tazZonesMap.flatMap {
@@ -327,36 +326,35 @@ object HierarchicalParkingManager {
     }
     //generate taz parking zones
     val tazZones = tazZoneDescriptions.zipWithIndex.map {
-      case ((tazId, description, linkZones), id) =>
+      case ((tazId, description, linkZones), _) =>
         val numStalls = Math.min(linkZones.map(_.maxStalls.toLong).sum, Int.MaxValue).toInt
-        new ParkingZone[TAZ](
-          parkingZoneId = id,
+        val parkingZone = ParkingZone.init[TAZ](
+          None,
           geoId = tazId,
           parkingType = description.parkingType,
-          stallsAvailable = numStalls,
           maxStalls = numStalls,
           reservedFor = description.reservedFor,
-          vehicleManager = description.vehicleManager,
+          vehicleManagerId = description.vehicleManager,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
           timeRestrictions = description.timeRestrictions,
           parkingZoneName = description.parkingZoneName,
-          landCostInUSDPerSqft = description.landCostInUSDPerSqft,
+          landCostInUSDPerSqft = description.landCostInUSDPerSqft
         )
-    }
+        parkingZone.parkingZoneId -> parkingZone
+    }.toMap
     //link zone to taz zone map
     val linkZoneToTazZoneMap = tazZones
       .zip(tazZoneDescriptions.map { case (_, _, linkZones) => linkZones })
-      .flatMap { case (tazZone, linkZones) => linkZones.map(_.parkingZoneId -> tazZone.parkingZoneId) }
-      .toMap
-    (tazZones.toArray, linkZoneToTazZoneMap)
+      .flatMap { case ((parkingZoneId, _), linkZones) => linkZones.map(_.parkingZoneId -> parkingZoneId) }
+    (tazZones, linkZoneToTazZoneMap)
   }
 
   private def createLinkZoneSearchMap(
-    parkingZones: Array[ParkingZone[Link]]
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]]
   ): Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] = {
     parkingZones.foldLeft(Map.empty: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]]) {
-      (accumulator, zone) =>
+      case (accumulator, (_, zone)) =>
         val zoneDescription = ParkingZoneDescription.describeParkingZone(zone)
         val parking = accumulator.getOrElse(zone.geoId, Map())
         accumulator.updated(zone.geoId, parking.updated(zoneDescription, zone))
@@ -380,12 +378,12 @@ object HierarchicalParkingManager {
     * @param parkingZones the parking zones
     * @return collapsed parking zones
     */
-  def collapse(parkingZones: Array[ParkingZone[Link]]): Array[ParkingZone[Link]] =
+  def collapse(parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]]): Map[Id[ParkingZoneId], ParkingZone[Link]] =
     parkingZones
-      .groupBy(_.geoId)
+      .groupBy(_._2.geoId)
       .flatMap {
         case (linkId, zones) =>
-          zones
+          zones.values
             .groupBy(ParkingZoneDescription.describeParkingZone)
             .map { case (descr, linkZones) => (linkId, descr, linkZones.map(_.maxStalls.toLong).sum) }
       }
@@ -394,20 +392,20 @@ object HierarchicalParkingManager {
       .map {
         case ((linkId, description, maxStalls), id) =>
           val numStalls = Math.min(maxStalls, Int.MaxValue).toInt
-          new ParkingZone[Link](
-            parkingZoneId = id,
+          val parkingZone = ParkingZone.init[Link](
+            None,
             geoId = linkId,
             parkingType = description.parkingType,
-            stallsAvailable = numStalls,
             maxStalls = numStalls,
             reservedFor = description.reservedFor,
-            vehicleManager = description.vehicleManager,
+            vehicleManagerId = description.vehicleManager,
             chargingPointType = description.chargingPointType,
             pricingModel = description.pricingModel,
             timeRestrictions = description.timeRestrictions,
             parkingZoneName = description.parkingZoneName,
-            landCostInUSDPerSqft = description.landCostInUSDPerSqft,
+            landCostInUSDPerSqft = description.landCostInUSDPerSqft
           )
+          parkingZone.parkingZoneId -> parkingZone
       }
-      .toArray
+      .toMap
 }

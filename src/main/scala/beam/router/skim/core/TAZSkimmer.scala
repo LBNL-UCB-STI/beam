@@ -2,7 +2,6 @@ package beam.router.skim.core
 
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.{readonly, Skims}
-import beam.router.skim.readonly.TAZSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import com.google.inject.Inject
@@ -82,12 +81,12 @@ class TAZSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamSce
 object TAZSkimmer extends LazyLogging {
   case class TAZSkimmerKey(
     time: Int,
-    taz: Id[TAZ],
+    geoId: Id[_],
     hex: String,
     actor: String,
     key: String
   ) extends AbstractSkimmerKey {
-    override def toCsv: String = time + "," + taz + "," + hex + "," + actor + "," + key
+    override def toCsv: String = time + "," + geoId + "," + hex + "," + actor + "," + key
   }
   case class TAZSkimmerInternal(value: Double, observations: Int = 0, iterations: Int = 0)
       extends AbstractSkimmerInternal {

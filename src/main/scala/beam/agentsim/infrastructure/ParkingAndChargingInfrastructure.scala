@@ -1,11 +1,10 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingNetwork, ParkingZone, ParkingZoneFileUtils}
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingNetwork, ParkingZone, ParkingZoneFileUtils, ParkingZoneId}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.vehiclesharing.Fleets
 import com.typesafe.scalalogging.LazyLogging
@@ -13,11 +12,10 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.api.core.v01.network.Network
 
 import scala.collection.JavaConverters._
-import scala.util.{Failure, Random, Success, Try}
 import scala.language.existentials
+import scala.util.{Failure, Random, Success, Try}
 
 case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelopeInUTM: Envelope) {
   import ParkingAndChargingInfrastructure._
@@ -37,9 +35,8 @@ case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelope
     (sharedFleetsParkingFiles ++ freightParkingFile).toIndexedSeq
   }
 
-  val (chargingNetworks: Map[Option[Id[VehicleManager]], QuadTree[ChargingZone]], parkingNetworks: ParkingNetwork[_]) =
+  val (chargingNetworks, parkingNetworks) =
     buildChargingAndParkingNetwork(beamServices, envelopeInUTM, mainParkingFile, vehicleManagersParkingFiles)
-
 }
 
 object ParkingAndChargingInfrastructure extends LazyLogging {
@@ -49,7 +46,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
     envelopeInUTM: Envelope,
     mainParkingFile: String,
     vehicleManagersParkingFiles: IndexedSeq[String]
-  ): (Map[Option[Id[VehicleManager]], QuadTree[ChargingZone]], ParkingNetwork[_]) = {
+  ): (Map[Option[Id[VehicleManager]], ChargingNetwork[_]], ParkingNetwork[_]) = {
     import beamServices._
     logger.info(s"Starting parking manager: ${beamConfig.beam.agentsim.taz.parkingManager.name}")
     beamConfig.beam.agentsim.taz.parkingManager.name match {
@@ -66,14 +63,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
                 beamConfig.matsim.modules.global.randomSeed
               )
             (
-              loadChargingZones[TAZ](
-                stalls,
-                "taz",
-                beamScenario.tazTreeMap,
-                beamScenario.network,
-                envelopeInUTM: Envelope,
-                beamConfig.beam.spatial.boundingBoxBuffer
-              ),
+              ChargingNetwork.init[TAZ](stalls),
               ZonalParkingManager.init(
                 beamConfig,
                 beamScenario.tazTreeMap.tazQuadTree,
@@ -82,7 +72,8 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
                 geo,
                 envelopeInUTM,
                 stalls,
-                searchTree
+                searchTree,
+                beamConfig.matsim.modules.global.randomSeed
               )
             )
           case "link" =>
@@ -96,14 +87,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
                 beamConfig.matsim.modules.global.randomSeed
               )
             (
-              loadChargingZones[Link](
-                stalls,
-                "link",
-                beamScenario.tazTreeMap,
-                beamScenario.network,
-                envelopeInUTM: Envelope,
-                beamConfig.beam.spatial.boundingBoxBuffer
-              ),
+              ChargingNetwork.init[Link](stalls),
               ZonalParkingManager.init(
                 beamScenario.beamConfig,
                 beamScenario.linkQuadTree,
@@ -112,7 +96,8 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
                 geo,
                 envelopeInUTM,
                 stalls,
-                searchTree
+                searchTree,
+                beamConfig.matsim.modules.global.randomSeed
               )
             )
           case _ =>
@@ -131,14 +116,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
             beamConfig.matsim.modules.global.randomSeed
           )
         (
-          loadChargingZones[Link](
-            stalls,
-            "link",
-            beamScenario.tazTreeMap,
-            beamScenario.network,
-            envelopeInUTM: Envelope,
-            beamConfig.beam.spatial.boundingBoxBuffer
-          ),
+          ChargingNetwork.init[Link](stalls),
           HierarchicalParkingManager
             .init(beamConfig, beamScenario.tazTreeMap, beamScenario.linkToTAZMapping, geo, envelopeInUTM, stalls)
         )
@@ -153,75 +131,12 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
             beamConfig.matsim.modules.global.randomSeed
           )
         (
-          loadChargingZones[TAZ](
-            stalls,
-            "taz",
-            beamScenario.tazTreeMap,
-            beamScenario.network,
-            envelopeInUTM: Envelope,
-            beamConfig.beam.spatial.boundingBoxBuffer
-          ),
+          ChargingNetwork.init[TAZ](stalls),
           ParallelParkingManager.init(beamConfig, beamScenario.tazTreeMap, stalls, searchTree, geo, envelopeInUTM)
         )
 
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
-  }
-
-  /**
-    * load parking stalls with charging point
-    * @return QuadTree of ChargingZone
-    */
-  private def loadChargingZones[GEO: GeoLevel](
-    parkingZones: Array[ParkingZone[GEO]],
-    geoLevel: String,
-    tazTreeMap: TAZTreeMap,
-    network: Network,
-    envelopeInUTM: Envelope,
-    boundingBoxBuffer: Int
-  ) = {
-    val zonesWithCharger = parkingZones.filter(_.chargingPointType.isDefined).map { z =>
-      val coord = geoLevel.toLowerCase match {
-        case "taz"  => tazTreeMap.getTAZ(z.geoId.asInstanceOf[Id[TAZ]]).get.coord
-        case "link" => network.getLinks.get(z.geoId.asInstanceOf[Id[Link]]).getCoord
-        case _ =>
-          throw new IllegalArgumentException(s"Unsupported parking level type $geoLevel, only TAZ | Link are supported")
-      }
-      (z, coord)
-    }
-    val coordinates = zonesWithCharger.map(_._2)
-    val xs = coordinates.map(_.getX)
-    val ys = coordinates.map(_.getY)
-    envelopeInUTM.expandBy(boundingBoxBuffer)
-    envelopeInUTM.expandToInclude(xs.min, ys.min)
-    envelopeInUTM.expandToInclude(xs.max, ys.max)
-    zonesWithCharger
-      .groupBy { case (zone, _) => zone.vehicleManager }
-      .mapValues { zones =>
-        val stationsQuadTree = new QuadTree[ChargingZone](
-          envelopeInUTM.getMinX,
-          envelopeInUTM.getMinY,
-          envelopeInUTM.getMaxX,
-          envelopeInUTM.getMaxY
-        )
-        zones.foreach {
-          case (zone, coord) =>
-            stationsQuadTree.put(
-              coord.getX,
-              coord.getY,
-              ChargingZone(
-                zone.geoId,
-                tazTreeMap.getTAZ(coord).tazId,
-                zone.parkingType,
-                zone.maxStalls,
-                zone.chargingPointType.get,
-                zone.pricingModel.get,
-                zone.vehicleManager
-              )
-            )
-        }
-        stationsQuadTree
-      }
   }
 
   def loadParkingZones[GEO: GeoLevel](
@@ -231,7 +146,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
     seed: Long
-  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+  ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val random = new Random(seed)
     val initialAccumulator: ParkingLoadingAccumulator[GEO] = if (parkingFilePath.isEmpty) {
       ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(geoQuadTree.values().asScala, random)
@@ -274,7 +189,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
             }
         }
     }
-    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
+    (parkingLoadingAccumulator.zones.toMap, parkingLoadingAccumulator.tree)
   }
 
 }

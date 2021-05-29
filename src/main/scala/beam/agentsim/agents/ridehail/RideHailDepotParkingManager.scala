@@ -4,13 +4,13 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.parking.ParkingNetwork
+import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZoneId}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
 import beam.sim.Geofence
 import beam.utils.metrics.SimpleCounter
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable
 
@@ -58,7 +58,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
     tick: Int,
     vehicleQueuePriority: Double,
     source: RefuelSource
-  ): (Vector[ScheduleTrigger], Option[Int])
+  ): (Vector[ScheduleTrigger], Option[Id[ParkingZoneId]])
 
   /**
     * This vehicle is no longer charging and should be removed from internal tracking data.
@@ -76,7 +76,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
     * @return
     */
   def dequeueNextVehicleForRefuelingFrom(
-    parkingZoneId: Int,
+    parkingZoneId: Id[ParkingZoneId],
     tick: Int
   ): Option[ChargingQueueEntry]
 
@@ -116,7 +116,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
     * @param parkingZoneId ID of the parking zone
     * @return Parking zone location in UTM.
     */
-  def getParkingZoneLocationUtm(parkingZoneId: Int): Coord
+  def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord
 
   /**
     *

@@ -13,7 +13,6 @@ import org.matsim.core.utils.io.IOUtils
 import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Random, Success, Try}
 
 // utilities to read/write parking zone information from/to a file
@@ -25,7 +24,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * header for parking files (used for writing new parking files)
     */
   val ParkingFileHeader: String =
-    "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor,timeRestrictions,vehicleManager"
+    "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor,timeRestrictions,vehicleManager,parkingZoneId"
 
   /**
     * when a parking file is not provided, we generate one that covers all TAZs with free and ubiquitous parking
@@ -52,9 +51,9 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param failedRows number of rows which failed to parse
     */
   case class ParkingLoadingAccumulator[GEO](
-    zones: ArrayBuffer[ParkingZone[GEO]] = ArrayBuffer.empty[ParkingZone[GEO]],
-    tree: mutable.Map[Id[GEO], Map[ParkingType, Vector[Int]]] =
-      mutable.Map.empty[Id[GEO], Map[ParkingType, Vector[Int]]],
+    zones: mutable.Map[Id[ParkingZoneId], ParkingZone[GEO]] = mutable.Map.empty[Id[ParkingZoneId], ParkingZone[GEO]],
+    tree: mutable.Map[Id[GEO], Map[ParkingType, Vector[Id[ParkingZoneId]]]] =
+      mutable.Map.empty[Id[GEO], Map[ParkingType, Vector[Id[ParkingZoneId]]]],
     totalRows: Int = 0,
     failedRows: Int = 0
   ) {
@@ -64,11 +63,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         totalRows = totalRows + 1,
         failedRows = failedRows + 1
       )
-    def nextParkingZoneId: Int = zones.length
+
     def someRowsFailed: Boolean = failedRows > 0
 
-    def totalParkingStalls: Long =
-      zones.map { _.maxStalls.toLong }.sum
+    def totalParkingStalls: Long = zones.map { _._2.maxStalls.toLong }.sum
 
     def parkingStallsPlainEnglish: String = {
       val count: Long = totalParkingStalls
@@ -97,7 +95,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     */
   def writeParkingZoneFile[GEO](
     stallSearch: ZoneSearchTree[GEO],
-    stalls: Array[ParkingZone[GEO]],
+    stalls: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     writeDestinationPath: String
   ): Unit = {
 
@@ -124,8 +122,9 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val reservedFor = parkingZone.reservedFor.mkString("|")
         val timeRestrictions = parkingZone.timeRestrictions.map(toString).mkString("|")
         val vehicleManager = parkingZone.vehicleManager.toString.mkString("|")
+        val parkingZoneIdStr = parkingZone.parkingZoneId.toString
 
-        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft,$reservedFor,$timeRestrictions,$vehicleManager"
+        s"$tazId,$parkingType,$pricingModel,$chargingPoint,${parkingZone.maxStalls},$feeInCents,$parkingZoneName,$landCostInUSDPerSqft,$reservedFor,$timeRestrictions,$vehicleManager,$parkingZoneIdStr"
       }
     } match {
       case Failure(e) =>
@@ -158,10 +157,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0
-  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+  ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val parkingLoadingAccumulator =
       fromFileToAccumulator(filePath, rand, parkingStallCountScalingFactor, parkingCostScalingFactor)
-    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
+    (parkingLoadingAccumulator.zones.toMap, parkingLoadingAccumulator.tree)
   }
 
   /**
@@ -221,7 +220,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val csvRow = iterator.next()
         val updatedAccumulator = parseParkingZoneFromRow(
           csvRow,
-          accumulator.nextParkingZoneId,
           rand,
           parkingStallCountScalingFactor,
           parkingCostScalingFactor
@@ -266,7 +264,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         Try {
           parseParkingZoneFromRow(
             csvRow,
-            accumulator.nextParkingZoneId,
             random,
             parkingStallCountScalingFactor,
             parkingCostScalingFactor
@@ -299,7 +296,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
     zones.foldLeft(Map.empty: ZoneSearchTree[GEO]) { (accumulator, zone) =>
       val parkingTypes = accumulator.getOrElse(zone.geoId, Map())
-      val parkingZoneIds: Vector[Int] = parkingTypes.getOrElse(zone.parkingType, Vector.empty[Int])
+      val parkingZoneIds: Vector[Id[ParkingZoneId]] =
+        parkingTypes.getOrElse(zone.parkingType, Vector.empty[Id[ParkingZoneId]])
 
       accumulator.updated(
         zone.geoId,
@@ -361,7 +359,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     */
   def parseParkingZoneFromRow[GEO: GeoLevel](
     csvRow: jMap,
-    nextParkingZoneId: Int,
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
@@ -373,7 +370,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val tazString = csvRow.get("taz")
     val parkingTypeString = csvRow.get("parkingType")
     val pricingModelString = csvRow.get("pricingModel")
-    val chargingTypeString = csvRow.get("chargingType")
+    val chargingTypeString = csvRow.get("chargingPointType")
     val numStallsString = csvRow.get("numStalls")
     val feeInCentsString = csvRow.get("feeInCents")
     val parkingZoneNameString = csvRow.get("parkingZoneName")
@@ -381,6 +378,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val reservedForString = csvRow.get("reservedFor")
     val timeRestrictionsString = csvRow.get("timeRestrictions")
     val vehicleManagerString = csvRow.get("vehicleManager")
+    val parkingZoneIdString = csvRow.get("parkingZoneId")
     Try {
       val feeInCents = feeInCentsString.toDouble
       val numStallsDouble = numStallsString.toDouble
@@ -408,9 +406,12 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val landCostInUSDPerSqft =
         if (landCostInUSDPerSqftString == null || landCostInUSDPerSqftString.isEmpty) None
         else Some(landCostInUSDPerSqftString.toDouble)
+      val parkingZoneIdMaybe =
+        if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
+        else Some(ParkingZone.createId(parkingZoneIdString))
       val parkingZone =
-        ParkingZone(
-          nextParkingZoneId,
+        ParkingZone.init(
+          parkingZoneIdMaybe,
           taz,
           parkingType,
           numStalls,
@@ -434,7 +435,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
-    val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents")
+    val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
       .forall(
         key => {
           val value = csvRow.get(key)
@@ -481,10 +482,11 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
     // find any data stored already within this TAZ and with this ParkingType
     val parkingTypes = accumulator.tree.getOrElse(row.tazId, Map())
-    val parkingZoneIds: Vector[Int] = parkingTypes.getOrElse(row.parkingType, Vector.empty[Int])
+    val parkingZoneIds: Vector[Id[ParkingZoneId]] =
+      parkingTypes.getOrElse(row.parkingType, Vector.empty[Id[ParkingZoneId]])
 
     // create new ParkingZone in array with new parkingZoneId. should this be an ArrayBuilder?
-    accumulator.zones.append(row.parkingZone)
+    accumulator.zones.put(row.parkingZone.parkingZoneId, row.parkingZone)
 
     // update the tree with the id of this ParkingZone
     accumulator.tree.put(
@@ -508,10 +510,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     geoObjects: Iterable[GEO],
     random: Random,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-  ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+  ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
     val parkingLoadingAccumulator =
       generateDefaultParkingAccumulatorFromGeoObjects(geoObjects, random, parkingTypes)
-    (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
+    (parkingLoadingAccumulator.zones.toMap, parkingLoadingAccumulator.tree)
   }
 
   /**
@@ -565,26 +567,29 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   /**
     * Write parking zones to csv.
     */
-  def toCsv[GEO: GeoLevel](parkingZones: Array[ParkingZone[GEO]], filePath: String): Unit = {
+  def toCsv[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]], filePath: String): Unit = {
     val fileContent = parkingZones
-      .map { parkingZone =>
-        List(
-          parkingZone.geoId,
-          parkingZone.parkingType,
-          parkingZone.pricingModel.getOrElse(""),
-          parkingZone.chargingPointType.getOrElse(""),
-          parkingZone.maxStalls,
-          parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
-          parkingZone.parkingZoneName.getOrElse(""),
-          parkingZone.parkingZoneId,
-          parkingZone.landCostInUSDPerSqft.getOrElse("")
-        ).mkString(",")
+      .map {
+        case (_, parkingZone) =>
+          List(
+            parkingZone.geoId,
+            parkingZone.parkingType,
+            parkingZone.pricingModel.getOrElse(""),
+            parkingZone.chargingPointType.getOrElse(""),
+            parkingZone.maxStalls,
+            parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
+            parkingZone.parkingZoneName.getOrElse(""),
+            parkingZone.parkingZoneId,
+            parkingZone.landCostInUSDPerSqft.getOrElse("")
+          ).mkString(",")
       }
       .mkString(System.lineSeparator())
 
     FileUtils.writeToFile(
       filePath,
-      Some("taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,name,parkingZoneId,landCostInUSDPerSqft"),
+      Some(
+        "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,name,parkingZoneId,landCostInUSDPerSqft"
+      ),
       fileContent,
       None
     )

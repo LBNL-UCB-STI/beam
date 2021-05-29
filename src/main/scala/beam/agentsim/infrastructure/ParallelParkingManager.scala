@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone}
+import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.common.GeoUtils.toJtsCoordinate
@@ -28,7 +28,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Random
 
 /**
   *
@@ -38,7 +37,7 @@ class ParallelParkingManager(
   beamConfig: BeamConfig,
   tazTreeMap: TAZTreeMap,
   clusters: Vector[ParkingCluster],
-  zones: Array[ParkingZone[TAZ]],
+  zones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
   searchTree: ZoneSearchTree[TAZ],
   geo: GeoUtils,
   seed: Int,
@@ -75,7 +74,8 @@ class ParallelParkingManager(
         geo,
         boundingBox,
         zones,
-        searchTree
+        searchTree,
+        seed
       )
     Worker(actor, cluster)
   }
@@ -135,7 +135,7 @@ object ParallelParkingManager extends LazyLogging {
   def init(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
-    zones: Array[ParkingZone[TAZ]],
+    zones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     searchTree: ZoneSearchTree[TAZ],
     geo: GeoUtils,
     boundingBox: Envelope
@@ -149,7 +149,7 @@ object ParallelParkingManager extends LazyLogging {
   def init(
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
-    zones: Array[ParkingZone[TAZ]],
+    zones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     searchTree: ZoneSearchTree[TAZ],
     geo: GeoUtils,
     boundingBox: Envelope,
@@ -171,11 +171,11 @@ object ParallelParkingManager extends LazyLogging {
 
   private[infrastructure] def createClusters(
     tazTreeMap: TAZTreeMap,
-    zones: Array[ParkingZone[TAZ]],
+    zones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     numClusters: Int,
     seed: Long
   ): Vector[ParkingCluster] = {
-    logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.length}")
+    logger.info(s"creating clusters, tazTreeMap.size = ${tazTreeMap.tazQuadTree.size} zones.size = ${zones.size}")
     val pgf = new PreparedGeometryFactory
     if (tazTreeMap.tazQuadTree.size() == 0) {
       val polygonCoords = Array(
@@ -218,7 +218,7 @@ object ParallelParkingManager extends LazyLogging {
             if (id.startsWith("taz")) {
               empty += emptyTAZes(id.substring(3).toInt)
             } else {
-              clusterZones += zones(id.toInt)
+              clusterZones += zones(ParkingZone.createId(id))
             }
             coords += new Coordinate(o.doubleValue(0), o.doubleValue(1))
             iter.advance()
@@ -250,25 +250,25 @@ object ParallelParkingManager extends LazyLogging {
 
   private def createDatabase(
     tazTreeMap: TAZTreeMap,
-    zones: Array[ParkingZone[TAZ]]
+    zones: Map[Id[ParkingZoneId], ParkingZone[TAZ]]
   ): (Array[TAZ], StaticArrayDatabase) = {
     case class ZoneInfo(coord: Coord, label: String)
     val zoneInfos = {
-      zones.zipWithIndex.flatMap {
-        case (zone, idx) =>
+      zones.flatMap {
+        case (_, zone) =>
           tazTreeMap
             .getTAZ(zone.geoId)
-            .map(taz => ZoneInfo(taz.coord, idx.toString))
+            .map(taz => ZoneInfo(taz.coord, zone.parkingZoneId.toString))
       }
     }
-    val emptyTAZes = (tazTreeMap.getTAZs.toSet -- zones.flatMap(zone => tazTreeMap.getTAZ(zone.geoId)).toSet).toArray
+    val emptyTAZes = (tazTreeMap.getTAZs.toSet -- zones.flatMap(zone => tazTreeMap.getTAZ(zone._2.geoId)).toSet).toArray
     val virtualZones = emptyTAZes.zipWithIndex.map {
       case (taz, idx) => ZoneInfo(taz.coord, s"taz$idx")
     }
     val allZones = zoneInfos ++ virtualZones
 
-    val data = allZones.map(zi => Array(zi.coord.getX, zi.coord.getY))
-    val labels: Array[String] = allZones.map(_.label)
+    val data = allZones.map(zi => Array(zi.coord.getX, zi.coord.getY)).toArray
+    val labels: Array[String] = allZones.map(_.label).toArray
     val dbc = new ArrayAdapterDatabaseConnection(data, labels)
     val db = new StaticArrayDatabase(dbc, null)
     db.initialize()

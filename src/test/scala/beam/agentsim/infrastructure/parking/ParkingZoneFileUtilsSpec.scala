@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleCategory
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
@@ -34,7 +34,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
                     listOfParkingZones.length should equal(1)
 
                     // extract parking zone based on discovered zone id
-                    val foundParkingZoneId: Int = listOfParkingZones.head
+                    val foundParkingZoneId: Id[ParkingZoneId] = listOfParkingZones.head
                     val parkingZone: ParkingZone[TAZ] = collection(foundParkingZoneId)
 
                     // confirm parking zone has correct attributes
@@ -133,13 +133,13 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
       "produce correct tree" in new PositiveTestData {
         val ParkingZoneFileUtils.ParkingLoadingAccumulator(zones, lookupTree, _, _) =
           ParkingZoneFileUtils.fromIterator[Link](linkLevelData)
-        val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones)
+        val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones.values.toSeq)
         tree should equal(lookupTree)
       }
       "produce correct tree for bigger data" in new PositiveTestData {
         val (zones, lookupTree) =
           ParkingZoneFileUtils.fromFile[Link]("test/input/sf-light/link-parking.csv.gz", new Random(42), 0.13)
-        val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones)
+        val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones.values.toSeq)
         tree should equal(lookupTree)
       }
     }
@@ -168,17 +168,17 @@ object ParkingZoneFileUtilsSpec {
     val testPricingModel: String = "FlatFee"
 
     val validRow: Iterator[String] =
-      s"""taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor,timeRestrictions
+      s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions
          |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,car|LightDutyTruck,Car:1-12|LightDutyTruck:13:30-17
       """.stripMargin.split("\n").toIterator
 
     val validRowWithEmpties: Iterator[String] =
-      s"""taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
          |1,Residential,,,$testNumStalls,$testFeeInCents,
       """.stripMargin.split("\n").toIterator
 
     val linkLevelData: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |49577,Residential,FlatFee,level1(2.3|AC),10,0.0,
         |49577,Public,Block,level2(7.2|AC),10,0.0,
         |49577,Workplace,FlatFee,dcfast(50.0|DC),10,0.0,
@@ -197,42 +197,42 @@ object ParkingZoneFileUtilsSpec {
   trait NegativeTestData {
 
     val badParkingType: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |1,Foo,FlatFee,TeslaSuperCharger,7,0,
         |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badPricingModel: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |1,Workplace,Foo,TeslaSuperCharger,7,0,
         |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badChargingType: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |1,Workplace,FlatFee,Foo,7,0,
         |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badNumStalls: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |1,Workplace,FlatFee,TeslaSuperCharger,Foo,0,
         |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val invalidNumStalls: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |1,Workplace,FlatFee,TeslaSuperCharger,-1,0,
         |2,Public,Block,TeslaSuperCharger,18,0,
         |
       """.stripMargin.split("\n").toIterator
 
     val badFeeInCents: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
         |1,Workplace,FlatFee,TeslaSuperCharger,7,Foo,
         |2,Public,Block,TeslaSuperCharger,18,0,
         |

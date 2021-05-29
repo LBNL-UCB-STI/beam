@@ -67,7 +67,7 @@ class ParallelParkingManagerSpec
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
-          Array.empty[ParkingZone[TAZ]],
+          Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]],
           Map.empty,
           geo,
           boundingBox,
@@ -104,12 +104,12 @@ class ParallelParkingManagerSpec
       val parkingManager = ParallelParkingManager.init(
         beamConfig,
         tazTreeMap,
-        Array.empty[ParkingZone[TAZ]],
+        Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]],
         Map.empty,
         geo,
         boundingBox,
         8,
-        randomSeed
+        seed = randomSeed
       )
 
       val inquiry = ParkingInquiry(centerSpaceTime, "work")
@@ -120,7 +120,7 @@ class ParallelParkingManagerSpec
           inquiry.destinationUtm.loc.getY + 2000,
           inquiry.destinationUtm.loc.getY - 2000
         ),
-        new Random(randomSeed),
+        random = new Random(randomSeed.toLong),
         tazId = TAZ.EmergencyTAZId,
         geoId = TAZ.EmergencyTAZId,
       )
@@ -143,7 +143,7 @@ class ParallelParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
@@ -152,7 +152,7 @@ class ParallelParkingManagerSpec
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
-          parking.zones.toArray,
+          parking.zones.toMap,
           parking.tree,
           geo,
           boundingBox,
@@ -167,7 +167,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            0,
+            ParkingZone.createId("cs_NoManager_1_Workplace_NoCharger_FlatFee"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -207,7 +207,7 @@ class ParallelParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
@@ -216,7 +216,7 @@ class ParallelParkingManagerSpec
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
-          parking.zones.toArray,
+          parking.zones.toMap,
           parking.tree,
           geo,
           boundingBox,
@@ -228,13 +228,12 @@ class ParallelParkingManagerSpec
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
         val firstInquiry = ParkingInquiry(centerSpaceTime, "work")
         val secondInquiry = ParkingInquiry(centerSpaceTime, "work")
-        val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            expectedParkingZoneId,
+            ParkingZone.createId("cs_NoManager_1_Workplace_NoCharger_FlatFee"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -298,7 +297,7 @@ class ParallelParkingManagerSpec
         parkingManager = ParallelParkingManager.init(
           beamConfig,
           tazTreeMap,
-          parking.zones.toArray,
+          parking.zones.toMap,
           parking.tree,
           geo,
           boundingBox,
@@ -353,11 +352,32 @@ class ParallelParkingManagerSpec
           randomSeed
         )
 
-      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
+      assertParkingResponse(
+        zpm,
+        new Coord(170308.0, 2964.0),
+        "4",
+        ParkingZone.createId("cs_NoManager_4_Residential_NoCharger_Block"),
+        Block(0.0, 3600),
+        ParkingType.Residential
+      )
 
-      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
+      assertParkingResponse(
+        zpm,
+        new Coord(166321.0, 1568.0),
+        "1",
+        ParkingZone.createId("cs_NoManager_1_Residential_NoCharger_FlatFee"),
+        FlatFee(0.0),
+        ParkingType.Residential
+      )
 
-      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
+      assertParkingResponse(
+        zpm,
+        new Coord(166500.0, 1500.0),
+        "1",
+        ParkingZone.createId("cs_NoManager_1_Public_NoCharger_Block"),
+        Block(0.0, 3600),
+        ParkingType.Public
+      )
     }
   }
 
@@ -365,7 +385,7 @@ class ParallelParkingManagerSpec
     spm: ParkingNetwork[_],
     coord: Coord,
     tazId: String,
-    parkingZoneId: Int,
+    parkingZoneId: Id[ParkingZoneId],
     pricingModel: PricingModel,
     parkingType: ParkingType
   ) = {
@@ -382,7 +402,7 @@ class ParallelParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        reservedFor = Seq.empty
+        reservedFor = IndexedSeq.empty
       )
     assert(response.isDefined, "no response")
     assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")

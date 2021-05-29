@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.util.Timeout
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingNetwork, ParkingZone}
+import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingNetwork, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -112,7 +112,7 @@ object ParkingManagerBenchmark extends StrictLogging {
     def loadZones[GEO: GeoLevel](
       quadTree: QuadTree[GEO],
       pathToParking: String
-    ): (Array[ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+    ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
       logger.info("Start loading parking zones from {}", pathToParking)
       val (zones, searchTree) = ParkingAndChargingInfrastructure.loadParkingZones[GEO](
         pathToParking,
@@ -122,8 +122,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         parkingCostScalingFactor,
         seed
       )
-      logger.info(s"Number of zones: ${zones.length}")
-      logger.info(s"Number of parking stalls: ${zones.map(_.stallsAvailable.toLong).sum}")
+      logger.info(s"Number of zones: ${zones.size}")
+      logger.info(s"Number of parking stalls: ${zones.map(_._2.stallsAvailable.toLong).sum}")
       logger.info(s"SearchTree size: ${searchTree.size}")
       (zones, searchTree)
     }

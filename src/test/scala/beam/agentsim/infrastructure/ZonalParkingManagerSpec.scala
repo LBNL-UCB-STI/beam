@@ -19,7 +19,6 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.funspec.AnyFunSpecLike
@@ -123,8 +122,8 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,
+        oneParkingOption: Iterator[String] = s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+            |1,Workplace,FlatFee,None,1,1234,,0
             |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -143,7 +142,7 @@ class ZonalParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            0,
+            ParkingZone.createId("0"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -182,8 +181,8 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-                                               |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+                                               |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           tazTreeMap,
@@ -207,7 +206,7 @@ class ZonalParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            0,
+            ParkingZone.createId("0"),
             coordCenterOfUTM,
             56.78,
             Some(xfcChargingPoint),
@@ -250,8 +249,8 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,
+        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+          |1,Workplace,FlatFee,None,1,1234,,0
           |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
@@ -266,13 +265,12 @@ class ZonalParkingManagerSpec
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
         val firstInquiry = ParkingInquiry(centerSpaceTime, "work")
         val secondInquiry = ParkingInquiry(centerSpaceTime, "work")
-        val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            expectedParkingZoneId,
+            ParkingZone.createId("0"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -390,7 +388,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        17,
+        ParkingZone.createId("cs_NoManager_4_Public_NoCharger_Block"),
         Block(0.0, 3600),
         ParkingType.Public,
         None,
@@ -401,7 +399,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        122,
+        ParkingZone.createId("cs_NoManager_1_Public_NoCharger_Block"),
         Block(0.0, 3600),
         ParkingType.Public,
         None,
@@ -412,7 +410,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166500.0, 1500.0), 0),
         "1",
-        22,
+        ParkingZone.createId("cs_NoManager_1_Residential_NoCharger_FlatFee"),
         FlatFee(0.0),
         ParkingType.Residential,
         None,
@@ -426,13 +424,9 @@ class ZonalParkingManagerSpec
   describe("ZonalParkingManager with time restrictions") {
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
-        """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor,timeRestrictions,vehicleManager
-          |4,Public,FlatFee,NoCharger,10,0,,LightDutyTruck:17:30-24,freight
-          |4,Public,Block,NoCharger,20,0,,LightDutyTruck:17:30-24,freight
-          |4,Public,FlatFee,NoCharger,30,0,,LightDutyTruck:0-17,freight
-          |4,Public,FlatFee,NoCharger,40,0,,LightDutyTruck:17:30-24:00,freight
-          |4,Public,Block,NoCharger,50,0,,LightDutyTruck:17:30-24,freight
-          |4,Public,FlatFee,NoCharger,60,0,,LightDutyTruck:17:30-24,freight""".stripMargin
+        """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions,vehicleManager,parkingZoneId
+          |4,Public,FlatFee,NoCharger,10,0,,LightDutyTruck:17:30-24,freight,
+          |4,Public,Block,NoCharger,20,0,,LightDutyTruck:0-17:30,freight,""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
@@ -455,8 +449,8 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
         "4",
-        2,
-        FlatFee(0.0),
+        ParkingZone.createId("cs_freight_4_Public_NoCharger_Block"),
+        PricingModel("block", "0").get,
         ParkingType.Public,
         Some(Id.create("freight", classOf[VehicleManager])),
         "FREIGHT-1",
@@ -496,7 +490,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        73,
+        ParkingZone.createId("cs_NoManager_4_Residential_NoCharger_FlatFee"),
         FlatFee(1.99),
         ParkingType.Residential,
         None,
@@ -543,7 +537,7 @@ class ZonalParkingManagerSpec
     zpm: ParkingNetwork[_],
     spaceTime: SpaceTime,
     tazId: String,
-    parkingZoneId: Int,
+    parkingZoneId: Id[ParkingZoneId],
     pricingModel: PricingModel,
     parkingType: ParkingType,
     vehicleManagerIdMaybe: Option[Id[VehicleManager]],
@@ -570,7 +564,7 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        reservedFor = Seq.empty,
+        reservedFor = IndexedSeq.empty,
         vehicleManagerIdMaybe
       )
     assert(response.isDefined, "no response")
@@ -658,11 +652,11 @@ object ZonalParkingManagerSpec {
 
   // using a split of numStalls, create a parking input for all-work, $0-cost parking alternatives with varying stall counts
   def makeParkingConfiguration(split: List[Int]): Iterator[String] = {
-    val header = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor"
+    val header = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId"
     val result = split.zipWithIndex
       .map {
         case (stalls, i) =>
-          s"${i + 1},Workplace,FlatFee,None,$stalls,0,"
+          s"${i + 1},Workplace,FlatFee,None,$stalls,0,,"
       }
       .mkString(s"$header\n", "\n", "")
       .split("\n")
@@ -670,25 +664,18 @@ object ZonalParkingManagerSpec {
     result
   }
 
-  def makeParkingZones(treeMap: TAZTreeMap, zones: List[Int]): Array[ParkingZone[TAZ]] = {
+  def makeParkingZones(treeMap: TAZTreeMap, zones: List[Int]): Map[Id[ParkingZoneId], ParkingZone[TAZ]] = {
     val result = treeMap.getTAZs
       .zip(zones)
-      .foldLeft(List.empty[ParkingZone[TAZ]]) {
+      .foldLeft(Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]]) {
         case (acc, (taz, numZones)) =>
-          val parkingZones = (0 until numZones)
-            .map(
-              i =>
-                ParkingZone(
-                  acc.size + i,
-                  taz.tazId,
-                  ParkingType.Workplace,
-                  5,
-                  IndexedSeq.empty,
-                  pricingModel = Some(FlatFee(3.0))
-              )
-            )
+          val parkingZones = (0 until numZones).map { i =>
+            val zone = ParkingZone
+              .init[TAZ](None, taz.tazId, ParkingType.Workplace, 5, IndexedSeq.empty, pricingModel = Some(FlatFee(3.0)))
+            zone.parkingZoneId -> zone
+          }.toMap
           acc ++ parkingZones
       }
-    result.toArray
+    result
   }
 }

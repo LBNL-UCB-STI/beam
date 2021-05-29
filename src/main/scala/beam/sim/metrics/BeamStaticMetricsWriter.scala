@@ -92,13 +92,13 @@ object BeamStaticMetricsWriter {
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
-        chargingDepots.foreach(
-          parkingZone =>
+        chargingDepots.foreach {
+          case (_, parkingZone) =>
             if (parkingZone.chargingPointType.nonEmpty) {
               cntChargingDepots += 1
               cntChargingDepotsStalls += parkingZone.stallsAvailable
-          }
-        )
+            }
+        }
 
         var cntPublicFastCharge = 0
         var cntPublicFastChargeStalls = 0
@@ -107,15 +107,15 @@ object BeamStaticMetricsWriter {
           val (publicChargers, _) =
             ParkingZoneFileUtils.fromFile[TAZ](publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
 
-          publicChargers.foreach(
-            publicCharger =>
+          publicChargers.foreach {
+            case (_, publicCharger) =>
               if (publicCharger.chargingPointType.nonEmpty) {
                 if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
                   cntPublicFastCharge += 1
                   cntPublicFastChargeStalls += publicCharger.stallsAvailable
                 }
-            }
-          )
+              }
+          }
         }
 
         writeMetric("beam-run-charging-depots-cnt", cntChargingDepots)

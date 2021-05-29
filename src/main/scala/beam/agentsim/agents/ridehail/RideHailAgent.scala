@@ -21,6 +21,7 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.RefuelSessionEvent.{OffShift, OnShift}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
 import beam.agentsim.events.{ShiftEvent, _}
+import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -112,12 +113,12 @@ object RideHailAgent {
   case class NotifyVehicleResourceIdleReply(
     triggerId: Option[Long],
     newTriggers: Seq[ScheduleTrigger],
-    vehicleInQueueParkingZoneId: Option[Int] = None
+    vehicleInQueueParkingZoneId: Option[Id[ParkingZoneId]] = None
   )
   case class NotifyVehicleDoneRefuelingAndOutOfServiceReply(
     triggerId: Long,
     newTriggers: Seq[ScheduleTrigger],
-    vehicleInQueueParkingZoneId: Option[Int] = None
+    vehicleInQueueParkingZoneId: Option[Id[ParkingZoneId]] = None
   )
 
   case class ModifyPassengerSchedule(
@@ -207,7 +208,7 @@ class RideHailAgent(
   var isOnWayToParkAtStall: Option[ParkingStall] = None
   var isStartingNewShift: Boolean = false
   var isCurrentlyOnShift: Boolean = false
-  var isInQueueParkingZoneId: Option[Int] = None
+  var isInQueueParkingZoneId: Option[Id[ParkingZoneId]] = None
   val beamLegsToIgnoreDueToNewPassengerSchedule = mutable.HashSet[BeamLeg]()
   var needsToEndShift: Boolean = false
   var waitingForDoneRefuelingAndOutOfServiceReply: Boolean = false
@@ -949,7 +950,7 @@ class RideHailAgent(
       RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
     val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
-    val inquiry = ParkingInquiry(SpaceTime(destinationUtm, time), "fast-charge", beamVehicle = Some(vehicle))
+    val inquiry = ParkingInquiry(SpaceTime(destinationUtm, time), "charge", beamVehicle = Some(vehicle))
     parkingManager ! inquiry
   }
 

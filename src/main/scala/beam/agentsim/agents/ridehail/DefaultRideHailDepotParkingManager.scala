@@ -79,7 +79,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
 
   // load parking from a parking file, or generate it using the geo beam input
   val (
-    rideHailParkingZones: Array[ParkingZone[GEO]],
+    rideHailParkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     rideHailParkingSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO]
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
@@ -101,7 +101,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   }
 
   private val chargingPlugTypesSortedByPower = rideHailParkingZones
-    .flatMap(_.chargingPointType)
+    .flatMap(_._2.chargingPointType)
+    .toArray
     .distinct
     .sortBy(-ChargingPointType.getChargingPointInstalledPowerInKw(_))
 
@@ -139,8 +140,6 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
 
   def fastestChargingPlugType: ChargingPointType = chargingPlugTypesSortedByPower.head
 
-  type ParkingZoneId = Int
-
   /*
    *  Maps from VehicleId -> XX
    */
@@ -148,8 +147,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[VehicleId, ParkingStall]
   private val vehiclesOnWayToDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
-  private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, ParkingZoneId] =
-    mutable.Map.empty[VehicleId, ParkingZoneId]
+  private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, Id[ParkingZoneId]] =
+    mutable.Map.empty[VehicleId, Id[ParkingZoneId]]
   private val vehicleIdToLastObservedTickAndAction: mutable.Map[VehicleId, mutable.ListBuffer[(Int, String)]] =
     mutable.Map.empty[VehicleId, mutable.ListBuffer[(Int, String)]]
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
@@ -157,18 +156,19 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
    * accessible via a Map on the ParkingZoneId
    */
-  private val parkingZoneIdToParkingZoneDepotData: mutable.Map[ParkingZoneId, ParkingZoneDepotData] =
-    mutable.Map.empty[ParkingZoneId, ParkingZoneDepotData]
-  rideHailParkingZones.foreach(
-    parkingZone => parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
-  )
+  private val parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData] =
+    mutable.Map.empty[Id[ParkingZoneId], ParkingZoneDepotData]
+  rideHailParkingZones.foreach {
+    case (parkingZoneId, parkingZone) =>
+      parkingZoneIdToParkingZoneDepotData.put(parkingZoneId, ParkingZoneDepotData.empty)
+  }
 
   /*
    * Track "Depots" as a mapping from TAZ Id to ParkingZones to facilitate processing all ParkingZones in a depot
    */
-  val tazIdToParkingZones: mutable.Map[Id[GEO], Array[ParkingZone[GEO]]] =
-    mutable.Map.empty[Id[GEO], Array[ParkingZone[GEO]]]
-  rideHailParkingZones.groupBy(_.geoId).foreach(tup => tazIdToParkingZones += tup)
+  val tazIdToParkingZones: mutable.Map[Id[GEO], Map[Id[ParkingZoneId], ParkingZone[GEO]]] =
+    mutable.Map.empty[Id[GEO], Map[Id[ParkingZoneId], ParkingZone[GEO]]]
+  rideHailParkingZones.groupBy(_._2.geoId).foreach(tup => tazIdToParkingZones += tup)
 
   // FIXME Unused value
   private val stallAssignmentStrategy: Try[StallAssignmentStrategy] =
@@ -356,7 +356,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @param parkingZoneId ID of the parking zone
     * @return Parking zone location in UTM.
     */
-  def getParkingZoneLocationUtm(parkingZoneId: Int): Coord = {
+  def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
     val geoId = rideHailParkingZones(parkingZoneId).geoId
     val geo = idToGeoMapping(geoId)
     import GeoLevel.ops._
@@ -384,7 +384,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     tick: Int,
     vehicleQueuePriority: Double,
     source: RefuelSource
-  ): (Vector[ScheduleTrigger], Option[Int]) = {
+  ): (Vector[ScheduleTrigger], Option[Id[ParkingZoneId]]) = {
 
     findAndClaimStallAtDepot(originalParkingStallFoundDuringAssignment) match {
       case Some(claimedParkingStall: ParkingStall) => {
@@ -413,7 +413,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @return optional tuple with [[BeamVehicle]] and [[ParkingStall]]
     */
   def dequeueNextVehicleForRefuelingFrom(
-    parkingZoneId: Int,
+    parkingZoneId: Id[ParkingZoneId],
     tick: Int
   ): Option[ChargingQueueEntry] = {
     val chargingQueue = parkingZoneIdToParkingZoneDepotData(parkingZoneId).chargingQueue
@@ -438,7 +438,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   def findAndClaimStallAtDepot(
     parkingStall: ParkingStall
   ): Option[ParkingStall] = {
-    if (parkingStall.parkingZoneId < 0 || rideHailParkingZones.length <= parkingStall.parkingZoneId) None
+    if (!rideHailParkingZones.contains(parkingStall.parkingZoneId)) None
     else {
       val parkingZone: ParkingZone[GEO] = rideHailParkingZones(parkingStall.parkingZoneId)
       if (parkingZone.stallsAvailable == 0) {
@@ -541,7 +541,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @return Boolean if zone is defined and remove was success
     */
   private def releaseStall(parkingStall: ParkingStall): Boolean = {
-    if (parkingStall.parkingZoneId < 0 || rideHailParkingZones.length <= parkingStall.parkingZoneId) {
+    if (!rideHailParkingZones.contains(parkingStall.parkingZoneId)) {
       false
     } else {
       val parkingZone: ParkingZone[GEO] = rideHailParkingZones(parkingStall.parkingZoneId)
@@ -628,7 +628,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @param parkingZoneId
     * @return a [[Vector]] of [[VechicleId]]s
     */
-  def getVehiclesOnWayToRefuelingDepot(parkingZoneId: Int): Vector[VehicleId] =
+  def getVehiclesOnWayToRefuelingDepot(parkingZoneId: Id[ParkingZoneId]): Vector[VehicleId] =
     parkingZoneIdToParkingZoneDepotData(parkingZoneId).vehiclesOnWayToDepot.toVector
 
   /**

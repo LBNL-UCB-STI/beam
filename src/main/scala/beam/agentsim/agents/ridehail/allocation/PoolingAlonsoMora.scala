@@ -9,8 +9,6 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
