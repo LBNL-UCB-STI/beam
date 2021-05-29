@@ -75,7 +75,8 @@ class SfLightRoutePopulationSpec
                       asDriver = true,
                       needsToCalculateCost = false
                     )
-                  )
+                  ),
+                  triggerId = 0
                 )
               )
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))

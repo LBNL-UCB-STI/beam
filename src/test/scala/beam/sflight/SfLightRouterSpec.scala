@@ -36,7 +36,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
@@ -62,7 +63,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -104,7 +106,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = Egress
+        streetVehiclesUseIntermodalUse = Egress,
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -141,7 +144,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = AccessAndEgress
+        streetVehiclesUseIntermodalUse = AccessAndEgress,
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       val rideHailTransitOption = response.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT).get
@@ -170,7 +174,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
@@ -199,7 +204,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -225,7 +231,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -258,7 +265,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
@@ -290,7 +298,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -334,7 +343,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -369,7 +379,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = true
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -396,7 +407,8 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       expectMsgType[Failure]
     }

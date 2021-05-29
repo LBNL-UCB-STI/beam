@@ -375,7 +375,7 @@ class PersonAndTransitDriverSpec
 
       scheduler ! StartSchedule(0)
 
-      expectMsgType[RoutingRequest]
+      val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -427,7 +427,8 @@ class PersonAndTransitDriverSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest.triggerId
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]

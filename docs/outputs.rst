@@ -23,6 +23,8 @@ Classname: ModeChosenAnalysisObject
 +-------------------+--------------------------------------------+
 | walk_transit      | Walk to transit chosen as travel mode      |
 +-------------------+--------------------------------------------+
+| bike_transit      | bike to transit chosen as travel mode      |
++-------------------+--------------------------------------------+
 
 
 File: /referenceModeChoice.csv
@@ -48,6 +50,8 @@ Classname: ModeChosenAnalysisObject
 | walk              | Walk chosen as travel mode                 |
 +-------------------+--------------------------------------------+
 | walk_transit      | Walk to transit chosen as travel mode      |
++-------------------+--------------------------------------------+
+| bike_transit      | bike to transit chosen as travel mode      |
 +-------------------+--------------------------------------------+
 
 File: /realizedMode.csv
@@ -613,8 +617,8 @@ Classname: BiasNormalizedErrorGraphDataOutput
 | mean bias                      | Mean bias value                |
 +--------------------------------+--------------------------------+
 
-File: /ITERS/it.0/0.rideHailFleet.csv.gz
-----------------------------------------
+File: /ITERS/it.0/0.rideHailFleetFromInitializer.csv.gz
+-------------------------------------------------------
 
 Classname: RideHailFleetInitialize 
 
