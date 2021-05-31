@@ -438,12 +438,12 @@ class ZonalParkingManagerSpec
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor,timeRestrictions,vehicleManager
-          |4,Public,FlatFee,NoCharger,10,0,,LightDutyTruck:17:30-24,freight
-          |4,Public,Block,NoCharger,20,0,,LightDutyTruck:17:30-24,freight
-          |4,Public,FlatFee,NoCharger,30,0,,LightDutyTruck:0-17,freight
-          |4,Public,FlatFee,NoCharger,40,0,,LightDutyTruck:17:30-24:00,freight
-          |4,Public,Block,NoCharger,50,0,,LightDutyTruck:17:30-24,freight
-          |4,Public,FlatFee,NoCharger,60,0,,LightDutyTruck:17:30-24,freight""".stripMargin
+          |4,Public,FlatFee,NoCharger,10,0,,LightDutyTruck|17:30-24,freight
+          |4,Public,Block,NoCharger,20,0,,LightDutyTruck|17:30-24,freight
+          |4,Public,FlatFee,NoCharger,30,0,,LightDutyTruck|0-17,freight
+          |4,Public,FlatFee,NoCharger,40,0,,LightDutyTruck|17:30-24:00,freight
+          |4,Public,Block,NoCharger,50,0,,LightDutyTruck|17:30-24,freight
+          |4,Public,FlatFee,NoCharger,60,0,,LightDutyTruck|17:30-24,freight""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
