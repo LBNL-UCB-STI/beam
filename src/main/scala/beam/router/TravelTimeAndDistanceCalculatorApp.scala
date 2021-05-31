@@ -28,91 +28,15 @@ case class InputParameters(
 case class CsvInputRow(id: Int, originUTM: Location, destinationUTM: Location)
 case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, travelTime: Int, distance: Double)
 
-class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParameters) extends BeamHelper {
-
-  def processRow(row: CsvInputRow): CsvOutputRow = {
-    val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
-      StreetVehicle(
-        Id.createVehicleId("1"),
-        Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
-        new SpaceTime(row.originUTM, time = parameters.departureTime),
-        CAR,
-        asDriver = true,
-        needsToCalculateCost = true
-      )
-    )
-
-    val request =
-      RoutingRequest(
-        row.originUTM,
-        row.destinationUTM,
-        parameters.departureTime,
-        withTransit = false,
-        None,
-        streetVehicles
-      )
-    val response = router.calcRoute(request)
-
-    if (response.itineraries.isEmpty) {
-      logger.error("No itineraries found")
-      throw new RuntimeException("No itineraries found")
-    }
-
-    CsvOutputRow(
-      row.id,
-      row.originUTM,
-      row.destinationUTM,
-      response.itineraries.head.totalTravelTimeInSecs,
-      response.itineraries.head.legs.lastOption.map(_.beamLeg.travelPath.distanceInM).getOrElse(0)
-    )
-  }
-
-  def toCsvRow(rec: java.util.Map[String, String]): CsvInputRow =
-    CsvInputRow(
-      rec.get("id").toInt,
-      new Location(rec.get("origin_x").toDouble, rec.get("origin_y").toDouble),
-      new Location(rec.get("destination_x").toDouble, rec.get("destination_y").toDouble)
-    )
-
-  def readCsv(csvPath: String): Vector[CsvInputRow] = {
-    val (iter: Iterator[CsvInputRow], toClose: Closeable) =
-      GenericCsvReader.readAs[CsvInputRow](csvPath, toCsvRow, _ => true)
-    try {
-      iter.toVector
-    } finally {
-      toClose.close()
-    }
-  }
-
-  def processCsv(): Vector[CsvOutputRow] = readCsv(parameters.csvPath).map(processRow)
-
-  def writeCsv(results: Vector[CsvOutputRow]): Unit = {
-    val writer = CsvWriter(
-      parameters.csvOutPath,
-      Seq("id", "origin_x", "origin_y", "destination_x", "destination_y", "traveltime", "distance"): _*
-    )
-    try {
-      results.foreach(
-        row =>
-          writer.writeRow(
-            Seq(
-              row.id,
-              row.originUTM.getX,
-              row.originUTM.getY,
-              row.destinationUTM.getX,
-              row.destinationUTM.getY,
-              row.travelTime,
-              row.distance
-            )
-        )
-      )
-    } finally {
-      writer.close()
-    }
-  }
-
-}
-
+/*
+Example of parameters usage:
+ --departure-time 0
+ --config-path test/input/beamville/beam.conf
+ --linkstats test/input/beamville/linkstats.csv.gz
+ --router R5|GH
+ --csv-path test/input/beamville/input.csv
+ --out test/input/beamville/output.csv
+ */
 object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
   def graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
 
@@ -214,4 +138,89 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
   val app = new TravelTimeAndDistanceCalculatorApp(router, parameters)
   val results = app.processCsv()
   app.writeCsv(results)
+}
+
+class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParameters) extends BeamHelper {
+
+  def processRow(row: CsvInputRow): CsvOutputRow = {
+    val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
+      StreetVehicle(
+        Id.createVehicleId("1"),
+        Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        new SpaceTime(row.originUTM, time = parameters.departureTime),
+        CAR,
+        asDriver = true,
+        needsToCalculateCost = true
+      )
+    )
+
+    val request =
+      RoutingRequest(
+        row.originUTM,
+        row.destinationUTM,
+        parameters.departureTime,
+        withTransit = false,
+        None,
+        streetVehicles
+      )
+    val response = router.calcRoute(request)
+
+    if (response.itineraries.isEmpty) {
+      logger.error("No itineraries found")
+      throw new RuntimeException("No itineraries found")
+    }
+
+    CsvOutputRow(
+      row.id,
+      row.originUTM,
+      row.destinationUTM,
+      response.itineraries.head.totalTravelTimeInSecs,
+      response.itineraries.head.legs.lastOption.map(_.beamLeg.travelPath.distanceInM).getOrElse(0)
+    )
+  }
+
+  def toCsvRow(rec: java.util.Map[String, String]): CsvInputRow =
+    CsvInputRow(
+      rec.get("id").toInt,
+      new Location(rec.get("origin_x").toDouble, rec.get("origin_y").toDouble),
+      new Location(rec.get("destination_x").toDouble, rec.get("destination_y").toDouble)
+    )
+
+  def readCsv(csvPath: String): Vector[CsvInputRow] = {
+    val (iter: Iterator[CsvInputRow], toClose: Closeable) =
+      GenericCsvReader.readAs[CsvInputRow](csvPath, toCsvRow, _ => true)
+    try {
+      iter.toVector
+    } finally {
+      toClose.close()
+    }
+  }
+
+  def processCsv(): Vector[CsvOutputRow] = readCsv(parameters.csvPath).map(processRow)
+
+  def writeCsv(results: Vector[CsvOutputRow]): Unit = {
+    val writer = CsvWriter(
+      parameters.csvOutPath,
+      Seq("id", "origin_x", "origin_y", "destination_x", "destination_y", "traveltime", "distance"): _*
+    )
+    try {
+      results.foreach(
+        row =>
+          writer.writeRow(
+            Seq(
+              row.id,
+              row.originUTM.getX,
+              row.originUTM.getY,
+              row.destinationUTM.getX,
+              row.destinationUTM.getY,
+              row.travelTime,
+              row.distance
+            )
+        )
+      )
+    } finally {
+      writer.close()
+    }
+  }
+
 }
