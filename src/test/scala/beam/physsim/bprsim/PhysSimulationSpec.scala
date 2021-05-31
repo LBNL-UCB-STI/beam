@@ -25,6 +25,9 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -33,7 +36,7 @@ import scala.collection.mutable.ArrayBuffer
   *
   * @author Dmitry Openkov
   */
-class PhysSimulationSpec extends WordSpecLike with Matchers {
+class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
 
   val config: Config = testConfig("test/input/beamville/beam.conf").resolve()
 

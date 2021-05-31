@@ -3,6 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.events.resources.ReservationErrorCode._
 import beam.agentsim.events.resources._
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.model.BeamLeg
 import beam.utils.ReservationRequestIdGenerator
 
@@ -10,7 +11,8 @@ case class ReservationRequest(
   requestId: Int,
   departFrom: BeamLeg,
   arriveAt: BeamLeg,
-  passengerVehiclePersonId: PersonIdWithActorRef
+  passengerVehiclePersonId: PersonIdWithActorRef,
+  triggerId: Long,
 )
 
 object ReservationRequest {
@@ -18,19 +20,23 @@ object ReservationRequest {
   def apply(
     departFrom: BeamLeg,
     arriveAt: BeamLeg,
-    passengerVehiclePersonId: PersonIdWithActorRef
+    passengerVehiclePersonId: PersonIdWithActorRef,
+    triggerId: Long
   ): ReservationRequest =
     ReservationRequest(
       ReservationRequestIdGenerator.nextId,
       departFrom,
       arriveAt,
-      passengerVehiclePersonId
+      passengerVehiclePersonId,
+      triggerId,
     )
 }
 
-case class TransitReservationRequest(fromIdx: Int, toIdx: Int, passenger: PersonIdWithActorRef)
+case class TransitReservationRequest(fromIdx: Int, toIdx: Int, passenger: PersonIdWithActorRef, triggerId: Long)
+    extends HasTriggerId
 
-case class ReservationResponse(response: Either[ReservationError, ReserveConfirmInfo])
+case class ReservationResponse(response: Either[ReservationError, ReserveConfirmInfo], triggerId: Long)
+    extends HasTriggerId
 
 case class ReserveConfirmInfo(triggersToSchedule: Vector[ScheduleTrigger] = Vector())
 

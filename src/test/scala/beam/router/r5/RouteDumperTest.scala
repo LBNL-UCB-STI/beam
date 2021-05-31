@@ -11,10 +11,12 @@ import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.apache.avro.generic.GenericData
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
 import scala.collection.JavaConverters._
 
-class RouteDumperTest extends FunSuite with Matchers {
+class RouteDumperTest extends AnyFunSuite with Matchers {
   test("Should be able to convert RoutingRequest to Record") {
     val origin = new Location(166027.034662, 2208.12088093)
     val time = 3000
@@ -43,7 +45,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       withTransit = false,
       streetVehicles = Vector(streetVehicle),
       attributesOfIndividual = Some(attributesOfIndividual),
-      requestId = 123
+      requestId = 123,
+      triggerId = 0
     )
     val record = RouteDumper.toRecord(request)
     record.get("requestId") shouldBe 123
@@ -112,7 +115,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       leg = beamLeg,
       vehicleId = Id.createVehicleId("car"),
       vehicleTypeId = Id.create("beamVilleCar", classOf[BeamVehicleType]),
-      requestId = 123
+      requestId = 123,
+      triggerId = 0
     )
 
     val record = RouteDumper.toRecord(embodyWithCurrentTravelTime)
@@ -172,7 +176,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       ),
       requestId = 123,
       request = None,
-      isEmbodyWithCurrentTravelTime = false
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = 0
     )
 
     val records = RouteDumper.toRecords(routingResposne)

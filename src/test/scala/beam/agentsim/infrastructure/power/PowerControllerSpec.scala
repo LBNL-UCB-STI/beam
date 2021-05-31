@@ -15,10 +15,11 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.Mockito._
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach {
+class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterEach {
 
   private val config =
     ConfigFactory
@@ -48,7 +49,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       .resolve()
 
   val beamConfig: BeamConfig = BeamConfig(config)
-  val beamFederateMock: BeamFederate = mock[BeamFederate]
+  val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
   val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
 
   val dummyChargingZone: ChargingZone = ChargingZone(

@@ -7,11 +7,12 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.util.Random
 
-class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
+class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
   "ParkingZoneFileUtils" when {
     ".fromIterator" when {
       "positive tests" when {

@@ -5,9 +5,10 @@ import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.model.RoutingModel.TransitStopsInfo
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class BeamLegOrderingTest extends WordSpec with Matchers {
+class BeamLegOrderingTest extends AnyWordSpec with Matchers {
   val transitStopsInfo: TransitStopsInfo = TransitStopsInfo("someAgency", "someRoute", Id.createVehicleId(1), 0, 2)
 
   val beamPath: BeamPath = BeamPath(

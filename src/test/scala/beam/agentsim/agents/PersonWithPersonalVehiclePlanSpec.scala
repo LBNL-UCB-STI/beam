@@ -31,19 +31,19 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
-import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, FunSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.matchers.should.Matchers._
+
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
+import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
     with BeforeAndAfterAll
     with BeforeAndAfter
-    with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
 
@@ -165,7 +165,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        embodyRequest.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -228,7 +229,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = parkingRoutingRequest.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        parkingRoutingRequest.triggerId
       )
 
       val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
@@ -269,7 +271,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = parkingRoutingRequest.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        walkFromParkingRoutingRequest.triggerId
       )
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -393,7 +396,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        embodyRequest.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -506,7 +510,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       for (i <- 0 to 1) {
         expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
@@ -525,7 +529,8 @@ class PersonWithPersonalVehiclePlanSpec
               itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
               requestId = 1,
               request = None,
-              isEmbodyWithCurrentTravelTime = false
+              isEmbodyWithCurrentTravelTime = false,
+              triggerId
             )
         }
       }
@@ -651,7 +656,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = routingRequest.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]

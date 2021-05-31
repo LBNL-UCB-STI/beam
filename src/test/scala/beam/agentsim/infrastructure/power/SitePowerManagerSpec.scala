@@ -18,8 +18,10 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.mock
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
@@ -37,9 +39,8 @@ class SitePowerManagerSpec
                        |akka.test.single-expect-default = 10 s""".stripMargin)
       )
     )
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
-    with MockitoSugar
     with BeamHelper
     with ImplicitSender
     with BeforeAndAfterEach {
@@ -87,7 +88,7 @@ class SitePowerManagerSpec
   private val beamServices = new BeamServicesImpl(injector)
   private val tazMap = beamServices.beamScenario.tazTreeMap
 
-  val beamFederateMock: BeamFederate = mock[BeamFederate]
+  val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
 
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
 

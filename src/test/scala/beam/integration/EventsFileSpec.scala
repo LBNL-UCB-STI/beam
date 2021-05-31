@@ -1,7 +1,6 @@
 package beam.integration
 
 import java.nio.charset.StandardCharsets
-
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -19,13 +18,20 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.util.Try
 
-class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
+class EventsFileSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))

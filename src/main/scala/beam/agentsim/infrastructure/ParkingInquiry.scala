@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 
 /**
@@ -25,8 +26,9 @@ case class ParkingInquiry(
   valueOfTime: Double = 0.0,
   parkingDuration: Double = 0,
   reserveStall: Boolean = true,
-  requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-) {
+  requestId: Int = ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  triggerId: Long,
+) extends HasTriggerId {
   val activityTypeLowerCased: String = activityType.toLowerCase
 }
 

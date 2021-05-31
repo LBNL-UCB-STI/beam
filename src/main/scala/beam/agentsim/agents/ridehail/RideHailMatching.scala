@@ -6,6 +6,7 @@ import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.RideHailMatching.RideHailTrip
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PersonIdWithActorRef, VehicleManager}
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
@@ -53,8 +54,13 @@ object RideHailMatching {
   // ***************************
 
   // customer requests
-  case class CustomerRequest(person: PersonIdWithActorRef, pickup: MobilityRequest, dropoff: MobilityRequest)
-      extends RVGraphNode {
+  case class CustomerRequest(
+    person: PersonIdWithActorRef,
+    pickup: MobilityRequest,
+    dropoff: MobilityRequest,
+    triggerId: Long
+  ) extends RVGraphNode
+      with HasTriggerId {
     override def getId: String = person.personId.toString
     override def toString: String = s"Person:${person.personId}|Pickup:$pickup|Dropoff:$dropoff"
   }
@@ -255,7 +261,8 @@ object RideHailMatching {
     src: Location,
     departureTime: Int,
     dst: Location,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long
   ): CustomerRequest = {
     val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
     val travelTimeDelayAsFraction =
@@ -304,7 +311,8 @@ object RideHailMatching {
         departureTime + skim.time,
         Math.round(departureTime + skim.time + waitingTimeInSec + travelTimeDelayAsFraction * skim.time).toInt,
         skim.distance.toInt
-      )
+      ),
+      triggerId: Long
     )
   }
 
@@ -336,7 +344,8 @@ object RideHailMatching {
           rhr.pickUpLocationUTM,
           tick,
           rhr.destinationUTM,
-          rideHailManager.beamServices
+          rideHailManager.beamServices,
+          rhr.triggerId
         )
       },
       rideHailManager.activityQuadTreeBounds

@@ -18,13 +18,15 @@ import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureE
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest

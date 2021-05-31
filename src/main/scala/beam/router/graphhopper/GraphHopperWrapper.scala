@@ -85,7 +85,13 @@ abstract class GraphHopperWrapper(
         .filter(_.isDefined)
         .map(_.get)
     }
-    RoutingResponse(alternatives, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
+    RoutingResponse(
+      alternatives,
+      routingRequest.requestId,
+      Some(routingRequest),
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = routingRequest.triggerId
+    )
   }
 
   private def processResponsePath(responsePath: ResponsePath) = {

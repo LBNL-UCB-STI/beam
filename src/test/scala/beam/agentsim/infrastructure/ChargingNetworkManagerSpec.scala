@@ -18,8 +18,9 @@ import beam.utils.{DateUtils, StuckFinder, TestConfigUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
@@ -36,11 +37,10 @@ class ChargingNetworkManagerSpec
            |akka.test.single-expect-default = 10 s""".stripMargin)
       )
     )
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
     with BeamHelper
     with ImplicitSender
-    with MockitoSugar
     with BeforeAndAfterEach {
 
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
@@ -172,7 +172,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
       expectMsgType[StartingRefuelSession]
       expectMsgType[ScheduleTrigger] should be(
         ScheduleTrigger(ChargingTimeOutTrigger(10, beamVilleCar), chargingNetworkManager)
@@ -199,7 +199,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08E8)
@@ -229,7 +229,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
@@ -259,12 +259,12 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35E8)
 
-      chargingNetworkManager ! ChargingUnplugRequest(35, beamVilleCar)
+      chargingNetworkManager ! ChargingUnplugRequest(35, beamVilleCar, 0)
       expectMsgType[EndingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125E8)
@@ -291,7 +291,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4E7)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4E7)
@@ -303,7 +303,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.265E8)
 
-      chargingNetworkManager ! ChargingUnplugRequest(315, beamVilleCar)
+      chargingNetworkManager ! ChargingUnplugRequest(315, beamVilleCar, 0)
       expectMsgType[EndingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.3025E8)
@@ -323,7 +323,7 @@ class ChargingNetworkManagerSpec
       )
 
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
-      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar)
+      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4E7)
@@ -347,7 +347,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
 
-      chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar)
+      chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar, 0)
       expectMsgType[UnhandledVehicle]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16E8)
@@ -365,13 +365,13 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08E8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3)
-      expectMsgType[WaitingInLine] should be(WaitingInLine(10, beamVilleCar3.id))
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, 112)
+      expectMsgType[WaitingInLine] should be(WaitingInLine(10, beamVilleCar3.id, 112))
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
 
@@ -384,8 +384,8 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.805E8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08E8)
 
-      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2), 0)
-      expectMsgType[StartingRefuelSession] should be(StartingRefuelSession(442, beamVilleCar3.id))
+      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2), 12)
+      expectMsgType[StartingRefuelSession] should be(StartingRefuelSession(442, beamVilleCar3.id, 12))
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16E8)

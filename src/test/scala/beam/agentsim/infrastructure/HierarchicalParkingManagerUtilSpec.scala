@@ -9,7 +9,8 @@ import beam.agentsim.infrastructure.parking.{LinkLevelOperations, ParkingZone, P
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.collection.immutable.HashMap
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
@@ -17,7 +18,7 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 /**
   * @author Dmitry Openkov
   */
-class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
+class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
   "HierarchicalParkingManager" when {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {

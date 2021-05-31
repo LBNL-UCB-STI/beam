@@ -158,7 +158,7 @@ class BeamSim @Inject()(
 
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO
-  );
+  )
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -576,6 +576,7 @@ class BeamSim @Inject()(
       })
 
     beamServices.simMetricCollector.close()
+
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {

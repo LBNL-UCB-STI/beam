@@ -5,6 +5,7 @@ import akka.event.Logging
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import beam.utils.logging.LoggingMessageActor
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 
@@ -12,6 +13,7 @@ import scala.concurrent.duration._
 
 class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: ParkingAndChargingInfrastructure)
     extends beam.utils.CriticalActor
+    with LoggingMessageActor
     with ActorLogging {
   import beamServices._
   private val beamConfig: BeamConfig = beamScenario.beamConfig
@@ -25,7 +27,7 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: Park
 
   private val privateCarsParkingNetwork = parkingNetworkInfo.parkingNetworks
 
-  override def receive: Receive = {
+  override def loggedReceive: Receive = {
     case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.name == "PARALLEL" =>
       privateCarsParkingNetwork.processParkingInquiry(inquiry, Some(counter)).map(sender() ! _)
     case inquiry: ParkingInquiry      => privateCarsParkingNetwork.processParkingInquiry(inquiry, None).map(sender() ! _)
