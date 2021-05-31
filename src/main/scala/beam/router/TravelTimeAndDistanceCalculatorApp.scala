@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest}
@@ -93,6 +93,14 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
   val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
   val travelTime = new LinkTravelTimeContainer(parameters.linkstatsPath.toString, timeBinSizeInSeconds, maxHour)
 
+  // Get the first CAR vehicle type or if not available the first vehicle type
+  val vehicleTypeId =
+    workerParams.vehicleTypes.find(_._2.vehicleCategory == VehicleCategory.Car).map(_._1).getOrElse {
+      workerParams.vehicleTypes.headOption.map(_._1).getOrElse {
+        throw new RuntimeException("Vehicle type not set")
+      }
+    }
+
   val router =
     if (parameters.router == "R5") {
       logger.info("Using R5 router")
@@ -142,7 +150,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
     val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
       StreetVehicle(
         Id.createVehicleId("1"),
-        Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        vehicleTypeId,
         new SpaceTime(row.originUTM, time = parameters.departureTime),
         CAR,
         asDriver = true,
