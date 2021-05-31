@@ -151,7 +151,7 @@ object ChargingNetwork {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       theSender: ActorRef
-    ): ChargingVehicle = this.synchronized {
+    ): ChargingVehicle = {
       if (numAvailableChargers > 0) {
         val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender, ListBuffer(Connected))
         connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
@@ -168,7 +168,7 @@ object ChargingNetwork {
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
-    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = this.synchronized {
+    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = {
       connectedVehiclesInternal.remove(vehicleId).map { v =>
         v.updateStatus(Disconnected)
         v
@@ -179,7 +179,7 @@ object ChargingNetwork {
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
-    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
+    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
         val v = waitingLineInternal.dequeue().copy(sessionStartTime = tick)
         v.updateStatus(Connected)
