@@ -391,8 +391,7 @@ object ChargingNetworkManager {
   object DebugReport
   case class ChargingZonesInquiry()
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
-  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle)
-      extends Trigger
+  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
   case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
   case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
   case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId

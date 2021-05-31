@@ -8,14 +8,15 @@ import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.util.Random
 
 /**
   * @author Dmitry Openkov
   */
-class FreightReplannerSpec extends WordSpec with Matchers {
+class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
 
   "FreightReplanner" should {
     "solve with singleVehicle strategy" in {
