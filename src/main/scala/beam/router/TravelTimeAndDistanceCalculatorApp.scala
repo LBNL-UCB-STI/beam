@@ -92,7 +92,10 @@ class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParame
   def processCsv(): Vector[CsvOutputRow] = readCsv(parameters.csvPath).map(processRow)
 
   def writeCsv(results: Vector[CsvOutputRow]): Unit = {
-    val writer = CsvWriter(parameters.csvOutPath)
+    val writer = CsvWriter(
+      parameters.csvOutPath,
+      Seq("id", "origin_x", "origin_y", "destination_x", "destination_y", "traveltime", "distance"): _*
+    )
     try {
       results.foreach(
         row =>
