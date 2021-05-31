@@ -13,17 +13,18 @@ import beam.utils.DateUtils
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import com.conveyal.osmlib.OSM
 import org.matsim.api.core.v01.Id
+import scopt.OParser
 
-import java.io.Closeable
-import java.nio.file.Paths
+import java.io.{Closeable, File}
+import java.nio.file.{Path, Paths}
 
 case class InputParameters(
-  departureTime: Int,
-  configPath: String,
-  linkstatsFilename: String,
-  router: String,
-  csvPath: String,
-  csvOutPath: String
+  departureTime: Int = 0,
+  configPath: Path = null,
+  linkstatsPath: Path = null,
+  router: String = "",
+  input: Path = null,
+  output: Path = null
 )
 case class CsvInputRow(id: Int, originUTM: Location, destinationUTM: Location)
 case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, travelTime: Int, distance: Double)
@@ -34,10 +35,73 @@ Example of parameters usage:
  --config-path test/input/beamville/beam.conf
  --linkstats test/input/beamville/linkstats.csv.gz
  --router R5|GH
- --csv-path test/input/beamville/input.csv
- --out test/input/beamville/output.csv
+ --input test/input/beamville/input.csv
+ --output test/input/beamville/output.csv
  */
 object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
+
+  private val parser = {
+    val builder = OParser.builder[InputParameters]
+    import builder._
+
+    def fileValidator(file: File): Either[String, Unit] =
+      if (file.isFile) success
+      else failure(s"$file does not exist")
+
+    OParser.sequence(
+      programName("travel-time-and-distance-calculator"),
+      opt[Int]("departureTime").required().text("0"),
+      opt[File]("configPath")
+        .required()
+        .validate(fileValidator)
+        .action((x, c) => c.copy(configPath = x.toPath))
+        .text("Beam config path"),
+      opt[File]("linkstatsPath")
+        .required()
+        .validate(fileValidator)
+        .action((x, c) => c.copy(linkstatsPath = x.toPath))
+        .text("linkstats file path in csv.gz format"),
+      opt[String]("router").action((v, c) => c.copy(router = v.toUpperCase)).text("R5/GH"),
+      opt[File]("input")
+        .required()
+        .validate(fileValidator)
+        .action((x, c) => c.copy(input = x.toPath))
+        .text("input csv file path"),
+      opt[File]("output").required().action((x, c) => c.copy(output = x.toPath)).text("output csv file path")
+    )
+  }
+
+  OParser.parse(parser, args, InputParameters()) match {
+    case Some(params) =>
+      logger.info("params = {}", params)
+      val app = new TravelTimeAndDistanceCalculatorApp(params)
+      val results = app.processCsv()
+      app.writeCsv(results)
+    case _ =>
+      println("Could not process parameters")
+  }
+
+}
+
+class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends BeamHelper {
+  val manualArgs = Array[String]("--config", parameters.configPath.toString)
+  val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)
+  val beamConfig = BeamConfig(cfg)
+  val timeBinSizeInSeconds = beamConfig.beam.agentsim.timeBinSize
+  val maxHour = DateUtils.getMaxHour(beamConfig)
+  val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+  val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
+  val travelTime = new LinkTravelTimeContainer(parameters.linkstatsPath.toString, timeBinSizeInSeconds, maxHour)
+
+  val router =
+    if (parameters.router == "R5") {
+      logger.info("Using R5 router")
+      new R5Wrapper(workerParams, travelTime, travelTimeNoiseFraction)
+    } else {
+      logger.info("Using GraphHopper router")
+      createCarGraphHopper()
+    }
+
   def graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
 
   def id2Link: Map[Int, (Location, Location)] =
@@ -73,74 +137,6 @@ object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
       id2Link = id2Link
     )
   }
-
-  def parseArgs(args: Array[String]) = {
-    args
-      .sliding(2, 2)
-      .toList
-      .collect {
-        case Array("--departure-time", filePath: String) => ("departure-time", filePath)
-        case Array("--config-path", filePath: String)    => ("config-path", filePath)
-        case Array("--linkstats", filePath: String)      => ("linkstats", filePath)
-        case Array("--router", filePath: String)         => ("router", filePath)
-        case Array("--csv-path", filePath: String)       => ("csv-path", filePath)
-        case Array("--out", filePath: String)            => ("out", filePath)
-        case arg @ _ =>
-          throw new IllegalArgumentException(arg.mkString(" "))
-      }
-      .toMap
-  }
-
-  val argsMap = parseArgs(args)
-
-  if (argsMap.size != 6) {
-    println("""
-      |Usage: 
-      | --departure-time 0
-      | --config-path test/input/beamville/beam.conf
-      | --linkstats test/input/beamville/linkstats.csv.gz
-      | --router R5|GH
-      | --csv-path test/input/beamville/input.csv
-      | --out test/input/beamville/output.csv
-    """.stripMargin)
-    System.exit(1)
-  }
-
-  logger.info("args = {}", argsMap)
-
-  val parameters: InputParameters = InputParameters(
-    departureTime = argsMap("departure-time").toInt,
-    configPath = argsMap("config-path"),
-    linkstatsFilename = argsMap("linkstats"),
-    router = argsMap("router").toUpperCase,
-    csvPath = argsMap("csv-path"),
-    csvOutPath = argsMap("out")
-  )
-  val manualArgs = Array[String]("--config", parameters.configPath)
-  val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)
-
-  val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
-  val beamConfig = BeamConfig(cfg)
-  val timeBinSizeInSeconds = beamConfig.beam.agentsim.timeBinSize
-  val maxHour = DateUtils.getMaxHour(beamConfig)
-  val travelTime = new LinkTravelTimeContainer(parameters.linkstatsFilename, timeBinSizeInSeconds, maxHour)
-  val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
-
-  val router =
-    if (parameters.router == "R5") {
-      logger.info("Using R5 router")
-      new R5Wrapper(workerParams, travelTime, travelTimeNoiseFraction)
-    } else {
-      logger.info("Using GraphHopper router")
-      createCarGraphHopper()
-    }
-
-  val app = new TravelTimeAndDistanceCalculatorApp(router, parameters)
-  val results = app.processCsv()
-  app.writeCsv(results)
-}
-
-class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParameters) extends BeamHelper {
 
   def processRow(row: CsvInputRow): CsvOutputRow = {
     val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
@@ -196,11 +192,11 @@ class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParame
     }
   }
 
-  def processCsv(): Vector[CsvOutputRow] = readCsv(parameters.csvPath).map(processRow)
+  def processCsv(): Vector[CsvOutputRow] = readCsv(parameters.input.toString).map(processRow)
 
   def writeCsv(results: Vector[CsvOutputRow]): Unit = {
     val writer = CsvWriter(
-      parameters.csvOutPath,
+      parameters.output.toString,
       Seq("id", "origin_x", "origin_y", "destination_x", "destination_y", "traveltime", "distance"): _*
     )
     try {
