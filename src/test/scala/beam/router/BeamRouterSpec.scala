@@ -160,7 +160,8 @@ class BeamRouterSpec extends AnyFlatSpec {
       ),
       requestId = 1,
       None,
-      true
+      true,
+      37373L,
     )
   }
 

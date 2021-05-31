@@ -234,7 +234,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
         new Coord(18000, 19000),
-        services
+        services,
+        0
       )
     val p4Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -242,7 +243,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
         new Coord(20000, 18000),
-        services
+        services,
+        0
       )
     val p2Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -250,7 +252,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
         new Coord(19000, 18000),
-        services
+        services,
+        0
       )
     val p3Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -258,7 +261,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
         new Coord(21000, 21000),
-        services
+        services,
+        0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
@@ -297,7 +301,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
         new Coord(18000, 19000),
-        services
+        services,
+        0
       )
     val p4Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -305,7 +310,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
         new Coord(20000, 18000),
-        services
+        services,
+        0
       )
     val p2Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -313,7 +319,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
         new Coord(19000, 18000),
-        services
+        services,
+        0
       )
     val p3Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -321,7 +328,8 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
         new Coord(21000, 20000),
-        services
+        services,
+        0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
@@ -387,7 +395,8 @@ object MatchingAlgorithmsForRideHailSpec {
         taz1Loc,
         0,
         taz4Loc,
-        services
+        services,
+        0
       )
     val p4Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -395,7 +404,8 @@ object MatchingAlgorithmsForRideHailSpec {
         taz2Loc,
         (5.minutes.toSeconds).toInt,
         taz1Loc,
-        services
+        services,
+        0
       )
     val p2Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -403,7 +413,8 @@ object MatchingAlgorithmsForRideHailSpec {
         taz1Loc,
         (1.minutes.toSeconds).toInt,
         taz4Loc,
-        services
+        services,
+        0
       )
     val p3Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -411,7 +422,8 @@ object MatchingAlgorithmsForRideHailSpec {
         taz2Loc,
         (2.minutes.toSeconds).toInt,
         taz1Loc,
-        services
+        services,
+        0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }

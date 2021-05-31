@@ -21,6 +21,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -32,6 +33,7 @@ import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.StreetMode
@@ -66,7 +68,8 @@ class BeamRouter(
   eventsManager: EventsManager
 ) extends Actor
     with Stash
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessagePublisher {
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
@@ -243,6 +246,7 @@ class BeamRouter(
 
     case work =>
       processByEventsManagerIfNeeded(work)
+      publishMessage(work)
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
@@ -442,8 +446,9 @@ object BeamRouter {
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    requestId: Int = IdGeneratorImpl.nextId
-  )
+    requestId: Int = IdGeneratorImpl.nextId,
+    triggerId: Long
+  ) extends HasTriggerId
 
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
 
@@ -479,7 +484,9 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     requestId: Int = IdGeneratorImpl.nextId,
     possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
-  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
+    triggerId: Long,
+  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line)
+      extends HasTriggerId {
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
 
@@ -503,15 +510,16 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int,
     request: Option[RoutingRequest],
-    isEmbodyWithCurrentTravelTime: Boolean
-  )
+    isEmbodyWithCurrentTravelTime: Boolean,
+    triggerId: Long,
+  ) extends HasTriggerId
 
   case class RoutingFailure(cause: Throwable, requestId: Int)
 
   object RoutingResponse {
 
     val dummyRoutingResponse: Some[RoutingResponse] = Some(
-      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false, -1)
     )
   }
 
@@ -553,7 +561,8 @@ object BeamRouter {
     beamServices: BeamServices,
     originUTM: Coord,
     destinationUTM: Coord,
-    requestIdOpt: Option[Int] = None
+    requestIdOpt: Option[Int] = None,
+    triggerId: Long
   ): EmbodyWithCurrentTravelTime = {
     val leg = BeamLeg(
       departTime,
@@ -574,13 +583,15 @@ object BeamRouter {
           leg,
           vehicle.id,
           vehicle.vehicleTypeId,
-          reqId
+          reqId,
+          triggerId = triggerId
         )
       case None =>
         EmbodyWithCurrentTravelTime(
           leg,
           vehicle.id,
-          vehicle.vehicleTypeId
+          vehicle.vehicleTypeId,
+          triggerId = triggerId
         )
     }
   }
@@ -592,7 +603,8 @@ object BeamRouter {
     mode: BeamMode,
     beamServices: BeamServices,
     origin: Coord,
-    destination: Coord
+    destination: Coord,
+    triggerId: Long
   ): EmbodyWithCurrentTravelTime = {
     val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
     linkIds += route.getStartLinkId.toString.toInt
@@ -617,7 +629,8 @@ object BeamRouter {
     EmbodyWithCurrentTravelTime(
       leg,
       vehicle.id,
-      vehicle.vehicleTypeId
+      vehicle.vehicleTypeId,
+      triggerId = triggerId
     )
   }
 

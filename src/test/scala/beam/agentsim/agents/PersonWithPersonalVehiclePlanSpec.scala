@@ -171,7 +171,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        embodyRequest.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -234,7 +235,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = parkingRoutingRequest.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        parkingRoutingRequest.triggerId
       )
 
       val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
@@ -275,7 +277,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = parkingRoutingRequest.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        walkFromParkingRoutingRequest.triggerId
       )
 
       expectMsgType[VehicleEntersTrafficEvent]
@@ -404,7 +407,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        embodyRequest.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -527,7 +531,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       for (i <- 0 to 1) {
         expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _) =>
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
             val embodiedLeg = EmbodiedBeamLeg(
               beamLeg = leg.copy(
                 duration = 500,
@@ -546,7 +550,8 @@ class PersonWithPersonalVehiclePlanSpec
               itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
               requestId = 1,
               request = None,
-              isEmbodyWithCurrentTravelTime = false
+              isEmbodyWithCurrentTravelTime = false,
+              triggerId
             )
         }
       }
@@ -677,7 +682,8 @@ class PersonWithPersonalVehiclePlanSpec
         ),
         requestId = routingRequest.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]

@@ -87,7 +87,7 @@ class HierarchicalParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 10)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.getX + 2000,
@@ -102,7 +102,10 @@ class HierarchicalParkingManagerSpec
 
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(response.isDefined, "no response")
-        assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+        assert(
+          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -128,7 +131,7 @@ class HierarchicalParkingManagerSpec
           beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
 
-      val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+      val inquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 34347)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.getX + 2000,
@@ -143,7 +146,10 @@ class HierarchicalParkingManagerSpec
 
       val response = parkingManager.processParkingInquiry(inquiry)
       assert(response.isDefined, "no response")
-      assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+      assert(
+        response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+        "something is wildly broken"
+      )
     }
   }
 
@@ -186,7 +192,7 @@ class HierarchicalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 734734)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -202,15 +208,15 @@ class HierarchicalParkingManagerSpec
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId),
+          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
-          case Some(res @ ParkingInquiryResponse(stall, responseId))
+          case Some(res @ ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
               if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
             res
           case _ => assert(response2.isDefined, "no response")
@@ -258,8 +264,8 @@ class HierarchicalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 101)
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 102)
         val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
@@ -279,19 +285,19 @@ class HierarchicalParkingManagerSpec
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId),
+          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 0)
         parkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
         assert(
-          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId),
+          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -349,10 +355,10 @@ class HierarchicalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work")
+          req = ParkingInquiry(middleOfWorld, "work", triggerId = 17)
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
-            case Some(res @ ParkingInquiryResponse(_, _)) =>
+            case Some(res @ ParkingInquiryResponse(_, _, req.triggerId)) =>
               if (res.stall.geoId != LinkLevelOperations.EmergencyLinkId) 1 else 0
             case _ =>
               assert(response1.isDefined, "no response")
@@ -413,10 +419,10 @@ class HierarchicalParkingManagerSpec
     pricingModel: PricingModel,
     parkingType: ParkingType
   ): Any = {
-    val inquiry = ParkingInquiry(coord, "init")
+    val inquiry = ParkingInquiry(coord, "init", triggerId = 27)
     val response = spm.processParkingInquiry(inquiry)
     response match {
-      case Some(rsp @ ParkingInquiryResponse(stall, _)) =>
+      case Some(rsp @ ParkingInquiryResponse(stall, _, inquiry.triggerId)) =>
         rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
         val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
         dist should be <= 400.0
