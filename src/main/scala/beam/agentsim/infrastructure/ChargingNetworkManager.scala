@@ -475,8 +475,8 @@ object ChargingNetworkManager extends LazyLogging {
       * closing helics connection
       */
     logger.debug("Release Helics resources...")
-    beamFederateOption
-      .fold(logger.debug("Not connected to grid, just releasing helics resources")) { beamFederate =>
+    beamFederateOption match {
+      case Some(beamFederate) =>
         beamFederate.close()
         try {
           logger.debug("Destroying BeamFederate")
@@ -485,7 +485,9 @@ object ChargingNetworkManager extends LazyLogging {
           case NonFatal(ex) =>
             logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
         }
-      }
+
+      case None => logger.debug("Not connected to grid, just releasing helics resources")
+    }
   }
 
   private def attemptConnectionToHELICS(beamConfig: BeamConfig): Option[BeamFederate] = {
