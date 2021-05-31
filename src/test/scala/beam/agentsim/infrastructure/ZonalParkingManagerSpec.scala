@@ -411,9 +411,9 @@ class ZonalParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        17,
-        Block(0.0, 3600),
-        ParkingType.Public,
+        73,
+        FlatFee(0.0),
+        ParkingType.Residential,
         VehicleManager.privateVehicleManager.managerId
       )
 
@@ -421,8 +421,8 @@ class ZonalParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        122,
-        Block(0.0, 3600),
+        80,
+        FlatFee(0.0),
         ParkingType.Public,
         VehicleManager.privateVehicleManager.managerId
       )
