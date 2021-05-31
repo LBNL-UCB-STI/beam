@@ -58,15 +58,26 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
   }
 
   private def convertMode(inputMode: String): String = inputMode match {
-    case "DRIVEALONEPAY"  => "car"
-    case "DRIVEALONEFREE" => "car"
-    case "WALK"           => "walk"
     case "BIKE"           => "bike"
-    case "SHARED3FREE"    => "car"
-    case "SHARED2PAY"     => "car"
+    case "DRIVEALONEFREE" => "car"
+    case "DRIVEALONEPAY"  => "car"
+    case "DRIVE_COM"      => "car" // "drive_transit" ??
+    case "DRIVE_EXP"      => "car" // "drive_transit" ??
+    case "DRIVE_HVY"      => "car" // "drive_transit" ??
+    case "DRIVE_LOC"      => "car" // "drive_transit" ??
+    case "DRIVE_LRF"      => "car" // "drive_transit" ??
     case "SHARED2FREE"    => "car"
+    case "SHARED2PAY"     => "car"
+    case "SHARED3FREE"    => "car"
     case "SHARED3PAY"     => "car"
-    case "WALK_LOC"       => "walk_transit"
-    case "DRIVE_LOC"      => "drive_transit"
+    case "TAXI"           => "ride_hail"
+    case "TNC_SHARED"     => "ride_hail"
+    case "TNC_SINGLE"     => "ride_hail"
+    case "WALK"           => "walk"
+    case "WALK_COM"       => "rail" // "walk_transit" ??
+    case "WALK_EXP"       => "rail" // "walk_transit" ??
+    case "WALK_HVY"       => "rail" // "walk_transit" ??
+    case "WALK_LOC"       => "bus" // "walk_transit" ??
+    case "WALK_LRF"       => "rail" // "walk_transit" ??
   }
 }
