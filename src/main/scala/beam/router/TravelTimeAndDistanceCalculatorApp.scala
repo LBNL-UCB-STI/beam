@@ -142,7 +142,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
     val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
       StreetVehicle(
         Id.createVehicleId("1"),
-        Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
         new SpaceTime(row.originUTM, time = parameters.departureTime),
         CAR,
         asDriver = true,
