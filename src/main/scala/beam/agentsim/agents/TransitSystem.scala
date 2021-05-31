@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -14,7 +14,7 @@ import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.{FileUtils, NetworkHelper}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -35,7 +35,7 @@ class TransitSystem(
   val geo: GeoUtils,
   val networkHelper: NetworkHelper,
   val eventsManager: EventsManager
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging {
 
   override val supervisorStrategy: OneForOneStrategy =
@@ -47,7 +47,7 @@ class TransitSystem(
   initDriverAgents()
   log.info("Transit schedule has been initialized")
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
@@ -55,7 +55,7 @@ class TransitSystem(
     case Finish =>
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-      context.become {
+      contextBecome {
         case Terminated(_) =>
           dieIfNoChildren()
       }

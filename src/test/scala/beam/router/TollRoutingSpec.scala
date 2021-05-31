@@ -111,7 +111,8 @@ class TollRoutingSpec
             None,
             None
           )
-        )
+        ),
+        triggerId = 0
       )
       router ! request
       val response = expectMsgType[RoutingResponse]
@@ -177,7 +178,8 @@ class TollRoutingSpec
             None,
             None
           )
-        )
+        ),
+        triggerId = 0
       )
       router ! tollSensitiveRequest
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
@@ -201,7 +203,8 @@ class TollRoutingSpec
             asDriver = true,
             needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       router ! request
       val response = expectMsgType[RoutingResponse]

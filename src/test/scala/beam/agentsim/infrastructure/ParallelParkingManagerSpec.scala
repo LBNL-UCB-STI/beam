@@ -80,7 +80,7 @@ class ParallelParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 11)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.getX + 2000,
@@ -95,7 +95,10 @@ class ParallelParkingManagerSpec
 
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(response.isDefined, "no response")
-        assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+        assert(
+          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -117,7 +120,7 @@ class ParallelParkingManagerSpec
         managers
       )
 
-      val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+      val inquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 173)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.getX + 2000,
@@ -132,7 +135,10 @@ class ParallelParkingManagerSpec
 
       val response = parkingManager.processParkingInquiry(inquiry)
       assert(response.isDefined, "no response")
-      assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+      assert(
+        response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+        "something is wildly broken"
+      )
     }
   }
 
@@ -173,7 +179,7 @@ class ParallelParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 9902)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -189,16 +195,17 @@ class ParallelParkingManagerSpec
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId),
+          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 237)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
-          case Some(res @ ParkingInquiryResponse(stall, responseId))
-              if stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
+          case Some(res @ ParkingInquiryResponse(stall, responseId, triggerId))
+              if stall.geoId == TAZ.EmergencyTAZId
+              && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
             res
           case _ => assert(response2.isDefined, "no response")
         }
@@ -242,8 +249,8 @@ class ParallelParkingManagerSpec
 
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 3737)
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 190)
         val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
@@ -263,19 +270,19 @@ class ParallelParkingManagerSpec
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId),
+          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 777)
         parkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
         assert(
-          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId),
+          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -330,10 +337,10 @@ class ParallelParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work")
+          req = ParkingInquiry(middleOfWorld, "work", triggerId = 902)
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
-            case Some(res @ ParkingInquiryResponse(_, _)) =>
+            case Some(res @ ParkingInquiryResponse(_, _, _)) =>
               if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
             case _ =>
               assert(response1.isDefined, "no response")
@@ -390,7 +397,7 @@ class ParallelParkingManagerSpec
     pricingModel: PricingModel,
     parkingType: ParkingType
   ) = {
-    val inquiry = ParkingInquiry(coord, "init")
+    val inquiry = ParkingInquiry(coord, "init", triggerId = 77370)
     val response = spm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val expectedStall =
@@ -406,7 +413,10 @@ class ParallelParkingManagerSpec
         VehicleManager.privateVehicleManager.managerId
       )
     assert(response.isDefined, "no response")
-    assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+    assert(
+      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+      "something is wildly broken"
+    )
   }
 
   override def afterAll: Unit = {

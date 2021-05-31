@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -36,6 +36,7 @@ import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
+import beam.utils.logging.{LoggingMessageActor, MessageLogger}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
@@ -326,12 +327,21 @@ class BeamMobsimIteration(
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging
     with MetricsSupport {
 
   import beamServices._
   private val config: Beam.Agentsim = beamConfig.beam.agentsim
+
+  if (beamServices.beamConfig.beam.debug.messageLogging) {
+    context.watch(
+      context.actorOf(
+        MessageLogger.props(beamServices.matsimServices.getIterationNumber, beamServices.matsimServices.getControlerIO),
+        s"MessageLogger-${beamServices.matsimServices.getIterationNumber}"
+      )
+    )
+  }
 
   var runSender: ActorRef = _
   private val errorListener = context.actorOf(ErrorListener.props())
@@ -536,7 +546,7 @@ class BeamMobsimIteration(
     managers.toMap
   }
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
 
     case CompletionNotice(_, _) =>
       log.info("Scheduler is finished.")
@@ -559,8 +569,12 @@ class BeamMobsimIteration(
         context.stop(debugActorWithTimerActorRef)
       }
 
-    case Terminated(_) =>
-      if (context.children.isEmpty) {
+    case Terminated(x) =>
+      log.debug(s"Terminated {}", x)
+      if (context.children.size == 1 && context.children.head.path.name.startsWith("MessageLogger-")) {
+        context.system.eventStream.publish(Finish)
+        log.debug("Remaining MessageLogger: {}", context.children)
+      } else if (context.children.isEmpty) {
         // Await eventBuilder message queue to be processed, before ending iteration
         beamServices.eventBuilderActor ! FlushEvents
       } else {
