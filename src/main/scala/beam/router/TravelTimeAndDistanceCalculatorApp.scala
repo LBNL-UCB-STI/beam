@@ -8,7 +8,6 @@ import beam.router.Modes.BeamMode.CAR
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.BeamHelper
-import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
@@ -31,15 +30,11 @@ case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, 
 
 class TravelTimeAndDistanceCalculatorApp(router: Router, parameters: InputParameters) extends BeamHelper {
 
-  val geoUtils = new GeoUtils {
-    override def localCRS: String = "epsg:32631"
-  }
-
   def processRow(row: CsvInputRow): CsvOutputRow = {
     val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
       StreetVehicle(
         Id.createVehicleId("1"),
-        Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
+        Id.create("CAR-TYPE-DEFAULT", classOf[BeamVehicleType]),
         new SpaceTime(row.originUTM, time = parameters.departureTime),
         CAR,
         asDriver = true,
