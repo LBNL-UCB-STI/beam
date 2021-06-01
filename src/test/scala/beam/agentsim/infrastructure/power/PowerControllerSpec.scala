@@ -79,7 +79,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   override def beforeEach: Unit = {
     reset(beamFederateMock)
     when(beamFederateMock.sync(300)).thenReturn(300.0)
-    when(beamFederateMock.syncThenCollectJSON()).thenReturn(List(dummyPhysicalBounds))
+    when(beamFederateMock.syncThenCollectJSON(10)).thenReturn(List(dummyPhysicalBounds))
     zoneTree.clear()
   }
 
@@ -92,10 +92,9 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
           zoneTree
         )
       ),
-      beamConfig
-    ) {
-      override private[power] lazy val beamFederateOption = Some(beamFederateMock)
-    }
+      beamConfig,
+      Some(beamFederateMock)
+    )
 
     "obtain power physical bounds" in {
       val bounds = powerController.obtainPowerPhysicalBounds(
@@ -117,17 +116,16 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
           zoneTree
         )
       ),
-      beamConfig
-    ) {
-      override private[power] lazy val beamFederateOption = None
-    }
+      beamConfig,
+      None
+    )
 
     "obtain default (0.0) power physical bounds" in {
       val bounds =
         powerController.obtainPowerPhysicalBounds(300, Some(Map[ChargingStation, Double](dummyChargingStation -> 0.0)))
       bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       verify(beamFederateMock, never()).sync(300)
-      verify(beamFederateMock, never()).syncThenCollectJSON()
+      verify(beamFederateMock, never()).syncThenCollectJSON(10)
     }
   }
 }
