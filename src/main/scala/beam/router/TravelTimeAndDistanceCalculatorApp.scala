@@ -146,7 +146,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
     )
   }
 
-  def processRow(row: CsvInputRow): CsvOutputRow = {
+  private def processRow(row: CsvInputRow): CsvOutputRow = {
     val streetVehicles: IndexedSeq[StreetVehicle] = Vector(
       StreetVehicle(
         Id.createVehicleId("1"),
@@ -193,7 +193,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
       new Location(rec.get("destination_x").toDouble, rec.get("destination_y").toDouble)
     )
 
-  def readCsv(csvPath: String): Vector[CsvInputRow] = {
+  private def readCsv(csvPath: String): Vector[CsvInputRow] = {
     val (iter: Iterator[CsvInputRow], toClose: Closeable) =
       GenericCsvReader.readAs[CsvInputRow](csvPath, toCsvRow, _ => true)
     try {
