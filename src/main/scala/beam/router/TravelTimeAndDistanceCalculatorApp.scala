@@ -165,7 +165,8 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
         parameters.departureTime,
         withTransit = false,
         None,
-        streetVehicles
+        streetVehicles,
+        triggerId = 0L
       )
     val response = router.calcRoute(request)
 
