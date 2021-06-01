@@ -174,12 +174,14 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
       throw new RuntimeException("No itineraries found")
     }
 
+    val travelPath = response.itineraries.head.legs.lastOption.map(_.beamLeg.travelPath)
+
     CsvOutputRow(
       row.id,
       row.originUTM,
       row.destinationUTM,
-      response.itineraries.head.totalTravelTimeInSecs,
-      response.itineraries.head.legs.lastOption.map(_.beamLeg.travelPath.distanceInM).getOrElse(0)
+      travelPath.map(_.linkTravelTime.sum.toInt).getOrElse(0),
+      travelPath.map(_.distanceInM).getOrElse(0)
     )
   }
 
