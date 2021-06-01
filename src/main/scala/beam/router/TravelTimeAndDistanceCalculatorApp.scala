@@ -31,9 +31,9 @@ case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, 
 
 /*
 Example of parameters usage:
- --departure-time 0
- --config-path test/input/beamville/beam.conf
- --linkstats test/input/beamville/linkstats.csv.gz
+ --departureTime 0
+ --configPath test/input/beamville/beam.conf
+ --linkstatsPath test/input/beamville/linkstats.csv.gz
  --router R5|GH
  --input test/input/beamville/input.csv
  --output test/input/beamville/output.csv
