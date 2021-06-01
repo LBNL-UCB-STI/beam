@@ -202,7 +202,7 @@ class ChargingNetworkManager(
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       val chargingNetwork = chargingNetworkMap(vehicleManager)
       chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
-        case Some(chargingVehicle) =>
+        case Some(chargingVehicle) if chargingVehicle.chargingSessions.nonEmpty =>
           val prevStartTime = chargingVehicle.chargingSessions.last.startTime
           val startTime = Math.min(tick, prevStartTime)
           val endTime = Math.max(tick, prevStartTime)
