@@ -210,7 +210,10 @@ class ChargingNetworkManager(
           val (chargeDurationAtTick, energyToChargeAtTick) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
           chargingVehicle.processChargingCycle(startTime, energyToChargeAtTick, chargeDurationAtTick)
           handleEndCharging(tick, chargingVehicle, Some(sender))
-        case _ =>
+        case maybeChargingVehicle =>
+          maybeChargingVehicle.foreach { cv =>
+            log.error(s"Charging vehicle does not have charging sessions. The vehicle: ${cv.toString}")
+          }
           log.debug(s"Vehicle $vehicle is already disconnected at $tick")
           sender ! UnhandledVehicle(tick, vehicle.id)
       }
