@@ -1,9 +1,8 @@
 package beam.agentsim.agents
 
 import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
@@ -15,6 +14,7 @@ import beam.replanning.AddSupplementaryTrips
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -39,7 +39,7 @@ class Population(
   val eventsManager: EventsManager,
   val routeHistory: RouteHistory,
   boundingBox: Envelope
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging {
 
   // Our PersonAgents have their own explicit error state into which they recover
@@ -50,19 +50,19 @@ class Population(
       case _: AssertionError => Stop
     }
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
-      sharedVehicleFleets.foreach(_ ! GetVehicleTypes())
-      context.become(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
+      sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
+      contextBecome(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
   }
 
   def getVehicleTypes(triggerId: Long, responsesLeft: Int, vehicleTypes: Set[BeamVehicleType]): Receive = {
     if (responsesLeft <= 0) {
       finishInitialization(triggerId, vehicleTypes)
     } else {
-      case VehicleTypesResponse(sharedVehicleTypes) =>
-        context.become(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
+      case VehicleTypesResponse(sharedVehicleTypes, _) =>
+        contextBecome(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
     }
   }
 
@@ -75,7 +75,7 @@ class Population(
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
-        context.become {
+        contextBecome {
           case Terminated(_) =>
             dieIfNoChildren()
         }

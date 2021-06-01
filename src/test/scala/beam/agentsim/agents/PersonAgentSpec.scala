@@ -35,17 +35,16 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.scalatest.{BeforeAndAfter, FunSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.{mutable, JavaConverters}
 
 class PersonAgentSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
     with BeforeAndAfter
-    with MockitoSugar
     with ImplicitSender
     with BeamvilleFixtures {
 
@@ -214,7 +213,8 @@ class PersonAgentSpec
         itineraries = Vector(),
         requestId = request1.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        request1.triggerId
       )
 
       // This is the regular routing request.
@@ -250,7 +250,8 @@ class PersonAgentSpec
         ),
         requestId = request2.requestId,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        request2.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -411,7 +412,7 @@ class PersonAgentSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-      expectMsgType[RoutingRequest]
+      val request3 = expectMsgType[RoutingRequest]
       val personActor = lastSender
       lastSender ! RoutingResponse(
         itineraries = Vector(
@@ -464,7 +465,8 @@ class PersonAgentSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        request3.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -485,7 +487,7 @@ class PersonAgentSpec
         AlightVehicleTrigger(30000, busPassengerLeg.beamVehicleId),
         personActor
       )
-      lastSender ! ReservationResponse(Right(ReserveConfirmInfo()))
+      lastSender ! ReservationResponse(Right(ReserveConfirmInfo()), 0)
 
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -517,7 +519,8 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        )
+        ),
+        0
       )
 
       //expects a message of type PersonEntersVehicleEvent
@@ -710,7 +713,7 @@ class PersonAgentSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-      expectMsgType[RoutingRequest]
+      val routingRequest4 = expectMsgType[RoutingRequest]
       val personActor = lastSender
 
       scheduler ! ScheduleTrigger(
@@ -773,7 +776,8 @@ class PersonAgentSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest4.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -790,7 +794,8 @@ class PersonAgentSpec
       lastSender ! ReservationResponse(
         Right(
           ReserveConfirmInfo()
-        )
+        ),
+        0
       )
       events.expectMsgType[PersonEntersVehicleEvent]
 
@@ -800,7 +805,7 @@ class PersonAgentSpec
       assert(personLeavesVehicleEvent.getTime == 34400.0)
 
       events.expectMsgType[ReplanningEvent]
-      expectMsgType[RoutingRequest]
+      val routingRequest5 = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
         itineraries = Vector(
           EmbodiedBeamTrip(
@@ -831,7 +836,8 @@ class PersonAgentSpec
         ),
         requestId = 1,
         request = None,
-        isEmbodyWithCurrentTravelTime = false
+        isEmbodyWithCurrentTravelTime = false,
+        routingRequest5.triggerId
       )
       events.expectMsgType[ModeChoiceEvent]
 
@@ -861,7 +867,8 @@ class PersonAgentSpec
               ) // My tram is late!
             )
           )
-        )
+        ),
+        0
       )
 
       events.expectMsgType[PersonEntersVehicleEvent]

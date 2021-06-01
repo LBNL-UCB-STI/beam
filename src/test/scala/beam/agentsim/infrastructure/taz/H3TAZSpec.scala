@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
 import scala.collection.JavaConverters._
-
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -12,9 +11,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
+class H3TAZSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "test demand inferred H3 Index set" must "H3 Indexes" in {
     val config = ConfigFactory

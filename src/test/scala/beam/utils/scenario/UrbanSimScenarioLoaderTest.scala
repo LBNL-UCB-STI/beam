@@ -5,17 +5,18 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import org.matsim.core.scenario.MutableScenario
-import org.mockito.Mockito.when
-import org.scalatest.{AsyncWordSpec, BeforeAndAfterEach, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.wordspec.AsyncWordSpec
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
 
-class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with MockitoSugar with BeforeAndAfterEach {
-  private val mutableScenario = mock[MutableScenario]
-  private val beamScenario = mock[BeamScenario]
+class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with BeforeAndAfterEach {
+  private val mutableScenario = mock(classOf[MutableScenario])
+  private val beamScenario = mock(classOf[BeamScenario])
 
   private val beamConfigBase = BeamConfig(testConfig("test/input/beamville/beam.conf").resolve())
 
-  private val scenarioSource = mock[ScenarioSource]
+  private val scenarioSource = mock(classOf[ScenarioSource])
 
   private val geoUtils = new GeoUtilsImpl(beamConfigBase)
 

@@ -1,8 +1,11 @@
 package beam.agentsim.agents
 
+import scala.util.Random
+
 trait HasTickAndTrigger {
   protected var _currentTriggerId: Option[Long] = None
   protected var _currentTick: Option[Int] = None
+  private val rnd = new Random()
 
   def holdTickAndTriggerId(tick: Int, triggerId: Long): Unit = {
     if (_currentTriggerId.isDefined || _currentTick.isDefined)
@@ -21,5 +24,7 @@ trait HasTickAndTrigger {
   }
 
   def getCurrentTick: Option[Int] = _currentTick
+  def getCurrentTriggerId: Option[Long] = _currentTriggerId
+  def getCurrentTriggerIdOrGenerate: Long = _currentTriggerId.getOrElse(-rnd.nextInt(Int.MaxValue))
 
 }

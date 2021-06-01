@@ -6,11 +6,12 @@ import beam.agentsim.events.SpaceTime
 import beam.sim.{CircularGeofence, Geofence}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
+class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers {
   // #####################################################################################
   // If one day this test breaks then most probably it is because of the changes in `RideHailAgentLocation.equals`
   // #####################################################################################

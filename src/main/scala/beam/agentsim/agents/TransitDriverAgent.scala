@@ -113,9 +113,9 @@ class TransitDriverAgent(
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   val myUnhandled: StateFunction = {
-    case Event(TransitReservationRequest(fromIdx, toIdx, passenger), data) =>
+    case Event(TransitReservationRequest(fromIdx, toIdx, passenger, triggerId), data) =>
       val slice = legs.slice(fromIdx, toIdx)
-      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger), data))
+      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger, triggerId), data))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
@@ -158,9 +158,9 @@ class TransitDriverAgent(
     // Instead, we ask the scheduler to be notified after the
     // concurrency time window has passed, and then stop.
     // This is because other agents may still want to interact with us until then.
-    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! ScheduleKillTrigger(self)
+      scheduler ! ScheduleKillTrigger(self, triggerId)
       scheduler ! CompletionNotice(triggerId)
       stay
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>

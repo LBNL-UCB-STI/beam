@@ -4,14 +4,16 @@ import java.io.BufferedReader
 import java.nio.file.{Path, Paths}
 
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.wordspec.AnyWordSpecLike
 import scala.collection.JavaConverters._
 
 /**
   *
   * @author Dmitry Openkov
   */
-class FileUtilsSpec extends WordSpecLike with Matchers {
+class FileUtilsSpec extends AnyWordSpecLike with Matchers {
 
   val skimPath: Path = Paths.get(System.getenv("PWD"), "test/test-resources/beam/od-skims/multi-part-od-skims")
 

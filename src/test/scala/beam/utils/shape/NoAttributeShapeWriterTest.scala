@@ -7,12 +7,14 @@ import beam.utils.shape.ShapeWriter.OriginalToPersistedFeatureIdMap
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
-import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
-class NoAttributeShapeWriterTest extends FunSuite with BeforeAndAfterAll with Matchers {
+class NoAttributeShapeWriterTest extends AnyFunSuite with BeforeAndAfterAll with Matchers {
   private val geometryFactory: GeometryFactory = new GeometryFactory()
 
   test("Should be able to write Point with attributes") {

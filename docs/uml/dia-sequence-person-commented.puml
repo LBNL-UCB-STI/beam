@@ -1,0 +1,310 @@
+@startuml
+
+...tick = 0...
+"scheduler" -> "Person": InitializeTrigger
+note left #MintCream
+    Scheduler was programmed
+    to send an InitializeTrigger
+    to every Person
+endnote
+hnote over "Person": Initialized
+note right #MintCream
+    Person is an FSM Actor and
+    may change its state when
+    receives messages
+endnote
+"Person" -> "scheduler": CompletionNotice
+note right #MintCream
+    CompletionNotice is usually
+    used to schedule new triggers:
+    ActivityStartTrigger in this case
+endnote
+note left #MintCream
+    When the scheduler receives
+    a CompletionNotice it marks
+    its trigger completed and
+    does a simulation step
+endnote
+"scheduler" -> "Person": ActivityStartTrigger
+hnote over "Person": PerformingActivity
+"Person" -> "scheduler": CompletionNotice
+note right #MintCream
+    Scheduling ActivityEndTrigger
+    according to Person's plan
+endnote
+
+...tick = 35700...
+"scheduler" -> "Person": ActivityEndTrigger
+hnote over "Person": ChoosingMode
+"Person" -> "HouseholdFleetManager:Car": MobilityStatusInquiry
+note left #MintCream
+    After switching to ChoosingMode
+    Person gets its mobility status
+    (available vehicles)
+endnote
+"Person" -> "HouseholdFleetManager:Bike": MobilityStatusInquiry
+"Person" -> "bay_wheels": MobilityStatusInquiry
+"HouseholdFleetManager:Car" -> "Person": MobilityStatusResponse
+"HouseholdFleetManager:Bike" -> "Person": MobilityStatusResponse
+"bay_wheels" -> "Person": MobilityStatusResponse
+"Person" -> "Person": MobilityStatusResponse
+"Person" -> "router": RoutingRequest
+note left #MintCream
+    After getting available vehicles Person
+    makes RoutingRequest in order to get
+    possible routes to the destination
+    (next activity location). This request
+    includes available vehicle types
+endnote
+"Person" -> "router": RoutingRequest
+note left #MintCream
+    A separated RoutingRequest is required
+    for building route for RidehailTransit
+    Mode
+endnote
+"Person" -> "RideHailManager": RideHailRequest
+note left #MintCream
+    Requesting Ridehail
+endnote
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+note right #MintCream
+    RideHailManager does 2
+    RoutingRequests: one to
+    the customer, second from
+    the customer to the destination
+endnote
+"router" -> "Person": RoutingResponse
+"router" -> "RideHailManager": RoutingResponse
+"router" -> "Person": RoutingResponse
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RoutingResponses
+note right #MintCream
+    RoutingResponses piped to self
+    in order to gather both Routing
+endnote
+"RideHailManager" -> "Person": RideHailResponse
+"Person" -> "ParkingNetworkManager": ParkingInquiry
+note left #MintCream
+    Issueing ParkingInquiry for vehicles
+    like Car or Shared Bike in order to
+    get the total price of the trip
+endnote
+"Person" -> "ParkingNetworkManager": ParkingInquiry
+"ParkingNetworkManager" -> "Person": ParkingInquiryResponse
+"ParkingNetworkManager" -> "Person": ParkingInquiryResponse
+
+hnote over "Person": FinishingModeChoice
+note left #MintCream
+    After gathering all the required data
+    Person can make Mode Choice.
+endnote
+"Person" -> "Person": StateTimeout
+hnote over "Person": WaitingForDeparture
+note right #MintCream
+    Person has chosen their private Car for this trip. The whole trip consist of 4 legs: Walk to the vehicle,
+    go by Car to the destination, Car parking leg, Walk to the activity location.
+    The first leg is zero-time Walk to the vehicle.
+endnote
+"Person" -> "scheduler": CompletionNotice
+note right #MintCream
+    Each CompletionNotice schedules the next trigger to the required time.
+endnote
+"scheduler" -> "Person": PersonDepartureTrigger
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": StateTimeout
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": DrivingInterrupted
+"Person" -> "Person": LastLegPassengerSchedule
+note right #MintCream
+    Here goes calculating consumed fuel and tolls
+endnote
+hnote over "Person": PassengerScheduleEmpty
+"Person" -> "Person": PassengerScheduleEmptyMessage
+note right #MintCream
+    Finishing the leg, releasing the vehicle if needed
+endnote
+
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": StateTimeout
+note right #MintCream
+    This leg is a Car one. We need to release the parking spot
+endnote
+hnote over "Person": ReleasingParkingSpot
+"Person" -> "Person": StateTimeout
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "ParkingNetworkManager": ReleaseParkingStall
+"Person" -> "scheduler": CompletionNotice
+note right #MintCream
+    It's not a zero-time leg. So EndLegTrigger happens at a different tick
+endnote
+
+...tick = 35899...
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": ReadyToChooseParking
+note right #MintCream
+    A car leg is split on 2 legs. The last one is a parking leg.
+    They use thresholdForMakingParkingChoiceInMeters parameter
+    (which is 100m by default) to split the car leg.
+endnote
+"Person" -> "Person": StateTimeout
+hnote over "Person": ChoosingParkingSpot
+"Person" -> "ParkingNetworkManager": ParkingInquiry
+note right #MintCream
+    Finding a parking stall
+endnote
+"ParkingNetworkManager" -> "Person": ParkingInquiryResponse
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+
+...tick = 35908...
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": DrivingInterrupted
+"Person" -> "Person": LastLegPassengerSchedule
+note right #MintCream
+    Here goes leg the usual finishing calculations.
+endnote
+hnote over "Person": PassengerScheduleEmpty
+"Person" -> "Person": PassengerScheduleEmptyMessage
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "HouseholdFleetManager:Car": NotifyVehicleIdle
+note right #MintCream
+    After leaving a car we need to notify that the vehicle is idle
+endnote
+
+"Person" -> "Person": StateTimeout
+note right #MintCream
+    The last leg is a zero-time walk to the activity location
+endnote
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": DrivingInterrupted
+"Person" -> "Person": LastLegPassengerSchedule
+hnote over "Person": PassengerScheduleEmpty
+"Person" -> "Person": PassengerScheduleEmptyMessage
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": NotifyVehicleIdle
+"Person" -> "Person": StateTimeout
+hnote over "Person": PerformingActivity
+"Person" -> "scheduler": CompletionNotice
+note right #MintCream
+    Scheduling the activity end trigger depending on the activity length
+endnote
+
+
+...tick = 85620...
+"scheduler" -> "Person": ActivityEndTrigger
+note right #MintCream
+    Choosing Mode for tour to home is simpler
+endnote
+hnote over "Person": ChoosingMode
+"Person" -> "Person": MobilityStatusResponse
+note right #MintCream
+    Person already has a vehicle. So they send the MobilityStatusResponse to self immediately.
+endnote
+"Person" -> "router": RoutingRequest
+"router" -> "Person": RoutingResponse
+note right #MintCream
+    Person needs only the car route and a parking stall
+endnote
+"Person" -> "ParkingNetworkManager": ParkingInquiry
+"ParkingNetworkManager" -> "Person": ParkingInquiryResponse
+hnote over "Person": FinishingModeChoice
+"Person" -> "Person": StateTimeout
+note right #MintCream
+    The tour home looks the same as the previos tour to this location
+endnote
+
+
+hnote over "Person": WaitingForDeparture
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": PersonDepartureTrigger
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": StateTimeout
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": DrivingInterrupted
+"Person" -> "Person": LastLegPassengerSchedule
+hnote over "Person": PassengerScheduleEmpty
+"Person" -> "Person": PassengerScheduleEmptyMessage
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": StateTimeout
+hnote over "Person": ReleasingParkingSpot
+"Person" -> "Person": StateTimeout
+"Person" -> "scheduler": CompletionNotice
+hnote over "Person": WaitingToDrive
+"scheduler" -> "Person": StartLegTrigger
+"Person" -> "ParkingNetworkManager": ReleaseParkingStall
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+...tick = 85824...
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": ReadyToChooseParking
+"Person" -> "Person": StateTimeout
+hnote over "Person": ChoosingParkingSpot
+"Person" -> "ParkingNetworkManager": ParkingInquiry
+"ParkingNetworkManager" -> "Person": ParkingInquiryResponse
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+...tick = 85851...
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": DrivingInterrupted
+"Person" -> "Person": LastLegPassengerSchedule
+hnote over "Person": PassengerScheduleEmpty
+"Person" -> "Person": PassengerScheduleEmptyMessage
+"Person" -> "HouseholdFleetManager:Car": NotifyVehicleIdle
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": StateTimeout
+hnote over "Person": WaitingToDrive
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": StartLegTrigger
+hnote over "Person": Driving
+"Person" -> "scheduler": CompletionNotice
+"scheduler" -> "Person": EndLegTrigger
+hnote over "Person": DrivingInterrupted
+"Person" -> "Person": LastLegPassengerSchedule
+hnote over "Person": PassengerScheduleEmpty
+"Person" -> "Person": PassengerScheduleEmptyMessage
+hnote over "Person": ProcessingNextLegOrStartActivity
+"Person" -> "Person": NotifyVehicleIdle
+"Person" -> "Person": StateTimeout
+hnote over "Person": PerformingActivity
+"Person" -> "HouseholdFleetManager:Car": ReleaseVehicle
+"Person" -> "scheduler": CompletionNotice
+...tick = 86451...
+"scheduler" -> "Person": ActivityEndTrigger
+note right #MintCream
+    In case there is no next activity Person sends an empty CompletionNotice (no next triggers)
+endnote
+"Person" -> "scheduler": CompletionNotice
+"Household" -> "Person": Finish
+note left #MintCream
+    At the end of simulation each Household sends Finish
+    messages to all its members. On this message Person
+    stops themself. And the Household receives
+    the Terminated message.
+endnote
+"Person" -> "Household": Terminated
+@enduml

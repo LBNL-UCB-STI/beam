@@ -35,7 +35,7 @@ class ErrorListener() extends Actor with ActorLogging {
           log.warning(
             s"Person ${d.sender} attempted to reserve ride with agent ${d.recipient} that was not found, message sent to dead letters."
           )
-          d.sender ! ReservationResponse(Left(DriverNotFoundError))
+          d.sender ! ReservationResponse(Left(DriverNotFoundError), m.triggerId)
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
         case TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), triggerId) =>

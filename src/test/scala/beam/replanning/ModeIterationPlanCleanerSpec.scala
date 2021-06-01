@@ -8,12 +8,14 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelper {
+class ModeIterationPlanCleanerSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   private val random = Random.self
 
