@@ -24,7 +24,12 @@ class PreviousRunPlanMerger(
       LastRunOutputSource.findLastRunOutputPlans(outputDir, dirPrefix) match {
         case Some(planPath) =>
           logger.info("Found the plans in the beam output directory: {}", planPath)
-          val previousPlans = CsvPlanElementReader.read(planPath.toString)
+          val previousPlans = if (planPath.getFileName.toString.toLowerCase.contains(".csv")) {
+            CsvPlanElementReader.read(planPath.toString)
+          } else {
+            //todo load xml plans
+            ???
+          }
           val convertedPlans = previousPlans.map(adjustForScenario)
           PreviousRunPlanMerger.merge(convertedPlans, plans, fraction, rnd)
         case None =>
@@ -63,20 +68,34 @@ object PreviousRunPlanMerger extends LazyLogging {
 object LastRunOutputSource {
 
   def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
-    def findPlan(iterationDir: Path, iterationNumber: Int, format: String): Option[Path] = {
-      val filePath = iterationDir.resolve(s"$iterationNumber.plans.$format.gz")
-      println(s"filePath = ${filePath}")
-      Some(filePath).filter(Files.exists(_))
-    }
-
-    val IterationNumber = """it.(\d+)""".r
-
     val plansPaths = for {
+      (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
+      plansPath         <- findFile(itDir, itNumber, "plans.csv.gz") orElse findFile(itDir, itNumber, "plans.xml.gz")
+    } yield plansPath
+    plansPaths.headOption
+  }
+
+  def findLastRunLinkStats(outputPath: Path, dirPrefix: String): Option[Path] = {
+    val paths = for {
+      (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
+      linkStatsPath     <- findFile(itDir, itNumber, "linkstats.csv.gz")
+    } yield linkStatsPath
+    paths.headOption
+  }
+
+  private def findFile(iterationDir: Path, iterationNumber: Int, fileName: String): Option[Path] = {
+    val filePath = iterationDir.resolve(s"$iterationNumber.$fileName")
+    Some(filePath).filter(Files.exists(_))
+  }
+
+  private def findAllLastIterationDirectories(outputPath: Path, dirPrefix: String) = {
+    val IterationNumber = """it.(\d+)""".r
+    for {
       outputDir <- findDirs(outputPath, dirPrefix)
         .filter(path => Files.exists(path.resolve("ITERS")))
         .sortWith((path1, path2) => path1.getFileName.toString.compareTo(path2.getFileName.toString) > 0)
         .view
-      (iterationDir, iterationNumber) <- findDirs(outputDir.resolve("ITERS"), "it.")
+      itDirAndNumber <- findDirs(outputDir.resolve("ITERS"), "it.")
         .flatMap(
           itPath =>
             itPath.getFileName.toString match {
@@ -86,9 +105,7 @@ object LastRunOutputSource {
         )
         .sortBy { case (_, itNumber) => -itNumber }
         .view
-      plansPath <- findPlan(iterationDir, iterationNumber, "csv") orElse findPlan(iterationDir, iterationNumber, "xml")
-    } yield plansPath
-    plansPaths.headOption
+    } yield itDirAndNumber
   }
 
   import collection.JavaConverters._

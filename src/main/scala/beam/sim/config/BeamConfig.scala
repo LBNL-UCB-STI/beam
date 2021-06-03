@@ -16,6 +16,7 @@ object BeamConfig {
     debug: BeamConfig.Beam.Debug,
     exchange: BeamConfig.Beam.Exchange,
     experimental: BeamConfig.Beam.Experimental,
+    input: BeamConfig.Beam.Input,
     inputDirectory: java.lang.String,
     logger: BeamConfig.Beam.Logger,
     metrics: BeamConfig.Beam.Metrics,
@@ -679,16 +680,14 @@ object BeamConfig {
 
         object Plans {
           case class Merge(
-            fraction: scala.Double,
-            fromOutputDir: java.lang.String
+            fraction: scala.Double
           )
 
           object Merge {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Plans.Merge = {
               BeamConfig.Beam.Agentsim.Agents.Plans.Merge(
-                fraction = if (c.hasPathOrNull("fraction")) c.getDouble("fraction") else 0.0,
-                fromOutputDir = if (c.hasPathOrNull("fromOutputDir")) c.getString("fromOutputDir") else "output"
+                fraction = if (c.hasPathOrNull("fraction")) c.getDouble("fraction") else 0.0
               )
             }
           }
@@ -2481,6 +2480,21 @@ object BeamConfig {
       }
     }
 
+    case class Input(
+      lastBaseOutputDir: java.lang.String,
+      simulationPrefix: java.lang.String
+    )
+
+    object Input {
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Input = {
+        BeamConfig.Beam.Input(
+          lastBaseOutputDir = if (c.hasPathOrNull("lastBaseOutputDir")) c.getString("lastBaseOutputDir") else "output",
+          simulationPrefix = if (c.hasPathOrNull("simulationPrefix")) c.getString("simulationPrefix") else "beamville"
+        )
+      }
+    }
+
     case class Logger(
       keepConsoleAppenderOn: scala.Boolean
     )
@@ -3941,6 +3955,10 @@ object BeamConfig {
         experimental = BeamConfig.Beam.Experimental(
           if (c.hasPathOrNull("experimental")) c.getConfig("experimental")
           else com.typesafe.config.ConfigFactory.parseString("experimental{}")
+        ),
+        input = BeamConfig.Beam.Input(
+          if (c.hasPathOrNull("input")) c.getConfig("input")
+          else com.typesafe.config.ConfigFactory.parseString("input{}")
         ),
         inputDirectory =
           if (c.hasPathOrNull("inputDirectory")) c.getString("inputDirectory") else "/test/input/beamville",
