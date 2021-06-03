@@ -673,10 +673,25 @@ object BeamConfig {
 
         case class Plans(
           inputPersonAttributesFilePath: java.lang.String,
-          inputPlansFilePath: java.lang.String
+          inputPlansFilePath: java.lang.String,
+          merge: BeamConfig.Beam.Agentsim.Agents.Plans.Merge
         )
 
         object Plans {
+          case class Merge(
+            fraction: scala.Double,
+            fromOutputDir: java.lang.String
+          )
+
+          object Merge {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Plans.Merge = {
+              BeamConfig.Beam.Agentsim.Agents.Plans.Merge(
+                fraction = if (c.hasPathOrNull("fraction")) c.getDouble("fraction") else 0.0,
+                fromOutputDir = if (c.hasPathOrNull("fromOutputDir")) c.getString("fromOutputDir") else "output"
+              )
+            }
+          }
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Plans = {
             BeamConfig.Beam.Agentsim.Agents.Plans(
@@ -685,7 +700,11 @@ object BeamConfig {
                 else "/test/input/beamville/populationAttributes.xml.gz",
               inputPlansFilePath =
                 if (c.hasPathOrNull("inputPlansFilePath")) c.getString("inputPlansFilePath")
-                else "/test/input/beamville/population.xml.gz"
+                else "/test/input/beamville/population.xml.gz",
+              merge = BeamConfig.Beam.Agentsim.Agents.Plans.Merge(
+                if (c.hasPathOrNull("merge")) c.getConfig("merge")
+                else com.typesafe.config.ConfigFactory.parseString("merge{}")
+              )
             )
           }
         }

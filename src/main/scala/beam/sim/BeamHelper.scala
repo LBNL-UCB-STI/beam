@@ -33,7 +33,7 @@ import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
-import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
+import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -742,8 +742,20 @@ trait BeamHelper extends LazyLogging {
               )
             }
           }
+          val mergeCfg = beamConfig.beam.agentsim.agents.plans.merge
+          val merger = new PreviousRunPlanMerger(
+            mergeCfg.fraction,
+            Paths.get(mergeCfg.fromOutputDir),
+            beamConfig.beam.agentsim.simulationName,
+            new Random(),
+            planElement =>
+              planElement.activityEndTime
+                .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
+                .getOrElse(planElement)
+          )
           val scenario =
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig), Some(merger))
+              .loadScenario()
           if (src == "urbansim_v2") {
             new ScenarioAdjuster(
               beamConfig.beam.urbansim,
