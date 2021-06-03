@@ -63,26 +63,32 @@ object PreviousRunPlanMerger extends LazyLogging {
 object LastRunOutputSource {
 
   def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
+    def findPlan(iterationDir: Path, iterationNumber: Int, format: String): Option[Path] = {
+      val filePath = iterationDir.resolve(s"$iterationNumber.plans.$format.gz")
+      println(s"filePath = ${filePath}")
+      Some(filePath).filter(Files.exists(_))
+    }
+
     val IterationNumber = """it.(\d+)""".r
-    val dirs = findDirs(outputPath, dirPrefix)
-      .sortWith((path1, path2) => path1.getFileName.toString.compareTo(path2.getFileName.toString) > 0)
-    for {
-      lastOutputDir <- dirs.find(path => Files.exists(path.resolve("ITERS")))
-      plansPath <- findDirs(lastOutputDir.resolve("ITERS"), "it.")
-        .map { itPath =>
-          val itNumber = itPath.getFileName.toString match {
-            case IterationNumber(num) => num.toInt
-            case _                    => Int.MinValue
+
+    val plansPaths = for {
+      outputDir <- findDirs(outputPath, dirPrefix)
+        .filter(path => Files.exists(path.resolve("ITERS")))
+        .sortWith((path1, path2) => path1.getFileName.toString.compareTo(path2.getFileName.toString) > 0)
+        .view
+      (iterationDir, iterationNumber) <- findDirs(outputDir.resolve("ITERS"), "it.")
+        .flatMap(
+          itPath =>
+            itPath.getFileName.toString match {
+              case IterationNumber(num) => Some(itPath -> num.toInt)
+              case _                    => None
           }
-          itPath -> itNumber
-        }
-        .filter { case (_, itNumber) => itNumber >= 0 }
+        )
         .sortBy { case (_, itNumber) => -itNumber }
-        .collectFirst {
-          case (itPath, itNumber) if Files.exists(itPath.resolve(s"$itNumber.plans.csv.gz")) =>
-            itPath.resolve(s"$itNumber.plans.csv.gz")
-        }
+        .view
+      plansPath <- findPlan(iterationDir, iterationNumber, "csv") orElse findPlan(iterationDir, iterationNumber, "xml")
     } yield plansPath
+    plansPaths.headOption
   }
 
   import collection.JavaConverters._
