@@ -16,7 +16,8 @@ class S3WrapperTest extends AnyFunSuite {
   test("create and delete bucket") {
     val regionToCreateBucket = "us-west-2"
     FileUtils.using(S3Wrapper.fromCredential(credentialProfile, regionToCreateBucket)) { s3 =>
-      val bucketToBeCreatedName = s"beam-s3wrapper-integration-test-${Random.alphanumeric.take(10).mkString.toLowerCase}"
+      val bucketToBeCreatedName =
+        s"beam-s3wrapper-integration-test-${Random.alphanumeric.take(10).mkString.toLowerCase}"
       val bucketToBeCreatedExists = () => s3.doesBucketExists(bucketToBeCreatedName)
       assume(!bucketToBeCreatedExists())
       try {
@@ -54,7 +55,7 @@ class S3WrapperTest extends AnyFunSuite {
   test("allBucketFiles from bucket [beam-config]", Integration) {
     val expectedKeysToExist = Set(
       "beamville/r5/tolls.dat",
-      "sf-light/sf-light-10k.conf",
+      "sf-light/sf-light-10k.conf"
     )
 
     val bucketName = "beam-config"
