@@ -3,9 +3,11 @@ package beam.utils.scenario
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import com.typesafe.scalalogging.LazyLogging
 
+import java.io.IOException
 import java.nio.file.{Files, Path}
 import java.util.stream.Collectors
-import scala.util.Random
+import scala.collection.mutable
+import scala.util.{Random, Try}
 
 /**
   * @author Dmitry Openkov
@@ -65,7 +67,7 @@ object PreviousRunPlanMerger extends LazyLogging {
   }
 }
 
-object LastRunOutputSource {
+object LastRunOutputSource extends LazyLogging {
 
   def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
     val plansPaths = for {
@@ -110,8 +112,14 @@ object LastRunOutputSource {
 
   import collection.JavaConverters._
   private def findDirs(parentDir: Path, prefix: String) =
-    Files
-      .find(parentDir, 1, (path: Path, attr) => attr.isDirectory && path.getFileName.toString.startsWith(prefix))
-      .collect(Collectors.toList[Path])
-      .asScala
+    Try {
+      Files
+        .find(parentDir, 1, (path: Path, attr) => attr.isDirectory && path.getFileName.toString.startsWith(prefix))
+        .collect(Collectors.toList[Path])
+        .asScala
+    }.recover {
+      case e: IOException =>
+        logger.error("Failed to find parent dir. {}", parentDir, e)
+        mutable.Buffer.empty[Path]
+    }.get
 }
