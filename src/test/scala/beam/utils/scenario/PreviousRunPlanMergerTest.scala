@@ -14,8 +14,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   "PreviousRunPlanMerger with fraction <= 0" should {
 
-    "should throw error when fraction = -1" in {
-      assertThrows[AssertionError] {
+    "should throw error when fraction is not within range [0, 1]" in {
+      assertThrows[IllegalArgumentException] {
         new PreviousRunPlanMerger(-1, outputPath, "", new Random(), identity)
       }
     }
@@ -23,9 +23,10 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     "should return same plans when fraction = 0" in {
       val planMerger = new PreviousRunPlanMerger(0, outputPath, "", new Random(), identity)
 
-      val res = planMerger.merge(oldPlans)
+      val (res, actuallyMerged) = planMerger.merge(oldPlans)
 
       res should be(oldPlans)
+      actuallyMerged should be(false)
     }
   }
 
