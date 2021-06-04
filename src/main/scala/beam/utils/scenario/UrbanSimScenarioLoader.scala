@@ -42,7 +42,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  def loadScenario(): Scenario = {
+  def loadScenario(): (Scenario, Boolean) = {
     clear()
 
     val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
@@ -104,7 +104,7 @@ class UrbanSimScenarioLoader(
     val persons = Await.result(personsF, 500.seconds)
     val households = Await.result(householdsF, 500.seconds)
 
-    val plans = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans)
+    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -129,7 +129,7 @@ class UrbanSimScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
-    scenario
+    scenario -> plansMerged
   }
 
   private def clear(): Unit = {

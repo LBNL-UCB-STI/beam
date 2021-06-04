@@ -17,9 +17,9 @@ class PreviousRunPlanMerger(
   rnd: Random,
   adjustForScenario: PlanElement => PlanElement
 ) extends LazyLogging {
-  assert(0 <= fraction && fraction <= 1.0, "fraction is wrong")
+  require(0 <= fraction && fraction <= 1.0, "fraction must be in [0, 1]")
 
-  def merge(plans: Iterable[PlanElement]): Iterable[PlanElement] = {
+  def merge(plans: Iterable[PlanElement]): (Iterable[PlanElement], Boolean) = {
     if (fraction > 0) {
       LastRunOutputSource.findLastRunOutputPlans(outputDir, dirPrefix) match {
         case Some(planPath) =>
@@ -31,17 +31,17 @@ class PreviousRunPlanMerger(
             ???
           }
           val convertedPlans = previousPlans.map(adjustForScenario)
-          PreviousRunPlanMerger.merge(convertedPlans, plans, fraction, rnd)
+          PreviousRunPlanMerger.merge(convertedPlans, plans, fraction, rnd) -> true
         case None =>
           logger.warn(
             "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
             outputDir,
             dirPrefix
           )
-          plans
+          plans -> false
       }
     } else {
-      plans
+      plans -> false
     }
   }
 }
