@@ -55,7 +55,7 @@ class S3WrapperTest extends AnyFunSuite {
   test("allBucketFiles from bucket [beam-config]", Integration) {
     val expectedKeysToExist = Set(
       "beamville/r5/tolls.dat",
-      "sf-light/sf-light-10k.conf",
+      "sf-light/sf-light-10k.conf"
     )
 
     val bucketName = "beam-config"
