@@ -33,6 +33,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
@@ -263,6 +264,7 @@ class PersonAgent(
     with ExponentialLazyLogging {
 
   override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
+  implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
@@ -577,11 +579,11 @@ class PersonAgent(
 
   when(WaitingForReservationConfirmation) {
     // TRANSIT SUCCESS
-    case Event(ReservationResponse(Right(response)), data: BasePersonData) =>
+    case Event(ReservationResponse(Right(response), _), data: BasePersonData) =>
       handleSuccessfulReservation(response.triggersToSchedule, data)
     // TRANSIT FAILURE
     case Event(
-        ReservationResponse(Left(firstErrorResponse)),
+        ReservationResponse(Left(firstErrorResponse), _),
         data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
@@ -697,7 +699,7 @@ class PersonAgent(
 
   // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, toll, energyConsumedOption), data: BasePersonData) =>
+    case Event(PassengerScheduleEmptyMessage(_, toll, triggerId, energyConsumedOption), data: BasePersonData) =>
       updateFuelConsumed(energyConsumedOption)
       val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
@@ -737,7 +739,7 @@ class PersonAgent(
           }
           if (!currentBeamVehicle.isMustBeDrivenHome) {
             // Is a shared vehicle. Give it up.
-            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle)
+            currentBeamVehicle.getManager.get ! ReleaseVehicle(currentBeamVehicle, triggerId)
             beamVehicles -= data.currentVehicle.head
           }
         }
@@ -764,11 +766,11 @@ class PersonAgent(
   }
 
   when(TryingToBoardVehicle) {
-    case Event(Boarded(vehicle), basePersonData: BasePersonData) =>
+    case Event(Boarded(vehicle, _), basePersonData: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable, basePersonData: BasePersonData) =>
+    case Event(NotAvailable(triggerId), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
@@ -813,7 +815,7 @@ class PersonAgent(
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
             beamVehicles(nextLeg.beamVehicleId) match {
               case t @ Token(_, manager, _) =>
-                manager ! TryToBoardVehicle(t, self)
+                manager ! TryToBoardVehicle(t, self, getCurrentTriggerIdOrGenerate)
                 return goto(TryingToBoardVehicle)
               case _: ActualVehicle =>
               // That's fine, continue
@@ -894,7 +896,8 @@ class PersonAgent(
       val resRequest = TransitReservationRequest(
         nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
         nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
-        PersonIdWithActorRef(id, self)
+        PersonIdWithActorRef(id, self),
+        getCurrentTriggerIdOrGenerate,
       )
       TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
@@ -913,7 +916,8 @@ class PersonAgent(
         beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),
         nextLeg.isPooledTrip,
         requestTime = _currentTick,
-        quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get)
+        quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
+        triggerId = getCurrentTriggerIdOrGenerate,
       )
 
       eventsManager.processEvent(
@@ -955,7 +959,8 @@ class PersonAgent(
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
         legSegment.last.beamLeg,
-        PersonIdWithActorRef(id, self)
+        PersonIdWithActorRef(id, self),
+        getCurrentTriggerIdOrGenerate,
       )
       context.actorSelection(
         householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId).toString)
@@ -1073,7 +1078,7 @@ class PersonAgent(
                 if (activity.getType.equals("Home")) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
-                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh)
+                  personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
                   None
                 } else {
                   currentTourPersonalVehicle
@@ -1241,12 +1246,12 @@ class PersonAgent(
         ) =>
       log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
+        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule, triggerId)
       }
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
-    case Event(ParkingInquiryResponse(_, _), _) =>
+    case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)

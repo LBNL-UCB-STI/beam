@@ -309,7 +309,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     }
   }
 
-  private val TimeRestriction = """(\w+):(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+  private val TimeRestriction = """(\w+)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
   private[parking] def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleCategory, Range] = {
 
     def parseTimeRestriction(timeRestrictionString: String): Option[(VehicleCategory, Range)] = {
@@ -334,7 +334,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     // values look like LightDutyTruck:00:00-14:00|Car:14:00-18:00|Bike:18:00-24:00
     Option(timeRestrictionsString)
       .getOrElse("")
-      .split('|')
+      .split(';')
       .map(_.trim)
       .filterNot(_.isEmpty)
       .flatMap(parseTimeRestriction)

@@ -8,7 +8,8 @@ import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFac
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.{mock, when}
+import org.mockito.Mockito
+import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -85,10 +86,10 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
     "generate Population" in {
       val personPlans = mutable.Map.empty[Id[Person], Plan]
 
-      val populationFactory: PopulationFactory = mock(classOf[PopulationFactory])
+      val populationFactory: PopulationFactory = Mockito.mock(classOf[PopulationFactory])
       when(populationFactory.createPerson(any())).thenAnswer { invocation =>
         val personId = invocation.getArgument[Id[Person]](0)
-        val person = mock(classOf[Person])
+        val person = Mockito.mock(classOf[Person])
         when(person.addPlan(any())).thenAnswer { invocation =>
           val plan: Plan = invocation.getArgument(0)
           personPlans += (personId -> plan)
@@ -96,7 +97,8 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
         }
         person
       }
-      val householdFactory: HouseholdsFactory = mock(classOf[HouseholdsFactory])
+
+      val householdFactory: HouseholdsFactory = Mockito.mock(classOf[HouseholdsFactory])
       when(householdFactory.createHousehold(any())).thenAnswer { invocation =>
         val id = invocation.getArgument[Id[Household]](0)
         val household = new HouseholdImpl(id)

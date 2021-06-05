@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
-import akka.pattern.{ask, pipe}
+import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent.Finish
@@ -13,11 +13,14 @@ import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStat
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
-import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.DateUtils
+import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
@@ -33,7 +36,7 @@ class ChargingNetworkManager(
   chargingInfrastructure: ParkingAndChargingInfrastructure,
   parkingManager: ActorRef,
   scheduler: ActorRef
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging {
   import ChargingNetworkManager._
   import ConnectionStatus._
@@ -53,6 +56,7 @@ class ChargingNetworkManager(
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.Future
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
+  implicit val debug: Debug = beamConfig.beam.debug
 
   private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds).toInt
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
@@ -74,7 +78,7 @@ class ChargingNetworkManager(
     super.postStop()
   }
 
-  override def receive: Receive = {
+  override def loggedReceive: Receive = {
     case DebugReport =>
       log.info(
         s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
@@ -105,7 +109,7 @@ class ChargingNetworkManager(
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
-              handleEndCharging(timeBin, chargingVehicle)
+              handleEndCharging(timeBin, chargingVehicle, triggerId = triggerId)
               None
             case cycle if chargingNotCompleteUsing(cycle) =>
               log.debug(
@@ -141,7 +145,7 @@ class ChargingNetworkManager(
         case Some(stall) =>
           val chargingNetwork = chargingNetworks(stall.vehicleManager)
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
-            case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle)
+            case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle, triggerId = triggerId)
             // We don't inform Actors that a private vehicle has ended charging because we don't know which agent should be informed
             case _ => log.debug(s"Vehicle ${vehicle.id} is already disconnected")
           }
@@ -149,7 +153,7 @@ class ChargingNetworkManager(
       }
       sender ! CompletionNotice(triggerId)
 
-    case ChargingPlugRequest(tick, vehicle) =>
+    case ChargingPlugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       vehicle.stall match {
         case Some(stall) if vehicle.isBEV | vehicle.isPHEV =>
@@ -163,9 +167,9 @@ class ChargingNetworkManager(
                 station.zone.maxStalls,
                 station.waitingLineVehicles.size
               )
-              sender ! WaitingInLine(tick, vehicle.id)
+              sender ! WaitingInLine(tick, vehicle.id, triggerId)
             case Some(chargingVehicle: ChargingVehicle) =>
-              handleStartCharging(tick, chargingVehicle)
+              handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
             case _ =>
               log.debug(s"Attempt to connect vehicle ${vehicle.id} to charger failed!")
           }
@@ -177,7 +181,7 @@ class ChargingNetworkManager(
           log.error(s"Vehicle ${vehicle.id} doesn't have stall, which is necessary to start charging")
       }
 
-    case ChargingUnplugRequest(tick, vehicle) =>
+    case ChargingUnplugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       vehicle.stall match {
@@ -192,14 +196,14 @@ class ChargingNetworkManager(
               val (chargeDurationAtTick, energyToChargeAtTick) =
                 dispatchEnergy(duration, chargingVehicle, physicalBounds)
               chargingVehicle.processChargingCycle(startTime, energyToChargeAtTick, chargeDurationAtTick)
-              handleEndCharging(tick, chargingVehicle, Some(sender))
+              handleEndCharging(tick, chargingVehicle, Some(sender), triggerId = triggerId)
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected at $tick")
-              sender ! UnhandledVehicle(tick, vehicle.id)
+              sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
           }
         case _ =>
           log.debug(s"Cannot unplug $vehicle as it doesn't have a stall at $tick")
-          sender ! UnhandledVehicle(tick, vehicle.id)
+          sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
       }
 
     case Finish =>
@@ -260,12 +264,12 @@ class ChargingNetworkManager(
     * @param tick current time
     * @param chargingVehicle charging vehicle information
     */
-  private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    val ChargingVehicle(vehicle, _, _, _, _, theSender, _, _) = chargingVehicle
+  private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle, triggerId: Long): Unit = {
+    val ChargingVehicle(vehicle, stall, _, _, _, theSender, _, _) = chargingVehicle
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.connectToChargingPoint(tick)
-    theSender ! StartingRefuelSession(tick, vehicle.id)
+    theSender ! StartingRefuelSession(tick, vehicle.id, triggerId)
     handleStartChargingHelper(tick, chargingVehicle)
     val (chargeDurationAtTick, energyToChargeAtTick) =
       dispatchEnergy(nextTimeBin(tick) - tick, chargingVehicle, physicalBounds)
@@ -284,7 +288,8 @@ class ChargingNetworkManager(
   private def handleEndCharging(
     tick: Int,
     chargingVehicle: ChargingVehicle,
-    currentSenderMaybe: Option[ActorRef] = None
+    currentSenderMaybe: Option[ActorRef] = None,
+    triggerId: Long
   ): Unit = {
     val ChargingVehicle(vehicle, stall, _, _, _, _, _, _) = chargingVehicle
     val chargingNetwork = chargingNetworks(stall.vehicleManager)
@@ -294,10 +299,10 @@ class ChargingNetworkManager(
         handleRefueling(chargingVehicle)
         handleEndChargingHelper(tick, chargingVehicle)
         vehicle.disconnectFromChargingPoint()
-        parkingManager ! ReleaseParkingStall(vehicle.stall.get)
+        parkingManager ! ReleaseParkingStall(vehicle.stall.get, triggerId)
         vehicle.unsetParkingStall()
-        currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id))
-        chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _))
+        currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id, triggerId))
+        chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _, triggerId))
       case None =>
         log.error(
           s"Vehicle ${chargingVehicle.vehicle} failed to disconnect. Check the debug logs if it has been already disconnected. Otherwise something is broken!!"
@@ -379,12 +384,12 @@ object ChargingNetworkManager {
   case class ChargingZonesInquiry()
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
   case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
-  case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle)
-  case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle)
-  case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
-  case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle])
-  case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle])
-  case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle])
+  case class ChargingPlugRequest(tick: Int, vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
+  case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
+  case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
+  case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
+  case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
+  case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
   def props(
     beamServices: BeamServices,

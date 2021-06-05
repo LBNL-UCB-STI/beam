@@ -4,6 +4,10 @@
 
 package akka.actor
 
+import beam.agentsim.agents.HasTickAndTrigger
+import beam.utils.logging.LoggingMessageActor.messageLoggingEnabled
+import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamStateTransition}
+
 trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
 
   import FSM._
@@ -11,6 +15,8 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
   def logDepth: Int = 0
 
   private[akka] override val debugEvent = context.system.settings.FsmDebugEvent
+
+  val debugMessages: Boolean = messageLoggingEnabled(context.system.settings.config)
 
   private val events = new Array[Event](logDepth)
   private val states = new Array[AnyRef](logDepth)
@@ -24,6 +30,15 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
       pos = 0
     } else {
       pos = n
+    }
+  }
+
+  if (debugMessages) {
+    onTransition {
+      case x -> y =>
+        val (tick, triggerId) = currentTickAndTriggerId
+        val msg = BeamStateTransition(context.sender, context.self, x, y, tick, triggerId)
+        context.system.eventStream.publish(msg)
     }
   }
 
@@ -44,12 +59,26 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
       advance()
     }
 
+    if (debugMessages) {
+      //storing incoming event into beam messages csv file
+      val (tick, triggerId) = currentTickAndTriggerId
+      val msg = BeamFSMMessage(context.sender(), context.self, event, tick, triggerId)
+      context.system.eventStream.publish(msg)
+    }
+
     val oldState = stateName
     super.processEvent(event, source)
     val newState = stateName
 
     if (debugEvent && oldState != newState)
       log.debug("###FSM-transition### actor:" + self.toString() + " transition: " + oldState + " -> " + newState)
+  }
+
+  private def currentTickAndTriggerId: (Int, Long) = {
+    this match {
+      case x: HasTickAndTrigger => (x.getCurrentTick.getOrElse(-1), x.getCurrentTriggerIdOrGenerate)
+      case _                    => (-1, -1)
+    }
   }
 
   /**

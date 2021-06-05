@@ -150,7 +150,7 @@ class HierarchicalParkingManager(
       ParkingZone.claimStall(tazParkingZone)
     }
 
-    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId))
+    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
   }
 
   override def processReleaseParkingStall(release: ReleaseParkingStall): Unit = {

@@ -82,7 +82,7 @@ class ZonalParkingManager[GEO: GeoLevel](
       if (totalStallsInUse % 1000 == 0) logger.debug("Parking stalls in use: {}", totalStallsInUse)
     }
 
-    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId))
+    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
   }
 
   override def processReleaseParkingStall(release: ReleaseParkingStall) = {

@@ -1,8 +1,8 @@
 package beam.sim.vehiclesharing
 
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
-import akka.pattern.{ask, pipe}
+import akka.actor.{ActorLogging, ActorRef, Stash}
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.{Boarded, NotAvailable, NotifyVehicleIdle, TryToBoardVehicle}
 import beam.agentsim.agents.InitializeTrigger
@@ -16,6 +16,9 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Debug
+import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import com.vividsolutions.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
@@ -36,13 +39,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   val beamServices: BeamServices,
   val maxWalkingDistance: Int,
   val repositionAlgorithmType: Option[RepositionAlgorithmType] = None
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging
     with Stash
     with RepositionManager {
 
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+  private implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
   private val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
@@ -63,25 +67,25 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
   private val availableVehiclesIndex = new Quadtree
 
-  override def receive: Receive = super[RepositionManager].receive orElse { // Reposition
+  override def loggedReceive: Receive = super[RepositionManager].loggedReceive orElse { // Reposition
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.values.map { veh =>
           veh.setManager(Some(self))
-          parkingManager ? parkingInquiry(veh.spaceTime) flatMap {
-            case ParkingInquiryResponse(stall, _) =>
+          parkingManager ? parkingInquiry(veh.spaceTime, triggerId) flatMap {
+            case ParkingInquiryResponse(stall, _, triggerId) =>
               veh.useParkingStall(stall)
-              self ? ReleaseVehicleAndReply(veh)
+              self ? ReleaseVehicleAndReply(veh, None, triggerId)
           }
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
 
-    case GetVehicleTypes() =>
-      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet)
-    case MobilityStatusInquiry(_, whenWhere, _) =>
+    case GetVehicleTypes(triggerId) =>
+      sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
+    case MobilityStatusInquiry(_, whenWhere, _, triggerId) =>
       // Search box: maxWalkingDistance meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(maxWalkingDistance)
@@ -90,33 +94,34 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
       sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
         Token(vehicle.id, self, vehicle)
-      })
+      }, triggerId)
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
-    case TryToBoardVehicle(token, who) =>
+    case TryToBoardVehicle(token, who, triggerId) =>
       makeUnavailable(token.id, token.streetVehicle) match {
         case Some(vehicle) if token.streetVehicle.locationUTM == vehicle.spaceTime =>
           log.debug("Checked out " + vehicle.id)
-          who ! Boarded(vehicle)
+          who ! Boarded(vehicle, triggerId)
           collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ =>
-          who ! NotAvailable
+          who ! NotAvailable(triggerId)
       }
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
-    case ReleaseVehicle(vehicle) =>
+    case ReleaseVehicle(vehicle, _) =>
       makeAvailable(vehicle.id)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
 
-    case ReleaseVehicleAndReply(vehicle, _) =>
+    case ReleaseVehicleAndReply(vehicle, _, triggerId) =>
       makeAvailable(vehicle.id)
-      sender() ! Success
+      sender() ! Success(triggerId)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere, "wherever")
+  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
+    ParkingInquiry(whenWhere, "wherever", triggerId = triggerId)
 
   override def getId: Id[VehicleManager] = id
   override def queryAvailableVehicles: List[BeamVehicle] =

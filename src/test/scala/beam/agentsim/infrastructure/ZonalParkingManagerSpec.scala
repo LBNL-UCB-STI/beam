@@ -85,7 +85,7 @@ class ZonalParkingManagerSpec
           config
         )
       } {
-        val inquiry = ParkingInquiry(centerSpaceTime, "work")
+        val inquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 77239)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.loc.getX + 2000,
@@ -104,7 +104,10 @@ class ZonalParkingManagerSpec
         // the random number generator is unused by the [[ZonalParkingManager]] search, and we can
         // therefore rely on the coordinate that is generated when [[ZonalParkingManager]] calls [[ParkingStall.emergencyStall]] internally
         assert(response.isDefined, "no response")
-        assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+        assert(
+          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -137,7 +140,7 @@ class ZonalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work")
+        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 3234324)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -153,16 +156,20 @@ class ZonalParkingManagerSpec
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId),
+          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work")
-        val response2 @ Some(ParkingInquiryResponse(stall, responseId)) =
+        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 123709)
+        val response2 @ Some(ParkingInquiryResponse(stall, responseId, triggerId)) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
-        assert(stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId, "something is wildly broken")
+        assert(
+          stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
+          && triggerId == secondInquiry.triggerId,
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -201,7 +208,7 @@ class ZonalParkingManagerSpec
         )
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", Some(vehicle1))
+        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", Some(vehicle1), triggerId = 73737)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -217,6 +224,7 @@ class ZonalParkingManagerSpec
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(response1.get.requestId == firstInquiry.requestId, "something is wildly broken")
+        assert(response1.get.triggerId == firstInquiry.triggerId, "something is wildly broken with trigger id")
         assert(response1.get.stall.toString == expectedFirstStall.toString, "something is wildly broken")
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
@@ -226,11 +234,15 @@ class ZonalParkingManagerSpec
           powerTrain = new Powertrain(0.0),
           beamVehicleType = vehicleType2
         )
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", Some(vehicle2))
-        val response2 @ Some(ParkingInquiryResponse(stall, responseId)) =
+        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", Some(vehicle2), triggerId = 49238)
+        val response2 @ Some(ParkingInquiryResponse(stall, responseId, triggerId)) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
-        assert(stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId, "something is wildly broken")
+        assert(
+          stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
+          && triggerId == secondInquiry.triggerId,
+          "something is wildly broken"
+        )
         assert(stall.chargingPointType.isEmpty, "it should not get an Ultra Fast charging point stall")
       }
     }
@@ -263,8 +275,8 @@ class ZonalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work")
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work")
+        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 3829)
+        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 38429)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
@@ -283,19 +295,19 @@ class ZonalParkingManagerSpec
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId),
+          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 2903)
         zonalParkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
         val response2 = zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
         assert(
-          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId),
+          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -342,10 +354,10 @@ class ZonalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(SpaceTime(middleOfWorld, 0), "work")
+          req = ParkingInquiry(SpaceTime(middleOfWorld, 0), "work", triggerId = 839237)
           response1 = zonalParkingManager.processParkingInquiry(req)
           counted = response1 match {
-            case Some(res @ ParkingInquiryResponse(_, _)) =>
+            case Some(res @ ParkingInquiryResponse(_, _, _)) =>
               if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
             case _ =>
               assert(response1.isDefined, "no response")
@@ -425,8 +437,8 @@ class ZonalParkingManagerSpec
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions,vehicleManager,parkingZoneId
-          |4,Public,FlatFee,NoCharger,10,0,,LightDutyTruck:17:30-24,freight,
-          |4,Public,Block,NoCharger,20,0,,LightDutyTruck:0-17:30,freight,""".stripMargin
+          |4,Public,FlatFee,NoCharger,10,0,,Car|0-17:30;LightDutyTruck|17:31-23:59,,
+          |4,Public,Block,NoCharger,20,0,,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
@@ -449,11 +461,11 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
         "4",
-        ParkingZone.createId("cs_freight_4_Public_NoCharger_Block"),
+        ParkingZone.createId("cs_NoManager_4_Public_NoCharger_Block"),
         PricingModel("block", "0").get,
         ParkingType.Public,
-        Some(Id.create("freight", classOf[VehicleManager])),
-        "FREIGHT-1",
+        None,
+        "FREIGHT-1"
       )
     }
   }
@@ -524,7 +536,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       vehicleManager = vehicleManagerIdMaybe
     )
-    val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init", Some(vehicle))
+    val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init", Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
     assert(response.isDefined, "no response")
     assert(
@@ -550,7 +562,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       vehicleManager = vehicleManagerIdMaybe
     )
-    val inquiry = ParkingInquiry(spaceTime, "init", Some(vehicle))
+    val inquiry = ParkingInquiry(spaceTime, "init", Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0
@@ -568,7 +580,10 @@ class ZonalParkingManagerSpec
         vehicleManagerIdMaybe
       )
     assert(response.isDefined, "no response")
-    assert(response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId), "something is wildly broken")
+    assert(
+      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+      "something is wildly broken"
+    )
   }
 
   override def afterAll: Unit = {
