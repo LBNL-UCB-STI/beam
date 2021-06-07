@@ -5,20 +5,109 @@ import akka.pattern._
 import akka.util.Timeout
 import beam.agentsim.infrastructure.geozone.H3Wrapper
 import beam.router.Modes.BeamMode
-import beam.router.Router
+import beam.router.{FreeFlowTravelTime, Router}
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.skim._
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerEventFactory, ODSkimmer}
 import beam.router.skim.urbansim.MasterActor.Response
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.config.BeamExecutionConfig
+import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.utils.ProfilingUtils
+import com.google.inject.Injector
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.router.util.TravelTime
+import org.matsim.core.scenario.MutableScenario
+import scopt.OParser
 
+import java.io.File
+import java.nio.file.Path
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.Future
+
+case class InputParameters(
+  configPath: Path = null,
+  output: Path = null
+)
+
+object BackgroundSkimsCreatorApp extends App with BeamHelper {
+
+  private val parser = {
+    val builder = OParser.builder[InputParameters]
+    import builder._
+
+    def fileValidator(file: File): Either[String, Unit] =
+      if (file.isFile) success
+      else failure(s"$file does not exist")
+
+    OParser.sequence(
+      programName("BackgroundSkimsCreator"),
+      opt[File]("configPath")
+        .required()
+        .validate(fileValidator)
+        .action((x, c) => c.copy(configPath = x.toPath))
+        .text("Beam config path"),
+      opt[File]("output").required().action((x, c) => c.copy(output = x.toPath)).text("output csv file path")
+    )
+  }
+
+  OParser.parse(parser, args, InputParameters()) match {
+    case Some(params) =>
+      val manualArgs = Array[String]("--config", params.configPath.toString)
+      val (_, config) = prepareConfig(manualArgs, isConfigArgRequired = true)
+
+      implicit val actorSystem = ActorSystem()
+      implicit val ec = actorSystem.dispatcher
+
+      val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
+
+      val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+        beamExecutionConfig.beamConfig,
+        beamExecutionConfig.matsimConfig
+      )
+      val scenario: MutableScenario = scenarioBuilt
+      val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+      val beamServices: BeamServices = buildBeamServices(injector, scenario)
+      val tazClustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMap)
+      val skimmer = BackgroundSkimsCreator.createSkimmer(beamServices, tazClustering)
+
+      val skimsCreator = new BackgroundSkimsCreator(
+        beamServices = beamServices,
+        beamScenario = beamScenario,
+        geoClustering = tazClustering,
+        abstractSkimmer = skimmer,
+        travelTime = new FreeFlowTravelTime,
+        beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
+        withTransit = false,
+        buildDirectWalkRoute = false,
+        buildDirectCarRoute = true,
+        calculationTimeoutHours = 1
+      )
+
+      skimsCreator.start()
+      skimsCreator.getResult
+        .map(skimmer => {
+          logger.info("Got populated skimmer")
+          logger.info(skimmer.abstractSkimmer.currentSkim.toString())
+          skimmer.abstractSkimmer.writeToDisk(params.output.toString)
+          None
+        })
+        .andThen {
+          case _ =>
+            logger.info("Stopping skimsCreator")
+            skimsCreator.stop()
+            logger.info("Terminating actorSystem")
+            actorSystem.terminate().andThen {
+              case _ =>
+                logger.info("actorSystem terminated")
+            }
+        }
+    case _ =>
+      logger.error("Could not process parameters")
+  }
+
+}
 
 class BackgroundSkimsCreator(
   val beamServices: BeamServices,
