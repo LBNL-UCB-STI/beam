@@ -23,9 +23,9 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     "should return same plans when fraction = 0" in {
       val planMerger = new PreviousRunPlanMerger(0, outputPath, "", new Random(), identity)
 
-      val (res, actuallyMerged) = planMerger.merge(oldPlans)
+      val (res, actuallyMerged) = planMerger.merge(newPlans)
 
-      res should be(oldPlans)
+      res should be(newPlans)
       actuallyMerged should be(false)
     }
   }
@@ -53,8 +53,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
       res should be(
         Seq(
-          createPlanElement("1", 0, 49501),
-          createPlanElement("1", 1, 49502), //old as unique
+          createPlanElement("7", 0, 49501),
+          createPlanElement("7", 1, 49502), //old as unique
           createPlanElement("2", 0, 49503),
           createPlanElement("2", 1, 49504), //old
           createPlanElement("6", 2, 49508), //old as unique
@@ -78,8 +78,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
       res should be(
         Seq(
-          createPlanElement("1", 0, 49501),
-          createPlanElement("1", 1, 49502), //old as unique
+          createPlanElement("7", 0, 49501),
+          createPlanElement("7", 1, 49502), //old as unique
           createPlanElement("6", 2, 49508), //old as unique
           createPlanElement("0", 0, 49509),
           createPlanElement("0", 1, 49510),
@@ -98,8 +98,38 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
   "PreviousRunPlanMerger with valid inputs" should {
     "must read previous xml plans without error" in {
       val planMerger = new PreviousRunPlanMerger(1.0, outputPath, "beamville", new Random(), identity)
+      val activitySimPlans = getOldPlans //to avoid naming mess
 
-      println(planMerger.merge(oldPlans))
+      val (mergedPlans, merged) = planMerger.merge(activitySimPlans)
+
+      merged should be(true)
+      mergedPlans.filter { activitySimPlans.contains }.toList should be(
+        Seq(
+          createPlanElement("7", 0, 49501),
+          createPlanElement("7", 1, 49502),
+          createPlanElement("2", 0, 49503),
+          createPlanElement("2", 1, 49504),
+          createPlanElement("3", 0, 49505),
+          createPlanElement("3", 1, 49506),
+          createPlanElement("3", 2, 49507),
+          createPlanElement("4", 2, 49508),
+          createPlanElement("6", 2, 49508),
+        )
+      )
+
+      mergedPlans.filter(_.personId.id == "1").toList should be(
+        Seq(
+          createActivityPlanElement("Home", 166321.9, 1568.87, 49500.0, "1", 0, -494.58068848294334),
+          createLegPlanElement("walk", "1", 1, -494.58068848294334),
+          createActivityPlanElement("Shopping", 167138.4, 1117.0, 56940.0, "1", 2, -494.58068848294334),
+          createLegPlanElement("walk", "1", 3, -494.58068848294334),
+          createActivityPlanElement("Home", 166321.9, 1568.87, 66621.0, "1", 4, -494.58068848294334),
+          createLegPlanElement("bike", "1", 5, -494.58068848294334),
+          createActivityPlanElement("Shopping", 166045.2, 2705.4, 71006.0, "1", 6, -494.58068848294334),
+          createLegPlanElement("car", "1", 7, -494.58068848294334),
+          createActivityPlanElement("Home", 166321.9, 1568.87, Double.NegativeInfinity, "1", 8, -494.58068848294334)
+        )
+      )
     }
   }
 
@@ -107,8 +137,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     Seq(
       createPlanElement("0", 0, 49499),
       createPlanElement("0", 1, 49500),
-      createPlanElement("1", 0, 49501),
-      createPlanElement("1", 1, 49502),
+      createPlanElement("7", 0, 49501),
+      createPlanElement("7", 1, 49502),
       createPlanElement("2", 0, 49503),
       createPlanElement("2", 1, 49504),
       createPlanElement("3", 0, 49505),
@@ -134,7 +164,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     )
   }
 
-  def createPlanElement(personId: String, planIndex: Int, activityEndTime: Double): PlanElement =
+  def createPlanElement(personId: String, planIndex: Int, activityEndTime: Double): PlanElement = {
     PlanElement(
       PersonId(personId),
       planIndex,
@@ -145,7 +175,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       Some("a"),
       Some(1),
       Some(1),
-      Some(activityEndTime),
+      Option(activityEndTime),
       None,
       None,
       None,
@@ -157,4 +187,59 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       Seq(),
       None
     )
+  }
+
+  def createActivityPlanElement(
+    activityType: String,
+    x: Double,
+    y: Double,
+    endTime: Double,
+    personId: String,
+    planElementIdx: Int,
+    planScore: Double
+  ): PlanElement = PlanElement(
+    PersonId(personId),
+    0,
+    planScore,
+    true,
+    "activity",
+    planElementIdx,
+    Some(activityType),
+    Some(x),
+    Some(y),
+    Option(endTime),
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    Seq.empty,
+    None
+  )
+
+  def createLegPlanElement(mode: String, personId: String, planElementIdx: Int, planScore: Double): PlanElement = PlanElement(
+    PersonId(personId),
+    0,
+    planScore,
+    true,
+    "leg",
+    planElementIdx,
+    None,
+    None,
+    None,
+    None,
+    Some(mode),
+    Some("-Infinity"),
+    Some("-Infinity"),
+    None,
+    None,
+    None,
+    None,
+    None,
+    Seq.empty,
+    None
+  )
 }
