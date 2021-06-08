@@ -8,7 +8,7 @@ import scala.util.Random
 
 class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
-  private val outputPath = Paths.get("test/test-resources/agentsim/plans/beamville")
+  private val outputPath = Paths.get("test/test-resources/beam/agentsim/plans")
   private val oldPlans = getOldPlans
   private val newPlans = getNewPlans
 
@@ -71,7 +71,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     }
 
     "should return all plans merged when fraction = 1.1" in {
-      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 1.1, new Random(1))
+      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 1.0, new Random(1))
 
       res.toSet.count(oldPlans.contains) should be(3)
       res.toSet.count(newPlans.contains) should be(9)
@@ -92,6 +92,14 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("4", 2, 49517) //new merged
         )
       )
+    }
+  }
+
+  "PreviousRunPlanMerger with valid inputs" should {
+    "must read previous xml plans without error" in {
+      val planMerger = new PreviousRunPlanMerger(1.0, outputPath, "beamville", new Random(), identity)
+
+      println(planMerger.merge(oldPlans))
     }
   }
 

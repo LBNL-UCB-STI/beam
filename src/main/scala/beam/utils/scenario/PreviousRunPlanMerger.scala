@@ -1,6 +1,6 @@
 package beam.utils.scenario
 
-import beam.utils.scenario.generic.readers.CsvPlanElementReader
+import beam.utils.scenario.generic.readers.{CsvPlanElementReader, XmlPlanElementReader}
 import com.typesafe.scalalogging.LazyLogging
 
 import java.io.IOException
@@ -22,28 +22,27 @@ class PreviousRunPlanMerger(
   require(0 <= fraction && fraction <= 1.0, "fraction must be in [0, 1]")
 
   def merge(plans: Iterable[PlanElement]): (Iterable[PlanElement], Boolean) = {
-    if (fraction > 0) {
-      LastRunOutputSource.findLastRunOutputPlans(outputDir, dirPrefix) match {
-        case Some(planPath) =>
-          logger.info("Found the plans in the beam output directory: {}", planPath)
-          val previousPlans = if (planPath.getFileName.toString.toLowerCase.contains(".csv")) {
-            CsvPlanElementReader.read(planPath.toString)
-          } else {
-            //todo load xml plans
-            ???
-          }
-          val convertedPlans = previousPlans.map(adjustForScenario)
-          PreviousRunPlanMerger.merge(convertedPlans, plans, fraction, rnd) -> true
-        case None =>
-          logger.warn(
-            "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
-            outputDir,
-            dirPrefix
-          )
-          plans -> false
-      }
-    } else {
-      plans -> false
+    if (fraction <= 0) {
+      return plans -> false
+    }
+
+    LastRunOutputSource.findLastRunOutputPlans(outputDir, dirPrefix) match {
+      case Some(planPath) =>
+        logger.info("Found the plans in the beam output directory: {}", planPath)
+        val previousPlans = if (planPath.getFileName.toString.toLowerCase.contains(".csv")) {
+          CsvPlanElementReader.read(planPath.toString)
+        } else {
+          XmlPlanElementReader.read(planPath.toString)
+        }
+        val convertedPlans = previousPlans.map(adjustForScenario)
+        PreviousRunPlanMerger.merge(convertedPlans, plans, fraction, rnd) -> true
+      case None =>
+        logger.warn(
+          "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
+          outputDir,
+          dirPrefix
+        )
+        plans -> false
     }
   }
 }
@@ -119,7 +118,7 @@ object LastRunOutputSource extends LazyLogging {
         .asScala
     }.recover {
       case e: IOException =>
-        logger.error("Failed to find parent dir. {}", parentDir, e)
+        logger.warn("Failed to find parent dir. {}", parentDir, e)
         mutable.Buffer.empty[Path]
     }.get
 }
