@@ -411,8 +411,8 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("cs_NoManager_1_Public_NoCharger_Block"),
-        Block(0.0, 3600),
+        ParkingZone.createId("cs_NoManager_1_Public_NoCharger_FlatFee"),
+        FlatFee(0.0),
         ParkingType.Public,
         None,
         "beamVilleCar"
@@ -502,8 +502,8 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_NoManager_4_Residential_NoCharger_FlatFee"),
-        FlatFee(1.99),
+        ParkingZone.createId("cs_NoManager_4_Residential_NoCharger_Block"),
+        Block(1.99, 3600),
         ParkingType.Residential,
         None,
         "beamVilleCar"

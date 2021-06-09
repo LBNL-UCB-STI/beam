@@ -303,7 +303,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         zone.geoId,
         parkingTypes.updated(
           zone.parkingType,
-          parkingZoneIds :+ zone.parkingZoneId
+          (parkingZoneIds :+ zone.parkingZoneId).sorted
         )
       )
     }
@@ -493,7 +493,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       row.tazId,
       parkingTypes.updated(
         row.parkingType,
-        parkingZoneIds :+ row.parkingZone.parkingZoneId
+        (parkingZoneIds :+ row.parkingZone.parkingZoneId).sorted
       )
     )
 

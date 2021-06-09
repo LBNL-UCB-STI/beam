@@ -210,7 +210,6 @@ object ParkingZoneFileUtilsSpec {
         |83658,Workplace,FlatFee,ultrafast(250.0|DC),100,0.0,
         |83661,Residential,Block,dcfast(50.0|DC),1000,0.0,
         |83661,Public,FlatFee,level2(7.2|AC),1000,0.0,
-        |83661,Public,FlatFee,level2(7.2|AC),1000,0.0,
         |83663,Workplace,FlatFee,level2(7.2|AC),10000,0.0,
         |83663,Workplace,FlatFee,ultrafast(250.0|DC),10000,0.0,
         |
