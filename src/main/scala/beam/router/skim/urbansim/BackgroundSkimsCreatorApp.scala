@@ -20,7 +20,8 @@ import scala.util.control.NonFatal
 case class InputParameters(
   configPath: Path = null,
   input: Path = null,
-  output: Path = null
+  output: Path = null,
+  parallelism: Int = 1
 )
 
 case class CsvInputRow(origin: String, destination: String, mode: String)
@@ -32,6 +33,7 @@ Example of parameters usage:
  --configPath test/input/beamville/beam.conf
  --input test/input/beamville/input.csv
  --output test/input/beamville/output.csv
+ --parallelism 2
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
   private val parser = {
@@ -54,7 +56,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         .validate(fileValidator)
         .action((x, c) => c.copy(input = x.toPath))
         .text("input csv file path"),
-      opt[File]("output").required().action((x, c) => c.copy(output = x.toPath)).text("output csv file path")
+      opt[File]("output").required().action((x, c) => c.copy(output = x.toPath)).text("output csv file path"),
+      opt[Int]("parallelism").action((x, c) => c.copy(parallelism = x)).text("Parallelism level")
     )
   }
 
@@ -112,7 +115,10 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         calculationTimeoutHours = 1
       )
 
+      logger.info("Parallelism " + params.parallelism)
+      skimsCreator.increaseParallelismTo(params.parallelism)
       skimsCreator.start()
+
       skimsCreator.getResult
         .map(skimmer => {
           logger.info("Got populated skimmer")
