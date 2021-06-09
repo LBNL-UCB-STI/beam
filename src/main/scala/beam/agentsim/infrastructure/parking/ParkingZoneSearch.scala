@@ -111,7 +111,6 @@ object ParkingZoneSearch {
     * @param utilityParameters
     */
   private[ParkingZoneSearch] case class ParkingSearchAlternative[GEO](
-    isValidAlternative: Boolean,
     parkingAlternative: ParkingAlternative[GEO],
     utilityParameters: Map[ParkingMNL.Parameters, Double]
   )
@@ -164,9 +163,9 @@ object ParkingZoneSearch {
             parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
             parkingZoneId       <- parkingZoneIds
             parkingZone         <- ParkingZone.getParkingZone(params.parkingZones, parkingZoneId)
+            if parkingZoneFilterFunction(parkingZone)
           } yield {
             // wrap ParkingZone in a ParkingAlternative
-            val isValidParkingZone: Boolean = parkingZoneFilterFunction(parkingZone)
             val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
             val stallPriceInDollars: Double =
               parkingZone.pricingModel match {
@@ -175,18 +174,17 @@ object ParkingZoneSearch {
                   PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative[GEO] =
-              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
+              ParkingAlternative(zone, parkingZone.parkingType, parkingZone, stallLocation, stallPriceInDollars)
             val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
-              isValidParkingZone,
               parkingAlternative,
               parkingAlternativeUtility
             )
           }
         }
 
-        if (!alternatives.exists(_.isValidAlternative)) {
+        if (alternatives.isEmpty) {
           _search(
             thisOuterRadius,
             thisOuterRadius * config.searchExpansionFactor,
@@ -198,9 +196,8 @@ object ParkingZoneSearch {
 
           // remove any invalid parking alternatives
           val alternativesToSample: Map[ParkingAlternative[GEO], Map[ParkingMNL.Parameters, Double]] =
-            alternatives.collect {
-              case a if a.isValidAlternative =>
-                a.parkingAlternative -> a.utilityParameters
+            alternatives.map { a =>
+              a.parkingAlternative -> a.utilityParameters
             }.toMap
 
           val mnl: MultinomialLogit[ParkingAlternative[GEO], ParkingMNL.Parameters] =
