@@ -337,11 +337,11 @@ tasks.withType(ScalaCompile) {
                                 "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:UnusedMethodParameter:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:ParameterlessMethodReturnsUnit:SuspiciousMatchOnClassObject:PointlessTypeBounds:BrokenOddness:VarClosure:EmptyTryBlock:RepeatedIfElseBody:BigDecimalDoubleConstructor:EmptyInterpolatedString:SwallowedException:LooksLikeInterpolatedString",
                                 "-P:scapegoat:verbose:false",
                                 "-P:scapegoat:consoleOutput:true"]
-    def listOfStrings = additionalParameters + ["-unchecked", "-deprecation", "-feature"]
+    def minimumCompilationParameters = ["-unchecked", "-deprecation", "-feature"]
     if (project.hasProperty("report")) {
-        scalaCompileOptions.additionalParameters = listOfStrings
+        scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters
     } else {
-        scalaCompileOptions.additionalParameters = additionalParameters + ["-Xfatal-warnings"]
+        scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters + ["-Xfatal-warnings"]
     }
 }
 
