@@ -127,7 +127,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       "oneway"   -> (if (Seq("1", "true").contains(oneway.getValue.toLowerCase)) "yes" else "no"),
       "capacity" -> capacity.getValue,
       "maxspeed" -> freeSpeedy.getValue,
-      "highway" -> highway.getValue
+      "highway"  -> highway.getValue
     ) ++ toMultipleInnerTags(modes)
     new ArrayBuffer() ++ result
   }
