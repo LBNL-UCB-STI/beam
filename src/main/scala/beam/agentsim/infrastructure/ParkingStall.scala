@@ -20,7 +20,9 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  managerId: Id[VehicleManager]
+  managerId: Id[VehicleManager],
+  numberOfClaimed: Int = 1,
+  bindStalls: IndexedSeq[ParkingStall] = IndexedSeq.empty,
 )
 
 object ParkingStall {
@@ -41,7 +43,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    VehicleManager.privateVehicleManager.managerId
+    VehicleManager.privateVehicleManager.managerId,
   )
 
   /**
@@ -71,7 +73,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      VehicleManager.privateVehicleManager.managerId
+      VehicleManager.privateVehicleManager.managerId,
     )
   }
 
@@ -97,7 +99,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    VehicleManager.privateVehicleManager.managerId
+    VehicleManager.privateVehicleManager.managerId,
   )
 
   /**
@@ -123,7 +125,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      vehicleManagerId
+      vehicleManagerId,
     )
   }
 

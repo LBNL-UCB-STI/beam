@@ -113,15 +113,15 @@ object ParkingZone extends LazyLogging {
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
     */
-  def releaseStall[GEO](parkingZone: ParkingZone[GEO]): Boolean =
+  def releaseStall[GEO](parkingZone: ParkingZone[GEO], numberOfStalls: Int = 1): Boolean =
     if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
       // this zone does not exist in memory but it has infinitely many stalls to release
       true
-    } else if (parkingZone.stallsAvailable + 1 > parkingZone.maxStalls) {
+    } else if (parkingZone.stallsAvailable + numberOfStalls > parkingZone.maxStalls) {
 //        log.debug(s"Attempting to release a parking stall when ParkingZone is already full.")
       false
     } else {
-      parkingZone.stallsAvailable += 1
+      parkingZone.stallsAvailable += numberOfStalls
       true
     }
 
@@ -131,12 +131,12 @@ object ParkingZone extends LazyLogging {
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
     */
-  def claimStall[GEO](parkingZone: ParkingZone[GEO]): Boolean =
+  def claimStall[GEO](parkingZone: ParkingZone[GEO], numberToClaim: Int = 1): Boolean =
     if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
       // this zone does not exist in memory but it has infinitely many stalls to release
       true
-    } else if (parkingZone.stallsAvailable - 1 >= 0) {
-      parkingZone.stallsAvailable -= 1
+    } else if (parkingZone.stallsAvailable - numberToClaim >= 0) {
+      parkingZone.stallsAvailable -= numberToClaim
       true
     } else {
       // log debug that we tried to claim a stall when there were no free stalls

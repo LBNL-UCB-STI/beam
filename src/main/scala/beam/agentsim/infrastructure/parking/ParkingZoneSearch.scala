@@ -11,6 +11,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.{immutable, SeqView}
 import scala.util.Random
 
 object ParkingZoneSearch {
@@ -67,7 +68,8 @@ object ParkingZoneSearch {
     parkingZones: Array[ParkingZone[GEO]],
     zoneQuadTree: QuadTree[GEO],
     random: Random,
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
+    numberOfStallsToFind: Int = 1
   )
 
   /**
@@ -142,7 +144,8 @@ object ParkingZoneSearch {
       thisOuterRadius: Double,
       parkingZoneIdsSeen: List[Int] = List.empty,
       parkingZoneIdsSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
-      iterations: Int = 1
+      iterations: Int = 1,
+      foundAlternatives: Seq[ParkingSearchAlternative[GEO]] = List.empty,
     ): Option[ParkingZoneSearchResult[GEO]] = {
       if (thisInnerRadius > config.searchMaxRadius) None
       else {
@@ -184,19 +187,20 @@ object ParkingZoneSearch {
           }
         }
 
-        if (alternatives.isEmpty) {
+        val validAlternatives: Seq[ParkingSearchAlternative[GEO]] = alternatives ++ foundAlternatives
+        if (validAlternatives.map(_.parkingAlternative.parkingZone.stallsAvailable).sum < params.numberOfStallsToFind) {
           _search(
             thisOuterRadius,
             thisOuterRadius * config.searchExpansionFactor,
             parkingZoneIdsSeen,
             parkingZoneIdsSampled,
-            iterations + 1
+            iterations + 1,
+            validAlternatives,
           )
         } else {
 
-          // remove any invalid parking alternatives
           val alternativesToSample: Map[ParkingAlternative[GEO], Map[ParkingMNL.Parameters, Double]] =
-            alternatives.map { a =>
+            validAlternatives.map { a =>
               a.parkingAlternative -> a.utilityParameters
             }.toMap
 
@@ -209,6 +213,12 @@ object ParkingZoneSearch {
           mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
             val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars) = result.alternativeType
 
+            val (mainNumberOfStalls, bindStalls) = calculateNumberOfStallsClaimed(
+              result.alternativeType,
+              validAlternatives.map(_.parkingAlternative),
+              params.numberOfStallsToFind,
+              geoToTAZ,
+            )
             // create a new stall instance. you win!
             val parkingStall = ParkingStall(
               taz.getId,
@@ -219,7 +229,9 @@ object ParkingZoneSearch {
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,
-              parkingZone.vehicleManagerId
+              parkingZone.vehicleManagerId,
+              numberOfClaimed = mainNumberOfStalls,
+              bindStalls,
             )
 
             val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }
@@ -246,4 +258,52 @@ object ParkingZoneSearch {
     }
     _search(0, config.searchStartRadius)
   }
+
+  private def calculateNumberOfStallsClaimed[GEO: GeoLevel](
+    chosenAlternative: ParkingAlternative[GEO],
+    validAlternatives: Seq[ParkingAlternative[GEO]],
+    numberOfStallsToFind: Int,
+    geoToTAZ: GEO => TAZ,
+  ): (Int, IndexedSeq[ParkingStall]) = {
+    import GeoLevel.ops._
+
+    @tailrec
+    def _recursion(
+      numberLeft: Int,
+      acc: IndexedSeq[ParkingStall],
+      alternatives: Seq[ParkingAlternative[GEO]]
+    ): IndexedSeq[ParkingStall] = {
+      if (numberLeft <= 0 || alternatives.isEmpty) acc
+      else {
+        val alternative = alternatives.head
+        val stallsTaken = math.min(alternative.parkingZone.stallsAvailable, numberLeft)
+        val ParkingAlternative(geo, parkingType, parkingZone, coordinate, costInDollars) = alternative
+        val stall = ParkingStall(
+          geo.getId,
+          geoToTAZ(geo).getId,
+          parkingZone.parkingZoneId,
+          coordinate,
+          costInDollars.toDouble,
+          parkingZone.chargingPointType,
+          parkingZone.pricingModel,
+          parkingType,
+          parkingZone.vehicleManagerId,
+          numberOfClaimed = stallsTaken,
+        )
+        _recursion(numberLeft - stallsTaken, acc :+ stall, alternatives.tail)
+      }
+    }
+
+    val alternativesWithoutChosenOne = validAlternatives.view.filterNot(
+      _.parkingZone.parkingZoneId == chosenAlternative.parkingZone.parkingZoneId
+    )
+
+    val mainStallNumber = math.min(numberOfStallsToFind, chosenAlternative.parkingZone.stallsAvailable)
+
+    (
+      mainStallNumber,
+      _recursion(numberOfStallsToFind - mainStallNumber, IndexedSeq.empty, alternativesWithoutChosenOne)
+    )
+  }
+
 }

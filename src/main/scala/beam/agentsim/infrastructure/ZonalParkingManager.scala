@@ -87,10 +87,14 @@ class ZonalParkingManager[GEO: GeoLevel](
       )
 
       // update the parking stall data
-      val claimed: Boolean = ParkingZone.claimStall(parkingZone)
-      if (claimed) {
-        totalStallsInUse += 1
-        totalStallsAvailable -= 1
+
+      (parkingStall +: parkingStall.bindStalls).foreach { stall =>
+        val zone = parkingZones(stall.parkingZoneId)
+        val claimed = ParkingZone.claimStall(zone, stall.numberOfClaimed)
+        if (claimed) {
+          totalStallsInUse += parkingStall.numberOfClaimed
+          totalStallsAvailable -= parkingStall.numberOfClaimed
+        }
       }
 
       logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
@@ -109,12 +113,15 @@ class ZonalParkingManager[GEO: GeoLevel](
     } else if (parkingZoneId < ParkingZone.DefaultParkingZoneId || parkingZones.length <= parkingZoneId) {
       logger.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
     } else {
-
-      val released: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId))
-      if (released) {
-        totalStallsInUse -= 1
-        totalStallsAvailable += 1
+      (release.stall.bindStalls :+ release.stall).foreach { stall =>
+        val zone = parkingZones(stall.parkingZoneId)
+        val released = ParkingZone.releaseStall(zone, stall.numberOfClaimed)
+        if (released) {
+          totalStallsInUse -= stall.numberOfClaimed
+          totalStallsAvailable += stall.numberOfClaimed
+        }
       }
+
     }
 
     logger.debug("ReleaseParkingStall with {} available stalls ", totalStallsAvailable)
@@ -212,6 +219,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         geoQuadTree,
         rand,
         preferredParkingTypes,
+        //todo get the right number of stalls from the configuration
       )
 
     // filters out ParkingZones which do not apply to this agent
