@@ -300,8 +300,8 @@ dependencies {
 
     compile 'de.vandermeer:asciitable:0.3.2'
 
-    compile "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
-    scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
+    compile "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.12:1.4.8"
+    scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.12:1.4.8"
 
     // AWS S3
     compile group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
