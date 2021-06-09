@@ -220,26 +220,27 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     None
   )
 
-  def createLegPlanElement(mode: String, personId: String, planElementIdx: Int, planScore: Double): PlanElement = PlanElement(
-    PersonId(personId),
-    0,
-    planScore,
-    true,
-    "leg",
-    planElementIdx,
-    None,
-    None,
-    None,
-    None,
-    Some(mode),
-    Some("-Infinity"),
-    Some("-Infinity"),
-    None,
-    None,
-    None,
-    None,
-    None,
-    Seq.empty,
-    None
-  )
+  def createLegPlanElement(mode: String, personId: String, planElementIdx: Int, planScore: Double): PlanElement =
+    PlanElement(
+      PersonId(personId),
+      0,
+      planScore,
+      true,
+      "leg",
+      planElementIdx,
+      None,
+      None,
+      None,
+      None,
+      Some(mode),
+      Some("-Infinity"),
+      Some("-Infinity"),
+      None,
+      None,
+      None,
+      None,
+      None,
+      Seq.empty,
+      None
+    )
 }
