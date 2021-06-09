@@ -487,6 +487,7 @@ object RouteDumper {
     Schema.createRecord("routingRequest", "", "", false, fields.asJava)
   }
 
+  @SuppressWarnings(Array("ComparingUnrelatedTypes"))
   def nullable[T](implicit ct: ClassTag[T]): Schema = {
     val nullType = SchemaBuilder.unionOf().nullType()
     ct match {

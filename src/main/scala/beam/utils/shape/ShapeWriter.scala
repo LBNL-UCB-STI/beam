@@ -37,14 +37,15 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
   private val featureIds: mutable.Set[String] = mutable.Set[String]()
   private var isWritten: Boolean = false
 
+  @SuppressWarnings(Array("ComparingUnrelatedTypes"))
   def add(geom: G, id: String, attribute: A): Unit = {
     if (featureIds.contains(id)) {
       logger.warn(s"Already saw feature with id ${id}. It won't be written into the shape file!")
     } else {
       featureIds.add(id)
       // Check for special case when no attribute
-      val maybeAttirb = if (attribute == EmptyAttributes) None else Some(attribute)
-      val feature = buildFeature(geom, id, maybeAttirb)
+      val maybeAttribute = if (attribute == EmptyAttributes) None else Some(attribute)
+      val feature = buildFeature(geom, id, maybeAttribute)
       features.add(feature)
     }
   }
