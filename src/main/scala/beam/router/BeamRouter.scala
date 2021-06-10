@@ -1,8 +1,5 @@
 package beam.router
 
-import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.TimeUnit
-
 import akka.actor.Status.Failure
 import akka.actor.{
   Actor,
@@ -23,16 +20,22 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
 import beam.router.model._
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
+import beam.router.skim.core.ODSkimmer
+import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
+import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
@@ -44,12 +47,13 @@ import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
+import java.time.{ZoneOffset, ZonedDateTime}
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
-import scala.util.Try
 
 class BeamRouter(
   beamScenario: BeamScenario,
@@ -64,13 +68,15 @@ class BeamRouter(
   eventsManager: EventsManager
 ) extends Actor
     with Stash
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessagePublisher {
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
   type WorkId = Int
   type TimeSent = ZonedDateTime
 
+  var odSkimmer: Option[ODSkims] = None
   val clearRoutedOutstandingWorkEnabled: Boolean = beamScenario.beamConfig.beam.debug.clearRoutedOutstandingWorkEnabled
 
   val secondsToWaitToClearRoutedOutstandingWork: Int =
@@ -218,12 +224,19 @@ class BeamRouter(
         val (work, originalSender) = availableWorkWithOriginalSender.dequeue()
         sendWorkTo(worker, work, originalSender, receivePath = "GimmeWork")
       }
+    case odSkimmerReady: ODSkimmerReady =>
+      odSkimmer = Some(odSkimmerReady.odSkimmer)
     case routingResp: RoutingResponse =>
       if (shouldWriteR5Routes(currentIteration))
         eventsManager.processEvent(RouteDumper.RoutingResponseEvent(routingResp))
 
-      pipeResponseToOriginalSender(routingResp)
-      logIfResponseTookExcessiveTime(routingResp.requestId)
+      val updatedRoutingResponse: RoutingResponse = odSkimmer
+        .map { skimmer =>
+          replaceTravelTimeForCarModeWithODSkims(routingResp, skimmer, beamScenario, geo)
+        }
+        .getOrElse(routingResp)
+      pipeResponseToOriginalSender(updatedRoutingResponse)
+      logIfResponseTookExcessiveTime(updatedRoutingResponse.requestId)
     case routingFailure: RoutingFailure =>
       pipeTransformedFailureToOriginalSender(routingFailure)
       logIfResponseTookExcessiveTime(routingFailure.requestId)
@@ -233,6 +246,7 @@ class BeamRouter(
 
     case work =>
       processByEventsManagerIfNeeded(work)
+      publishMessage(work)
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
@@ -304,7 +318,9 @@ class BeamRouter(
   ): Unit = {
     try {
       val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
-      if (availableWorkers.contains(worker)) { availableWorkers.remove(worker) }
+      if (availableWorkers.contains(worker)) {
+        availableWorkers.remove(worker)
+      }
       //TODO: If there is work outstanding then it needs handled
     } catch {
       case ex: Throwable =>
@@ -384,6 +400,9 @@ class BeamRouter(
       case None => //No matching id. No need to log since this is more for analysis
     }
 
+  // TODO: availableWorkers is a SET (not sortedSet).
+  // does not makes sense return THE FIRST available worker;
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   private def removeAndReturnFirstAvailableWorker(): Worker = {
     val worker = availableWorkers.head
     availableWorkers.remove(worker)
@@ -422,28 +441,36 @@ object BeamRouter {
   type Location = Coord
 
   case class ClearRoutedWorkerTracker(workIdToClear: Int)
+
   case class EmbodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    requestId: Int = IdGeneratorImpl.nextId
-  )
+    requestId: Int = IdGeneratorImpl.nextId,
+    triggerId: Long
+  ) extends HasTriggerId
+
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
+
   case class R5Network(transportNetwork: TransportNetwork)
+
   case object GetTravelTime
+
   case class MATSimNetwork(network: Network)
+
   case object GetMatSimNetwork
 
   case class TryToSerialize(obj: Object)
+
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
 
   /**
     * It is use to represent a request object
     *
-    * @param originUTM                 start/from location of the route
-    * @param destinationUTM            end/to location of the route
-    * @param departureTime          time in seconds from base midnight
-    * @param streetVehicles         what vehicles should be considered in route calc
+    * @param originUTM                      start/from location of the route
+    * @param destinationUTM                 end/to location of the route
+    * @param departureTime                  time in seconds from base midnight
+    * @param streetVehicles                 what vehicles should be considered in route calc
     * @param streetVehiclesUseIntermodalUse boolean (default true), if false, the vehicles considered for use on egress
     */
   case class RoutingRequest(
@@ -455,8 +482,11 @@ object BeamRouter {
     streetVehicles: IndexedSeq[StreetVehicle],
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
-    requestId: Int = IdGeneratorImpl.nextId
-  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
+    requestId: Int = IdGeneratorImpl.nextId,
+    possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
+    triggerId: Long,
+  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line)
+      extends HasTriggerId {
     lazy val timeValueOfMoney
       : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
 
@@ -464,8 +494,11 @@ object BeamRouter {
   }
 
   sealed trait IntermodalUse
+
   case object Access extends IntermodalUse
+
   case object Egress extends IntermodalUse
+
   case object AccessAndEgress extends IntermodalUse
 
   /**
@@ -477,15 +510,16 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int,
     request: Option[RoutingRequest],
-    isEmbodyWithCurrentTravelTime: Boolean
-  )
+    isEmbodyWithCurrentTravelTime: Boolean,
+    triggerId: Long,
+  ) extends HasTriggerId
 
   case class RoutingFailure(cause: Throwable, requestId: Int)
 
   object RoutingResponse {
 
     val dummyRoutingResponse: Some[RoutingResponse] = Some(
-      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false, -1)
     )
   }
 
@@ -527,7 +561,8 @@ object BeamRouter {
     beamServices: BeamServices,
     originUTM: Coord,
     destinationUTM: Coord,
-    requestIdOpt: Option[Int] = None
+    requestIdOpt: Option[Int] = None,
+    triggerId: Long
   ): EmbodyWithCurrentTravelTime = {
     val leg = BeamLeg(
       departTime,
@@ -548,13 +583,15 @@ object BeamRouter {
           leg,
           vehicle.id,
           vehicle.vehicleTypeId,
-          reqId
+          reqId,
+          triggerId = triggerId
         )
       case None =>
         EmbodyWithCurrentTravelTime(
           leg,
           vehicle.id,
-          vehicle.vehicleTypeId
+          vehicle.vehicleTypeId,
+          triggerId = triggerId
         )
     }
   }
@@ -566,7 +603,8 @@ object BeamRouter {
     mode: BeamMode,
     beamServices: BeamServices,
     origin: Coord,
-    destination: Coord
+    destination: Coord,
+    triggerId: Long
   ): EmbodyWithCurrentTravelTime = {
     val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
     linkIds += route.getStartLinkId.toString.toInt
@@ -591,7 +629,8 @@ object BeamRouter {
     EmbodyWithCurrentTravelTime(
       leg,
       vehicle.id,
-      vehicle.vehicleTypeId
+      vehicle.vehicleTypeId,
+      triggerId = triggerId
     )
   }
 
@@ -620,11 +659,273 @@ object BeamRouter {
 
   }
 
-  sealed trait WorkMessage
-  case object GimmeWork extends WorkMessage
-  case object WorkAvailable extends WorkMessage
+  /**
+    * This method overwrites travel times in routingReponse with those provided in skimmer.
+    */
+  private[router] def replaceTravelTimeForCarModeWithODSkims(
+    routingResponse: RoutingResponse,
+    skimmer: ODSkims,
+    beamScenario: BeamScenario,
+    geo: GeoUtils
+  ): RoutingResponse = {
+    val updatedItineraries = routingResponse.itineraries.map { itin =>
+      if (itin.tripClassifier.r5Mode.contains(Left(LegMode.CAR))) {
+        val updatedLegs = itin.legs.map { leg: EmbodiedBeamLeg =>
+          if (leg.beamLeg.mode == BeamMode.CAR) {
+            val originUTM = geo.wgs2Utm(leg.beamLeg.travelPath.startPoint.loc)
+            val destinationUTM = geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc)
+            val departureTime = leg.beamLeg.travelPath.startPoint.time
+            val mode = BeamMode.CAR
+            val vehicleTypeId: Id[BeamVehicleType] = leg.beamVehicleTypeId
+            val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(vehicleTypeId)
+            val fuelPrice: Double = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
+            val updatedBeamLeg = leg.beamLeg.scaleToNewDuration(
+              computeTravelTimeAndDistanceAndCost(
+                originUTM,
+                destinationUTM,
+                departureTime,
+                mode,
+                vehicleTypeId,
+                vehicleType,
+                fuelPrice,
+                beamScenario,
+                skimmer
+              ).time
+            )
+            leg.copy(beamLeg = updatedBeamLeg)
+          } else leg
+        }
+        val updatedBeamLegs = BeamLeg.makeLegsConsistent(updatedLegs.map(x => Some(x.beamLeg)).toList)
+        val finalUpdatedBeamLegs = updatedBeamLegs
+          .zip(updatedLegs)
+          .map {
+            case (updatedBeamLeg, embodiedBeamLeg) =>
+              embodiedBeamLeg.copy(beamLeg = updatedBeamLeg.get)
+          }
+          .toVector
+        itin.copy(legs = finalUpdatedBeamLegs)
+      } else {
+        itin
+      }
+    }
+    routingResponse.copy(itineraries = updatedItineraries)
+  }
+
+  /**
+    * For an OD, cycle through all hours in the day and find the maximum and minimum travel times, return as a tuple.
+    *
+    * @param originUTM
+    * @param destinationUTM
+    * @param mode
+    * @param vehicleTypeId
+    * @param beamScenario
+    * @param skimmer
+    * @return
+    */
+  def getMaxMinTimeForOD(
+    originUTM: Location,
+    destinationUTM: Location,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double,
+    beamScenario: BeamScenario,
+    skimmer: ODSkims,
+    origTazId: Option[Id[TAZ]],
+    destTazId: Option[Id[TAZ]],
+  ): (Int, Int) = {
+    val travelTimesOverDay = (0 to 23).map(
+      hour =>
+        skimmer
+          .getTimeDistanceAndCost(
+            originUTM,
+            destinationUTM,
+            hour * 3600,
+            mode,
+            vehicleTypeId,
+            vehicleType,
+            fuelPrice,
+            beamScenario,
+            origTazId,
+            destTazId
+          )
+          .time
+    )
+    (travelTimesOverDay.min, travelTimesOverDay.max)
+  }
+
+  /**
+    * Computes a new travel time using the following formula: when scaling down (skimTravelTimesScalingFactor value [-1,0]) it’s a linear interp from current hour travel time to MIN.
+    * When scaling up, the most congested value is allowed to go to 50% longer TT than maxTime and it is a non-linear curve between MIN and MAX in the final TT that is defined, making more congested hours have a higher impact.
+    */
+  def interpolateTravelTime(
+    skimTime: Int,
+    minTime: Int,
+    maxTime: Int,
+    skimTravelTimesScalingFactor: Double
+  ): Int = {
+    (if (skimTravelTimesScalingFactor < 0) {
+       skimTime + (skimTime - minTime) * skimTravelTimesScalingFactor
+     } else {
+       // The following adjustment allows the maxTime to float above the observed max (up to 50% above) and makes this floated
+       // max higher the closer you are to fully congested
+       val adjustedMax = if (maxTime > minTime) {
+         maxTime + 0.5 * maxTime * (skimTime - minTime) / (maxTime - minTime)
+       } else {
+         maxTime
+       }
+       skimTime + (adjustedMax - skimTime) * skimTravelTimesScalingFactor
+     }).round.toInt
+  }
+
+  def computeTravelTimeAndDistanceAndCost(
+    originUTM: Coord,
+    destinationUTM: Coord,
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double,
+    beamScenario: BeamScenario,
+    skimmer: ODSkims,
+    maybeOrigTazId: Option[Id[TAZ]] = None,
+    maybeDestTazId: Option[Id[TAZ]] = None,
+  ): ODSkimmer.Skim = {
+    val origTazId = Some(maybeOrigTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId))
+    val destTazId = Some(
+      maybeDestTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId)
+    )
+
+    val departHourTravelTime =
+      getScaledTravelTime(
+        originUTM = originUTM,
+        destinationUTM = destinationUTM,
+        origTazId = origTazId,
+        destTazId = destTazId,
+        departureTime = departureTime,
+        mode = mode,
+        vehicleType = vehicleType,
+        fuelPrice = fuelPrice,
+        vehicleTypeId = vehicleTypeId,
+        beamScenario = beamScenario,
+        skimmer = skimmer
+      )
+    val arrivalTime = departureTime + departHourTravelTime
+    val departHour = (departureTime.toDouble / 3600.0).intValue()
+    val arriveHour = (arrivalTime.toDouble / 3600.0).intValue()
+    val skimResult =
+      skimmer.getTimeDistanceAndCost(
+        originUTM = originUTM,
+        destinationUTM = destinationUTM,
+        departureTime = departureTime,
+        mode = mode,
+        vehicleType = vehicleType,
+        fuelPrice = fuelPrice,
+        vehicleTypeId = vehicleTypeId,
+        beamScenario = beamScenario,
+        maybeOrigTazForPerformanceImprovement = origTazId,
+        maybeDestTazForPerformanceImprovement = destTazId
+      )
+    val travelTimeInS = if (departHour == arriveHour) {
+      departHourTravelTime.intValue()
+    } else {
+      val arrivalHourTravelTime = getScaledTravelTime(
+        originUTM = originUTM,
+        destinationUTM = destinationUTM,
+        origTazId = origTazId,
+        destTazId = destTazId,
+        departureTime = arriveHour * 3600,
+        mode = mode,
+        vehicleType = vehicleType,
+        fuelPrice = fuelPrice,
+        vehicleTypeId = vehicleTypeId,
+        beamScenario = beamScenario,
+        skimmer = skimmer,
+      )
+      val secondsInDepartHour = arriveHour * 3600 - departureTime
+      val secondsInArriveHour = arrivalTime - arriveHour * 3600
+      Math
+        .round(
+          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour).toDouble / (secondsInDepartHour + secondsInArriveHour).toDouble
+        )
+        .intValue()
+    }
+    ODSkimmer.Skim(time = travelTimeInS, distance = skimResult.distance, cost = skimResult.cost)
+  }
+
+  /**
+    * Computes the travel time for a trip using skims but also scaling according to the skimTravelTimesScalingFactor factor.
+    * This doesn’t simply scale all travel times proportionally but instead varies travel time between MAX and MIN observer for each OD over a full day.
+    * See method interpolateTravelTime for details of the scaling formula.
+    *
+    * @param originUTM
+    * @param destinationUTM
+    * @param departureTime
+    * @param mode
+    * @param vehicleTypeId
+    * @param beamScenario
+    * @param skimmer
+    * @return
+    */
+  def getScaledTravelTime(
+    originUTM: Coord,
+    destinationUTM: Coord,
+    origTazId: Option[Id[TAZ]],
+    destTazId: Option[Id[TAZ]],
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double,
+    beamScenario: BeamScenario,
+    skimmer: ODSkims
+  ): Int = {
+    val skimTime =
+      skimmer
+        .getTimeDistanceAndCost(
+          originUTM,
+          destinationUTM,
+          departureTime,
+          mode,
+          vehicleTypeId,
+          vehicleType,
+          fuelPrice,
+          beamScenario,
+          origTazId,
+          destTazId
+        )
+        .time
+    val (minTime, maxTime) =
+      getMaxMinTimeForOD(
+        originUTM,
+        destinationUTM,
+        mode,
+        vehicleTypeId,
+        vehicleType,
+        fuelPrice,
+        beamScenario,
+        skimmer,
+        origTazId,
+        destTazId
+      )
+    val adjustedSkimTime = interpolateTravelTime(
+      skimTime,
+      minTime,
+      maxTime,
+      beamScenario.beamConfig.beam.routing.skimTravelTimesScalingFactor
+    )
+    Math.max(adjustedSkimTime, beamScenario.beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
+  }
 
   def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
+
+  sealed trait WorkMessage
+
+  case object GimmeWork extends WorkMessage
+
+  case object WorkAvailable extends WorkMessage
+
+  case class ODSkimmerReady(odSkimmer: ODSkims)
 
   case class IterationStartsMessage(iteration: Int)
 }

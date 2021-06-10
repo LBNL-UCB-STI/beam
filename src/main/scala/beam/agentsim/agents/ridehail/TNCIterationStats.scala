@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.TNCIterationStats._
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.TAZ
@@ -83,7 +83,7 @@ case class TNCIterationStats(
     // Vehicle Grouping in Taz
     vehiclesToReposition.foreach { rhaLoc =>
       val vehicleTaz =
-        tazTreeMap.getTAZ(rhaLoc.currentLocationUTM.loc.getX, rhaLoc.currentLocationUTM.loc.getY)
+        tazTreeMap.getTAZ(rhaLoc.latestUpdatedLocationUTM.loc.getX, rhaLoc.latestUpdatedLocationUTM.loc.getY)
 
       tazVehicleMap.get(vehicleTaz) match {
         case Some(lov: ListBuffer[Id[BeamVehicle]]) =>
@@ -273,8 +273,8 @@ case class TNCIterationStats(
 
       for (taz <- tazTreeMap
              .getTAZInRadius(
-               rhLoc.currentLocationUTM.loc.getX,
-               rhLoc.currentLocationUTM.loc.getY,
+               rhLoc.latestUpdatedLocationUTM.loc.getX,
+               rhLoc.latestUpdatedLocationUTM.loc.getY,
                maxDistanceInMeters
              )
              .asScala) {
@@ -344,7 +344,7 @@ case class TNCIterationStats(
       val startTimeBin = getTimeBin(tick)
       val endTimeBin = getTimeBin(tick + timeHorizonToConsiderForIdleVehiclesInSec)
 
-      val taz = tazTreeMap.getTAZ(rhLoc.currentLocationUTM.loc.getX, rhLoc.currentLocationUTM.loc.getY)
+      val taz = tazTreeMap.getTAZ(rhLoc.latestUpdatedLocationUTM.loc.getX, rhLoc.latestUpdatedLocationUTM.loc.getY)
 
       val idleScore = (startTimeBin to endTimeBin)
         .map(
@@ -410,7 +410,7 @@ case class TNCIterationStats(
         logger.debug(
           "s{} -> {}",
           x.vehicleId,
-          tazTreeMap.getTAZ(x.currentLocationUTM.loc.getX, x.currentLocationUTM.loc.getY).tazId
+          tazTreeMap.getTAZ(x.latestUpdatedLocationUTM.loc.getX, x.latestUpdatedLocationUTM.loc.getY).tazId
       )
     )
   }
@@ -474,7 +474,7 @@ case class TNCIterationStats(
       .flatMap(
         vehicle =>
           tazTreeMap
-            .getTAZInRadius(vehicle.currentLocationUTM.loc, circleSize)
+            .getTAZInRadius(vehicle.latestUpdatedLocationUTM.loc, circleSize)
             .asScala
             .map(_.tazId)
       )

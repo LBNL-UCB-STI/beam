@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props
 import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, TAZIndex}
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.AbstractSkimmer
+import beam.router.skim.core.AbstractSkimmer
 import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}

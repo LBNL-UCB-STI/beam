@@ -1,18 +1,22 @@
 package beam.router.skim
 
-import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
+import beam.agentsim.infrastructure.taz.TAZ
+import beam.router.skim.core.ODSkimmer.{fromCsv, ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.matsim.api.core.v01.Id
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
 /**
   * This spec tests that CsvSkimReader reads skims correctly.
   */
-class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
+class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "CsvSkimReader" must "read skims correctly" in {
     val skims =
-      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", ODSkimmer.fromCsv, getDummyLogger()).readAggregatedSkims
+      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", fromCsv, getDummyLogger).readAggregatedSkims
         .map {
           case (skimmerKey, skimmerInternal) =>
             (skimmerKey.asInstanceOf[ODSkimmerKey], skimmerInternal.asInstanceOf[ODSkimmerInternal])
@@ -59,7 +63,7 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
     assert(oDSkimmerInternals.map(fieldMapping).max == maxValue, error(fieldName))
   }
 
-  def getDummyLogger(): Logger = {
+  def getDummyLogger: Logger = {
     new DummyLogging().log
   }
 

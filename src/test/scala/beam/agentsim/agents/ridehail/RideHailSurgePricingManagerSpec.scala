@@ -5,20 +5,17 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.core.utils.misc.Time
 import org.mockito.Mockito._
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
+
 import scala.collection.JavaConverters._
 import scala.util.Random
-
 import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
+import org.mockito.Mockito
 
-class RideHailSurgePricingManagerSpec
-    extends WordSpecLike
-    with Matchers
-    with MockitoSugar
-    with BeamHelper
-    with BeforeAndAfterAll {
+class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
@@ -45,7 +42,7 @@ class RideHailSurgePricingManagerSpec
 
     "correctly update SurgePriceLevels" in {
       //First iteration random returns true
-      val mockRandom = mock[Random]
+      val mockRandom = Mockito.mock(classOf[Random])
       when(mockRandom.nextBoolean) thenReturn true
 
       var rhspm = new RideHailSurgePricingManager(beamServices) {

@@ -2,9 +2,10 @@ package beam.agentsim.infrastructure.charging
 
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import org.scalactic.source
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ChargingPointTypeSpec extends WordSpec with Matchers {
+class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
   "ChargingPointType" when {
     "formal charging point types" when {
       "given string names of built-in charging point types" should {

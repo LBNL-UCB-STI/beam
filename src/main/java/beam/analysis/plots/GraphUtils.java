@@ -35,7 +35,7 @@ public class GraphUtils {
     private static final Color OLIVE = new Color(107,142,35);
     private static final Color THISTLE = new Color(216,191,216);
     private static final Color CADETBLUE = new Color(95,158,160);
-
+    private static final Color DARK_PINK = new Color(255, 0, 227);
 
     /**
      * Map < iteration number, ride hailing revenue>
@@ -66,6 +66,7 @@ public class GraphUtils {
         colorsForModes.put("rail", VERY_DARK_BLUE);
         colorsForModes.put("bus", LIGHT_YELLOW);
         colorsForModes.put("ride_hail_pooled", CADETBLUE);
+        colorsForModes.put("bike_transit", DARK_PINK);
 
     }
 

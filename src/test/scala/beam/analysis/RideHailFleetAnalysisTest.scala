@@ -5,7 +5,8 @@ import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.utils.{BeamVehicleUtils, EventReader}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.util.Try
@@ -40,7 +41,7 @@ class Values(values: mutable.Map[Long, Double] = mutable.Map.empty) {
   }
 }
 
-class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) extends FlatSpec with Matchers {
+class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) extends AnyFlatSpec with Matchers {
 
   def apply(key: String): Values = metrics.getOrElse(key, new Values())
 
@@ -71,7 +72,7 @@ class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) exte
   }
 }
 
-class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
+class RideHailFleetAnalysisTest extends AnyFlatSpec with Matchers {
 
   // eventsFileBig may be downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
   val eventsFileBig = ""

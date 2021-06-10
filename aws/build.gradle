@@ -100,6 +100,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "region": "${ext.getParameterValue('region') ?: defaultRegion}",
   "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
   "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
+  "profiler_type": "${ext.getParameterValue('profiler_type')}",
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
@@ -155,7 +156,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
          'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
          'pilatesImageVersion', 'pilatesImageName',
          's3OutputBucket', 's3OutputBasePath',
-         'inYearOutput', 'maxRAM',
+         'inYearOutput', 'maxRAM', 'profiler_type',
          'storageSize', 'instanceType', 'dataRegion', 'region',
          'shutdownWait', 'shutdownBehaviour'].each {
             def pval = ext.getParameterValue(it)

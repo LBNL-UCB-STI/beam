@@ -1,5 +1,7 @@
 package beam.router.skim
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
+import beam.router.skim.event.ODSkimmerEvent
 
 class ODSkimmerEventFactory extends AbstractSkimmerEventFactory {
   override def createEvent(

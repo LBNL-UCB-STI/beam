@@ -3,10 +3,13 @@ package beam.integration.ridehail
 import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig, TestConstants}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class RideHailCostPerMinuteSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeamHelper
     with BeforeAndAfterAll

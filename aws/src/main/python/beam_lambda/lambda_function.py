@@ -7,12 +7,12 @@ import glob
 import base64
 from botocore.errorfactory import ClientError
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
-  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM'''
+  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
-EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM'''
+EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
@@ -92,6 +92,7 @@ runcmd:
         \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"profiler_type\\":\\"$PROFILER\\",
         \\"config_file\\":\\"$CONFIG\\",
         \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
@@ -153,6 +154,7 @@ runcmd:
         \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"profiler_type\\":\\"$PROFILER\\",
         \\"config_file\\":\\"$CONFIG\\",
         \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
@@ -182,8 +184,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'h1.2xlarge', 'h1.4xlarge', 'h1.8xlarge', 'h1.16xlarge',
                   'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge', 'i3.metal',
                   'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge',
-                  'c5d.large', 'c5d.xlarge', 'c5d.2xlarge', 'c5d.4xlarge', 'c5d.9xlarge', 'c5d.18xlarge',
-                  'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.12xlarge', 'r5.24xlarge',
+                  'c5d.large', 'c5d.xlarge', 'c5d.2xlarge', 'c5d.4xlarge', 'c5d.9xlarge', 'c5d.18xlarge', 'c5d.24xlarge',
+                  'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', 'r5.12xlarge', 'r5.24xlarge',
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge']
@@ -558,6 +560,7 @@ def deploy_handler(event, context):
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
+    profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
@@ -628,6 +631,7 @@ def deploy_handler(event, context):
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
                 .replace('$GOOGLE_API_KEY', google_api_key) \
+                .replace('$PROFILER', profiler_type) \
                 .replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])

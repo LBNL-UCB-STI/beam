@@ -11,7 +11,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, DRIVE_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.Router
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
@@ -77,7 +77,8 @@ class ODRequester(
           departureTime = requestTime,
           withTransit = withTransit,
           streetVehicles = streetVehicles,
-          attributesOfIndividual = Some(dummyPersonAttributes)
+          attributesOfIndividual = Some(dummyPersonAttributes),
+          triggerId = -1
         )
         val startExecution = System.nanoTime()
         val response =
@@ -172,7 +173,8 @@ class ODRequester(
           dummyCarVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
           BeamMode.CAR,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = false
         )
       case BeamMode.BIKE =>
         StreetVehicle(
@@ -180,7 +182,8 @@ class ODRequester(
           dummyBikeVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
           BeamMode.BIKE,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = false
         )
       case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
         StreetVehicle(
@@ -188,7 +191,8 @@ class ODRequester(
           dummyBodyVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
           WALK,
-          asDriver = true
+          asDriver = true,
+          needsToCalculateCost = false
         )
       case x =>
         throw new IllegalArgumentException(s"Get mode $x, but don't know what to do with it.")

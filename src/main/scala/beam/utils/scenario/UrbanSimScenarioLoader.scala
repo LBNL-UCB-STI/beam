@@ -1,7 +1,8 @@
 package beam.utils.scenario
 
+import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -15,7 +16,6 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
@@ -23,6 +23,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
 import scala.util.Random
+
+import beam.utils.SequenceUtils
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -222,7 +224,13 @@ class UrbanSimScenarioLoader(
           vehicleIds.add(vehicle.getId)
           val bvId = Id.create(vehicle.getId, classOf[BeamVehicle])
           val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-          val beamVehicle = new BeamVehicle(bvId, powerTrain, beamVehicleType, rand.nextInt)
+          val beamVehicle = new BeamVehicle(
+            bvId,
+            powerTrain,
+            beamVehicleType,
+            managerId = VehicleManager.privateVehicleManager.managerId,
+            rand.nextInt
+          )
           beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
         }
@@ -433,7 +441,7 @@ class UrbanSimScenarioLoader(
 
     var currentTotalCars = totalCars
 
-    var currentNumberOfCars = numberOfCars2HouseholdIds.keys.max
+    var currentNumberOfCars = SequenceUtils.maxOpt(numberOfCars2HouseholdIds.keys).getOrElse(0)
     while ((currentTotalCars > (goalCarTotal + numberOfWorkVehiclesToBeRemoved)) & currentNumberOfCars > 0) {
       val numberOfHouseholdsWithThisManyVehicles = numberOfCars2HouseholdIds(currentNumberOfCars).size
 

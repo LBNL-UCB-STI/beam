@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -20,6 +21,7 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = ActivitySimSkims(beamConfig, beamScenario)
 
   override protected val skimName: String = config.activity_sim_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.AS_SKIMMER
   override protected val skimFileBaseName: String = config.activity_sim_skimmer.fileBaseName
   override protected val skimFileHeader: String = ExcerptData.csvHeader
 

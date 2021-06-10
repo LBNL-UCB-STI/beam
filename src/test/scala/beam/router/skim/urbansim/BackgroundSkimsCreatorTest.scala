@@ -4,20 +4,21 @@ import akka.actor.ActorSystem
 import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ActivitySimSkimmerKey
-import beam.router.skim.{AbstractSkimmerInternal, AbstractSkimmerKey, ActivitySimPathType}
+import beam.router.skim.ActivitySimPathType
+import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.BeamExecutionConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject.Injector
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.core.scenario.MutableScenario
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
 
-class BackgroundSkimsCreatorTest extends FlatSpec with Matchers with MockitoSugar with BeamHelper {
+class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelper {
 
   val actorSystemName = "BackgroundSkimsCreatorTest"
 

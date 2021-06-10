@@ -9,9 +9,9 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.r5.{BikeLanesAdjustment, BikeLanesData}
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
-import org.scalatest.WordSpec
+import org.scalatest.wordspec.AnyWordSpec
 
-class ModeChoiceMultinomialLogitSpec extends WordSpec {
+class ModeChoiceMultinomialLogitSpec extends AnyWordSpec {
 
   "ModeChoiceMultinomialLogit" when {
     "pathScaledForWaiting" must {

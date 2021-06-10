@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail.repositioningmanager
 import java.awt.Color
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
@@ -161,9 +161,9 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
             for (vehToRepso <- whichTAZToRepositionTo) {
               val lineToPlot = LineToPlot(
-                rideHailManager.vehicleManager
+                rideHailManager.rideHailManagerHelper
                   .getRideHailAgentLocation(vehToRepso._1)
-                  .currentLocationUTM
+                  .latestUpdatedLocationUTM
                   .loc,
                 vehToRepso._2,
                 Color.blue,
@@ -185,9 +185,9 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
 
             if (firstRepositionCoordsOfDay.isEmpty) {
               firstRepositionCoordsOfDay = Some(
-                rideHailManager.vehicleManager
+                rideHailManager.rideHailManagerHelper
                   .getRideHailAgentLocation(whichTAZToRepositionTo.head._1)
-                  .currentLocationUTM
+                  .latestUpdatedLocationUTM
                   .loc,
                 whichTAZToRepositionTo.head._2
               )
@@ -223,7 +223,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
         val result = if (firstRepositioningOfDay) {
           firstRepositioningOfDay = false
           idleVehicles
-            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
+            .map(idle => (idle._1, idle._2.latestUpdatedLocationUTM.loc))
             .toVector
         } else {
           whichTAZToRepositionTo
@@ -233,7 +233,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
       case None =>
         // iteration 0
 
-        val idleVehiclesWithoutExcluded = rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded
+        val idleVehiclesWithoutExcluded = rideHailManager.rideHailManagerHelper.getIdleVehiclesAndFilterOutExluded
 
         if (firstRepositioningOfDay && idleVehiclesWithoutExcluded.nonEmpty) {
           // these are zero distance repositionings
@@ -247,7 +247,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
           //    x._2.currentLocation.loc.getY).tazId} -> ${x._2.currentLocation.loc}"))
 
           val result = idleVehiclesWithoutExcluded
-            .map(idle => (idle._1, idle._2.currentLocationUTM.loc))
+            .map(idle => (idle._1, idle._2.latestUpdatedLocationUTM.loc))
             .toVector
           result
         } else {

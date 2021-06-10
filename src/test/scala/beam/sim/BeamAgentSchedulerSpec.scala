@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKit, TestProbe}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents._
 import beam.agentsim.scheduler.BeamAgentScheduler._
@@ -14,16 +14,17 @@ import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
-import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.should.Matchers
 
 class BeamAgentSchedulerSpec
     extends TestKit(
       ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MustMatchers
+    with Matchers
     with ImplicitSender {
 
   lazy val config: BeamConfig = BeamConfig(system.settings.config)
@@ -40,7 +41,7 @@ class BeamAgentSchedulerSpec
             new StuckFinder(config.beam.debug.stuckAgentDetection)
           )
         )
-      val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
+      val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler, TestProbe().ref))
       agent.stateName should be(Uninitialized)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), agent)
       agent.stateName should be(Uninitialized)
@@ -60,7 +61,7 @@ class BeamAgentSchedulerSpec
             new StuckFinder(config.beam.debug.stuckAgentDetection)
           )
         )
-      val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler))
+      val agent = TestFSMRef(new TestBeamAgent(Id.createPersonId(0), scheduler, TestProbe().ref))
       watch(agent)
       scheduler ! ScheduleTrigger(InitializeTrigger(-1), agent)
       expectTerminated(agent)
@@ -110,7 +111,8 @@ object BeamAgentSchedulerSpec {
 
   case class ReportState(tick: Int) extends Trigger
 
-  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef) extends BeamAgent[MyData] {
+  class TestBeamAgent(override val id: Id[Person], override val scheduler: ActorRef, val eventBuilderActor: ActorRef)
+      extends BeamAgent[MyData] {
     val eventsManager = new EventsManagerImpl
 
     override def logPrefix(): String = "TestBeamAgent"
@@ -131,6 +133,7 @@ object BeamAgentSchedulerSpec {
       case Event(Finish, _) =>
         stop
     }
+
   }
 
   case object Reporting extends BeamAgentState

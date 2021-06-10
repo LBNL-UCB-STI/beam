@@ -49,7 +49,8 @@ object RouteRequester extends BeamHelper {
         withTransit = false,
         departureTime = departureTime,
         personId = Some(Id.createPersonId("031400-2014000788156-0-569466")),
-        attributesOfIndividual = Some(personAttributes)
+        attributesOfIndividual = Some(personAttributes),
+        triggerId = -1
       )
 
       router.calcRoute(request, buildDirectCarRoute = true, buildDirectWalkRoute = false)
@@ -239,7 +240,8 @@ object RouteRequester extends BeamHelper {
       vehicleTypeId = Id.create(vehicleTypeId, classOf[BeamVehicleType]),
       locationUTM = spaceTime,
       mode = beamMode,
-      asDriver = true
+      asDriver = true,
+      needsToCalculateCost = false
     )
   }
 

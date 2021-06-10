@@ -11,6 +11,8 @@ import beam.router.model.{BeamLeg, BeamPath, BeamTrip}
 import beam.router.{BeamRouter, Modes}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.must.Matchers._
 
 import scala.language.postfixOps
 
@@ -31,9 +33,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
@@ -56,9 +60,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -88,17 +94,20 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(vehicleLocation, 0),
             Modes.BeamMode.CAR,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           ),
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = Egress
+        streetVehiclesUseIntermodalUse = Egress,
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -123,17 +132,20 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
-            asDriver = false
+            asDriver = false,
+            needsToCalculateCost = true
           ),
           StreetVehicle(
             Id.createVehicleId("body-667520-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = AccessAndEgress
+        streetVehiclesUseIntermodalUse = AccessAndEgress,
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       val rideHailTransitOption = response.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT).get
@@ -159,9 +171,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             fastBike.id,
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.BIKE,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
@@ -187,9 +201,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -212,9 +228,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -236,16 +254,19 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.CAR,
-            asDriver = false
+            asDriver = false,
+            needsToCalculateCost = true
           ),
           StreetVehicle(
             Id.createVehicleId("body-17673-0"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == RIDE_HAIL))
@@ -266,16 +287,19 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           ),
           StreetVehicle(
             Id.createVehicleId("body-116378-2"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(new Coord(origin.getX, origin.getY), time),
             Modes.BeamMode.WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == WALK))
@@ -301,7 +325,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(carOption.legs(1).unbecomeDriverOnCompletion)
     }
 
-    "respond with a unlimited transfer route having cost 2.75 USD." in {
+    "respond with an unlimited transfer route having cost 2.75 USD." in {
       val origin = new Coord(549598.9574660371, 4176177.2431860007)
       val destination = new Coord(544417.3891361314, 4177016.733758491)
       val time = 64080
@@ -316,9 +340,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -342,16 +368,19 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           ),
           StreetVehicle(
             Id.createVehicleId("116378-2"),
             Id.create("Car", classOf[BeamVehicleType]),
             new SpaceTime(origin, 0),
             Modes.BeamMode.CAR,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = true
           )
-        )
+        ),
+        triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
 
@@ -375,9 +404,11 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             new SpaceTime(origin, time),
             WALK,
-            asDriver = true
+            asDriver = true,
+            needsToCalculateCost = false
           )
-        )
+        ),
+        triggerId = 0
       )
       expectMsgType[Failure]
     }

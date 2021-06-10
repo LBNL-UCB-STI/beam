@@ -1,7 +1,6 @@
 package beam.sflight
 
 import java.nio.file.Paths
-
 import beam.agentsim.events.ModeChoiceEvent
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -14,13 +13,18 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
+import org.scalatest.{Assertion, BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+
+import java.io.File
 
 /**
   * Created by colinsheppard
   */
 
-class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
@@ -106,10 +110,13 @@ class SfLightRunSpec extends WordSpecLike with Matchers with BeamHelper with Bef
       itrDir.list should have length totalIterations
       itrDir
         .listFiles()
-        .foreach(
-          itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz"))
-        )
+        .foreach(directoryHasOnlyOneEventsFile)
     }
   }
 
+  private def directoryHasOnlyOneEventsFile(itr: File): Assertion = {
+    assertResult(1) {
+      itr.list.count(fileName => fileName.endsWith(".events.csv") || fileName.endsWith(".events.csv.gz"))
+    }
+  }
 }

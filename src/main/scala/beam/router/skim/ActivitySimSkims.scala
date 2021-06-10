@@ -7,6 +7,7 @@ import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ActivitySimSkimmer.ActivitySimSkimmerInternal
 import beam.router.skim.SkimsUtils.distanceAndTime
+import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
@@ -29,15 +30,12 @@ case class ActivitySimSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) 
     }
     val travelCost: Double = beamMode match {
       case CAR | CAV =>
+        val vehicleType = beamScenario.vehicleTypes(vehicleTypeId)
         DrivingCost.estimateDrivingCost(
-          new BeamLeg(
-            departureTime,
-            beamMode,
-            travelTime,
-            new BeamPath(IndexedSeq(), IndexedSeq(), None, null, null, travelDistance)
-          ),
-          beamScenario.vehicleTypes(vehicleTypeId),
-          beamScenario.fuelTypePrices
+          travelDistance,
+          travelTime,
+          vehicleType,
+          beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
         )
       case RIDE_HAIL =>
         beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0

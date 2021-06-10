@@ -2,6 +2,8 @@ package beam.utils.csv.readers
 
 import java.util.{Map => JavaMap}
 
+import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
@@ -13,7 +15,7 @@ import org.supercsv.prefs.CsvPreference
 import scala.reflect.ClassTag
 import scala.util.Try
 
-object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
+object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogging {
   override def inputType: InputType = InputType.CSV
 
   override def readPersonsFile(path: String): Array[PersonInfo] = {
@@ -46,8 +48,12 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "householdId")
     val cars = householdIdToVehiclesSize.get(householdId) match {
       case Some(total) => total
-      case None =>
-        logger.warn(s"HouseholdId [$householdId] has no cars associated")
+      case None        =>
+        // The dots here are due to an idiosyncrasy with how ExponentialLazyLogger works....
+        // it has to track how many times a log message has been requested and it uses the first
+        // 20 characters as a unique key... if message is fewer than 20 characters the intended
+        // behavior fails.
+        logger.warn(s"HouseholdId has no cars associated........Id [$householdId]")
         0
     }
     HouseholdInfo(
@@ -65,7 +71,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with LazyLogging {
     val planElementType = getIfNotNull(rec, "planElementType")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
     val activityType = Option(rec.get("activityType"))
-    val linkIds = Option(rec.get("legRouteLinks")).map(_.split("\\|").map(_.trim)).getOrElse(Array.empty[String])
+    val linkIds =
+      Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
       personId = PersonId(personId),
       planIndex = planIndex,

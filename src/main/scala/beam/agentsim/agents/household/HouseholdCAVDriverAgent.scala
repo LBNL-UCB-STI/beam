@@ -1,12 +1,10 @@
 package beam.agentsim.agents.household
 
 import akka.actor.FSM.Failure
-import akka.actor.Status.Success
 import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
@@ -16,8 +14,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.sim.common.GeoUtils
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -33,10 +31,12 @@ class HouseholdCAVDriverAgent(
   val beamScenario: BeamScenario,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val vehicle: BeamVehicle,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
+  override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 
@@ -45,7 +45,7 @@ class HouseholdCAVDriverAgent(
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
-    case Event(ModifyPassengerSchedule(_, _, _), _) =>
+    case Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       stay()
     case Event(Finish, _) =>
@@ -76,7 +76,7 @@ class HouseholdCAVDriverAgent(
       )
   }
   when(Idle) {
-    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
+    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, triggerId, requestId), data) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is. For now, we just believe it that time is not running backwards.
@@ -97,12 +97,13 @@ class HouseholdCAVDriverAgent(
         requestId,
         triggerToSchedule,
         vehicle.id,
-        tick
+        tick,
+        triggerId
       )
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle)
@@ -126,6 +127,7 @@ object HouseholdCAVDriverAgent {
     beamScenario: BeamScenario,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     vehicle: BeamVehicle,
     legs: Seq[BeamLeg],
     transportNetwork: TransportNetwork,
@@ -139,6 +141,7 @@ object HouseholdCAVDriverAgent {
         beamScenario,
         eventsManager,
         parkingManager,
+        chargingNetworkManager,
         vehicle,
         transportNetwork,
         tollCalculator

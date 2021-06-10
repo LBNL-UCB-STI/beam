@@ -131,28 +131,44 @@ object ChargingPointType {
     batteryCapacityInJoule: Double,
     vehicleAcChargingLimitsInWatts: Double,
     vehicleDcChargingLimitsInWatts: Double,
-    sessionDurationLimit: Option[Long]
-  ): (Long, Double) = {
-    val chargingLimits = ChargingPointType.getChargingPointCurrent(chargingPointType) match {
-      case AC => (vehicleAcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule)
-      case DC =>
-        (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
+    sessionDurationLimit: Option[Int],
+    stateOfChargeLimit: Option[Double] = None,
+    chargingPowerLimit: Option[Double] = None
+  ): (Int, Double) = {
+    val chargingLimits = stateOfChargeLimit match {
+      case Some(socLimit) =>
+        (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * socLimit)
+      case None =>
+        ChargingPointType.getChargingPointCurrent(chargingPointType) match {
+          case AC =>
+            (vehicleAcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule)
+          case DC =>
+            (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
+        }
     }
-    val sessionLengthLimiter = sessionDurationLimit.getOrElse(Long.MaxValue)
-    val sessionLength = Math.max(
-      Math.min(
-        sessionLengthLimiter,
-        Math.round(
-          (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
-            .min(chargingLimits._1, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)) * 3600.0
-        )
-      ),
-      0
-    )
-    val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(
-      chargingLimits._1,
-      ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)
-    ) * 3.6e6
+
+    val chargingPowerLimiter = chargingPowerLimit match {
+      case Some(powerLimit) =>
+        Math.min(powerLimit, ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType))
+      case None => ChargingPointType.getChargingPointInstalledPowerInKw(chargingPointType)
+    }
+
+    val sessionLengthLimiter = sessionDurationLimit.getOrElse(Int.MaxValue)
+
+    val sessionLength = Math
+      .max(
+        Math.min(
+          sessionLengthLimiter,
+          Math.round(
+            (chargingLimits._2 - currentEnergyLevelInJoule) / 3.6e6 / Math
+              .min(chargingLimits._1, chargingPowerLimiter) * 3600.0
+          )
+        ),
+        0
+      )
+      .intValue()
+
+    val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(chargingLimits._1, chargingPowerLimiter) * 3.6e6
     (sessionLength, sessionEnergyInJoules)
   }
 
@@ -165,6 +181,6 @@ object ChargingPointType {
     * @return if it is "fast"
     */
   def isFastCharger(chargingPointType: ChargingPointType): Boolean =
-    getChargingPointInstalledPowerInKw(chargingPointType) >= FastChargingThreshold
+    getChargingPointInstalledPowerInKw(chargingPointType) > FastChargingThreshold
 
 }

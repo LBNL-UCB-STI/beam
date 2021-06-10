@@ -3,15 +3,16 @@ package beam.router.skim
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import org.mockito.Mockito.when
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.mockito.Mockito
 
-class ActivitySimSkimmerEventTest extends FlatSpec with Matchers with MockitoSugar {
+class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
 
   def mockLeg(duration: Int, mode: BeamMode): EmbodiedBeamLeg = {
-    val beamPath = mock[BeamPath]
-    val beamLeg = mock[BeamLeg]
-    val leg = mock[EmbodiedBeamLeg]
+    val beamPath = Mockito.mock(classOf[BeamPath])
+    val beamLeg = Mockito.mock(classOf[BeamLeg])
+    val leg = Mockito.mock(classOf[EmbodiedBeamLeg])
     when(beamLeg.travelPath).thenReturn(beamPath)
     when(beamLeg.mode).thenReturn(mode)
     when(beamLeg.duration).thenReturn(duration)

@@ -436,10 +436,9 @@ object PlansSampler {
         {
           val sampleFeature = spatialSampler.getSample
           val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
-          var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
-
+          var hh = hhNewValue(tract2HH, sampleTract)
           while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
-            hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+            hh = hhNewValue(tract2HH, sampleTract)
           }
           if (hh.individuals.length != 0) {
             synthHHs += hh
@@ -453,6 +452,14 @@ object PlansSampler {
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def hhNewValue(
+    tract2HH: Map[Int, Vector[SynthHousehold]],
+    sampleTract: Int
+  ): SynthHousehold = {
+    Random.shuffle(tract2HH(sampleTract)).take(1).head
+  }
+
   def addModeExclusions(person: Person): Unit = {
     val filteredPermissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
@@ -464,6 +471,7 @@ object PlansSampler {
   def filterPopulationActivities() {
     val factory = newPop.getFactory
     newPop.getPersons.asScala.values.foreach { person =>
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val origPlan = person.getPlans.asScala.head
       person.getPlans.clear()
       val newPlan = factory.createPlan()

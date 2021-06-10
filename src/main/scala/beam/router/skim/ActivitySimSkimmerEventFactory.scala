@@ -1,5 +1,6 @@
 package beam.router.skim
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerEventFactory}
 import beam.sim.config.BeamConfig
 
 class ActivitySimSkimmerEventFactory(beamConfig: BeamConfig) extends AbstractSkimmerEventFactory {

@@ -10,16 +10,18 @@ import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamHelper, BeamMobsim}
+import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest._
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
 class AgentsimWithMaximallyBadRouterSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with BadRouterForTest
@@ -59,7 +61,8 @@ class AgentsimWithMaximallyBadRouterSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
       )
       mobsim.run()
     }

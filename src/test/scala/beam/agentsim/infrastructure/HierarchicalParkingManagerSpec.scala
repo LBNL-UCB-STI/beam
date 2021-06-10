@@ -1,20 +1,13 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.TimeUnit
-
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
-import beam.agentsim.infrastructure.parking.{
-  LinkLevelOperations,
-  ParkingType,
-  ParkingZone,
-  ParkingZoneFileUtils,
-  PricingModel
-}
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -25,10 +18,12 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.mockito.Mockito.when
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.should.Matchers
 
+import java.util.concurrent.TimeUnit
 import scala.util.Random
 
 class HierarchicalParkingManagerSpec
@@ -43,9 +38,8 @@ class HierarchicalParkingManagerSpec
           .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MockitoSugar
     with ImplicitSender
     with Matchers
     with BeamHelper
@@ -61,6 +55,10 @@ class HierarchicalParkingManagerSpec
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
+  private val managers = Map[Id[VehicleManager], VehicleManager](
+    VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
+  )
+
   describe("HierarchicalParkingManager with no parking") {
     it("should return a response with an emergency stall") {
 
@@ -73,23 +71,23 @@ class HierarchicalParkingManagerSpec
           xMax = 833000,
           yMax = 10000000
         ) // one TAZ at agent coordinate
-        parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
-            tazTreeMap,
-            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
-            Array.empty[ParkingZone[Link]],
-            new Random(randomSeed),
-            geo,
-            250.0,
-            8000.0,
-            boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
-            checkThatNumberOfStallsMatch = true,
-          )
+        parkingManager = HierarchicalParkingManager.init(
+          tazTreeMap,
+          HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
+          Array.empty[ParkingZone[Link]],
+          new Random(randomSeed),
+          geo,
+          250.0,
+          8000.0,
+          boundingBox,
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          checkThatNumberOfStallsMatch = true,
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
 
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 10)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.getX + 2000,
@@ -102,9 +100,12 @@ class HierarchicalParkingManagerSpec
           geoId = LinkLevelOperations.EmergencyLinkId,
         )
 
-        parkingManager ! inquiry
-
-        expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+        val response = parkingManager.processParkingInquiry(inquiry)
+        assert(response.isDefined, "no response")
+        assert(
+          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -114,8 +115,8 @@ class HierarchicalParkingManagerSpec
 
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
-      val parkingManager = system.actorOf(
-        HierarchicalParkingManager.props(
+      val parkingManager =
+        HierarchicalParkingManager.init(
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
           Array.empty[ParkingZone[Link]],
@@ -126,10 +127,11 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
           checkThatNumberOfStallsMatch = true,
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
-      )
 
-      val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+      val inquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 34347)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.getX + 2000,
@@ -142,9 +144,12 @@ class HierarchicalParkingManagerSpec
         geoId = LinkLevelOperations.EmergencyLinkId,
       )
 
-      parkingManager ! inquiry
-
-      expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+      val response = parkingManager.processParkingInquiry(inquiry)
+      assert(response.isDefined, "no response")
+      assert(
+        response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+        "something is wildly broken"
+      )
     }
   }
 
@@ -161,29 +166,33 @@ class HierarchicalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,unused
+            |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[Link](oneParkingOption, random)
-        parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
-            tazTreeMap,
-            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
-            parking.zones.toArray,
-            new Random(randomSeed),
-            geo,
-            250.0,
-            8000.0,
-            boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
-            checkThatNumberOfStallsMatch = true,
-          )
+        parking = ParkingZoneFileUtils.fromIterator[Link](
+          oneParkingOption,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
+        parkingManager = HierarchicalParkingManager.init(
+          tazTreeMap,
+          HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
+          parking.zones.toArray,
+          new Random(randomSeed),
+          geo,
+          250.0,
+          8000.0,
+          boundingBox,
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          checkThatNumberOfStallsMatch = true,
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 734734)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -193,18 +202,24 @@ class HierarchicalParkingManagerSpec
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace
+            ParkingType.Workplace,
+            VehicleManager.privateVehicleManager.managerId
           )
-        parkingManager ! firstInquiry
-        expectMsg(ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId))
+        val response1 = parkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(
+          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          "something is wildly broken"
+        )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        parkingManager ! secondInquiry
-        expectMsgPF() {
-          case res @ ParkingInquiryResponse(stall, responseId)
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 3333)
+        val response2 = parkingManager.processParkingInquiry(secondInquiry)
+        response2 match {
+          case Some(res @ ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
               if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
             res
+          case _ => assert(response2.isDefined, "no response")
         }
       }
     }
@@ -223,29 +238,34 @@ class HierarchicalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,unused
+          |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[Link](oneParkingOption, random)
-        parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
-            tazTreeMap,
-            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
-            parking.zones.toArray,
-            new Random(randomSeed),
-            geo,
-            250.0,
-            8000.0,
-            boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
-            checkThatNumberOfStallsMatch = true,
+        parking = ParkingZoneFileUtils
+          .fromIterator[Link](
+            oneParkingOption,
+            random,
+            vehicleManagerId = VehicleManager.privateVehicleManager.managerId
           )
+        parkingManager = HierarchicalParkingManager.init(
+          tazTreeMap,
+          HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
+          parking.zones.toArray,
+          new Random(randomSeed),
+          geo,
+          250.0,
+          8000.0,
+          boundingBox,
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          checkThatNumberOfStallsMatch = true,
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 101)
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 102)
         val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
@@ -257,20 +277,29 @@ class HierarchicalParkingManagerSpec
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace
+            ParkingType.Workplace,
+            VehicleManager.privateVehicleManager.managerId,
           )
 
         // request the stall
-        parkingManager ! firstInquiry
-        expectMsg(ParkingInquiryResponse(expectedStall, firstInquiry.requestId))
+        val response1 = parkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(
+          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
+          "something is wildly broken"
+        )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId, expectedTAZId)
-        parkingManager ! releaseParkingStall
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 0)
+        parkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
-        parkingManager ! secondInquiry
-        expectMsg(ParkingInquiryResponse(expectedStall, secondInquiry.requestId))
+        val response2 = parkingManager.processParkingInquiry(secondInquiry)
+        assert(response2.isDefined, "no response")
+        assert(
+          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -303,30 +332,37 @@ class HierarchicalParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[Link](parkingConfiguration, random)
-        parkingManager = system.actorOf(
-          HierarchicalParkingManager.props(
-            tazTreeMap,
-            HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
-            parking.zones.toArray,
-            new Random(randomSeed),
-            geo,
-            250.0,
-            8000.0,
-            boundingBox,
-            ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
-            checkThatNumberOfStallsMatch = true,
-          )
+        parking = ParkingZoneFileUtils.fromIterator[Link](
+          parkingConfiguration,
+          random,
+          vehicleManagerId = VehicleManager.privateVehicleManager.managerId
+        )
+        parkingManager = HierarchicalParkingManager.init(
+          tazTreeMap,
+          HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
+          parking.zones.toArray,
+          new Random(randomSeed),
+          geo,
+          250.0,
+          8000.0,
+          boundingBox,
+          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+          checkThatNumberOfStallsMatch = true,
+          managers,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
         )
       } {
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work")
-          _ = parkingManager ! req
-          counted = expectMsgPF[Int]() {
-            case res: ParkingInquiryResponse =>
+          req = ParkingInquiry(middleOfWorld, "work", triggerId = 17)
+          response1 = parkingManager.processParkingInquiry(req)
+          counted = response1 match {
+            case Some(res @ ParkingInquiryResponse(_, _, req.triggerId)) =>
               if (res.stall.geoId != LinkLevelOperations.EmergencyLinkId) 1 else 0
+            case _ =>
+              assert(response1.isDefined, "no response")
+              0
           }
         } yield {
           counted
@@ -350,21 +386,21 @@ class HierarchicalParkingManagerSpec
         1.0,
         new Random(randomSeed),
       )
-      val zpm = system.actorOf(
-        HierarchicalParkingManager.props(
-          scenario.tazTreeMap,
-          scenario.linkToTAZMapping,
-          zones,
-          new Random(randomSeed),
-          geo,
-          250.0,
-          8000.0,
-          boundingBox,
-          ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
-          // the number of stalls on TAZ and link levels will not match because of big number of stalls
-          // which don't fit into Int precision
-          checkThatNumberOfStallsMatch = false,
-        )
+      val zpm = HierarchicalParkingManager.init(
+        scenario.tazTreeMap,
+        scenario.linkToTAZMapping,
+        zones,
+        new Random(randomSeed),
+        geo,
+        250.0,
+        8000.0,
+        boundingBox,
+        ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig),
+        // the number of stalls on TAZ and link levels will not match because of big number of stalls
+        // which don't fit into Int precision
+        checkThatNumberOfStallsMatch = false,
+        managers,
+        beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
       )
 
       assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 4033, Block(0.0, 3600), ParkingType.Residential)
@@ -376,19 +412,23 @@ class HierarchicalParkingManagerSpec
   }
 
   private def assertParkingResponse(
-    spm: ActorRef,
+    spm: ParkingNetwork,
     coord: Coord,
     tazId: String,
     parkingZoneId: Int,
     pricingModel: PricingModel,
     parkingType: ParkingType
   ): Any = {
-    val inquiry = ParkingInquiry(coord, "init")
-    spm ! inquiry
-    val rsp = expectMsgClass(classOf[ParkingInquiryResponse])
-    rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
-    val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
-    dist should be <= 400.0
+    val inquiry = ParkingInquiry(coord, "init", triggerId = 27)
+    val response = spm.processParkingInquiry(inquiry)
+    response match {
+      case Some(rsp @ ParkingInquiryResponse(stall, _, inquiry.triggerId)) =>
+        rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
+        val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
+        dist should be <= 400.0
+      case _ =>
+        assert(response.isDefined, "no response")
+    }
   }
 
   override def afterAll: Unit = {
@@ -396,7 +436,7 @@ class HierarchicalParkingManagerSpec
   }
 }
 
-object HierarchicalParkingManagerSpec extends MockitoSugar {
+object HierarchicalParkingManagerSpec {
   private def mockLinks(tazTreeMap: TAZTreeMap): Map[Link, TAZ] = {
     tazTreeMap.getTAZs
       .flatMap { taz =>
@@ -408,7 +448,7 @@ object HierarchicalParkingManagerSpec extends MockitoSugar {
   }
 
   def mockLink(coord: Coord, id: Long, len: Double): Link = {
-    val link = mock[Link]
+    val link = mock(classOf[Link])
     when(link.getCoord).thenReturn(coord)
     when(link.getId).thenReturn(Id.createLinkId(id))
     when(link.getLength).thenReturn(len)

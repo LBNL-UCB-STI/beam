@@ -12,7 +12,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, Geofence}
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.sim.common.GeoUtils
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
@@ -28,11 +28,13 @@ object TransitDriverAgent {
 
   def props(
     scheduler: ActorRef,
+    beamServices: BeamServices,
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     transitDriverId: Id[TransitDriverAgent],
     vehicle: BeamVehicle,
     legs: Seq[BeamLeg],
@@ -42,11 +44,13 @@ object TransitDriverAgent {
     Props(
       new TransitDriverAgent(
         scheduler,
+        beamServices: BeamServices,
         beamScenario,
         transportNetwork,
         tollCalculator,
         eventsManager,
         parkingManager,
+        chargingNetworkManager,
         transitDriverId,
         vehicle,
         legs,
@@ -91,24 +95,27 @@ object TransitDriverAgent {
 
 class TransitDriverAgent(
   val scheduler: ActorRef,
+  val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val transitDriverId: Id[TransitDriverAgent],
   val vehicle: BeamVehicle,
   val legs: Seq[BeamLeg],
   val geo: GeoUtils,
   val networkHelper: NetworkHelper
 ) extends DrivesVehicle[DrivingData] {
+  override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
 
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   val myUnhandled: StateFunction = {
-    case Event(TransitReservationRequest(fromIdx, toIdx, passenger), data) =>
+    case Event(TransitReservationRequest(fromIdx, toIdx, passenger, triggerId), data) =>
       val slice = legs.slice(fromIdx, toIdx)
-      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger), data))
+      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger, triggerId), data))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
@@ -151,9 +158,9 @@ class TransitDriverAgent(
     // Instead, we ask the scheduler to be notified after the
     // concurrency time window has passed, and then stop.
     // This is because other agents may still want to interact with us until then.
-    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! ScheduleKillTrigger(self)
+      scheduler ! ScheduleKillTrigger(self, triggerId)
       scheduler ! CompletionNotice(triggerId)
       stay
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>

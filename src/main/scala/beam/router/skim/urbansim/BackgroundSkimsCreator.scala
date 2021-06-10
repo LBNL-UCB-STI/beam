@@ -8,6 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.skim._
+import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerEventFactory, ODSkimmer}
 import beam.router.skim.urbansim.MasterActor.Response
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.ProfilingUtils
@@ -29,7 +30,7 @@ class BackgroundSkimsCreator(
   val withTransit: Boolean,
   val buildDirectWalkRoute: Boolean,
   val buildDirectCarRoute: Boolean,
-  val calculationTimeoutHours:Int
+  val calculationTimeoutHours: Int
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
 

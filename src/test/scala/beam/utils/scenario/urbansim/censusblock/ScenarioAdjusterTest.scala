@@ -10,11 +10,12 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class ScenarioAdjusterTest extends FunSuite with Matchers {
+class ScenarioAdjusterTest extends AnyFunSuite with Matchers {
 
   def createBackgroundODSkimsCreator(): BackgroundODSkimsCreator =
     BackgroundODSkimsCreator(

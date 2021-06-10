@@ -9,6 +9,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
@@ -21,14 +22,9 @@ import scala.concurrent.{Await, TimeoutException}
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
+  val matchingAlgorithm: String =
+    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
-
-  val spatialPoolCustomerReqs: QuadTree[CustomerRequest] = new QuadTree[CustomerRequest](
-    rideHailManager.activityQuadTreeBounds.minx,
-    rideHailManager.activityQuadTreeBounds.miny,
-    rideHailManager.activityQuadTreeBounds.maxx,
-    rideHailManager.activityQuadTreeBounds.maxy
-  )
 
   val defaultBeamVehilceTypeId: Id[BeamVehicleType] = Id.create(
     rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
@@ -36,12 +32,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   )
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
-    rideHailManager.vehicleManager
+    rideHailManager.rideHailManagerHelper
       .getClosestIdleVehiclesWithinRadiusByETA(
         inquiry.pickUpLocationUTM,
         inquiry.destinationUTM,
         rideHailManager.radiusInMeters,
-        inquiry.departAt
+        inquiry.departAt,
+        maxWaitTimeInSec,
+        includeRepositioningVehicles = true
       ) match {
       case Some(agentETA) =>
         val timeCostFactors = rideHailManager.beamServices.skims.od_skimmer.getRideHailPoolingTimeAndCostRatios(
@@ -60,14 +58,19 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
   }
 
-  def createMatchingAlgorithm(availVehicles: List[RideHailMatching.VehicleAndSchedule]): RideHailMatching = {
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm match {
+  def createMatchingAlgorithm(
+    matchingAlgorithm: String,
+    availVehicles: List[RideHailMatching.VehicleAndSchedule],
+    spatialPoolCustomerReqs: QuadTree[CustomerRequest]
+  ): RideHailMatching = {
+    matchingAlgorithm match {
       case "ASYNC_GREEDY_VEHICLE_CENTRIC_MATCHING" =>
         new AsyncGreedyVehicleCentricMatching(
           spatialPoolCustomerReqs,
           availVehicles,
           rideHailManager.beamServices
         )
+      // This is default: ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT
       case "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT" =>
         new AlonsoMoraMatchingWithAsyncGreedyAssignment(
           spatialPoolCustomerReqs,
@@ -88,7 +91,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long,
   ): AllocationResponse = {
     rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toAllocate: Set[RideHailRequest] = Set()
@@ -116,7 +120,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         // Make sure vehicle still available
         val vehicleId = routeResponses.head.itineraries.head.legs.head.beamVehicleId
         val rideHailAgentLocation =
-          rideHailManager.vehicleManager.getRideHailAgentLocationInIdleAndInServiceVehicles(vehicleId)
+          rideHailManager.rideHailManagerHelper.getRideHailAgentLocationInIdleAndInServiceVehicles(vehicleId)
         if (rideHailAgentLocation.nonEmpty && !alreadyAllocated.contains(vehicleId)) {
           alreadyAllocated = alreadyAllocated + vehicleId
           val requestsWithLegs = if (tempScheduleStore.contains(request.requestId)) {
@@ -157,51 +161,31 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       }
     }
     if (toAllocate.nonEmpty) {
-      val pooledAllocationReqs = toAllocate.filter(_.asPooled)
-      val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
-      val vehiclePoolToUse =
-        rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds match {
-          case 0 =>
-            rideHailManager.vehicleManager.getIdleVehiclesAndFilterOutExluded.values
-          case _ =>
-            rideHailManager.vehicleManager.getIdleAndInServiceVehicles.values
+      var s = System.currentTimeMillis()
+      var e = System.currentTimeMillis()
+      // First satisfy the solo customers
+      val soloCustomer = toAllocate.filterNot(_.asPooled)
+      s = System.currentTimeMillis()
+      toAllocate.filterNot(_.asPooled).foreach { req =>
+        Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
+          case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
+            allocResponses = allocResponses :+ res
+            alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
+          case res =>
+            allocResponses = allocResponses :+ res
         }
-      val (availVehicles, poolCustomerReqs, offset) =
-        (
-          vehiclePoolToUse.map { veh =>
-            val vehState = rideHailManager.vehicleManager.getVehicleState(veh.vehicleId)
-            val vehAndSched = RideHailMatching.createVehicleAndScheduleFromRideHailAgentLocation(
-              veh,
-              Math.max(tick, veh.latestTickExperienced),
-              rideHailManager.beamServices,
-              vehState.totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
-            )
-            if (rideHailManager.log.isDebugEnabled) {
-              rideHailManager.log.debug(
-                "%%%%% Vehicle {} is available with this schedule: \n {}",
-                vehAndSched.vehicle.id,
-                vehAndSched.schedule.map(_.toString).mkString("\n")
-              )
-            }
-            vehAndSched
-          }.toList,
-          pooledAllocationReqs.map(
-            rhr =>
-              RideHailMatching.createPersonRequest(
-                rhr.customer,
-                rhr.pickUpLocationUTM,
-                tick,
-                rhr.destinationUTM,
-                rideHailManager.beamServices
-            )
-          ),
-          rideHailManager.beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
-        )
-
-      spatialPoolCustomerReqs.clear()
-      poolCustomerReqs.foreach { d =>
-        spatialPoolCustomerReqs.put(d.pickup.activity.getCoord.getX, d.pickup.activity.getCoord.getY, d)
       }
+      e = System.currentTimeMillis()
+      logger.debug(s"Served soloCustomer ${soloCustomer.size} in ${e - s} ms")
+      // Then allocate the pooled customers
+      val customerIdToReqs = toAllocate.map(rhr => rhr.customer.personId -> rhr).toMap
+      val vehiclePoolToUse = rideHailManager.rideHailManagerHelper.getCandidateVehiclesForPoolingAssignment
+      val availVehicles = RideHailMatching
+        .createVehiclesAndSchedulesFromRideHailAgentLocation(tick, vehiclePoolToUse, rideHailManager)
+        .toList
+      val spatialPoolCustomerReqs =
+        RideHailMatching.createSpatialPooledCustomerRequests(tick, toAllocate.filter(_.asPooled), rideHailManager)
+
       if (rideHailManager.log.isDebugEnabled) {
         rideHailManager.log
           .debug("%%%%% Requests: {}", spatialPoolCustomerReqs.values().asScala.map(_.toString).mkString("\n"))
@@ -209,7 +193,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
 
       import scala.concurrent.duration._
       val assignment = try {
-        Await.result(createMatchingAlgorithm(availVehicles).matchAndAssign(tick), atMost = 2.minutes)
+        Await.result(
+          createMatchingAlgorithm(matchingAlgorithm, availVehicles, spatialPoolCustomerReqs).matchAndAssign(tick),
+          atMost = 2.minutes
+        )
       } catch {
         case e: TimeoutException =>
           rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")
@@ -226,13 +213,13 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             tick,
             theTrip
           )
-          if (rideHailManager.vehicleManager
+          if (rideHailManager.rideHailManagerHelper
                 .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
                 .latestTickExperienced > 0) {
             rideHailManager.log.debug(
               "\tlatest tick by vehicle {} is {}",
               vehicleAndOldSchedule.vehicle.id,
-              rideHailManager.vehicleManager
+              rideHailManager.rideHailManagerHelper
                 .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
                 .latestTickExperienced
             )
@@ -261,7 +248,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                   Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
                 removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
               }
-              if (rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+              // If passenger is different but location from previous to current action is the same, don't route it
+              if (!(orig.person.isDefined && dest.person.isDefined && orig.person.get.personId.equals(
+                    dest.person.get.personId
+                  )) &&
+                  rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
                 scheduleToCache = scheduleToCache :+ orig
                 None
               } else {
@@ -277,9 +268,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
                       vehicleAndOldSchedule.vehicle.beamVehicleType.id,
                       origin,
                       CAR,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = true
                     )
-                  )
+                  ),
+                  triggerId = triggerId
                 )
                 scheduleToCache = scheduleToCache :+ orig.copy(routingRequestId = Some(routingRequest.requestId))
                 Some(routingRequest)
@@ -296,25 +289,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         .flatMap(resp => resp.request.groupedWithOtherRequests.map(_.requestId).toSet + resp.request.requestId)
         .toSet
 
-      val nonAllocated = pooledAllocationReqs.filterNot(req => wereAllocated.contains(req.requestId))
-      var s = System.currentTimeMillis()
-      nonAllocated.foreach { unsatisfiedReq =>
-        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager, beamServices) match {
-          case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
-            allocResponses = allocResponses :+ res
-            alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
-          case res =>
-            allocResponses = allocResponses :+ res
-        }
-      }
-      var e = System.currentTimeMillis()
-      logger.debug(s"Served nonAllocated ${nonAllocated.size} in ${e - s} ms")
-
+      val nonAllocated = toAllocate.filter(_.asPooled).filterNot(req => wereAllocated.contains(req.requestId))
       s = System.currentTimeMillis()
-      // Now satisfy the solo customers
-      val soloCustomer = toAllocate.filterNot(_.asPooled)
-      toAllocate.filterNot(_.asPooled).foreach { req =>
-        Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager, beamServices) match {
+      nonAllocated.foreach { unsatisfiedReq =>
+        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
@@ -323,7 +301,8 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         }
       }
       e = System.currentTimeMillis()
-      logger.debug(s"Served soloCustomer ${soloCustomer.size} in ${e - s} ms")
+      logger.debug(s"Served nonAllocated ${nonAllocated.size} in ${e - s} ms")
+
     }
     if (rideHailManager.log.isDebugEnabled) {
       rideHailManager.log.debug(

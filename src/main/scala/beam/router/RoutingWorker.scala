@@ -4,9 +4,7 @@ import java.io.File
 import java.nio.file.Paths
 import java.time.temporal.ChronoUnit
 import java.time.{ZoneOffset, ZonedDateTime}
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{ExecutorService, Executors}
-
 import akka.actor._
 import akka.pattern._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -18,7 +16,7 @@ import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkG
 import beam.router.gtfs.FareCalculator
 import beam.router.model.{EmbodiedBeamTrip, _}
 import beam.router.osm.TollCalculator
-import beam.router.r5.{R5Parameters, R5Wrapper}
+import beam.router.r5.{CarWeightCalculator, R5Parameters, R5Wrapper}
 import beam.sim.BeamScenario
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.metrics.{Metrics, MetricsSupport}
@@ -107,7 +105,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     if (carRouter == "staticGH" || carRouter == "quasiDynamicGH") {
       new Directory(new File(graphHopperDir)).deleteRecursively()
       createWalkGraphHopper()
-      createCarGraphHoppers()
+      createCarGraphHoppers(new FreeFlowTravelTime)
       askForMoreWork()
     }
   }
@@ -203,7 +201,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
     case UpdateTravelTimeLocal(newTravelTime) =>
       if (carRouter == "quasiDynamicGH") {
-        createCarGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(newTravelTime)
       }
 
       r5 = new R5Wrapper(
@@ -218,7 +216,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val newTravelTime =
         TravelTimeCalculatorHelper.CreateTravelTimeCalculator(workerParams.beamConfig.beam.agentsim.timeBinSize, map)
       if (carRouter == "quasiDynamicGH") {
-        createCarGraphHoppers(Some(newTravelTime))
+        createCarGraphHoppers(newTravelTime)
       }
 
       r5 = new R5Wrapper(
@@ -237,9 +235,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         leg: BeamLeg,
         vehicleId: Id[Vehicle],
         vehicleTypeId: Id[BeamVehicleType],
-        embodyRequestId: Int
+        embodyRequestId: Int,
+        triggerId
         ) =>
-      val response: RoutingResponse = r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId)
+      val response: RoutingResponse =
+        r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId, triggerId)
       sender ! response
       askForMoreWork()
   }
@@ -257,28 +257,29 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
   }
 
-  private def createCarGraphHoppers(travelTime: Option[TravelTime] = None): Unit = {
+  private def createCarGraphHoppers(travelTime: TravelTime): Unit = {
     // Clean up GHs variable and than calculate new ones
     binToCarGraphHopper = Map()
     new Directory(new File(carGraphHopperDir)).deleteRecursively()
 
+    val carWeightCalculator = new CarWeightCalculator(workerParams)
     val graphHopperInstances = if (carRouter == "quasiDynamicGH") noOfTimeBins else 1
 
     val futures = (0 until graphHopperInstances).map { i =>
       Future {
         val ghDir = Paths.get(carGraphHopperDir, i.toString).toString
 
-        val wayId2TravelTime = travelTime
-          .map { times =>
-            workerParams.networkHelper.allLinks.toSeq
-              .map(
-                l =>
-                  l.getId.toString.toLong ->
-                  times.getLinkTravelTime(l, i * workerParams.beamConfig.beam.agentsim.timeBinSize, null, null)
-              )
-              .toMap
-          }
-          .getOrElse(Map.empty)
+        val wayId2TravelTime = workerParams.networkHelper.allLinks.toSeq
+          .map(
+            l =>
+              l.getId.toString.toLong ->
+              carWeightCalculator.calcTravelTime(
+                l.getId.toString.toInt,
+                travelTime,
+                i * workerParams.beamConfig.beam.agentsim.timeBinSize
+            )
+          )
+          .toMap
 
         GraphHopperWrapper.createCarGraphDirectoryFromR5(
           carRouter,

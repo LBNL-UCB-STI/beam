@@ -1,5 +1,6 @@
 package beam.utils
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 /**
   * Created by sfeygin on 4/10/17.
@@ -22,6 +23,7 @@ object MathUtils {
     * @param list the list of data
     * @return median of the given list
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def median(list: java.util.List[java.lang.Double]): Double = {
     if (list.isEmpty) {
       0
@@ -84,6 +86,7 @@ object MathUtils {
     * Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def logSumExp(a: Iterable[Double]): Double = {
     a.size match {
       case 0 => Double.NegativeInfinity;
@@ -106,9 +109,23 @@ object MathUtils {
 
   def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 
+  /**
+    * Tested with not negative
+    * @param x float to round
+    * @return one of the nearest integers depending on the random value and the fraction of x
+    */
+  def roundUniformly(x: Double): Long = {
+    val floor: Double = Math.floor(x)
+    val diff = x - floor
+    val addition = if (Random.nextDouble() < diff) 1 else 0
+    Math.round(floor + addition)
+  }
+
   def formatBytes(v: Long): String = {
     if (v < 1024) return v + " B"
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
+
+  def nanToZero(x: Double) = if (x.isNaN) { 0.0 } else { x }
 }

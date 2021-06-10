@@ -15,9 +15,11 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
-class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 
@@ -29,11 +31,13 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
   }
 
   private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
+    // beam.outputs.collectAndCreateBeamAnalysisAndGraphs needs to be enabled for this test, as it is trying to access *.averageTravelTimes.csv
     val config = ConfigFactory
       .parseString(
         s"""
             |beam.actorSystemName = "CaccSpec"
-            |beam.outputs.events.fileOutputFormats = xml
+            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
+                     |beam.outputs.events.fileOutputFormats = xml
             |beam.agentsim.lastIteration = $iterationNumber
             |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
             |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
