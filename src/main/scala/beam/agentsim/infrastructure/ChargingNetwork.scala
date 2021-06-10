@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ZonalParkingManager.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
@@ -132,6 +133,18 @@ object ChargingNetwork {
   }
 
   def init[GEO: GeoLevel](
+    allZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
+  ): (Vector[ChargingNetwork[GEO]], Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+    val chargingZones = allZones.filter(_._2.chargingPointType.isDefined)
+    val chargingZoneTree = ParkingZoneFileUtils.createZoneSearchTree(chargingZones.values.toSeq)
+    val chargingNetworks = chargingZones
+      .groupBy(_._2.vehicleManager)
+      .map { case (vehManagerMaybe, zones) => new ChargingNetwork(zones, vehManagerMaybe) }
+      .toVector
+    (chargingNetworks, chargingZones, chargingZoneTree)
+  }
+
+  def init[GEO: GeoLevel](
     allZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -140,12 +153,7 @@ object ChargingNetwork {
     beamConfig: BeamConfig,
     geo: GeoUtils
   ): (Vector[ChargingNetwork[GEO]], ChargingFunctions[GEO]) = {
-    val chargingZones = allZones.filter(_._2.chargingPointType.isDefined)
-    val chargingZoneTree = ParkingZoneFileUtils.createZoneSearchTree(chargingZones.values.toSeq)
-    val chargingNetworks = chargingZones
-      .groupBy(_._2.vehicleManager)
-      .map { case (vehManagerMaybe, zones) => new ChargingNetwork(zones, vehManagerMaybe) }
-      .toVector
+    val (chargingNetworks, chargingZones, chargingZoneTree) = init[GEO](allZones)
     val chargingFunctions = new ChargingFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,

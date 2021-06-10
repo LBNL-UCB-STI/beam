@@ -7,7 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
@@ -48,6 +48,8 @@ class ChargingNetworkManager(
   private val sitePowerManager = new SitePowerManager(chargingNetworks, beamServices)
   private val powerController = new PowerController(chargingNetworks, beamConfig.beam.agentsim.chargingNetworkManager)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
+  private val chargingNetworksMap: Map[Option[Id[VehicleManager]], ChargingNetwork[_]] =
+    chargingNetworks.map(x => x.vehicleManager -> x).toMap
 
   import powerController._
   import sitePowerManager._
@@ -97,7 +99,7 @@ class ChargingNetworkManager(
       // obtaining physical bounds
       val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
-      val allConnectedVehicles = chargingNetworks.flatMap(_._2.connectedVehicles)
+      val allConnectedVehicles = chargingNetworks.flatMap(_.connectedVehicles)
       val triggers = allConnectedVehicles.par.flatMap {
         case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, _, _)) =>
           // Refuel
@@ -142,7 +144,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       vehicle.stall match {
         case Some(stall) =>
-          val chargingNetwork = chargingNetworks(stall.vehicleManager)
+          val chargingNetwork = chargingNetworksMap(stall.vehicleManager)
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) => handleEndCharging(tick, chargingVehicle, triggerId = triggerId)
             // We don't inform Actors that a private vehicle has ended charging because we don't know which agent should be informed
@@ -156,7 +158,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       vehicle.stall match {
         case Some(stall) if vehicle.isBEV | vehicle.isPHEV =>
-          val chargingNetwork = chargingNetworks(stall.vehicleManager)
+          val chargingNetwork = chargingNetworksMap(stall.vehicleManager)
           // connecting the current vehicle
           chargingNetwork.attemptToConnectVehicle(tick, vehicle, sender) match {
             case Some(ChargingVehicle(vehicle, _, station, _, _, _, status, _)) if status.last == Waiting =>
@@ -185,7 +187,7 @@ class ChargingNetworkManager(
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       vehicle.stall match {
         case Some(stall) =>
-          val chargingNetwork = chargingNetworks(stall.vehicleManager)
+          val chargingNetwork = chargingNetworksMap(stall.vehicleManager)
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) =>
               val prevStartTime = chargingVehicle.chargingSessions.last.startTime
@@ -207,7 +209,7 @@ class ChargingNetworkManager(
 
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
-      chargingNetworks.foreach(_._2.clearAllMappedStations())
+      chargingNetworks.foreach(_.clearAllMappedStations())
       powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
@@ -246,7 +248,7 @@ class ChargingNetworkManager(
     physicalBounds: Map[ChargingStation, PhysicalBounds]
   ): Vector[ScheduleTrigger] = {
     chargingNetworks
-      .flatMap(_._2.vehicles)
+      .flatMap(_.vehicles)
       .map {
         case (_, chargingVehicle @ ChargingVehicle(vehicle, _, _, _, _, _, status, _)) =>
           if (status.last == Connected) {
@@ -255,7 +257,6 @@ class ChargingNetworkManager(
           }
           ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
       }
-      .toVector
   }
 
   /**
@@ -291,7 +292,7 @@ class ChargingNetworkManager(
     triggerId: Long
   ): Unit = {
     val ChargingVehicle(vehicle, stall, _, _, _, _, _, _) = chargingVehicle
-    val chargingNetwork = chargingNetworks(stall.vehicleManager)
+    val chargingNetwork = chargingNetworksMap(stall.vehicleManager)
     chargingNetwork.disconnectVehicle(chargingVehicle) match {
       case Some(cv) =>
         log.debug(s"Vehicle ${chargingVehicle.vehicle} has been disconnected from the charging station")

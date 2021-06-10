@@ -119,7 +119,7 @@ class SitePowerManagerSpec
     List(v1, v2)
   }
 
-  val chargingNetworks: Map[Option[Id[VehicleManager]], ChargingNetwork[TAZ]] =
+  val (chargingNetworks, _, _) =
     ChargingNetwork.init[TAZ](Map(dummyChargingZone.parkingZoneId -> dummyChargingZone))
 
   "SitePowerManager" should {
@@ -142,7 +142,7 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        val Some(chargingVehicle) = chargingNetworks.values.head.attemptToConnectVehicle(0, v, ActorRef.noSender)
+        val Some(chargingVehicle) = chargingNetworks.head.attemptToConnectVehicle(0, v, ActorRef.noSender)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,

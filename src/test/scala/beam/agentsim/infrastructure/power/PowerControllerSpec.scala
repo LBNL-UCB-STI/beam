@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -59,8 +58,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     pricingModel = Some(PricingModel.FlatFee(0.0))
   )
 
-  val chargingNetworks: Map[Option[Id[VehicleManager]], ChargingNetwork[TAZ]] =
-    ChargingNetwork.init[TAZ](Map(dummyChargingZone.parkingZoneId -> dummyChargingZone))
+  val (chargingNetworks, _, _) = ChargingNetwork.init[TAZ](Map(dummyChargingZone.parkingZoneId -> dummyChargingZone))
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
@@ -78,9 +76,10 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   }
 
   "PowerController when connected to grid" should {
-    val powerController: PowerController = new PowerController(chargingNetworks, beamConfig) {
-      override private[power] lazy val beamFederateOption = Some(beamFederateMock)
-    }
+    val powerController: PowerController =
+      new PowerController(chargingNetworks, beamConfig.beam.agentsim.chargingNetworkManager) {
+        override private[power] lazy val beamFederateOption = Some(beamFederateMock)
+      }
 
     "obtain power physical bounds" in {
       val bounds = powerController.obtainPowerPhysicalBounds(
@@ -94,9 +93,10 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   }
 
   "PowerController when not connected to grid" should {
-    val powerController: PowerController = new PowerController(chargingNetworks, beamConfig) {
-      override private[power] lazy val beamFederateOption = None
-    }
+    val powerController: PowerController =
+      new PowerController(chargingNetworks, beamConfig.beam.agentsim.chargingNetworkManager) {
+        override private[power] lazy val beamFederateOption = None
+      }
 
     "obtain default (0.0) power physical bounds" in {
       val bounds =
