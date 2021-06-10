@@ -26,8 +26,7 @@ class ZonalParkingManager[GEO: GeoLevel](
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
-  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
+  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig
 ) extends ParkingNetwork[GEO] {
 
   if (maxSearchRadius < minSearchRadius) {
@@ -39,7 +38,7 @@ class ZonalParkingManager[GEO: GeoLevel](
   var totalStallsInUse: Long = 0L
   var totalStallsAvailable: Long = parkingZones.map { _._2.stallsAvailable }.foldLeft(0L) { _ + _ }
 
-  val functions: ParkingAndChargingFunctions[GEO] = new ParkingAndChargingFunctions(
+  val functions: InfrastructureFunctions[GEO] = new ParkingFunctions(
     geoQuadTree,
     idToGeoMapping,
     geoToTAZ,
@@ -50,8 +49,7 @@ class ZonalParkingManager[GEO: GeoLevel](
     minSearchRadius,
     maxSearchRadius,
     boundingBox,
-    mnlMultiplierParameters,
-    chargingPointConfig
+    mnlMultiplierParameters
   )
 
   override def processParkingInquiry(
@@ -85,7 +83,7 @@ class ZonalParkingManager[GEO: GeoLevel](
     Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
   }
 
-  override def processReleaseParkingStall(release: ReleaseParkingStall) = {
+  override def processReleaseParkingStall(release: ReleaseParkingStall): Unit = {
     val parkingZoneId = release.stall.parkingZoneId
     if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
       // this is an infinitely available resource; no update required
@@ -141,8 +139,7 @@ object ZonalParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.minSearchRadius,
       beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
       boundingBox,
-      mnlMultiplierParametersFromConfig(beamConfig),
-      beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
+      mnlMultiplierParametersFromConfig(beamConfig)
     )
   }
 
@@ -204,8 +201,7 @@ object ZonalParkingManager extends LazyLogging {
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      ParkingMNL.DefaultMNLParameters,
-      chargingPointConfig
+      ParkingMNL.DefaultMNLParameters
     )
   }
 

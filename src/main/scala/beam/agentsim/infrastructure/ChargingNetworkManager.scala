@@ -45,9 +45,8 @@ class ChargingNetworkManager(
 
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
-
   private val sitePowerManager = new SitePowerManager(chargingNetworks, beamServices)
-  private val powerController = new PowerController(chargingNetworks, beamConfig)
+  private val powerController = new PowerController(chargingNetworks, beamConfig.beam.agentsim.chargingNetworkManager)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
   import powerController._

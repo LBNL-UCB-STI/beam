@@ -12,5 +12,5 @@ abstract class ParkingNetwork[GEO: GeoLevel] extends LazyLogging {
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse]
 
-  def processReleaseParkingStall(release: ReleaseParkingStall)
+  def processReleaseParkingStall(release: ReleaseParkingStall): Unit
 }

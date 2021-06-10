@@ -25,7 +25,7 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: Park
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
-  private val privateCarsParkingNetwork = parkingNetworkInfo.parkingNetworks
+  private val privateCarsParkingNetwork = parkingNetworkInfo.parkingNetwork
 
   override def loggedReceive: Receive = {
     case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.name == "PARALLEL" =>

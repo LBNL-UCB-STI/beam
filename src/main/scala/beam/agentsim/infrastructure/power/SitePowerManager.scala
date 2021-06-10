@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -9,17 +8,16 @@ import beam.router.skim.event
 import beam.sim.BeamServices
 import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 
 class SitePowerManager(
-  chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork[_]],
+  chargingNetworks: Vector[ChargingNetwork[_]],
   beamServices: BeamServices
 ) extends LazyLogging {
   import SitePowerManager._
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val tazSkimmer = beamServices.skims.taz_skimmer
-  private lazy val allChargingStations = chargingNetworkMap.flatMap(_._2.chargingStations).toList.distinct
+  private lazy val allChargingStations = chargingNetworks.flatMap(_.chargingStations)
   private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
 
   /**

@@ -52,7 +52,7 @@ class HierarchicalParkingManager(
     })
   private val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones.values.toSeq)
 
-  private val tazSearchFunctions: ParkingAndChargingFunctions[TAZ] = new ParkingAndChargingFunctions[TAZ](
+  private val tazSearchFunctions: ParkingFunctions[TAZ] = new ParkingFunctions[TAZ](
     tazMap.tazQuadTree,
     tazMap.idToTAZMapping,
     identity[TAZ],
@@ -63,8 +63,7 @@ class HierarchicalParkingManager(
     minSearchRadius,
     maxSearchRadius,
     boundingBox,
-    mnlMultiplierParameters,
-    chargingPointConfig
+    mnlMultiplierParameters
   )
 
   val DefaultParkingZone: ParkingZone[Link] =

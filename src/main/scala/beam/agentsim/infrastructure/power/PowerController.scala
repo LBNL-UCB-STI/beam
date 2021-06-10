@@ -14,12 +14,15 @@ import org.matsim.api.core.v01.Id
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork[_]], beamConfig: BeamConfig)
-    extends LazyLogging {
+class PowerController(
+  chargingNetworks: Vector[ChargingNetwork[_]],
+  chargingNetworkManagerConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager
+) extends LazyLogging {
   import SitePowerManager._
 
-  private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
-  private val helicsConfig = cnmConfig.helics
+  private val chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork[_]] =
+    chargingNetworks.map(cn => cn.vehicleManager -> cn).toMap
+  private val helicsConfig = chargingNetworkManagerConfig.helics
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = if (helicsConfig.connectionEnabled) {
     logger.info("ChargingNetworkManager should be connected to a grid model...")
@@ -67,7 +70,7 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)
-          if helicsConfig.connectionEnabled && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) =>
+          if helicsConfig.connectionEnabled && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / chargingNetworkManagerConfig.timeStepInSeconds) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
         val msgToPublish = estimatedLoad.get.map {
@@ -126,7 +129,7 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
         unlimitedPhysicalBounds
     }
-    currentBin = currentTime / cnmConfig.timeStepInSeconds
+    currentBin = currentTime / chargingNetworkManagerConfig.timeStepInSeconds
     physicalBounds
   }
 

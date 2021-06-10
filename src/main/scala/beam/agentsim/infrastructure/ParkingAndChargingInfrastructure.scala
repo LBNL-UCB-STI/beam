@@ -1,9 +1,9 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.HierarchicalParkingManager.convertToTazParkingZones
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingNetwork, ParkingZone, ParkingZoneFileUtils, ParkingZoneId}
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.vehiclesharing.Fleets
@@ -21,7 +21,7 @@ case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelope
   import ParkingAndChargingInfrastructure._
   import beamServices._
 
-  // RIDEHAIL
+  // RIDE HAIL
   lazy val rideHailParkingNetworkMap: ParkingNetwork[_] =
     beamServices.beamCustomizationAPI.getRideHailDepotParkingManager(beamServices, envelopeInUTM)
 
@@ -35,7 +35,7 @@ case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelope
     (sharedFleetsParkingFiles ++ freightParkingFile).toIndexedSeq
   }
 
-  val (chargingNetworks, parkingNetworks) =
+  val ((chargingNetworks, chargingFunctions), parkingNetwork) =
     buildChargingAndParkingNetwork(beamServices, envelopeInUTM, mainParkingFile, vehicleManagersParkingFiles)
 }
 
@@ -46,7 +46,7 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
     envelopeInUTM: Envelope,
     mainParkingFile: String,
     vehicleManagersParkingFiles: IndexedSeq[String]
-  ): (Map[Option[Id[VehicleManager]], ChargingNetwork[_]], ParkingNetwork[_]) = {
+  ): ((Vector[ChargingNetwork[_]], ChargingFunctions[_]), ParkingNetwork[_]) = {
     import beamServices._
     logger.info(s"Starting parking manager: ${beamConfig.beam.agentsim.taz.parkingManager.name}")
     beamConfig.beam.agentsim.taz.parkingManager.name match {
@@ -63,7 +63,15 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
                 beamConfig.matsim.modules.global.randomSeed
               )
             (
-              ChargingNetwork.init[TAZ](stalls),
+              ChargingNetwork.init(
+                stalls,
+                beamScenario.tazTreeMap.tazQuadTree,
+                beamScenario.tazTreeMap.idToTAZMapping,
+                identity[TAZ](_),
+                envelopeInUTM,
+                beamConfig,
+                geo
+              ),
               ZonalParkingManager.init(
                 beamConfig,
                 beamScenario.tazTreeMap.tazQuadTree,
@@ -87,7 +95,15 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
                 beamConfig.matsim.modules.global.randomSeed
               )
             (
-              ChargingNetwork.init[Link](stalls),
+              ChargingNetwork.init(
+                stalls,
+                beamScenario.linkQuadTree,
+                beamScenario.linkIdMapping,
+                beamScenario.linkToTAZMapping,
+                envelopeInUTM,
+                beamConfig,
+                geo
+              ),
               ZonalParkingManager.init(
                 beamScenario.beamConfig,
                 beamScenario.linkQuadTree,
@@ -115,8 +131,19 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
             beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
             beamConfig.matsim.modules.global.randomSeed
           )
+        val (tazParkingZones, _) = convertToTazParkingZones(stalls, beamScenario.linkToTAZMapping.map {
+          case (link, taz) => link.getId -> taz.tazId
+        })
         (
-          ChargingNetwork.init[Link](stalls),
+          ChargingNetwork.init[TAZ](
+            tazParkingZones,
+            beamScenario.tazTreeMap.tazQuadTree,
+            beamScenario.tazTreeMap.idToTAZMapping,
+            identity[TAZ](_),
+            envelopeInUTM,
+            beamConfig,
+            geo
+          ),
           HierarchicalParkingManager
             .init(beamConfig, beamScenario.tazTreeMap, beamScenario.linkToTAZMapping, geo, envelopeInUTM, stalls)
         )
@@ -131,7 +158,15 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
             beamConfig.matsim.modules.global.randomSeed
           )
         (
-          ChargingNetwork.init[TAZ](stalls),
+          ChargingNetwork.init(
+            stalls,
+            beamScenario.tazTreeMap.tazQuadTree,
+            beamScenario.tazTreeMap.idToTAZMapping,
+            identity[TAZ](_),
+            envelopeInUTM,
+            beamConfig,
+            geo
+          ),
           ParallelParkingManager.init(beamConfig, beamScenario.tazTreeMap, stalls, searchTree, geo, envelopeInUTM)
         )
 
