@@ -35,10 +35,9 @@ import beam.utils.watcher.MethodWatcher
 import org.matsim.core.router.util.TravelTime
 
 import scala.util.Try
+import scala.concurrent.duration._
 
 import scala.util.control.NonFatal
-//import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
-//import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scripts.FailFast
@@ -48,11 +47,8 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
-//import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
-import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
-import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -580,8 +576,6 @@ class BeamSim @Inject()(
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
     currentIteration == firstIteration
   }
-
-  import scala.concurrent.duration._
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
     finalizeBackgroundSkimsCreator()

@@ -1,13 +1,14 @@
-package beam.router
+package beam.utils
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
+import beam.router.BeamRouter
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper}
-import beam.router.r5.{R5Parameters, R5Wrapper}
+import beam.router.r5.R5Parameters
 import beam.router.skim.urbansim.ODRouterR5GHForActivitySimSkims
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
