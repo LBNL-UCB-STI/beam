@@ -137,7 +137,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     if (skimCfg.keepKLatestSkims > 0) {
       if (pastSkimsInternal.size >= skimCfg.keepKLatestSkims)
         pastSkimsInternal.remove(currentIterationInternal - skimCfg.keepKLatestSkims)
-      pastSkimsInternal.put(currentIterationInternal, currentSkim.toMap)
+      pastSkimsInternal.put(currentIterationInternal, currentSkim)
     } else logger.warn("keepKLatestSkims is negative!")
     // aggregate
     if (beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
