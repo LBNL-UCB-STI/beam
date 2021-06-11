@@ -381,11 +381,11 @@ class ParallelParkingManagerSpec
           managers
         )
 
-      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 105, Block(0.0, 3600), ParkingType.Residential)
+      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 73, FlatFee(0.0), ParkingType.Residential)
 
-      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
+      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 16, Block(0.0, 3600), ParkingType.Residential)
 
-      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
+      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
     }
   }
 
