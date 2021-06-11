@@ -138,11 +138,11 @@ object R5MapStatsCalculator {
   }
 
   def maybeAverage(sequence: Iterable[Float]): Option[Double] = {
-    val sumAndLen = sequence
+    val (sum, len) = sequence
       .foldLeft((0.0, 0)) { case ((accum, size), v) => (accum + v, size + 1) }
 
-    if (sumAndLen._2 > 0) {
-      Some(sumAndLen._1 / sumAndLen._2)
+    if (len > 0) {
+      Some(sum / len)
     } else {
       None
     }
