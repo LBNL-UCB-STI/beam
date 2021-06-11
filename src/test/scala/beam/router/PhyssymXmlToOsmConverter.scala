@@ -24,6 +24,8 @@ import scopt.OParser
 
 object PhyssymXmlToOsmConverter extends StrictLogging {
 
+  private val DEFAULT_LINK_SPEED_KPH = 48.0
+
   def build(xmlSourceFile: Path): OsmNetwork = {
     require(Files.isRegularFile(xmlSourceFile), s"Path [$xmlSourceFile] is not regular file")
 
@@ -126,7 +128,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       "lanes" -> permLanes.getValue,
       "oneway"   -> (if (Seq("1", "true").contains(oneway.getValue.toLowerCase)) "yes" else "no"),
       "capacity" -> capacity.getValue,
-      "maxspeed" -> freeSpeedy.getValue,
+      "maxspeed" -> metersPerSecondToKilometersPerHour(freeSpeedy.getValue),
       "highway"  -> highway.getValue
     ) ++ toMultipleInnerTags(modes)
     new ArrayBuffer() ++ result
@@ -286,6 +288,11 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     }
     osmWay.nodes = Array(way.from.toLong, way.to.toLong)
     osmWay
+  }
+
+  private def metersPerSecondToKilometersPerHour(speed: String): String = {
+    val output = try { speed.toDouble * 3.6 } catch { case _: Throwable => DEFAULT_LINK_SPEED_KPH }
+    output.toString
   }
 
   def main(args: Array[String]): Unit = {
