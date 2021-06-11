@@ -8,20 +8,20 @@ import com.conveyal.r5.transit.TransportNetwork
 
 import java.{lang, util}
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 import scala.util.Try
 
 object R5MapStatsCalculator {
 
   def main(args: Array[String]): Unit = {
     // LoggerFactory.getLogger("com.conveyal").asInstanceOf[Logger].setLevel(Level.INFO)
-    val pathToOsm = "/mnt/data/work/beam/beam-production/production/sfbay/r5-updated/sf-bay.osm.pbf" // args(0)
+    val pathToOsm = args(0)
+    val `minimum tag frequency to print tag out` = 1000
 
     analyzeR5Map(pathToOsm)
-    analyzeOSMMap(pathToOsm)
+    analyzeOSMMap(pathToOsm, minTagFrequency = `minimum tag frequency to print tag out`)
   }
 
-  private def analyzeOSMMap(pathToOsm: String): Unit = {
+  private def analyzeOSMMap(pathToOsm: String, minTagFrequency: Int): Unit = {
     val osm = new OSM(null)
     try {
       osm.readFromFile(pathToOsm)
@@ -29,32 +29,30 @@ object R5MapStatsCalculator {
       println(s"Number of OSM nodes: ${osm.nodes.size()}")
       println(s"Number of OSM ways: ${osm.ways.size()}")
 
-      printAllTags(osm)
+      printAllTags(osm, minTagFrequency)
       printOSMTagInfo(osm)
     } finally {
       Try(osm.close())
     }
   }
 
-  private def printAllTags(osm: OSM): Unit = {
-    val minFrequency = 1000
-    println(s"All existing tags with the minimum frequency of $minFrequency (the format is <tag>[<frequency>]):")
-    val tagsToCnt = osm.ways.asScala
+  private def printAllTags(osm: OSM, minTagFrequency: Int): Unit = {
+    println(s"All existing tags with the minimum frequency of $minTagFrequency (the format is <tag>[<frequency>]):")
+    val tagToNumberOfOccurence = scala.collection.mutable.HashMap.empty[String, Int]
+    osm.ways.asScala
       .flatMap {
         case (_, way) =>
           way.tags.asScala.map { tag =>
             tag.key
           }
       }
-      .foldLeft(scala.collection.mutable.HashMap.empty[String, Int]) {
-        case (frequencyMap, tagKey) =>
-          val prevCnt = frequencyMap.getOrElse(tagKey, 0)
-          frequencyMap(tagKey) = prevCnt + 1
-          frequencyMap
+      .foreach { tagKey =>
+        val prevCnt = tagToNumberOfOccurence.getOrElse(tagKey, 0)
+        tagToNumberOfOccurence(tagKey) = prevCnt + 1
       }
 
-    val frequentTagsToCnt = tagsToCnt
-      .filter { case (_, frequency) => frequency > minFrequency }
+    val frequentTagsToCnt = tagToNumberOfOccurence
+      .filter { case (_, frequency) => frequency > minTagFrequency }
       .toSeq
       .sortBy(_._2)
       .reverse
@@ -114,49 +112,39 @@ object R5MapStatsCalculator {
     highwayType2TagInfo.foreach {
       case (highwayType, tagInfos) =>
         val tag2Into = tagInfos.map(ti => ti.tagName -> ti).toMap
-
-        val maybeSpeedIn_mph = tag2Into.get("maxspeed") match {
-          case Some(speedTagInfo) =>
-            // expected values ~ "15 mph"
-            val sumAndLen = speedTagInfo.values
-              .map(v => v.split(" ")(0).toFloat)
-              .foldLeft((0.0, 0)) { case ((accum, size), v) => (accum + v, size + 1) }
-
-            if (sumAndLen._2 > 0) {
-              Some((sumAndLen._1 / sumAndLen._2, speedTagInfo.values))
-            } else {
-              None
-            }
-          case None => None
+        val maybeAverageSpeedIn_mph = tag2Into.get("maxspeed") flatMap { speedTagInfo =>
+          // expected values ~ "15 mph"
+          val speeds = speedTagInfo.values.map(v => v.split(" ")(0).toFloat)
+          maybeAverage(speeds)
         }
 
-        val maybeLanes = tag2Into.get("lanes") match {
-          case Some(lanesTagInfo) =>
-            val sumAndLen = lanesTagInfo.values
-              .map(_.toFloat)
-              .foldLeft((0.0, 0)) { case ((accum, size), v) => (accum + v, size + 1) }
-
-            if (sumAndLen._2 > 0) {
-              Some((sumAndLen._1 / sumAndLen._2, lanesTagInfo.values))
-            } else {
-              None
-            }
-          case None => None
+        val maybeAverageNumberOfLanes = tag2Into.get("lanes") flatMap { lanesTagInfo =>
+          val numberOfLines = lanesTagInfo.values.map(_.toFloat)
+          maybeAverage(numberOfLines)
         }
 
-        if (maybeLanes.nonEmpty || maybeSpeedIn_mph.nonEmpty) {
+        if (maybeAverageSpeedIn_mph.nonEmpty || maybeAverageNumberOfLanes.nonEmpty) {
           println(s"\t$highwayType {")
-          if (maybeSpeedIn_mph.nonEmpty) {
-            val (speedValue, allSpeedValues) = maybeSpeedIn_mph.get
+          if (maybeAverageSpeedIn_mph.nonEmpty) {
             // speed should be in meters per second
-            println(s"\t\tspeed = ${math.round(speedValue / ms2mph)}")
+            println(s"\t\tspeed = ${math.round(maybeAverageSpeedIn_mph.get / ms2mph)}")
           }
-          if (maybeLanes.nonEmpty) {
-            val (linesValue, allLinesValues) = maybeLanes.get
-            println(s"\t\tlanes = ${math.round(linesValue)}")
+          if (maybeAverageNumberOfLanes.nonEmpty) {
+            println(s"\t\tlanes = ${math.round(maybeAverageNumberOfLanes.get)}")
           }
           println(s"\t}")
         }
+    }
+  }
+
+  def maybeAverage(sequence: Iterable[Float]): Option[Double] = {
+    val sumAndLen = sequence
+      .foldLeft((0.0, 0)) { case ((accum, size), v) => (accum + v, size + 1) }
+
+    if (sumAndLen._2 > 0) {
+      Some(sumAndLen._1 / sumAndLen._2)
+    } else {
+      None
     }
   }
 
