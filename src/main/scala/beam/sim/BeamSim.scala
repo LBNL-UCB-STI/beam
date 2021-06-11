@@ -824,7 +824,6 @@ class BeamSim @Inject()(
               s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
               ex
             )
-            None
         }
 
       case None =>
