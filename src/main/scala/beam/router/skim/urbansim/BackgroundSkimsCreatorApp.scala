@@ -5,6 +5,7 @@ import beam.router.FreeFlowTravelTime
 import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim._
+import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.ProfilingUtils
@@ -122,7 +123,6 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       skimsCreator.getResult
         .map(skimmer => {
           logger.info("Got populated skimmer")
-          logger.info(skimmer.abstractSkimmer.currentSkim.toString())
           skimmer.abstractSkimmer.writeToDisk(params.output.toString)
           None
         })
