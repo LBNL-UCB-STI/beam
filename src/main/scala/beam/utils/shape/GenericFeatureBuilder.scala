@@ -1,12 +1,12 @@
 package beam.utils.shape
 
 import java.lang.reflect.Method
-
 import org.geotools.feature.simple.{SimpleFeatureBuilder, SimpleFeatureTypeBuilder}
 import org.opengis.feature.simple.SimpleFeatureType
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 import com.vividsolutions.jts.geom.{Geometry => JtsGeometry}
 
+import java.util.Objects
 import scala.reflect.ClassTag
 
 class GenericFeatureBuilder[A <: Attributes](
@@ -47,7 +47,7 @@ object GenericFeatureBuilder {
     implicit evG: ClassTag[T],
     evA: ClassTag[A],
   ): GenericFeatureBuilder[A] = {
-    val isNoAttributes = evA.runtimeClass == Attributes.EmptyAttributes.getClass
+    val isNoAttributes = Objects.equals(evA.runtimeClass, Attributes.EmptyAttributes.getClass)
     val attribToClazz: Map[String, Class[_]] =
       if (isNoAttributes) Map.empty
       else {

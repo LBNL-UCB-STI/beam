@@ -194,7 +194,7 @@ class BeamMobsim @Inject()(
       val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
       persons.foreach { person =>
-        if (matsimServices.getIterationNumber == 0) {
+        if (matsimServices.getIterationNumber.intValue() == 0) {
           val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
           addSupplementaryTrips.run(person)
         }

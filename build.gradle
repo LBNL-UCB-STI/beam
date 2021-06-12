@@ -201,15 +201,16 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    compile "org.scala-lang:scala-library:2.12.12"
+    compile "org.scala-lang:scala-library:2.12.13"
     compile group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    compile "org.scala-lang:scala-compiler:2.12.12"
+    compile "org.scala-lang:scala-compiler:2.12.13"
 
     // TEST Scala //
-    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.8'
+    testCompile group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
     testCompile group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
+    testRuntime "org.pegdown:pegdown:1.6.0"
     testCompile group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
 
     // 3rd Party Scala //
@@ -300,8 +301,8 @@ dependencies {
 
     compile 'de.vandermeer:asciitable:0.3.2'
 
-    compile "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
-    scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.11:1.4.5"
+    compile "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.13:1.4.8"
+    scalaCompilerPlugin "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.13:1.4.8"
 
     // AWS S3
     compile group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
@@ -331,16 +332,17 @@ configurations.all {
 //compileScala.dependsOn(scalafmtAll)
 
 tasks.withType(ScalaCompile) {
+    def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
+                                "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
+                                "-P:scapegoat:reports:html:xml",
+                                "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:UnusedMethodParameter:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:ParameterlessMethodReturnsUnit:SuspiciousMatchOnClassObject:PointlessTypeBounds:BrokenOddness:VarClosure:EmptyTryBlock:RepeatedIfElseBody:BigDecimalDoubleConstructor:EmptyInterpolatedString:SwallowedException:LooksLikeInterpolatedString",
+                                "-P:scapegoat:verbose:false",
+                                "-P:scapegoat:consoleOutput:true"]
+    def minimumCompilationParameters = ["-unchecked", "-deprecation", "-feature"]
     if (project.hasProperty("report")) {
-        def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
-                                    "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
-                                    "-P:scapegoat:reports:html:xml",
-                                    "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:ComparingUnrelatedTypes:TryGet:EitherGet",
-                                    "-P:scapegoat:verbose:false",
-                                    "-P:scapegoat:consoleOutput:true"]
-        scalaCompileOptions.additionalParameters = additionalParameters + ["-unchecked", "-deprecation", "-feature"]
+        scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters
     } else {
-        scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings"]
+        scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters + ["-Xfatal-warnings"]
     }
 }
 
