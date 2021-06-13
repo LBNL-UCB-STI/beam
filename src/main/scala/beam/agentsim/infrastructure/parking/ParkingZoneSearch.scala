@@ -5,6 +5,7 @@ import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
+import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -13,7 +14,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-object ParkingZoneSearch {
+object ParkingZoneSearch extends LazyLogging {
 
   /**
     * a nested structure to support a search over available parking attributes,
@@ -68,7 +69,13 @@ object ParkingZoneSearch {
     zoneQuadTree: QuadTree[GEO],
     random: Random,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-  )
+  ) {
+    override def toString: String = {
+      val types = parkingTypes.mkString(",")
+      val zones = parkingZones.mkString(",")
+      s"destination: $destinationUTM, parking duration: $parkingDuration, parkingTypes: $types, parking zones: $zones"
+    }
+  }
 
   /**
     * result of a [[ParkingZoneSearch]]
@@ -135,6 +142,8 @@ object ParkingZoneSearch {
     geoToTAZ: GEO => TAZ,
   ): Option[ParkingZoneSearchResult[GEO]] = {
     import GeoLevel.ops._
+
+    logger.info(s"ParkingZone search with config: ${config.toString} and params: ${params.toString}")
 
     // find zones
     @tailrec
