@@ -143,8 +143,6 @@ object ParkingZoneSearch extends LazyLogging {
   ): Option[ParkingZoneSearchResult[GEO]] = {
     import GeoLevel.ops._
 
-    logger.info(s"ParkingZone search with config: ${config.toString} and params: ${params.toString}")
-
     // find zones
     @tailrec
     def _search(
@@ -181,7 +179,13 @@ object ParkingZoneSearch extends LazyLogging {
               parkingZone.pricingModel match {
                 case None => 0
                 case Some(pricingModel) =>
-                  PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
+                  val price = PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
+                  if (price <= 0) {
+                    logger.info(
+                      s"CHARGINGDEBUG zero price for parking alternative with zone: $parkingZone location: $stallLocation, config: ${config.toString}, params: ${params.toString}"
+                    )
+                  }
+                  price
               }
             val parkingAlternative: ParkingAlternative[GEO] =
               ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
