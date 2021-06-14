@@ -69,14 +69,7 @@ object ParkingZoneSearch extends LazyLogging {
     zoneQuadTree: QuadTree[GEO],
     random: Random,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-  ) {
-    override def toString: String = {
-      val types = parkingTypes.mkString(",")
-      val zones = parkingZones.mkString(",")
-      s"destination: $destinationUTM, parking duration: $parkingDuration, parkingTypes: $types, parking zones: $zones"
-    }
-  }
-
+  )
   /**
     * result of a [[ParkingZoneSearch]]
     *
@@ -179,13 +172,7 @@ object ParkingZoneSearch extends LazyLogging {
               parkingZone.pricingModel match {
                 case None => 0
                 case Some(pricingModel) =>
-                  val price = PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
-                  if (price <= 0) {
-                    logger.info(
-                      s"CHARGINGDEBUG zero price for parking alternative with zone: $parkingZone location: $stallLocation, config: ${config.toString}, params: ${params.toString}"
-                    )
-                  }
-                  price
+                  PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative[GEO] =
               ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
