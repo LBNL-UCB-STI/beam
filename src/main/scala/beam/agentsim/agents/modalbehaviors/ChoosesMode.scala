@@ -221,7 +221,7 @@ trait ChoosesMode {
             _,
             ) =>
           val teleportationVehicle = createSharedTeleportationVehicle(currentLocation)
-          self ! MobilityStatusResponse(Vector(ActualVehicle(teleportationVehicle)))
+          self ! MobilityStatusResponse(Vector(ActualVehicle(teleportationVehicle)), getCurrentTriggerIdOrGenerate)
         // Only need to get available street vehicles if our mode requires such a vehicle
         case ChoosesModeData(
             BasePersonData(

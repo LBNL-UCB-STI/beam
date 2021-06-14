@@ -3,9 +3,10 @@ package beam.utils.scenario.urbansim
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.utils.scenario._
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class HOVModeTransformerTest extends FunSuite with Matchers {
+class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
   import HOVModeTransformerTest._
 
