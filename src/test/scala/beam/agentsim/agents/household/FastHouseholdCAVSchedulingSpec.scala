@@ -17,8 +17,9 @@ import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles.Vehicle
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.immutable.List
 import scala.collection.{mutable, JavaConverters}
@@ -41,9 +42,8 @@ class FastHouseholdCAVSchedulingSpec
       )
     )
     with Matchers
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MockitoSugar
     with BeamHelper
     with ImplicitSender {
 

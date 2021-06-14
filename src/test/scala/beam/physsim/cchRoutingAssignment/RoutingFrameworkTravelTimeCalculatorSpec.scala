@@ -9,19 +9,16 @@ import com.vividsolutions.jts.geom.Coordinate
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.utils.objectattributes.attributable.Attributes
-import org.mockito.Mockito.when
-import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RoutingFrameworkTravelTimeCalculatorSpec
-    extends FlatSpec
-    with Matchers
-    with MockitoSugar
-    with BeforeAndAfterEach {
+class RoutingFrameworkTravelTimeCalculatorSpec extends AnyFlatSpec with Matchers with BeforeAndAfterEach {
   private val beamConfig = BeamConfig(testConfig("test/input/beamville/beam.conf").resolve())
-  private val wrapper = mock[RoutingFrameworkWrapper]
-  private val infoHolder = mock[OsmInfoHolder]
-  private val services = mock[BeamServices]
+  private val wrapper = mock(classOf[RoutingFrameworkWrapper])
+  private val infoHolder = mock(classOf[OsmInfoHolder])
+  private val services = mock(classOf[BeamServices])
   when(services.beamConfig).thenReturn(beamConfig)
   when(wrapper.generateGraph()).thenReturn(
     RoutingFrameworkGraph(Seq(Vertex(111, new Coordinate(0.05, 0.05)), Vertex(555, new Coordinate(0.3, 0.3))))
@@ -97,7 +94,7 @@ class RoutingFrameworkTravelTimeCalculatorSpec
     linkIds: IndexedSeq[Int],
     linkTravelTime: IndexedSeq[Double],
   ): PathTraversalEvent = {
-    val e = mock[PathTraversalEvent]
+    val e = mock(classOf[PathTraversalEvent])
     when(e.departureTime).thenReturn(departureTime)
     when(e.linkIds).thenReturn(linkIds)
     when(e.linkTravelTime).thenReturn(linkTravelTime)
@@ -108,7 +105,7 @@ class RoutingFrameworkTravelTimeCalculatorSpec
     wayId: Long,
     id: Long = 0
   ): Link = {
-    val link = mock[Link]
+    val link = mock(classOf[Link])
     val attrs = new Attributes()
     attrs.putAttribute("origid", wayId.toString)
     when(link.getAttributes).thenReturn(attrs)

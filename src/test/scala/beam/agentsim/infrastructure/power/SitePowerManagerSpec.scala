@@ -18,11 +18,13 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.mock
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 
 class SitePowerManagerSpec
     extends TestKit(
@@ -30,48 +32,51 @@ class SitePowerManagerSpec
         "SitePowerManagerSpec",
         ConfigFactory
           .parseString("""
-           |akka.log-dead-letters = 10
-           |akka.actor.debug.fsm = true
-           |akka.loglevel = debug
-           |akka.test.timefactor = 2
-           |akka.test.single-expect-default = 10 s""".stripMargin)
+                       |akka.log-dead-letters = 10
+                       |akka.actor.debug.fsm = true
+                       |akka.loglevel = debug
+                       |akka.test.timefactor = 2
+                       |akka.test.single-expect-default = 10 s""".stripMargin)
       )
     )
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
-    with MockitoSugar
     with BeamHelper
     with ImplicitSender
     with BeforeAndAfterEach {
 
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
-                                               |beam.router.skim = {
-                                               |  keepKLatestSkims = 1
-                                               |  writeSkimsInterval = 1
-                                               |  writeAggregatedSkimsInterval = 1
-                                               |  taz-skimmer {
-                                               |    name = "taz-skimmer"
-                                               |    fileBaseName = "skimsTAZ"
-                                               |  }
-                                               |}
-                                               |beam.agentsim.chargingNetworkManager {
-                                               |  timeStepInSeconds = 300
-                                               |
-                                               |  helics {
-                                               |    connectionEnabled = false
-                                               |    federateName = "CNMFederate"
-                                               |    dataOutStreamPoint = ""
-                                               |    dataInStreamPoint = ""
-                                               |    bufferSize = 100
-                                               |  }
-                                               |
-                                               |  chargingPoint {
-                                               |    thresholdXFCinKW = 250
-                                               |    thresholdDCFCinKW = 50
-                                               |  }
-                                               |}
-                                               |""".stripMargin))
+       |beam.router.skim = {
+       |  keepKLatestSkims = 1
+       |  writeSkimsInterval = 1
+       |  writeAggregatedSkimsInterval = 1
+       |  taz-skimmer {
+       |    name = "taz-skimmer"
+       |    fileBaseName = "skimsTAZ"
+       |  }
+       |}
+       |beam.agentsim.chargingNetworkManager {
+       |  timeStepInSeconds = 300
+       |
+       |  helics {
+       |    connectionEnabled = false
+       |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
+       |    coreType = "zmq"
+       |    timeDeltaProperty = 1.0
+       |    intLogLevel = 1
+       |    federateName = "CNMFederate"
+       |    dataOutStreamPoint = ""
+       |    dataInStreamPoint = ""
+       |    bufferSize = 100
+       |  }
+       |
+       |  chargingPoint {
+       |    thresholdXFCinKW = 250
+       |    thresholdDCFCinKW = 50
+       |  }
+       |}
+       |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
   private val beamConfig: BeamConfig = BeamConfig(conf)
   private val matsimConfig = new MatSimBeamConfigBuilder(conf).buildMatSimConf()
@@ -83,12 +88,11 @@ class SitePowerManagerSpec
   private val beamServices = new BeamServicesImpl(injector)
   private val tazMap = beamServices.beamScenario.tazTreeMap
 
-  val beamFederateMock: BeamFederate = mock[BeamFederate]
+  val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
 
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
 
   val dummyChargingZone: ChargingZone = ChargingZone(
-    0,
     tazMap.getTAZs.head.tazId,
     ParkingType.Workplace,
     2,
@@ -157,15 +161,15 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        val chargingVehicle = dummyNetwork.attemptToConnectVehicle(0, v, ActorRef.noSender)
-        chargingVehicle.status shouldBe ConnectionStatus.Connected
+        val Some(chargingVehicle) = dummyNetwork.attemptToConnectVehicle(0, v, ActorRef.noSender)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,
           dummyStation,
           0,
           0,
-          ActorRef.noSender
+          ActorRef.noSender,
+          ListBuffer(ConnectionStatus.Connected)
         )
         sitePowerManager.dispatchEnergy(
           300,

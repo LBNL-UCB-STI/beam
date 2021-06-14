@@ -1,0 +1,20 @@
+@startuml
+state "Person" as Person
+state "scheduler" as scheduler
+state "ChargingNetworkManager" as ChargingNetworkManager
+state "ParkingNetworkManager" as ParkingNetworkManager
+state "BeamMobsim.iteration" as BeamMobsim_iteration
+Person --> ChargingNetworkManager: ChargingPlugRequest(449)
+scheduler --> ChargingNetworkManager: ChargingTimeOutTrigger(435)
+scheduler --> ChargingNetworkManager: IllegalTriggerGoToError(1)
+BeamMobsim_iteration --> ChargingNetworkManager: Finish(1)
+ChargingNetworkManager --> scheduler: CompletionNotice(796)
+scheduler --> ChargingNetworkManager: InitializeTrigger(1)
+Person --> ChargingNetworkManager: ChargingUnplugRequest(13)
+ChargingNetworkManager --> Person: EndingRefuelSession(13)
+ChargingNetworkManager --> scheduler: ScheduleTrigger(238)
+ChargingNetworkManager --> BeamMobsim_iteration: Terminated(1)
+scheduler --> ChargingNetworkManager: PlanEnergyDispatchTrigger(360)
+ChargingNetworkManager --> Person: StartingRefuelSession(449)
+ChargingNetworkManager --> ParkingNetworkManager: ReleaseParkingStall(449)
+@enduml

@@ -11,13 +11,13 @@ case class VehicleManager(managerId: Id[VehicleManager], managerType: VehicleMan
 object VehicleManager {
 
   val bodiesVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("bodies", classOf[VehicleManager]), Some(VehicleCategory.Body))
+    VehicleManager.create(Id.create("Bodies", classOf[VehicleManager]), Some(VehicleCategory.Body))
 
   val privateVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("private", classOf[VehicleManager]), Some(VehicleCategory.Car))
+    VehicleManager.create(Id.create("PrivateVehicle", classOf[VehicleManager]), Some(VehicleCategory.Car))
 
   val transitVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("transit", classOf[VehicleManager]), None)
+    VehicleManager.create(Id.create("Transit", classOf[VehicleManager]), None)
 
   def getType(
     vehicleType: BeamVehicleType,

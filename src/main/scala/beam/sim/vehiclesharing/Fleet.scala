@@ -71,8 +71,8 @@ case class FixedNonReservingFleetByTAZ(
     }
 
     val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
-      Id.create("sharedVehicle-" + config.vehicleTypeId, classOf[BeamVehicleType]),
-      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
+      Id.create(s"sharedVehicle-${config.vehicleTypeId}", classOf[BeamVehicleType]),
+      throw new RuntimeException("Vehicle type id not found: " + s"sharedVehicle-${config.vehicleTypeId}")
     )
     Props(
       new FixedNonReservingFleetManager(
@@ -125,7 +125,7 @@ case class FixedNonReservingFleet(
 case class InexhaustibleReservingFleet(
   managerId: Id[VehicleManager],
   parkingFilePath: String,
-  config: SharedFleets$Elm.InexhaustibleReserving
+  config: SharedFleets$Elm.InexhaustibleReserving,
 ) extends FleetType {
   override def props(
     beamServices: BeamServices,
@@ -141,7 +141,8 @@ case class InexhaustibleReservingFleet(
         managerId,
         parkingManager,
         vehicleType,
-        beamServices.beamConfig.matsim.modules.global.randomSeed
+        beamServices.beamConfig.matsim.modules.global.randomSeed,
+        beamServices.beamConfig.beam.debug,
       )
     )
   }

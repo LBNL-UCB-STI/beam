@@ -1,13 +1,14 @@
 package beam.integration
 
 import beam.sim.BeamHelper
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
   * Created by fdariasm on 29/08/2017
   *
   */
-class ModeChoiceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
+class ModeChoiceSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
 //  "Running beam with modeChoiceClass ModeChoiceDriveIfAvailable" must {
 //    "prefer mode choice car type than other modes" in {

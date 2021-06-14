@@ -1,17 +1,20 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.HierarchicalParkingManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingType.{Public, Residential, Workplace}
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.util.Random
 
-class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
+class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
   "ParkingZoneFileUtils" when {
     ".fromIterator" when {
       "positive tests" when {
@@ -159,6 +162,28 @@ class ParkingZoneFileUtilsSpec extends WordSpec with Matchers {
           )
         val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones)
         tree should equal(lookupTree)
+      }
+    }
+
+    "creates a zone search tree" should {
+      "produce the right result" in {
+        val (parkingZones, _) =
+          ParkingZoneFileUtils
+            .fromFile[TAZ](
+              "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+              new Random(777934L),
+              vehicleManagerId = Id.create("default", classOf[VehicleManager])
+            )
+        parkingZones should have length 3648
+        val collapsed = HierarchicalParkingManager.collapse(parkingZones)
+        val collapsedZones205 = collapsed.filter(_.geoId.toString == "205")
+        collapsedZones205 should have length 11
+        val zoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(collapsed)
+        val subTree = zoneSearchTree(Id.create("205", classOf[TAZ]))
+        subTree.values.map(_.length).sum should be(11)
+        subTree(Public) should have length 4
+        subTree(Workplace) should have length 3
+        subTree(Residential) should have length 4
       }
     }
   }

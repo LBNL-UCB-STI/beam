@@ -91,6 +91,7 @@ class PumaLevelScenarioGenerator(
     new TimeLeavingHomeTableReader(dbInfo, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   private val households: Map[String, Models.Household] =
     new HouseholdReader(pathToHouseholdFile)
       .read()

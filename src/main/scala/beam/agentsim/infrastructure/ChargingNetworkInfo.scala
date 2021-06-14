@@ -61,7 +61,6 @@ object ChargingNetworkInfo {
           taz.coord.getX,
           taz.coord.getY,
           ChargingZone(
-            zone.parkingZoneId,
             zone.geoId,
             zone.parkingType,
             zone.maxStalls,

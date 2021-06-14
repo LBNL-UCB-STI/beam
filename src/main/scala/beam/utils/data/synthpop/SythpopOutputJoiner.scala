@@ -56,6 +56,7 @@ object SythpopOutputUnion {
           println(s"householdFile: $householdFile")
           println(s"peopleFile: $peopleFile")
 
+          @SuppressWarnings(Array("UnsafeTraversableMethods"))
           val households =
             new HouseholdReader(householdFile.getAbsolutePath).read().groupBy(x => x.id).map {
               case (hhId, xs) => hhId -> xs.head

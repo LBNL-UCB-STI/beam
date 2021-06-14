@@ -2,11 +2,12 @@ package beam.utils
 
 import java.nio.file.Paths
 
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.Map
 
-class BeamConfigUtilsTest extends WordSpecLike with Matchers {
+class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
   def getCollector(map: Map[String, Array[String]]): BeamConfigUtils.ConfigPathsCollector =
     new BeamConfigUtils.ConfigPathsCollector((path: String) => {

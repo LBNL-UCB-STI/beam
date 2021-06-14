@@ -36,7 +36,7 @@ object MatsimPlanConversion {
     }
 
     val houseHolds =
-      generateHouseholds(persons, vehiclesWithTypeId.map(_.head), conversionConfig.income)
+      generateHouseholds(persons, vehiclesWithTypeId.flatMap(_.headOption), conversionConfig.income)
 
     val populationAttrs = generatePopulationAttributes(persons)
 

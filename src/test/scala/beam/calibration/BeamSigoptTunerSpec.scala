@@ -1,17 +1,18 @@
 package beam.calibration
 
 import java.io.File
-
 import beam.experiment.ExperimentApp
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.{Failure, Success, Try}
 
-class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging {
+class BeamSigoptTunerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()

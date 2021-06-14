@@ -5,12 +5,11 @@ import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.FlatSpec
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ArrayBuffer
 
-class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar {
+class RideHailBufferedRidesSpec extends AnyFlatSpec with BeamHelper {
 
   def getActivitiesGroupedByPerson(events: Seq[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
     val activities = events.filter(e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))

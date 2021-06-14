@@ -64,7 +64,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    embodyRequestId: Int
+    embodyRequestId: Int,
+    triggerId: Long
   ): RoutingResponse = {
     val vehicleType = vehicleTypes(vehicleTypeId)
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
@@ -74,7 +75,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
     val duration = linksTimesAndDistances.travelTimes.tail.sum
     val updatedTravelPath = BeamPath(
@@ -115,7 +118,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ),
       embodyRequestId,
       None,
-      isEmbodyWithCurrentTravelTime = true
+      isEmbodyWithCurrentTravelTime = true,
+      triggerId
     )
     response
   }
@@ -381,6 +385,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
       .groupBy(_.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")))
       .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
@@ -819,18 +824,26 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           embodiedTrips :+ dummyTrip,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          request.triggerId
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          request.triggerId
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(
+        embodiedTrips,
+        request.requestId,
+        Some(request),
+        isEmbodyWithCurrentTravelTime = false,
+        request.triggerId
+      )
     }
   }
 
@@ -983,11 +996,24 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ChronoUnit.SECONDS
         .between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
 
+    calculateFr(pattern, routeId, agencyId, fromStopId, toStopId, duration)
+  }
+
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def calculateFr(
+    pattern: SegmentPattern,
+    routeId: String,
+    agencyId: String,
+    fromStopId: String,
+    toStopId: String,
+    duration: Long
+  ): IndexedSeq[BeamFareSegment] = {
     var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(
       f => BeamFareSegment(f, pattern.patternIdx, duration)
     )
-    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex))
+    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex)) {
       fr = Vector(fr.minBy(_.fare.price))
+    }
     fr
   }
 

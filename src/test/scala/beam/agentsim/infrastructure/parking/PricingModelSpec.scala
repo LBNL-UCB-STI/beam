@@ -1,7 +1,8 @@
 package beam.agentsim.infrastructure.parking
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class PricingModelSpec extends WordSpec with Matchers {
+class PricingModelSpec extends AnyWordSpec with Matchers {
   "PricingModel" when {
     ".apply()" should {
       "throw an exception when an invalid pricing model is provided" in {

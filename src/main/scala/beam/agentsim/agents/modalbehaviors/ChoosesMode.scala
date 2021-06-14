@@ -1,7 +1,7 @@
 package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.{ActorRef, FSM}
-import akka.pattern._
+import akka.pattern.pipe
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
 import beam.agentsim.agents._
@@ -22,6 +22,7 @@ import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.{BeamServices, Geofence}
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Leg}
@@ -181,7 +182,8 @@ trait ChoosesMode {
             _,
             _,
             ) =>
-          self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)))
+          self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
+        // Only need to get available street vehicles if our mode requires such a vehicle
         case ChoosesModeData(
             BasePersonData(
               currentActivityIndex,
@@ -265,7 +267,7 @@ trait ChoosesMode {
           ) pipeTo self
         // Otherwise, send empty list to self
         case _ =>
-          self ! MobilityStatusResponse(Vector())
+          self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
       }
   }
 
@@ -281,7 +283,8 @@ trait ChoosesMode {
           _ ? MobilityStatusInquiry(
             id,
             location,
-            activity
+            activity,
+            getCurrentTriggerIdOrGenerate
           )
         )
       )
@@ -290,17 +293,18 @@ trait ChoosesMode {
           MobilityStatusResponse(
             listOfResponses
               .collect {
-                case MobilityStatusResponse(vehicles) =>
+                case MobilityStatusResponse(vehicles, triggerId) =>
                   vehicles
               }
               .flatten
-              .toVector
+              .toVector,
+            getCurrentTriggerIdOrGenerate
         )
       )
   }
 
   when(ChoosingMode)(stateFunction = transform {
-    case Event(MobilityStatusResponse(newlyAvailableBeamVehicles), choosesModeData: ChoosesModeData) =>
+    case Event(MobilityStatusResponse(newlyAvailableBeamVehicles, triggerId), choosesModeData: ChoosesModeData) =>
       beamVehicles ++= newlyAvailableBeamVehicles.map(v => v.id -> v)
       val currentPersonLocation = choosesModeData.currentLocation
       val availableModes: Seq[BeamMode] = availableModesForPerson(
@@ -357,6 +361,7 @@ trait ChoosesMode {
           Some(attributes),
           streetVehiclesIntermodalUse,
           possibleEgressVehicles = possibleEgressVehicles,
+          triggerId = getCurrentTriggerIdOrGenerate,
         )
       }
 
@@ -366,7 +371,8 @@ trait ChoosesMode {
           bodyVehiclePersonId,
           currentPersonLocation.loc,
           departTime,
-          nextAct.getCoord
+          nextAct.getCoord,
+          triggerId = getCurrentTriggerIdOrGenerate,
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
@@ -384,7 +390,8 @@ trait ChoosesMode {
           withTransit = true,
           Some(id),
           Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
-          streetVehiclesUseIntermodalUse = AccessAndEgress
+          streetVehiclesUseIntermodalUse = AccessAndEgress,
+          triggerId = getCurrentTriggerIdOrGenerate,
         )
         router ! theRequest
         Some(theRequest.requestId)
@@ -465,7 +472,8 @@ trait ChoosesMode {
                     mode,
                     beamServices,
                     choosesModeData.currentLocation.loc,
-                    nextAct.getCoord
+                    nextAct.getCoord,
+                    triggerId
                   )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
                 case _ =>
@@ -554,7 +562,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.routingRequestToLegMap.contains(requestId) =>
       //handling router responses for shared vehicles
@@ -599,7 +607,7 @@ trait ChoosesMode {
         )
 
     case Event(
-        theRouterResult @ RoutingResponse(_, requestId, _, _),
+        theRouterResult @ RoutingResponse(_, requestId, _, _, _),
         choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -802,7 +810,8 @@ trait ChoosesMode {
                 None,
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
-                reserveStall = false
+                reserveStall = false,
+                triggerId = getCurrentTriggerIdOrGenerate
               ))
             )
       }
@@ -841,6 +850,7 @@ trait ChoosesMode {
               Some(id),
               IndexedSeq(bodyVehicle, beamVehicles(sharedVehicleLeg.beamVehicleId).streetVehicle),
               Some(attributes),
+              triggerId = getCurrentTriggerIdOrGenerate,
             )
             tripMap + (egressRequest -> TripIdentifier(trip))
           case None =>
@@ -942,7 +952,8 @@ trait ChoosesMode {
       bodyVehiclePersonId,
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
       legs.head.startTime,
-      beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc)
+      beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
+      triggerId = getCurrentTriggerIdOrGenerate,
     )
     //    println(s"requesting: ${inquiry.requestId}")
     rideHailManager ! inquiry
@@ -1488,7 +1499,7 @@ trait ChoosesMode {
                 }
               }
               beamVehicles.remove(vehicle.id)
-              vehicle.getManager.get ! ReleaseVehicle(vehicle)
+              vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
           }
           scheduler ! CompletionNotice(
             triggerId,

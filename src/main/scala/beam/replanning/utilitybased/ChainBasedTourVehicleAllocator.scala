@@ -109,6 +109,7 @@ case class ChainBasedTourVehicleAllocator(
 
   private def allocateVehicles(currentSubtour: SubtourRecord): Boolean = {
     if (currentSubtour.possibleVehicles.nonEmpty) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val firstAvailableVehicle =
         currentSubtour.possibleVehicles.min((vr1: VehicleRecord, vr2: VehicleRecord) => {
           val timeComp = java.lang.Double.compare(vr1.availableFrom, vr2.availableFrom)
@@ -165,9 +166,12 @@ case class ChainBasedTourVehicleAllocator(
     if (legs.isEmpty) false
     else {
       // XXX what to do if several legs???
-      val l = legs.head
-      if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode)) false
-      else true
+      legs.headOption match {
+        case Some(l) =>
+          Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode)
+        case None =>
+          false
+      }
     }
   }
 
@@ -201,9 +205,13 @@ object ChainBasedTourVehicleAllocator {
 
     def apply(possibleVehicles: Vector[VehicleRecord], subtour: Subtour): SubtourRecord = {
       val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
-      val startTime = Try {
-        trips.head.getOriginActivity.getStartTime
-      }.getOrElse(throw new RuntimeException(s"No endTime in ${trips.head.getOriginActivity}"))
+
+      val tripOriginActivityOption = trips.headOption.map(_.getOriginActivity)
+      val startTime = tripOriginActivityOption
+        .map(_.getStartTime)
+        .getOrElse(throw new RuntimeException(s"No startTime in $tripOriginActivityOption"))
+
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
       val endTime = lastTrip.getOriginActivity.getEndTime + JavaConverters
         .collectionAsScalaIterable(lastTrip.getTripElements)

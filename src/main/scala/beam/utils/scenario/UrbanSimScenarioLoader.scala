@@ -17,7 +17,6 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
@@ -25,6 +24,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
 import scala.util.Random
+
+import beam.utils.SequenceUtils
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -446,7 +447,7 @@ class UrbanSimScenarioLoader(
 
     var currentTotalCars = totalCars
 
-    var currentNumberOfCars = numberOfCars2HouseholdIds.keys.max
+    var currentNumberOfCars = SequenceUtils.maxOpt(numberOfCars2HouseholdIds.keys).getOrElse(0)
     while ((currentTotalCars > (goalCarTotal + numberOfWorkVehiclesToBeRemoved)) & currentNumberOfCars > 0) {
       val numberOfHouseholdsWithThisManyVehicles = numberOfCars2HouseholdIds(currentNumberOfCars).size
 

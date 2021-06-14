@@ -9,15 +9,17 @@ import beam.agentsim.infrastructure.parking.{LinkLevelOperations, ParkingZone, P
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.collection.immutable.HashMap
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.util.Random
 
 /**
   * @author Dmitry Openkov
   */
-class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
+class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
   "HierarchicalParkingManager" when {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {
@@ -75,7 +77,42 @@ class HierarchicalParkingManagerUtilSpec extends WordSpec with Matchers {
           "323"
         )
       }
-
+      "collapsing parking zones " should {
+        "produce a simplified structure" in {
+          val (parkingZones, _) =
+            ParkingZoneFileUtils
+              .fromFile[TAZ](
+                "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+                new Random(777934L),
+                vehicleManagerId = Id.create("default", classOf[VehicleManager])
+              )
+          parkingZones should have length 3648
+          val zones205 = parkingZones.filter(_.geoId.toString == "205")
+          zones205 should have length 20
+          val collapsed = HierarchicalParkingManager.collapse(parkingZones)
+          val collapsedZones205 = collapsed.filter(_.geoId.toString == "205")
+          collapsedZones205 should have length 11
+          collapsed should have length 2236
+        }
+      }
+    }
+    "collapse parking zones" should {
+      "produce a simplified structure" in {
+        val (parkingZones, _) =
+          ParkingZoneFileUtils
+            .fromFile[TAZ](
+              "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+              new Random(777934L),
+              vehicleManagerId = Id.create("default", classOf[VehicleManager])
+            )
+        parkingZones should have length 3648
+        val zones205 = parkingZones.filter(_.geoId.toString == "205")
+        zones205 should have length 20
+        val collapsed = HierarchicalParkingManager.collapse(parkingZones)
+        val collapsedZones205 = collapsed.filter(_.geoId.toString == "205")
+        collapsedZones205 should have length 11
+        collapsed should have length 2236
+      }
     }
   }
 }

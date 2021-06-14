@@ -53,9 +53,7 @@ object GTFSToShape extends LazyLogging {
 
       try {
         val agencies = GTFSReader.readAgencies(zipFile, zipFileName)
-        val defaultAgency =
-          if (agencies.size == 1) Some(agencies.head)
-          else None
+        val defaultAgency = if (agencies.size == 1) agencies.headOption else None
         val defaultAgemcyId = defaultAgency.map(a => a.id).getOrElse("")
 
         val routes = GTFSReader.readRoutes(zipFile, zipFileName, defaultAgemcyId)

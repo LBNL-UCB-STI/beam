@@ -46,7 +46,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
   private def observedPowerDemandInKW(tick: Int, zone: ChargingZone): Option[Double] = {
     if (!tazSkimmer.isLatestSkimEmpty) {
       val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
-      beamServices.skims.taz_skimmer.getLatestSkim(currentTimeBin, zone.tazId, "CNM", zone.uniqueId) match {
+      beamServices.skims.taz_skimmer.getLatestSkim(currentTimeBin, zone.tazId, "CNM", zone.id) match {
         case Some(skim) => Some(skim.value * skim.observations)
         case None       => Some(0.0)
       }
@@ -61,8 +61,8 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     */
   private def estimatePowerDemandInKW(tick: Int, chargingZone: ChargingZone): Double = {
     val previousTimeBin = cnmConfig.timeStepInSeconds * ((tick / cnmConfig.timeStepInSeconds) - 1)
-    val ChargingZone(chargingZoneId, tazId, _, _, _, _, vehicleManager) = chargingZone
-    tazSkimmer.getPartialSkim(previousTimeBin, tazId, "CNM", vehicleManager + "-" + chargingZoneId) match {
+    val cz @ ChargingZone(tazId, _, _, _, _, _) = chargingZone
+    tazSkimmer.getPartialSkim(previousTimeBin, tazId, "CNM", cz.id) match {
       case Some(skim) => skim.value * skim.observations
       case None       => 0.0
     }
@@ -80,10 +80,10 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     physicalBounds: Map[ChargingStation, PhysicalBounds]
   ): (ChargingDurationInSec, EnergyInJoules) = {
     assume(timeInterval >= 0, "timeInterval should not be negative!")
-    val ChargingVehicle(vehicle, _, station, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, station, _, _, _, _, _) = chargingVehicle
     // dispatch
-    val maxZoneLoad = physicalBounds(station).maxLoad
-    val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).maxLoad
+    val maxZoneLoad = physicalBounds(station).powerLimitUpper
+    val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).powerLimitUpper
     val chargingPointLoad =
       ChargingPointType.getChargingPointInstalledPowerInKw(station.zone.chargingPointType)
     val chargingPowerLimit = maxZoneLoad * chargingPointLoad / maxUnlimitedZoneLoad
@@ -112,7 +112,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
       event.TAZSkimmerEvent(
         cnmConfig.timeStepInSeconds * (startTime / cnmConfig.timeStepInSeconds),
         stall.locationUTM,
-        chargingStation.zone.uniqueId,
+        chargingStation.zone.id,
         if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0),
         beamServices,
         "CNM"
@@ -126,7 +126,12 @@ object SitePowerManager {
   type EnergyInJoules = Double
   type ChargingDurationInSec = Int
 
-  case class PhysicalBounds(station: ChargingStation, maxLoad: PowerInKW)
+  case class PhysicalBounds(
+    station: ChargingStation,
+    powerLimitUpper: PowerInKW,
+    powerLimitLower: PowerInKW,
+    lpmWithControlSignal: Double
+  )
 
   /**
     * create unlimited physical bounds
@@ -139,7 +144,9 @@ object SitePowerManager {
         case station @ ChargingStation(zone) =>
           station -> PhysicalBounds(
             station,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers
+            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
+            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
+            0.0
           )
       }.toMap
     }

@@ -5,11 +5,11 @@ import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
-class FareCalculatorSpec extends WordSpecLike with BeamHelper {
+class FareCalculatorSpec extends AnyWordSpecLike with BeamHelper {
 
   "Using sf-light calculator" when {
     val config = testConfig("test/input/sf-light/sf-light.conf").resolve()
