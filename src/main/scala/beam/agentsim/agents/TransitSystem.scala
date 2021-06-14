@@ -72,7 +72,7 @@ class TransitSystem(
 
   private def initDriverAgents(): Unit = {
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
-    val oneSecondTravelTime = (_:Double,_:Int,_:StreetMode) => 1.0
+    val oneSecondTravelTime = (_: Double, _: Int, _: StreetMode) => 1.0
     val transitSchedule = new TransitInitializer(
       beamScenario.beamConfig,
       geo,

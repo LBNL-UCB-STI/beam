@@ -1500,8 +1500,7 @@ class RideHailManager(
               rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, request.requestId)
             )
             allRoutesRequired = allRoutesRequired ++ routesRequired
-          case alloc @ VehicleMatchedToCustomers(request, _, pickDropIdWithRoutes)
-              if pickDropIdWithRoutes.nonEmpty =>
+          case alloc @ VehicleMatchedToCustomers(request, _, pickDropIdWithRoutes) if pickDropIdWithRoutes.nonEmpty =>
             val travelProposal = createTravelProposal(alloc)
             val waitTimeMaximumSatisfied = !travelProposal.passengerSchedule.uniquePassengers.exists { customer =>
               travelProposal.timeToCustomer(customer) > beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec

@@ -14,7 +14,7 @@ import scala.collection.JavaConverters._
 /**
   * Generate data descriptions table for all output file generating classes.
   */
-class BeamOutputDataDescriptionGenerator () extends LazyLogging {
+class BeamOutputDataDescriptionGenerator() extends LazyLogging {
 
   private final val outputFileName = "dataDescriptors.csv"
   private final val outputFileHeader = "ClassName,OutputFile,Field,Description\n"

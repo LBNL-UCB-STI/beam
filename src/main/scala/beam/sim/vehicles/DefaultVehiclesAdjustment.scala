@@ -16,7 +16,7 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
-    if(vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
+    if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
     List.fill(numVehicles)(vehicleTypesByCategory)
   }
 

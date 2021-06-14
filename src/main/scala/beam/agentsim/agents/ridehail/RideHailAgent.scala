@@ -541,28 +541,28 @@ class RideHailAgent(
     case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
       stash()
       stay()
-    case _ @ Event(Interrupt(_, _, _), _) =>
+    case _ @Event(Interrupt(_, _, _), _) =>
       stash()
       stay()
-    case _ @ Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
+    case _ @Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
       stash()
       stay()
-    case _ @ Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
+    case _ @Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
       stash()
       stay()
-    case _ @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
+    case _ @Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       stash()
       stay()
-    case _ @ Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
+    case _ @Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
       stash()
       stay()
-    case _ @ Event(ParkingInquiryResponse(_, _, _), _) =>
+    case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
       stash()
       stay()
-    case _ @ Event(RoutingResponse(_, _, _, _, _), _) =>
+    case _ @Event(RoutingResponse(_, _, _, _, _), _) =>
       stash()
       stay()
-    case _ @ Event(ModifyPassengerSchedule(_, _, _, _), _) =>
+    case _ @Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       goto(IdleInterrupted)
   }
@@ -809,15 +809,15 @@ class RideHailAgent(
       isInQueueParkingZoneId = None
       stash
       goto(Offline)
-    case _ @ Event(Interrupt, _) =>
+    case _ @Event(Interrupt, _) =>
       goto(InQueueInterrupted)
     case ev @ Event(_, _) =>
       myUnhandled(ev)
   }
   when(InQueueInterrupted) {
-    case _ @ Event(Resume(_), _) =>
+    case _ @Event(Resume(_), _) =>
       goto(InQueue)
-    case _ @ Event(_, _) =>
+    case _ @Event(_, _) =>
       stash
       stay
   }
@@ -849,7 +849,7 @@ class RideHailAgent(
     case Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.Refueling.Resume)")
       goto(Refueling)
-    case _ @ Event(_, _) =>
+    case _ @Event(_, _) =>
       stash
       stay
   }

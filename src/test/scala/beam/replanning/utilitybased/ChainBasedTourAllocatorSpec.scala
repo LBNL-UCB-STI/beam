@@ -144,10 +144,10 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
       personWithAnyRank,
       subtour
     )
- //   val legs = JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap { trip =>
- //     JavaConverters
- //       .collectionAsScalaIterable(trip.getLegsOnly)
- //   }
+    //   val legs = JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap { trip =>
+    //     JavaConverters
+    //       .collectionAsScalaIterable(trip.getLegsOnly)
+    //   }
 
     Then("it should be allocated to the person.")
 
