@@ -93,7 +93,7 @@ object ActivitySimPathType {
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       determineTransitPathType(trip)
-    } else if (allMods == Set(BeamMode.WALK)) {
+    } else if (allMods.contains(BeamMode.WALK) && allMods.size == 1) {
       WALK
     } else {
       OTHER
