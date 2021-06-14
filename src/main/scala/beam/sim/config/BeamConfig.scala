@@ -35,6 +35,7 @@ object BeamConfig {
     case class Agentsim(
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
+      collectEvents: scala.Boolean,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
       endTime: java.lang.String,
       firstIteration: scala.Int,
@@ -1954,6 +1955,7 @@ object BeamConfig {
             if (c.hasPathOrNull("agents")) c.getConfig("agents")
             else com.typesafe.config.ConfigFactory.parseString("agents{}")
           ),
+          collectEvents = c.hasPathOrNull("collectEvents") && c.getBoolean("collectEvents"),
           chargingNetworkManager = BeamConfig.Beam.Agentsim.ChargingNetworkManager(
             if (c.hasPathOrNull("chargingNetworkManager")) c.getConfig("chargingNetworkManager")
             else com.typesafe.config.ConfigFactory.parseString("chargingNetworkManager{}")
@@ -3454,6 +3456,7 @@ object BeamConfig {
 
     object Router {
       case class Skim(
+        activity_sim_skimmer: BeamConfig.Beam.Router.Skim.ActivitySimSkimmer,
         drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
@@ -3464,6 +3467,21 @@ object BeamConfig {
       )
 
       object Skim {
+        case class ActivitySimSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object ActivitySimSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
+            BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
+              fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
+            )
+          }
+        }
+
         case class DriveTimeSkimmer(
           fileBaseName: java.lang.String,
           name: java.lang.String
@@ -3510,7 +3528,8 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
-          name: java.lang.String
+          name: java.lang.String,
+          timeBin: scala.Int
         )
 
         object TazSkimmer {
@@ -3518,7 +3537,8 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer",
+              timeBin = if (c.hasPathOrNull("timeBin")) c.getInt("timeBin") else 300
             )
           }
         }
@@ -3541,6 +3561,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
           BeamConfig.Beam.Router.Skim(
+            activity_sim_skimmer = BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
+              if (c.hasPathOrNull("activity-sim-skimmer")) c.getConfig("activity-sim-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("activity-sim-skimmer{}")
+            ),
             drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
               if (c.hasPathOrNull("drive-time-skimmer")) c.getConfig("drive-time-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("drive-time-skimmer{}")
@@ -3809,10 +3833,82 @@ object BeamConfig {
     }
 
     case class Urbansim(
+      backgroundODSkimsCreator: BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator,
       fractionOfModesToClear: BeamConfig.Beam.Urbansim.FractionOfModesToClear
     )
 
     object Urbansim {
+      case class BackgroundODSkimsCreator(
+        calculationTimeoutHours: scala.Int,
+        enabled: scala.Boolean,
+        maxTravelDistanceInMeters: BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.MaxTravelDistanceInMeters,
+        modesToBuild: BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild,
+        numberOfH3Indexes: scala.Int,
+        peakHours: scala.Option[scala.List[scala.Double]],
+        routerType: java.lang.String,
+        skimsGeoType: java.lang.String,
+        skimsKind: java.lang.String
+      )
+
+      object BackgroundODSkimsCreator {
+        case class MaxTravelDistanceInMeters(
+          bike: scala.Int,
+          walk: scala.Int
+        )
+
+        object MaxTravelDistanceInMeters {
+
+          def apply(
+            c: com.typesafe.config.Config
+          ): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.MaxTravelDistanceInMeters = {
+            BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.MaxTravelDistanceInMeters(
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 33000,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 10000
+            )
+          }
+        }
+
+        case class ModesToBuild(
+          drive: scala.Boolean,
+          drive_transit: scala.Boolean,
+          walk: scala.Boolean,
+          walk_transit: scala.Boolean
+        )
+
+        object ModesToBuild {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild = {
+            BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild(
+              drive = !c.hasPathOrNull("drive") || c.getBoolean("drive"),
+              drive_transit = !c.hasPathOrNull("drive_transit") || c.getBoolean("drive_transit"),
+              walk = !c.hasPathOrNull("walk") || c.getBoolean("walk"),
+              walk_transit = !c.hasPathOrNull("walk_transit") || c.getBoolean("walk_transit")
+            )
+          }
+        }
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator = {
+          BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
+            calculationTimeoutHours =
+              if (c.hasPathOrNull("calculationTimeoutHours")) c.getInt("calculationTimeoutHours") else 6,
+            enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+            maxTravelDistanceInMeters = BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.MaxTravelDistanceInMeters(
+              if (c.hasPathOrNull("maxTravelDistanceInMeters")) c.getConfig("maxTravelDistanceInMeters")
+              else com.typesafe.config.ConfigFactory.parseString("maxTravelDistanceInMeters{}")
+            ),
+            modesToBuild = BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild(
+              if (c.hasPathOrNull("modesToBuild")) c.getConfig("modesToBuild")
+              else com.typesafe.config.ConfigFactory.parseString("modesToBuild{}")
+            ),
+            numberOfH3Indexes = if (c.hasPathOrNull("numberOfH3Indexes")) c.getInt("numberOfH3Indexes") else 1000,
+            peakHours = if (c.hasPathOrNull("peakHours")) scala.Some($_L$_dbl(c.getList("peakHours"))) else None,
+            routerType = if (c.hasPathOrNull("routerType")) c.getString("routerType") else "r5",
+            skimsGeoType = if (c.hasPathOrNull("skimsGeoType")) c.getString("skimsGeoType") else "h3",
+            skimsKind = if (c.hasPathOrNull("skimsKind")) c.getString("skimsKind") else "od"
+          )
+        }
+      }
+
       case class FractionOfModesToClear(
         allModes: scala.Double,
         bike: scala.Double,
@@ -3838,6 +3934,10 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
         BeamConfig.Beam.Urbansim(
+          backgroundODSkimsCreator = BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
+            if (c.hasPathOrNull("backgroundODSkimsCreator")) c.getConfig("backgroundODSkimsCreator")
+            else com.typesafe.config.ConfigFactory.parseString("backgroundODSkimsCreator{}")
+          ),
           fractionOfModesToClear = BeamConfig.Beam.Urbansim.FractionOfModesToClear(
             if (c.hasPathOrNull("fractionOfModesToClear")) c.getConfig("fractionOfModesToClear")
             else com.typesafe.config.ConfigFactory.parseString("fractionOfModesToClear{}")
