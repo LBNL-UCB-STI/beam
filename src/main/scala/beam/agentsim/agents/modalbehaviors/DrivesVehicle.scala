@@ -826,11 +826,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         )
       )
     case Event(
-        TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStarted, fuelAddedInJoule, vehicle), triggerId),
         _
         ) =>
       log.info(s"DrivesVehicle: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
+        val sessionDuration = tick - sessionStarted
         handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)

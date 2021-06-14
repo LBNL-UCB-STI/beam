@@ -1237,11 +1237,12 @@ class PersonAgent(
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(
-        TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
+        TriggerWithId(EndRefuelSessionTrigger(tick, sessionStarted, fuelAddedInJoule, vehicle), triggerId),
         _
         ) =>
       log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
       if (vehicle.isConnectedToChargingPoint()) {
+        val sessionDuration = tick - sessionStarted
         handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule)
       }
       stay() replying CompletionNotice(triggerId)
