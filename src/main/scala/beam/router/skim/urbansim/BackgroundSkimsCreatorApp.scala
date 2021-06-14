@@ -83,74 +83,78 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   OParser.parse(parser, args, InputParameters()) match {
     case Some(params) =>
-      val manualArgs = Array[String]("--config", params.configPath.toString)
-      val (_, config) = prepareConfig(manualArgs, isConfigArgRequired = true)
-
-      val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
-
-      val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
-        beamExecutionConfig.beamConfig,
-        beamExecutionConfig.matsimConfig
-      )
-      val scenario: MutableScenario = scenarioBuilt
-      val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-      val beamServices: BeamServices = buildBeamServices(injector, scenario)
-      val clustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMap)
-      val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
-      val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
-      val travelTime = params.linkstatsPath match {
-        case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
-        case None       => new FreeFlowTravelTime
-      }
-
-      val tazMap: Map[String, GeoUnit.TAZ] = clustering.tazTreeMap.getTAZs
-        .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
-        .groupBy(_.id)
-        .mapValues(_.head)
-
-      val odRows = readCsv(params.input.toString).map(od => ODRow(tazMap(od.origin), tazMap(od.destination), od.mode))
-
-      val skimmer = createSkimmer(beamServices, odRows)
-
-      implicit val actorSystem = ActorSystem()
-      implicit val ec = actorSystem.dispatcher
-
-      val skimsCreator = new BackgroundSkimsCreator(
-        beamServices = beamServices,
-        beamScenario = beamScenario,
-        geoClustering = clustering,
-        abstractSkimmer = skimmer,
-        travelTime = travelTime,
-        beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
-        withTransit = false,
-        buildDirectWalkRoute = false,
-        buildDirectCarRoute = true,
-        calculationTimeoutHours = 1
-      )
-
-      logger.info("Parallelism " + params.parallelism)
-      skimsCreator.increaseParallelismTo(params.parallelism)
-      skimsCreator.start()
-
-      skimsCreator.getResult
-        .map(skimmer => {
-          logger.info("Got populated skimmer")
-          skimmer.abstractSkimmer.writeToDisk(params.output.toString)
-          None
-        })
-        .andThen {
-          case _ =>
-            logger.info("Stopping skimsCreator")
-            skimsCreator.stop()
-            logger.info("Terminating actorSystem")
-            actorSystem.terminate().andThen {
-              case _ =>
-                logger.info("actorSystem terminated")
-                System.exit(0)
-            }
-        }
+      runWithParams(params)
     case _ =>
       logger.error("Could not process parameters")
+  }
+
+  def runWithParams(params: InputParameters) = {
+    val manualArgs = Array[String]("--config", params.configPath.toString)
+    val (_, config) = prepareConfig(manualArgs, isConfigArgRequired = true)
+
+    val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
+
+    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+      beamExecutionConfig.beamConfig,
+      beamExecutionConfig.matsimConfig
+    )
+    val scenario: MutableScenario = scenarioBuilt
+    val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    val beamServices: BeamServices = buildBeamServices(injector, scenario)
+    val clustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMap)
+    val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
+    val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
+    val travelTime = params.linkstatsPath match {
+      case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
+      case None       => new FreeFlowTravelTime
+    }
+
+    val tazMap: Map[String, GeoUnit.TAZ] = clustering.tazTreeMap.getTAZs
+      .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
+      .groupBy(_.id)
+      .mapValues(_.head)
+
+    val odRows = readCsv(params.input.toString).map(od => ODRow(tazMap(od.origin), tazMap(od.destination), od.mode))
+
+    val skimmer = createSkimmer(beamServices, odRows)
+
+    implicit val actorSystem = ActorSystem()
+    implicit val ec = actorSystem.dispatcher
+
+    val skimsCreator = new BackgroundSkimsCreator(
+      beamServices = beamServices,
+      beamScenario = beamScenario,
+      geoClustering = clustering,
+      abstractSkimmer = skimmer,
+      travelTime = travelTime,
+      beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
+      withTransit = false,
+      buildDirectWalkRoute = false,
+      buildDirectCarRoute = true,
+      calculationTimeoutHours = 1
+    )
+
+    logger.info("Parallelism " + params.parallelism)
+    skimsCreator.increaseParallelismTo(params.parallelism)
+    skimsCreator.start()
+
+    skimsCreator.getResult
+      .map(skimmer => {
+        logger.info("Got populated skimmer")
+        skimmer.abstractSkimmer.writeToDisk(params.output.toString)
+        None
+      })
+      .andThen {
+        case _ =>
+          logger.info("Stopping skimsCreator")
+          skimsCreator.stop()
+          logger.info("Terminating actorSystem")
+          actorSystem.terminate().andThen {
+            case _ =>
+              logger.info("actorSystem terminated")
+              System.exit(0)
+          }
+      }
   }
 
   def createSkimmer(
