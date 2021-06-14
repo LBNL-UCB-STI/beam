@@ -69,7 +69,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
     scenario.setNetwork(beamScenario.network)
 
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler

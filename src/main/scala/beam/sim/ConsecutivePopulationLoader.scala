@@ -105,7 +105,7 @@ class ConsecutivePopulationLoader(
         personIdToHousehold.get(personToAdd.getId).foreach { hh =>
           val map = scenario.getHouseholds.getHouseholds
           Option(map.get(hh.getId)) match {
-            case Some(value) =>
+            case Some(_) =>
               // If household is already added, we just need to add person to this household because originally it belongs to it
               hh.getMemberIds.add(personToAdd.getId)
             case None =>

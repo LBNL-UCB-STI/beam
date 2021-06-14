@@ -401,7 +401,7 @@ class PersonAgent(
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
+  def scaleTimeByValueOfTime(timeInSeconds: Double): Double = {
     attributes.unitConversionVOTT(timeInSeconds) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
   }
 
@@ -767,11 +767,11 @@ class PersonAgent(
   }
 
   when(TryingToBoardVehicle) {
-    case Event(Boarded(vehicle, _), basePersonData: BasePersonData) =>
+    case Event(Boarded(vehicle, _), _: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable(triggerId), basePersonData: BasePersonData) =>
+    case Event(NotAvailable(_), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
@@ -1135,7 +1135,7 @@ class PersonAgent(
 
   }
 
-  def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]): State = {
+  def handleBoardOrAlightOutOfPlace: State = {
     stash
     stay
   }
@@ -1193,7 +1193,7 @@ class PersonAgent(
           _,
         )
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+      handleBoardOrAlightOutOfPlace
     case Event(
         TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         ChoosesModeData(
@@ -1220,7 +1220,7 @@ class PersonAgent(
           _,
         )
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+      handleBoardOrAlightOutOfPlace
     case Event(
         TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
         BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _)
@@ -1231,12 +1231,12 @@ class PersonAgent(
         TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+      handleBoardOrAlightOutOfPlace
     case Event(
         TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
         BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
         ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+      handleBoardOrAlightOutOfPlace
     case Event(NotifyVehicleIdle(_, _, _, _, _, _), _) =>
       stay()
     case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>

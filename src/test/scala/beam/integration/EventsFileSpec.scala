@@ -57,7 +57,7 @@ class EventsFileSpec
     )
     scenario = scenarioBuilt
     injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
 
     runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
     personHouseholds = scenario.getHouseholds.getHouseholds

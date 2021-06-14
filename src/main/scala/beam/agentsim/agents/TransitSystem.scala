@@ -16,6 +16,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.{FileUtils, NetworkHelper}
+import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -71,18 +72,19 @@ class TransitSystem(
 
   private def initDriverAgents(): Unit = {
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
+    val oneSecondTravelTime = (_:Double,_:Int,_:StreetMode) => 1.0
     val transitSchedule = new TransitInitializer(
       beamScenario.beamConfig,
       geo,
       beamScenario.dates,
       beamScenario.vehicleTypes,
       beamScenario.transportNetwork,
-      BeamRouter.oneSecondTravelTime
+      oneSecondTravelTime
     ).initMap
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
     transitSchedule.foreach {
       case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
+        initializer.createTransitVehicle(tripVehId, route, rand.nextInt()).foreach { vehicle =>
           val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
           val transitDriverAgentProps = TransitDriverAgent.props(
             scheduler,
@@ -117,7 +119,6 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
   def createTransitVehicle(
     transitVehId: Id[Vehicle],
     route: RouteInfo,
-    legs: Seq[BeamLeg],
     randomSeed: Int
   ): Option[BeamVehicle] = {
     val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))

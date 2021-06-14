@@ -62,7 +62,7 @@ object AgeTableReader {
       new AgeTableReader(databaseInfo, ResidenceGeography.State)
     val readData = rdr.read()
     val ageToTotalNumberOfWorkers = readData.values.flatten
-      .groupBy { case (age, cnt) => age }
+      .groupBy { case (age, _) => age }
       .map {
         case (age, xs) =>
           age -> xs.map(_._2).sum

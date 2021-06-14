@@ -43,11 +43,8 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
-//import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
-import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
-import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -198,8 +195,6 @@ class BeamSim @Inject()(
         scenario.getNetwork,
         networkHelper,
         beamServices.geo,
-        scenario,
-        scenario.getTransitVehicles,
         beamServices.fareCalculator,
         tollCalculator,
         eventsManager
@@ -511,8 +506,7 @@ class BeamSim @Inject()(
           listener.notifyShutdown(event)
           dumpHouseholdAttributes
 
-        case x =>
-          logger.warn("dumper is not `ShutdownListener`")
+        case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
       }
     }
   }
@@ -615,7 +609,7 @@ class BeamSim @Inject()(
         Files.delete(filePath)
         Right(filePath)
       } catch {
-        case e: Throwable => Left(filePath)
+        case _: Throwable => Left(filePath)
       }
     }
   }
@@ -710,7 +704,7 @@ class BeamSim @Inject()(
 
     val dataset = new DefaultCategoryDataset
 
-    var data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
+    val data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
     data += (iteration      -> value)
     summaryData += fileName -> data
 

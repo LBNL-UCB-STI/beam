@@ -8,7 +8,6 @@ import beam.utils.data.ctpp.readers.flow.MeansOfTransportationTableReader
 import beam.utils.data.synthpop.GeoService
 import beam.utils.data.synthpop.models.Models.TazGeoId
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
-import de.vandermeer.asciitable.AsciiTable
 
 class BenchmarkGenerator(
   val odList: Iterable[OD[MeansOfTransportation]],
@@ -53,7 +52,7 @@ object BenchmarkGenerator {
       new MeansOfTransportationTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
         .read()
     val tazGeoIdToGeom: Map[TazGeoId, Geometry] = pathToTazShapeFiles.flatMap { pathToTazShapeFile =>
-      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, x => true, GeoService.defaultTazMapper)
+      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, _ => true, GeoService.defaultTazMapper)
     }.toMap
     val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(pathToOsmMap)
     new BenchmarkGenerator(od, tazGeoIdToGeom, mapBoundingBox)

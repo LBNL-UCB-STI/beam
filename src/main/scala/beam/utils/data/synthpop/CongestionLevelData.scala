@@ -10,7 +10,7 @@ trait CongestionLevelData {
 
 class CsvCongestionLevelData(pathToCsv: String) extends CongestionLevelData {
   private val hourToCongestionLevel: Map[Int, Double] = {
-    val (it, toClose) = GenericCsvReader.readAs[(Int, Double)](pathToCsv, toCongestionData, x => true)
+    val (it, toClose) = GenericCsvReader.readAs[(Int, Double)](pathToCsv, toCongestionData, _ => true)
     try {
       it.map {
         case (hour, level) =>

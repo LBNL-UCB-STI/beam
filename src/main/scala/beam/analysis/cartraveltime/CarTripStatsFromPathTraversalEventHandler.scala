@@ -135,7 +135,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   }
 
   def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[CarTripStat]): IterationCarTripStats = {
-    buildStatistics(networkHelper, freeFlowTravelTimeCalc, iterationNumber, rideStats)
+    buildStatistics(iterationNumber, rideStats)
   }
 
   private def createCarRideIterationGraph(
@@ -279,31 +279,6 @@ class CarTripStatsFromPathTraversalEventHandler(
           }
       }
 
-  }
-
-  /**
-    * Generates category dataset used to generate graph at iteration level.
-    *
-    * @return dataset for average travel times graph at iteration level
-    */
-  private def generateGraphDataForAverageTravelTimes(
-    travelTimesByHour: Map[Long, Seq[Double]]
-  ): CategoryDataset = {
-    // For each hour in a day
-    val averageTravelTimes = for (i <- 0 until 24) yield {
-      // Compute the average of the travel times recorded for that hour
-      val travelTimes = travelTimesByHour.getOrElse(i, List.empty[Double])
-      // if no travel time recorded set average travel time to 0
-      if (travelTimes.isEmpty)
-        0D
-      else {
-        val avg = travelTimes.sum / travelTimes.length
-        // convert the average travl time (in seconds) to minutes
-        java.util.concurrent.TimeUnit.SECONDS.toMinutes(avg.toLong).toDouble
-      }
-    }
-    // generate the category dataset using the average travel times data
-    GraphUtils.createCategoryDataset("car", "", Array(averageTravelTimes.toArray))
   }
 
   /**
@@ -517,8 +492,6 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
   }
 
   def buildStatistics(
-    networkHelper: NetworkHelper,
-    freeFlowTravelTime: FreeFlowTravelTime,
     iterationNumber: Int,
     rideStats: Seq[CarTripStat]
   ): IterationCarTripStats = {

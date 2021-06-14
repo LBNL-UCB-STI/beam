@@ -254,7 +254,7 @@ class RideHailAgent(
       needsToEndShift = true
       stay() replying CompletionNotice(triggerId, Vector())
 
-    case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
+    case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
       log.debug(
         "myUnhandled state({}): ignoring EndLegTrigger probably because of a modifyPassSchedule: {}",
         stateName,
@@ -266,7 +266,7 @@ class RideHailAgent(
       }
       stay
 
-    case ev @ Event(TriggerWithId(StartLegTrigger(_, leg), triggerId), data) =>
+    case ev @ Event(TriggerWithId(StartLegTrigger(_, leg), triggerId), _) =>
       log.debug(
         "myUnhandled state({}): stashing StartLegTrigger probably because interrupt was received while in WaitingToDrive before getting this trigger: {}",
         stateName,
@@ -426,7 +426,7 @@ class RideHailAgent(
         .withPassengerSchedule(updatedPassengerSchedule)
         .asInstanceOf[RideHailAgentData]
     case ev @ Event(
-          NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, newTriggers, vehicleInQueueParkingZoneId),
+          NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, newTriggers, _),
           data
         ) =>
       waitingForDoneRefuelingAndOutOfServiceReply = false
@@ -501,7 +501,7 @@ class RideHailAgent(
         )
         goto(Idle)
       }
-    case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
+    case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
       log.debug("state(RideHailingAgent.Offline): {}", ev)
       goto(OfflineInterrupted) replying InterruptedWhileOffline(interruptId, vehicle.id, latestObservedTick, triggerId)
     case ev @ Event(Resume(_), _) =>
@@ -527,7 +527,7 @@ class RideHailAgent(
         requestParkingStall()
         stay
       }
-    case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), data) =>
+    case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
         "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
         ev
@@ -541,28 +541,28 @@ class RideHailAgent(
     case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
       stash()
       stay()
-    case ev @ Event(Interrupt(_, _, _), _) =>
+    case _ @ Event(Interrupt(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
+    case _ @ Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
+    case _ @ Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
+    case _ @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       stash()
       stay()
-    case ev @ Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
+    case _ @ Event(TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), _), _) =>
       stash()
       stay()
-    case ev @ Event(ParkingInquiryResponse(_, _, _), _) =>
+    case _ @ Event(ParkingInquiryResponse(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(RoutingResponse(_, _, _, _, _), _) =>
+    case _ @ Event(RoutingResponse(_, _, _, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(ModifyPassengerSchedule(_, _, _, _), _) =>
+    case _ @ Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       goto(IdleInterrupted)
   }
@@ -587,7 +587,7 @@ class RideHailAgent(
       rideHailManager ! NotifyVehicleOutOfService(vehicle.id, triggerId)
       if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newShiftToSchedule)
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
-    case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
+    case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
       log.debug("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick, triggerId)
     case ev @ Event(
@@ -627,7 +627,6 @@ class RideHailAgent(
               legStartingLoc,
               dist
             )
-            val i = 0
           }
           lastLocationOfRefuel = None
         case None =>
@@ -689,7 +688,7 @@ class RideHailAgent(
     case ev @ Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
-    case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
+    case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick, triggerId)
     case ev @ Event(
@@ -698,7 +697,7 @@ class RideHailAgent(
         ) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
       handleNotifyVehicleResourceIdleReply(reply, data)
-    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(tick), triggerId), _) =>
+    case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), _), _) =>
       log.debug("state(RideHailingAgent.IdleInterrupted.StartRefuelSessionTrigger): {}", ev)
       stash()
       stay
@@ -810,20 +809,20 @@ class RideHailAgent(
       isInQueueParkingZoneId = None
       stash
       goto(Offline)
-    case ev @ Event(Interrupt, _) =>
+    case _ @ Event(Interrupt, _) =>
       goto(InQueueInterrupted)
     case ev @ Event(_, _) =>
       myUnhandled(ev)
   }
   when(InQueueInterrupted) {
-    case ev @ Event(Resume(_), _) =>
+    case _ @ Event(Resume(_), _) =>
       goto(InQueue)
-    case ev @ Event(_, _) =>
+    case _ @ Event(_, _) =>
       stash
       stay
   }
   when(Refueling) {
-    case ev @ Event(Interrupt(interruptId, tick, triggerId), _) =>
+    case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
       log.debug("state(RideHailingAgent.Refueling): {}", ev)
       goto(RefuelingInterrupted) replying InterruptedWhileOffline(
         interruptId,
@@ -850,7 +849,7 @@ class RideHailAgent(
     case Event(Resume(_), _) =>
       log.debug("state(RideHailingAgent.Refueling.Resume)")
       goto(Refueling)
-    case ev @ Event(_, _) =>
+    case _ @ Event(_, _) =>
       stash
       stay
   }

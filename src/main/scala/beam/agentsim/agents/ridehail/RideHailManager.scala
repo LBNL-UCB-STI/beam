@@ -63,7 +63,6 @@ import java.util
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -339,10 +338,10 @@ class RideHailManager(
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
   val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
 
-  private var cntEVCAV = 0
-  private var cntEVnCAV = 0
-  private var cntnEVCAV = 0
-  private var cntnEVnCAV = 0
+  private val cntEVCAV = 0
+  private val cntEVnCAV = 0
+  private val cntnEVCAV = 0
+  private val cntnEVnCAV = 0
 
   def writeMetric(metric: String, value: Int): Unit = {
     beamServices.simMetricCollector.writeGlobal(metric, value)
@@ -528,7 +527,7 @@ class RideHailManager(
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)
 
-    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _, _, _, triggerId) =>
+    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _, _, _, _) =>
       val s = System.currentTimeMillis
       handleRideHailInquiry(inquiry)
       val diff = System.currentTimeMillis - s
@@ -556,7 +555,7 @@ class RideHailManager(
      * In this case we can treat the responses as if they apply to a single request
      * for a single occupant trip.
      */
-    case RoutingResponses(_, responses, triggerId: Long)
+    case RoutingResponses(_, responses, _: Long)
         if inquiryIdToInquiryAndResponse.contains(routeRequestIdToRideHailRequestId(responses.head.requestId)) =>
       val (request, singleOccupantQuoteAndPoolingInfo) = inquiryIdToInquiryAndResponse(
         routeRequestIdToRideHailRequestId(responses.head.requestId)
@@ -763,7 +762,7 @@ class RideHailManager(
       rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
       continueProcessingTimeoutIfReady(triggerId)
 
-    case reply @ InterruptedWhileIdle(interruptId, vehicleId, tick, triggerId) =>
+    case reply @ InterruptedWhileIdle(_, vehicleId, tick, triggerId) =>
       if (pendingAgentsSentToPark.contains(vehicleId)) {
         outOfServiceVehicleManager.handleInterruptReply(vehicleId, tick, triggerId)
       } else {
@@ -776,7 +775,7 @@ class RideHailManager(
       }
 
     case reply @ InterruptedWhileDriving(
-          interruptId,
+          _,
           vehicleId,
           tick,
           interruptedPassengerSchedule,
@@ -909,11 +908,9 @@ class RideHailManager(
       notifyVehicleIdleMessage,
       rideHailManagerHelper.getServiceStatusOf(vehicleId)
     )
-    val (whenWhere, _, beamVehicleState, passengerSchedule, triggerId) = (
+    val (whenWhere, beamVehicleState, triggerId) = (
       notifyVehicleIdleMessage.whenWhere,
-      notifyVehicleIdleMessage.geofence,
       notifyVehicleIdleMessage.beamVehicleState,
-      notifyVehicleIdleMessage.passengerSchedule,
       notifyVehicleIdleMessage.triggerId
     )
     rideHailManagerHelper.updateLocationOfAgent(vehicleId, whenWhere)
@@ -1077,7 +1074,7 @@ class RideHailManager(
           None,
           Some(DriverNotFoundError)
         )
-      case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, poolingInfo) =>
+      case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, _) =>
         servedRideHail += 1
         beamServices.simMetricCollector.writeIteration("ride-hail-inquiry-served", SimulationTime(inquiry.departAt))
         inquiryIdToInquiryAndResponse.put(inquiryWithUpdatedLoc.requestId, (inquiryWithUpdatedLoc, inquiryResponse))
@@ -1503,7 +1500,7 @@ class RideHailManager(
               rReq => routeRequestIdToRideHailRequestId.put(rReq.requestId, request.requestId)
             )
             allRoutesRequired = allRoutesRequired ++ routesRequired
-          case alloc @ VehicleMatchedToCustomers(request, rideHailAgentLocation, pickDropIdWithRoutes)
+          case alloc @ VehicleMatchedToCustomers(request, _, pickDropIdWithRoutes)
               if pickDropIdWithRoutes.nonEmpty =>
             val travelProposal = createTravelProposal(alloc)
             val waitTimeMaximumSatisfied = !travelProposal.passengerSchedule.uniquePassengers.exists { customer =>
@@ -1583,9 +1580,6 @@ class RideHailManager(
       .filter(tup => tup._1.isDefined && tup._2.size == 1)
       .map(_._2.head._1.person.get)
     var passengersToAdd = noPickupPassengers
-    if (passengersToAdd.nonEmpty) {
-      val i = 0
-    }
     var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
     consistentSchedule.foreach {
       case (mobReq, legOpt) =>
@@ -1653,7 +1647,6 @@ class RideHailManager(
   }
 
   def handleNotifyVehicleDoneRefuelingAndOutOfService(notify: NotifyVehicleDoneRefuelingAndOutOfService): Unit = {
-    val loc = rideHailManagerHelper.getRideHailAgentLocation(notify.vehicleId)
     rideHailManagerHelper.updateLocationOfAgent(notify.vehicleId, notify.whenWhere)
     rideHailManagerHelper.vehicleState.put(notify.vehicleId, notify.beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(notify.vehicleId, None, None)
@@ -1959,16 +1952,6 @@ class RideHailManager(
           )
       }
     rideInitialLocation
-  }
-
-  private def convertToShiftString(startTimes: ArrayBuffer[Int], endTimes: ArrayBuffer[Int]): Option[String] = {
-    if (startTimes.length != endTimes.length) {
-      None
-    } else {
-      val outArray = scala.collection.mutable.ArrayBuffer.empty[String]
-      Array((startTimes zip endTimes).foreach(x => outArray += Array("{", x._1, ":", x._2, "}").mkString))
-      Option(outArray.mkString(";"))
-    }
   }
 
   /**
