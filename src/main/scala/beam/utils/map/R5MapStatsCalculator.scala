@@ -15,10 +15,10 @@ object R5MapStatsCalculator {
   def main(args: Array[String]): Unit = {
     // LoggerFactory.getLogger("com.conveyal").asInstanceOf[Logger].setLevel(Level.INFO)
     val pathToOsm = args(0)
-    val `minimum tag frequency to print tag out` = 1000
+    val minimumTagFrequencyToPrintTagOut = 1000
 
     analyzeR5Map(pathToOsm)
-    analyzeOSMMap(pathToOsm, minTagFrequency = `minimum tag frequency to print tag out`)
+    analyzeOSMMap(pathToOsm, minTagFrequency = minimumTagFrequencyToPrintTagOut)
   }
 
   private def analyzeOSMMap(pathToOsm: String, minTagFrequency: Int): Unit = {
