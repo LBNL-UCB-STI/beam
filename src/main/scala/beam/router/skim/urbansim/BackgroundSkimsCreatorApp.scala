@@ -1,14 +1,14 @@
 package beam.router.skim.urbansim
 
 import akka.actor.ActorSystem
-import beam.router.FreeFlowTravelTime
+import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim._
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.ProfilingUtils
+import beam.utils.{DateUtils, ProfilingUtils}
 import beam.utils.csv.GenericCsvReader
 import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
@@ -22,6 +22,7 @@ case class InputParameters(
   configPath: Path = null,
   input: Path = null,
   output: Path = null,
+  linkstatsPath: Option[Path] = None,
   parallelism: Int = 1
 )
 
@@ -34,6 +35,7 @@ Example of parameters usage:
  --configPath test/input/beamville/beam.conf
  --input test/input/beamville/input.csv
  --output test/input/beamville/output.csv
+ --linkstatsPath test/input/beamville/linkstats.csv.gz
  --parallelism 2
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
@@ -58,6 +60,10 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         .action((x, c) => c.copy(input = x.toPath))
         .text("input csv file path"),
       opt[File]("output").required().action((x, c) => c.copy(output = x.toPath)).text("output csv file path"),
+      opt[File]("linkstatsPath")
+        .validate(fileValidator)
+        .action((x, c) => c.copy(linkstatsPath = Some(x.toPath)))
+        .text("linkstats file path in csv.gz format"),
       opt[Int]("parallelism").action((x, c) => c.copy(parallelism = x)).text("Parallelism level")
     )
   }
@@ -90,6 +96,12 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
       val beamServices: BeamServices = buildBeamServices(injector, scenario)
       val clustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMap)
+      val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
+      val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
+      val travelTime = params.linkstatsPath match {
+        case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
+        case None       => new FreeFlowTravelTime
+      }
 
       val tazMap: Map[String, GeoUnit.TAZ] = clustering.tazTreeMap.getTAZs
         .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
@@ -108,7 +120,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         beamScenario = beamScenario,
         geoClustering = clustering,
         abstractSkimmer = skimmer,
-        travelTime = new FreeFlowTravelTime,
+        travelTime = travelTime,
         beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
         withTransit = false,
         buildDirectWalkRoute = false,
