@@ -48,7 +48,6 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(
 }
 
 object WorkerActor {
-  sealed trait Request
 
   def props(masterActor: ActorRef, r5Requester: ODRequester, ec: ExecutionContextExecutorService): Props = {
     Props(new WorkerActor(masterActor, r5Requester)(ec))
