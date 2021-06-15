@@ -36,7 +36,6 @@ object BeamConfig {
     case class Agentsim(
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
-      collectEvents: scala.Boolean,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
       endTime: java.lang.String,
       firstIteration: scala.Int,
@@ -1468,7 +1467,8 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike(
-                vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedBike"
+                vehicleTypeId =
+                  if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedVehicle-sharedBike"
               )
             }
           }
@@ -1481,7 +1481,8 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar(
-                vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar"
+                vehicleTypeId =
+                  if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedVehicle-sharedCar"
               )
             }
           }
@@ -1516,7 +1517,8 @@ object BeamConfig {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving(
                   maxWalkingDistance =
                     if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 500,
-                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar"
+                  vehicleTypeId =
+                    if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedVehicle-sharedCar"
                 )
               }
             }
@@ -1537,7 +1539,8 @@ object BeamConfig {
                   fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 10,
                   maxWalkingDistance =
                     if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 500,
-                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar",
+                  vehicleTypeId =
+                    if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedVehicle-sharedCar",
                   vehiclesSharePerTAZFromCSV =
                     if (c.hasPathOrNull("vehiclesSharePerTAZFromCSV")) Some(c.getString("vehiclesSharePerTAZFromCSV"))
                     else None
@@ -1555,7 +1558,8 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.InexhaustibleReserving = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.InexhaustibleReserving(
-                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedCar"
+                  vehicleTypeId =
+                    if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "sharedVehicle-sharedCar"
                 )
               }
             }
@@ -1973,7 +1977,6 @@ object BeamConfig {
             if (c.hasPathOrNull("agents")) c.getConfig("agents")
             else com.typesafe.config.ConfigFactory.parseString("agents{}")
           ),
-          collectEvents = c.hasPathOrNull("collectEvents") && c.getBoolean("collectEvents"),
           chargingNetworkManager = BeamConfig.Beam.Agentsim.ChargingNetworkManager(
             if (c.hasPathOrNull("chargingNetworkManager")) c.getConfig("chargingNetworkManager")
             else com.typesafe.config.ConfigFactory.parseString("chargingNetworkManager{}")
@@ -3561,8 +3564,7 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
-          name: java.lang.String,
-          timeBin: scala.Int
+          name: java.lang.String
         )
 
         object TazSkimmer {
@@ -3570,8 +3572,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer",
-              timeBin = if (c.hasPathOrNull("timeBin")) c.getInt("timeBin") else 300
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
             )
           }
         }
