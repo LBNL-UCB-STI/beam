@@ -73,7 +73,7 @@ class ErrorListener() extends Actor with ActorLogging {
       event.tick.map(tick => Math.round(tick / 3600.0).toInt).getOrElse(-1)
 
     val msgCounts = terminatedPrematurelyEvents
-      .groupBy(event => "ALL")
+      .groupBy(_ => "ALL")
       .mapValues(
         eventsPerReason =>
           eventsPerReason
@@ -83,7 +83,7 @@ class ErrorListener() extends Actor with ActorLogging {
     msgCounts
       .map {
         case (msg, cntByHour) =>
-          val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
+          val sortedCounts = cntByHour.toSeq.sortBy { case (hr, _) => hr }
           s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
             .map { case (_, cnt)                             => cnt.toString }
             .mkString("\t")}"

@@ -204,7 +204,7 @@ class EventsFileSpec
     val xmlEvents = fromXmlFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "xml").getAbsolutePath)
     assert(xmlEvents.nonEmpty)
     val (csvEventsIter, toClose) =
-      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, x => true)
+      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, _ => true)
     try {
       assert(csvEventsIter.toArray.nonEmpty)
     } finally {

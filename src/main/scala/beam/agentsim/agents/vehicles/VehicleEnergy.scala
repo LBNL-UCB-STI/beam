@@ -200,7 +200,7 @@ class VehicleEnergy(
 
   def getFuelConsumptionEnergyInJoulesUsing(
     fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
-    fallBack: BeamVehicle.FuelConsumptionData => Double,
+    fallBack: Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
     val consumptionsInJoules: IndexedSeq[Double] = fuelConsumptionDatas
@@ -215,10 +215,10 @@ class VehicleEnergy(
 
   private def getRateUsing(
     fuelConsumptionData: BeamVehicle.FuelConsumptionData,
-    fallBack: BeamVehicle.FuelConsumptionData => Double,
+    fallBack: Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
-    if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack(fuelConsumptionData) } else {
+    if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack } else {
       val BeamVehicle.FuelConsumptionData(
         linkId,
         vehicleType,
@@ -243,7 +243,7 @@ class VehicleEnergy(
           consumptionRateFilterFuture =>
             getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
         )
-        .getOrElse(fallBack(fuelConsumptionData))
+        .getOrElse(fallBack)
     }
   }
 

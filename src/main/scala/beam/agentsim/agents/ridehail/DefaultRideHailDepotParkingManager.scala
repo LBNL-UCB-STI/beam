@@ -187,13 +187,6 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[Id[GEO], Array[ParkingZone[GEO]]]
   rideHailParkingZones.groupBy(_.geoId).foreach(tup => tazIdToParkingZones += tup)
 
-  // FIXME Unused value
-  private val stallAssignmentStrategy: Try[StallAssignmentStrategy] =
-    beamServices.beamCustomizationAPI.getStallAssignmentStrategyFactory.create(
-      this,
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.charging.vehicleChargingManager.depotManager.stallAssignmentStrategy.name
-    )
-
   def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]) = {
     vehicleIdToGeofenceMap.foreach {
       case (vehicleId, Some(geofence)) =>

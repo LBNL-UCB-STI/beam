@@ -222,7 +222,6 @@ class BeamVehicle(
       )
 
     val primaryEnergyForFullLeg =
-      /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
       beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
         fuelConsumptionData,
         fallBack = powerTrain.getRateInJoulesPerMeter,
@@ -230,13 +229,11 @@ class BeamVehicle(
       )
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
-    /*var secondaryLoggingData = IndexedSeq.empty[LoggingData]*/
     fuelRWLock.write {
       if (primaryFuelLevelInJoulesInternal < primaryEnergyForFullLeg) {
         if (secondaryFuelLevelInJoulesInternal > 0.0) {
           // Use secondary fuel if possible
           val secondaryEnergyForFullLeg =
-            /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
             beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
               fuelConsumptionData,
               fallBack = powerTrain.getRateInJoulesPerMeter,
