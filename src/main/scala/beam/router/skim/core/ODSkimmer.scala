@@ -32,7 +32,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   override protected val skimFileHeader: String =
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
 
-  protected val dummyId = Id.create(
+  protected lazy val dummyId = Id.create(
     beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
     classOf[BeamVehicleType]
   )
