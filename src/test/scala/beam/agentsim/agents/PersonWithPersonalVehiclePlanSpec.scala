@@ -5,7 +5,6 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
@@ -155,7 +154,7 @@ class PersonWithPersonalVehiclePlanSpec
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
                     .copy(
-                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(_ => 50.0),
                       endPoint = embodyRequest.leg.travelPath.endPoint
                         .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
@@ -292,7 +291,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      val parkEvent = expectMsgType[ParkingEvent]
+      expectMsgType[ParkingEvent]
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -391,7 +390,7 @@ class PersonWithPersonalVehiclePlanSpec
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
                     .copy(
-                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(_ => 50.0),
                       endPoint = embodyRequest.leg.travelPath.endPoint
                         .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
@@ -529,7 +528,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
-      for (i <- 0 to 1) {
+      for (_ <- 0 to 1) {
         expectMsgPF() {
           case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
             val embodiedLeg = EmbodiedBeamLeg(

@@ -85,7 +85,7 @@ object ReflectionUtils {
           }
 
         } catch {
-          case e: Exception =>
+          case _: Exception =>
         }
 
         if (level > 0) {

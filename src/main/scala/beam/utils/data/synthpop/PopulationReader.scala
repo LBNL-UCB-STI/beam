@@ -9,7 +9,7 @@ import scala.util.Try
 class PopulationReader(val pathToPopulationFile: String) extends StrictLogging {
 
   def read(): Seq[Person] = {
-    val (it, toClose) = GenericCsvReader.readAs[Person](pathToPopulationFile, toPerson, x => true)
+    val (it, toClose) = GenericCsvReader.readAs[Person](pathToPopulationFile, toPerson, _ => true)
     try {
       it.toVector
     } finally {

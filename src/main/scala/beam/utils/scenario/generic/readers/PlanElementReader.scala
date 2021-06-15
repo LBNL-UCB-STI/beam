@@ -13,7 +13,7 @@ object CsvPlanElementReader extends PlanElementReader {
   import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
-    val (it, toClose) = readAs[PlanElement](path, toPlanElement, x => true)
+    val (it, toClose) = readAs[PlanElement](path, toPlanElement, _ => true)
     try {
       it.toArray
     } finally {

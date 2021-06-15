@@ -122,7 +122,7 @@ class PersonAndTransitDriverSpec
               case pathTraversalEvent: PathTraversalEvent
                   if pathTraversalEvent.vehicleId.toString == "body-dummyAgent" =>
                 personEvents.ref ! event
-              case agencyRevenueEvent: AgencyRevenueEvent =>
+              case _: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
               case _: AbstractSkimmerEvent =>
                 skimEvents.ref ! event
@@ -291,23 +291,6 @@ class PersonAndTransitDriverSpec
           new GeoUtilsImpl(beamConfig),
           services.networkHelper
         )
-      )
-
-      val iteration = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(busDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(tramDriverProps, "TransitDriverAgent-" + tramId.toString)
-
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
-
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
       )
 
       val busDriver = Await.result(

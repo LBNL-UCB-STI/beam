@@ -265,7 +265,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     sourceCRS: CoordinateReferenceSystem,
     pop: Vector[Person]
   ): QuadTree[T] = {
-    val ev = implicitly[HasXY[T]]
+    val _ = implicitly[HasXY[T]]
 
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
     val qt: QuadTree[T] =

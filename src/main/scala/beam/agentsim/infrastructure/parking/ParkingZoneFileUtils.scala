@@ -363,14 +363,6 @@ object ParkingZoneFileUtils extends LazyLogging {
           } else {
             floorNumberOfStalls
           }
-          val vehicleManagerType: Option[VehicleManagerType] =
-            (if (reservedForString == null) "" else reservedForString).trim match {
-              //we had Any and RideHailManager in the taz-parking.csv files
-              //allow the users not to modify existing files
-              case "" | "Any"        => None
-              case "RideHailManager" => Some(VehicleManagerType.Ridehail)
-              case trimmed @ _       => Some(VehicleManagerType.withNameInsensitive(trimmed))
-            }
 
           // parse this row from the source file
           val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)

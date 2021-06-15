@@ -114,15 +114,6 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
     val allGeoIds = ageMap.keySet ++ totalPopulation.keySet ++ vehiclesAvailableMap.keySet ++ sexMap.keySet ++ medianHouseholdIncome.keySet ++ meanHouseholdIncome.keySet ++
     householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
     allGeoIds.foreach { geoId =>
-      val households = totalHouseholds.get(geoId)
-      val population = totalPopulation.get(geoId)
-      val ages = ageMap.get(geoId)
-      val vehiclesAvailable = vehiclesAvailableMap.get(geoId)
-      val gender = sexMap.get(geoId)
-      val medianIncome = medianHouseholdIncome.get(geoId)
-      val meanIncome = meanHouseholdIncome.get(geoId)
-      val householdSize = meanHouseholdIncome.get(geoId)
-      val usualHoursWorkedPerWeek = usualHoursWorkedPerWeekMap.get(geoId)
       println()
     }
     (null, null)

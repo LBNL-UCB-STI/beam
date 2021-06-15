@@ -50,8 +50,7 @@ class ParallelParkingManager(
   override val vehicleManagerId: Id[VehicleManager] = VehicleManager.privateVehicleManager.managerId
 
   private val workers: Vector[Worker] = clusters.zipWithIndex.map {
-    case (cluster, i) =>
-      createWorker(cluster, i.toString)
+    case (cluster, _) => createWorker(cluster)
   }
 
   private val emergencyWorker = createWorker(
@@ -61,14 +60,13 @@ class ParallelParkingManager(
       new PreparedGeometryFactory()
         .create(geometryFactory.createPoint(new Coordinate(Double.PositiveInfinity, Double.PositiveInfinity))),
       "emergencyCluster"
-    ),
-    "emergency-worker"
+    )
   )
 
   private val tazToWorker: Map[Id[_], Worker] =
   mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
-  private def createWorker(cluster: ParkingCluster, workerId: String): Worker = {
+  private def createWorker(cluster: ParkingCluster): Worker = {
     val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
     val actor = ZonalParkingManager
       .init(

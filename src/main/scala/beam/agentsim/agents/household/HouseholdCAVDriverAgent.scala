@@ -12,7 +12,6 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{Idle, ModifyPassengerSchedul
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamScenario, BeamServices, Geofence}
@@ -129,7 +128,6 @@ object HouseholdCAVDriverAgent {
     parkingManager: ActorRef,
     chargingNetworkManager: ActorRef,
     vehicle: BeamVehicle,
-    legs: Seq[BeamLeg],
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator
   ): Props = {

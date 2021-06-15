@@ -20,7 +20,7 @@ object LinkCoordinate {
     try {
       Some(func)
     } catch {
-      case e: NumberFormatException => None
+      case _: NumberFormatException => None
     }
   }
 

@@ -73,7 +73,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   var repositionPerTick: Double = vehicleAllowedToReposition.size.toDouble / numberOfRepos
   repositionPerTick = if (repositionPerTick < 1) 1 else repositionPerTick
   logger.info(s"""
-       |algorithm: ${algorithm}
+       |algorithm: $algorithm
        |vehicleAllowedToReposition: ${vehicleAllowedToReposition.size}
        |lastTickWithRepos: $lastTickWithRepos
        |step: $step
@@ -314,7 +314,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val percent = (if (nonRepositioningIdleVehicles.isEmpty) 0
                          else result.size.toDouble / nonRepositioningIdleVehicles.size) * 100
           logger.info(
-            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning ${percent} % of idle vehicle"
+            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning $percent % of idle vehicle"
           )
           logger.info(s"tick is $tick. Activities in [tick + 20*60, tick + 3600]: ${activitiesCoordinates.size}")
           showDistanceStats(result)
@@ -375,7 +375,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val percent = (if (nonRepositioningIdleVehicles.isEmpty) 0
                          else result.size.toDouble / nonRepositioningIdleVehicles.size) * 100
           logger.info(
-            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning ${percent} % of idle vehicle"
+            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning $percent % of idle vehicle"
           )
           logger.info(s"tick is $tick. Activities in [tick + 20*60, tick + 3600]: ${activitiesCoordinates.size}")
           showDistanceStats(result)
@@ -423,7 +423,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                   }
                 }
                 .toVector
-                .sortBy { case (vehLocation, distance) => -distance }
+                .sortBy { case (_, distance) => -distance }
                 .map(_._1)
                 .splitAt(2 * newNumVehiclesToReposition)
                 ._1
@@ -459,7 +459,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
                     (act, distance)
                   }
-                  .sortBy { case (act, distance) => -distance }
+                  .sortBy { case (_, distance) => -distance }
                   .map { _._1 }
                   .headOption
 

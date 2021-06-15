@@ -166,11 +166,11 @@ class PumaLevelScenarioGenerator(
           case Some(geom) =>
             // FIXME
             val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
-            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${powPumaGeoId}", x => logger.info(x)) {
+            ProfilingUtils.timed(s"Generate $nWorkingPlaces geo points in $powPumaGeoId", x => logger.info(x)) {
               pointsGenerator.generate(geom, nLocations)
             }
           case None =>
-            logger.warn(s"Can't find ${powPumaGeoId} in `powPumaGeoIdMap`")
+            logger.warn(s"Can't find $powPumaGeoId in `powPumaGeoIdMap`")
             Seq.empty
         }
         powPumaGeoId -> workingGeos
@@ -249,7 +249,6 @@ class PumaLevelScenarioGenerator(
 
                           val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
                           val margin = 1.3
-                          val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, utmWorkingLocation) * margin
                           val travelTime =
                             estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
                           val workStartTime = timeLeavingHomeSeconds + travelTime
@@ -355,7 +354,7 @@ class PumaLevelScenarioGenerator(
                   if (foundDests.isEmpty) {
                     logger
                       .info(
-                        s"Could not find work destination '${powPumaWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
+                        s"Could not find work destination '$powPumaWorkDest' in ${timeLeavingODPairs.mkString(" ")}"
                       )
                     PersonWithExtraInfoPuma(
                       person = person,

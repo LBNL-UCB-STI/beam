@@ -195,7 +195,7 @@ object PopulationAdjustment extends LazyLogging {
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
       case CAR_RIDE_HAIL_ONLY =>
-        new CarRideHailOnly(beamServices)
+        CarRideHailOnly(beamServices)
       case adjClass =>
         try {
           Class

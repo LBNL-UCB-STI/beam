@@ -9,7 +9,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
-import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerSchedule,
@@ -214,7 +214,6 @@ object HouseholdActor {
                 parkingManager,
                 chargingNetworkManager,
                 cav,
-                Seq(),
                 transportNetwork,
                 tollCalculator
               ),
@@ -228,7 +227,7 @@ object HouseholdActor {
           }
           household.members.foreach { person =>
             person.getSelectedPlan.getPlanElements.forEach {
-              case a: Activity =>
+              case _: Activity =>
               case l: Leg =>
                 if (l.getMode.equalsIgnoreCase("cav")) l.setMode("")
             }
@@ -343,11 +342,6 @@ object HouseholdActor {
         } else {
           // Index the responses by Id
           val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
-          routingResponses.foreach { resp =>
-            resp.itineraries.headOption.map { itin =>
-              val theLeg = itin.legs.head.beamLeg
-            }
-          }
           // Create a passenger schedule for each CAV in the plan
           cavPassengerSchedules = cavPlans.map { cavSchedule =>
             val theLegs = cavSchedule.schedule.flatMap { serviceRequest =>
@@ -441,8 +435,7 @@ object HouseholdActor {
                     beamVehicleTypeId = cav.beamVehicleType.id,
                     asDriver = false,
                     cost = 0D,
-                    unbecomeDriverOnCompletion = false,
-                    isPooledTrip = false
+                    unbecomeDriverOnCompletion = false
                 )
               )
             )
@@ -469,8 +462,6 @@ object HouseholdActor {
     }
 
     def completeInitialization(triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
-
-      val HasEnoughFuelToBeParked: Boolean = true
 
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.

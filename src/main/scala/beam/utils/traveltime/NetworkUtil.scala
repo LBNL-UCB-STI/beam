@@ -37,7 +37,7 @@ object NetworkUtil {
             link.getFromNode.getInLinks.asScala
         }
         links.foreach {
-          case (id, lnk) =>
+          case (_, lnk) =>
             if (!visited.contains(lnk)) {
               queue.enqueue(lnk)
               visited.add(lnk)

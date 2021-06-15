@@ -1407,8 +1407,7 @@ class RideHailManager(
       SpaceTime(rideHailAgentInitializer.initialLocation, 0),
       rideHailAgentInitializer.geofence,
       None,
-      None,
-      servingPooledTrip = false
+      None
     )
     // Put the agent out of service and let the agent tell us when it's Idle (aka ready for service)
     rideHailManagerHelper.putOutOfService(agentLocation)

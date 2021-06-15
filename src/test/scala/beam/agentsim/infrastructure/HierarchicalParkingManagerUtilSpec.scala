@@ -23,7 +23,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
   "HierarchicalParkingManager" when {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {
-        val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, linkTree, totalRows, failedRows) =
+        val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, _, _, _) =
           ParkingZoneFileUtils
             .fromIterator[Link](linkLevelData, vehicleManagerId = VehicleManager.privateVehicleManager.managerId)
         val linkToTazMapping: Map[Id[Link], Id[TAZ]] = HashMap(
@@ -32,7 +32,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           Id.createLinkId(83661) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ]),
         )
-        private val (tazZones, linkToTaz) =
+        private val (tazZones, _) =
           HierarchicalParkingManager.convertToTazParkingZones(linkZones.toArray, linkToTazMapping)
 
         println(tazZones.mkString("Array(", ", ", ")"))

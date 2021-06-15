@@ -1,11 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.infrastructure.charging._
-import beam.agentsim.infrastructure.taz.TAZ
-import scala.collection.Map
-
-import beam.router.BeamRouter.Location
-import org.matsim.api.core.v01.Coord
 
 object ParkingRanking {
 
@@ -28,6 +23,7 @@ object ParkingRanking {
     valueOfTime: Double,
     chargingInquiry: Option[ChargingInquiry[GEO]]
   ): Double = {
+    /*
     val parkingTicket: Double = parkingZone.pricingModel match {
       case None               => 0.0
       case Some(pricingModel) => PricingModel.evaluateParkingTicket(pricingModel, parkingDuration.toInt)
@@ -52,6 +48,7 @@ object ParkingRanking {
       }
     }
 
+*/
 //    utilityFunction.getUtilityOfAlternative(alternative.head._1, alternative.head._2).getOrElse(0)
 //
 //    parkingAlternative ->

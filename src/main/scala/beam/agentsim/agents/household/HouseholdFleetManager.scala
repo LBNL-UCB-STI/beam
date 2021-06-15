@@ -60,7 +60,6 @@ class HouseholdFleetManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
           (parkingManager ? ParkingInquiry(homeCoord, "init", triggerId = triggerId))

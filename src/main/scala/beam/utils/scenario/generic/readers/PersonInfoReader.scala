@@ -13,7 +13,7 @@ trait PersonInfoReader {
 object CsvPersonInfoReader extends PersonInfoReader {
   import GenericCsvReader._
   override def read(path: String): Array[PersonInfo] = {
-    val (it, toClose) = readAs[PersonInfo](path, toPersonInfo, x => true)
+    val (it, toClose) = readAs[PersonInfo](path, toPersonInfo, _ => true)
     try {
       it.toArray
     } finally {

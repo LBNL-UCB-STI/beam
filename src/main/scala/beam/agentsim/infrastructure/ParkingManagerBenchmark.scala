@@ -180,7 +180,7 @@ object ParkingManagerBenchmark extends StrictLogging {
             beamConfig,
             tazTreeMap.tazQuadTree,
             tazTreeMap.idToTAZMapping,
-            identity[TAZ](_),
+            identity[TAZ],
             zones,
             searchTree,
             geoUtils,
@@ -290,14 +290,6 @@ object ParkingManagerBenchmark extends StrictLogging {
         zonalResponses
           .flatMap(_.map(resp => List(resp.stall.geoId, resp.stall.locationUTM.getX, resp.stall.locationUTM.getY)))
       )
-  }
-
-  private def groupedByTaz(parkingResponses: Seq[ParkingInquiryResponse]): Map[Id[TAZ], Seq[ParkingInquiryResponse]] = {
-    parkingResponses
-      .groupBy { x =>
-        x.stall.tazId
-      }
-      .map { case (tazId, xs) => (tazId, xs) }
   }
 
   private def getNetworkBoundingBox(network: Network): Envelope = {

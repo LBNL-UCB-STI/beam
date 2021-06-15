@@ -216,11 +216,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             mode,
                             origin.coord,
                             newDestCoord,
-                            timeBin * 3600,
-                            dummyId,
                             vehicleType,
-                            fuelPrice,
-                            beamScenario
+                            fuelPrice
                           )
                       } else {
                         readOnlySkim
@@ -229,11 +226,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             mode,
                             origin.coord,
                             destination.coord,
-                            timeBin * 3600,
-                            dummyId,
                             vehicleType,
-                            fuelPrice,
-                            beamScenario
+                            fuelPrice
                           )
                       }
                     }
@@ -281,11 +275,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
               mode,
               origin.coord,
               adjustedDestCoord,
-              timeBin * 3600,
-              dummyId,
               beamScenario.vehicleTypes(dummyId),
-              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(dummyId).primaryFuelType),
-              beamScenario
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(dummyId).primaryFuelType)
             )
         }
     }
