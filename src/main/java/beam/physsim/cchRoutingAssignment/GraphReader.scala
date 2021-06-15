@@ -45,6 +45,10 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
       val numOfVertices = readInt()
       val numOfEdges = readInt()
 
+      (0 until numOfVertices).foreach(_ => readInt()) //outEdgesFirst
+
+      (0 until numOfEdges).foreach(_ => readInt()) //outEdgesEnd
+
       val numOfAttributes = readInt()
 
       val vertexId2Coordinate = mutable.HashMap[Long, Coordinate]()
