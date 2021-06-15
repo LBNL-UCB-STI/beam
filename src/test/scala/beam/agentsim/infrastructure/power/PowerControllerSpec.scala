@@ -88,7 +88,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   "PowerController when connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(zoneTree, None)),
+      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(None, zoneTree)),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = Some(beamFederateMock)
@@ -108,7 +108,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   "PowerController when not connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(zoneTree, None)),
+      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(None, zoneTree)),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = None

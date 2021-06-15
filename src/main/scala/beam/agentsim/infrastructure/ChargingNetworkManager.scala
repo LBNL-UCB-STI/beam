@@ -51,7 +51,7 @@ class ChargingNetworkManager(
   private val chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork] =
     chargingInfrastructure.chargingNetworks.map {
       case (vehicleManagerId, zones) =>
-        vehicleManagerId -> new ChargingNetwork(zones, vehicleManagerId)
+        vehicleManagerId -> new ChargingNetwork(vehicleManagerId, zones)
     }
 
   private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)

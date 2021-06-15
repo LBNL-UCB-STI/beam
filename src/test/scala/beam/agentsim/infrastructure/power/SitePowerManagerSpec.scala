@@ -140,7 +140,7 @@ class SitePowerManagerSpec
 
     val dummyStation = ChargingStation(dummyChargingZone)
     zoneTree.put(tazMap.getTAZs.head.coord.getX, tazMap.getTAZs.head.coord.getY, dummyChargingZone)
-    val dummyNetwork = new ChargingNetwork(zoneTree, None)
+    val dummyNetwork = new ChargingNetwork(None, zoneTree)
     val trieMap = Map[Option[Id[VehicleManager]], ChargingNetwork](None -> dummyNetwork)
     val sitePowerManager = new SitePowerManager(trieMap, beamServices)
 

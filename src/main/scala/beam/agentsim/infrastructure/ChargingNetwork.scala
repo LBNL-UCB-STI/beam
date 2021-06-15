@@ -18,7 +18,7 @@ import scala.collection.mutable.ListBuffer
   * Created by haitamlaarabi
   */
 
-class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleManager: Option[Id[VehicleManager]])
+class ChargingNetwork(vehicleManager: Option[Id[VehicleManager]], chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
   import ChargingNetwork._
 
@@ -62,12 +62,6 @@ class ChargingNetwork(chargingStationsQTree: QuadTree[ChargingZone], vehicleMana
     * @return charging vehicle
     */
   def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
-
-  /**
-    * get name of the vehicle manager
-    * @return VehicleManager
-    */
-  //def vehicleManagerId: Id[VehicleManager] = managerId
 
   /**
     * clear charging vehicle map
