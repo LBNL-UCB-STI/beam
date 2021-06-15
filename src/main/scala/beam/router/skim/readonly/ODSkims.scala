@@ -62,7 +62,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       travelDistance,
       travelCost,
       0,
-      0.0, // TODO get default energy information
+      0.0 // TODO get default energy information
     )
   }
 
@@ -250,7 +250,8 @@ object ODSkims extends BeamHelper {
   def main(args: Array[String]): Unit = {
     val (_, config) = prepareConfig(args, true)
     val (
-      _, _,
+      _,
+      _,
       beamScenario: BeamScenario,
       services: BeamServices
     ) = prepareBeamService(config, None)

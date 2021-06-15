@@ -180,7 +180,7 @@ object ParkingManagerBenchmark extends StrictLogging {
             beamConfig,
             tazTreeMap.tazQuadTree,
             tazTreeMap.idToTAZMapping,
-            identity[TAZ],
+            identity[TAZ](_),
             zones,
             searchTree,
             geoUtils,

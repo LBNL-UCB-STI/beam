@@ -48,7 +48,7 @@ object ParkingRanking {
       }
     }
 
-*/
+     */
 //    utilityFunction.getUtilityOfAlternative(alternative.head._1, alternative.head._2).getOrElse(0)
 //
 //    parkingAlternative ->

@@ -20,9 +20,7 @@ object CTPPParser extends LazyLogging {
     }
   }
 
-  def main(args: Array[String]): Unit = {
-
-  }
+  def main(args: Array[String]): Unit = {}
   private[ctpp] def toCTTPEntry(rec: java.util.Map[String, String]): Option[CTPPEntry] = {
     val geoId = GenericCsvReader.getIfNotNull(rec, "GEOID")
     val tblId = GenericCsvReader.getIfNotNull(rec, "TBLID")

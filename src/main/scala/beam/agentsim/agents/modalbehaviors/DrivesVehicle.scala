@@ -224,9 +224,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   def updateLatestObservedTick(newTick: Int): Unit = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
-    case _ @ Event(
-          TriggerWithId(EndLegTrigger(tick), triggerId),
-          LiterallyDrivingData(data, legEndingAt, _)
+    case _ @Event(
+        TriggerWithId(EndLegTrigger(tick), triggerId),
+        LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
       updateLatestObservedTick(tick)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
@@ -540,7 +540,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(TriggerWithId(StartRefuelSessionTrigger(_), triggerId), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay replying CompletionNotice(triggerId)
-    case _ @ Event(LastLegPassengerSchedule(triggerId), data) =>
+    case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
       self ! PassengerScheduleEmptyMessage(
         geo.wgs2Utm(
           data.passengerSchedule.schedule
@@ -581,7 +581,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
   when(WaitingToDrive) {
-    case _ @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
+    case _ @Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updateLatestObservedTick(tick)
       log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
@@ -687,7 +687,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
       stay
-    case _ @ Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
+    case _ @Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
       stash()
       stay
 
