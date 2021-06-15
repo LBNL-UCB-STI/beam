@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingZone
 import beam.agentsim.infrastructure.parking.ParkingNetwork
 import beam.agentsim.infrastructure.taz.TAZ
@@ -12,8 +12,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.mutable
-
 case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelopeInUTM: Envelope) {
   import ParkingAndChargingInfrastructure._
   import beamServices._
@@ -23,20 +21,20 @@ case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelope
     beamServices.beamCustomizationAPI.getRideHailDepotParkingManager(beamServices, envelopeInUTM)
 
   // ALL OTHERS
-  private val mainParkingFile: String = beamConfig.beam.agentsim.taz.parkingFilePath
+  private val mainParkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
   // ADD HERE ALL PARKING FILES THAT BELONGS TO VEHICLE MANAGERS
-  private val vehicleManagersParkingFiles: IndexedSeq[String] = {
-    val sharedFleetsParkingFiles =
+  private val vehicleManagersParkingFilePaths: IndexedSeq[String] = {
+    val sharedFleetsParkingFilePaths =
       beamConfig.beam.agentsim.agents.vehicles.sharedFleets.map(Fleets.lookup).map(_.parkingFilePath)
-    val freightParkingFile = beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath.toList
-    (sharedFleetsParkingFiles ++ freightParkingFile).toIndexedSeq
+    val freightParkingFilePath = beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath.toList
+    (sharedFleetsParkingFilePaths ++ freightParkingFilePath).toIndexedSeq
   }
 
-  lazy val parkingNetworks: ParkingNetwork[_] =
-    buildParkingNetwork(beamServices, envelopeInUTM, mainParkingFile, vehicleManagersParkingFiles)
+  lazy val parkingNetwork: ParkingNetwork[_] =
+    buildParkingNetwork(beamServices, envelopeInUTM, mainParkingFilePath, vehicleManagersParkingFilePaths)
 
-  lazy val chargingNetworks: Map[Option[Id[VehicleManager]], QuadTree[ChargingZone]] =
-    buildingChargingNetwork(beamServices, envelopeInUTM, parkingNetworks)
+  lazy val chargingNetwork: Map[Option[Id[VehicleManager]], QuadTree[ChargingZone]] =
+    buildingChargingNetwork(beamServices, envelopeInUTM, parkingNetwork)
 
 }
 
@@ -44,8 +42,8 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
   private def buildParkingNetwork(
     beamServices: BeamServices,
     envelopeInUTM: Envelope,
-    mainParkingFile: String,
-    vehicleManagersParkingFiles: IndexedSeq[String]
+    mainParkingFilePath: String,
+    vehicleManagersParkingFilePaths: IndexedSeq[String]
   ): ParkingNetwork[_] = {
     import beamServices._
     logger.info(s"Starting parking manager: ${beamConfig.beam.agentsim.taz.parkingManager.name}")
@@ -62,8 +60,8 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
               geo,
               beamRouter,
               envelopeInUTM,
-              mainParkingFile,
-              vehicleManagersParkingFiles
+              mainParkingFilePath,
+              vehicleManagersParkingFilePaths
             )
           case "link" =>
             ZonalParkingManager.init(
@@ -74,8 +72,8 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
               geo,
               beamRouter,
               envelopeInUTM,
-              mainParkingFile,
-              vehicleManagersParkingFiles
+              mainParkingFilePath,
+              vehicleManagersParkingFilePaths
             )
           case _ =>
             throw new IllegalArgumentException(
@@ -91,8 +89,8 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
             beamScenario.linkToTAZMapping,
             geo,
             envelopeInUTM,
-            mainParkingFile,
-            vehicleManagersParkingFiles
+            mainParkingFilePath,
+            vehicleManagersParkingFilePaths
           )
       case "PARALLEL" =>
         ParallelParkingManager.init(
@@ -100,10 +98,10 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
           beamScenario.tazTreeMap,
           geo,
           envelopeInUTM,
-          mainParkingFile,
-          vehicleManagersParkingFiles
+          mainParkingFilePath,
+          vehicleManagersParkingFilePaths
         )
-      case unknown @ _ => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
+      case unknown => throw new IllegalArgumentException(s"Unknown parking manager type: $unknown")
     }
   }
 
@@ -115,12 +113,12 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
   private def buildingChargingNetwork(
     beamServices: BeamServices,
     envelopeInUTM: Envelope,
-    parkingNetworks: ParkingNetwork[_]
+    parkingNetwork: ParkingNetwork[_]
   ) = {
     import beamServices._
 
     import scala.language.existentials
-    val zones = parkingNetworks.getParkingZones()
+    val zones = parkingNetwork.getParkingZones()
     val zonesWithCharger =
       zones.filter(_.chargingPointType.isDefined).map { z =>
         val geoLevel = beamConfig.beam.agentsim.taz.parkingManager.level

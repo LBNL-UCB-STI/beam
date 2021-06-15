@@ -43,7 +43,7 @@ object PayloadPlansConverter {
       .mapValues(_.head)
   }
 
-  private def distributeInTaz(location: Coord, tazTree: TAZTreeMap, rnd: Random): Coord = {
+  private def getDistributedTazLocation(location: Coord, tazTree: TAZTreeMap, rnd: Random): Coord = {
     val taz = tazTree.getTAZ(location)
     if (taz == null) {
       location
@@ -64,7 +64,11 @@ object PayloadPlansConverter {
           row.get("payloadType").createId[PayloadType],
           row.get("weightInKg").toDouble,
           FreightRequestType.withNameInsensitive(row.get("requestType")),
-          distributeInTaz(new Coord(row.get("locationX").toDouble, row.get("locationY").toDouble), tazTree, rnd),
+          getDistributedTazLocation(
+            new Coord(row.get("locationX").toDouble, row.get("locationY").toDouble),
+            tazTree,
+            rnd
+          ),
           row.get("estimatedTimeOfArrivalInSec").toInt,
           row.get("arrivalTimeWindowInSec").toInt,
           row.get("operationDurationInSec").toInt
@@ -118,7 +122,7 @@ object PayloadPlansConverter {
     }
 
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
-      val depotLocation: Coord = distributeInTaz(carrierRows.head.depotLocation, tazTree, rnd)
+      val depotLocation: Coord = getDistributedTazLocation(carrierRows.head.depotLocation, tazTree, rnd)
       val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, depotLocation)
       val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
 
@@ -128,14 +132,8 @@ object PayloadPlansConverter {
           rows
             .map(
               row =>
-                tours
-                  .getOrElse(
-                    row.tourId,
-                    throw new IllegalArgumentException(
-                      s"Tour with id ${row.tourId} does not exist; check freight-tours.csv"
-                    )
-                  )
-                  //setting the tour warehouse location to be the carrier depot location
+                tours(row.tourId)
+                //setting the tour warehouse location to be the carrier depot location
                   .copy(warehouseLocation = depotLocation)
             )
             .sortBy(_.departureTimeInSec)

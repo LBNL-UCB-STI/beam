@@ -49,7 +49,7 @@ class ChargingNetworkManager(
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
   private val chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork] =
-    chargingInfrastructure.chargingNetworks.map {
+    chargingInfrastructure.chargingNetwork.map {
       case (vehicleManagerId, zones) =>
         vehicleManagerId -> new ChargingNetwork(vehicleManagerId, zones)
     }
