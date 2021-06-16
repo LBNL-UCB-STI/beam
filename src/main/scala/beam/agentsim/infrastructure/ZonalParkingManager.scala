@@ -153,14 +153,14 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult[GEO] = {
     // a lookup for valid parking types based on this inquiry
-    val preferredParkingTypes: Set[ParkingType] =
+    val preferredParkingTypes: Seq[ParkingType] =
       inquiry.activityTypeLowerCased match {
-        case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
-        case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
+        case act if act.equalsIgnoreCase("home") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("init") => Seq(ParkingType.Residential, ParkingType.Public)
+        case act if act.equalsIgnoreCase("work") => Seq(ParkingType.Workplace, ParkingType.Public)
         case act if act.equalsIgnoreCase("fast-charge") =>
-          Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _ => Set(ParkingType.Public)
+          Seq(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case _ => Seq(ParkingType.Public)
       }
 
     // allow charger ParkingZones
@@ -206,7 +206,8 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         zoneSearchTree,
         parkingZones,
         geoQuadTree,
-        rand
+        rand,
+        preferredParkingTypes,
       )
 
     // filters out ParkingZones which do not apply to this agent

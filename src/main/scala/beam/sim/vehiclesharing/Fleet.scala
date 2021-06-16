@@ -71,8 +71,8 @@ case class FixedNonReservingFleetByTAZ(
     }
 
     val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
-      Id.create("sharedVehicle-" + config.vehicleTypeId, classOf[BeamVehicleType]),
-      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
+      Id.create(s"sharedVehicle-${config.vehicleTypeId}", classOf[BeamVehicleType]),
+      throw new RuntimeException("Vehicle type id not found: " + s"sharedVehicle-${config.vehicleTypeId}")
     )
     Props(
       new FixedNonReservingFleetManager(

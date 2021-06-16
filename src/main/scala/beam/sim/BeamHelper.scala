@@ -37,7 +37,7 @@ import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
-import beam.utils.scenario.{BeamScenarioLoader, InputType, UrbanSimScenarioLoader}
+import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
 import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -525,14 +525,16 @@ trait BeamHelper extends LazyLogging {
       beamExecutionConfig: BeamExecutionConfig,
       scenario: MutableScenario,
       beamScenario: BeamScenario,
-      services: BeamServices
+      services: BeamServices,
+      plansMerged: Boolean,
     ) = prepareBeamService(config, abstractModule)
 
     runBeam(
       services,
       scenario,
       beamScenario,
-      beamExecutionConfig.outputDirectory
+      beamExecutionConfig.outputDirectory,
+      plansMerged,
     )
     (scenario.getConfig, beamExecutionConfig.outputDirectory, services)
   }
@@ -540,9 +542,9 @@ trait BeamHelper extends LazyLogging {
   def prepareBeamService(
     config: TypesafeConfig,
     abstractModule: Option[AbstractModule]
-  ): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices) = {
+  ): (BeamExecutionConfig, MutableScenario, BeamScenario, BeamServices, Boolean) = {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
-    val (scenario, beamScenario) = buildBeamServicesAndScenario(
+    val (scenario, beamScenario, plansMerged) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig,
     )
@@ -579,7 +581,7 @@ trait BeamHelper extends LazyLogging {
       buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario, abstractModule)
 
     val services = injector.getInstance(classOf[BeamServices])
-    (beamExecutionConfig, scenario, beamScenario, services)
+    (beamExecutionConfig, scenario, beamScenario, services, plansMerged)
   }
 
   def fixDanglingPersons(result: MutableScenario): Unit = {
@@ -637,13 +639,16 @@ trait BeamHelper extends LazyLogging {
     beamServices: BeamServices,
     scenario: MutableScenario,
     beamScenario: BeamScenario,
-    outputDir: String
+    outputDir: String,
+    plansMerged: Boolean,
   ): Unit = {
     if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0D)) {
       applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
 
-    PopulationScaling.samplePopulation(scenario, beamScenario, beamServices.beamConfig, beamServices, outputDir)
+    if (!plansMerged) {
+      PopulationScaling.samplePopulation(scenario, beamScenario, beamServices.beamConfig, beamServices, outputDir)
+    }
 
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
@@ -720,7 +725,7 @@ trait BeamHelper extends LazyLogging {
   protected def buildBeamServicesAndScenario(
     beamConfig: BeamConfig,
     matsimConfig: MatsimConfig
-  ): (MutableScenario, BeamScenario) = {
+  ): (MutableScenario, BeamScenario, Boolean) = {
     val scenarioConfig = beamConfig.beam.exchange.scenario
 
     val src = scenarioConfig.source.toLowerCase
@@ -732,7 +737,8 @@ trait BeamHelper extends LazyLogging {
       if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
         val beamScenario = loadScenario(beamConfig)
         val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
-        val scenario = {
+        val geoUtils = new GeoUtilsImpl(beamConfig)
+        val (scenario, plansMerged) = {
           val source = src match {
             case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
             case "urbansim_v2" => {
@@ -764,8 +770,19 @@ trait BeamHelper extends LazyLogging {
               )
             }
           }
-          val scenario =
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
+          val merger = new PreviousRunPlanMerger(
+            beamConfig.beam.agentsim.agents.plans.merge.fraction,
+            Paths.get(beamConfig.beam.input.lastBaseOutputDir),
+            beamConfig.beam.input.simulationPrefix,
+            new Random(),
+            planElement =>
+              planElement.activityEndTime
+                .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
+                .getOrElse(planElement)
+          )
+          val (scenario, plansMerged) =
+            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig), Some(merger))
+              .loadScenario()
           if (src == "urbansim_v2") {
             new ScenarioAdjuster(
               beamConfig.beam.urbansim,
@@ -773,10 +790,9 @@ trait BeamHelper extends LazyLogging {
               beamConfig.matsim.modules.global.randomSeed
             ).adjust()
           }
-          scenario
-        }.asInstanceOf[MutableScenario]
-
-        (scenario, beamScenario)
+          (scenario.asInstanceOf[MutableScenario], plansMerged)
+        }
+        (scenario, beamScenario, plansMerged)
       } else if (src == "beam") {
         fileFormat match {
           case "csv" =>
@@ -789,7 +805,7 @@ trait BeamHelper extends LazyLogging {
               val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
               new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
             }.asInstanceOf[MutableScenario]
-            (scenario, beamScenario)
+            (scenario, beamScenario, false)
           case "xml" =>
             val beamScenario = loadScenario(beamConfig)
             val scenario = {
@@ -797,7 +813,7 @@ trait BeamHelper extends LazyLogging {
               fixDanglingPersons(result)
               result
             }
-            (scenario, beamScenario)
+            (scenario, beamScenario, false)
           case unknown =>
             throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")
         }

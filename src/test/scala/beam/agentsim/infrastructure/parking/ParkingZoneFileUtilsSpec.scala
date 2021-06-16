@@ -2,7 +2,9 @@ package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.vehicles.VehicleCategory.{Car, LightDutyTruck, MediumDutyPassenger}
 import beam.agentsim.agents.vehicles.VehicleCategory
+import beam.agentsim.infrastructure.HierarchicalParkingManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingType.{Public, Residential, Workplace}
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.TAZ
@@ -168,6 +170,27 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
           ParkingZoneFileUtils.fromFile[Link]("test/input/sf-light/link-parking.csv.gz", new Random(42), 0.13)
         val tree: ZoneSearchTree[Link] = ParkingZoneFileUtils.createZoneSearchTree(zones)
         tree should equal(lookupTree)
+      }
+    }
+
+    "creates a zone search tree" should {
+      "produce the right result" in {
+        val (parkingZones, _) =
+          ParkingZoneFileUtils
+            .fromFile[TAZ](
+              "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+              new Random(777934L),
+            )
+        parkingZones should have length 3648
+        val collapsed = HierarchicalParkingManager.collapse(parkingZones)
+        val collapsedZones205 = collapsed.filter(_.geoId.toString == "205")
+        collapsedZones205 should have length 11
+        val zoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(collapsed)
+        val subTree = zoneSearchTree(Id.create("205", classOf[TAZ]))
+        subTree.values.map(_.length).sum should be(11)
+        subTree(Public) should have length 4
+        subTree(Workplace) should have length 3
+        subTree(Residential) should have length 4
       }
     }
 

@@ -429,7 +429,7 @@ object HierarchicalParkingManager {
     * @param parkingZones the parking zones
     * @return collapsed parking zones
     */
-  def collapse(parkingZones: Array[ParkingZone[Link]]): Array[ParkingZone[Link]] =
+  def collapse[GEO](parkingZones: Array[ParkingZone[GEO]]): Array[ParkingZone[GEO]] =
     parkingZones
       .groupBy(_.geoId)
       .flatMap {
@@ -443,7 +443,7 @@ object HierarchicalParkingManager {
       .map {
         case ((linkId, description, maxStalls), id) =>
           val numStalls = Math.min(maxStalls, Int.MaxValue).toInt
-          new ParkingZone[Link](
+          new ParkingZone[GEO](
             parkingZoneId = id,
             geoId = linkId,
             parkingType = description.parkingType,

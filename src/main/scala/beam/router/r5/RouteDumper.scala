@@ -21,6 +21,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 
+import java.util.Objects
 import scala.reflect.ClassTag
 
 class RouteDumper(beamServices: BeamServices)
@@ -500,10 +501,10 @@ object RouteDumper {
         nullType.and().floatType().endUnion()
       case ClassTag.Double =>
         nullType.and().doubleType().endUnion()
-      case x if x == classTag[String] =>
+      case x if Objects.equals(x, classTag[String]) =>
         nullType.and().stringType().endUnion()
       case x =>
-        throw new IllegalStateException(s"Don't know what to do with ${x}")
+        throw new IllegalStateException(s"Don't know what to do with $x")
     }
   }
 }
