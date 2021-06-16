@@ -130,12 +130,13 @@ object ChargingNetwork {
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
     def numAvailableChargers: Int = zone.numChargers - connectedVehiclesInternal.size
-    def connectedVehicles: collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehiclesInternal
+    def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] = connectedVehiclesInternal.toMap
 
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
 
-    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehicles ++ waitingLineVehicles
+    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
+      waitingLineVehicles ++ connectedVehiclesInternal
 
     def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
       connectedVehiclesInternal.get(vehicleId).orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
@@ -151,7 +152,7 @@ object ChargingNetwork {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       theSender: ActorRef
-    ): ChargingVehicle = {
+    ): ChargingVehicle = this.synchronized {
       if (numAvailableChargers > 0) {
         val chargingVehicle = ChargingVehicle(vehicle, stall, this, tick, tick, theSender, ListBuffer(Connected))
         connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
@@ -168,7 +169,7 @@ object ChargingNetwork {
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
-    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = {
+    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = this.synchronized {
       connectedVehiclesInternal.remove(vehicleId).map { v =>
         v.updateStatus(Disconnected)
         v
@@ -179,7 +180,7 @@ object ChargingNetwork {
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
-    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = {
+    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
         val v = waitingLineInternal.dequeue().copy(sessionStartTime = tick)
         v.updateStatus(Connected)

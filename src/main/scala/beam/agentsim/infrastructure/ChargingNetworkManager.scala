@@ -174,8 +174,8 @@ class ChargingNetworkManager(
               station.zone.numChargers,
               station.waitingLineVehicles.size
             )
-            log.debug(s"connected vehicles: ${station.connectedVehicles.keys.mkString(",")}")
-            log.debug(s"waiting vehicles: ${station.waitingLineVehicles.keys.mkString(",")}")
+            log.debug(s"connected vehicles: {}", station.connectedVehicles.keys.mkString(","))
+            log.debug(s"waiting vehicles: {}", station.waitingLineVehicles.keys.mkString(","))
             sender ! WaitingInLine(tick, vehicle.id, triggerId)
           case Some(chargingVehicle: ChargingVehicle) =>
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
