@@ -58,7 +58,6 @@ object RideHailAgent {
     rideHailAgentId: Id[RideHailAgent],
     rideHailManager: ActorRef,
     vehicle: BeamVehicle,
-    location: Coord,
     shifts: Option[List[Shift]],
     geofence: Option[Geofence]
   ): Props =
@@ -68,7 +67,6 @@ object RideHailAgent {
         rideHailManager,
         scheduler,
         vehicle,
-        location,
         shifts,
         geofence,
         eventsManager,
@@ -192,7 +190,6 @@ class RideHailAgent(
   rideHailManager: ActorRef,
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
-  initialLocation: Coord,
   val shifts: Option[List[Shift]],
   val geofence: Option[Geofence],
   val eventsManager: EventsManager,
@@ -261,7 +258,7 @@ class RideHailAgent(
         ev
       )
       sender() ! CompletionNotice(triggerId)
-      if (beamLegsToIgnoreDueToNewPassengerSchedule.find(_.endTime == tick).isEmpty) {
+      if (!beamLegsToIgnoreDueToNewPassengerSchedule.exists(_.endTime == tick)) {
         log.debug(s"Received unrecognized EndLegTrigger $ev while in state $stateName")
       }
       stay
@@ -355,9 +352,9 @@ class RideHailAgent(
         new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_tnc_driver")
       )
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-      val isTimeForShift = shifts.isEmpty || shifts.get
-        .find(shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick)
-        .isDefined
+      val isTimeForShift = shifts.isEmpty || shifts.get.exists(
+        shift => shift.range.lowerBound <= tick && shift.range.upperBound >= tick
+      )
       if (isTimeForShift) {
         eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
         rideHailManager ! NotifyVehicleIdle(
@@ -440,19 +437,18 @@ class RideHailAgent(
           tick
         )
       }
-      val newShiftToSchedule = needsToEndShift match {
-        case true =>
-          eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
-          isCurrentlyOnShift = false
-          needsToEndShift = false
-          if (data.remainingShifts.size < 1) {
-            Vector()
-          } else {
-            val tickToSchedule = Math.min(data.remainingShifts.head.range.lowerBound, lastTickOfSimulation)
-            Vector(ScheduleTrigger(StartShiftTrigger(Math.max(tickToSchedule, tick)), self))
-          }
-        case false =>
+      val newShiftToSchedule = if (needsToEndShift) {
+        eventsManager.processEvent(new ShiftEvent(tick, EndShift, id.toString, vehicle))
+        isCurrentlyOnShift = false
+        needsToEndShift = false
+        if (data.remainingShifts.size < 1) {
           Vector()
+        } else {
+          val tickToSchedule = Math.min(data.remainingShifts.head.range.lowerBound, lastTickOfSimulation)
+          Vector(ScheduleTrigger(StartShiftTrigger(Math.max(tickToSchedule, tick)), self))
+        }
+      } else {
+        Vector()
       }
       if (debugEnabled) outgoingMessages += ev
       if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
@@ -1010,7 +1006,7 @@ class RideHailAgent(
 //    }
     log.debug(
       "scheduling EndRefuelSessionTrigger at {} with {} J to be delivered, triggerId: {}",
-      tick + sessionDuration.toInt,
+      tick + sessionDuration,
       energyDelivered,
       triggerId
     )
@@ -1018,13 +1014,13 @@ class RideHailAgent(
       outgoingMessages += CompletionNotice(
         triggerId,
         Vector(
-          ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered, vehicle), self)
+          ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration, tick, energyDelivered, vehicle), self)
         )
       )
     scheduler ! CompletionNotice(
       triggerId,
       Vector(
-        ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration.toInt, tick, energyDelivered, vehicle), self)
+        ScheduleTrigger(EndRefuelSessionTrigger(tick + sessionDuration, tick, energyDelivered, vehicle), self)
       )
     )
   }
@@ -1121,16 +1117,15 @@ class RideHailAgent(
           // Only tell RHM I am Idle if I don't need to end my shift,
           // otherwise reschedule EndShiftTrigger for now to initiate
           if (debugEnabled) outgoingMessages += "TransitionToIdle"
-          needsToEndShift match {
-            case true =>
-              val (tick, triggerId) = releaseTickAndTriggerId()
-              if (debugEnabled)
-                outgoingMessages += CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick), self)))
-              scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick), self)))
-              needsToEndShift = false
-            case false =>
-              if (debugEnabled) outgoingMessages += nextIdle
-              vehicle.getManager.get ! nextIdle
+          if (needsToEndShift) {
+            val (tick, triggerId) = releaseTickAndTriggerId()
+            if (debugEnabled)
+              outgoingMessages += CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick), self)))
+            scheduler ! CompletionNotice(triggerId, Vector(ScheduleTrigger(EndShiftTrigger(tick), self)))
+            needsToEndShift = false
+          } else {
+            if (debugEnabled) outgoingMessages += nextIdle
+            vehicle.getManager.get ! nextIdle
           }
         case None =>
       }

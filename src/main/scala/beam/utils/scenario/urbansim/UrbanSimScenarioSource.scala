@@ -156,11 +156,11 @@ class UrbanSimScenarioSource(
     val correctPlanElements = rawPlans
       .groupBy(x => x.personId)
       .filter {
-        case (k, v) =>
+        case (_, v) =>
           val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
           !isCorrupted
       }
-      .flatMap { case (k, v) => v.sortBy(x => x.planElementIndex) }
+      .flatMap { case (_, v) => v.sortBy(x => x.planElementIndex) }
       .toArray
     correctPlanElements
   }

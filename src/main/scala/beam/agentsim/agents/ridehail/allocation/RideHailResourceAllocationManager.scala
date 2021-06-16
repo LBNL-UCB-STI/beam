@@ -158,7 +158,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     // closest request
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
-      case (request, routingResponses) if (routingResponses.isEmpty) =>
+      case (request, routingResponses) if routingResponses.isEmpty =>
         val requestWithUpdatedLoc = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
         rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
@@ -354,12 +354,12 @@ case class VehicleMatchedToCustomers(
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 
 object AllocationRequests {
-  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map((_ -> List())).toMap)
+  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map(_ -> List()).toMap)
 
-  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map((request -> List())))
+  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map(request -> List()))
 
   def apply(request: RideHailRequest, routeResponses: List[RoutingResponse]): AllocationRequests =
-    AllocationRequests(Map((request -> routeResponses)))
+    AllocationRequests(Map(request -> routeResponses))
 }
 
 sealed trait DispatchProductType extends EnumEntry

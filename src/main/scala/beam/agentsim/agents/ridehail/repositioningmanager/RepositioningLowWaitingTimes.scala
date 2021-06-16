@@ -83,8 +83,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
           maxNumberOfVehiclesToReposition,
           tick,
           timeWindowSizeInSecForDecidingAboutRepositioning,
-          minimumNumberOfIdlingVehiclesThresholdForRepositioning,
-          rideHailManager.beamServices
+          minimumNumberOfIdlingVehiclesThresholdForRepositioning
         )
 
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(

@@ -111,8 +111,8 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
 
   def getMobileChargedVehiclesForProcessing(time: Int): mutable.Set[Id[BeamVehicle]] = {
     val result = mutable.Set[Id[BeamVehicle]]()
-    while (!mobileVehicleChargingTimes.isEmpty && time > mobileVehicleChargingTimes.head._1) {
-      val (endChargingTime, vehicleId) = mobileVehicleChargingTimes.dequeue()
+    while (mobileVehicleChargingTimes.nonEmpty && time > mobileVehicleChargingTimes.head._1) {
+      val (_, vehicleId) = mobileVehicleChargingTimes.dequeue()
       vehicleOutOfCharge.remove(vehicleId)
       result.add(vehicleId)
     }

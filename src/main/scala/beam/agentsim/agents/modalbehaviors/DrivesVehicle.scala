@@ -571,7 +571,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             beamConfig.beam.router.skim.transit_crowding_skimmer,
             pte.vehicleId,
             fromStopIdx,
-            toStopIdx,
             pte.numberOfPassengers,
             pte.capacity,
           )

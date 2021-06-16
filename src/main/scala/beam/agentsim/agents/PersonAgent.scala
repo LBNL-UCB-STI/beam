@@ -1167,59 +1167,9 @@ class PersonAgent(
         logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
       }
       stop
-    case Event(
-        TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
-        ChoosesModeData(
-          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-        )
-        ) =>
+    case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: ChoosesModeData) =>
       handleBoardOrAlightOutOfPlace
-    case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
-        ChoosesModeData(
-          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-        )
-        ) =>
+    case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: ChoosesModeData) =>
       handleBoardOrAlightOutOfPlace
     case Event(
         TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
@@ -1227,19 +1177,13 @@ class PersonAgent(
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
-    case Event(
-        TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
-        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
-        ) =>
+    case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: BasePersonData) =>
       handleBoardOrAlightOutOfPlace
-    case Event(
-        TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
-        BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
-        ) =>
+    case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: BasePersonData) =>
       handleBoardOrAlightOutOfPlace
-    case Event(NotifyVehicleIdle(_, _, _, _, _, _), _) =>
+    case Event(_: NotifyVehicleIdle, _) =>
       stay()
-    case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
+    case Event(TriggerWithId(_: RideHailResponseTrigger, triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(
         TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),

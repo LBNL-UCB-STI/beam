@@ -258,41 +258,6 @@ class PersonAndTransitDriverSpec
         )
       )
 
-      val busDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
-          vehicle = bus,
-          Array(busLeg.beamLeg, busLeg2.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-      val tramDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
-          vehicle = tram,
-          Array(tramLeg.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-
       val busDriver = Await.result(
         system
           .actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(busId))

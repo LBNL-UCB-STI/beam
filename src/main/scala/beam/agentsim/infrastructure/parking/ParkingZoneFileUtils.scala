@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.{VehicleManager, VehicleManagerType}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.utils.FileUtils
@@ -352,7 +352,7 @@ object ParkingZoneFileUtils extends LazyLogging {
           feeInCentsString,
           parkingZoneNameString,
           landCostInUSDPerSqftString,
-          reservedForString,
+          _,
           ) =>
         Try {
           val newCostInDollarsString = (feeInCentsString.toDouble * parkingCostScalingFactor / 100.0).toString

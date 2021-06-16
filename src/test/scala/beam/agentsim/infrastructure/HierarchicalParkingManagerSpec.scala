@@ -6,7 +6,6 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
@@ -216,7 +215,7 @@ class HierarchicalParkingManagerSpec
         val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
-          case Some(res @ ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
+          case Some(ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
               if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
           case _                                                                                             => assert(response2.isDefined, "no response")
         }

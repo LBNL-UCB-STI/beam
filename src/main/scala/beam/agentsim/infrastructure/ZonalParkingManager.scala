@@ -379,8 +379,8 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
     // run ParkingZoneSearch for a ParkingStall
     ///////////////////////////////////////////
     val result @ ParkingZoneSearch.ParkingZoneSearchResult(
-      parkingStall,
-      parkingZone,
+      _,
+      _,
       parkingZonesSeen,
       parkingZonesSampled,
       iterations

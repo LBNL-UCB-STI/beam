@@ -77,7 +77,6 @@ class TransitSystem(
       beamScenario.beamConfig,
       geo,
       beamScenario.dates,
-      beamScenario.vehicleTypes,
       beamScenario.transportNetwork,
       oneSecondTravelTime
     ).initMap
