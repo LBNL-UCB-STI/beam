@@ -83,7 +83,6 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
               .fromFile[TAZ](
                 "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
                 new Random(777934L),
-                vehicleManagerId = Id.create("default", classOf[VehicleManager])
               )
           parkingZones should have length 3648
           val zones205 = parkingZones.filter(_.geoId.toString == "205")
@@ -102,7 +101,6 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
             .fromFile[TAZ](
               "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
               new Random(777934L),
-              vehicleManagerId = Id.create("default", classOf[VehicleManager])
             )
         parkingZones should have length 3648
         val zones205 = parkingZones.filter(_.geoId.toString == "205")

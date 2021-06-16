@@ -733,94 +733,101 @@ trait BeamHelper extends LazyLogging {
     val fileFormat = scenarioConfig.fileFormat
 
     val geoUtils = new GeoUtilsImpl(beamConfig)
-    val (scenario, beamScenario) = ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
-      if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
-        val beamScenario = loadScenario(beamConfig)
-        val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
-        val geoUtils = new GeoUtilsImpl(beamConfig)
-        val (scenario, plansMerged) = {
-          val source = src match {
-            case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
-            case "urbansim_v2" => {
-              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-              val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv.gz"
-              val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
-              new UrbansimReaderV2(
-                inputPersonPath = pathToPersonFile,
-                inputPlanPath = pathToPlans,
-                inputHouseholdPath = pathToHouseholds,
-                inputTripsPath = pathToTrips,
-                inputBlockPath = pathToBlocks,
-                geoUtils,
-                shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
-              )
+    val (scenario, beamScenario, plansMerged) =
+      ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
+        if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
+          val beamScenario = loadScenario(beamConfig)
+          val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
+          val geoUtils = new GeoUtilsImpl(beamConfig)
+          val (scenario, plansMerged) = {
+            val source = src match {
+              case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
+              case "urbansim_v2" => {
+                val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+                val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+                val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+                val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv.gz"
+                val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
+                new UrbansimReaderV2(
+                  inputPersonPath = pathToPersonFile,
+                  inputPlanPath = pathToPlans,
+                  inputHouseholdPath = pathToHouseholds,
+                  inputTripsPath = pathToTrips,
+                  inputBlockPath = pathToBlocks,
+                  geoUtils,
+                  shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+                )
+              }
+              case "generic" => {
+                val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+                val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+                val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+                new GenericScenarioSource(
+                  pathToHouseholds = pathToHouseholds,
+                  pathToPersonFile = pathToPersonFile,
+                  pathToPlans = pathToPlans,
+                  geoUtils,
+                  shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+                )
+              }
             }
-            case "generic" => {
-              val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-              val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-              val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-              new GenericScenarioSource(
-                pathToHouseholds = pathToHouseholds,
-                pathToPersonFile = pathToPersonFile,
-                pathToPlans = pathToPlans,
-                geoUtils,
-                shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
-              )
+            val merger = new PreviousRunPlanMerger(
+              beamConfig.beam.agentsim.agents.plans.merge.fraction,
+              Paths.get(beamConfig.beam.input.lastBaseOutputDir),
+              beamConfig.beam.input.simulationPrefix,
+              new Random(),
+              planElement =>
+                planElement.activityEndTime
+                  .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
+                  .getOrElse(planElement)
+            )
+            val (scenario, plansMerged) =
+              new UrbanSimScenarioLoader(
+                emptyScenario,
+                beamScenario,
+                source,
+                new GeoUtilsImpl(beamConfig),
+                Some(merger)
+              ).loadScenario()
+            if (src == "urbansim_v2") {
+              new ScenarioAdjuster(
+                beamConfig.beam.urbansim,
+                scenario.getPopulation,
+                beamConfig.matsim.modules.global.randomSeed
+              ).adjust()
             }
+            (scenario.asInstanceOf[MutableScenario], plansMerged)
           }
-          val merger = new PreviousRunPlanMerger(
-            beamConfig.beam.agentsim.agents.plans.merge.fraction,
-            Paths.get(beamConfig.beam.input.lastBaseOutputDir),
-            beamConfig.beam.input.simulationPrefix,
-            new Random(),
-            planElement =>
-              planElement.activityEndTime
-                .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
-                .getOrElse(planElement)
-          )
-          val (scenario, plansMerged) =
-            new UrbanSimScenarioLoader(emptyScenario, beamScenario, source, new GeoUtilsImpl(beamConfig), Some(merger))
-              .loadScenario()
-          if (src == "urbansim_v2") {
-            new ScenarioAdjuster(
-              beamConfig.beam.urbansim,
-              scenario.getPopulation,
-              beamConfig.matsim.modules.global.randomSeed
-            ).adjust()
+          (scenario, beamScenario, plansMerged)
+        } else if (src == "beam") {
+          fileFormat match {
+            case "csv" =>
+              val beamScenario = loadScenario(beamConfig)
+              val scenario = {
+                val source = new BeamScenarioSource(
+                  beamConfig,
+                  rdr = readers.BeamCsvScenarioReader
+                )
+                val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
+                new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig))
+                  .loadScenario()
+              }.asInstanceOf[MutableScenario]
+              (scenario, beamScenario, false)
+            case "xml" =>
+              val beamScenario = loadScenario(beamConfig)
+              val scenario = {
+                val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
+                fixDanglingPersons(result)
+                result
+              }
+              (scenario, beamScenario, false)
+            case unknown =>
+              throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")
           }
-          (scenario.asInstanceOf[MutableScenario], plansMerged)
+        } else {
+          throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
         }
-        (scenario, beamScenario, plansMerged)
-      } else if (src == "beam") {
-        fileFormat match {
-          case "csv" =>
-            val beamScenario = loadScenario(beamConfig)
-            val scenario = {
-              val source = new BeamScenarioSource(
-                beamConfig,
-                rdr = readers.BeamCsvScenarioReader
-              )
-              val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
-              new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig)).loadScenario()
-            }.asInstanceOf[MutableScenario]
-            (scenario, beamScenario, false)
-          case "xml" =>
-            val beamScenario = loadScenario(beamConfig)
-            val scenario = {
-              val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-              fixDanglingPersons(result)
-              result
-            }
-            (scenario, beamScenario, false)
-          case unknown =>
-            throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")
-        }
-      } else {
-        throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
       }
-    }
     generatePopulationForPayloadPlans(
       beamConfig,
       geoUtils,
@@ -828,7 +835,7 @@ trait BeamHelper extends LazyLogging {
       scenario.getPopulation,
       scenario.getHouseholds
     )
-    (scenario, beamScenario)
+    (scenario, beamScenario, plansMerged)
   }
 
   def generatePopulationForPayloadPlans(
