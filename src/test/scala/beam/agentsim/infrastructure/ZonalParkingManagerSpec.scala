@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
+import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -345,7 +345,7 @@ class ZonalParkingManagerSpec
       val middleOfWorld = new Coord(50, 50)
 
       for {
-        trial <- 1 to trials
+        _ <- 1 to trials
         numStalls = math.max(4, random.nextInt(maxParkingStalls))
         tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
@@ -552,7 +552,7 @@ class ZonalParkingManagerSpec
     )
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }

@@ -88,10 +88,10 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     category: VehicleCategory,
     vehTypes: Array[BeamVehicleType]
   ): scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]] = {
-    var groupIDs = scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
-    var groupIDlist: scala.collection.mutable.ListBuffer[CategoryAttributeAndGroup] =
+    val groupIDs = scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
+    val groupIDlist: scala.collection.mutable.ListBuffer[CategoryAttributeAndGroup] =
       scala.collection.mutable.ListBuffer()
-    var vehicleTypeAndProbabilityList: scala.collection.mutable.ListBuffer[(BeamVehicleType, Double)] =
+    val vehicleTypeAndProbabilityList: scala.collection.mutable.ListBuffer[(BeamVehicleType, Double)] =
       scala.collection.mutable.ListBuffer()
     vehTypes.foreach { vehType =>
       vehType.sampleProbabilityString.getOrElse("All").replaceAll("\\s", "").toLowerCase.split(";").foreach { group =>

@@ -206,8 +206,7 @@ class ParallelParkingManagerSpec
           case Some(res @ ParkingInquiryResponse(stall, responseId, triggerId))
               if stall.geoId == TAZ.EmergencyTAZId
               && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
-            res
-          case _ => assert(response2.isDefined, "no response")
+          case _                                                                               => assert(response2.isDefined, "no response")
         }
       }
     }

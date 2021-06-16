@@ -6,7 +6,6 @@ import beam.utils.data.ctpp.models._
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.residence.MeanHouseholdIncomeTableReader.MeanHouseholdIncome
 import beam.utils.data.ctpp.readers.residence.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
-import beam.utils.data.ctpp.readers.residence.TotalHouseholdsTableReader.TotalHouseholds
 import beam.utils.data.ctpp.readers.residence.TotalPopulationTableReader.TotalPopulation
 import beam.utils.data.ctpp.readers.residence.{
   AgeTableReader,
@@ -87,7 +86,6 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
       usualHoursWorkedPerWeekMap <- usualHoursWorkedPerWeekMapF
     } yield
       generate(
-        totalHouseholds,
         totalPopulationMap,
         ageMap,
         vehiclesAvailableMap,
@@ -100,7 +98,6 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
   }
 
   private def generate(
-    totalHouseholds: TotalHouseholds,
     totalPopulation: TotalPopulation,
     ageMap: Map[String, Map[AgeRange, Double]],
     vehiclesAvailableMap: Map[String, Map[Vehicles, Double]],
@@ -113,7 +110,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
 
     val allGeoIds = ageMap.keySet ++ totalPopulation.keySet ++ vehiclesAvailableMap.keySet ++ sexMap.keySet ++ medianHouseholdIncome.keySet ++ meanHouseholdIncome.keySet ++
     householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
-    allGeoIds.foreach { geoId =>
+    allGeoIds.foreach { _ =>
       println()
     }
     (null, null)

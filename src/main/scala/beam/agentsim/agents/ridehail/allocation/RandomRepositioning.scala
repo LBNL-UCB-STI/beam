@@ -116,16 +116,17 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         .toList
         .flatMap(person => person.getSelectedPlan.getPlanElements.asScala)
         .foreach { planElement =>
-          if (planElement.isInstanceOf[Activity]) {
-            val act = planElement.asInstanceOf[Activity]
-            if (act.getEndTime > currentTime + 20 * 60 && act.getEndTime < currentTime + 3600) {
-              minX = Math.min(minX, act.getCoord.getX)
-              minY = Math.min(minY, act.getCoord.getY)
-              maxX = Math.max(maxX, act.getCoord.getX)
-              maxY = Math.max(maxY, act.getCoord.getY)
-              selectedActivities += act
-            }
+          planElement match {
+            case act: Activity =>
+              if (act.getEndTime > currentTime + 20 * 60 && act.getEndTime < currentTime + 3600) {
+                minX = Math.min(minX, act.getCoord.getX)
+                minY = Math.min(minY, act.getCoord.getY)
+                maxX = Math.max(maxX, act.getCoord.getX)
+                maxY = Math.max(maxY, act.getCoord.getY)
+                selectedActivities += act
+              }
 
+            case _ =>
           }
 
         }

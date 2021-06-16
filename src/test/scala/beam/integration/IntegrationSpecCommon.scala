@@ -11,7 +11,7 @@ trait IntegrationSpecCommon {
 
   System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback-test.xml")
 
-  protected var totalIterations: Int = 1
+  protected val totalIterations: Int = 1
 
   private val configFileName = "test/input/beamville/beam.conf"
 

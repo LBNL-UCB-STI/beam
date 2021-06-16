@@ -57,15 +57,20 @@ object BeamPlan {
       .flatMap { elems =>
         var outputElems = List(elems.head)
         if (elems.size == 2) {
-          if (elems.head.isInstanceOf[Activity] && elems.head.asInstanceOf[Activity].equals(originActivity)) {
-            if (elems.last.isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
-              outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
-            } else if (elems.last.isInstanceOf[Leg]) {
-              outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
-            }
-          } else if (elems.head.isInstanceOf[Leg] && elems.last
-                       .isInstanceOf[Activity] && elems.last.asInstanceOf[Activity].equals(destinationActivity)) {
-            outputElems = List()
+          elems.head match {
+            case activity: Activity if activity.equals(originActivity) =>
+              elems.last match {
+                case activity1: Activity if activity1.equals(destinationActivity) =>
+                  outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
+                case _: Leg =>
+                  outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
+                case _ =>
+              }
+            case _: Leg
+                if elems.last.asInstanceOf[Activity].equals(destinationActivity) && elems.last
+                  .isInstanceOf[Activity] =>
+              outputElems = List()
+            case _ =>
           }
         }
         outputElems

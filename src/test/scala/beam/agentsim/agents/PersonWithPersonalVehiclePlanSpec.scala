@@ -67,6 +67,9 @@ class PersonWithPersonalVehiclePlanSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
+  val homeLocation = new Coord(170308.4, 2964.6474)
+  val workLocation = new Coord(169346.4, 876.7536)
+
   describe("A PersonAgent") {
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
@@ -721,9 +724,6 @@ class PersonWithPersonalVehiclePlanSpec
     }
 
   }
-
-  val homeLocation = new Coord(170308.4, 2964.6474)
-  val workLocation = new Coord(169346.4, 876.7536)
 
   private def createTestPerson(
     personId: Id[Person],

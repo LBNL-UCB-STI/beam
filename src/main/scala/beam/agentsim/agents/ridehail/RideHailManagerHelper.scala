@@ -98,7 +98,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   private[ridehail] val inServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
   private val refuelingRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
   private val vehicleOutOfCharge = mutable.Set[Id[BeamVehicle]]()
-  private val mobileVehicleChargingTimes = PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
+  private val mobileVehicleChargingTimes = mutable.PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
   private[this] var latestSpatialIndexUpdateTick = 0
 
   def addVehicleOutOfCharge(vehicleId: Id[BeamVehicle]): Boolean = {

@@ -839,7 +839,7 @@ object BeamRouter {
       val secondsInArriveHour = arrivalTime - arriveHour * 3600
       Math
         .round(
-          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour).toDouble / (secondsInDepartHour + secondsInArriveHour).toDouble
+          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour) / (secondsInDepartHour + secondsInArriveHour).toDouble
         )
         .intValue()
     }

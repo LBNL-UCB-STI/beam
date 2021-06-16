@@ -140,7 +140,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     tick: Int
   ): List[RoutingRequest] = {
     var routeReqs: List[RoutingRequest] = List()
-    var startTime = tick
+    val startTime = tick
     var rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
       rideHailLocation.vehicleType.id,

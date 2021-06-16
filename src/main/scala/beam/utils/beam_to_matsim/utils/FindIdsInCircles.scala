@@ -44,7 +44,7 @@ object FindIdsInCircles extends App {
     }
 
   class CircleAccumulator() {
-    var interestingVehicles = mutable.HashSet.empty[String]
+    val interestingVehicles = mutable.HashSet.empty[String]
 
     def process(event: BeamEvent): Unit = event match {
       case pte: BeamPathTraversal if pte.linkIds.exists(interestingLinks.contains) =>

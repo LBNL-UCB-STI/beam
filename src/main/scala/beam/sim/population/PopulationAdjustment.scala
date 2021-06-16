@@ -234,20 +234,16 @@ object PopulationAdjustment extends LazyLogging {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-    val initialAvailableModes = person.getCustomAttributes.isEmpty match {
-      case true =>
-        BeamMode.allModes
-      case false =>
-        person.getCustomAttributes.containsKey("beam-attributes") match {
-          case true =>
-            person.getCustomAttributes
-              .get("beam-attributes")
-              .asInstanceOf[sim.population.AttributesOfIndividual]
-              .availableModes
-          case false =>
-            BeamMode.allModes
-        }
-    }
+    val initialAvailableModes =
+      if (person.getCustomAttributes.isEmpty) BeamMode.allModes
+      else {
+        if (person.getCustomAttributes.containsKey("beam-attributes")) {
+          person.getCustomAttributes
+            .get("beam-attributes")
+            .asInstanceOf[sim.population.AttributesOfIndividual]
+            .availableModes
+        } else BeamMode.allModes
+      }
     val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }

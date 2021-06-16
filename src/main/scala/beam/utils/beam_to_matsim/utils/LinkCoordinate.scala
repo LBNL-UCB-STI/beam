@@ -49,7 +49,7 @@ object LinkCoordinate {
           case (Some(id), Some(fromId), Some(toId)) =>
             (nodesMap.get(fromId), nodesMap.get(toId)) match {
               case (Some(from), Some(to)) => map(id) = LinkCoordinate(from, to)
-              case _                      => map
+              case _                      =>
             }
           case _ => log("can't read link from xml: " + linkXml.toString())
         }
