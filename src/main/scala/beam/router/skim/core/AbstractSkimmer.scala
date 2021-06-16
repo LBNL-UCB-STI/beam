@@ -4,8 +4,7 @@ import beam.agentsim.events.ScalaEvent
 import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.router.skim.Skims.SkimType
 import beam.router.skim.CsvSkimReader
-import beam.router.skim.core.TAZSkimmer.TAZSkimmerKey
-import beam.sim.{BeamServices, BeamWarmStart}
+import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -58,7 +57,7 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
   def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
     Option(currentSkimInternal.get(key))
   def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
-  def pastSkims: collection.Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal
+  def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
   def isEmpty: Boolean = currentSkimInternal.isEmpty
 }
 
