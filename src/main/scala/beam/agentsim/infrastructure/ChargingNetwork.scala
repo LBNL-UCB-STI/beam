@@ -16,6 +16,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.Random
 
 /**
   * Created by haitamlaarabi
@@ -141,7 +142,10 @@ object ChargingNetwork {
     geoToTAZ: GEO => TAZ,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
-    distanceFunction: (Coord, Coord) => Double
+    distanceFunction: (Coord, Coord) => Double,
+    minSearchRadius: Double,
+    maxSearchRadius: Double,
+    seed: Int
   ): ChargingNetwork[GEO] = {
     new ChargingNetwork[GEO](
       vehicleManagerId,
@@ -155,15 +159,50 @@ object ChargingNetwork {
           geoToTAZ,
           chargingZones,
           distanceFunction,
-          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+          minSearchRadius,
+          maxSearchRadius,
           envelopeInUTM,
-          beamConfig.matsim.modules.global.randomSeed,
+          seed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint,
         )
       )
     }
+  }
+
+  def apply[GEO: GeoLevel](
+    vehicleManagerId: Id[VehicleManager],
+    parkingDescription: Iterator[String],
+    geoQuadTree: QuadTree[GEO],
+    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
+    geoToTAZ: GEO => TAZ,
+    envelopeInUTM: Envelope,
+    beamConfig: BeamConfig,
+    distanceFunction: (Coord, Coord) => Double,
+    minSearchRadius: Double,
+    maxSearchRadius: Double,
+    seed: Int
+  ): ChargingNetwork[GEO] = {
+    val parking = ParkingZoneFileUtils.fromIterator(
+      parkingDescription,
+      vehicleManagerId,
+      new Random(beamConfig.matsim.modules.global.randomSeed),
+      1.0,
+      1.0
+    )
+    ChargingNetwork[GEO](
+      vehicleManagerId,
+      parking.zones.toMap,
+      geoQuadTree,
+      idToGeoMapping,
+      geoToTAZ,
+      envelopeInUTM,
+      beamConfig,
+      distanceFunction,
+      minSearchRadius,
+      maxSearchRadius,
+      seed
+    )
   }
 
   def init(
@@ -177,10 +216,13 @@ object ChargingNetwork {
       chargingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
-      identity[TAZ],
+      identity[TAZ](_),
       envelopeInUTM: Envelope,
       beamServices.beamConfig,
-      beamServices.geo.distUTMInMeters
+      beamServices.geo.distUTMInMeters(_, _),
+      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+      beamServices.beamConfig.matsim.modules.global.randomSeed
     )
   }
 
@@ -201,7 +243,10 @@ object ChargingNetwork {
       geoToTAZ,
       envelopeInUTM,
       beamServices.beamConfig,
-      beamServices.geo.distUTMInMeters
+      beamServices.geo.distUTMInMeters(_, _),
+      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+      beamServices.beamConfig.matsim.modules.global.randomSeed
     )
   }
 

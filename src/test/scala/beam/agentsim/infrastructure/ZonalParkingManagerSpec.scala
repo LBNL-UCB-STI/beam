@@ -177,86 +177,6 @@ class ZonalParkingManagerSpec
     }
   }
 
-  describe("ZonalParkingManager with only XFC charging option") {
-    it(
-      "should first return that an ultra fast charging stall for XFC capable vehicle, and afterward respond with a default stall for non XFC capable vehicle"
-    ) {
-      for {
-        tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(
-          List((coordCenterOfUTM, 10000)),
-          startAtId = 1,
-          167000,
-          0,
-          833000,
-          10000000
-        ) // one TAZ at agent coordinate
-        config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
-                                               |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
-          """.stripMargin.split("\n").toIterator
-        zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
-          VehicleManager.defaultManager,
-          config,
-          tazTreeMap,
-          geo,
-          oneParkingOption,
-          boundingBox,
-          randomSeed
-        )
-      } {
-        val vehicleType1 = beamScenario.vehicleTypes(Id.create("BEV_XFC", classOf[BeamVehicleType]))
-        val vehicle1 = new BeamVehicle(
-          id = Id.createVehicleId("car-01"),
-          powerTrain = new Powertrain(0.0),
-          beamVehicleType = vehicleType1,
-          vehicleManagerId = VehicleManager.defaultManager
-        )
-        val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
-        // first request is handled with the only stall in the system
-        val firstInquiry =
-          ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle1), triggerId = 73737)
-        val expectedFirstStall =
-          ParkingStall(
-            Id.create(1, classOf[TAZ]),
-            Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("0"),
-            coordCenterOfUTM,
-            56.78,
-            Some(xfcChargingPoint),
-            Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace,
-            reservedFor = IndexedSeq.empty,
-            VehicleManager.defaultManager
-          )
-        val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
-        assert(response1.get.requestId == firstInquiry.requestId, "something is wildly broken")
-        assert(response1.get.triggerId == firstInquiry.triggerId, "something is wildly broken with trigger id")
-        assert(response1.get.stall.toString == expectedFirstStall.toString, "something is wildly broken")
-
-        // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val vehicleType2 = beamScenario.vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
-        val vehicle2 = new BeamVehicle(
-          id = Id.createVehicleId("car-01"),
-          powerTrain = new Powertrain(0.0),
-          beamVehicleType = vehicleType2,
-          vehicleManagerId = VehicleManager.defaultManager
-        )
-        val secondInquiry =
-          ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle2), triggerId = 49238)
-        val response2 @ Some(ParkingInquiryResponse(stall, responseId, triggerId)) =
-          zonalParkingManager.processParkingInquiry(secondInquiry)
-        assert(response2.isDefined, "no response")
-        assert(
-          stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
-          && triggerId == secondInquiry.triggerId,
-          "something is wildly broken"
-        )
-        assert(stall.chargingPointType.isEmpty, "it should not get an Ultra Fast charging point stall")
-      }
-    }
-  }
-
   describe("ZonalParkingManager with one parking option") {
     it("should allow us to book and then release that stall") {
 
@@ -413,9 +333,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_NoManager_4_Public_NoCharger_Block"),
-        Block(0.0, 3600),
-        ParkingType.Public,
+        ParkingZone.createId("cs_DefaultManager_4_Residential_NoCharger_FlatFee"),
+        FlatFee(0.0),
+        ParkingType.Residential,
         VehicleManager.defaultManager,
         "beamVilleCar"
       )
@@ -424,18 +344,18 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("cs_NoManager_1_Public_NoCharger_FlatFee"),
+        ParkingZone.createId("cs_DefaultManager_1_Residential_NoCharger_FlatFee"),
         FlatFee(0.0),
-        ParkingType.Public,
+        ParkingType.Residential,
         VehicleManager.defaultManager,
         "beamVilleCar"
       )
 
       assertParkingResponse(
         zpm,
-        SpaceTime(new Coord(166500.0, 1500.0), 0),
-        "1",
-        ParkingZone.createId("cs_NoManager_1_Residential_NoCharger_FlatFee"),
+        SpaceTime(new Coord(167141.3, 3326.017), 0),
+        "2",
+        ParkingZone.createId("cs_DefaultManager_2_Residential_NoCharger_FlatFee"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.defaultManager,
@@ -475,7 +395,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
         "4",
-        ParkingZone.createId("cs_NoManager_4_Public_NoCharger_Block"),
+        ParkingZone.createId("cs_DefaultManager_4_Public_NoCharger_Block"),
         PricingModel("block", "0").get,
         ParkingType.Public,
         VehicleManager.defaultManager,
@@ -530,8 +450,8 @@ class ZonalParkingManagerSpec
         zonesMap(VehicleManager.defaultManager),
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_NoManager_4_Residential_NoCharger_Block"),
-        Block(1.99, 3600),
+        ParkingZone.createId("cs_DefaultManager_4_Residential_NoCharger_FlatFee"),
+        FlatFee(1.99),
         ParkingType.Residential,
         VehicleManager.defaultManager,
         "beamVilleCar"

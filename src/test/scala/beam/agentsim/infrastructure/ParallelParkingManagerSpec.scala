@@ -174,7 +174,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_NoManager_1_Workplace_NoCharger_FlatFee"),
+            ParkingZone.createId("cs_DefaultManager_1_Workplace_NoCharger_FlatFee"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -242,7 +242,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_NoManager_1_Workplace_NoCharger_FlatFee"),
+            ParkingZone.createId("cs_DefaultManager_1_Workplace_NoCharger_FlatFee"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -366,7 +366,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_NoManager_4_Residential_NoCharger_FlatFee"),
+        ParkingZone.createId("cs_DefaultManager_4_Residential_NoCharger_FlatFee"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.defaultManager
@@ -376,7 +376,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_NoManager_1_Residential_NoCharger_FlatFee"),
+        ParkingZone.createId("cs_DefaultManager_1_Residential_NoCharger_FlatFee"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.defaultManager
@@ -384,11 +384,11 @@ class ParallelParkingManagerSpec
 
       assertParkingResponse(
         zpm,
-        new Coord(166500.0, 1500.0),
-        "1",
-        ParkingZone.createId("cs_NoManager_1_Public_NoCharger_FlatFee"),
+        new Coord(167141.3, 3326.017),
+        "2",
+        ParkingZone.createId("cs_DefaultManager_2_Residential_NoCharger_FlatFee"),
         FlatFee(0.0),
-        ParkingType.Public,
+        ParkingType.Residential,
         VehicleManager.defaultManager
       )
     }
