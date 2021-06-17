@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -8,17 +9,19 @@ import beam.router.skim.event
 import beam.sim.BeamServices
 import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 
 class SitePowerManager(
-  chargingNetworks: Vector[ChargingNetwork[_]],
+  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
   beamServices: BeamServices
 ) extends LazyLogging {
   import SitePowerManager._
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val tazSkimmer = beamServices.skims.taz_skimmer
-  private lazy val allChargingStations = chargingNetworks.flatMap(_.chargingStations)
-  private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
+  private[infrastructure] val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
+    chargingNetworkMap.flatMap(_._2.chargingStations).toSeq
+  ).value
 
   /**
     * Get required power for electrical vehicles
@@ -27,7 +30,9 @@ class SitePowerManager(
     * @return power (in Kilo Watt) over planning horizon
     */
   def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
-    val plans = allChargingStations.par
+    val plans = chargingNetworkMap
+      .flatMap(_._2.chargingStations)
+      .par
       .map { station =>
         station -> observedPowerDemandInKW(tick, station.zone).getOrElse(estimatePowerDemandInKW(tick, station.zone))
       }

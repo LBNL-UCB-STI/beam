@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, 
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -668,10 +668,8 @@ class PersonAgentSpec
         )
       )
 
-      val parkingManager = system.actorOf(
-        Props(new ParkingNetworkManager(services, ParkingAndChargingInfrastructure(services, boundingBox))),
-        "ParkingManager"
-      )
+      val (parkingNetworks, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
+      val parkingManager = system.actorOf(Props(new ParkingNetworkManager(services, parkingNetworks)), "ParkingManager")
 
       //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 

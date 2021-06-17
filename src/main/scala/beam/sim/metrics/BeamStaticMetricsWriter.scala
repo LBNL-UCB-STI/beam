@@ -1,5 +1,6 @@
 package beam.sim.metrics
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
@@ -88,7 +89,8 @@ object BeamStaticMetricsWriter {
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
         val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
         val (chargingDepots, _) =
-          ParkingZoneFileUtils.fromFile[TAZ](chargingDepotsFilePath, rand, parkingStallCountScalingFactor)
+          ParkingZoneFileUtils
+            .fromFile[TAZ](chargingDepotsFilePath, rand, VehicleManager.defaultManager, parkingStallCountScalingFactor)
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
@@ -105,7 +107,13 @@ object BeamStaticMetricsWriter {
         if (publicFastChargerFilePath.nonEmpty) {
           val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
           val (publicChargers, _) =
-            ParkingZoneFileUtils.fromFile[TAZ](publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
+            ParkingZoneFileUtils
+              .fromFile[TAZ](
+                publicFastChargerFilePath,
+                rand,
+                VehicleManager.defaultManager,
+                parkingStallCountScalingFactor
+              )
 
           publicChargers.foreach {
             case (_, publicCharger) =>

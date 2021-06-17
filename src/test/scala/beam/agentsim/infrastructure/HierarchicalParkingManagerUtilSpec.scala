@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingType.Residential
@@ -22,7 +23,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {
         val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, linkTree, totalRows, failedRows) =
-          ParkingZoneFileUtils.fromIterator[Link](linkLevelData)
+          ParkingZoneFileUtils.fromIterator[Link](linkLevelData, VehicleManager.defaultManager)
         val linkToTazMapping: Map[Id[Link], Id[TAZ]] = HashMap(
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),

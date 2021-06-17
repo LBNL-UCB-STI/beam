@@ -971,10 +971,11 @@ class RideHailAgent(
     val inquiry = ParkingInquiry(
       SpaceTime(destinationUtm, time),
       "charge",
+      vehicle.vehicleManagerId,
       beamVehicle = Some(vehicle),
       triggerId = getCurrentTriggerIdOrGenerate
     )
-    parkingManager ! inquiry
+    chargingNetworkManager ! inquiry
   }
 
   def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData): Unit = {

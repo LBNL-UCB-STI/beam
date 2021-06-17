@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -53,12 +54,16 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     None,
     tazFromBeamville.tazId,
     ParkingType.Public,
+    VehicleManager.defaultManager,
     maxStalls = 1,
     chargingPointType = Some(ChargingPointType.ChargingStationType1),
     pricingModel = Some(PricingModel.FlatFee(0.0))
   )
+  val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
-  val (chargingNetworks, _, _) = ChargingNetwork.init[TAZ](Map(dummyChargingZone.parkingZoneId -> dummyChargingZone))
+  val chargingNetwork: Map[Id[VehicleManager], ChargingNetwork[_]] = mock(
+    classOf[Map[Id[VehicleManager], ChargingNetwork[_]]]
+  )
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
@@ -77,7 +82,11 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
 
   "PowerController when connected to grid" should {
     val powerController: PowerController =
-      new PowerController(chargingNetworks, beamConfig.beam.agentsim.chargingNetworkManager) {
+      new PowerController(
+        chargingNetwork,
+        beamConfig.beam.agentsim.chargingNetworkManager,
+        SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
+      ) {
         override private[power] lazy val beamFederateOption = Some(beamFederateMock)
       }
 
@@ -94,7 +103,11 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
 
   "PowerController when not connected to grid" should {
     val powerController: PowerController =
-      new PowerController(chargingNetworks, beamConfig.beam.agentsim.chargingNetworkManager) {
+      new PowerController(
+        chargingNetwork,
+        beamConfig.beam.agentsim.chargingNetworkManager,
+        SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
+      ) {
         override private[power] lazy val beamFederateOption = None
       }
 

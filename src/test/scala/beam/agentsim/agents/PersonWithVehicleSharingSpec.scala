@@ -1,7 +1,5 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorSystem, Props}
 import akka.pattern._
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
@@ -15,7 +13,6 @@ import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusResponse,
   ReleaseVehicle
 }
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
@@ -46,6 +43,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.funspec.AnyFunSpecLike
 
+import java.util.concurrent.TimeUnit
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -153,15 +151,16 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+      val managerId = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared)
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        vehicleManagerId = managerId,
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), managerId))
         .collect {
           case ParkingInquiryResponse(stall, _, triggerId) =>
             vehicle.useParkingStall(stall)
@@ -307,14 +306,15 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
+      val managerId = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared)
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        vehicleManagerId = managerId,
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), managerId))
         .collect {
           case ParkingInquiryResponse(stall, _, triggerId) =>
             vehicle.setReservedParkingStall(Some(stall))
@@ -418,10 +418,10 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        vehicleManagerId = managerId,
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
+      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200), managerId))
         .collect {
           case ParkingInquiryResponse(stall, _, triggerId) =>
             vehicle2.setReservedParkingStall(Some(stall))
@@ -476,7 +476,7 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager])),
+        vehicleManagerId = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared),
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -552,7 +552,7 @@ class PersonWithVehicleSharingSpec
       scheduler ! StartSchedule(0)
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), VehicleManager.defaultManager))
         .collect {
           case ParkingInquiryResponse(stall, _, triggerId) =>
             car1.useParkingStall(stall)
@@ -720,7 +720,8 @@ class PersonWithVehicleSharingSpec
     person
   }
 
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere, "wherever", triggerId = 0)
+  def parkingInquiry(whenWhere: SpaceTime, managerId: Id[VehicleManager]): ParkingInquiry =
+    ParkingInquiry(whenWhere, "wherever", triggerId = 0, vehicleManagerId = managerId)
 
   override def afterAll(): Unit = {
     super.afterAll()

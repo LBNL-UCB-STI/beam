@@ -22,7 +22,7 @@ case class ParkingStall(
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
   reservedFor: Seq[VehicleCategory],
-  vehicleManager: Option[Id[VehicleManager]] = None
+  vehicleManagerId: Id[VehicleManager]
 )
 
 object ParkingStall {
@@ -45,7 +45,7 @@ object ParkingStall {
       parkingZone.pricingModel,
       parkingZone.parkingType,
       Seq.empty,
-      parkingZone.vehicleManager
+      parkingZone.vehicleManagerId
     )
   }
 
@@ -63,7 +63,8 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = Seq.empty
+    reservedFor = Seq.empty,
+    vehicleManagerId = VehicleManager.defaultManager
   )
 
   /**
@@ -79,7 +80,7 @@ object ParkingStall {
     random: Random = Random,
     costInDollars: Double = CostOfEmergencyStallInDollars,
     tazId: Id[TAZ] = TAZ.EmergencyTAZId,
-    geoId: Id[_],
+    geoId: Id[_]
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -93,7 +94,8 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = Seq.empty
+      reservedFor = Seq.empty,
+      vehicleManagerId = VehicleManager.defaultManager
     )
   }
 
@@ -119,7 +121,8 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = Seq.empty
+    reservedFor = Seq.empty,
+    vehicleManagerId = VehicleManager.defaultManager
   )
 
   /**
@@ -141,7 +144,8 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      parkingAlternative.parkingZone.reservedFor
+      parkingAlternative.parkingZone.reservedFor,
+      parkingAlternative.parkingZone.vehicleManagerId
     )
   }
 

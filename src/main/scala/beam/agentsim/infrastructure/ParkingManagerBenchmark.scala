@@ -2,9 +2,10 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorSystem
 import akka.util.Timeout
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingNetwork, ParkingZone, ParkingZoneId}
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -29,7 +30,7 @@ import scala.util.Random
 
 class ParkingManagerBenchmark(
   val possibleParkingLocations: Array[(Coord, String)],
-  val parkingManagerActor: ParkingNetwork[_]
+  val parkingNetwork: ParkingNetwork[_]
 )(
   implicit val actorSystem: ActorSystem,
   val ec: ExecutionContext
@@ -43,7 +44,9 @@ class ParkingManagerBenchmark(
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
         possibleParkingLocations.flatMap {
           case (coord, actType) =>
-            parkingManagerActor.processParkingInquiry(ParkingInquiry(SpaceTime(coord, 0), actType, triggerId = -1L))
+            parkingNetwork.processParkingInquiry(
+              ParkingInquiry(SpaceTime(coord, 0), actType, parkingNetwork.getVehicleManagerId, triggerId = -1L)
+            )
         }.toList
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")
@@ -114,14 +117,15 @@ object ParkingManagerBenchmark extends StrictLogging {
       pathToParking: String
     ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
       logger.info("Start loading parking zones from {}", pathToParking)
-      val (zones, searchTree) = ParkingAndChargingInfrastructure.loadParkingZones[GEO](
+      val zones = InfrastructureUtils.loadStalls[GEO](
         pathToParking,
-        IndexedSeq.empty[String],
+        IndexedSeq.empty,
         quadTree,
         parkingStallCountScalingFactor,
         parkingCostScalingFactor,
         seed
       )
+      val searchTree = ParkingZoneFileUtils.createZoneSearchTree(zones.values.toSeq)
       logger.info(s"Number of zones: ${zones.size}")
       logger.info(s"Number of parking stalls: ${zones.map(_._2.stallsAvailable.toLong).sum}")
       logger.info(s"SearchTree size: ${searchTree.size}")
@@ -143,6 +147,7 @@ object ParkingManagerBenchmark extends StrictLogging {
 
       val geoUtils = new GeoUtils {
         override def localCRS: String = "epsg:26910"
+        override def distUTMInMeters(x: Coord, y: Coord): Double = 0.0
       }
 
       val beamConfig = BeamConfig(typeSafeConfig)
@@ -159,63 +164,74 @@ object ParkingManagerBenchmark extends StrictLogging {
           val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
           val (zones, searchTree: ZoneSearchTree[Link]) = loadZones(linkQuadTree, pathToLinkParking)
           logger.info(s"linkQuadTree size = ${linkQuadTree.size()}")
-          ZonalParkingManager[Link](
-            beamConfig,
+          val parkingNetwork = ZonalParkingManager[Link](
+            VehicleManager.defaultManager,
+            zones,
             linkQuadTree,
             linkIdMapping,
             linkToTAZMapping,
-            zones,
-            searchTree,
-            geoUtils,
-            new Random(seed),
-            boundingBox
+            boundingBox,
+            beamConfig,
+            geoUtils.distUTMInMeters(_, _)
           )
+          parkingNetwork
         } else {
           val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
-          ZonalParkingManager[TAZ](
-            beamConfig,
+          val parkingNetwork = ZonalParkingManager[TAZ](
+            VehicleManager.defaultManager,
+            zones,
             tazTreeMap.tazQuadTree,
             tazTreeMap.idToTAZMapping,
             identity[TAZ](_),
-            zones,
-            searchTree,
-            geoUtils,
-            new Random(seed),
-            boundingBox
+            boundingBox,
+            beamConfig,
+            geoUtils.distUTMInMeters(_, _)
           )
+          parkingNetwork
         }
       }
 
       def runBench(activityLocations: Array[(Coord, String)], managerType: String): List[ParkingInquiryResponse] = {
         // This is important! because `ParkingZone` is mutable class
-        val parkingManager = managerType match {
+        val parkingNetwork = managerType match {
           case "parallel" =>
             val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
-            ParallelParkingManager.init(beamConfig, tazTreeMap, zones, searchTree, geoUtils, boundingBox, 6, 42)
+            val parkingNetwork =
+              ParallelParkingManager.init(
+                VehicleManager.defaultManager,
+                zones,
+                beamConfig,
+                tazTreeMap,
+                geoUtils.distUTMInMeters,
+                boundingBox,
+                6,
+                42
+              )
+            parkingNetwork
           case "zonal" =>
             createZonalParkingManager(isLink = false)
           case "hierarchical" =>
             val linkQuadTree: QuadTree[Link] =
               LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
             val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
-            val (zones, _) = loadZones(linkQuadTree, pathToLinkParking)
-            val mnlCfg = ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
-            HierarchicalParkingManager.init(
+            val (zones, searchTree) = loadZones(linkQuadTree, pathToLinkParking)
+            val parkingNetwork = HierarchicalParkingManager.init(
+              VehicleManager.defaultManager,
+              zones,
               tazTreeMap,
               linkToTAZMapping,
-              zones,
-              new Random(seed),
-              geoUtils,
+              geoUtils.distUTMInMeters,
               beamConfig.beam.agentsim.agents.parking.minSearchRadius,
               beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
               boundingBox,
-              mnlCfg,
-              checkThatNumberOfStallsMatch = true,
-              beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
+              seed,
+              beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+              checkThatNumberOfStallsMatch = true
             )
+            parkingNetwork
         }
 
-        val bench = new ParkingManagerBenchmark(activityLocations, parkingManager)
+        val bench = new ParkingManagerBenchmark(activityLocations, parkingNetwork)
         val result = bench.benchmark()
         result
       }

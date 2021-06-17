@@ -155,8 +155,7 @@ class FreightReplanner(
         BeamMode.CAR,
         beamVehicleType.id,
         beamVehicleType,
-        fuelPrice,
-        beamServices.beamScenario
+        fuelPrice
       )
       TimeDistanceCost(skim.time, skim.distance, skim.cost)
     }

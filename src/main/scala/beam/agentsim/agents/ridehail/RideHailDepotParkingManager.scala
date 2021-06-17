@@ -1,20 +1,36 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.Resource
+import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
-import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZoneId}
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingZone, ParkingZoneId}
+import beam.agentsim.infrastructure.{ChargingNetwork, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
 import beam.sim.Geofence
-import beam.utils.metrics.SimpleCounter
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
 
-trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
+abstract class RideHailDepotParkingManager[GEO: GeoLevel](
+  vehicleManagerId: Id[VehicleManager],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
+) extends ChargingNetwork[GEO](vehicleManagerId, parkingZones) {
+
+  override def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
+    if (!parkingZones.contains(release.stall.parkingZoneId)) {
+      false
+    } else {
+      val parkingZone: ParkingZone[GEO] = parkingZones(release.stall.parkingZoneId)
+      val success = ParkingZone.releaseStall(parkingZone)
+      if (success) {
+        totalStallsInUse -= 1
+        totalStallsAvailable += 1
+      }
+      success
+    }
+  }
 
   /**
     * Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
@@ -109,32 +125,6 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
     * @return
     */
   def isOnWayToRefuelingDepot(vehicleId: VehicleId): Boolean
-
-  /**
-    * Gets the location in UTM for a parking zone.
-    *
-    * @param parkingZoneId ID of the parking zone
-    * @return Parking zone location in UTM.
-    */
-  def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord
-
-  /**
-    *
-    * @param inquiry
-    * @param parallelizationCounterOption
-    * @return
-    */
-  override def processParkingInquiry(
-    inquiry: ParkingInquiry,
-    parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = None
-
-  /**
-    *
-    * @param release
-    */
-  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = Unit
-
 }
 
 trait FindDepotAttributes {}

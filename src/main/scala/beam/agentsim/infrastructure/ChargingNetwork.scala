@@ -2,32 +2,33 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.infrastructure.ZonalParkingManager.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.sim.common.GeoUtils
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Random
 
 /**
   * Created by haitamlaarabi
   */
-case class ChargingNetwork[GEO: GeoLevel](
-  chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-  vehicleManager: Option[Id[VehicleManager]]
-) extends LazyLogging {
+class ChargingNetwork[GEO: GeoLevel](
+  vehicleManagerId: Id[VehicleManager],
+  chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
+) extends ParkingNetwork[GEO](vehicleManagerId, chargingZones) {
   import ChargingNetwork._
 
-  private val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
+  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+
+  protected val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
     chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
 
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
@@ -59,7 +60,7 @@ case class ChargingNetwork[GEO: GeoLevel](
     pricingModel: Option[PricingModel]
   ): Option[ChargingStation] =
     chargingZoneKeyToChargingStationMap.get(
-      ParkingZone.constructParkingZoneKey(vehicleManager, geoId, parkingType, chargingPointType, pricingModel)
+      ParkingZone.constructParkingZoneKey(vehicleManagerId, geoId, parkingType, chargingPointType, pricingModel)
     )
 
   /**
@@ -96,7 +97,7 @@ case class ChargingNetwork[GEO: GeoLevel](
           case Some(station) => Some(station.connect(tick, vehicle, stall, theSender))
           case _ =>
             logger.error(
-              s"CNM cannot find a $vehicleManager station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
+              s"CNM cannot find a $vehicleManagerId station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
             )
             None
         }
@@ -132,43 +133,76 @@ object ChargingNetwork {
     val Waiting, Connected, Disconnected, NotConnected = Value
   }
 
-  def init[GEO: GeoLevel](
-    allZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-  ): (Vector[ChargingNetwork[GEO]], Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
-    val chargingZones = allZones.filter(_._2.chargingPointType.isDefined)
-    val chargingZoneTree = ParkingZoneFileUtils.createZoneSearchTree(chargingZones.values.toSeq)
-    val chargingNetworks = chargingZones
-      .groupBy(_._2.vehicleManager)
-      .map { case (vehManagerMaybe, zones) => new ChargingNetwork(zones, vehManagerMaybe) }
-      .toVector
-    (chargingNetworks, chargingZones, chargingZoneTree)
-  }
-
-  def init[GEO: GeoLevel](
-    allZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+  def apply[GEO: GeoLevel](
+    vehicleManagerId: Id[VehicleManager],
+    chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
     geoToTAZ: GEO => TAZ,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
-    geo: GeoUtils
-  ): (Vector[ChargingNetwork[GEO]], ChargingFunctions[GEO]) = {
-    val (chargingNetworks, chargingZones, chargingZoneTree) = init[GEO](allZones)
-    val chargingFunctions = new ChargingFunctions[GEO](
+    distanceFunction: (Coord, Coord) => Double
+  ): ChargingNetwork[GEO] = {
+    new ChargingNetwork[GEO](
+      vehicleManagerId,
+      chargingZones
+    ) {
+      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+        new ChargingFunctions[GEO](
+          vehicleManagerId,
+          geoQuadTree,
+          idToGeoMapping,
+          geoToTAZ,
+          chargingZones,
+          distanceFunction,
+          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+          envelopeInUTM,
+          beamConfig.matsim.modules.global.randomSeed,
+          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
+        )
+      )
+    }
+  }
+
+  def init(
+    vehicleManagerId: Id[VehicleManager],
+    chargingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
+    envelopeInUTM: Envelope,
+    beamServices: BeamServices
+  ): ChargingNetwork[TAZ] = {
+    ChargingNetwork[TAZ](
+      vehicleManagerId,
+      chargingZones,
+      beamServices.beamScenario.tazTreeMap.tazQuadTree,
+      beamServices.beamScenario.tazTreeMap.idToTAZMapping,
+      identity[TAZ],
+      envelopeInUTM: Envelope,
+      beamServices.beamConfig,
+      beamServices.geo.distUTMInMeters
+    )
+  }
+
+  def init(
+    vehicleManagerId: Id[VehicleManager],
+    chargingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
+    geoQuadTree: QuadTree[Link],
+    idToGeoMapping: scala.collection.Map[Id[Link], Link],
+    geoToTAZ: Link => TAZ,
+    envelopeInUTM: Envelope,
+    beamServices: BeamServices
+  ): ChargingNetwork[Link] = {
+    ChargingNetwork[Link](
+      vehicleManagerId,
+      chargingZones,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,
-      geo,
-      chargingZones,
-      chargingZoneTree,
-      new Random(beamConfig.matsim.modules.global.randomSeed),
-      beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
       envelopeInUTM,
-      mnlMultiplierParametersFromConfig(beamConfig),
-      beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
+      beamServices.beamConfig,
+      beamServices.geo.distUTMInMeters
     )
-    (chargingNetworks, chargingFunctions)
   }
 
   final case class ChargingStation(zone: ParkingZone[_]) {

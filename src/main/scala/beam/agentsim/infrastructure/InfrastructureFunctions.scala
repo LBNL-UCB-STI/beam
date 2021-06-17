@@ -1,15 +1,18 @@
 package beam.agentsim.infrastructure
 
+import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
   ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams
+  ParkingZoneSearchParams,
+  ParkingZoneSearchResult
 }
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -18,18 +21,22 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 abstract class InfrastructureFunctions[GEO: GeoLevel](
+  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
-  geo: GeoUtils,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO],
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+  distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  rand: Random
+  seed: Int
 ) extends StrictLogging {
+
+  protected val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
+    ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
+
+  protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation]
 
   /**
     * Generic method for updating MNL Parameters
@@ -37,7 +44,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  protected def updateMNLParameters(
+  protected def setupMNLParameters(
     parkingAlternative: ParkingAlternative[GEO],
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double]
@@ -48,7 +55,25 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  protected def getAdditionalSearchFilterPredicates(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean
+  protected def setupSearchFilterPredicates(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean
+
+  /**
+    * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
+    * @param parkingZoneSearchResult ParkingZoneSearchResult[GEO]
+    */
+  protected def processParkingZoneSearchResult(
+    inquiry: ParkingInquiry,
+    parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
+  ): Option[ParkingZoneSearchResult[GEO]]
+
+  /**
+    * sample location of a parking stall
+    * @param inquiry ParkingInquiry
+    * @param parkingZone ParkingZone[GEO]
+    * @param geoArea GEO
+    * @return
+    */
+  protected def sampleParkingStallLocation(inquiry: ParkingInquiry, parkingZone: ParkingZone[GEO], geoArea: GEO): Coord
 
   // ************
 
@@ -58,6 +83,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZone.defaultInit(
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
+      vehicleManagerId,
       UbiqiutousParkingAvailability
     )
 
@@ -66,20 +92,10 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      geo.distUTMInMeters
+      distanceFunction
     )
 
-  def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult[GEO] = {
-    // a lookup for valid parking types based on this inquiry
-    val preferredParkingTypes: Set[ParkingType] = inquiry.activityTypeLowerCased match {
-      case act if act.equalsIgnoreCase("home") => Set(ParkingType.Residential, ParkingType.Public)
-      case act if act.equalsIgnoreCase("init") => Set(ParkingType.Residential, ParkingType.Public)
-      case act if act.equalsIgnoreCase("work") => Set(ParkingType.Workplace, ParkingType.Public)
-      case act if act.equalsIgnoreCase("charge") =>
-        Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-      case _ => Set(ParkingType.Public)
-    }
-
+  def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
     //
@@ -102,16 +118,15 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         zoneSearchTree,
         parkingZones,
         geoQuadTree,
-        rand
+        new Random(seed)
       )
 
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
     val parkingZoneFilterFunction: ParkingZone[GEO] => Boolean =
       (zone: ParkingZone[GEO]) => {
-        val canThisCarParkHere = getCanThisCarParkHere(zone, inquiry, preferredParkingTypes)
-        val searchFilterPredicates = getAdditionalSearchFilterPredicates(zone, inquiry)
-        canThisCarParkHere && searchFilterPredicates
+        val searchFilterPredicates = setupSearchFilterPredicates(zone, inquiry)
+        searchFilterPredicates
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
@@ -123,16 +138,14 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
               s"somehow have a ParkingZone with geoId ${zone.geoId} which is not found in the idToGeoMapping"
             )
             new Coord()
-          case Some(taz) =>
-            GeoLevel[GEO].geoSampling(rand, inquiry.destinationUtm.loc, taz, zone.availability)
+          case Some(taz) => sampleParkingStallLocation(inquiry, zone, taz)
         }
       }
 
     // adds multinomial logit parameters to a ParkingAlternative
     val parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double] =
       (parkingAlternative: ParkingAlternative[GEO]) => {
-        val defaultParams = getDefaultMNLParameters(parkingAlternative, inquiry)
-        val params = defaultParams ++ updateMNLParameters(parkingAlternative, inquiry)
+        val params = setupMNLParameters(parkingAlternative, inquiry)
         if (inquiry.activityTypeLowerCased == "home") {
           logger.debug(
             f"tour=${inquiry.remainingTripData
@@ -148,13 +161,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ///////////////////////////////////////////
     // run ParkingZoneSearch for a ParkingStall
     ///////////////////////////////////////////
-    val result @ ParkingZoneSearch.ParkingZoneSearchResult(
-      parkingStall,
-      parkingZone,
-      parkingZonesSeen,
-      parkingZonesSampled,
-      iterations
-    ) =
+    val result = processParkingZoneSearchResult(
+      inquiry,
       ParkingZoneSearch.incrementalParkingZoneSearch(
         parkingZoneSearchConfiguration,
         parkingZoneSearchParams,
@@ -162,117 +170,34 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         parkingZoneLocSamplingFunction,
         parkingZoneMNLParamsFunction,
         geoToTAZ,
-      ) match {
-        case Some(result) =>
-          result
-        case None =>
-          inquiry.activityType match {
-            case "init" | "home" =>
-              val newStall =
-                ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
-              ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
-            case _ =>
-              // didn't find any stalls, so, as a last resort, create a very expensive stall
-              val boxAroundRequest = new Envelope(
-                inquiry.destinationUtm.loc.getX + 2000,
-                inquiry.destinationUtm.loc.getX - 2000,
-                inquiry.destinationUtm.loc.getY + 2000,
-                inquiry.destinationUtm.loc.getY - 2000
-              )
-              val newStall =
-                ParkingStall.lastResortStall(
-                  boxAroundRequest,
-                  rand,
-                  tazId = TAZ.EmergencyTAZId,
-                  geoId = GeoLevel[GEO].emergencyGeoId
-                )
-              ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
-          }
-      }
+      )
+    )
 
-    logger.debug(
-      s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
-    )
-    logger.debug(
-      "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
-      chargingTypeToNo(parkingZonesSampled),
-      parkingTypeToNo(parkingZonesSampled),
-      listOfCosts(parkingZonesSampled)
-    )
+    result match {
+      case Some(
+          _ @ParkingZoneSearch.ParkingZoneSearchResult(
+            _,
+            _,
+            parkingZonesSeen,
+            parkingZonesSampled,
+            iterations
+          )
+          ) =>
+        logger.debug(
+          s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
+        )
+        logger.debug(
+          "sampled stats:\n    ChargerTypes: {};\n    Parking Types: {};\n    Costs: {};",
+          chargingTypeToNo(parkingZonesSampled),
+          parkingTypeToNo(parkingZonesSampled),
+          listOfCosts(parkingZonesSampled)
+        )
+      case _ =>
+    }
+
     result
   }
 
-  /**
-    * Can This Car Park Here
-    * @param zone ParkingZone
-    * @param inquiry ParkingInquiry
-    * @param preferredParkingTypes Set[ParkingType]
-    * @return
-    */
-  protected def getCanThisCarParkHere(
-    zone: ParkingZone[GEO],
-    inquiry: ParkingInquiry,
-    preferredParkingTypes: Set[ParkingType]
-  ): Boolean = {
-
-    val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
-
-    val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
-
-    val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(
-      vehicle => zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
-    )
-
-    val isValidTime = inquiry.beamVehicle.forall(
-      vehicle =>
-        zone.timeRestrictions
-          .get(vehicle.beamVehicleType.vehicleCategory)
-          .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
-    )
-
-    val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-      zone.vehicleManager.isEmpty || vehicle.vehicleManager == zone.vehicleManager
-    }
-
-    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager
-  }
-
-  /**
-    * Default MNL Parameters
-    * @param parkingAlternative ParkingAlternative
-    * @param inquiry ParkingInquiry
-    * @return
-    */
-  protected def getDefaultMNLParameters(
-    parkingAlternative: ParkingAlternative[GEO],
-    inquiry: ParkingInquiry
-  ): Map[ParkingMNL.Parameters, Double] = {
-
-    val distance: Double = geo.distUTMInMeters(inquiry.destinationUtm.loc, parkingAlternative.coord)
-
-    val distanceFactor
-      : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
-
-    val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
-
-    val goingHome
-      : Boolean = inquiry.activityTypeLowerCased == "home" && parkingAlternative.parkingType == ParkingType.Residential
-
-    val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
-
-    val params: Map[ParkingMNL.Parameters, Double] = new Map.Map4(
-      key1 = ParkingMNL.Parameters.RangeAnxietyCost,
-      value1 = 0.0,
-      key2 = ParkingMNL.Parameters.WalkingEgressCost,
-      value2 = distanceFactor,
-      key3 = ParkingMNL.Parameters.ParkingTicketCost,
-      value3 = parkingCostsPriceFactor,
-      key4 = ParkingMNL.Parameters.HomeActivityPrefersResidentialParking,
-      value4 = homeActivityPrefersResidentialFactor
-    )
-
-    params
-  }
 }
 
 object InfrastructureFunctions {
@@ -315,5 +240,39 @@ object InfrastructureFunctions {
       .map(x => x._1.toString + ": " + x._2)
       .mkString(", ")
   }
+
+  /**
+    * if the destination activity is "home" then we are a PEV. this function is true when:
+    *
+    * 1. we are not headed home (i.e. not a PersonAgent driving their car home)
+    * 2. if we are headed home,
+    *   - and we have an electric engine,
+    *   - that we require charging plugs on some probability
+    *   - that this zone meets that criteria
+    *
+    * @param zone ParkingZone
+    * @param isPEVAndNeedsToChargeAtHome Option[Boolean]
+    * @param beamVehicleOption Option[BeamVehicle]
+    * @return
+    */
+  def testPEVChargeWhenHeadedHome[GEO](
+    zone: ParkingZone[GEO],
+    isPEVAndNeedsToChargeAtHome: Option[Boolean],
+    beamVehicleOption: Option[BeamVehicle]
+  ): Boolean =
+    isPEVAndNeedsToChargeAtHome match {
+      case None => true // not a PEV, any stall is ok
+      case Some(needToCharge) =>
+        if (!needToCharge) true // don't need to charge, any stall is ok
+        else
+          beamVehicleOption match {
+            case Some(beamVehicle) =>
+              beamVehicle.beamVehicleType.primaryFuelType match {
+                case Electricity => zone.chargingPointType.nonEmpty
+                case _           => true // not a charging car, any stall is ok
+              }
+            case _ => true // not in a vehicle, any stall is ok
+          }
+    }
 
 }

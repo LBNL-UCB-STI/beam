@@ -26,7 +26,7 @@ class ParkingZone[GEO](
   var stallsAvailable: Int,
   val maxStalls: Int,
   val reservedFor: Seq[VehicleCategory],
-  val vehicleManager: Option[Id[VehicleManager]],
+  val vehicleManagerId: Id[VehicleManager],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
@@ -61,7 +61,7 @@ class ParkingZone[GEO](
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
       this.reservedFor,
-      this.vehicleManager,
+      this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel,
       this.timeRestrictions,
@@ -100,10 +100,10 @@ object ParkingZone extends LazyLogging {
     parkingZoneId: Id[ParkingZoneId],
     geoId: Id[GEO],
     parkingType: ParkingType,
+    vehicleManagerId: Id[VehicleManager],
     stallsAvailable: Int = 0,
     maxStalls: Int = 0,
     reservedFor: Seq[VehicleCategory] = Seq.empty[VehicleCategory],
-    vehicleManagerId: Option[Id[VehicleManager]] = None,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
@@ -125,17 +125,22 @@ object ParkingZone extends LazyLogging {
       landCostInUSDPerSqft,
     )
 
-  def defaultInit[GEO](geoId: Id[GEO], parkingType: ParkingType, numStalls: Int): ParkingZone[GEO] = {
-    init[GEO](Some(DefaultParkingZoneId), geoId, parkingType, numStalls)
+  def defaultInit[GEO](
+    geoId: Id[GEO],
+    parkingType: ParkingType,
+    vehicleManagerId: Id[VehicleManager],
+    numStalls: Int
+  ): ParkingZone[GEO] = {
+    init[GEO](Some(DefaultParkingZoneId), geoId, parkingType, vehicleManagerId, numStalls)
   }
 
   def init[GEO](
     parkingZoneIdMaybe: Option[Id[ParkingZoneId]],
     geoId: Id[GEO],
     parkingType: ParkingType,
+    vehicleManagerId: Id[VehicleManager],
     maxStalls: Int = 0,
     reservedFor: Seq[VehicleCategory] = Seq.empty[VehicleCategory],
-    vehicleManagerId: Option[Id[VehicleManager]] = None,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
@@ -150,10 +155,10 @@ object ParkingZone extends LazyLogging {
       parkingZoneId,
       geoId,
       parkingType,
+      vehicleManagerId,
       maxStalls,
       maxStalls,
       reservedFor,
-      vehicleManagerId,
       chargingPointType,
       pricingModel,
       timeRestrictions,
@@ -221,21 +226,21 @@ object ParkingZone extends LazyLogging {
 
   /**
     * construct ID of a Parking Zone
-    * @param vehicleManager Vehicle Manager
+    * @param vehicleManagerId Vehicle Manager
     * @param geoId TAZ ID
     * @param parkingType Parking Type
     * @param chargingPointType Charging Point Type
     * @return
     */
   def constructParkingZoneKey(
-    vehicleManager: Option[Id[VehicleManager]],
+    vehicleManagerId: Id[VehicleManager],
     geoId: Id[_],
     parkingType: ParkingType,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel]
   ): Id[ParkingZoneId] = {
     val zoneId =
-      s"cs_${vehicleManager.map(_.toString).getOrElse("NoManager")}_${geoId}_${parkingType}_${chargingPointType
+      s"cs_${vehicleManagerId}_${geoId}_${parkingType}_${chargingPointType
         .getOrElse("NoCharger")}_${pricingModel.getOrElse("NoPricing")}"
     createId(zoneId)
   }

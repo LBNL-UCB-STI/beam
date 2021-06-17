@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -133,7 +133,8 @@ class ChargingNetworkManagerSpec
       Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
-      reservedFor = Seq.empty
+      reservedFor = Seq.empty,
+      VehicleManager.defaultManager
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _
@@ -422,10 +423,13 @@ class ChargingNetworkManagerSpec
       )
     )
     parkingManager = new TestProbe(system)
+
+    val (_, chargingNetworkMap) = InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
+
     chargingNetworkManager = TestActorRef[ChargingNetworkManager](
       ChargingNetworkManager.props(
         beamServices,
-        ParkingAndChargingInfrastructure(beamServices, envelopeInUTM),
+        chargingNetworkMap,
         parkingManager.ref,
         scheduler
       )

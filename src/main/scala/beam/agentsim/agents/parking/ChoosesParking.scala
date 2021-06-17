@@ -60,6 +60,7 @@ trait ChoosesParking extends {
       parkingManager ! ParkingInquiry(
         SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
         nextActivityType,
+        this.currentBeamVehicle.vehicleManagerId,
         Some(this.currentBeamVehicle),
         remainingTripData,
         attributes.valueOfTime,

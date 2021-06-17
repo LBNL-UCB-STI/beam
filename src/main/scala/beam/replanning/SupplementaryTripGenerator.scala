@@ -3,15 +3,11 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import com.conveyal.r5.profile.StreetMode
-import beam.utils.scenario.PlanElement
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -297,8 +293,7 @@ class SupplementaryTripGenerator(
             mode,
             vehicleType.id,
             vehicleType,
-            fuelPrice,
-            beamServices.beamScenario
+            fuelPrice
           )
         val egressTripSkim =
           beamServices.skims.od_skimmer.getTimeDistanceAndCost(
@@ -308,8 +303,7 @@ class SupplementaryTripGenerator(
             mode,
             vehicleType.id,
             vehicleType,
-            fuelPrice,
-            beamServices.beamScenario
+            fuelPrice
           )
         val startingOverlap =
           (altStart - (additionalActivity.getStartTime - accessTripSkim.time)).max(0)

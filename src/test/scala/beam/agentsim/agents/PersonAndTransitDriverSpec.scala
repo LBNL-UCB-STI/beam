@@ -10,7 +10,7 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
+import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -67,10 +67,9 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private lazy val parkingManager = system.actorOf(
-    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
-    "ParkingManager"
-  )
+  val (parkingNetworks, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
+  private lazy val parkingManager =
+    system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
 
   /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
     system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
@@ -124,8 +123,18 @@ class PersonAndTransitDriverSpec
       )
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val bus = new BeamVehicle(id = busId, powerTrain = new Powertrain(0.0), beamVehicleType = vehicleType)
-      val tram = new BeamVehicle(id = tramId, powerTrain = new Powertrain(0.0), beamVehicleType = vehicleType)
+      val bus = new BeamVehicle(
+        id = busId,
+        powerTrain = new Powertrain(0.0),
+        beamVehicleType = vehicleType,
+        vehicleManagerId = VehicleManager.noManager
+      )
+      val tram = new BeamVehicle(
+        id = tramId,
+        powerTrain = new Powertrain(0.0),
+        beamVehicleType = vehicleType,
+        vehicleManagerId = VehicleManager.noManager
+      )
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(

@@ -48,7 +48,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId = Id.create(rideHailManagerId, classOf[VehicleManager]),
+      rideHailManagerId = VehicleManager.createAndKeepId(rideHailManagerId, VehicleManager.BEAMRideHail),
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -319,7 +319,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManager = Some(rideHailManagerId),
+        vehicleManagerId = rideHailManagerId,
         randomSeed
       )
 

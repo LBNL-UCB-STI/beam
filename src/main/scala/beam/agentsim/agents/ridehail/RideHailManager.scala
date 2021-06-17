@@ -1040,9 +1040,16 @@ class RideHailManager(
     triggerId: Long
   ): Unit = {
     val destinationUtm: SpaceTime = rideHailAgentLocation.latestUpdatedLocationUTM
-    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", Some(beamVehicle), None, triggerId = triggerId)
+    val inquiry = ParkingInquiry(
+      destinationUtm,
+      "charge",
+      beamVehicle.vehicleManagerId,
+      Some(beamVehicle),
+      None,
+      triggerId = triggerId
+    )
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
-    parkingManager ! inquiry
+    chargingNetworkManager ! inquiry
   }
 
   /* END: Refueling Logic */

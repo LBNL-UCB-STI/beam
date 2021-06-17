@@ -5,6 +5,7 @@ import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -15,13 +16,12 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class PowerController(
-  chargingNetworks: Vector[ChargingNetwork[_]],
-  chargingNetworkManagerConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager
+  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+  chargingNetworkManagerConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
+  unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
 ) extends LazyLogging {
   import SitePowerManager._
 
-  private val chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork[_]] =
-    chargingNetworks.map(cn => cn.vehicleManager -> cn).toMap
   private val helicsConfig = chargingNetworkManagerConfig.helics
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = if (helicsConfig.connectionEnabled) {
@@ -52,9 +52,6 @@ class PowerController(
   } else None
 
   private var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
-  private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
-    chargingNetworkMap.flatMap(_._2.chargingStations).toArray.distinct
-  ).value
   private var currentBin = -1
 
   /**
@@ -76,7 +73,7 @@ class PowerController(
         val msgToPublish = estimatedLoad.get.map {
           case (station, powerInKW) =>
             Map(
-              "vehicleManager"    -> station.zone.vehicleManager,
+              "vehicleManager"    -> station.zone.vehicleManagerId,
               "taz"               -> station.zone.geoId.toString,
               "parkingType"       -> station.zone.parkingType.toString,
               "chargingPointType" -> station.zone.chargingPointType.toString,
@@ -99,8 +96,8 @@ class PowerController(
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
           val managerId = x("vehicleManager").asInstanceOf[String] match {
-            case managerIdString if managerIdString.isEmpty => None
-            case managerIdString                            => Some(Id.create(managerIdString, classOf[VehicleManager]))
+            case managerIdString if managerIdString.isEmpty => VehicleManager.defaultManager
+            case managerIdString                            => Id.create(managerIdString, classOf[VehicleManager])
           }
           val chargingNetwork = chargingNetworkMap(managerId)
           chargingNetwork.lookupStation(

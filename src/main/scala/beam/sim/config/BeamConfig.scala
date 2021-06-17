@@ -788,7 +788,7 @@ object BeamConfig {
           repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager,
           rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager,
           surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
-          vehicleManager: java.lang.String
+          vehicleManagerId: java.lang.String
         )
 
         object RideHail {
@@ -1398,7 +1398,8 @@ object BeamConfig {
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
               ),
-              vehicleManager = if (c.hasPathOrNull("vehicleManager")) c.getString("vehicleManager") else "GlobalRHM"
+              vehicleManagerId =
+                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "GlobalRHM"
             )
           }
         }

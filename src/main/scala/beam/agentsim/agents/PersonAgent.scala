@@ -276,7 +276,8 @@ class PersonAgent(
   val body = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    vehicleManagerId = VehicleManager.noManager
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -373,8 +374,7 @@ class PersonAgent(
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
                       currentBeamVehicle.beamVehicleType,
-                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType),
-                      beamServices.beamScenario
+                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType)
                     )
                     .distance
                 )

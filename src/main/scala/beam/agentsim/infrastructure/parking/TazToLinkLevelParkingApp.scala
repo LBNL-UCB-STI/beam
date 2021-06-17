@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
@@ -51,7 +52,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   }
 
   val (parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]], zoneSearchTree: ZoneSearchTree[TAZ]) =
-    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random())
+    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random(), VehicleManager.defaultManager)
 
   val linkToTaz = LinkLevelOperations.getLinkToTazMapping(network, tazMap)
 
@@ -75,7 +76,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           maxStalls = zone.maxStalls,
           reservedFor = zone.reservedFor,
-          vehicleManagerId = zone.vehicleManager,
+          vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
           timeRestrictions = zone.timeRestrictions,
@@ -130,7 +131,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           maxStalls = numZones,
           reservedFor = zone.reservedFor,
-          vehicleManagerId = zone.vehicleManager,
+          vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
           timeRestrictions = zone.timeRestrictions,

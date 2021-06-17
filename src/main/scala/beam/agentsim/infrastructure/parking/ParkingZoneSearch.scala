@@ -223,7 +223,7 @@ object ParkingZoneSearch {
               parkingZone.pricingModel,
               parkingType,
               parkingZone.reservedFor,
-              parkingZone.vehicleManager
+              parkingZone.vehicleManagerId
             )
 
             val theseParkingZoneIds: List[Id[ParkingZoneId]] = alternatives.map {

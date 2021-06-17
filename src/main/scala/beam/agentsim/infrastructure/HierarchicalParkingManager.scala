@@ -4,20 +4,18 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
-import beam.agentsim.infrastructure.ZonalParkingManager.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingMNL.ParkingMNLConfig
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
-import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+import scala.language.existentials
 
 import scala.util.Random
 
@@ -29,114 +27,107 @@ import scala.util.Random
   * @author Dmitry Openkov
   */
 class HierarchicalParkingManager(
+  vehicleManagerId: Id[VehicleManager],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
   tazMap: TAZTreeMap,
   linkToTAZMapping: Map[Link, TAZ],
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
-  rand: Random,
-  geo: GeoUtils,
   minSearchRadius: Double,
   maxSearchRadius: Double,
-  boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNLConfig,
-  checkThatNumberOfStallsMatch: Boolean = false,
-  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
-) extends ParkingNetwork[Link] {
+  seed: Int,
+  checkThatNumberOfStallsMatch: Boolean = false
+) extends ParkingNetwork[Link](vehicleManagerId, parkingZones) {
 
-  private val actualLinkParkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]] =
+  protected val actualLinkParkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]] =
     HierarchicalParkingManager.collapse(parkingZones)
 
-  private val tazLinks: Map[Id[TAZ], QuadTree[Link]] = createTazLinkQuadTreeMapping(linkToTAZMapping)
-  private val (tazParkingZones, linkZoneToTazZoneMap) =
+  protected val tazLinks: Map[Id[TAZ], QuadTree[Link]] = createTazLinkQuadTreeMapping(linkToTAZMapping)
+  protected val (tazParkingZones, linkZoneToTazZoneMap) =
     convertToTazParkingZones(actualLinkParkingZones, linkToTAZMapping.map {
       case (link, taz) => link.getId -> taz.tazId
     })
-  private val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones.values.toSeq)
+  protected val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones.values.toSeq)
 
-  private val tazSearchFunctions: ParkingFunctions[TAZ] = new ParkingFunctions[TAZ](
-    tazMap.tazQuadTree,
-    tazMap.idToTAZMapping,
-    identity[TAZ],
-    geo,
-    tazParkingZones,
-    tazZoneSearchTree,
-    rand,
-    minSearchRadius,
-    maxSearchRadius,
-    boundingBox,
-    mnlMultiplierParameters
-  )
+  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
 
   val DefaultParkingZone: ParkingZone[Link] =
     ParkingZone.defaultInit(
       LinkLevelOperations.DefaultLinkId,
       ParkingType.Public,
+      vehicleManagerId,
       UbiqiutousParkingAvailability
     )
 
-  private val linkZoneSearchMap: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] =
+  protected val linkZoneSearchMap: Map[Id[Link], Map[ParkingZoneDescription, ParkingZone[Link]]] =
     createLinkZoneSearchMap(actualLinkParkingZones)
 
   if (checkThatNumberOfStallsMatch) {
     stallsInfo()
   }
 
+  /**
+    *
+    * @param inquiry ParkingInquiry
+    * @param parallelizationCounterOption Option[SimpleCounter]
+    *  @return
+    */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = {
     logger.debug("Received parking inquiry: {}", inquiry)
 
-    val ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _) =
-      tazSearchFunctions.searchForParkingStall(inquiry)
+    val Some(ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _)) =
+      searchFunctions.get.searchForParkingStall(inquiry)
 
-    val (parkingStall: ParkingStall, parkingZone: ParkingZone[Link]) = tazLinks.get(tazParkingZone.geoId) match {
-      case Some(linkQuadTree) =>
-        val foundZoneDescription = ParkingZoneDescription.describeParkingZone(tazParkingZone)
-        val startingPoint =
-          linkQuadTree.getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY).getCoord
-        TAZTreeMap.ringSearch(
-          linkQuadTree,
-          startingPoint,
-          minSearchRadius / 4,
-          maxSearchRadius * 5,
-          radiusMultiplication = 1.5
-        ) { link =>
-          for {
-            linkZones <- linkZoneSearchMap.get(link.getId)
-            zone      <- linkZones.get(foundZoneDescription) if zone.stallsAvailable > 0
-          } yield {
-            (tazParkingStall.copy(zone.geoId, parkingZoneId = zone.parkingZoneId, locationUTM = link.getCoord), zone)
-          }
-        } match {
-          case Some(foundResult) => foundResult
-          case None => //Cannot find required links within the TAZ, this means the links is too far from the starting point
-            logger.warn(
-              "Cannot find link parking stall for taz id {}, foundZoneDescription = {}",
-              tazParkingZone.geoId,
-              foundZoneDescription
-            )
-            import scala.collection.JavaConverters._
-            val tazLinkZones = for {
-              link      <- linkQuadTree.values().asScala.toList
+    val (parkingStall: ParkingStall, parkingZone: ParkingZone[Link]) =
+      tazLinks.get(tazParkingZone.geoId.asInstanceOf[Id[TAZ]]) match {
+        case Some(linkQuadTree) =>
+          val foundZoneDescription = ParkingZoneDescription.describeParkingZone(tazParkingZone)
+          val startingPoint =
+            linkQuadTree.getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY).getCoord
+          TAZTreeMap.ringSearch(
+            linkQuadTree,
+            startingPoint,
+            minSearchRadius / 4,
+            maxSearchRadius * 5,
+            radiusMultiplication = 1.5
+          ) { link =>
+            for {
               linkZones <- linkZoneSearchMap.get(link.getId)
               zone      <- linkZones.get(foundZoneDescription) if zone.stallsAvailable > 0
             } yield {
-              zone
+              (tazParkingStall.copy(zone.geoId, parkingZoneId = zone.parkingZoneId, locationUTM = link.getCoord), zone)
             }
-            logger.warn("Actually tazLink zones {}", tazLinkZones)
-            lastResortStallAndZone(inquiry.destinationUtm.loc)
-        }
-      case None => //no corresponding links, this means it's a special zone
-        tazParkingStall.geoId match {
-          case TAZ.DefaultTAZId =>
-            tazParkingStall.copy(geoId = LinkLevelOperations.DefaultLinkId) -> DefaultParkingZone
-          case TAZ.EmergencyTAZId =>
-            tazParkingStall.copy(geoId = LinkLevelOperations.EmergencyLinkId) -> DefaultParkingZone
-          case _ =>
-            logger.warn("Cannot find TAZ with id {}", tazParkingZone.geoId)
-            lastResortStallAndZone(inquiry.destinationUtm.loc)
-        }
-    }
+          } match {
+            case Some(foundResult) => foundResult
+            case None => //Cannot find required links within the TAZ, this means the links is too far from the starting point
+              logger.warn(
+                "Cannot find link parking stall for taz id {}, foundZoneDescription = {}",
+                tazParkingZone.geoId,
+                foundZoneDescription
+              )
+              import scala.collection.JavaConverters._
+              val tazLinkZones = for {
+                link      <- linkQuadTree.values().asScala.toList
+                linkZones <- linkZoneSearchMap.get(link.getId)
+                zone      <- linkZones.get(foundZoneDescription) if zone.stallsAvailable > 0
+              } yield {
+                zone
+              }
+              logger.warn("Actually tazLink zones {}", tazLinkZones)
+              lastResortStallAndZone(inquiry.destinationUtm.loc)
+          }
+        case None => //no corresponding links, this means it's a special zone
+          tazParkingStall.geoId match {
+            case TAZ.DefaultTAZId =>
+              tazParkingStall.copy(geoId = LinkLevelOperations.DefaultLinkId) -> DefaultParkingZone
+            case TAZ.EmergencyTAZId =>
+              tazParkingStall.copy(geoId = LinkLevelOperations.EmergencyLinkId) -> DefaultParkingZone
+            case _ =>
+              logger.warn("Cannot find TAZ with id {}", tazParkingZone.geoId)
+              lastResortStallAndZone(inquiry.destinationUtm.loc)
+          }
+      }
 
     // reserveStall is false when agent is only seeking pricing information
     if (inquiry.reserveStall) {
@@ -152,13 +143,20 @@ class HierarchicalParkingManager(
     Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
   }
 
-  override def processReleaseParkingStall(release: ReleaseParkingStall): Unit = {
+  /**
+    *
+    * @param release ReleaseParkingStall
+    *  @return
+    */
+  override def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
     val parkingZoneId = release.stall.parkingZoneId
     if (parkingZoneId == ParkingZone.DefaultParkingZoneId) {
       // this is an infinitely available resource; no update required
       logger.debug("Releasing a stall in the default/emergency zone")
+      true
     } else if (!actualLinkParkingZones.contains(parkingZoneId)) {
       logger.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
+      false
     } else {
       val linkZone = actualLinkParkingZones(parkingZoneId)
       val tazZoneId = linkZoneToTazZoneMap(parkingZoneId)
@@ -209,7 +207,7 @@ class HierarchicalParkingManager(
     )
     val newStall = ParkingStall.lastResortStall(
       boxAroundRequest,
-      rand,
+      new Random(seed),
       tazId = TAZ.EmergencyTAZId,
       geoId = LinkLevelOperations.EmergencyLinkId
     )
@@ -234,7 +232,7 @@ object HierarchicalParkingManager {
     timeRestrictions: Map[VehicleCategory, Range],
     parkingZoneName: Option[String],
     landCostInUSDPerSqft: Option[Double],
-    vehicleManager: Option[Id[VehicleManager]] = None,
+    vehicleManagerId: Id[VehicleManager],
   )
 
   object ParkingZoneDescription {
@@ -248,59 +246,78 @@ object HierarchicalParkingManager {
         zone.timeRestrictions,
         zone.parkingZoneName,
         zone.landCostInUSDPerSqft,
-        zone.vehicleManager
+        zone.vehicleManagerId
+      )
+    }
+  }
+
+  def apply(
+    vehicleManagerId: Id[VehicleManager],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
+    tazMap: TAZTreeMap,
+    linkToTAZMapping: Map[Link, TAZ],
+    distanceFunction: (Coord, Coord) => Double,
+    minSearchRadius: Double,
+    maxSearchRadius: Double,
+    boundingBox: Envelope,
+    seed: Int,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    checkThatNumberOfStallsMatch: Boolean = false
+  ): ParkingNetwork[Link] = {
+    new HierarchicalParkingManager(
+      vehicleManagerId,
+      parkingZones,
+      tazMap,
+      linkToTAZMapping,
+      minSearchRadius,
+      maxSearchRadius,
+      seed,
+      checkThatNumberOfStallsMatch
+    ) {
+      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+        new ParkingFunctions[TAZ](
+          vehicleManagerId,
+          tazMap.tazQuadTree,
+          tazMap.idToTAZMapping,
+          identity[TAZ],
+          tazParkingZones,
+          distanceFunction,
+          minSearchRadius,
+          maxSearchRadius,
+          boundingBox,
+          seed,
+          mnlParkingConfig
+        )
       )
     }
   }
 
   def init(
+    vehicleManagerId: Id[VehicleManager],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
     tazMap: TAZTreeMap,
     linkToTAZMapping: Map[Link, TAZ],
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
-    rand: Random,
-    geo: GeoUtils,
+    distanceFunction: (Coord, Coord) => Double,
     minSearchRadius: Double,
     maxSearchRadius: Double,
     boundingBox: Envelope,
-    mnlMultiplierParameters: ParkingMNLConfig,
-    checkThatNumberOfStallsMatch: Boolean = false,
-    chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
+    seed: Int,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork[Link] =
-    new HierarchicalParkingManager(
+    HierarchicalParkingManager(
+      vehicleManagerId,
+      parkingZones,
       tazMap,
       linkToTAZMapping,
-      parkingZones,
-      rand,
-      geo,
+      distanceFunction,
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      mnlMultiplierParameters,
-      checkThatNumberOfStallsMatch,
-      chargingPointConfig
+      seed,
+      mnlParkingConfig,
+      checkThatNumberOfStallsMatch
     )
-
-  def init(
-    beamConfig: BeamConfig,
-    tazMap: TAZTreeMap,
-    linkToTAZMapping: Map[Link, TAZ],
-    geo: GeoUtils,
-    boundingBox: Envelope,
-    stalls: Map[Id[ParkingZoneId], ParkingZone[Link]]
-  ): ParkingNetwork[Link] = {
-    new HierarchicalParkingManager(
-      tazMap,
-      linkToTAZMapping,
-      stalls,
-      new Random(beamConfig.matsim.modules.global.randomSeed),
-      geo,
-      beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      boundingBox,
-      mnlMultiplierParametersFromConfig(beamConfig),
-      chargingPointConfig = beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
-    )
-  }
 
   /**
     * Makes TAZ level parking data from the link level parking data
@@ -333,7 +350,7 @@ object HierarchicalParkingManager {
           parkingType = description.parkingType,
           maxStalls = numStalls,
           reservedFor = description.reservedFor,
-          vehicleManagerId = description.vehicleManager,
+          vehicleManagerId = description.vehicleManagerId,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
           timeRestrictions = description.timeRestrictions,
@@ -397,7 +414,7 @@ object HierarchicalParkingManager {
             parkingType = description.parkingType,
             maxStalls = numStalls,
             reservedFor = description.reservedFor,
-            vehicleManagerId = description.vehicleManager,
+            vehicleManagerId = description.vehicleManagerId,
             chargingPointType = description.chargingPointType,
             pricingModel = description.pricingModel,
             timeRestrictions = description.timeRestrictions,

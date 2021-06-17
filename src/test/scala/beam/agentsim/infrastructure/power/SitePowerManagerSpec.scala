@@ -87,6 +87,12 @@ class SitePowerManagerSpec
   private val beamServices = new BeamServicesImpl(injector)
   private val tazMap = beamServices.beamScenario.tazTreeMap
 
+  private val envelopeInUTM = {
+    val envelopeInUTM = beamServices.geo.wgs2Utm(beamScenario.transportNetwork.streetLayer.envelope)
+    envelopeInUTM.expandBy(beamConfig.beam.spatial.boundingBoxBuffer)
+    envelopeInUTM
+  }
+
   val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
 
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
@@ -97,6 +103,7 @@ class SitePowerManagerSpec
     None,
     taz.tazId,
     ParkingType.Workplace,
+    VehicleManager.defaultManager,
     maxStalls = 2,
     chargingPointType = Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
     pricingModel = Some(PricingModel.FlatFee(0.0))
@@ -107,25 +114,31 @@ class SitePowerManagerSpec
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType]))
+      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
+      VehicleManager.defaultManager
     )
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
+      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
+      VehicleManager.defaultManager
     )
     v1.useParkingStall(parkingStall1)
     v2.useParkingStall(parkingStall1.copy())
     List(v1, v2)
   }
 
-  val (chargingNetworks, _, _) =
-    ChargingNetwork.init[TAZ](Map(dummyChargingZone.parkingZoneId -> dummyChargingZone))
+  val chargingNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
+    VehicleManager.defaultManager,
+    Map(dummyChargingZone.parkingZoneId -> dummyChargingZone),
+    envelopeInUTM,
+    beamServices
+  )
 
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val sitePowerManager = new SitePowerManager(chargingNetworks, beamServices)
+    val sitePowerManager = new SitePowerManager(Map(VehicleManager.defaultManager -> chargingNetwork), beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
@@ -142,7 +155,7 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        val Some(chargingVehicle) = chargingNetworks.head.attemptToConnectVehicle(0, v, ActorRef.noSender)
+        val Some(chargingVehicle) = chargingNetwork.attemptToConnectVehicle(0, v, ActorRef.noSender)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,

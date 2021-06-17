@@ -1,9 +1,6 @@
 package beam.sim.vehiclesharing
-import java.util.concurrent.TimeUnit
 import akka.actor.{ActorLogging, ActorRef}
 import akka.pattern.pipe
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor._
@@ -24,7 +21,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long,
@@ -50,7 +47,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(vehicleManager),
+        vehicleManagerId = vehicleManagerId,
         rand.nextInt()
       )
       nextVehicleIndex += 1
@@ -72,6 +69,6 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
   }
 
   def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
-    ParkingInquiry(whenWhere, "wherever", triggerId = triggerId)
+    ParkingInquiry(whenWhere, "wherever", vehicleManagerId, triggerId = triggerId)
 
 }

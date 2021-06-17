@@ -1,43 +1,40 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, ChargingCapability}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ChargingCapability, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.util.Random
-
 class ChargingFunctions[GEO: GeoLevel](
+  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
-  geo: GeoUtils,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-  zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO],
-  rand: Random,
+  distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  mnlMultiplierParameters: ParkingMNL.ParkingMNLConfig,
+  seed: Int,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
   chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
-) extends InfrastructureFunctions[GEO](
+) extends ParkingFunctions[GEO](
+      vehicleManagerId,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,
-      geo,
       parkingZones,
-      zoneSearchTree,
-      mnlMultiplierParameters,
+      distanceFunction,
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      rand
+      seed,
+      mnlParkingConfig
     ) {
 
   /**
@@ -93,17 +90,22 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  protected override def getAdditionalSearchFilterPredicates(
+  override protected def setupSearchFilterPredicates(
     zone: ParkingZone[GEO],
     inquiry: ParkingInquiry
   ): Boolean = {
+    val hasChargingPoint: Boolean = zone.chargingPointType.isDefined
+
     val isEV: Boolean = inquiry.beamVehicle.forall(_.beamVehicleType.isEV)
 
     val rideHailFastChargingOnly: Boolean = ifRideHailThenFastChargingOnly(zone, inquiry.activityType)
 
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
 
-    isEV && rideHailFastChargingOnly && validChargingCapability
+    val preferredParkingTypes = getPreferredParkingTypes(inquiry)
+    val canThisCarParkHere: Boolean = getCanThisCarParkHere(zone, inquiry, preferredParkingTypes)
+
+    hasChargingPoint && isEV && rideHailFastChargingOnly && validChargingCapability && canThisCarParkHere
   }
 
   /**
@@ -112,10 +114,12 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     *  @return
     */
-  protected override def updateMNLParameters(
+  override protected def setupMNLParameters(
     parkingAlternative: ParkingAlternative[GEO],
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
+
+    val parkingParameters = super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry)
 
     // end-of-day parking durations are set to zero, which will be mis-interpreted here
     val parkingDuration: Option[Int] =
@@ -148,11 +152,34 @@ class ChargingFunctions[GEO: GeoLevel](
         }
         .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
-    val params: Map[ParkingMNL.Parameters, Double] = new Map.Map1(
+    val params = parkingParameters ++ new Map.Map1(
       key1 = ParkingMNL.Parameters.RangeAnxietyCost,
       value1 = rangeAnxietyFactor,
     )
 
     params
   }
+
+  /**
+    * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
+    * @param parkingZoneSearchResult ParkingZoneSearchResult[GEO]
+    */
+  override protected def processParkingZoneSearchResult(
+    inquiry: ParkingInquiry,
+    parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
+  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult
+
+  /**
+    * sample location of a parking stall with a GEO area
+    *
+    * @param inquiry     ParkingInquiry
+    * @param parkingZone ParkingZone[GEO]
+    * @param geoArea GEO
+    * @return
+    */
+  override protected def sampleParkingStallLocation(
+    inquiry: ParkingInquiry,
+    parkingZone: ParkingZone[GEO],
+    geoArea: GEO
+  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, geoArea)
 }

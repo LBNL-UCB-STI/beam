@@ -1,10 +1,11 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
+import org.matsim.api.core.v01.Id
 
 /**
   * message sent from a ChoosesParking agent to a Parking Manager to request parking
@@ -21,6 +22,7 @@ import beam.utils.ParkingManagerIdGenerator
 case class ParkingInquiry(
   destinationUtm: SpaceTime,
   activityType: String,
+  vehicleManagerId: Id[VehicleManager],
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,
@@ -30,6 +32,13 @@ case class ParkingInquiry(
   triggerId: Long,
 ) extends HasTriggerId {
   val activityTypeLowerCased: String = activityType.toLowerCase
+
+  def isChargingRequestOrEV: Boolean = {
+    beamVehicle match {
+      case Some(vehicle) => vehicle.beamVehicleType.isEV
+      case _             => activityTypeLowerCased == "charge"
+    }
+  }
 }
 
 object ParkingInquiry {
