@@ -43,7 +43,7 @@ class ParkingManagerBenchmark(
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
         possibleParkingLocations.flatMap {
           case (coord, actType) =>
-            parkingManagerActor.processParkingInquiry(ParkingInquiry(coord, actType, 1.0))
+            parkingManagerActor.processParkingInquiry(ParkingInquiry(coord, actType))
         }.toList
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")

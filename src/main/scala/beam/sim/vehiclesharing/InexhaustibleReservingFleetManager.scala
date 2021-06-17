@@ -60,7 +60,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       vehicle.becomeDriver(sender)
 
       // Park it and forward it to the customer
-      (parkingManager ? parkingInquiry(whenWhere, 1.0))
+      (parkingManager ? parkingInquiry(whenWhere, 60.0))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             vehicle.useParkingStall(stall)

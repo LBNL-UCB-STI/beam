@@ -89,7 +89,7 @@ class ZonalParkingManagerSpec
           config
         )
       } {
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0)
+        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.getX + 2000,
@@ -142,7 +142,7 @@ class ZonalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0)
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -163,7 +163,7 @@ class ZonalParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0)
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val response2 @ Some(ParkingInquiryResponse(stall, responseId)) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
@@ -208,7 +208,7 @@ class ZonalParkingManagerSpec
         )
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0, Some(vehicle1))
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", beamVehicle = Some(vehicle1))
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -234,7 +234,7 @@ class ZonalParkingManagerSpec
           beamVehicleType = vehicleType2,
           managerId = VehicleManager.privateVehicleManager.managerId
         )
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0, Some(vehicle2))
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", beamVehicle = Some(vehicle2))
         val response2 @ Some(ParkingInquiryResponse(stall, responseId)) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
@@ -272,8 +272,8 @@ class ZonalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0)
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work", 1.0)
+        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
         val expectedParkingZoneId = 0
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
@@ -353,7 +353,7 @@ class ZonalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work", 1.0)
+          req = ParkingInquiry(middleOfWorld, "work")
           response1 = zonalParkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _)) =>
@@ -496,7 +496,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       managerId = vehicleManagerId
     )
-    val inquiry = ParkingInquiry(coord, "init", 1.0, Some(vehicle))
+    val inquiry = ParkingInquiry(coord, "init", beamVehicle = Some(vehicle))
     val response = zpm.processParkingInquiry(inquiry)
     assert(response.isDefined, "no response")
     assert(zonalVehicleManagers.contains(response.get.stall.managerId), "something is wildly broken")
@@ -518,7 +518,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       managerId = vehicleManagerId
     )
-    val inquiry = ParkingInquiry(coord, "init", 1.0, Some(vehicle))
+    val inquiry = ParkingInquiry(coord, "init", beamVehicle = Some(vehicle))
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0

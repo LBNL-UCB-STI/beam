@@ -20,7 +20,7 @@ import beam.utils.ParkingManagerIdGenerator
 case class ParkingInquiry(
   destinationUtm: Location,
   activityType: String,
-  parkingDuration: Double,
+  parkingDuration: Double = 60.0, // 1 min as a default value
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,

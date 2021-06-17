@@ -163,7 +163,7 @@ class PersonWithVehicleSharingSpec
         managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), 1.0))
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             vehicle.useParkingStall(stall)
@@ -315,7 +315,7 @@ class PersonWithVehicleSharingSpec
         managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), 1.0))
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             vehicle.setReservedParkingStall(Some(stall))
@@ -421,7 +421,7 @@ class PersonWithVehicleSharingSpec
         managerId = Id.create("shared-fleet-1", classOf[VehicleManager]),
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200), 1.0))
+      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             vehicle2.setReservedParkingStall(Some(stall))
@@ -551,7 +551,7 @@ class PersonWithVehicleSharingSpec
       scheduler ! StartSchedule(0)
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), 1.0))
+      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
         .collect {
           case ParkingInquiryResponse(stall, _) =>
             car1.useParkingStall(stall)
@@ -715,8 +715,8 @@ class PersonWithVehicleSharingSpec
     person
   }
 
-  def parkingInquiry(whenWhere: SpaceTime, duration: Double): ParkingInquiry =
-    ParkingInquiry(whenWhere.loc, "wherever", duration)
+  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry =
+    ParkingInquiry(whenWhere.loc, "wherever")
 
   override def afterAll(): Unit = {
     super.afterAll()
