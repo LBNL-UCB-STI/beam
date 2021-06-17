@@ -470,7 +470,9 @@ object HouseholdActor {
           veh.setManager(Some(self))
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")
+            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init", 0.0)
+            // 0.0 duration for a free parking overnight
+            // FIXME it shouldn't be null when charging
           } {
             veh.useParkingStall(stall)
           }

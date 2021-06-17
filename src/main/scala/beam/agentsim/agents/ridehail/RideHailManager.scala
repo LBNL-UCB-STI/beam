@@ -52,6 +52,7 @@ import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.utils._
 import beam.utils.logging.LogActorState
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -1033,7 +1034,17 @@ class RideHailManager(
 
   def findRefuelStationAndSendVehicle(rideHailAgentLocation: RideHailAgentLocation, beamVehicle: BeamVehicle): Unit = {
     val destinationUtm: Coord = rideHailAgentLocation.latestUpdatedLocationUTM.loc
-    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", Some(beamVehicle), None)
+    val (duration, _) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+      ChargingPointType.ChargingStationCcsComboType2,
+      beamVehicle.primaryFuelLevelInJoules,
+      beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+      1e6,
+      1e6,
+      None,
+      None,
+      None
+    )
+    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", duration, Some(beamVehicle), None)
     parkingInquiryCache.put(inquiry.requestId, rideHailAgentLocation)
     parkingManager ! inquiry
   }

@@ -57,7 +57,9 @@ class HouseholdFleetManager(parkingManager: ActorRef, vehicles: Map[Id[BeamVehic
       val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
-          (parkingManager ? ParkingInquiry(homeCoord, "init")).mapTo[ParkingInquiryResponse].map { r =>
+          // 0.0 duration for a free parking overnight
+          // FIXME it shouldn't be null when charging
+          (parkingManager ? ParkingInquiry(homeCoord, "init", 0.0)).mapTo[ParkingInquiryResponse].map { r =>
             (id, r)
           }
       }

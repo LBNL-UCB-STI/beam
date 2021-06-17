@@ -1,9 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.infrastructure.parking.ParkingMNL.RemainingTripData
-import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZoneSearch}
+import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.router.BeamRouter.Location
 import beam.utils.ParkingManagerIdGenerator
 
@@ -22,10 +20,10 @@ import beam.utils.ParkingManagerIdGenerator
 case class ParkingInquiry(
   destinationUtm: Location,
   activityType: String,
+  parkingDuration: Double,
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,
-  parkingDuration: Double = 0,
   reserveStall: Boolean = true,
   requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
 ) {

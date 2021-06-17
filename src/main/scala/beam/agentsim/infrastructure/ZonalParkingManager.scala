@@ -296,7 +296,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         // end-of-day parking durations are set to zero, which will be mis-interpreted here
         val parkingDuration: Option[Int] =
-          if (inquiry.parkingDuration <= 0) None
+          if (inquiry.parkingDuration <= 1.0) None
           else Some(inquiry.parkingDuration.toInt)
 
         val addedEnergy: Double =

@@ -70,6 +70,7 @@ object ParkingZoneSearch extends LazyLogging {
     random: Random,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
   )
+
   /**
     * result of a [[ParkingZoneSearch]]
     *

@@ -59,10 +59,10 @@ trait ChoosesParking extends {
       parkingManager ! ParkingInquiry(
         destinationUtm,
         nextActivityType,
+        Math.max(1.0, parkingDuration),
         Some(this.currentBeamVehicle),
         remainingTripData,
-        attributes.valueOfTime,
-        parkingDuration
+        attributes.valueOfTime
       )
   }
 

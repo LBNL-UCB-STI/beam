@@ -21,6 +21,7 @@ import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.RefuelSessionEvent.{OffShift, OnShift}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
 import beam.agentsim.events.{ShiftEvent, _}
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -948,7 +949,17 @@ class RideHailAgent(
     val rideHailAgentLocation =
       RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
     val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
-    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", beamVehicle = Some(vehicle))
+    val (duration, _) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+      ChargingPointType.ChargingStationCcsComboType2,
+      vehicle.primaryFuelLevelInJoules,
+      vehicle.beamVehicleType.primaryFuelCapacityInJoule,
+      1e6,
+      1e6,
+      None,
+      None,
+      None
+    )
+    val inquiry = ParkingInquiry(destinationUtm, "fast-charge", duration, beamVehicle = Some(vehicle))
     parkingManager ! inquiry
   }
 
