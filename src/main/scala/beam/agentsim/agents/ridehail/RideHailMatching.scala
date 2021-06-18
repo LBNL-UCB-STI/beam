@@ -382,7 +382,7 @@ object RideHailMatching {
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
       veh.vehicleType,
-      managerId = vehicleManagerId
+      vehicleManager = Some(vehicleManagerId)
     )
     val vehCurrentLocation = veh.getCurrentLocationUTM(tick, beamServices)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
@@ -507,7 +507,7 @@ object RideHailMatching {
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
       vehicleType,
-      managerId = vehicleManagerId
+      vehicleManager = Some(vehicleManagerId)
     )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)

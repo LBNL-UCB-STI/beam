@@ -82,6 +82,14 @@ object MathUtils {
     max + math.log(accum)
   }
 
+  def randomPointInCircle(rSquared: Double, rnd: Random): (Double, Double) = {
+    val xSquared = rnd.nextDouble() * rSquared
+    val ySquared = rnd.nextDouble() * (rSquared - xSquared)
+    val xSign = Math.signum(rnd.nextDouble() - 0.5)
+    val ySign = Math.signum(rnd.nextDouble() - 0.5)
+    (xSign * Math.sqrt(xSquared), ySign * Math.sqrt(ySquared))
+  }
+
   /**
     * Sums together things in log space.
     * @return log(\sum exp(a_i))

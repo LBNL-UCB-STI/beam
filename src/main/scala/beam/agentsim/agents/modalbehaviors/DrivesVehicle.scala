@@ -391,7 +391,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
-                    VehicleManager.privateVehicleManager.managerId,
                     triggerId,
                   )
                   waitForConnectionToChargingPoint = true

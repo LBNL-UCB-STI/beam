@@ -6,18 +6,11 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.immutable
 
-case class VehicleManager(managerId: Id[VehicleManager], managerType: VehicleManagerType)
+trait VehicleManager
 
 object VehicleManager {
 
-  val bodiesVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("Bodies", classOf[VehicleManager]), Some(VehicleCategory.Body))
-
-  val privateVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("PrivateVehicle", classOf[VehicleManager]), Some(VehicleCategory.Car))
-
-  val transitVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("Transit", classOf[VehicleManager]), None)
+  def createId(idString: String): Id[VehicleManager] = Id.create(idString, classOf[VehicleManager])
 
   def getType(
     vehicleType: BeamVehicleType,
@@ -26,15 +19,6 @@ object VehicleManager {
     isFreight: Boolean = false,
   ): VehicleManagerType =
     VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, Some(vehicleType.vehicleCategory))
-
-  def create(
-    managerId: Id[VehicleManager],
-    vehicleCategoryOption: Option[VehicleCategory],
-    isRideHail: Boolean = false,
-    isShared: Boolean = false,
-    isFreight: Boolean = false,
-  ): VehicleManager =
-    VehicleManager(managerId, VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, vehicleCategoryOption))
 }
 
 sealed abstract class VehicleManagerType(

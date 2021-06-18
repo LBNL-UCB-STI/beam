@@ -40,7 +40,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
 
   val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-  val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+  val (scenarioBuilt, beamScenario, _) = buildBeamServicesAndScenario(
     beamExecutionConfig.beamConfig,
     beamExecutionConfig.matsimConfig
   )

@@ -193,6 +193,35 @@ object FileUtils extends LazyLogging {
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
   }
 
+  def readerFromIterator(iterator: Iterator[String]): java.io.Reader = {
+    new Reader() {
+      var currentLine: String = ""
+      var position: Int = 0
+
+      override def read(cbuf: Array[Char], off: Int, len: Int): Int = {
+        if (len == 0) return 0
+        if (position >= currentLine.length && !receiveNextLine()) return -1
+        val read = Math.min(currentLine.length - position, len)
+        currentLine.getChars(position, position + read, cbuf, off)
+        position += read
+        read
+      }
+
+      private def receiveNextLine() = {
+        if (iterator.hasNext) {
+          currentLine = iterator.next()
+          position = 0
+          true
+        } else {
+          currentLine = ""
+          false
+        }
+      }
+
+      override def close(): Unit = {}
+    }
+  }
+
   def readerFromURL(url: String): java.io.BufferedReader = {
     require(isRemote(url, "http://") || isRemote(url, "https://"))
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
