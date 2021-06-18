@@ -158,8 +158,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     trips.size shouldBe 4
   }
 
-  test("trip with not-car and hov legs should not contain hov_car after transformation") {
-    val fewPlans: Seq[PlanElement] = Set(
+  test("trip without car and hov legs should not contain hov_car after transformation") {
+    val fewPlans: Seq[PlanElement] = Seq(
       WALK,
       WALK_TRANSIT,
       BIKE,
@@ -178,9 +178,9 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
         1,
         1,
         modes = Seq("hov2", "hov2", "hov3", mode.value, mode.value, "hov3", "hov3"),
-        activities = Seq("Home", "Shopping", "Other", "Work", "Meal", "Work", "Shopping", "Home")
+        activities = Seq("Home", "Shopping", "Other", "Work", "Meal", "Other", "Shopping", "Home")
       )
-    }.toSeq
+    }
 
     val manyPlans = (1 to 50).flatMap(_ => fewPlans)
 
