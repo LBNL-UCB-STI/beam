@@ -100,10 +100,11 @@ class ParkingFunctions[GEO: GeoLevel](
     zone: ParkingZone[GEO],
     inquiry: ParkingInquiry
   ): Boolean = {
+    if (zone.chargingPointType.isDefined)
+      throw new RuntimeException("ParkingFunctions expect only stalls without charging points")
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
-    val noChargingPoint: Boolean = zone.chargingPointType.isEmpty
     val canThisCarParkHere: Boolean = getCanThisCarParkHere(zone, inquiry, preferredParkingTypes)
-    noChargingPoint && canThisCarParkHere
+    canThisCarParkHere
   }
 
   /**

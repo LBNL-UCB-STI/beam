@@ -1785,27 +1785,11 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        chargingPoint: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
-        case class ChargingPoint(
-          thresholdDCFCinKW: scala.Int,
-          thresholdXFCinKW: scala.Int
-        )
-
-        object ChargingPoint {
-
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint = {
-            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              thresholdDCFCinKW = if (c.hasPathOrNull("thresholdDCFCinKW")) c.getInt("thresholdDCFCinKW") else 50,
-              thresholdXFCinKW = if (c.hasPathOrNull("thresholdXFCinKW")) c.getInt("thresholdXFCinKW") else 250
-            )
-          }
-        }
-
         case class Helics(
           bufferSize: scala.Int,
           connectionEnabled: scala.Boolean,
@@ -1842,10 +1826,6 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            chargingPoint = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              if (c.hasPathOrNull("chargingPoint")) c.getConfig("chargingPoint")
-              else com.typesafe.config.ConfigFactory.parseString("chargingPoint{}")
-            ),
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")

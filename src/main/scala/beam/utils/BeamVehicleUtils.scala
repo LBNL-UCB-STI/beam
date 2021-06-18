@@ -3,6 +3,7 @@ package beam.utils
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 import org.matsim.households.Household
 import org.supercsv.io.CsvMapReader
@@ -91,7 +92,7 @@ object BeamVehicleUtils {
         val sampleProbabilityWithinCategory =
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
-        val chargingCapability = Option(line.get("chargingCapability")).map(ChargingCapability.fromString)
+        val chargingCapability = Option(line.get("chargingCapability")).flatMap(ChargingPointType(_))
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
 
         val bvt = BeamVehicleType(

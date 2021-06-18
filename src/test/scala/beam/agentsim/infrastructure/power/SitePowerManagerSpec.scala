@@ -69,11 +69,6 @@ class SitePowerManagerSpec
        |    dataInStreamPoint = ""
        |    bufferSize = 100
        |  }
-       |
-       |  chargingPoint {
-       |    thresholdXFCinKW = 250
-       |    thresholdDCFCinKW = 50
-       |  }
        |}
        |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())

@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
@@ -163,8 +162,7 @@ object ChargingNetwork {
           maxSearchRadius,
           envelopeInUTM,
           seed,
-          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-          beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint,
+          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
         )
       )
     }

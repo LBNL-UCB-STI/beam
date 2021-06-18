@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, ChargingCapability, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -21,8 +21,7 @@ class ChargingFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-  chargingPointConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends ParkingFunctions[GEO](
       vehicleManagerId,
       geoQuadTree,
@@ -61,27 +60,12 @@ class ChargingFunctions[GEO: GeoLevel](
     */
   def hasValidChargingCapability(zone: ParkingZone[GEO], beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
     beamVehicleMaybe.forall(
-      vehicle =>
-        vehicle.beamVehicleType.chargingCapability match {
-
-          // if the charging zone has no charging point then by default the vehicle has valid charging capability
-          case Some(_) if zone.chargingPointType.isEmpty => true
-
-          // if the vehicle is FC capable, it cannot charges in XFC charging points
-          case Some(chargingCapability) if chargingCapability == ChargingCapability.DCFC =>
-            ChargingPointType
-              .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdXFCinKW
-
-          // if the vehicle is not capable of DCFC, it can only charges in level 1 and 2
-          case Some(chargingCapability) if chargingCapability == ChargingCapability.AC =>
-            ChargingPointType
-              .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdDCFCinKW
-
-          // EITHER the vehicle is XFC capable and it can charges everywhere
-          // OR the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
-          case _ => true
-      }
+      _.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(zone.chargingPointType.get))
     )
+  }
+
+  private def getPower(implicit chargingCapability: ChargingPointType): Double = {
+    ChargingPointType.getChargingPointInstalledPowerInKw(chargingCapability)
   }
 
   /**
@@ -94,7 +78,8 @@ class ChargingFunctions[GEO: GeoLevel](
     zone: ParkingZone[GEO],
     inquiry: ParkingInquiry
   ): Boolean = {
-    val hasChargingPoint: Boolean = zone.chargingPointType.isDefined
+    if (zone.chargingPointType.isEmpty)
+      throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
 
     val isEV: Boolean = inquiry.beamVehicle.forall(_.beamVehicleType.isEV)
 
@@ -105,7 +90,7 @@ class ChargingFunctions[GEO: GeoLevel](
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canThisCarParkHere: Boolean = getCanThisCarParkHere(zone, inquiry, preferredParkingTypes)
 
-    hasChargingPoint && isEV && rideHailFastChargingOnly && validChargingCapability && canThisCarParkHere
+    isEV && rideHailFastChargingOnly && validChargingCapability && canThisCarParkHere
   }
 
   /**
