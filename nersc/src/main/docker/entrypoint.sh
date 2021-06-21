@@ -6,13 +6,15 @@ cd ./beam
 git reset --hard $BEAM_COMMIT_SHA
 git lfs pull
 
-./gradlew clean :run -PappArgs="['--config', '$BEAM_CONFIG']"
+#we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes
+# and all the subsequent runs have output dir somewhere else.
+./gradlew --no-daemon clean :run -PappArgs="['--config', '$BEAM_CONFIG']"
 
 if [ "$S3_PUBLISH" == true ]
 then
   sleep 10s
   finalPath=""
-  for file in ./output/*; do
+  for file in output/*; do
      for path2 in $file/*; do
        finalPath="$path2";
      done;

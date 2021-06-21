@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_IMAGE="dimaopen/beam_git:1.0.7"
+DOCKER_IMAGE="dimaopen/beam_git:1.0.8"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -56,7 +56,7 @@ shifter -e BEAM_BRANCH_NAME=$beam_branch_name \
  -e BEAM_CONFIG=$beam_config \
  -e MAXRAM=$max_ram \
  -e GOOGLE_API_KEY=${google_api_key:-not_set} \
- -e AWS_SECRET_ACCESS_KEY=${aws_aws_secret_access_key:-not_set} \
+ -e AWS_SECRET_ACCESS_KEY=${aws_secret_access_key:-not_set} \
  -e AWS_ACCESS_KEY_ID=${aws_access_key_id:-not_set} \
  -e S3_PUBLISH=${s3_publish:-true} \
  -e S3_REGION=$region \
