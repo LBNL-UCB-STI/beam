@@ -238,18 +238,25 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
               odRows.foreach {
                 case ODRow(origin, destination, mode) =>
-                  val pathType = ActivitySimPathType.fromString(mode).get
-                  val skims = existingSkims
-                    .get(origin.id)
-                    .map(
-                      _.filter(
-                        skim => skim.destinationId == destination.id && skim.pathType == pathType
+                  TimePeriod.allPeriods.foreach { timePeriod =>
+                    val pathType = ActivitySimPathType.fromString(mode).get
+                    val skims = existingSkims
+                      .get(origin.id)
+                      .map(
+                        _.filter { skim =>
+                          skim.destinationId == destination.id &&
+                          skim.pathType == pathType &&
+                          skim.timePeriodString == timePeriod.toString
+                        }
                       )
-                    )
-                    .getOrElse(Vector.empty)
-                  if (skims.nonEmpty) {
-                    skims.foreach(s => writer.write(s.toCsvString))
-                  } else writeSkimRow(writer, origin, destination, pathType)
+                      .getOrElse(Vector.empty)
+                    if (skims.nonEmpty) {
+                      skims.foreach(s => writer.write(s.toCsvString))
+                    } else {
+                      val excerptData = getExcerptData(timePeriod, origin, destination, pathType)
+                      writer.write(excerptData.toCsvString)
+                    }
+                  }
               }
             }
           } catch {
