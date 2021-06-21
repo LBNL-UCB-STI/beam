@@ -128,6 +128,9 @@ object ActivitySimPathType {
     }
   }
 
+  def fromString(str: String): Option[ActivitySimPathType] =
+    ActivitySimPathType.allPathTypes.find(_.toString == str)
+
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
     DRV_COM_WLK,
     DRV_HVY_WLK,

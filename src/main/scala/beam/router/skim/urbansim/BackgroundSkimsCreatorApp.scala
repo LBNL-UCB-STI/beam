@@ -1,15 +1,17 @@
 package beam.router.skim.urbansim
 
 import akka.actor.ActorSystem
-import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
+import beam.agentsim.infrastructure.geozone.{GeoIndex, TAZIndex}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim._
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
+import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.{DateUtils, ProfilingUtils}
 import beam.utils.csv.GenericCsvReader
+import beam.utils.{DateUtils, ProfilingUtils}
 import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
 import scopt.OParser
@@ -23,6 +25,7 @@ case class InputParameters(
   input: Path = null,
   output: Path = null,
   linkstatsPath: Option[Path] = None,
+  ODSkimsPath: Option[Path] = None,
   parallelism: Int = 1
 )
 
@@ -36,6 +39,7 @@ Example of parameters usage:
  --input test/input/beamville/input.csv
  --output test/input/beamville/output.csv
  --linkstatsPath test/input/beamville/linkstats.csv.gz
+ --ODSkimsPath test/input/beamville/odskims.csv
  --parallelism 2
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
@@ -64,12 +68,38 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         .validate(fileValidator)
         .action((x, c) => c.copy(linkstatsPath = Some(x.toPath)))
         .text("linkstats file path in csv.gz format"),
+      opt[File]("ODSkimsPath")
+        .validate(fileValidator)
+        .action((x, c) => c.copy(ODSkimsPath = Some(x.toPath)))
+        .text("OD Skims file path"),
       opt[Int]("parallelism").action((x, c) => c.copy(parallelism = x)).text("Parallelism level")
     )
   }
 
   def toCsvRow(rec: java.util.Map[String, String]): CsvInputRow =
     CsvInputRow(rec.get("origin"), rec.get("destination"), rec.get("mode"))
+
+  def toCsvSkimRow(rec: java.util.Map[String, String]): ExcerptData =
+    ExcerptData(
+      timePeriodString = rec.get("timePeriod"),
+      pathType = ActivitySimPathType.fromString(rec.get("pathType")).getOrElse(ActivitySimPathType.DRV_COM_WLK),
+      originId = rec.get("origin"),
+      destinationId = rec.get("destination"),
+      weightedGeneralizedTime = rec.get("TIME_minutes").toDouble,
+      weightedGeneralizedCost = rec.get("VTOLL_FAR").toDouble,
+      weightedDistance = rec.get("DIST_meters").toDouble,
+      weightedWalkAccess = rec.get("WACC_minutes").toDouble,
+      weightedWalkEgress = rec.get("WEGR_minutes").toDouble,
+      weightedWalkAuxiliary = rec.get("WAUX_minutes").toDouble,
+      weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
+      weightedDriveTimeInMinutes = rec.get("DTIM_minutes").toDouble,
+      weightedDriveDistanceInMeters = rec.get("DDIST_meters").toDouble,
+      weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
+      weightedLightRailInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
+      weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
+      weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
+      debugText = rec.get("DEBUG_TEXT")
+    )
 
   private def readCsv(csvPath: String): Vector[CsvInputRow] = {
     val (iter: Iterator[CsvInputRow], toClose: Closeable) =
@@ -80,6 +110,18 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       toClose.close()
     }
   }
+
+  private def readSkimsCsv(csvPath: String): Vector[ExcerptData] = {
+    val (iter: Iterator[ExcerptData], toClose: Closeable) =
+      GenericCsvReader.readAs[ExcerptData](csvPath, toCsvSkimRow, _.weightedGeneralizedTime > 0)
+    try {
+      iter.toVector
+    } finally {
+      toClose.close()
+    }
+  }
+
+  private def tazUnitToTAZ(taz: GeoUnit.TAZ): TAZ = new TAZ(taz.id, taz.center, taz.areaInSquareMeters)
 
   OParser.parse(parser, args, InputParameters()) match {
     case Some(params) =>
@@ -101,7 +143,6 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     val scenario: MutableScenario = scenarioBuilt
     val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val beamServices: BeamServices = buildBeamServices(injector, scenario)
-    val clustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMap)
     val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
     val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
     val travelTime = params.linkstatsPath match {
@@ -109,14 +150,22 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       case None       => new FreeFlowTravelTime
     }
 
-    val tazMap: Map[String, GeoUnit.TAZ] = clustering.tazTreeMap.getTAZs
+    val tazMap: Map[String, GeoUnit.TAZ] = beamScenario.tazTreeMap.getTAZs
       .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
       .groupBy(_.id)
       .mapValues(_.head)
 
     val odRows = readCsv(params.input.toString).map(od => ODRow(tazMap(od.origin), tazMap(od.destination), od.mode))
 
-    val skimmer = createSkimmer(beamServices, odRows)
+    // "indexing" existing skims by originId
+    val existingSkims: Map[String, Vector[ExcerptData]] =
+      params.ODSkimsPath.map(path => readSkimsCsv(path.toString)).getOrElse(Vector.empty).groupBy(_.originId)
+
+    val skimmer = createSkimmer(beamServices, odRows, existingSkims)
+
+    val ODs: Array[(GeoIndex, GeoIndex)] = odRows.map { row =>
+      (TAZIndex(tazUnitToTAZ(row.origin)), TAZIndex(tazUnitToTAZ(row.destination)))
+    }.toArray
 
     implicit val actorSystem = ActorSystem()
     implicit val ec = actorSystem.dispatcher
@@ -124,7 +173,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     val skimsCreator = new BackgroundSkimsCreator(
       beamServices = beamServices,
       beamScenario = beamScenario,
-      geoClustering = clustering,
+      ODs = ODs,
       abstractSkimmer = skimmer,
       travelTime = travelTime,
       beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
@@ -159,11 +208,12 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   def createSkimmer(
     beamServices: BeamServices,
-    odRows: Vector[ODRow]
+    odRows: Vector[ODRow],
+    existingSkims: Map[String, Vector[ExcerptData]]
   ): AbstractSkimmer = {
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
       case "od"          => createOdSkimmer(beamServices, odRows)
-      case "activitySim" => createActivitySimSkimmer(beamServices, odRows)
+      case "activitySim" => createActivitySimSkimmer(beamServices, odRows, existingSkims)
       case skimsKind =>
         throw new IllegalArgumentException(
           s"Unexpected skims kind ($skimsKind)"
@@ -171,7 +221,11 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     }
   }
 
-  def createActivitySimSkimmer(beamServices: BeamServices, odRows: Vector[ODRow]): ActivitySimSkimmer =
+  def createActivitySimSkimmer(
+    beamServices: BeamServices,
+    odRows: Vector[ODRow],
+    existingSkims: Map[String, Vector[ExcerptData]]
+  ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
       override def writeToDisk(filePath: String): Unit = {
         ProfilingUtils.timed(s"writeFullSkims", v => logger.info(v)) {
@@ -184,8 +238,18 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
               odRows.foreach {
                 case ODRow(origin, destination, mode) =>
-                  val pathType = ActivitySimPathType.allPathTypes.find(_.toString == mode).get
-                  writeSkimRow(writer, origin, destination, pathType)
+                  val pathType = ActivitySimPathType.fromString(mode).get
+                  val skims = existingSkims
+                    .get(origin.id)
+                    .map(
+                      _.filter(
+                        skim => skim.destinationId == destination.id && skim.pathType == pathType
+                      )
+                    )
+                    .getOrElse(Vector.empty)
+                  if (skims.nonEmpty) {
+                    skims.foreach(s => writer.write(s.toCsvString))
+                  } else writeSkimRow(writer, origin, destination, pathType)
               }
             }
           } catch {
