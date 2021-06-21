@@ -18,6 +18,7 @@ import scopt.OParser
 
 import java.io.{BufferedWriter, Closeable, File}
 import java.nio.file.Path
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 case class InputParameters(
@@ -101,7 +102,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       debugText = rec.get("DEBUG_TEXT")
     )
 
-  private def readCsv(csvPath: String): Vector[CsvInputRow] = {
+  private def readInputCsv(csvPath: String): Vector[CsvInputRow] = {
     val (iter: Iterator[CsvInputRow], toClose: Closeable) =
       GenericCsvReader.readAs[CsvInputRow](csvPath, toCsvRow, _ => true)
     try {
@@ -125,7 +126,11 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   OParser.parse(parser, args, InputParameters()) match {
     case Some(params) =>
-      runWithParams(params)
+      implicit val ec = ExecutionContext.global
+      runWithParams(params).andThen {
+        case _ =>
+          System.exit(0)
+      }
     case _ =>
       logger.error("Could not process parameters")
   }
@@ -155,7 +160,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       .groupBy(_.id)
       .mapValues(_.head)
 
-    val odRows = readCsv(params.input.toString).map(od => ODRow(tazMap(od.origin), tazMap(od.destination), od.mode))
+    val odRows =
+      readInputCsv(params.input.toString).map(od => ODRow(tazMap(od.origin), tazMap(od.destination), od.mode))
 
     // "indexing" existing skims by originId
     val existingSkims: Map[String, Vector[ExcerptData]] =
@@ -187,23 +193,14 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     skimsCreator.increaseParallelismTo(params.parallelism)
     skimsCreator.start()
 
-    skimsCreator.getResult
-      .map(skimmer => {
-        logger.info("Got populated skimmer")
-        skimmer.abstractSkimmer.writeToDisk(params.output.toString)
-        None
-      })
-      .andThen {
-        case _ =>
-          logger.info("Stopping skimsCreator")
-          skimsCreator.stop()
-          logger.info("Terminating actorSystem")
-          actorSystem.terminate().andThen {
-            case _ =>
-              logger.info("actorSystem terminated")
-              System.exit(0)
-          }
-      }
+    skimsCreator.getResult.flatMap(skimmer => {
+      logger.info("Got populated skimmer")
+      skimmer.abstractSkimmer.writeToDisk(params.output.toString)
+      logger.info("Stopping skimsCreator")
+      skimsCreator.stop()
+      logger.info("Terminating actorSystem")
+      actorSystem.terminate()
+    })
   }
 
   def createSkimmer(
