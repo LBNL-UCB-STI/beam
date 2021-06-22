@@ -1,4 +1,8 @@
 FROM beammodel/miniconda3
+RUN /opt/conda/bin/conda config --add channels conda-forge
+RUN /opt/conda/bin/conda config --set channel_priority strict
+RUN /opt/conda/bin/conda update -qy conda
+RUN /opt/conda/bin/conda install -qy numpy pandas cython matplotlib mapclassify descartes geopandas contextily plotly psutil requests python-kaleido scikit-learn
 RUN apt-get update && apt-get -y install zip awscli
 RUN mkdir -p /app/sources
 WORKDIR /app
