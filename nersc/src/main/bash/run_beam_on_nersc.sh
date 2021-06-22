@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_IMAGE="dimaopen/beam_git:1.0.8"
+DOCKER_IMAGE="dimaopen/beam_git:1.0.10"
 
 while [ $# -gt 0 ]; do
   case "$1" in
