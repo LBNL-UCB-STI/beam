@@ -156,6 +156,13 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult[GEO] = {
+    val inquiryKey = s"Inquiry-${inquiry.requestId}"
+    def _logInquiryInfo(str: String): Unit = {
+      logger.info(s"$inquiryKey: $str")
+    }
+
+    _logInquiryInfo(inquiry.toString)
+
     // a lookup for valid parking types based on this inquiry
     val preferredParkingTypes: Set[ParkingType] =
       inquiry.activityTypeLowerCased match {
@@ -187,6 +194,10 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
       case "fast-charge" => false
       case _             => true
     }
+
+    _logInquiryInfo(
+      s"preferredParkingTypes:${preferredParkingTypes.mkString(":")} returnSpotsWithChargers:$returnSpotsWithChargers returnSpotsWithoutChargers:$returnSpotsWithoutChargers"
+    )
 
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
@@ -264,6 +275,10 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
               // OR the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
               case _ => true
           }
+        )
+
+        _logInquiryInfo(
+          s"parkingZoneFilterFunction for zone:${zone.toString()} hasAvailability:$hasAvailability rideHailFastChargingOnly:$rideHailFastChargingOnly validParkingType:$validParkingType canThisCarParkHere:$canThisCarParkHere isValidVehicleManager:$isValidVehicleManager validChargingCapability:$validChargingCapability"
         )
 
         hasAvailability &&
@@ -350,6 +365,10 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
             if (goingHome) 1.0 else 0.0
           }
 
+        _logInquiryInfo(
+          s"parkingZoneMNLParamsFunction for parkingAlternative:${parkingAlternative.toString} distance:$distance parkingDuration:$parkingDuration addedEnergy:$addedEnergy rangeAnxietyFactor:$rangeAnxietyFactor distanceFactor:$distanceFactor parkingCostsPriceFactor:$parkingCostsPriceFactor goingHome:$goingHome chargingVehicle:$chargingVehicle chargingStall:$chargingStall homeActivityPrefersResidentialFactor:$homeActivityPrefersResidentialFactor"
+        )
+
         val params: Map[ParkingMNL.Parameters, Double] = new Map.Map4(
           key1 = ParkingMNL.Parameters.RangeAnxietyCost,
           value1 = rangeAnxietyFactor,
@@ -393,12 +412,15 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         geoToTAZ,
       ) match {
         case Some(result) =>
+          _logInquiryInfo(s"success, result: ${result.toString}")
           result
         case None =>
           inquiry.activityType match {
             case "init" | "home" =>
               val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm, GeoLevel[GEO].defaultGeoId)
-              ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+              val result = ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+              _logInquiryInfo(s"failure, activity type is ${inquiry.activityType}, result: ${result.toString}")
+              result
             case _ =>
               // didn't find any stalls, so, as a last resort, create a very expensive stall
               val boxAroundRequest = new Envelope(
@@ -414,7 +436,9 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
                   tazId = TAZ.EmergencyTAZId,
                   geoId = GeoLevel[GEO].emergencyGeoId
                 )
-              ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+              val result = ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+              _logInquiryInfo(s"failure, result: ${result.toString}")
+              result
           }
       }
 
