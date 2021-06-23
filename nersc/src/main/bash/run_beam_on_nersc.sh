@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DOCKER_IMAGE="dimaopen/beam_git:1.0.10"
+export DOCKER_IMAGE="dimaopen/beam_git:1.0.10"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -38,30 +38,26 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+export BEAM_BRANCH_NAME=$beam_branch_name \
+export BEAM_COMMIT_SHA=$beam_revision \
+export BEAM_CONFIG=$beam_config \
+export MAXRAM=$max_ram \
+export GOOGLE_API_KEY=${google_api_key:-not_set} \
+export AWS_SECRET_ACCESS_KEY=${aws_secret_access_key:-not_set} \
+export AWS_ACCESS_KEY_ID=${aws_access_key_id:-not_set} \
+export S3_PUBLISH=${s3_publish:-true} \
+export S3_REGION=$region \
 
 echo "Starting beam"
 printf "beam branch is %s\n" "$beam_branch_name"
 printf "commit is %s\n" "$beam_revision"
 printf "beam config is %s\n" "$beam_config"
 
-MOUNTED_DIR="$SCRATCH/beam_runs/beam_$(date +%Y%m%d%H%M%S)"
+export MOUNTED_DIR="$SCRATCH/beam_runs/beam_$(date +%Y%m%d%H%M%S)"
 mkdir -p $MOUNTED_DIR || { echo "Cannot create dir $MOUNTED_DIR" ; exit 1; }
 
 echo "Created dir: $MOUNTED_DIR"
 
-
 shifterimg pull $DOCKER_IMAGE  || { echo "Cannot download image $DOCKER_IMAGE" ; exit 1; }
-shifter -e BEAM_BRANCH_NAME=$beam_branch_name \
- -e BEAM_COMMIT_SHA=$beam_revision \
- -e BEAM_CONFIG=$beam_config \
- -e MAXRAM=$max_ram \
- -e GOOGLE_API_KEY=${google_api_key:-not_set} \
- -e AWS_SECRET_ACCESS_KEY=${aws_secret_access_key:-not_set} \
- -e AWS_ACCESS_KEY_ID=${aws_access_key_id:-not_set} \
- -e S3_PUBLISH=${s3_publish:-true} \
- -e S3_REGION=$region \
- --volume="$MOUNTED_DIR:/app/sources" \
- --image=$DOCKER_IMAGE /app/entrypoint.sh
 
-
-echo "run_beam exiting..."
+sbatch shifter_job.sh

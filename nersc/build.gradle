@@ -40,7 +40,7 @@ task deployToNersc {
     def branch = "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}"
     def commit = "${ext.getParameterValue('beamCommit') ?: 'HEAD'}"
     def configs = "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}"
-    def max_ram = "${ext.getParameterValue('maxRAM') ?: '140g'}"
+    def max_ram = '100g'
     def google_api_key = "${System.getenv('GOOGLE_API_KEY') ?: 'not-set-in-env'}"
     def s3_publish = "${ext.getParameterValue('s3Backup') ?: true}"
     def aws_access_key_id = "${System.getenv('AWS_ACCESS_KEY_ID') ?: 'not-set-in-env'}"
@@ -51,8 +51,9 @@ task deployToNersc {
         ssh.run {
             session(remotes.nerscLoginNode) {
                 put from: 'nersc/src/main/bash/run_beam_on_nersc.sh', into: "run_beam.sh"
-                execute "chmod 755 run_beam.sh"
-                execute "nohup ./run_beam.sh \
+                put from: 'nersc/src/main/bash/shifter_job.sh', into: "shifter_job.sh"
+                execute "chmod +x run_beam.sh shifter_job.sh"
+                execute "./run_beam.sh \
                             --branch='$branch' \
                             --revision='$commit' \
                             --config='$configs' \
@@ -61,8 +62,7 @@ task deployToNersc {
                             --s3_publish=$s3_publish \
                             --aws_access_key_id=$aws_access_key_id \
                             --aws_secret_access_key=$aws_secret_access_key \
-                            --region=$region \
-                             > cloud-init-output_\$(date +%Y%m%d%H%M%S).log 2>&1 &"
+                            --region=$region"
             }
         }
     }
