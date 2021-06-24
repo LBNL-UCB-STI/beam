@@ -2334,8 +2334,13 @@ object BeamConfig {
                   if (c.hasPathOrNull("actorTypeToMaxNumberOfMessages")) c.getConfig("actorTypeToMaxNumberOfMessages")
                   else com.typesafe.config.ConfigFactory.parseString("actorTypeToMaxNumberOfMessages{}")
                 ),
-              markAsStuckAfterMs = c.getDuration("markAsStuckAfterMs", java.util.concurrent.TimeUnit.MILLISECONDS),
-              triggerType = c.getString("triggerType")
+              markAsStuckAfterMs =
+                if (c.hasPathOrNull("markAsStuckAfterMs"))
+                  c.getDuration("markAsStuckAfterMs", java.util.concurrent.TimeUnit.MILLISECONDS)
+                else 20000,
+              triggerType =
+                if (c.hasPathOrNull("triggerType")) c.getString("triggerType")
+                else "beam.agentsim.agents.PersonAgent$ActivityStartTrigger"
             )
           }
         }
@@ -4417,13 +4422,13 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm = {
             BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm(
-              activityType = c.getString("activityType"),
+              activityType = if (c.hasPathOrNull("activityType")) c.getString("activityType") else "Home",
               priority = if (c.hasPathOrNull("priority")) c.getInt("priority") else 1,
               scoringThisActivityAtAll = !c.hasPathOrNull("scoringThisActivityAtAll") || c.getBoolean(
                 "scoringThisActivityAtAll"
               ),
               `type` = if (c.hasPathOrNull("type")) c.getString("type") else "activityParams",
-              typicalDuration = c.getString("typicalDuration"),
+              typicalDuration = if (c.hasPathOrNull("typicalDuration")) c.getString("typicalDuration") else "01:00:00",
               typicalDurationScoreComputation =
                 if (c.hasPathOrNull("typicalDurationScoreComputation")) c.getString("typicalDurationScoreComputation")
                 else "uniform"
