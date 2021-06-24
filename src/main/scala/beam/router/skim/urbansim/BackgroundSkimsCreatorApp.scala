@@ -30,9 +30,7 @@ case class InputParameters(
   parallelism: Int = 1
 )
 
-case class CsvInputRow(origin: String, destination: String, mode: String)
-
-case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ, mode: String)
+case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ, mode: String, timePeriod: String)
 
 /*
 Example of parameters usage:
@@ -77,8 +75,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     )
   }
 
-  def toCsvRow(rec: java.util.Map[String, String]): CsvInputRow =
-    CsvInputRow(rec.get("origin"), rec.get("destination"), rec.get("mode"))
+  def toCsvRow(rec: java.util.Map[String, String], tazMap: Map[String, GeoUnit.TAZ]): ODRow =
+    ODRow(tazMap(rec.get("origin")), tazMap(rec.get("destination")), rec.get("mode"), rec.get("timePeriod"))
 
   def toCsvSkimRow(rec: java.util.Map[String, String]): ExcerptData =
     ExcerptData(
@@ -102,9 +100,9 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       debugText = rec.get("DEBUG_TEXT")
     )
 
-  private def readInputCsv(csvPath: String): Vector[CsvInputRow] = {
-    val (iter: Iterator[CsvInputRow], toClose: Closeable) =
-      GenericCsvReader.readAs[CsvInputRow](csvPath, toCsvRow, _ => true)
+  private def readInputCsv(csvPath: String, tazMap: Map[String, GeoUnit.TAZ]): Vector[ODRow] = {
+    val (iter: Iterator[ODRow], toClose: Closeable) =
+      GenericCsvReader.readAs[ODRow](csvPath, toCsvRow(_, tazMap), _ => true)
     try {
       iter.toVector
     } finally {
@@ -160,8 +158,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       .groupBy(_.id)
       .mapValues(_.head)
 
-    val odRows =
-      readInputCsv(params.input.toString).map(od => ODRow(tazMap(od.origin), tazMap(od.destination), od.mode))
+    val odRows = readInputCsv(params.input.toString, tazMap)
 
     // "indexing" existing skims by originId
     val existingSkims: Map[String, Vector[ExcerptData]] =
@@ -205,12 +202,12 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   def createSkimmer(
     beamServices: BeamServices,
-    odRows: Vector[ODRow],
+    rows: Vector[ODRow],
     existingSkims: Map[String, Vector[ExcerptData]]
   ): AbstractSkimmer = {
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-      case "od"          => createOdSkimmer(beamServices, odRows)
-      case "activitySim" => createActivitySimSkimmer(beamServices, odRows, existingSkims)
+      case "od"          => createOdSkimmer(beamServices, rows)
+      case "activitySim" => createActivitySimSkimmer(beamServices, rows, existingSkims)
       case skimsKind =>
         throw new IllegalArgumentException(
           s"Unexpected skims kind ($skimsKind)"
@@ -220,7 +217,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   def createActivitySimSkimmer(
     beamServices: BeamServices,
-    odRows: Vector[ODRow],
+    rows: Vector[ODRow],
     existingSkims: Map[String, Vector[ExcerptData]]
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
@@ -233,26 +230,29 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             writer.write("\n")
 
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
-              odRows.foreach {
-                case ODRow(origin, destination, mode) =>
-                  TimePeriod.allPeriods.foreach { timePeriod =>
-                    val pathType = ActivitySimPathType.fromString(mode).get
-                    val skims = existingSkims
-                      .get(origin.id)
-                      .map(
-                        _.filter { skim =>
-                          skim.destinationId == destination.id &&
-                          skim.pathType == pathType &&
-                          skim.timePeriodString == timePeriod.toString
-                        }
-                      )
-                      .getOrElse(Vector.empty)
-                    if (skims.nonEmpty) {
-                      skims.foreach(s => writer.write(s.toCsvString))
-                    } else {
-                      val excerptData = getExcerptData(timePeriod, origin, destination, pathType)
-                      writer.write(excerptData.toCsvString)
-                    }
+              rows.foreach {
+                case ODRow(origin, destination, pathTypeStr, timePeriodStr) =>
+                  val pathType = ActivitySimPathType.fromString(pathTypeStr).getOrElse {
+                    throw new RuntimeException(s"Cannot parse path type $pathTypeStr")
+                  }
+                  val timePeriod = TimePeriod.fromString(timePeriodStr).getOrElse {
+                    throw new RuntimeException(s"Cannot parse time period $timePeriodStr")
+                  }
+                  val skims = existingSkims
+                    .get(origin.id)
+                    .map(
+                      _.filter { skim =>
+                        skim.destinationId == destination.id &&
+                        skim.pathType == pathType &&
+                        skim.timePeriodString == timePeriod.toString
+                      }
+                    )
+                    .getOrElse(Vector.empty)
+                  if (skims.nonEmpty) {
+                    skims.foreach(s => writer.write(s.toCsvString))
+                  } else {
+                    val excerptData = getExcerptData(timePeriod, origin, destination, pathType)
+                    writer.write(excerptData.toCsvString)
                   }
               }
             }
@@ -269,7 +269,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       }
     }
 
-  def createOdSkimmer(beamServices: BeamServices, odRows: Vector[ODRow]): ODSkimmer =
+  def createOdSkimmer(beamServices: BeamServices, rows: Vector[ODRow]): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
       lazy val hours = BackgroundSkimsCreator.getPeakHoursFromConfig(beamServices)
       lazy val uniqueTimeBins: Seq[Int] = hours.map(math.round(_).toInt)
@@ -281,8 +281,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
             writer.write(skimFileHeader + "\n")
 
-            odRows.foreach {
-              case ODRow(origin, destination, mode) =>
+            rows.foreach {
+              case ODRow(origin, destination, mode, _) =>
                 val beamMode = BeamMode.withValue(mode)
                 writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
             }

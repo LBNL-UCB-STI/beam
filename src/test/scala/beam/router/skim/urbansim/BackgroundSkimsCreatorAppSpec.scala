@@ -24,9 +24,9 @@ class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with S
       )
       whenReady(BackgroundSkimsCreatorApp.runWithParams(params)) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
-        csv.size shouldBe 15
-        csv.count(_.weightedGeneralizedTime > 0) shouldBe 15
-        csv.count(_.weightedGeneralizedTime > 10) shouldBe 2
+        csv.size shouldBe 3
+        csv.count(_.weightedGeneralizedTime > 0) shouldBe 3
+        csv.count(_.weightedGeneralizedTime > 10) shouldBe 1
       }
     }
   }
