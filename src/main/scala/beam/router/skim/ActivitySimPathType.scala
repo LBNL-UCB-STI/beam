@@ -128,9 +128,6 @@ object ActivitySimPathType {
     }
   }
 
-  def fromString(str: String): Option[ActivitySimPathType] =
-    ActivitySimPathType.allPathTypes.find(_.toString == str)
-
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
     DRV_COM_WLK,
     DRV_HVY_WLK,
@@ -159,6 +156,11 @@ object ActivitySimPathType {
     //    WLK_TRN_WLK
     WALK,
   )
+
+  val allPathTypesMap: Map[String, ActivitySimPathType] =
+    allPathTypes.groupBy(_.toString).mapValues(_.head)
+
+  def fromString(str: String): Option[ActivitySimPathType] = allPathTypesMap.get(str)
 
   private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
     case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM | BeamMode.CABLE_CAR => true

@@ -201,37 +201,27 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
           getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
             .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
             .getOrElse {
-              if (origin.equals(destination)) {
-                val newDestCoord = new Coord(
-                  origin.center.getX,
-                  origin.center.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+              val destCoord =
+                if (origin.equals(destination)) {
+                  new Coord(
+                    origin.center.getX,
+                    origin.center.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                  )
+                } else {
+                  destination.center
+                }
+              readOnlySkim
+                .asInstanceOf[ODSkims]
+                .getSkimDefaultValue(
+                  mode,
+                  origin.center,
+                  destCoord,
+                  timeBin * 3600,
+                  dummyId,
+                  vehicleType,
+                  fuelPrice,
+                  beamScenario
                 )
-                readOnlySkim
-                  .asInstanceOf[ODSkims]
-                  .getSkimDefaultValue(
-                    mode,
-                    origin.center,
-                    newDestCoord,
-                    timeBin * 3600,
-                    dummyId,
-                    vehicleType,
-                    fuelPrice,
-                    beamScenario
-                  )
-              } else {
-                readOnlySkim
-                  .asInstanceOf[ODSkims]
-                  .getSkimDefaultValue(
-                    mode,
-                    origin.center,
-                    destination.center,
-                    timeBin * 3600,
-                    dummyId,
-                    vehicleType,
-                    fuelPrice,
-                    beamScenario
-                  )
-              }
             }
 
         //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
