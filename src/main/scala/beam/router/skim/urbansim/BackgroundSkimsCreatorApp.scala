@@ -23,7 +23,7 @@ import scala.util.control.NonFatal
 
 case class InputParameters(
   configPath: Path = null,
-  input: Path = null,
+  input: Option[Path] = None,
   output: Path = null,
   linkstatsPath: Option[Path] = None,
   ODSkimsPath: Option[Path] = None,
@@ -58,9 +58,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         .action((x, c) => c.copy(configPath = x.toPath))
         .text("Beam config path"),
       opt[File]("input")
-        .required()
         .validate(fileValidator)
-        .action((x, c) => c.copy(input = x.toPath))
+        .action((x, c) => c.copy(input = Some(x.toPath)))
         .text("input csv file path"),
       opt[File]("output").required().action((x, c) => c.copy(output = x.toPath)).text("output csv file path"),
       opt[File]("linkstatsPath")
@@ -158,7 +157,22 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       .groupBy(_.id)
       .mapValues(_.head)
 
-    val odRows = readInputCsv(params.input.toString, tazMap)
+    val odRows = params.input match {
+      case Some(path) => readInputCsv(path.toString, tazMap)
+      case None =>
+        val origins = tazMap.values
+        val destinations = tazMap.values
+        (origins.flatMap { origin =>
+          destinations.collect {
+            case destination if origin != destination =>
+              ActivitySimPathType.allPathTypes.flatMap { pathType =>
+                TimePeriod.allPeriods.map { timePeriod =>
+                  ODRow(origin, destination, pathType.toString, timePeriod.toString)
+                }
+              }
+          }.flatten
+        }).toVector
+    }
 
     // "indexing" existing skims by originId
     val existingSkims: Map[String, Vector[ExcerptData]] =

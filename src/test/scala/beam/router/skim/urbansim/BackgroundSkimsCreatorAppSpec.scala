@@ -12,21 +12,30 @@ import java.nio.file.Paths
 
 class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with ScalaFutures {
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds))
+  val outputPath = Paths.get("output.csv")
+
+  val params = InputParameters(
+    configPath = Paths.get("test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf"),
+    input = Some(Paths.get("test/test-resources/beam/router/skim/input.csv")),
+    output = outputPath,
+    ODSkimsPath = Some(Paths.get("test/test-resources/beam/router/skim/ODSkimsBeamville.csv"))
+  )
 
   "BackgroundSkimsCreatorApp" should {
     "run with parameters" in {
-      val outputPath = Paths.get("output.csv")
-      val params = InputParameters(
-        configPath = Paths.get("test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf"),
-        input = Paths.get("test/test-resources/beam/router/skim/input.csv"),
-        output = outputPath,
-        ODSkimsPath = Some(Paths.get("test/test-resources/beam/router/skim/ODSkimsBeamville.csv"))
-      )
       whenReady(BackgroundSkimsCreatorApp.runWithParams(params)) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
         csv.size shouldBe 3
         csv.count(_.weightedGeneralizedTime > 0) shouldBe 3
         csv.count(_.weightedGeneralizedTime > 10) shouldBe 1
+      }
+    }
+    "generate all skims if input is not set" in {
+      whenReady(BackgroundSkimsCreatorApp.runWithParams(params.copy(input = None))) { _ =>
+        val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
+        csv.size shouldBe 840
+        csv.count(_.weightedGeneralizedTime > 0) shouldBe 60
+        csv.count(_.weightedGeneralizedTime > 10) shouldBe 4
       }
     }
   }
