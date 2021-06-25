@@ -19,7 +19,7 @@ import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5._
-import beam.router.skim.Skims
+import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
@@ -240,6 +240,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TAZSkimmer]).asEagerSingleton()
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
+          bind(classOf[ActivitySimSkimmer]).asEagerSingleton()
           bind(classOf[Skims]).asEagerSingleton()
 
           // We cannot bind the RideHailFleetInitializer directly (e.g., with
@@ -281,6 +282,7 @@ trait BeamHelper extends LazyLogging {
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+    val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(path => TAZTreeMap.getTazTreeMap(path))
     val linkQuadTree: QuadTree[Link] =
       LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
     val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
@@ -316,12 +318,13 @@ trait BeamHelper extends LazyLogging {
       networkCoordinator.transportNetwork,
       networkCoordinator.network,
       tazMap,
+      exchangeGeo,
       linkQuadTree,
       linkIdMapping,
       linkToTAZMapping,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
-      freightCarriers
+      freightCarriers,
     )
   }
 

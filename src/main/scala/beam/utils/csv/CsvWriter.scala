@@ -47,9 +47,10 @@ class CsvWriter(
     Try(writer.close())
   }
 
-  def writeAllAndClose(rows: Iterable[Seq[Any]]): Unit = {
-    rows.foreach(writeRow)
+  def writeAllAndClose(rows: Iterable[Seq[Any]]): Try[Unit] = {
+    val result = Try(rows.foreach(writeRow))
     close()
+    result
   }
 }
 
