@@ -8,7 +8,7 @@ class HouseholdMerger(blocks: Map[String, Block]) extends Merger[InputHousehold,
   override def merge(iter: Iterator[InputHousehold]): Iterator[HouseholdInfo] = iter.map(inputToOutput)
 
   private def inputToOutput(inputHousehold: InputHousehold): HouseholdInfo = {
-    val block = blocks(inputHousehold.blockId)
+    val block = blocks(inputHousehold.blockId.trim)
     val income = PopulationAdjustment.incomeToValueOfTime(inputHousehold.income).getOrElse(0d)
 
     HouseholdInfo(
