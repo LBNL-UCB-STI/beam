@@ -188,6 +188,7 @@ dependencies {
     compile "com.sigopt:sigopt-java:4.9.0"
 
     compile("com.uber:h3:3.4.1")
+    compile("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
 
     testCompile group: 'junit', name: 'junit', version: '4.8'
     testCompile group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
@@ -343,6 +344,9 @@ tasks.withType(ScalaCompile) {
         scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters
     } else {
         scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters + ["-Xfatal-warnings"]
+    }
+    scalaCompileOptions.forkOptions.with {
+        memoryMaximumSize = '2g'
     }
 }
 

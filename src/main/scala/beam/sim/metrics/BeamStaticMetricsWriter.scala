@@ -1,6 +1,5 @@
 package beam.sim.metrics
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
@@ -8,7 +7,6 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
 import beam.sim.{BeamScenario, BeamServices}
-import org.matsim.api.core.v01.Id
 import org.matsim.core.scenario.MutableScenario
 
 import java.io.File
@@ -90,13 +88,7 @@ object BeamStaticMetricsWriter {
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
         val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
         val (chargingDepots, _) =
-          ParkingZoneFileUtils.fromFile[TAZ](
-            chargingDepotsFilePath,
-            rand,
-            parkingStallCountScalingFactor,
-            vehicleManagerId =
-              Id.create(beamServices.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
-          )
+          ParkingZoneFileUtils.fromFile[TAZ](chargingDepotsFilePath, rand, parkingStallCountScalingFactor)
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
@@ -113,12 +105,7 @@ object BeamStaticMetricsWriter {
         if (publicFastChargerFilePath.nonEmpty) {
           val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
           val (publicChargers, _) =
-            ParkingZoneFileUtils.fromFile[TAZ](
-              publicFastChargerFilePath,
-              rand,
-              parkingStallCountScalingFactor,
-              vehicleManagerId = VehicleManager.privateVehicleManager.managerId
-            )
+            ParkingZoneFileUtils.fromFile[TAZ](publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
 
           publicChargers.foreach(
             publicCharger =>
