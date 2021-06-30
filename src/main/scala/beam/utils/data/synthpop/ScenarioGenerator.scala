@@ -13,12 +13,22 @@ import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.GeoService.CheckResult
-import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, TimeLeavingHomeGenerator, TimeLeavingHomeGeneratorImpl, WorkedDurationGeneratorImpl}
+import beam.utils.data.synthpop.generators.{
+  RandomWorkDestinationGenerator,
+  TimeLeavingHomeGenerator,
+  TimeLeavingHomeGeneratorImpl,
+  WorkedDurationGeneratorImpl
+}
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario.{PlanElement, _}
 import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
-import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvParkingInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
+import beam.utils.scenario.generic.writers.{
+  CsvHouseholdInfoWriter,
+  CsvParkingInfoWriter,
+  CsvPersonInfoWriter,
+  CsvPlanElementWriter
+}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
@@ -301,7 +311,11 @@ class SimpleScenarioGenerator(
                       )
                       // Create Leg
                       val leavingHomeLeg = planElementTemplate
-                        .copy(personId = createdPerson.personId, planElementType = PlanElement.Leg, planElementIndex = 2)
+                        .copy(
+                          personId = createdPerson.personId,
+                          planElementType = PlanElement.Leg,
+                          planElementIndex = 2
+                        )
 
                       val timeLeavingWorkSeconds = {
                         val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
@@ -325,7 +339,11 @@ class SimpleScenarioGenerator(
                         geoId = Some(toTazGeoId(workTazGeoId.state, workTazGeoId.county, workTazGeoId.taz))
                       )
                       val leavingWorkLeg = planElementTemplate
-                        .copy(personId = createdPerson.personId, planElementType = PlanElement.Leg, planElementIndex = 4)
+                        .copy(
+                          personId = createdPerson.personId,
+                          planElementType = PlanElement.Leg,
+                          planElementIndex = 4
+                        )
 
                       // Create Home Activity: end time not defined
                       val homeActivity = planElementTemplate.copy(

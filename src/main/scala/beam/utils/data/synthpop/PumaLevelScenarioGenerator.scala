@@ -245,7 +245,11 @@ class PumaLevelScenarioGenerator(
                           )
                           // Create Leg
                           val leavingHomeLeg = planElementTemplate
-                            .copy(personId = createdPerson.personId, planElementType = PlanElement.Leg, planElementIndex = 2)
+                            .copy(
+                              personId = createdPerson.personId,
+                              planElementType = PlanElement.Leg,
+                              planElementIndex = 2
+                            )
 
                           val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
                           val margin = 1.3
@@ -266,7 +270,11 @@ class PumaLevelScenarioGenerator(
                             activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
                           )
                           val leavingWorkLeg = planElementTemplate
-                            .copy(personId = createdPerson.personId, planElementType = PlanElement.Leg, planElementIndex = 4)
+                            .copy(
+                              personId = createdPerson.personId,
+                              planElementType = PlanElement.Leg,
+                              planElementIndex = 4
+                            )
 
                           // Create Home Activity: end time not defined
                           val homeActivity = planElementTemplate.copy(
