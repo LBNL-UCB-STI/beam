@@ -2,13 +2,11 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
-import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
+import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.{ChargingNetwork, ParkingStall}
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.router.BeamRouter.Location
-import beam.sim.Geofence
+import beam.sim.{BeamServices, Geofence}
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
@@ -32,21 +30,12 @@ abstract class RideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
-    *
-    * @param locationUtm the position of this agent
-    * @param beamVehicle the [[BeamVehicle]] associated with the driver
-    * @param currentTick
-    * @param findDepotAttributes extensible data structure allowing customization of data to be passed to DepotManager
-    * @return the ParkingStall, or, nothing if no parking is available
-    */
-  def findDepot(
-    locationUtm: Location,
-    beamVehicle: BeamVehicle,
-    currentTick: Int,
-    findDepotAttributes: Option[FindDepotAttributes] = None
-  ): Option[ParkingStall]
+  def findStationsForVehiclesInNeedOfCharging(
+    tick: Int,
+    resources: mutable.Map[Id[BeamVehicle], BeamVehicle],
+    idleVehicles: collection.Map[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation],
+    beamServices: BeamServices
+  ): Vector[(Id[BeamVehicle], ParkingStall)]
 
   /**
     * Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
@@ -56,25 +45,6 @@ abstract class RideHailDepotParkingManager[GEO: GeoLevel](
     *         the vehicle was not found.
     */
   def notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId: VehicleId): Option[ParkingStall]
-
-  /**
-    * Makes an attempt to "claim" the parking stall passed in as an argument and returns a [[StartRefuelSessionTrigger]]
-    * or puts the vehicle into a queue.
-    *
-    * @param beamVehicle
-    * @param originalParkingStallFoundDuringAssignment
-    * @param tick
-    * @param vehicleQueuePriority
-    * @param source
-    * @return vector of [[ScheduleTrigger]] objects
-    */
-  def attemptToRefuel(
-    beamVehicle: BeamVehicle,
-    originalParkingStallFoundDuringAssignment: ParkingStall,
-    tick: Int,
-    vehicleQueuePriority: Double,
-    source: RefuelSource
-  ): (Vector[ScheduleTrigger], Option[Id[ParkingZoneId]])
 
   /**
     * This vehicle is no longer charging and should be removed from internal tracking data.

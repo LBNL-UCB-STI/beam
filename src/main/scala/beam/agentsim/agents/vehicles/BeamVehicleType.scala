@@ -32,10 +32,6 @@ case class BeamVehicleType(
   payloadCapacityInKg: Option[Double] = None,
 ) {
 
-  def isEV: Boolean = {
-    primaryFuelType == Electricity || secondaryFuelType.contains(Electricity)
-  }
-
   def isCaccEnabled: Boolean = {
     automationLevel >= 3
   }

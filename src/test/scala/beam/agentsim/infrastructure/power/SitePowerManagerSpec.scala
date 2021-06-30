@@ -150,7 +150,9 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { v =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        val Some(chargingVehicle) = chargingNetwork.attemptToConnectVehicle(0, v, ActorRef.noSender)
+        val Some((chargingVehicle, status)) =
+          chargingNetwork.attemptToConnectVehicle(0, v, v.stall.get, ActorRef.noSender)
+        status shouldBe ConnectionStatus.Connected
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,

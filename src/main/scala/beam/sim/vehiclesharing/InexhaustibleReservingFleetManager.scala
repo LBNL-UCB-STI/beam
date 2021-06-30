@@ -56,7 +56,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       vehicle.becomeDriver(sender)
 
       // Park it and forward it to the customer
-      (parkingManager ? parkingInquiry(whenWhere, triggerId))
+      (parkingManager ? ParkingInquiry(whenWhere, "wherever", vehicleManagerId, triggerId = triggerId))
         .collect {
           case ParkingInquiryResponse(stall, _, triggerId) =>
             vehicle.useParkingStall(stall)
@@ -67,8 +67,4 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
     // That's fine, nothing to do.
 
   }
-
-  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
-    ParkingInquiry(whenWhere, "wherever", vehicleManagerId, triggerId = triggerId)
-
 }

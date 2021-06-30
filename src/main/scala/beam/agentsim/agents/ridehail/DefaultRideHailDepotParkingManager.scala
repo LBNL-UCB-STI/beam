@@ -1,18 +1,14 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartRefuelSessionTrigger
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
-import beam.agentsim.agents.ridehail.charging.StallAssignmentStrategy
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.api.BeamCustomizationAPI
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, Geofence}
@@ -25,7 +21,6 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Try
 
 /**
   * Manages the parking/charging depots for the RideHailManager. Depots can contain heterogeneous [[ChargingPlugTypes]]
@@ -51,7 +46,6 @@ import scala.util.Try
 class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   vehicleManagerId: Id[VehicleManager],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-  beamCustomizationAPI: BeamCustomizationAPI,
   outputDirectory: OutputDirectoryHierarchy,
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
 ) extends RideHailDepotParkingManager[GEO](vehicleManagerId, parkingZones) {
@@ -102,13 +96,6 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[Id[GEO], Map[Id[ParkingZoneId], ParkingZone[GEO]]]
   parkingZones.groupBy(_._2.geoId).foreach(tup => tazIdToParkingZones += tup)
 
-  // FIXME Unused value
-  private val stallAssignmentStrategy: Try[StallAssignmentStrategy] =
-    beamCustomizationAPI.getStallAssignmentStrategyFactory.create(
-      this,
-      rideHailConfig.charging.vehicleChargingManager.depotManager.stallAssignmentStrategy.name
-    )
-
   def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]) = {
     vehicleIdToGeofenceMap.foreach {
       case (vehicleId, Some(geofence)) =>
@@ -117,75 +104,42 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * searches for a nearby [[ParkingZone]] depot for CAV Ride Hail Agents and returns a [[ParkingStall]] in that zone.
-    *
-    * all parking stalls are expected to be associated with a TAZ stored in the beamScenario.tazTreeMap.
-    * the position of the stall will be at the centroid of the TAZ.
-    * @param locationUtm the position of this agent
-    * @param beamVehicle the [[BeamVehicle]] associated with the driver
-    * @param currentTick Int
-    * @param findDepotAttributes extensible data structure allowing customization of data to be passed to DepotManager
-    *  @return the ParkingStall, or, nothing if no parking is available
-    */
-  def findDepot(
-    locationUtm: Location,
-    beamVehicle: BeamVehicle,
-    currentTick: Int,
-    findDepotAttributes: Option[FindDepotAttributes] = None
-  ): Option[ParkingStall] = {
-    processParkingInquiry(
-      ParkingInquiry(
-        SpaceTime(locationUtm, currentTick),
-        "wherever",
-        vehicleManagerId = vehicleManagerId,
-        Some(beamVehicle),
-        valueOfTime = rideHailConfig.cav.valueOfTime,
-        triggerId = 0
-      )
-    ).map(_.stall)
-  }
-
-  /**
-    * Makes an attempt to "claim" the parking stall passed in as an argument, or optionally a stall from a different
-    * ParkingZone in the same Depot depending on the [[StallAssignmentStrategy]] selected. If the assigned stall is
-    * available, then the vehicle will be added to internal tracking as a charging vehicle and a
-    * [[StartRefuelSessionTrigger]] will be returned. If all parking stalls of the same type in the associated depot are
-    * in use, then this vehicle will be added to a queue to await charging later and an empty trigger vector will be
-    * returned.
-    *
-    * @param beamVehicle
-    * @param originalParkingStallFoundDuringAssignment
-    * @param tick
-    * @param vehicleQueuePriority
-    * @param source
-    * @return vector of [[ScheduleTrigger]] objects
-    */
-  def attemptToRefuel(
-    beamVehicle: BeamVehicle,
-    originalParkingStallFoundDuringAssignment: ParkingStall,
+  override def findStationsForVehiclesInNeedOfCharging(
     tick: Int,
-    vehicleQueuePriority: Double,
-    source: RefuelSource
-  ): (Vector[ScheduleTrigger], Option[Id[ParkingZoneId]]) = {
-
-    findAndClaimStallAtDepot(originalParkingStallFoundDuringAssignment) match {
-      case Some(claimedParkingStall: ParkingStall) => {
-        beamVehicle.useParkingStall(claimedParkingStall)
-        if (addVehicleToChargingInDepotUsing(claimedParkingStall, beamVehicle, tick, source)) {
-          (Vector(ScheduleTrigger(StartRefuelSessionTrigger(tick), beamVehicle.getDriver.get)), None)
-        } else {
-          (Vector(), None)
+    resources: mutable.Map[Id[BeamVehicle], BeamVehicle],
+    idleVehicles: collection.Map[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation],
+    beamServices: BeamServices
+  ): Vector[(Id[BeamVehicle], ParkingStall)] = {
+    val idleVehicleIdsWantingToRefuelWithLocation = idleVehicles.toVector.filter {
+      case (vehicleId: Id[BeamVehicle], _) => {
+        resources.get(vehicleId) match {
+          case Some(beamVehicle) if beamVehicle.isCAV => {
+            beamVehicle.isRefuelNeeded(
+              rideHailConfig.cav.refuelRequiredThresholdInMeters,
+              rideHailConfig.cav.noRefuelThresholdInMeters
+            )
+          }
+          case _ => false
         }
       }
-      case None =>
-        addVehicleAndStallToRefuelingQueueFor(
-          beamVehicle,
-          originalParkingStallFoundDuringAssignment,
-          vehicleQueuePriority,
-          source
-        )
-        (Vector(), Some(originalParkingStallFoundDuringAssignment.parkingZoneId))
+    }
+
+    idleVehicleIdsWantingToRefuelWithLocation.map {
+      case (vehicleId, rideHailAgentLocation) =>
+        val beamVehicle = resources(vehicleId)
+        val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
+        val parkingStall =
+          processParkingInquiry(
+            ParkingInquiry(
+              SpaceTime(locationUtm, tick),
+              "wherever",
+              vehicleManagerId = vehicleManagerId,
+              Some(beamVehicle),
+              valueOfTime = rideHailConfig.cav.valueOfTime,
+              triggerId = 0
+            )
+          ).map(_.stall).getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
+        (vehicleId, parkingStall)
     }
   }
 
@@ -208,36 +162,6 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       putNewTickAndObservation(beamVehicle.id, (tick, "DequeueToCharge"))
       vehiclesInQueueToParkingZoneId.remove(beamVehicle.id)
       Some(ChargingQueueEntry(beamVehicle, parkingStall, 1.0))
-    }
-  }
-
-  /**
-    * Looks up the ParkingZone associated with the parkingStall argument and claims a stall from that Zone if there
-    * are any available, returning the stall as an output. Otherwise, if no stalls are available returns None.
-    *
-    * @param parkingStall the parking stall to claim
-    * @return an optional parking stall that was assigned or None on failure
-    */
-  def findAndClaimStallAtDepot(
-    parkingStall: ParkingStall
-  ): Option[ParkingStall] = {
-    if (!parkingZones.contains(parkingStall.parkingZoneId)) None
-    else {
-      val parkingZone: ParkingZone[GEO] = parkingZones(parkingStall.parkingZoneId)
-      if (parkingZone.stallsAvailable == 0) {
-        None
-      } else {
-        val success = ParkingZone.claimStall(parkingZone)
-        if (!success) {
-          None
-        } else {
-          totalStallsInUse += 1
-          totalStallsAvailable -= 1
-          Some {
-            parkingStall
-          }
-        }
-      }
     }
   }
 
@@ -332,7 +256,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   ): Unit = {
     val chargingQueue = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId).chargingQueue
     val chargingQueueEntry = ChargingQueueEntry(vehicle, parkingStall, priority)
-    if (chargingQueue.find(_.beamVehicle.id == vehicle.id).isDefined) {
+    if (chargingQueue.exists(_.beamVehicle.id == vehicle.id)) {
       logger.warn(
         "{} already exists in parking zone {} queue. Not re-adding as it is a duplicate. Source: {} " +
         "THIS SHOULD NEVER HAPPEN!",
@@ -432,7 +356,6 @@ object DefaultRideHailDepotParkingManager {
     new DefaultRideHailDepotParkingManager[GEO](
       vehicleManagerId,
       parkingZones,
-      beamServices.beamCustomizationAPI,
       beamServices.matsimServices.getControlerIO,
       beamServices.beamConfig.beam.agentsim.agents.rideHail
     ) {

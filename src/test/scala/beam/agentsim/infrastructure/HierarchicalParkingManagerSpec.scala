@@ -372,14 +372,16 @@ class HierarchicalParkingManagerSpec
   describe("HierarchicalParkingManager with loaded common data") {
     it("should return the correct stall") {
       val scenario = loadScenario(beamConfig)
-      val stalls = InfrastructureUtils.loadStalls[Link](
-        "test/input/beamville/parking/link-parking.csv",
-        IndexedSeq.empty,
-        null, //it is required only in case of failures
-        1.0,
-        1.0,
-        randomSeed
-      )
+      val stalls = InfrastructureUtils
+        .loadStalls[Link](
+          "test/input/beamville/parking/link-parking.csv",
+          IndexedSeq.empty,
+          null, //it is required only in case of failures
+          1.0,
+          1.0,
+          randomSeed
+        )
+        .filter(_._2.chargingPointType.isEmpty)
       val zpm = HierarchicalParkingManager.init(
         VehicleManager.defaultManager,
         stalls,

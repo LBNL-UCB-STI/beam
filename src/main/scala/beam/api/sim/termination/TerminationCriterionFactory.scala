@@ -1,6 +1,5 @@
 package beam.api.sim.termination
 
-import beam.api.agentsim.agents.ridehail.charging.StallAssignmentStrategyFactory
 import beam.sim.config.BeamConfigHolder
 import beam.sim.termination.{
   CustomTerminateAtFixedIterationNumber,

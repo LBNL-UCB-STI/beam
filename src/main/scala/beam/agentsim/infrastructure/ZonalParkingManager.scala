@@ -138,7 +138,7 @@ object ZonalParkingManager extends LazyLogging {
     )
     ZonalParkingManager[GEO](
       vehicleManagerId,
-      parking.zones.toMap,
+      parking.zones.filter(_._2.chargingPointType.isEmpty).toMap,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,

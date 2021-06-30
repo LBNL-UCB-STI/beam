@@ -75,8 +75,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       Future
         .sequence(vehicles.values.map { veh =>
           veh.setManager(Some(self))
-          val infrastructureManager = if (veh.beamVehicleType.isEV) chargingNetworkManager else parkingNetworkManager
-          infrastructureManager ? parkingInquiry(veh.spaceTime, triggerId) flatMap {
+          val infrastructureManager = if (veh.isBEV || veh.isPHEV) chargingNetworkManager else parkingNetworkManager
+          infrastructureManager ? ParkingInquiry(veh.spaceTime, "wherever", vehicleManagerId, triggerId = triggerId) flatMap {
             case ParkingInquiryResponse(stall, _, triggerId) =>
               veh.useParkingStall(stall)
               self ? ReleaseVehicleAndReply(veh, None, triggerId)
@@ -121,9 +121,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       sender() ! Success(triggerId)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
-
-  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
-    ParkingInquiry(whenWhere, "wherever", vehicleManagerId, triggerId = triggerId)
 
   override def getId: Id[VehicleManager] = vehicleManagerId
   override def queryAvailableVehicles: List[BeamVehicle] =

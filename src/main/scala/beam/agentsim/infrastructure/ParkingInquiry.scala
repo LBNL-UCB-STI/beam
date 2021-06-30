@@ -35,49 +35,8 @@ case class ParkingInquiry(
 
   def isChargingRequestOrEV: Boolean = {
     beamVehicle match {
-      case Some(vehicle) => vehicle.beamVehicleType.isEV
+      case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
       case _             => activityTypeLowerCased == "charge"
     }
   }
-}
-
-object ParkingInquiry {
-
-//  val simpleDistanceAndParkingTicketEqualUtilityFunction
-//    : MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
-//      Map.empty,
-//      Map(
-//        "distanceFactor"          -> UtilityFunctionOperation.Multiplier(-1),
-//        "parkingCostsPriceFactor" -> UtilityFunctionOperation.Multiplier(-1)
-//      )
-//    )
-//
-//  val simpleDistanceEqualUtilityFunction: MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String] =
-//    MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](
-//      Map.empty,
-//      Map(
-//        "distanceFactor" -> UtilityFunctionOperation.Multiplier(-1)
-//      )
-//    )
-
-//  def apply(locationUtm: Location, activity: String): ParkingInquiry = {
-//    ParkingInquiry(locationUtm, activity, None, None, 0.0, 0)
-//  }
-
-//  def apply(
-//    locationUtm: Location,
-//    activity: String,
-//    beamVehicleOption: Option[BeamVehicle] = None,
-//    remainingTripData: Option[RemainingTripData] = None
-//  ): ParkingInquiry = {
-//    ParkingInquiry(
-//      locationUtm,
-//      activity,
-//      beamVehicleOption,
-//      remainingTripData,
-//      0.0,
-//      0,
-//    )
-//  }
 }

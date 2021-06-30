@@ -81,7 +81,7 @@ class ChargingFunctions[GEO: GeoLevel](
     if (zone.chargingPointType.isEmpty)
       throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
 
-    val isEV: Boolean = inquiry.beamVehicle.forall(_.beamVehicleType.isEV)
+    val isEV: Boolean = inquiry.beamVehicle.forall(v => v.isBEV || v.isPHEV)
 
     val rideHailFastChargingOnly: Boolean = ifRideHailThenFastChargingOnly(zone, inquiry.activityType)
 

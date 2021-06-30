@@ -9,10 +9,8 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   Resume
 }
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.HasTriggerId
-import beam.utils.DebugLib
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
