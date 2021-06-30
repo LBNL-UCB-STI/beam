@@ -138,7 +138,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+    val (scenarioBuilt, beamScenario, _) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
