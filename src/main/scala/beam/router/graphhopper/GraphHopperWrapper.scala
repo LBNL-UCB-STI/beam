@@ -47,7 +47,11 @@ abstract class GraphHopperWrapper(
   protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double]
   protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double
 
-  override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
+  override def calcRoute(
+    routingRequest: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean
+  ): RoutingResponse = {
     assert(!routingRequest.withTransit, "Can't route transit yet")
     assert(
       routingRequest.streetVehicles.size == 1,

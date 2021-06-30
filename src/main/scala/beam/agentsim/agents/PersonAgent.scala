@@ -42,6 +42,7 @@ import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
+import beam.router.skim.Skims
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
@@ -287,11 +288,10 @@ class PersonAgent(
     Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
   )
 
-  val body = new BeamVehicle(
+  val body: BeamVehicle = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType,
-    managerId = VehicleManager.bodiesVehicleManager.managerId
+    bodyType
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -1178,7 +1178,7 @@ class PersonAgent(
             .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           eventsManager.processEvent(
-            ODSkimmerEvent(
+            ODSkimmerEvent.forTaz(
               tick,
               beamServices,
               correctedTrip,
