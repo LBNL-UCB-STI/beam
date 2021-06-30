@@ -1,12 +1,12 @@
 package beam.utils.scenario
 
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
@@ -17,15 +17,14 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{mutable, Iterable}
+import scala.collection.{Iterable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
 import scala.util.Random
-
-import beam.utils.SequenceUtils
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -105,9 +104,10 @@ class UrbanSimScenarioLoader(
     val persons = Await.result(personsF, 500.seconds)
     val households = Await.result(householdsF, 500.seconds)
 
+    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
+
     HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    val transformedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(inputPlans, persons, households)
-    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(transformedPlans)).getOrElse(transformedPlans -> false)
+    val plans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans, persons, households)
 
     val householdIds = households.map(_.householdId.id).toSet
 
