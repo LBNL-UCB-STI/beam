@@ -6,6 +6,8 @@ import beam.utils.scenario._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
+import scala.util.Random
+
 class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
   import HOVModeTransformerTest._
@@ -136,22 +138,32 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       1,
       1,
       modes = Seq("HOV2", "HOV2", "HOV2", "WALK", "WALK", "CAR", "CAR"),
-      activities = Seq("Home", "Shopping", "Other", "Work", "Meal", "Work", "Shopping", "Home")
+      activities = Seq(
+        Act("Home", 1.1, 1.1),
+        Act("Shopping"),
+        Act("Other"),
+        Act("Work"),
+        Act("Meal"),
+        Act("Work"),
+        Act("Shopping"),
+        Act("Home", 1.1, 1.1)
+      )
     ) ++ newTrip(
       1,
       1,
       modes = Seq("HOV2", "HOV2", "HOV2", "CAR", "CAR"),
-      activities = Seq("Home", "Shopping", "Other", "Work", "Shopping", "Home")
+      activities =
+        Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Other"), Act("Work"), Act("Shopping"), Act("Home", 1.1, 1.1))
     ) ++ newTrip(
       1,
       1,
       modes = Seq("CAR", "CAR"),
-      activities = Seq("Home", "Work", "Home")
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Work"), Act("Home", 1.1, 1.1))
     ) ++ newTrip(
       1,
       1,
       modes = Seq(WALK_TRANSIT.value, WALK.value, WALK.value),
-      activities = Seq("Home", "Work", "Shopping", "Home")
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Work"), Act("Shopping"), Act("Home", 1.1, 1.1))
     )
 
     val trips = HOVModeTransformer.splitToTrips(inputPlans)
@@ -178,7 +190,16 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
         1,
         1,
         modes = Seq("hov2", "hov2", "hov3", mode.value, mode.value, "hov3", "hov3"),
-        activities = Seq("Home", "Shopping", "Other", "Work", "Meal", "Other", "Shopping", "Home")
+        activities = Seq(
+          Act("Home", 1.1, 1.1),
+          Act("Shopping"),
+          Act("Other"),
+          Act("Work"),
+          Act("Meal"),
+          Act("Other"),
+          Act("Shopping"),
+          Act("Home", 1.1, 1.1)
+        )
       )
     }
 
@@ -200,27 +221,13 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     modes shouldNot contain(CAR_HOV3.value.toLowerCase)
   }
 
-  test("*") {
+  test("trips with both hov and car must be forced to hov car") {
     val plans = newTrip(
       1,
       1,
-      modes = Seq("HOV2", "HOV2", "HOV2", "WALK", "WALK", "CAR", "CAR"),
-      activities = Seq("Home", "Shopping", "Other", "Work", "Meal", "Work", "Shopping", "Home")
-    ) ++ newTrip(
-      1,
-      1,
-      modes = Seq("HOV2", "HOV2", "HOV2", "CAR", "CAR"),
-      activities = Seq("Home", "Shopping", "Other", "Work", "Shopping", "Home")
-    ) ++ newTrip(
-      1,
-      1,
-      modes = Seq("CAR", "CAR"),
-      activities = Seq("Home", "Work", "Home")
-    ) ++ newTrip(
-      1,
-      1,
-      modes = Seq(WALK_TRANSIT.value, WALK.value, WALK.value),
-      activities = Seq("Home", "Work", "Shopping", "Home")
+      modes = Seq("HOV3", "HOV3", "HOV3", "CAR", "CAR"),
+      activities =
+        Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Other"), Act("Work"), Act("Shopping"), Act("Home", 1.1, 1.1))
     )
 
     val persons = Seq(newPerson(1, 1))
@@ -228,12 +235,76 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
     val processedTrips = HOVModeTransformer.splitToTrips(processedPlans).toArray
 
-    processedTrips(0).flatMap(_.legMode).toSet shouldNot contain(CAR_HOV2.value)
-    processedTrips(0).flatMap(_.legMode).toSet shouldNot contain(CAR_HOV3.value)
+    val tripsModes = processedTrips.map(_.flatMap(_.legMode))
+
+    tripsModes.head shouldBe Seq("car_hov3", "car_hov3", "car_hov3", "CAR", "CAR")
+  }
+
+  test("trips with both hov and car must be forced to hov car, when car was left at some location and then picked up") {
+    val plans = newTrip(
+      1,
+      1,
+      modes = Seq("HOV2", "HOV2", "HOV2", "WALK", "WALK", "CAR", "CAR"),
+      activities = Seq(
+        Act("Home", 1.1, 1.1),
+        Act("Shopping"),
+        Act("Other"),
+        Act("Work", 1.2, 1.2),
+        Act("Meal"),
+        Act("Work", 1.2, 1.2),
+        Act("Shopping"),
+        Act("Home", 1.1, 1.1)
+      )
+    )
+
+    val persons = Seq(newPerson(1, 1))
+    val households = Seq(newHousehold(1, 1))
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedTrips = HOVModeTransformer.splitToTrips(processedPlans).toArray
+
+    val tripsModes = processedTrips.map(_.flatMap(_.legMode))
+
+    tripsModes.head shouldBe Seq("car_hov2", "car_hov2", "car_hov2", "WALK", "WALK", "CAR", "CAR")
+  }
+
+  test("trip must not contain hov_car when car is lost on the go") {
+    val plans = newTrip(
+      1,
+      1,
+      modes = Seq("HOV2", "HOV2", "HOV3", "WALK", "WALK", "CAR", "CAR"),
+      activities = Seq(
+        Act("Home", 1.1, 1.1),
+        Act("Shopping"),
+        Act("Other"),
+        Act("Work", 1.2, 1.2),
+        Act("Meal"),
+        Act("Other", 1.3, 1.3),
+        Act("Shopping"),
+        Act("Home", 1.1, 1.1)
+      )
+    )
+
+    val persons = Seq(newPerson(1, 1))
+    val households = Seq(newHousehold(1, 1))
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedTrips = HOVModeTransformer.splitToTrips(processedPlans).toArray
+
+    val tripsModes = processedTrips.map(_.flatMap(_.legMode))
+    tripsModes.head shouldBe Seq(
+      "hov2_teleportation",
+      "hov2_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "WALK",
+      "CAR",
+      "CAR"
+    )
   }
 }
 
 object HOVModeTransformerTest {
+
+  private val random = new Random()
 
   def newPerson(personId: Int, householdId: Int): PersonInfo =
     PersonInfo(PersonId(personId.toString), HouseholdId(householdId.toString), 0, 33, List(), isFemale = false, 42.0)
@@ -245,8 +316,8 @@ object HOVModeTransformerTest {
     personId: Int,
     startIndex: Int,
     mode: String,
-    activity1: String = "Home",
-    activity2: String = "Shopping"
+    activity1: Act = Act("Home"),
+    activity2: Act = Act("Shopping")
   ): Iterable[PlanElement] = Seq(
     newActivity(personId, startIndex, activity1),
     newLeg(personId, startIndex + 1, mode),
@@ -259,14 +330,13 @@ object HOVModeTransformerTest {
     personId: Int,
     startIndex: Int,
     modes: Iterable[String],
-    activities: Iterable[String]
+    activities: Iterable[Act]
   ): Iterable[PlanElement] = {
     val firstActivity: PlanElement = newActivity(personId, startIndex, activities.head)
     val theRest = modes
       .zip(activities.tail)
       .flatMap {
-        case (mode, activity) =>
-          Seq(newLeg(personId, startIndex + 1, mode), newActivity(personId, startIndex + 2, activity))
+        case (mode, act) => Seq(newLeg(personId, startIndex + 1, mode), newActivity(personId, startIndex + 2, act))
       }
       .toSeq
 
@@ -296,26 +366,29 @@ object HOVModeTransformerTest {
     None
   )
 
-  def newActivity(personId: Int, planIndex: Int, activity: String): PlanElement = PlanElement(
-    PersonId(personId.toString),
-    0,
-    0.0,
-    planSelected = true,
-    PlanElement.Activity,
-    planIndex,
-    Some(activity),
-    Some(1000000.0),
-    Some(1000.0),
-    Some(10.0),
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    List(),
-    None
-  )
+  def newActivity(personId: Int, planIndex: Int, act: Act): PlanElement =
+    PlanElement(
+      PersonId(personId.toString),
+      0,
+      0.0,
+      planSelected = true,
+      PlanElement.Activity,
+      planIndex,
+      Some(act.activity),
+      Some(act.locationX),
+      Some(act.locationY),
+      Some(10.0),
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      List(),
+      None
+    )
+
+  case class Act(activity: String, locationX: Double = random.nextDouble(), locationY: Double = random.nextDouble())
 }

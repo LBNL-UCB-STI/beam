@@ -141,11 +141,13 @@ object HOVModeTransformer extends LazyLogging {
           forcedHOV2Teleports -= 1
           hov2Leg.copy(legMode = Some(CAR_HOV2.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
-          //as car_hov3 contains to passengers, reduce by 2
+          //as car_hov3 contains two passengers, reduce by 2
           forcedHOV2Teleports -= 2
           hov3Leg.copy(legMode = Some(CAR_HOV3.value))
+        case other => other
       }
     }
+
     def mapToHOVTeleportationBalancingForcedCarHOV(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
@@ -154,6 +156,7 @@ object HOVModeTransformer extends LazyLogging {
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
           forcedHOV2Teleports -= 1
           hov3Leg.copy(legMode = Some(HOV3_TELEPORTATION.value))
+        case other => other
       }
     }
 
@@ -266,7 +269,7 @@ object HOVModeTransformer extends LazyLogging {
 
             // if this is a leg then check what happens with the car
             case (tripCarInfo, planElement) if planElement.planElementType == PlanElement.Leg =>
-              val isCARmode = planElement.legMode.exists(mode => allCarModesWithHOV.contains(mode))
+              val isCARmode = planElement.legMode.exists(mode => allCarModesWithHOV.contains(mode.toLowerCase))
               if (isCARmode && tripCarInfo.carIsNearby) {
                 tripCarInfo.copy(carWasUsed = true)
               } else if (isCARmode) {
@@ -334,11 +337,11 @@ object HOVModeTransformer extends LazyLogging {
   object ForcedCarHOVTransformer {
 
     def isForcedCarHOVTrip(trip: Iterable[PlanElement]): Boolean = {
-      val modes = trip.flatMap(_.legMode)
+      val modes = trip.flatMap(_.legMode.map(_.toLowerCase))
       modes.exists(allCarModes.contains) && modes.exists(allHOVModes.contains)
     }
 
-    /** @return the tuple of (transformed trip, transformed HOV2 count, transformed HOV3 count) */
+    /** @return the tuple of (transformed trip, transformed CAR_HOV2 count, transformed CAR_HOV3 count) */
     def mapToForcedCarHOVTrip(trip: Iterable[PlanElement]): (Iterable[PlanElement], Int, Int) = {
       var forcedCarHOV2Count = 0
       var forcedCarHOV3Count = 0
