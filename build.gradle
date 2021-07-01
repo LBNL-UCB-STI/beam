@@ -48,6 +48,7 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
+compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g"]
 def scalaBinaryVersion = "2.12"
 def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.13.0"
