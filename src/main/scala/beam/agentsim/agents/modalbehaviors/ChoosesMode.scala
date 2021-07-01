@@ -116,7 +116,6 @@ trait ChoosesMode {
     val vehicle = new BeamVehicle(
       BeamVehicle.createId(id, Some(s"$teleportationVehicleIdPrefix-$teleportationVehicleId")),
       new Powertrain(0.0),
-      managerId = VehicleManager.privateVehicleManager.managerId,
       beamVehicleType = beamVehicleType
     )
     vehicle.spaceTime = location
