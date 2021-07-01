@@ -10,7 +10,8 @@ object PlanMerger {
   }
 }
 
-class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputPlanElement, PlanElement] {
+class PlanMerger(val trips: Map[(String, Double), String], modeMap: Map[String, String])
+    extends Merger[InputPlanElement, PlanElement] {
 
   import PlanMerger._
 
@@ -64,22 +65,5 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
     )
   }
 
-  private def convertMode(inputMode: String): String = inputMode match {
-//    case "HOV2"           => "hov2_teleportation"
-//    case "HOV3"           => "hov3_teleportation"
-//    case "HOV2"           => "car_hov2"
-//    case "HOV3"           => "car_hov3"
-    case "HOV2"           => "car"
-    case "HOV3"           => "car"
-    case "DRIVEALONEPAY"  => "car"
-    case "DRIVEALONEFREE" => "car"
-    case "WALK"           => "walk"
-    case "BIKE"           => "bike"
-    case "SHARED3FREE"    => "car"
-    case "SHARED2PAY"     => "car"
-    case "SHARED2FREE"    => "car"
-    case "SHARED3PAY"     => "car"
-    case "WALK_LOC"       => "walk_transit"
-    case "DRIVE_LOC"      => "drive_transit"
-  }
+  private def convertMode(inputMode: String): String = modeMap(inputMode)
 }
