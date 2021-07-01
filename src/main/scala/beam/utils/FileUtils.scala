@@ -1,16 +1,7 @@
 package beam.utils
 
-import java.io._
-import java.net.URL
-import java.nio.charset.StandardCharsets
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
-import java.text.SimpleDateFormat
-import java.util.stream
-import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
-
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.typesafe.scalalogging.LazyLogging
@@ -20,10 +11,16 @@ import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
+import java.io._
+import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.text.SimpleDateFormat
+import java.util.stream
+import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 import scala.util.{Failure, Random, Success, Try}

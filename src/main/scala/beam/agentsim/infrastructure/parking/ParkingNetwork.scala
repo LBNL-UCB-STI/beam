@@ -32,28 +32,23 @@ abstract class ParkingNetwork[GEO: GeoLevel](
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = {
     logger.debug("Received parking inquiry: {}", inquiry)
-    searchFunctions.map(_.searchForParkingStall(inquiry)).getOrElse(None) match {
-      case Some(_ @ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _)) =>
+    searchFunctions.map(_.searchForParkingStall(inquiry)).getOrElse(None) map {
+      case ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =>
         // reserveStall is false when agent is only seeking pricing information
         if (inquiry.reserveStall) {
-
           logger.debug(
             s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
           )
-
           // update the parking stall data
           val claimed: Boolean = ParkingZone.claimStall(parkingZone)
           if (claimed) {
             totalStallsInUse += 1
             totalStallsAvailable -= 1
           }
-
-          logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
-
-          if (totalStallsInUse % 1000 == 0) logger.debug("Parking stalls in use: {}", totalStallsInUse)
+          if (totalStallsInUse % 1000 == 0)
+            logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
         }
-        Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
-      case _ => None
+        ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
     }
   }
 

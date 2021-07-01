@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -146,7 +147,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     val parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double] =
       (parkingAlternative: ParkingAlternative[GEO]) => {
         val params = setupMNLParameters(parkingAlternative, inquiry)
-        if (inquiry.activityTypeLowerCased == "home") {
+        if (inquiry.activityType == ParkingActivityType.Home) {
           logger.debug(
             f"tour=${inquiry.remainingTripData
               .map {

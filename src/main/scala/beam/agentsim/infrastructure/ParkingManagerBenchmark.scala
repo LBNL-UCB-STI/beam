@@ -45,7 +45,7 @@ class ParkingManagerBenchmark(
         possibleParkingLocations.flatMap {
           case (coord, actType) =>
             parkingNetwork.processParkingInquiry(
-              ParkingInquiry(SpaceTime(coord, 0), actType, parkingNetwork.getVehicleManagerId, triggerId = -1L)
+              ParkingInquiry.init(SpaceTime(coord, 0), actType, parkingNetwork.getVehicleManagerId, triggerId = -1L)
             )
         }.toList
       }

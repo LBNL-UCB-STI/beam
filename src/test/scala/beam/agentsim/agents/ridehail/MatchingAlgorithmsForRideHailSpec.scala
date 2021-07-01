@@ -217,7 +217,7 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         4,
         VehicleManager
-          .createAndKeepId(
+          .createIdUsingUnique(
             services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
             VehicleManager.BEAMRideHail
           )
@@ -231,7 +231,7 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         4,
         VehicleManager
-          .createAndKeepId(
+          .createIdUsingUnique(
             services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
             VehicleManager.BEAMRideHail
           )
@@ -292,7 +292,7 @@ object MatchingAlgorithmsForRideHailSpec {
         Some(CircularGeofence(10000, 10000, 13400)),
         4,
         VehicleManager
-          .createAndKeepId(
+          .createIdUsingUnique(
             services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
             VehicleManager.BEAMRideHail
           )
@@ -306,7 +306,7 @@ object MatchingAlgorithmsForRideHailSpec {
         Some(CircularGeofence(10000, 10000, 13400)),
         4,
         VehicleManager
-          .createAndKeepId(
+          .createIdUsingUnique(
             services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
             VehicleManager.BEAMRideHail
           )
@@ -394,7 +394,7 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         remainingRangeInM,
         VehicleManager
-          .createAndKeepId(
+          .createIdUsingUnique(
             services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
             VehicleManager.BEAMRideHail
           )
@@ -408,7 +408,7 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         remainingRangeInM,
         VehicleManager
-          .createAndKeepId(
+          .createIdUsingUnique(
             services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
             VehicleManager.BEAMRideHail
           )

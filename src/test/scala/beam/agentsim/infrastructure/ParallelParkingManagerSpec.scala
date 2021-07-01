@@ -77,7 +77,7 @@ class ParallelParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 11)
+        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 11)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.loc.getX + 2000,
@@ -116,7 +116,7 @@ class ParallelParkingManagerSpec
         8
       )
 
-      val inquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 173)
+      val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 173)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.loc.getX + 2000,
@@ -169,7 +169,7 @@ class ParallelParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 9902)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 9902)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -191,7 +191,7 @@ class ParallelParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 237)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 237)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
           case Some(res @ ParkingInquiryResponse(stall, responseId, triggerId))
@@ -235,8 +235,8 @@ class ParallelParkingManagerSpec
 
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3737)
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 190)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3737)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 190)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
@@ -318,7 +318,7 @@ class ParallelParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 902)
+          req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 902)
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _, _)) =>
@@ -403,7 +403,7 @@ class ParallelParkingManagerSpec
     parkingType: ParkingType,
     vehicleManagerId: Id[VehicleManager]
   ) = {
-    val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 77370)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 77370)
     val response = spm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val expectedStall =

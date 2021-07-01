@@ -63,7 +63,7 @@ class HouseholdFleetManager(
       val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
-          (parkingManager ? ParkingInquiry(
+          (parkingManager ? ParkingInquiry.init(
             SpaceTime(homeCoord, 0),
             "init",
             VehicleManager.defaultManager,

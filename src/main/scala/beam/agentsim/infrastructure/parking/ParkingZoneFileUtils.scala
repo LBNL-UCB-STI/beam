@@ -449,7 +449,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       }
       val vehicleManager =
         if (vehicleManagerString == null || vehicleManagerString.isEmpty) defaultVehicleManagerId
-        else VehicleManager.createAndKeepId(vehicleManagerString, VehicleManager.getType(defaultVehicleManagerId))
+        else VehicleManager.createIdUsingUnique(vehicleManagerString, VehicleManager.getType(defaultVehicleManagerId))
       val reservedFor = toCategories(reservedForString, tazString)
       // parse this row from the source file
       val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)

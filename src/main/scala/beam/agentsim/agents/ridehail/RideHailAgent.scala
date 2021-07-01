@@ -208,14 +208,14 @@ class RideHailAgent(
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 
-  val lastTickOfSimulation = Time
+  val lastTickOfSimulation: Int = Time
     .parseTime(beamScenario.beamConfig.beam.agentsim.endTime)
     .toInt - beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
   var isOnWayToParkAtStall: Option[ParkingStall] = None
   var isStartingNewShift: Boolean = false
   var isCurrentlyOnShift: Boolean = false
   var isInQueueParkingZoneId: Option[Id[ParkingZoneId]] = None
-  val beamLegsToIgnoreDueToNewPassengerSchedule = mutable.HashSet[BeamLeg]()
+  val beamLegsToIgnoreDueToNewPassengerSchedule: mutable.Set[BeamLeg] = mutable.HashSet[BeamLeg]()
   var needsToEndShift: Boolean = false
   var waitingForDoneRefuelingAndOutOfServiceReply: Boolean = false
 
@@ -224,7 +224,7 @@ class RideHailAgent(
   val outgoingMessages: mutable.ListBuffer[Any] = new mutable.ListBuffer[Any]()
   var lastLocationOfRefuel: Option[Coord] = None // for detecting teleportations
 
-  val startShiftTriggerTimeout = Math.max(
+  val startShiftTriggerTimeout: Int = Math.max(
     beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow,
     1
   )
@@ -843,11 +843,19 @@ class RideHailAgent(
               )
             val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
             val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
-            val inquiry = ParkingInquiry(
+            val parkingDuration =
+              if (shifts.isEmpty || isCurrentlyOnShift) 0
+              else {
+                val latestShift = shifts.get.filter(_.range.upperBound >= time).head
+                val nextLatestShift = shifts.get.filter(_.range.lowerBound < time).last
+                nextLatestShift.range.lowerBound - latestShift.range.upperBound
+              }
+            val inquiry = ParkingInquiry.init(
               SpaceTime(destinationUtm, time),
               "charge",
               vehicle.vehicleManagerId,
               beamVehicle = Some(vehicle),
+              parkingDuration = parkingDuration,
               triggerId = getCurrentTriggerIdOrGenerate
             )
             chargingNetworkManager ! inquiry

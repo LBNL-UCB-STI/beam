@@ -86,7 +86,7 @@ class ZonalParkingManagerSpec
           randomSeed
         )
       } {
-        val inquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 77239)
+        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 77239)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.loc.getX + 2000,
@@ -142,7 +142,8 @@ class ZonalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3234324)
+        val firstInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3234324)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -164,7 +165,8 @@ class ZonalParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 123709)
+        val secondInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 123709)
         val response2 @ Some(ParkingInquiryResponse(stall, responseId, triggerId)) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(response2.isDefined, "no response")
@@ -205,8 +207,9 @@ class ZonalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3829)
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 38429)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3829)
+        val secondInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 38429)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
@@ -286,7 +289,12 @@ class ZonalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 839237)
+          req = ParkingInquiry.init(
+            SpaceTime(middleOfWorld, 0),
+            "work",
+            VehicleManager.defaultManager,
+            triggerId = 839237
+          )
           response1 = zonalParkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _, _)) =>
@@ -406,8 +414,8 @@ class ZonalParkingManagerSpec
 
   describe("ZonalParkingManager with multiple parking files loaded") {
     it("should return the correct stall corresponding with the request (reservedFor, vehicleManagerId)") {
-      val sharedFleet1 = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared)
-      val sharedFleet2 = VehicleManager.createAndKeepId("shared-fleet-2", VehicleManager.BEAMShared)
+      val sharedFleet1 = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val sharedFleet2 = VehicleManager.createIdUsingUnique("shared-fleet-2", VehicleManager.BEAMShared)
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls[TAZ](
         "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
@@ -475,7 +483,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       vehicleManagerId = vehicleManagerId
     )
-    val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init", vehicleManagerId, Some(vehicle), triggerId = 0)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
     assert(response.isDefined, "no response")
     assert(response.get.stall.vehicleManagerId == vehicleManagerId, "something is wildly broken")
@@ -498,7 +506,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       vehicleManagerId = vehicleManagerId
     )
-    val inquiry = ParkingInquiry(spaceTime, "init", vehicleManagerId, Some(vehicle), triggerId = 3737)
+    val inquiry = ParkingInquiry.init(spaceTime, "init", vehicleManagerId, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0

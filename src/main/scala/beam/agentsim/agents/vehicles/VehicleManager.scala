@@ -8,7 +8,7 @@ trait VehicleManager
 
 object VehicleManager {
 
-  def createAndKeepId(idString: String, vehType: VehicleManagerType): Id[VehicleManager] = {
+  def createIdUsingUnique(idString: String, vehType: VehicleManagerType): Id[VehicleManager] = {
     val vehId = Id.create(idString, classOf[VehicleManager])
     if (vehicleManagers.contains(vehId) && vehicleManagers(vehId) != vehType)
       throw new RuntimeException("Duplicate vehicle manager ids is not allowed")

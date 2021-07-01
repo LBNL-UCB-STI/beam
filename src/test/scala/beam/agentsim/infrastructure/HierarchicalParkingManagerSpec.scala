@@ -84,7 +84,7 @@ class HierarchicalParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 10)
+        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 10)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.loc.getX + 2000,
@@ -126,7 +126,7 @@ class HierarchicalParkingManagerSpec
         checkThatNumberOfStallsMatch = true
       )
 
-      val inquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 34347)
+      val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 34347)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.loc.getX + 2000,
@@ -186,7 +186,8 @@ class HierarchicalParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 734734)
+        val firstInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 734734)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -208,7 +209,8 @@ class HierarchicalParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3333)
+        val secondInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
           case Some(res @ ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
@@ -258,8 +260,8 @@ class HierarchicalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 101)
-        val secondInquiry = ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 102)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 101)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 102)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
@@ -348,7 +350,7 @@ class HierarchicalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 17)
+          req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 17)
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _, req.triggerId)) =>
@@ -437,7 +439,7 @@ class HierarchicalParkingManagerSpec
     parkingType: ParkingType,
     vehicleManagerId: Id[VehicleManager]
   ): Any = {
-    val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 27)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 27)
     val response = spm.processParkingInquiry(inquiry)
     response match {
       case Some(rsp @ ParkingInquiryResponse(stall, _, inquiry.triggerId)) =>

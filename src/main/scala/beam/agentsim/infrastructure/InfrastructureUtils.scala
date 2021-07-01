@@ -50,7 +50,7 @@ object InfrastructureUtils extends LazyLogging {
       val freightParkingFile = List(
         (
           beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath.getOrElse(""),
-          VehicleManager.createAndKeepId("FreightManager", VehicleManager.BEAMFreight),
+          VehicleManager.createIdUsingUnique("FreightManager", VehicleManager.BEAMFreight),
           Seq(ParkingType.Workplace)
         )
       )
@@ -59,7 +59,10 @@ object InfrastructureUtils extends LazyLogging {
         (
           beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
           VehicleManager
-            .createAndKeepId(beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, VehicleManager.BEAMRideHail),
+            .createIdUsingUnique(
+              beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
+              VehicleManager.BEAMRideHail
+            ),
           Seq(ParkingType.Workplace).toList
         )
       )
@@ -258,7 +261,7 @@ object InfrastructureUtils extends LazyLogging {
               defaultParkingTypes,
               acc
             )
-          case depotParkingFilePath @ _ =>
+          case depotParkingFilePath =>
             Try {
               ParkingZoneFileUtils.fromFileToAccumulator(
                 depotParkingFilePath,
@@ -271,7 +274,7 @@ object InfrastructureUtils extends LazyLogging {
             } match {
               case Success(accumulator) => accumulator
               case Failure(e) =>
-                logger.error(s"unable to read contents of provided parking file $depotParkingFilePath", e)
+                logger.warn(s"unable to read contents of provided parking file $depotParkingFilePath", e)
                 acc
             }
         }
@@ -290,9 +293,6 @@ object InfrastructureUtils extends LazyLogging {
     stalls
       .filter(_._2.chargingPointType.isEmpty)
       .groupBy(_._2.vehicleManagerId)
-      .map {
-        case (id, zones) => id -> zones
-      }
   }
 
   /**
@@ -306,9 +306,6 @@ object InfrastructureUtils extends LazyLogging {
     stalls
       .filter(_._2.chargingPointType.isDefined)
       .groupBy(_._2.vehicleManagerId)
-      .map {
-        case (id, zones) => id -> zones
-      }
   }
 
 }

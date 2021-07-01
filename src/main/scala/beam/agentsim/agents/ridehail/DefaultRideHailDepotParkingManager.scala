@@ -130,7 +130,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
         val parkingStall =
           processParkingInquiry(
-            ParkingInquiry(
+            ParkingInquiry.init(
               SpaceTime(locationUtm, tick),
               "wherever",
               vehicleManagerId = vehicleManagerId,

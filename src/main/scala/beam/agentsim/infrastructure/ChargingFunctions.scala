@@ -42,15 +42,14 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param activityTypeLowerCased a String expressing activity Type in lower case
     * @return
     */
-  def ifRideHailThenFastChargingOnly(zone: ParkingZone[GEO], activityTypeLowerCased: String): Boolean =
-    activityTypeLowerCased match {
-      case "charge" =>
-        zone.chargingPointType match {
-          case Some(chargingPointType) => ChargingPointType.isFastCharger(chargingPointType)
-          case None                    => false // requiring fast chargers only
-        }
-      case _ => true // not a ride hail vehicle seeking charging
+  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+    VehicleManager.getType(inquiry.vehicleManagerId) match {
+      case VehicleManager.BEAMRideHail if inquiry.parkingDuration <= 3600 =>
+        ChargingPointType.isFastCharger(zone.chargingPointType.get)
+      case _ =>
+        true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
     }
+  }
 
   /**
     * Method that verifies if the vehicle has valid charging capability
@@ -83,14 +82,14 @@ class ChargingFunctions[GEO: GeoLevel](
 
     val isEV: Boolean = inquiry.beamVehicle.forall(v => v.isBEV || v.isPHEV)
 
-    val rideHailFastChargingOnly: Boolean = ifRideHailThenFastChargingOnly(zone, inquiry.activityType)
+    val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
 
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
 
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
-    val canThisCarParkHere: Boolean = getCanThisCarParkHere(zone, inquiry, preferredParkingTypes)
+    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
 
-    isEV && rideHailFastChargingOnly && validChargingCapability && canThisCarParkHere
+    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
   }
 
   /**

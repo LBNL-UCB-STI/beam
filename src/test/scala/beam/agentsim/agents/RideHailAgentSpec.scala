@@ -156,7 +156,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           vehicleType,
           vehicleManagerId = VehicleManager
-            .createAndKeepId(
+            .createIdUsingUnique(
               services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
               VehicleManager.BEAMRideHail
             )
@@ -240,7 +240,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           vehicleType,
           VehicleManager
-            .createAndKeepId(
+            .createIdUsingUnique(
               services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
               VehicleManager.BEAMRideHail
             )
@@ -316,7 +316,7 @@ class RideHailAgentSpec
           new Powertrain(0.0),
           vehicleType,
           VehicleManager
-            .createAndKeepId(
+            .createIdUsingUnique(
               services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
               VehicleManager.BEAMRideHail
             )

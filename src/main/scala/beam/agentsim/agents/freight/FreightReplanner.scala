@@ -53,7 +53,7 @@ class FreightReplanner(
     val oldPlans = person.getPlans.asScala.toIndexedSeq
     person.addPlan(newPlan)
     person.setSelectedPlan(newPlan)
-    oldPlans.foreach(plan => person.removePlan(plan))
+    oldPlans.foreach(person.removePlan)
   }
 
   private[freight] def convertToPlans(
@@ -68,7 +68,11 @@ class FreightReplanner(
 
         val toursAndPlans = routes.zipWithIndex.map {
           case (route, i) =>
-            convertToFreightTour(s"freight-tour-${route.vehicle.id}-$i".createId, route, freightCarrier.payloadPlans)
+            convertToFreightTourWithPayloadPlans(
+              s"freight-tour-${route.vehicle.id}-$i".createId,
+              route,
+              freightCarrier.payloadPlans
+            )
         }
         val tours = toursAndPlans.map(_._1)
         val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
@@ -79,7 +83,7 @@ class FreightReplanner(
     }
   }
 
-  private def convertToFreightTour(
+  private def convertToFreightTourWithPayloadPlans(
     tourId: Id[FreightTour],
     route: Route,
     payloadPlans: Map[Id[PayloadPlan], PayloadPlan]
@@ -237,6 +241,7 @@ class FreightReplanner(
 
     if (solution.unassigned.nonEmpty) {
       logger.warn(s"Some plans are unassigned for freight carrier ${freightCarrier.carrierId}")
+      solution.unassigned.foreach(x => logger.debug(s"unassigned payload $x"))
     }
     solution.routes
   }

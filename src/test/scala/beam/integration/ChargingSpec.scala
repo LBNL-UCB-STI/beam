@@ -13,7 +13,7 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.data.synthpop.models.Models.Household
 import com.conveyal.r5.transit.TransportNetwork
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Leg, Person}
@@ -31,7 +31,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
   private val vehicleId = Id.create(2, classOf[Vehicle])
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
-  val config = ConfigFactory
+  val config: Config = ConfigFactory
     .parseString(
       s"""|beam.outputs.events.fileOutputFormats = csv
          |beam.physsim.skipPhysSim = true

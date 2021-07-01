@@ -151,7 +151,7 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val managerId = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
@@ -160,12 +160,17 @@ class PersonWithVehicleSharingSpec
         vehicleManagerId = managerId,
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), managerId))
-        .collect {
-          case ParkingInquiryResponse(stall, _, triggerId) =>
-            vehicle.useParkingStall(stall)
-            MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0,
+        vehicleManagerId = managerId
+      )).collect {
+        case ParkingInquiryResponse(stall, _, triggerId) =>
+          vehicle.useParkingStall(stall)
+          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = mockRouter.expectMsgType[EmbodyWithCurrentTravelTime]
@@ -306,7 +311,7 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
-      val managerId = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
@@ -314,13 +319,18 @@ class PersonWithVehicleSharingSpec
         vehicleManagerId = managerId,
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), managerId))
-        .collect {
-          case ParkingInquiryResponse(stall, _, triggerId) =>
-            vehicle.setReservedParkingStall(Some(stall))
-            vehicle.useParkingStall(stall)
-            MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0,
+        vehicleManagerId = managerId
+      )).collect {
+        case ParkingInquiryResponse(stall, _, triggerId) =>
+          vehicle.setReservedParkingStall(Some(stall))
+          vehicle.useParkingStall(stall)
+          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       val routingRequest = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
@@ -421,13 +431,17 @@ class PersonWithVehicleSharingSpec
         vehicleManagerId = managerId,
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200), managerId))
-        .collect {
-          case ParkingInquiryResponse(stall, _, triggerId) =>
-            vehicle2.setReservedParkingStall(Some(stall))
-            vehicle2.useParkingStall(stall)
-            MobilityStatusResponse(Vector(ActualVehicle(vehicle2)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.01, 0.01, 61200),
+        "wherever",
+        triggerId = 0,
+        vehicleManagerId = managerId
+      )).collect {
+        case ParkingInquiryResponse(stall, _, triggerId) =>
+          vehicle2.setReservedParkingStall(Some(stall))
+          vehicle2.useParkingStall(stall)
+          MobilityStatusResponse(Vector(ActualVehicle(vehicle2)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
@@ -476,7 +490,7 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = VehicleManager.createAndKeepId("shared-fleet-1", VehicleManager.BEAMShared),
+        vehicleManagerId = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared),
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -552,12 +566,17 @@ class PersonWithVehicleSharingSpec
       scheduler ! StartSchedule(0)
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800), VehicleManager.defaultManager))
-        .collect {
-          case ParkingInquiryResponse(stall, _, triggerId) =>
-            car1.useParkingStall(stall)
-            MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0,
+        vehicleManagerId = VehicleManager.defaultManager
+      )).collect {
+        case ParkingInquiryResponse(stall, _, triggerId) =>
+          car1.useParkingStall(stall)
+          MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() {
         case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, triggerId) =>
@@ -719,9 +738,6 @@ class PersonWithVehicleSharingSpec
     person.addPlan(plan)
     person
   }
-
-  def parkingInquiry(whenWhere: SpaceTime, managerId: Id[VehicleManager]): ParkingInquiry =
-    ParkingInquiry(whenWhere, "wherever", triggerId = 0, vehicleManagerId = managerId)
 
   override def afterAll(): Unit = {
     super.afterAll()

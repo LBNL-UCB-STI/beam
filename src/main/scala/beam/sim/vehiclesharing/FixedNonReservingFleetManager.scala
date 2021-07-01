@@ -76,7 +76,8 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
         .sequence(vehicles.values.map { veh =>
           veh.setManager(Some(self))
           val infrastructureManager = if (veh.isBEV || veh.isPHEV) chargingNetworkManager else parkingNetworkManager
-          infrastructureManager ? ParkingInquiry(veh.spaceTime, "wherever", vehicleManagerId, triggerId = triggerId) flatMap {
+          infrastructureManager ? ParkingInquiry
+            .init(veh.spaceTime, "wherever", vehicleManagerId, triggerId = triggerId) flatMap {
             case ParkingInquiryResponse(stall, _, triggerId) =>
               veh.useParkingStall(stall)
               self ? ReleaseVehicleAndReply(veh, None, triggerId)

@@ -94,7 +94,7 @@ class ChargingNetworkSpec
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
         val firstInquiry =
-          ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle1), triggerId = 73737)
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle1), triggerId = 73737)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -123,7 +123,7 @@ class ChargingNetworkSpec
           vehicleManagerId = VehicleManager.defaultManager
         )
         val secondInquiry =
-          ParkingInquiry(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle2), triggerId = 49238)
+          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle2), triggerId = 49238)
         val response2 = chargingNetwork.processParkingInquiry(secondInquiry)
         chargingNetwork.processParkingInquiry(secondInquiry)
         assert(response2.isEmpty, "it should not get an Ultra Fast charging point stall")
