@@ -142,11 +142,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
-    val scenario: MutableScenario = scenarioBuilt
-    val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-    val beamServices: BeamServices = buildBeamServices(injector, scenario)
-    val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
     val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
+    val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
     val travelTime = params.linkstatsPath match {
       case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
       case None       => new FreeFlowTravelTime
@@ -173,16 +170,18 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
           }.flatten
         }).toVector
     }
+    val ODs: Array[(GeoIndex, GeoIndex)] = odRows.map { row =>
+      (TAZIndex(tazUnitToTAZ(row.origin)), TAZIndex(tazUnitToTAZ(row.destination)))
+    }.toArray
 
     // "indexing" existing skims by originId
     val existingSkims: Map[String, Vector[ExcerptData]] =
       params.ODSkimsPath.map(path => readSkimsCsv(path.toString)).getOrElse(Vector.empty).groupBy(_.originId)
 
+    val scenario: MutableScenario = scenarioBuilt
+    val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    val beamServices: BeamServices = buildBeamServices(injector, scenario)
     val skimmer = createSkimmer(beamServices, odRows, existingSkims)
-
-    val ODs: Array[(GeoIndex, GeoIndex)] = odRows.map { row =>
-      (TAZIndex(tazUnitToTAZ(row.origin)), TAZIndex(tazUnitToTAZ(row.destination)))
-    }.toArray
 
     implicit val actorSystem = ActorSystem()
     implicit val ec = actorSystem.dispatcher
