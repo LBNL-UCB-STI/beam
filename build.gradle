@@ -345,6 +345,9 @@ tasks.withType(ScalaCompile) {
     } else {
         scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters + ["-Xfatal-warnings"]
     }
+    scalaCompileOptions.forkOptions.with {
+        memoryMaximumSize = '2g'
+    }
 }
 
 
