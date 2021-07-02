@@ -163,8 +163,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
           destinations.collect {
             case destination if origin != destination =>
               ActivitySimPathType.allPathTypes.flatMap { pathType =>
-                TimePeriod.allPeriods.map { timePeriod =>
-                  ODRow(origin, destination, pathType.toString, timePeriod.toString)
+                ActivitySimTimeBin.values.map { timeBin =>
+                  ODRow(origin, destination, pathType.toString, timeBin.toString)
                 }
               }
           }.flatten
@@ -248,9 +248,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
                   val pathType = ActivitySimPathType.fromString(pathTypeStr).getOrElse {
                     throw new RuntimeException(s"Cannot parse path type $pathTypeStr")
                   }
-                  val timePeriod = TimePeriod.fromString(timePeriodStr).getOrElse {
-                    throw new RuntimeException(s"Cannot parse time period $timePeriodStr")
-                  }
+                  val timePeriod = ActivitySimTimeBin.withName(timePeriodStr)
                   val skims = existingSkims
                     .get(origin.id)
                     .map(

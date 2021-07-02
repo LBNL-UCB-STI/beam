@@ -12,37 +12,6 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import java.io.BufferedWriter
 import scala.util.control.NonFatal
 
-//  from activity sim documentation:
-//    EA - early AM, 3 am to 6 am
-//    AM - peak period, 6 am to 10 am,
-//    MD - midday period, 10 am to 3 pm,
-//    PM - peak period, 3 pm to 7 pm,
-//    EV - evening, 7 pm to 3 am the next day
-sealed trait TimePeriod {
-  def hours: List[Int]
-}
-case object EA extends TimePeriod {
-  override val hours: List[Int] = (3 until 6).toList
-}
-case object AM extends TimePeriod {
-  override val hours: List[Int] = (6 until 10).toList
-}
-case object MD extends TimePeriod {
-  override val hours: List[Int] = (10 until 15).toList
-}
-case object PM extends TimePeriod {
-  override val hours: List[Int] = (15 until 19).toList
-}
-case object EV extends TimePeriod {
-  override val hours: List[Int] = (0 until 3).toList ++ (19 until 24).toList
-}
-
-object TimePeriod {
-  val allPeriods = List(EA, AM, MD, PM, EV)
-  val allPeriodsMap = allPeriods.groupBy(_.toString).mapValues(_.head)
-  def fromString(str: String): Option[TimePeriod] = allPeriodsMap.get(str)
-}
-
 class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
 
@@ -110,8 +79,8 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
     destination: GeoUnit,
     pathType: ActivitySimPathType
   ): Unit = {
-    TimePeriod.allPeriods.foreach { period =>
-      val excerptData = getExcerptData(period, origin, destination, pathType)
+    ActivitySimTimeBin.values.foreach { timeBin =>
+      val excerptData = getExcerptData(timeBin, origin, destination, pathType)
       writer.write(excerptData.toCsvString)
     }
   }
@@ -144,14 +113,14 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
   }
 
   def getExcerptData(
-    timePeriod: TimePeriod,
+    timeBin: ActivitySimTimeBin,
     origin: GeoUnit,
     destination: GeoUnit,
     pathType: ActivitySimPathType
   ): ExcerptData = {
     import scala.language.implicitConversions
     val individualSkims = {
-      val skimsForHours = timePeriod.hours.flatMap { timeBin =>
+      val skimsForHours = timeBin.hours.flatMap { timeBin =>
         readOnlySkim
           .getCurrentSkimValue(ActivitySimSkimmerKey(timeBin, pathType, origin.id, destination.id))
           .map(_.asInstanceOf[ActivitySimSkimmerInternal])
@@ -183,7 +152,7 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
 
     ExcerptData(
-      timePeriodString = timePeriod.toString,
+      timePeriodString = timeBin.toString,
       pathType = pathType,
       originId = origin.id,
       destinationId = destination.id,
