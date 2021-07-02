@@ -755,7 +755,11 @@ trait BeamHelper extends LazyLogging {
                   inputTripsPath = pathToTrips,
                   inputBlockPath = pathToBlocks,
                   geoUtils,
-                  shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+                  shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm,
+                  modeMap = BeamConfigUtils.parseListToMap(
+                    beamConfig.beam.exchange.scenario.modeMap
+                      .getOrElse(throw new RuntimeException("beam.exchange.scenario.modeMap must be set"))
+                  ),
                 )
               }
               case "generic" => {
