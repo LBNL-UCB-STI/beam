@@ -40,6 +40,9 @@ Example of parameters usage:
  --linkstatsPath test/input/beamville/linkstats.csv.gz
  --ODSkimsPath test/input/beamville/odskims.csv
  --parallelism 2
+
+ Run with gradle:
+ ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv.gz', '--input', 'ODSkimsBeamville.csv', '--linkstatsPath', '0.linkstats.csv'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
   private val parser = {
