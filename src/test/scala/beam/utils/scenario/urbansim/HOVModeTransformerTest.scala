@@ -170,6 +170,27 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     trips.size shouldBe 4
   }
 
+  test("if plans do not start and end with home it should not be split to trips") {
+    val inputPlans = newTrip(
+      1,
+      1,
+      modes = Seq("HOV2", "HOV2", "HOV2", "WALK", "WALK", "CAR", "CAR"),
+      activities = Seq(
+        Act("Work", 1.1, 1.1),
+        Act("Home"),
+        Act("Work", 1.1, 1.2)
+      )
+    ) ++ newTrip(
+      1,
+      1,
+      modes = Seq(WALK_TRANSIT.value, WALK.value, WALK.value),
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Work"), Act("Shopping"), Act("Home", 1.1, 1.1))
+    )
+
+    val trips = HOVModeTransformer.splitToTrips(inputPlans)
+    trips.size shouldBe 1
+  }
+
   test("trip without car and hov legs should not contain hov_car after transformation") {
     val fewPlans: Seq[PlanElement] = Seq(
       WALK,

@@ -191,19 +191,35 @@ object HOVModeTransformer extends LazyLogging {
   def splitToTrips(planElements: Iterable[PlanElement]): Iterable[Iterable[PlanElement]] = {
     val trips = mutable.ListBuffer.empty[Iterable[PlanElement]]
     val personToTrip = mutable.HashMap.empty[PersonId, mutable.ListBuffer[PlanElement]]
-
     val homeActivity = "home"
+    val plansByPerson = mutable.LinkedHashMap.empty[PersonId, mutable.ListBuffer[PlanElement]]
+
+    planElements.foreach { plan =>
+      plansByPerson.get(plan.personId) match {
+        case Some(plans) => plans.append(plan)
+        case None        => plansByPerson(plan.personId) = mutable.ListBuffer(plan)
+      }
+    }
+
+    def isHomeActivity(activity: PlanElement): Boolean = {
+      activity.activityType.map(_.toLowerCase).contains(homeActivity)
+    }
+
+    def canBeSplitToTrips(plans: Iterable[PlanElement]): Boolean = {
+      isHomeActivity(plans.head) && isHomeActivity(plans.last) && plans.count(isHomeActivity) % 2 == 0
+    }
 
     def addLeg(leg: PlanElement): Unit = personToTrip.get(leg.personId) match {
       case Some(trip) => trip.append(leg)
-      case None =>
+      case None       =>
+        //not possible if there are no bugs, as before splitting plans are checked if it is possible
         throw new RuntimeException(
           s"Trip should be started from activity. Can't append leg to the trip, missing trip for person ${leg.personId}"
         )
     }
 
     def addActivity(activity: PlanElement): Unit = personToTrip.get(activity.personId) match {
-      case Some(trip) if activity.activityType.map(_.toLowerCase).contains(homeActivity) =>
+      case Some(trip) if isHomeActivity(activity) =>
         trips.append(trip :+ activity)
         personToTrip.remove(activity.personId)
 
@@ -212,17 +228,24 @@ object HOVModeTransformer extends LazyLogging {
       case None => personToTrip(activity.personId) = mutable.ListBuffer(activity)
     }
 
-    planElements.foreach { planElement =>
-      planElement.planElementType match {
-        case PlanElement.Activity => addActivity(planElement)
-        case PlanElement.Leg      => addLeg(planElement)
+    plansByPerson.values.foreach { plans =>
+      if (canBeSplitToTrips(plans)) {
+        plans.foreach { planElement =>
+          planElement.planElementType match {
+            case PlanElement.Activity => addActivity(planElement)
+            case PlanElement.Leg      => addLeg(planElement)
+          }
+        }
+      } else {
+        logger.warn("Cannot split plans to trips for person: {}", plans.head.personId)
+        trips.append(plans)
       }
     }
 
     if (personToTrip.nonEmpty) {
       val cnt = personToTrip.size
       val persons = personToTrip.keySet.mkString(",")
-      throw new RuntimeException(
+      logger.warn(
         s"There are $cnt trips which did not end with Home activity. Affected persons: $persons"
       )
     }
