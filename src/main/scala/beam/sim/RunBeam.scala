@@ -1,7 +1,7 @@
 package beam.sim
 
-import beam.utils.MathUtils
 import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
+import beam.utils.MathUtils
 import ch.qos.logback.classic.util.ContextInitializer
 import org.matsim.core.controler.AbstractModule
 

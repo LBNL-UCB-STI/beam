@@ -60,7 +60,7 @@ import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.{Household, Households, Income, IncomeImpl}
+import org.matsim.households.{Household, Households}
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
@@ -96,15 +96,15 @@ trait BeamHelper extends LazyLogging {
   ): TypesafeConfig = {
     (for {
       seedAddress <- parsedArgs.seedAddress
-      nodeHost    <- parsedArgs.nodeHost
-      nodePort    <- parsedArgs.nodePort
+      nodeHost <- parsedArgs.nodeHost
+      nodePort <- parsedArgs.nodePort
     } yield {
       config.withFallback(
         ConfigFactory.parseMap(
           Map(
             "seed.address" -> seedAddress,
-            "node.host"    -> nodeHost,
-            "node.port"    -> nodePort
+            "node.host" -> nodeHost,
+            "node.port" -> nodePort
           ).asJava
         )
       )
@@ -126,16 +126,16 @@ trait BeamHelper extends LazyLogging {
           ) ++ {
             if (parsedArgs.useCluster)
               Map(
-                "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
-                "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
+                "beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString,
+                "akka.actor.provider" -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
-                "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
+                "akka.remote.artery.canonical.port" -> parsedArgs.nodePort.get,
                 "akka.cluster.seed-nodes" -> java.util.Arrays
                   .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
               )
             else Map.empty[String, Any]
           }
-        ).asJava
+          ).asJava
       )
     )
   }
@@ -215,11 +215,13 @@ trait BeamHelper extends LazyLogging {
             .toProvider(classOf[UtilityBasedModeChoice])
           addAttributeConverterBinding(classOf[MapStringDouble])
             .toInstance(new AttributeConverter[MapStringDouble] {
-              override def convertToString(o: scala.Any): String =
+              override def convertToString(o: scala.Any): String = {
                 mapper.writeValueAsString(o.asInstanceOf[MapStringDouble].data)
+              }
 
-              override def convert(value: String): MapStringDouble =
+              override def convert(value: String): MapStringDouble = {
                 MapStringDouble(mapper.readValue(value, classOf[Map[String, Double]]))
+              }
             })
           bind(classOf[BeamScenario]).toInstance(beamScenario)
           bind(classOf[TransportNetwork]).toInstance(beamScenario.transportNetwork)
@@ -347,7 +349,7 @@ trait BeamHelper extends LazyLogging {
   def privateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
+  ): TrieMap[Id[BeamVehicle], BeamVehicle] = {
     if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
       TrieMap[Id[BeamVehicle], BeamVehicle]()
     } else {
@@ -359,6 +361,7 @@ trait BeamHelper extends LazyLogging {
         ).toSeq: _*
       )
     }
+  }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
@@ -369,12 +372,12 @@ trait BeamHelper extends LazyLogging {
         vehicleTypes.map {
           case (id, bvt) =>
             id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
-                     bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-                     )
-                   else
-                     bvt)
+              bvt.copy(
+                seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+              )
+            else
+              bvt)
         }
       case None => vehicleTypes
     }
@@ -386,6 +389,10 @@ trait BeamHelper extends LazyLogging {
     isConfigArgRequired: Boolean = true
   ): Unit = {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
+    if (isMetricsEnable) {
+      val kamonConfig = config.withFallback(ConfigFactory.defaultReference())
+      Kamon.init(kamonConfig)
+    }
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
@@ -445,7 +452,7 @@ trait BeamHelper extends LazyLogging {
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-          .equalsIgnoreCase("ModeChoiceLCCM")) {
+      .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
         Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath),
         Paths.get(
@@ -466,29 +473,25 @@ trait BeamHelper extends LazyLogging {
 
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
-      .parseString("""
-           |akka.cluster.roles = [compute]
-           |akka.actor.deployment {
-           |      /statsService/singleton/workerRouter {
-           |        router = round-robin-pool
-           |        cluster {
-           |          enabled = on
-           |          max-nr-of-instances-per-node = 1
-           |          allow-local-routees = on
-           |          use-roles = ["compute"]
-           |        }
-           |      }
-           |    }
+      .parseString(
+        """
+          |akka.cluster.roles = [compute]
+          |akka.actor.deployment {
+          |      /statsService/singleton/workerRouter {
+          |        router = round-robin-pool
+          |        cluster {
+          |          enabled = on
+          |          max-nr-of-instances-per-node = 1
+          |          allow-local-routees = on
+          |          use-roles = ["compute"]
+          |        }
+          |      }
+          |    }
           """.stripMargin)
       .withFallback(config)
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -527,7 +530,7 @@ trait BeamHelper extends LazyLogging {
       beamScenario: BeamScenario,
       services: BeamServices,
       plansMerged: Boolean,
-    ) = prepareBeamService(config, abstractModule)
+      ) = prepareBeamService(config, abstractModule)
 
     runBeam(
       services,
@@ -673,7 +676,13 @@ trait BeamHelper extends LazyLogging {
     } mkString " , "
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
 
-    run(beamServices)
+    val executionSpan = Kamon.serverSpanBuilder("beamStarted", "beam").start()
+    val executionId = BeamExecutionConfig.executionIdFromDirectory(outputDir)
+    executionSpan.tag("executionId", executionId)
+    Kamon.runWithSpan(executionSpan) {
+      run(beamServices)
+    }
+    Kamon.stop()
   }
 
   private def applyFractionOfPlansWithSingleActivity(
@@ -894,9 +903,6 @@ trait BeamHelper extends LazyLogging {
 
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
-    if (isMetricsEnable) {
-      Kamon.init(config.withFallback(ConfigFactory.load()))
-    }
 
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
@@ -917,7 +923,7 @@ trait BeamHelper extends LazyLogging {
     * This method merges all configuration parameters into a single file including parameters from
     * 'include' statements. Two full config files are written out: One without comments and one with
     * comments in JSON format.
-    * @param config the input config file
+    * @param config          the input config file
     * @param outputDirectory output folder where full configs will be generated
     */
   private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String) = {
@@ -1006,7 +1012,7 @@ trait BeamHelper extends LazyLogging {
         )
       )
     val scenarioReader = fileFormat match {
-      case InputType.CSV     => CsvScenarioReader
+      case InputType.CSV => CsvScenarioReader
       case InputType.Parquet => ParquetScenarioReader
     }
 

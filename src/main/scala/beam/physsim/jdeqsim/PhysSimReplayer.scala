@@ -1,9 +1,5 @@
 package beam.physsim.jdeqsim
 
-import java.io.{Closeable, File}
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
 import beam.utils.{BeamConfigUtils, EventReader}
@@ -13,6 +9,9 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.EventsManagerImpl
 
+import java.io.{Closeable, File}
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import scala.io.Source
 import scala.util.Try
 
