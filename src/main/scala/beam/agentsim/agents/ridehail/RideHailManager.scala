@@ -1818,7 +1818,7 @@ class RideHailManager(
     val futureRepoRoutingMap = mutable.Map[Id[BeamVehicle], Future[RoutingRequest]]()
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
-<<<<<<< HEAD
+
       if (vehicleManager.idleRideHailVehicles.contains(vehicleId)) {
         val rideHailAgentLocation = vehicleManager.idleRideHailVehicles(vehicleId)
 
@@ -1842,8 +1842,8 @@ class RideHailManager(
         futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
       } else {
         log.error("Trying to reposition a non idle vehicle -> fix the reposition manager!")
-        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleId)
-=======
+        self ! ReduceAwaitingRepositioningAckMessagesByOne(vehicleId)}
+
       rideHailManagerHelper.getServiceStatusOf(vehicleId) match {
         case _ =>
           val rideHailAgentLocation = rideHailManagerHelper.getRideHailAgentLocation(vehicleId)

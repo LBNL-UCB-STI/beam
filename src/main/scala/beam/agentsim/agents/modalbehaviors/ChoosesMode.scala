@@ -1,11 +1,11 @@
 package beam.agentsim.agents.modalbehaviors
 
 import akka.actor.{ActorRef, FSM}
-<<<<<<< HEAD
+
 import akka.pattern._
-=======
+
 import akka.pattern.pipe
->>>>>>> develop
+
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
 import beam.agentsim.agents._

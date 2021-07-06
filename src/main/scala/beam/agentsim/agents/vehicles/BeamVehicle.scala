@@ -310,17 +310,15 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
-=======
+
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
->>>>>>> develop
+
 
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
-=======
+
   def isCAV: Boolean = beamVehicleType.automationLevel == 5
->>>>>>> parent of 212fb5961... compilation fix
+
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
