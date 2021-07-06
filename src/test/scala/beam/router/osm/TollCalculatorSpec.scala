@@ -1,15 +1,14 @@
 package beam.router.osm
 
 import java.nio.file.{Path, Paths}
-
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
 //Tolls on osm ids: 79,87,109,147,155,163,1003,1005
-class TollCalculatorSpec extends WordSpecLike {
+class TollCalculatorSpec extends AnyWordSpecLike {
   "Using beamville as input" when {
     val beamvillePath: Path = Paths.get("test", "input", "beamville", "r5")
     val beamvilleTollCalc =

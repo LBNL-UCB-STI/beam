@@ -1,9 +1,6 @@
 package beam.integration
 
 import java.nio.charset.StandardCharsets
-
-import scala.collection.JavaConverters._
-import scala.util.Try
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -21,11 +18,20 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.BeforeAndAfterAll
 
+import scala.collection.JavaConverters._
 import scala.io.Source
+import scala.util.Try
 
-class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
+class EventsFileSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
@@ -45,7 +51,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+    val (scenarioBuilt, beamScenario, plansMerged) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
@@ -53,7 +59,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = buildBeamServices(injector, scenario)
 
-    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
+    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory, plansMerged)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -154,7 +160,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   it should "also produce experienced plans which make sense" in {
     val experiencedScenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     new PopulationReader(experiencedScenario).readFile(
-      s"${scenario.getConfig.controler().getOutputDirectory}/ITERS/it.0/0.experiencedPlans.xml.gz"
+      s"${scenario.getConfig.controler().getOutputDirectory}/ITERS/it.0/0.experienced_plans.xml.gz"
     )
     assert(experiencedScenario.getPopulation.getPersons.size() == 50)
     var nCarTrips = 0

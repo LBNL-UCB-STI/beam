@@ -2,8 +2,7 @@ package beam.agentsim.scheduler
 
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
-
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
 import akka.event.LoggingReceive
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -17,7 +16,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
 import beam.utils.StuckFinder
-import beam.utils.logging.LogActorState
+import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import com.google.common.collect.TreeMultimap
 
 import scala.annotation.tailrec
@@ -47,9 +46,10 @@ object BeamAgentScheduler {
   case class DoSimStep(tick: Int) extends SchedulerMessage
 
   case class CompletionNotice(
-    id: Long,
+    triggerId: Long,
     newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
   ) extends SchedulerMessage
+      with HasTriggerId
 
   case object Monitor extends SchedulerMessage
 
@@ -59,7 +59,7 @@ object BeamAgentScheduler {
 
   case class ScheduleTrigger(trigger: Trigger, agent: ActorRef, priority: Int = 0) extends SchedulerMessage
 
-  case class ScheduleKillTrigger(agent: ActorRef) extends SchedulerMessage
+  case class ScheduleKillTrigger(agent: ActorRef, triggerId: Long) extends SchedulerMessage with HasTriggerId
 
   case class KillTrigger(tick: Int) extends Trigger
 
@@ -122,12 +122,14 @@ object BeamAgentScheduler {
 
 }
 
+case object BeamAgentSchedulerTimer
+
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
   stopTick: Int,
   val maxWindow: Int,
   val stuckFinder: StuckFinder
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
@@ -194,7 +196,7 @@ class BeamAgentScheduler(
     super.aroundPostStop()
   }
 
-  def receive: Receive = LoggingReceive {
+  def loggedReceive: Receive = BeamLoggingReceive {
     case StartSchedule(it) =>
       log.info(s"starting scheduler at iteration $it")
       this.startSender = sender()
@@ -238,7 +240,7 @@ class BeamAgentScheduler(
       scheduleTrigger(triggerToSchedule)
       if (started) doSimStep(nowInSeconds)
 
-    case ScheduleKillTrigger(agent: ActorRef) =>
+    case ScheduleKillTrigger(agent: ActorRef, _) =>
       context.watch(agent)
       scheduleTrigger(ScheduleTrigger(KillTrigger(nowInSeconds + maxWindow), agent))
 
@@ -271,6 +273,8 @@ class BeamAgentScheduler(
                 rideHailManagerStuckDetectionLog = RideHailManagerStuckDetectionLog(Some(nowInSeconds), false)
             }
           } else {
+            // Send to the stuck agent in order to spy it's internal state in debugger
+            x.agent ! BeamAgentSchedulerTimer
 //            monitorStuckDetectionState match {
 //              case Some(MonitorStuckDetectionState(tick, awaitingReponseSize, triggerQueueSize, Some(triggerQueueHead)))
 //                  if ((tick == nowInSeconds && awaitingReponseSize == awaitingResponse
@@ -438,7 +442,7 @@ class BeamAgentScheduler(
     if (awaitingResponse.keySet().isEmpty) {
       "empty"
     } else {
-      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(10)}"
+      s"${awaitingResponse.get(awaitingResponse.keySet().first()).asScala.take(3)}"
     }
   }
 

@@ -1,16 +1,15 @@
 package beam.sim.metrics
 
-import java.io.File
-
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
-import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneFileUtils}
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
 import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.core.scenario.MutableScenario
 
+import java.io.File
 import scala.util.Random
 
 object BeamStaticMetricsWriter {
@@ -79,7 +78,7 @@ object BeamStaticMetricsWriter {
             beamConfig.beam.agentsim.taz.parkingFilePath
           )
         } else if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
-          (beamConfig.beam.agentsim.taz.parkingFilePath, "")
+          ("", beamConfig.beam.agentsim.taz.parkingFilePath)
         } else {
           ("", "")
         }

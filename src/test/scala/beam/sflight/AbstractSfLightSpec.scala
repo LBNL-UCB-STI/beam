@@ -7,19 +7,17 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
 import org.scalatest._
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec(val name: String)
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest
-    with Matchers
-    with ImplicitSender
-    with MockitoSugar {
+    with ImplicitSender {
   lazy implicit val system: ActorSystem = ActorSystem(name, ConfigFactory.parseString("""
       |akka.test.timefactor=10""".stripMargin))
 

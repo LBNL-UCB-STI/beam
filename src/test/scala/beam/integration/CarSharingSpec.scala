@@ -1,6 +1,7 @@
 package beam.integration
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -11,19 +12,28 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.controler.listener.IterationStartsListener
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
-class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
+class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   private val sharedCarTypeId = org.matsim.api.core.v01.Id.create("sharedCar", classOf[BeamVehicleType])
 
+  val beamVilleTaz = Map(
+    "1" -> (Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351)),
+    "2" -> (Id.create("2", classOf[TAZ]), new Coord(167141.3, 3326.017)),
+    "3" -> (Id.create("3", classOf[TAZ]), new Coord(169369.8, 1112.351)),
+    "4" -> (Id.create("4", classOf[TAZ]), new Coord(169369.8, 3326.017))
+  )
+
   //clearModes is required for clearing modes defined in population.xml
-  "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" in {
+  "Running a car-sharing-only scenario with abundant cars" must "result in everybody driving" ignore {
     val config = ConfigFactory
       .parseString("""
         |beam.actorSystemName = "CarSharingSpec"
@@ -53,13 +63,14 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   // This test will fail once you add things like maximum number of replanning attempts,
   // or otherwise bailing out of this unusual situation.
   // So please consider making them configurable if you do, if only for the sake of test cases like this one.
-  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" in {
+  "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" ignore {
     val config = ConfigFactory
       .parseString("""
         |beam.actorSystemName = "CarSharingSpec"
         |beam.outputs.events.fileOutputFormats = xml
         |beam.physsim.skipPhysSim = true
         |beam.agentsim.lastIteration = 0
+        |beam.outputs.writeGraphs = false
         |beam.replanning.clearModes.iteration = 0
         |beam.replanning.clearModes.modes = ["walk", "bike", "car"]
         |beam.agentsim.agents.vehicles.sharedFleets = [
@@ -150,7 +161,7 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
   }
 
   // REPOSITION
-  "Reposition scenario" must "results at least a person driving in the second iteration" in {
+  "Reposition scenario" must "results at least a person driving in the second iteration" ignore {
     val config = ConfigFactory
       .parseString("""
          |beam.actorSystemName = "CarSharingSpec"
@@ -261,5 +272,4 @@ class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
     assume(carsharingTripsIt0 == 0, "no agent is supposed to be driving in iteration 1")
     assume(carsharingTripsIt1 > 0, "at least one agent has to be driving in iteration 2")
   }
-
 }

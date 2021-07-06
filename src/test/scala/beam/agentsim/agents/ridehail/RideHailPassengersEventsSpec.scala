@@ -15,11 +15,12 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.concurrent.TrieMap
 
-class RideHailPassengersEventsSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
+class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   "Vehicle" must {
     "keep passengers right count" ignore {

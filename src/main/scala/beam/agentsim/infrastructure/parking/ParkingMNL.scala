@@ -68,12 +68,20 @@ object ParkingMNL {
     final case object ParkingTicketCost extends Parameters with Serializable
     final case object WalkingEgressCost extends Parameters with Serializable
     final case object RangeAnxietyCost extends Parameters with Serializable
+    final case object InsufficientRangeCost extends Parameters with Serializable
+    final case object DrivingTimeCost extends Parameters with Serializable
+    final case object QueueingTimeCost extends Parameters with Serializable
+    final case object ChargingTimeCost extends Parameters with Serializable
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
 
     def shortName(parameter: Parameters): String = parameter match {
       case ParkingTicketCost                     => "park"
       case WalkingEgressCost                     => "dist"
       case RangeAnxietyCost                      => "anx"
+      case InsufficientRangeCost                 => "range"
+      case DrivingTimeCost                       => "time"
+      case QueueingTimeCost                      => "queue"
+      case ChargingTimeCost                      => "charge"
       case HomeActivityPrefersResidentialParking => "home"
     }
   }

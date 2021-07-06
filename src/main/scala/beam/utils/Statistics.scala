@@ -25,7 +25,9 @@ object Statistics {
 
   def apply(pq: Seq[Double], weights: Seq[Double] = Seq.empty): Statistics = {
     if (pq.nonEmpty) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val min = pq.min
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val max = pq.max
       val percentile = new Percentile()
       percentile.setData(pq.toArray)

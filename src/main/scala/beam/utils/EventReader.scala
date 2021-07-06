@@ -37,7 +37,7 @@ object EventReader {
           s
         }
       }
-      new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
+      FileUtils.readerFromStream(stream)
     } else {
       FileUtils.readerFromFile(filePath)
     }

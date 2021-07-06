@@ -22,6 +22,7 @@ import beam.sim.metrics.MetricsSupport;
 import beam.sim.population.AttributesOfIndividual;
 import beam.sim.population.PopulationAdjustment;
 import beam.sim.population.PopulationAdjustment$;
+import beam.utils.BeamCalcLinkStats;
 import beam.utils.DebugLib;
 import beam.utils.FileUtils;
 import beam.utils.TravelTimeCalculatorHelper;
@@ -30,10 +31,12 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
+import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.population.Activity;
 import org.matsim.api.core.v01.population.Leg;
 import org.matsim.api.core.v01.population.Person;
@@ -42,6 +45,7 @@ import org.matsim.api.core.v01.population.Population;
 import org.matsim.api.core.v01.population.PopulationWriter;
 import org.matsim.api.core.v01.population.Route;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
 import org.matsim.core.events.handler.BasicEventHandler;
@@ -49,6 +53,7 @@ import org.matsim.core.gbl.MatsimRandom;
 import org.matsim.core.population.PopulationUtils;
 import org.matsim.core.population.routes.RouteUtils;
 import org.matsim.core.router.util.TravelTime;
+import org.matsim.core.utils.misc.Time;
 import org.matsim.households.Household;
 import org.matsim.utils.objectattributes.attributable.Attributes;
 import org.slf4j.Logger;
@@ -64,6 +69,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -83,7 +89,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private final Scenario agentSimScenario;
     private Population jdeqsimPopulation;
-    private TravelTime previousTravelTime;
+    private TravelTime aggregatedTravelTime;
     private final BeamServices beamServices;
     private final BeamConfigChangesObservable beamConfigChangesObservable;
 
@@ -169,6 +175,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         Map<String, double[]> travelTimeMap;
         TravelTime travelTimeFromPhysSim;
+        VolumesAnalyzer volumesAnalyzer;
 
         String physSimName = beamConfig.beam().physsim().name();
 
@@ -181,7 +188,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
                         beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
                 log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
-                travelTimeFromPhysSim = sim.run(prevTravelTime);
+                SimulationResult result = sim.run(prevTravelTime);
+                travelTimeFromPhysSim = result.travelTime();
+                volumesAnalyzer = result.volumesAnalyzer().getOrElse(this::dummyVolumesAnalyzer);
                 // Safe travel time to reuse it on the next PhysSim iteration
                 prevTravelTime = travelTimeFromPhysSim;
 
@@ -197,6 +206,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             case "CCHRoutingAssignment":
                 travelTimeMap = routingFrameworkTravelTimeCalculator.get().generateLink2TravelTimes(traversalEventsForPhysSimulation, iterationNumber, links, maxHour);
                 travelTimeFromPhysSim = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(beamConfig.beam().agentsim().timeBinSize(), travelTimeMap);
+                volumesAnalyzer = dummyVolumesAnalyzer();
+                log.warn("For CCHRoutingAssignment physsim the iteration x.linkstats.csv.gz is going to contain wrong" +
+                        " volumes (1.0 for all the entries)");
                 break;
             default:
                 throw new RuntimeException(String.format("Unknown physsim type: %s", physSimName));
@@ -242,7 +254,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int startingIterationForTravelTimesMSA = beamConfig.beam().routing().startingIterationForTravelTimesMSA();
         if (startingIterationForTravelTimesMSA <= iterationNumber) {
             travelTimeMap = processTravelTime(links, travelTimeMap, maxHour);
-            travelTimeForR5 = previousTravelTime;
+            travelTimeForR5 = aggregatedTravelTime;
         }
 
         int lastIteration = beamConfig.matsim().modules().controler().lastIteration();
@@ -263,6 +275,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         router.tell(new BeamRouter.TryToSerialize(travelTimeMap), ActorRef.noSender());
         router.tell(new BeamRouter.UpdateTravelTimeRemote(travelTimeMap), ActorRef.noSender());
         //################################################################################################################
+
+        writeTravelTime(travelTimeForR5, volumesAnalyzer, iterationEndsEvent);
+
         router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeForR5), ActorRef.noSender());
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
@@ -287,6 +302,27 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
         traversalEventsForPhysSimulation.clear();
+    }
+
+    private VolumesAnalyzer dummyVolumesAnalyzer() {
+        return new VolumesAnalyzer(3600, 120 * 3600, agentSimScenario.getNetwork()) {
+            final double[] dummyVolumeArray = IntStream.range(0, 121).mapToDouble(x -> 1.0).toArray();
+
+            @Override
+            public double[] getVolumesPerHourForLink(Id<Link> linkId) {
+                return dummyVolumeArray;
+            }
+        };
+    }
+
+    private void writeTravelTime(TravelTime travelTimeForR5, VolumesAnalyzer volumesAnalyzer, IterationEndsEvent iterationEndsEvent) {
+        TravelTimeCalculatorConfigGroup cfg = new TravelTimeCalculatorConfigGroup();
+        int endTimeInSeconds = (int) Time.parseTime(beamConfig.beam().agentsim().endTime());
+        cfg.setMaxTime(endTimeInSeconds);
+        Network network = agentSimScenario.getNetwork();
+        BeamCalcLinkStats linkStats = new BeamCalcLinkStats(network, cfg);
+        linkStats.addData(volumesAnalyzer, travelTimeForR5);
+        linkStats.writeFile(controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz"));
     }
 
     private boolean shouldWritePlans(int iterationNumber) {
@@ -450,7 +486,11 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         return leg;
     }
 
-    public void startPhysSim(IterationEndsEvent iterationEndsEvent) {
+    public void startPhysSim(IterationEndsEvent iterationEndsEvent, TravelTime initialTravelTime) {
+        aggregatedTravelTime = initialTravelTime;
+        if (initialTravelTime != null) {
+            prevTravelTime = initialTravelTime;
+        }
         createLastActivityOfDayForPopulation();
         writePhyssimPlans(iterationEndsEvent);
         long start = System.currentTimeMillis();
@@ -478,12 +518,12 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int binSize = beamConfig.beam().agentsim().timeBinSize();
         TravelTime currentTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, currentTravelTimeMap);
 
-        if (previousTravelTime == null) {
-            previousTravelTime = currentTravelTime;
+        if (aggregatedTravelTime == null) {
+            aggregatedTravelTime = currentTravelTime;
             return currentTravelTimeMap;
         } else {
-            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, previousTravelTime, maxHour);
-            previousTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
+            Map<String, double[]> map = TravelTimeCalculatorHelper.GetLinkIdToTravelTimeAvgArray(links, currentTravelTime, aggregatedTravelTime, maxHour);
+            aggregatedTravelTime = TravelTimeCalculatorHelper.CreateTravelTimeCalculator(binSize, map);
             return map;
         }
     }

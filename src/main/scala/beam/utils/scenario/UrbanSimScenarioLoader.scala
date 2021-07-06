@@ -2,7 +2,7 @@ package beam.utils.scenario
 
 import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManagerInfo}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -16,7 +16,6 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
@@ -25,11 +24,14 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
 import scala.util.Random
 
+import beam.utils.SequenceUtils
+
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
   val beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
-  val geo: GeoUtils
+  val geo: GeoUtils,
+  val previousRunPlanMerger: Option[PreviousRunPlanMerger] = None,
 ) extends LazyLogging {
 
   private implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
@@ -40,7 +42,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  def loadScenario(): Scenario = {
+  def loadScenario(): (Scenario, Boolean) = {
     clear()
 
     val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
@@ -98,9 +100,11 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val plans = Await.result(plansF, 500.seconds)
+    val inputPlans = Await.result(plansF, 500.seconds)
     val persons = Await.result(personsF, 500.seconds)
     val households = Await.result(householdsF, 500.seconds)
+
+    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -125,7 +129,7 @@ class UrbanSimScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
-    scenario
+    scenario -> plansMerged
   }
 
   private def clear(): Unit = {
@@ -227,8 +231,7 @@ class UrbanSimScenarioLoader(
             bvId,
             powerTrain,
             beamVehicleType,
-            managerInfo = VehicleManagerInfo(HouseholdFleetManager.PRIVATE_VEHICLE_MANAGER_ID, beamVehicleType),
-            rand.nextInt
+            randomSeed = rand.nextInt
           )
           beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1
@@ -440,7 +443,7 @@ class UrbanSimScenarioLoader(
 
     var currentTotalCars = totalCars
 
-    var currentNumberOfCars = numberOfCars2HouseholdIds.keys.max
+    var currentNumberOfCars = SequenceUtils.maxOpt(numberOfCars2HouseholdIds.keys).getOrElse(0)
     while ((currentTotalCars > (goalCarTotal + numberOfWorkVehiclesToBeRemoved)) & currentNumberOfCars > 0) {
       val numberOfHouseholdsWithThisManyVehicles = numberOfCars2HouseholdIds(currentNumberOfCars).size
 

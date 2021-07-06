@@ -1,5 +1,6 @@
 package beam.sim.vehiclesharing
 
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
@@ -21,7 +22,7 @@ object RepositionAlgorithms {
 trait RepositionAlgorithmType {
 
   def getInstance(
-    managerId: Id[VehicleManager],
+    vehicleManager: Id[VehicleManager],
     beamServices: BeamServices
   ): RepositionAlgorithm
   def getRepositionTimeBin: Int
@@ -32,14 +33,14 @@ case class AvailabilityBasedRepositioningType(
   params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
 ) extends RepositionAlgorithmType {
   override def getInstance(
-    managerId: Id[VehicleManager],
+    vehicleManager: Id[VehicleManager],
     beamServices: BeamServices
   ): RepositionAlgorithm = {
     AvailabilityBasedRepositioning(
       params.repositionTimeBin,
       params.statTimeBin,
       params.min_availability_undersupply_algorithm.get.matchLimit,
-      managerId,
+      vehicleManager,
       beamServices
     )
   }

@@ -1,22 +1,39 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import java.util.UUID
-
 import beam.router.Modes.BeamMode
+import beam.sim.config.BeamConfig.Beam
 import beam.sim.config.BeamConfig.Beam.Urbansim
+import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator
+import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.{MaxTravelDistanceInMeters, ModesToBuild}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person, Population, PopulationFactory}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.ScenarioUtils
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class ScenarioAdjusterTest extends FunSuite with Matchers {
+class ScenarioAdjusterTest extends AnyFunSuite with Matchers {
+
+  def createBackgroundODSkimsCreator(): BackgroundODSkimsCreator =
+    BackgroundODSkimsCreator(
+      calculationTimeoutHours = 10,
+      enabled = false,
+      numberOfH3Indexes = 1000,
+      peakHours = Some(List(8.5)),
+      routerType = "r5",
+      skimsGeoType = "h3",
+      skimsKind = "od",
+      modesToBuild = ModesToBuild(drive = false, drive_transit = false, walk = false, walk_transit = false),
+      maxTravelDistanceInMeters = MaxTravelDistanceInMeters(bike = 10000, walk = 5000)
+    )
 
   test("adjust should work properly when allModes = 0") {
     val peoplePerNode: Int = 1000
     val cfg = Urbansim(
+      createBackgroundODSkimsCreator(),
       Urbansim.FractionOfModesToClear(
         allModes = 0.0,
         bike = 0.2,
@@ -54,6 +71,7 @@ class ScenarioAdjusterTest extends FunSuite with Matchers {
   test("adjust should work properly when allModes > 0, but all other modes are set to 0.0") {
     val peoplePerNode: Int = 1000
     val cfg = Urbansim(
+      createBackgroundODSkimsCreator(),
       Urbansim.FractionOfModesToClear(
         allModes = 0.5,
         bike = 0.0,

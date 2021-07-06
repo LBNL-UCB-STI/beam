@@ -2,26 +2,27 @@ package beam.sim
 
 import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, Paths}
-import java.util.concurrent.TimeUnit
-
 import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
-
 import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
+import beam.router.skim.Skims
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.BeamWarmStart.WarmStartConfigProperties
-import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
+import beam.sim.config.BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm
+import beam.utils.{DateUtils, FileUtils, TravelTimeCalculatorHelper}
 import beam.utils.UnzipUtility._
+import beam.utils.scenario.LastRunOutputSource
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
 
 class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends LazyLogging {
@@ -29,7 +30,11 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
   private val srcPath: String = warmConfig.warmStartPath
 
   def readTravelTime: Option[TravelTime] = {
-    getWarmStartFilePath("linkstats.csv.gz", rootFirst = false) match {
+    readTravelTime(getWarmStartFilePath("linkstats.csv.gz", rootFirst = false), srcPath)
+  }
+
+  def readTravelTime(linkStatsPath: Option[String], searchPath: String): Option[TravelTime] = {
+    linkStatsPath match {
       case Some(statsPath) =>
         if (Files.isRegularFile(Paths.get(statsPath))) {
           val travelTime = getTravelTime(statsPath)
@@ -40,7 +45,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
           None
         }
       case _ =>
-        logger.warn("Travel times failed to warm start, stats not found at path ( {} )", srcPath)
+        logger.warn("Travel times failed to warm start, stats not found at path ( {} )", searchPath)
         None
     }
   }
@@ -54,9 +59,15 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
         if (Files.isRegularFile(Paths.get(compressedFileFullPath))) {
           extractFileFromZip(parentRunPath, compressedFileFullPath, fileName)
         } else {
+          logger.warn(
+            s"not a regular file: description: $description, fileName: $fileName, compressedFileFullPath: $compressedFileFullPath"
+          )
           throwErrorFileNotFound(description, compressedFileFullPath)
         }
       case None =>
+        logger.warn(
+          s"not found: description: $description, fileName: $fileName, rootFirst: $rootFirst"
+        )
         throwErrorFileNotFound(description, srcPath)
     }
   }
@@ -145,8 +156,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
     new File(dir).listFiles().map(_.getAbsolutePath).find(_.endsWith(file))
   }
 
-  private lazy val parentRunPath: String =
-    FileUtils.downloadAndUnpackIfNeeded(srcPath, "https://s3.us-east-2.amazonaws.com/beam-outputs/")
+  private lazy val parentRunPath: String = FileUtils.downloadAndUnpackIfNeeded(srcPath)
 
   private def getTravelTime(statsFile: String): TravelTime = {
     val binSize: Int = warmConfig.agentsimTimeBinSize
@@ -177,48 +187,48 @@ object BeamWarmStart extends LazyLogging {
 
   def apply(
     beamConfig: BeamConfig,
-    travelTimeCalculatorConfigGroup: TravelTimeCalculatorConfigGroup = singletonTraveltimeCalculator
-  ): BeamWarmStart = {
-    val maxHour = TimeUnit.SECONDS.toHours(travelTimeCalculatorConfigGroup.getMaxTime).toInt
-    apply(beamConfig, maxHour)
-  }
-
-  def apply(
-    beamConfig: BeamConfig,
     maxHour: Int
   ): BeamWarmStart = {
-    if (beamConfig.beam.warmStart.enabled) {
-      val warmConfig = buildWarmConfig(beamConfig, maxHour)
-      instances.getOrElseUpdate(
-        warmConfig, {
-          val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
-          if (instances.isEmpty) {
-            logger.info(msg)
-          } else {
-            logger.warn(msg)
-          }
-          new BeamWarmStart(warmConfig)
+    val warmConfig = buildWarmConfig(beamConfig, maxHour)
+    instances.getOrElseUpdate(
+      warmConfig, {
+        val msg = s"Adding a new instance of WarmStart... configuration: [$warmConfig]"
+        if (instances.isEmpty) {
+          logger.info(msg)
+        } else {
+          logger.warn(msg)
         }
-      )
-    } else {
-      throw new IllegalArgumentException("BeamWarmStart cannot be initialized since warmstart is disabled")
-    }
+        new BeamWarmStart(warmConfig)
+      }
+    )
   }
 
   def warmStartTravelTime(
     beamConfig: BeamConfig,
-    calculator: TravelTimeCalculatorConfigGroup,
     beamRouter: ActorRef,
     scenario: Scenario
-  ): Unit = {
-    if (beamConfig.beam.warmStart.enabled) {
-      val maxHour = TimeUnit.SECONDS.toHours(calculator.getMaxTime).toInt
+  ): Option[TravelTime] = {
+    if (BeamWarmStart.isLinkStatsEnabled(beamConfig.beam.warmStart)) {
+      val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
-      warm.readTravelTime.foreach { travelTime =>
+      val travelTime =
+        if (BeamWarmStart.isLinkStatsFromLastRun(beamConfig.beam.warmStart)) {
+          val linkStatsPath = LastRunOutputSource
+            .findLastRunLinkStats(
+              Paths.get(beamConfig.beam.input.lastBaseOutputDir),
+              beamConfig.beam.input.simulationPrefix
+            )
+            .map(_.toString)
+          warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
+        } else warm.readTravelTime
+      travelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
         BeamWarmStart.updateRemoteRouter(scenario, travelTime, maxHour, beamRouter)
         logger.info("Travel times successfully warm started from")
       }
+      travelTime
+    } else {
+      None
     }
   }
 
@@ -234,28 +244,29 @@ object BeamWarmStart extends LazyLogging {
   def updateExecutionConfig(beamExecutionConfig: BeamExecutionConfig): BeamExecutionConfig = {
     val beamConfig = beamExecutionConfig.beamConfig
 
-    if (beamConfig.beam.warmStart.enabled) {
+    if (BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)) {
       val matsimConfig = beamExecutionConfig.matsimConfig
 
-      if (beamConfig.beam.router.skim.writeSkimsInterval == 0 && beamConfig.beam.warmStart.enabled) {
+      if (beamConfig.beam.router.skim.writeSkimsInterval == 0) {
         logger.warn(
           "Beam skims are not being written out - skims will be missing for warm starting from the output of this run!"
         )
       }
 
-      val instance = BeamWarmStart(beamConfig, matsimConfig.travelTimeCalculator())
+      val instance = BeamWarmStart(beamConfig, DateUtils.getMaxHour(beamConfig))
 
       val newWarmStartConfig: Beam.WarmStart = {
-        val newSkimsFilePath = Try(instance.compressedLocation("Skims file", beamConfig.beam.warmStart.skimsFileName))
-          .getOrElse(instance.parentRunPath)
-        val newSkimPlusFilePath = Try(instance.compressedLocation("Skim plus", "skimsPlus.csv.gz")).getOrElse("")
-        val newRouteHistoryFilePath =
-          Try(instance.compressedLocation("Route history", "routeHistory.csv.gz")).getOrElse("")
+        val skimCfg = beamConfig.beam.router.skim
+
+        val newSkimsFilePath: IndexedSeq[SkimsFilePaths$Elm] = Skims.skimAggregatedFileNames(skimCfg).map {
+          case (skimType, fileName) =>
+            val filePath = Try(instance.compressedLocation("Skims file", fileName))
+              .getOrElse(instance.parentRunPath)
+            SkimsFilePaths$Elm(skimType.toString, filePath)
+        }
 
         beamConfig.beam.warmStart.copy(
-          skimsFilePath = newSkimsFilePath,
-          skimsPlusFilePath = newSkimPlusFilePath,
-          routeHistoryFilePath = newRouteHistoryFilePath
+          skimsFilePaths = Some(newSkimsFilePath.toList),
         )
       }
 
@@ -281,7 +292,7 @@ object BeamWarmStart extends LazyLogging {
   ): Option[(Beam.Agentsim, Beam.Exchange)] = {
     val configAgents = beamConfig.beam.agentsim.agents
     try {
-      val populationAttributesXml = instance.compressedLocation("Person attributes", "outputPersonAttributes.xml.gz")
+      val populationAttributesXml = instance.compressedLocation("Person attributes", "output_personAttributes.xml.gz")
       matsimConfig.plans().setInputPersonAttributeFile(populationAttributesXml)
       val populationAttributesCsv = instance.compressedLocation("Population", "population.csv.gz")
 
@@ -334,4 +345,63 @@ object BeamWarmStart extends LazyLogging {
     }
   }
 
+  def prepareWarmStartArchive(
+    beamConfig: BeamConfig,
+    controllerIO: OutputDirectoryHierarchy,
+    firstIteration: Int,
+    lastIteration: Int
+  ): Option[String] = {
+    val actualLastIteration = (firstIteration to lastIteration).reverse
+      .map(i => i -> org.apache.commons.io.FileUtils.getFile(new File(controllerIO.getIterationPath(i))))
+      .find { case (_, file) => file.isDirectory }
+    actualLastIteration match {
+      case Some((iteration, dir)) =>
+        logger.info(s"Using $dir to prepare warmstart archive")
+        val skimCfg = beamConfig.beam.router.skim
+        val skimFileNames = Skims
+          .skimAggregatedFileNames(skimCfg)
+          .map { case (_, name) => name }
+          .map(name => name -> controllerIO.getIterationFilename(iteration, name))
+        val skimFiles = skimFileNames.map {
+          case (name, pathStr) => s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(pathStr)
+        }
+        val rootFiles = IndexedSeq(
+          "output_personAttributes.xml.gz",
+          "population.csv.gz",
+          "households.csv.gz",
+          "vehicles.csv.gz",
+        ).map(name => name -> Paths.get(controllerIO.getOutputFilename(name)))
+        val iterationFiles = IndexedSeq(
+          "linkstats.csv.gz",
+          "plans.csv.gz",
+          "plans.xml.gz",
+          "rideHailFleet.csv.gz",
+        ).map(
+          name =>
+            s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
+        )
+        val files = rootFiles ++ skimFiles ++ iterationFiles
+        Some(FileUtils.zipFiles(controllerIO.getOutputFilename("warmstart_data.zip"), files))
+      case None =>
+        logger.warn("No iteration to prepare warmstart")
+        None
+    }
+  }
+
+  def isLinkStatsEnabled(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "linkstatsonly"        => true
+    case "linkstatsfromlastrun" => true
+    case "full"                 => true
+    case _                      => false
+  }
+
+  def isLinkStatsFromLastRun(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "linkstatsfromlastrun" => true
+    case _                      => false
+  }
+
+  def isFullWarmStart(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "full" => true
+    case _      => false
+  }
 }

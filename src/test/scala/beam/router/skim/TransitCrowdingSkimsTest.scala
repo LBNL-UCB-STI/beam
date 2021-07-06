@@ -1,21 +1,22 @@
 package beam.router.skim
 
-import java.io.File
-
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.Skims.SkimType
+import beam.router.skim.core.TransitCrowdingSkimmer
 import beam.sim.{BeamHelper, BeamServices}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 /**
   *
   * @author Dmitry Openkov
   */
-class TransitCrowdingSkimsTest extends FlatSpec with Matchers with BeamHelper {
+class TransitCrowdingSkimsTest extends AnyFlatSpec with Matchers with BeamHelper {
 
   val constr: BeamServices => TransitCrowdingSkimmer =
     services => new TransitCrowdingSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
@@ -23,7 +24,7 @@ class TransitCrowdingSkimsTest extends FlatSpec with Matchers with BeamHelper {
   "TransitCrowdingSkims" should "calculate occupancy level correctly" in {
     val basePath = System.getenv("PWD")
     val inputFilePath = s"$basePath/test/test-resources/beam/router/skim/transit-crowding-test-data.csv"
-    val skimmer: TransitCrowdingSkimmer = ODSkimmerTest.createSkimmer(inputFilePath, constr)
+    val skimmer: TransitCrowdingSkimmer = ODSkimmerTest.createSkimmer(SkimType.TC_SKIMMER, inputFilePath, constr)
 
     val trip = EmbodiedBeamTrip(IndexedSeq(createLeg("SF:7678110"), createLeg("BA:36R11")))
     val level = skimmer.readOnlySkim.getTransitOccupancyLevelForPercentile(trip, 90.1)

@@ -1,21 +1,22 @@
 package beam.router.skim
 
-import akka.event.Logging
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.skim.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
+import beam.router.skim.core.ODSkimmer.{fromCsv, ODSkimmerInternal, ODSkimmerKey}
 import beam.sim.BeamHelper
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.matsim.api.core.v01.Id
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
 /**
   * This spec tests that CsvSkimReader reads skims correctly.
   */
-class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
+class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "CsvSkimReader" must "read skims correctly" in {
     val skims =
-      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", ODSkimmer.fromCsv, getDummyLogger()).readAggregatedSkims
+      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", fromCsv, getDummyLogger).readAggregatedSkims
         .map {
           case (skimmerKey, skimmerInternal) =>
             (skimmerKey.asInstanceOf[ODSkimmerKey], skimmerInternal.asInstanceOf[ODSkimmerInternal])
@@ -25,10 +26,10 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
 
     assert(skims.keys.exists(x => x.mode.value.equalsIgnoreCase("CAR")), error("mode"))
     assert(skims.keys.exists(x => x.mode.value.equalsIgnoreCase("RIDE_HAIL")), error("mode"))
-    assert(skims.keys.exists(x => x.originTaz == Id.create("101241", TAZ.getClass)), error("originTaz"))
-    assert(skims.keys.exists(x => x.originTaz == Id.create("101245", TAZ.getClass)), error("originTaz"))
-    assert(skims.keys.exists(x => x.destinationTaz == Id.create("101243", TAZ.getClass)), error("destinationTaz"))
-    assert(skims.keys.exists(x => x.destinationTaz == Id.create("101246", TAZ.getClass)), error("destinationTaz"))
+    assert(skims.keys.exists(x => x.origin == "101241"), error("originTaz"))
+    assert(skims.keys.exists(x => x.origin == "101245"), error("originTaz"))
+    assert(skims.keys.exists(x => x.destination == "101243"), error("destinationTaz"))
+    assert(skims.keys.exists(x => x.destination == "101246"), error("destinationTaz"))
 
     checkSkimmerField[Int, ODSkimmerKey]("travelTimeInS", 0, 4, skims.keys, x => x.hour)
     checkSkimmerField[Double, ODSkimmerInternal]("cost", 3, 50, skims.values, x => x.cost)
@@ -62,7 +63,7 @@ class CsvSkimReaderSpec extends FlatSpec with Matchers with BeamHelper {
     assert(oDSkimmerInternals.map(fieldMapping).max == maxValue, error(fieldName))
   }
 
-  def getDummyLogger(): Logger = {
+  def getDummyLogger: Logger = {
     new DummyLogging().log
   }
 

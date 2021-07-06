@@ -18,17 +18,17 @@ trait IntegrationSpecCommon {
   private val configLocation = ConfigFactory.parseString("config=" + configFileName)
 
   protected def extensionConfig: Config = ConfigFactory.empty
-
   protected lazy val unResolvedBaseConfig: Config = {
     extensionConfig
       .withFallback(testConfig(configFileName))
       .resolve()
+      .withValue("beam.outputs.collectAndCreateBeamAnalysisAndGraphs", ConfigValueFactory.fromAnyRef("true"))
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
       .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
       .withFallback(configLocation)
+      .resolve
   }
-
   protected lazy val baseConfig: Config = unResolvedBaseConfig.resolve
 
   def isOrdered[A](s: Seq[A])(cf: (A, A) => Boolean): Boolean = {

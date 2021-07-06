@@ -5,7 +5,8 @@ import beam.utils.scenario.{PersonId, PlanElement}
 
 import scala.math._
 
-class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputPlanElement, PlanElement] {
+class PlanMerger(val trips: Map[(String, Double), String], modeMap: Map[String, String])
+    extends Merger[InputPlanElement, PlanElement] {
 
   private var activityPersonOpt: Option[String] = None
   private var timeOpt: Option[Double] = None
@@ -57,16 +58,5 @@ class PlanMerger(val trips: Map[(String, Double), String]) extends Merger[InputP
     )
   }
 
-  private def convertMode(inputMode: String): String = inputMode match {
-    case "DRIVEALONEPAY"  => "car"
-    case "DRIVEALONEFREE" => "car"
-    case "WALK"           => "walk"
-    case "BIKE"           => "bike"
-    case "SHARED3FREE"    => "car"
-    case "SHARED2PAY"     => "car"
-    case "SHARED2FREE"    => "car"
-    case "SHARED3PAY"     => "car"
-    case "WALK_LOC"       => "walk_transit"
-    case "DRIVE_LOC"      => "drive_transit"
-  }
+  private def convertMode(inputMode: String): String = modeMap(inputMode)
 }

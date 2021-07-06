@@ -1,8 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
-
-import scala.util.Random
+import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
@@ -10,9 +9,9 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
 import scala.annotation.tailrec
-import beam.agentsim.infrastructure.ParkingStall
+import scala.collection.JavaConverters._
+import scala.util.Random
 
 object ParkingZoneSearch {
 
@@ -112,7 +111,6 @@ object ParkingZoneSearch {
     * @param utilityParameters
     */
   private[ParkingZoneSearch] case class ParkingSearchAlternative[GEO](
-    isValidAlternative: Boolean,
     parkingAlternative: ParkingAlternative[GEO],
     utilityParameters: Map[ParkingMNL.Parameters, Double]
   )
@@ -165,9 +163,9 @@ object ParkingZoneSearch {
             parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
             parkingZoneId       <- parkingZoneIds
             parkingZone         <- ParkingZone.getParkingZone(params.parkingZones, parkingZoneId)
+            if parkingZoneFilterFunction(parkingZone)
           } yield {
             // wrap ParkingZone in a ParkingAlternative
-            val isValidParkingZone: Boolean = parkingZoneFilterFunction(parkingZone)
             val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
             val stallPriceInDollars: Double =
               parkingZone.pricingModel match {
@@ -176,18 +174,17 @@ object ParkingZoneSearch {
                   PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative[GEO] =
-              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
+              ParkingAlternative(zone, parkingZone.parkingType, parkingZone, stallLocation, stallPriceInDollars)
             val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
-              isValidParkingZone,
               parkingAlternative,
               parkingAlternativeUtility
             )
           }
         }
 
-        if (!alternatives.exists(_.isValidAlternative)) {
+        if (alternatives.isEmpty) {
           _search(
             thisOuterRadius,
             thisOuterRadius * config.searchExpansionFactor,
@@ -199,9 +196,8 @@ object ParkingZoneSearch {
 
           // remove any invalid parking alternatives
           val alternativesToSample: Map[ParkingAlternative[GEO], Map[ParkingMNL.Parameters, Double]] =
-            alternatives.collect {
-              case a if a.isValidAlternative =>
-                a.parkingAlternative -> a.utilityParameters
+            alternatives.map { a =>
+              a.parkingAlternative -> a.utilityParameters
             }.toMap
 
           val mnl: MultinomialLogit[ParkingAlternative[GEO], ParkingMNL.Parameters] =
@@ -222,7 +218,9 @@ object ParkingZoneSearch {
               costInDollars.toDouble,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
-              parkingType
+              parkingType,
+              parkingZone.reservedFor,
+              parkingZone.vehicleManager
             )
 
             val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }

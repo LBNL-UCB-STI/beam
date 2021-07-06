@@ -3,6 +3,7 @@ package beam.utils.csv.writers
 import scala.collection.JavaConverters._
 
 import beam.utils.scenario.{PersonId, PlanElement}
+import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
@@ -152,9 +153,9 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       planInfo.legRouteType.getOrElse(""),
       planInfo.legRouteStartLink.getOrElse(""),
       planInfo.legRouteEndLink.getOrElse(""),
-      planInfo.legRouteTravelTime,
-      planInfo.legRouteDistance,
-      planInfo.legRouteLinks
+      planInfo.legRouteTravelTime.getOrElse(""),
+      planInfo.legRouteDistance.getOrElse(""),
+      planInfo.legRouteLinks.mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
     ).mkString("", FieldSeparator, LineSeparator)
   }
 

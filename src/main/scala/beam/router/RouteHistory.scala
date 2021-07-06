@@ -1,7 +1,6 @@
 package beam.router
 
 import java.io._
-import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import javax.inject.Inject
 
@@ -9,10 +8,9 @@ import scala.collection.concurrent.TrieMap
 
 import beam.router.RouteHistory.{RouteHistoryADT, _}
 import beam.sim.config.BeamConfig
-import beam.sim.BeamWarmStart
 import beam.utils.FileUtils
+import com.google.common.escape.ArrayBasedUnicodeEscaper
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.supercsv.io.{CsvMapReader, ICsvMapReader}
@@ -24,30 +22,10 @@ class RouteHistory @Inject()(
 ) extends IterationEndsListener
     with LazyLogging {
 
-  private var previousRouteHistory: RouteHistoryADT = loadPreviousRouteHistory()
   private var routeHistory: RouteHistoryADT = TrieMap()
   private val randUnif = Distribution.uniform
   @volatile private var cacheRequests = 0
   @volatile private var cacheHits = 0
-
-  def loadPreviousRouteHistory(): RouteHistoryADT = {
-    if (beamConfig.beam.warmStart.enabled) {
-      routeHistoryFilePath
-        .map(RouteHistory.fromCsv)
-        .getOrElse(TrieMap.empty)
-    } else {
-      TrieMap.empty
-    }
-  }
-
-  private def routeHistoryFilePath: Option[String] = {
-    val filePath = beamConfig.beam.warmStart.routeHistoryFilePath
-    if (new File(filePath).isFile) {
-      Some(filePath)
-    } else {
-      None
-    }
-  }
 
   private def timeToBin(departTime: Int): Int = {
     Math.floorMod(Math.floor(departTime.toDouble / 3600.0).toInt, 24)
@@ -55,16 +33,20 @@ class RouteHistory @Inject()(
 
   def rememberRoute(route: IndexedSeq[Int], departTime: Int): Unit = {
     val timeBin = timeToBin(departTime)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    val routeHead = route.head
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    val routeLast = route.last
     routeHistory.get(timeBin) match {
       case Some(subMap) =>
-        subMap.get(route.head) match {
+        subMap.get(routeHead) match {
           case Some(subSubMap) =>
-            subSubMap.put(route.last, route)
+            subSubMap.put(routeLast, route)
           case None =>
-            subMap.put(route.head, TrieMap(route.last -> route))
+            subMap.put(routeHead, TrieMap(routeLast -> route))
         }
       case None =>
-        routeHistory.put(timeBin, TrieMap(route.head -> TrieMap(route.last -> route)))
+        routeHistory.put(timeBin, TrieMap(routeHead -> TrieMap(routeLast -> route)))
     }
   }
 
@@ -115,7 +97,7 @@ class RouteHistory @Inject()(
     if (shouldWriteInIteration(event.getIteration, beamConfig.beam.physsim.writeRouteHistoryInterval)) {
       val filePath = event.getServices.getControlerIO.getIterationFilename(
         event.getServices.getIterationNumber,
-        beamConfig.beam.warmStart.routeHistoryFileName
+        "routeHistory.csv.gz"
       )
 
       FileUtils.writeToFile(
@@ -124,7 +106,6 @@ class RouteHistory @Inject()(
       )
     }
 
-    previousRouteHistory = routeHistory
     routeHistory = new TrieMap()
   }
 

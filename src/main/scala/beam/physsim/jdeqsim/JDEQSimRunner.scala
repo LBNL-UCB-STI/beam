@@ -29,6 +29,8 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
+import scala.concurrent.ExecutionContext
+
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
   val jdeqSimScenario: Scenario,
@@ -133,6 +135,7 @@ class JDEQSimRunner(
     SimulationResult(
       iteration = currentPhysSimIter,
       travelTime = travelTimeCalculator.getLinkTravelTimes,
+      volumesAnalyzer = Some(linkStatsGraph.getVolumes),
       eventTypeToNumberOfMessages = eventTypeCounter.getStats,
       carTravelTimeStats = carTravelTimeHandler.compute
     )

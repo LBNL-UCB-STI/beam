@@ -1,13 +1,12 @@
 package beam.utils.data.ctpp
 
-import java.util.{Map => JavaMap}
-
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.util.{Pair => CPair}
 
+import java.util.{Map => JavaMap}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -88,9 +87,9 @@ class JointDistribution(
       new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
     }.toVector
 
-    val values = pmf.map(_.getValue)
-    if (values.isEmpty || values.reduce(_ + _) == 0.0) {
-      return Map()
+    val values = pmf.map(_.getValue.doubleValue())
+    if (values.fold(0d)(_ + _) == 0d) {
+      return Map.empty
     }
     val distr = new EnumeratedDistribution[Map[String, String]](rndGen, pmf.asJava)
     distr.sample()
@@ -116,6 +115,7 @@ class JointDistribution(
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def getRangeList(keyValueTuple: (String, Either[String, CustomRange])*): Array[Map[String, String]] = {
     mappedArray
       .filter { map =>

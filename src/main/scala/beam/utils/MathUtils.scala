@@ -23,6 +23,7 @@ object MathUtils {
     * @param list the list of data
     * @return median of the given list
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def median(list: java.util.List[java.lang.Double]): Double = {
     if (list.isEmpty) {
       0
@@ -81,10 +82,19 @@ object MathUtils {
     max + math.log(accum)
   }
 
+  def randomPointInCircle(rSquared: Double, rnd: Random): (Double, Double) = {
+    val xSquared = rnd.nextDouble() * rSquared
+    val ySquared = rnd.nextDouble() * (rSquared - xSquared)
+    val xSign = Math.signum(rnd.nextDouble() - 0.5)
+    val ySign = Math.signum(rnd.nextDouble() - 0.5)
+    (xSign * Math.sqrt(xSquared), ySign * Math.sqrt(ySquared))
+  }
+
   /**
     * Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def logSumExp(a: Iterable[Double]): Double = {
     a.size match {
       case 0 => Double.NegativeInfinity;
@@ -124,4 +134,6 @@ object MathUtils {
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
+
+  def nanToZero(x: Double) = if (x.isNaN) { 0.0 } else { x }
 }

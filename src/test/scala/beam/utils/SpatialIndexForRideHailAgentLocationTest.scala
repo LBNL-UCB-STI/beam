@@ -1,16 +1,17 @@
 package beam.utils
 
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
-import beam.sim.Geofence
+import beam.sim.{CircularGeofence, Geofence}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
+class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers {
   // #####################################################################################
   // If one day this test breaks then most probably it is because of the changes in `RideHailAgentLocation.equals`
   // #####################################################################################
@@ -35,7 +36,7 @@ class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
     spatialIndex.put(10, 10, rideHailAgentLocation)
     spatialIndex.size() shouldBe (1)
 
-    val updatedRideHailAgentLocation = rideHailAgentLocation.copy(currentLocationUTM = SpaceTime(2, 2, 4))
+    val updatedRideHailAgentLocation = rideHailAgentLocation.copy(latestUpdatedLocationUTM = SpaceTime(2, 2, 4))
     spatialIndex.put(10, 10, updatedRideHailAgentLocation)
     spatialIndex.size() shouldBe (1)
 
@@ -63,9 +64,9 @@ class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
     spatialIndex.put(10, 10, rideHailAgentLocation)
 
     val updatedRideHailAgentLocation = rideHailAgentLocation.copy(
-      currentLocationUTM = SpaceTime(2, 2, 4),
+      latestUpdatedLocationUTM = SpaceTime(2, 2, 4),
       vehicleType = rideHailAgentLocation.vehicleType.copy(seatingCapacity = 123),
-      geofence = Some(Geofence(1, 2, 3))
+      geofence = Some(CircularGeofence(1, 2, 3))
     )
     spatialIndex.remove(10, 10, updatedRideHailAgentLocation)
     spatialIndex.size() shouldBe (0)

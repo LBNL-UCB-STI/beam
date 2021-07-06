@@ -1,5 +1,7 @@
 package beam.router.skim
 
+import beam.router.skim.Skims.SkimType
+import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
@@ -8,10 +10,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.mockito.Mockito._
-import org.scalatest.FunSuite
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.funsuite.AnyFunSuite
 
-class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
+class ODSkimmerTest extends AnyFunSuite with StrictLogging {
 
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
@@ -20,39 +21,53 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
 
   test("Read OD skims from single file with warm start mode") {
     val inputFilePath = s"$basePath/od_for_test.csv.gz"
-    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(inputFilePath, odConstructor)
+    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(SkimType.OD_SKIMMER, inputFilePath, odConstructor)
 
     val origData = new CsvSkimReader(inputFilePath, ODSkimmer.fromCsv, logger).readAggregatedSkims
-    assert(skimmer.readOnlySkim.aggregatedSkim == origData)
+    assert(skimmer.readOnlySkim.aggregatedFromPastSkims == origData)
   }
 
   test("Read OD skims from multi files in the directory with warm start mode") {
     val skimsFilePath = s"$basePath/multi-part-od-skims"
-    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(skimsFilePath, odConstructor)
+    val skimmer: ODSkimmer = ODSkimmerTest.createSkimmer(SkimType.OD_SKIMMER, skimsFilePath, odConstructor)
 
     val origData = new CsvSkimReader(
       s"$basePath/od_for_test.csv.gz",
       ODSkimmer.fromCsv,
       logger
     ).readAggregatedSkims
-    assert(skimmer.readOnlySkim.aggregatedSkim == origData)
+    assert(skimmer.readOnlySkim.aggregatedFromPastSkims == origData)
   }
 }
 
-object ODSkimmerTest extends MockitoSugar {
-  private[skim] def createSkimmer[S <: AbstractSkimmer](inputFilePath: String, constructor: BeamServices => S): S = {
+object ODSkimmerTest {
+  private[skim] def createSkimmer[S <: AbstractSkimmer](
+    skimType: SkimType.Value,
+    inputFilePath: String,
+    constructor: BeamServices => S
+  ): S = {
+    import scala.collection.JavaConverters._
     val beamConfig = BeamConfig(
       testConfig("test/input/beamville/beam.conf")
-        .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
-        .withValue("beam.warmStart.skimsFilePath", ConfigValueFactory.fromAnyRef(inputFilePath))
+        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
+        .withValue(
+          "beam.warmStart.skimsFilePaths",
+          ConfigValueFactory.fromIterable(
+            List(
+              ConfigValueFactory.fromAnyRef(
+                Map("skimType" -> skimType.toString, "skimsFilePath" -> inputFilePath).asJava
+              )
+            ).asJava
+          )
+        )
         .resolve()
     )
-    val services = mock[BeamServices]
+    val services = mock(classOf[BeamServices])
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.beamScenario).thenReturn(mock[BeamScenario])
-    when(services.matsimServices).thenReturn(mock[MatsimServices])
+    when(services.beamScenario).thenReturn(mock(classOf[BeamScenario]))
+    when(services.matsimServices).thenReturn(mock(classOf[MatsimServices]))
 
-    val event = mock[IterationStartsEvent]
+    val event = mock(classOf[IterationStartsEvent])
     when(event.getIteration).thenReturn(0)
 
     val skimmer = constructor(services)

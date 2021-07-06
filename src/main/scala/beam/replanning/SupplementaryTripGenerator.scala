@@ -284,6 +284,8 @@ class SupplementaryTripGenerator(
     val activityDuration = additionalActivity.getEndTime - additionalActivity.getStartTime
     val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime)
     val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime)
+    val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
+    val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
     val modeToTimeAndCosts: Map[BeamMode, DestinationChoiceModel.TimesAndCost] =
       modes.map { mode =>
@@ -293,7 +295,9 @@ class SupplementaryTripGenerator(
             additionalActivity.getCoord,
             desiredDepartTimeBin,
             mode,
-            beamServices.beamScenario.vehicleTypes.keys.head, // TODO: FIX WITH REAL VEHICLE
+            vehicleType.id,
+            vehicleType,
+            fuelPrice,
             beamServices.beamScenario
           )
         val egressTripSkim =
@@ -302,7 +306,9 @@ class SupplementaryTripGenerator(
             alternativeActivity.getCoord,
             desiredReturnTimeBin,
             mode,
-            beamServices.beamScenario.vehicleTypes.keys.head, // TODO: FIX
+            vehicleType.id,
+            vehicleType,
+            fuelPrice,
             beamServices.beamScenario
           )
         val startingOverlap =

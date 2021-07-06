@@ -1,16 +1,10 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.TimeUnit
-
-import scala.collection.JavaConverters._
-import scala.collection.immutable
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.Random
-import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
-import akka.pattern._
+import akka.actor.ActorSystem
 import akka.util.Timeout
-import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingZone}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
+import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingNetwork, ParkingZone}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -19,15 +13,24 @@ import beam.utils.{BeamConfigUtils, FileUtils, ProfilingUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.utils.collections.QuadTree
 
-class ParkingManagerBenchmark(val possibleParkingLocations: Array[(Coord, String)], val parkingManagerActor: ActorRef)(
+import java.util.concurrent.TimeUnit
+import scala.collection.JavaConverters._
+import scala.collection.immutable
+import scala.concurrent.ExecutionContext
+import scala.util.Random
+
+class ParkingManagerBenchmark(
+  val possibleParkingLocations: Array[(Coord, String)],
+  val parkingManagerActor: ParkingNetwork[_]
+)(
   implicit val actorSystem: ActorSystem,
   val ec: ExecutionContext
 ) extends StrictLogging {
@@ -38,11 +41,10 @@ class ParkingManagerBenchmark(val possibleParkingLocations: Array[(Coord, String
   def benchmark(): List[ParkingInquiryResponse] = {
     val parkingResponses =
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
-        val responseFutures = possibleParkingLocations.map {
+        possibleParkingLocations.flatMap {
           case (coord, actType) =>
-            parkingManagerActor.ask(ParkingInquiry(coord, actType)).mapTo[ParkingInquiryResponse]
+            parkingManagerActor.processParkingInquiry(ParkingInquiry(SpaceTime(coord, 0), actType, triggerId = -1L))
         }.toList
-        Await.result(Future.sequence(responseFutures), timeout.duration)
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")
     parkingResponses
@@ -149,7 +151,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       }
       val allActivityLocations: Array[(Coord, String)] = activities.map(act => (act.getCoord, act.getType)).toArray
 
-      def createZonalParkingManager(isLink: Boolean): ZonalParkingManager[_] = {
+      def createZonalParkingManager(isLink: Boolean): ParkingNetwork[_] = {
         if (isLink) {
           val linkQuadTree: QuadTree[Link] = LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
           val linkIdMapping: collection.Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(network)
@@ -185,43 +187,44 @@ object ParkingManagerBenchmark extends StrictLogging {
 
       def runBench(activityLocations: Array[(Coord, String)], managerType: String): List[ParkingInquiryResponse] = {
         // This is important! because `ParkingZone` is mutable class
-        val parkingManagerActor = managerType match {
+        val parkingManager = managerType match {
           case "parallel" =>
             val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
-            actorSystem.actorOf(
-              ParallelParkingManager.props(beamConfig, tazTreeMap, zones, searchTree, 6, geoUtils, 42, boundingBox)
+            ParallelParkingManager.init(
+              beamConfig,
+              tazTreeMap,
+              zones,
+              searchTree,
+              6,
+              geoUtils,
+              42,
+              boundingBox
             )
           case "zonal" =>
-            actorSystem.actorOf(
-              Props(
-                createZonalParkingManager(isLink = false)
-              )
-            )
+            createZonalParkingManager(isLink = false)
           case "hierarchical" =>
             val linkQuadTree: QuadTree[Link] =
               LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
             val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
             val (zones, _) = loadZones(linkQuadTree, pathToLinkParking)
             val mnlCfg = ZonalParkingManager.mnlMultiplierParametersFromConfig(beamConfig)
-            actorSystem.actorOf(
-              HierarchicalParkingManager.props(
-                tazTreeMap,
-                linkToTAZMapping,
-                zones,
-                new Random(seed),
-                geoUtils,
-                beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-                beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-                boundingBox,
-                mnlCfg,
-                checkThatNumberOfStallsMatch = true
-              )
+            HierarchicalParkingManager.init(
+              tazTreeMap,
+              linkToTAZMapping,
+              zones,
+              new Random(seed),
+              geoUtils,
+              beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+              beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+              boundingBox,
+              mnlCfg,
+              checkThatNumberOfStallsMatch = true,
+              beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
             )
         }
 
-        val bench = new ParkingManagerBenchmark(activityLocations, parkingManagerActor)
+        val bench = new ParkingManagerBenchmark(activityLocations, parkingManager)
         val result = bench.benchmark()
-        parkingManagerActor ! PoisonPill
         result
       }
 

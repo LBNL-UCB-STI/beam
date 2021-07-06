@@ -162,6 +162,8 @@ class FastHouseholdCAVScheduling(
           prevReq.baselineNonPooledTime,
           BeamMode.CAR,
           cav.beamVehicleType.id,
+          cav.beamVehicleType,
+          beamServices.beamScenario.fuelTypePrices(cav.beamVehicleType.primaryFuelType),
           beamServices.beamScenario
         )
         var serviceTime = prevReq.serviceTime + metric.time
@@ -253,7 +255,8 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
   def toRoutingRequests(
     beamServices: BeamServices,
     transportNetwork: TransportNetwork,
-    routeHistory: RouteHistory
+    routeHistory: RouteHistory,
+    triggerId: Long
   ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityRequest]()
     val requestList = (schedule.tail :+ schedule.head)
@@ -293,7 +296,8 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 CAV,
                 beamServices,
                 orig.activity.getCoord,
-                dest.activity.getCoord
+                dest.activity.getCoord,
+                triggerId = triggerId
               )
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
               Some(RouteOrEmbodyRequest(None, Some(embodyReq)))
@@ -313,7 +317,8 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                     asDriver = true,
                     needsToCalculateCost = true
                   )
-                )
+                ),
+                triggerId = triggerId
               )
               newMobilityRequests = newMobilityRequests :+ orig.copy(
                 routingRequestId = Some(routingRequest.requestId)
@@ -474,6 +479,8 @@ object HouseholdTripsHelper {
       0,
       defaultMode,
       beamVehicleType.id,
+      beamVehicleType,
+      beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType),
       beamServices.beamScenario
     )
 
