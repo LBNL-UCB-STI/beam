@@ -30,7 +30,7 @@ case class InputParameters(
   parallelism: Int = 1
 )
 
-case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ, mode: String, timePeriod: String)
+case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
 
 /*
 Example of parameters usage:
@@ -78,7 +78,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
   }
 
   def toCsvRow(rec: java.util.Map[String, String], tazMap: Map[String, GeoUnit.TAZ]): ODRow =
-    ODRow(tazMap(rec.get("origin")), tazMap(rec.get("destination")), rec.get("mode"), rec.get("timePeriod"))
+    ODRow(tazMap(rec.get("origin")), tazMap(rec.get("destination")))
 
   def toCsvSkimRow(rec: java.util.Map[String, String]): ExcerptData =
     ExcerptData(
@@ -147,10 +147,6 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     )
     val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
     val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
-    val travelTime = params.linkstatsPath match {
-      case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
-      case None       => new FreeFlowTravelTime
-    }
 
     val tazMap: Map[String, GeoUnit.TAZ] = beamScenario.tazTreeMap.getTAZs
       .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
@@ -165,12 +161,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
         (origins.flatMap { origin =>
           destinations.collect {
             case destination if origin != destination =>
-              ActivitySimPathType.allPathTypes.flatMap { pathType =>
-                ActivitySimTimeBin.values.map { timeBin =>
-                  ODRow(origin, destination, pathType.toString, timeBin.toString)
-                }
-              }
-          }.flatten
+              ODRow(origin, destination)
+          }
         }).toVector
     }
     val ODs: Array[(GeoIndex, GeoIndex)] = odRows.map { row =>
@@ -189,18 +181,35 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     implicit val actorSystem = ActorSystem()
     implicit val ec = actorSystem.dispatcher
 
-    val skimsCreator = new BackgroundSkimsCreator(
-      beamServices = beamServices,
-      beamScenario = beamScenario,
-      ODs = ODs,
-      abstractSkimmer = skimmer,
-      travelTime = travelTime,
-      beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
-      withTransit = false,
-      buildDirectWalkRoute = false,
-      buildDirectCarRoute = true,
-      calculationTimeoutHours = 1
-    )
+    val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
+    val skimsCreator = params.linkstatsPath match {
+      case Some(path) =>
+        new BackgroundSkimsCreator(
+          beamServices = beamServices,
+          beamScenario = beamScenario,
+          ODs = ODs,
+          abstractSkimmer = skimmer,
+          travelTime = new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour),
+          beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
+          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
+          buildDirectWalkRoute = false,
+          buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
+          calculationTimeoutHours = 1
+        )
+      case None =>
+        new BackgroundSkimsCreator(
+          beamServices = beamServices,
+          beamScenario = beamScenario,
+          ODs = ODs,
+          abstractSkimmer = skimmer,
+          travelTime = new FreeFlowTravelTime,
+          beamModes = Seq(BeamMode.WALK),
+          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
+          buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
+          buildDirectCarRoute = false,
+          calculationTimeoutHours = 1
+        )
+    }
 
     logger.info("Parallelism " + params.parallelism)
     skimsCreator.increaseParallelismTo(params.parallelism)
@@ -247,26 +256,20 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
               rows.foreach {
-                case ODRow(origin, destination, pathTypeStr, timePeriodStr) =>
-                  val pathType = ActivitySimPathType.fromString(pathTypeStr).getOrElse {
-                    throw new RuntimeException(s"Cannot parse path type $pathTypeStr")
-                  }
-                  val timePeriod = ActivitySimTimeBin.withName(timePeriodStr)
+                case ODRow(origin, destination) =>
                   val skims = existingSkims
                     .get(origin.id)
-                    .map(
-                      _.filter { skim =>
-                        skim.destinationId == destination.id &&
-                        skim.pathType == pathType &&
-                        skim.timePeriodString == timePeriod.toString
-                      }
-                    )
+                    .map(_.filter(skim => skim.destinationId == destination.id))
                     .getOrElse(Vector.empty)
                   if (skims.nonEmpty) {
                     skims.foreach(s => writer.write(s.toCsvString))
                   } else {
-                    val excerptData = getExcerptData(timePeriod, origin, destination, pathType)
-                    writer.write(excerptData.toCsvString)
+                    ActivitySimPathType.allPathTypes.foreach { pathType =>
+                      ActivitySimTimeBin.values.foreach { timeBin =>
+                        val excerptData = getExcerptData(timeBin, origin, destination, pathType)
+                        writer.write(excerptData.toCsvString)
+                      }
+                    }
                   }
               }
             }
@@ -296,9 +299,10 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             writer.write(skimFileHeader + "\n")
 
             rows.foreach {
-              case ODRow(origin, destination, mode, _) =>
-                val beamMode = BeamMode.withValue(mode)
-                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
+              case ODRow(origin, destination) =>
+                BeamMode.allModes.foreach { beamMode =>
+                  writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
+                }
             }
           } catch {
             case NonFatal(ex) =>

@@ -120,9 +120,9 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
   ): ExcerptData = {
     import scala.language.implicitConversions
     val individualSkims = {
-      val skimsForHours = timeBin.hours.flatMap { timeBin =>
+      val skimsForHours = timeBin.hours.flatMap { hour =>
         readOnlySkim
-          .getCurrentSkimValue(ActivitySimSkimmerKey(timeBin, pathType, origin.id, destination.id))
+          .getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
           .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       }
       if (skimsForHours.nonEmpty) { skimsForHours } else {
