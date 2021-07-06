@@ -42,7 +42,7 @@ Example of parameters usage:
  --parallelism 2
 
  Run with gradle:
- ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv.gz', '--input', 'ODSkimsBeamville.csv', '--linkstatsPath', '0.linkstats.csv'"]
+ ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv.gz', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv.gz'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
   private val parser = {
@@ -147,6 +147,10 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     )
     val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
     val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
+    val travelTime = params.linkstatsPath match {
+      case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
+      case None       => new FreeFlowTravelTime
+    }
 
     val tazMap: Map[String, GeoUnit.TAZ] = beamScenario.tazTreeMap.getTAZs
       .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
@@ -189,7 +193,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
           beamScenario = beamScenario,
           ODs = ODs,
           abstractSkimmer = skimmer,
-          travelTime = new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour),
+          travelTime = travelTime,
           beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
           buildDirectWalkRoute = false,
@@ -202,7 +206,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
           beamScenario = beamScenario,
           ODs = ODs,
           abstractSkimmer = skimmer,
-          travelTime = new FreeFlowTravelTime,
+          travelTime = travelTime,
           beamModes = Seq(BeamMode.WALK),
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
           buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
