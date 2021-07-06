@@ -96,15 +96,15 @@ trait BeamHelper extends LazyLogging {
   ): TypesafeConfig = {
     (for {
       seedAddress <- parsedArgs.seedAddress
-      nodeHost <- parsedArgs.nodeHost
-      nodePort <- parsedArgs.nodePort
+      nodeHost    <- parsedArgs.nodeHost
+      nodePort    <- parsedArgs.nodePort
     } yield {
       config.withFallback(
         ConfigFactory.parseMap(
           Map(
             "seed.address" -> seedAddress,
-            "node.host" -> nodeHost,
-            "node.port" -> nodePort
+            "node.host"    -> nodeHost,
+            "node.port"    -> nodePort
           ).asJava
         )
       )
@@ -126,16 +126,16 @@ trait BeamHelper extends LazyLogging {
           ) ++ {
             if (parsedArgs.useCluster)
               Map(
-                "beam.cluster.clusterType" -> parsedArgs.clusterType.get.toString,
-                "akka.actor.provider" -> "akka.cluster.ClusterActorRefProvider",
+                "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+                "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
-                "akka.remote.artery.canonical.port" -> parsedArgs.nodePort.get,
+                "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
                 "akka.cluster.seed-nodes" -> java.util.Arrays
                   .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
               )
             else Map.empty[String, Any]
           }
-          ).asJava
+        ).asJava
       )
     )
   }
@@ -372,12 +372,12 @@ trait BeamHelper extends LazyLogging {
         vehicleTypes.map {
           case (id, bvt) =>
             id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
-              bvt.copy(
-                seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-              )
-            else
-              bvt)
+                     bvt.copy(
+                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+                     )
+                   else
+                     bvt)
         }
       case None => vehicleTypes
     }
@@ -452,7 +452,7 @@ trait BeamHelper extends LazyLogging {
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
     if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-      .equalsIgnoreCase("ModeChoiceLCCM")) {
+          .equalsIgnoreCase("ModeChoiceLCCM")) {
       Files.copy(
         Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath),
         Paths.get(
@@ -473,8 +473,7 @@ trait BeamHelper extends LazyLogging {
 
   def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
-      .parseString(
-        """
+      .parseString("""
           |akka.cluster.roles = [compute]
           |akka.actor.deployment {
           |      /statsService/singleton/workerRouter {
@@ -491,7 +490,12 @@ trait BeamHelper extends LazyLogging {
       .withFallback(config)
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
+    import akka.cluster.singleton.{
+      ClusterSingletonManager,
+      ClusterSingletonManagerSettings,
+      ClusterSingletonProxy,
+      ClusterSingletonProxySettings
+    }
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
@@ -530,7 +534,7 @@ trait BeamHelper extends LazyLogging {
       beamScenario: BeamScenario,
       services: BeamServices,
       plansMerged: Boolean,
-      ) = prepareBeamService(config, abstractModule)
+    ) = prepareBeamService(config, abstractModule)
 
     runBeam(
       services,
@@ -1012,7 +1016,7 @@ trait BeamHelper extends LazyLogging {
         )
       )
     val scenarioReader = fileFormat match {
-      case InputType.CSV => CsvScenarioReader
+      case InputType.CSV     => CsvScenarioReader
       case InputType.Parquet => ParquetScenarioReader
     }
 
