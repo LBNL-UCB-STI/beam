@@ -158,7 +158,7 @@ object ActivitySimPathType {
   )
 
   val allPathTypesMap: Map[String, ActivitySimPathType] =
-    allPathTypes.groupBy(_.toString).mapValues(_.head)
+    allPathTypes.map(x => x.toString -> x).toMap
 
   def fromString(str: String): Option[ActivitySimPathType] = allPathTypesMap.get(str)
 

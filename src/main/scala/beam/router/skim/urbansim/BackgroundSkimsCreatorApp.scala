@@ -153,9 +153,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     }
 
     val tazMap: Map[String, GeoUnit.TAZ] = beamScenario.tazTreeMap.getTAZs
-      .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
-      .groupBy(_.id)
-      .mapValues(_.head)
+      .map(taz => taz.tazId.toString -> GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
+      .toMap
 
     val odRows = params.input match {
       case Some(path) => readInputCsv(path.toString, tazMap)
