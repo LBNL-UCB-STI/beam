@@ -14,7 +14,6 @@ buildscript {
         classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws:gradle-aws-plugin:0.41"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
-        classpath 'cz.alenkacz:gradle-scalafmt:1.7.0' // can be upgraded to 1.14.0
     }
 }
 
@@ -27,6 +26,7 @@ plugins {
     id "me.champeau.gradle.jmh" version "0.5.3"
     id 'com.bmuschko.docker-java-application' version '6.6.1'
     id 'org.ajoberstar.grgit' version '4.0.2'
+    id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
 }
 
 apply plugin: 'java'
@@ -338,7 +338,7 @@ configurations.all {
     exclude group: 'javax.media', module: 'jai_imageio'
 }
 
-//compileScala.dependsOn(scalafmtAll)
+compileScala.dependsOn(scalafmtAll)
 
 tasks.withType(ScalaCompile) {
     def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
