@@ -219,7 +219,7 @@ dependencies {
     // TEST Scala //
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
     testImplementation group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
-//    testRuntime "org.pegdown:pegdown:1.6.0"
+    testRuntimeOnly "org.pegdown:pegdown:1.6.0"
     testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
 
     // 3rd Party Scala //
@@ -285,7 +285,8 @@ dependencies {
     // TEST Akka //
     testImplementation group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
-//    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryVersion}:1.4.8", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.4.8"
+    scoverage "org.scoverage:scalac-scoverage-plugin_2.12.12:1.4.8", "org.scoverage:scalac-scoverage-runtime_2.12:1.4.8"
+//    scoverage group: 'org.scoverage', name: 'scalac-scoverage-plugin_2.12.12', version: '1.4.8'
 
     implementation 'org.apache.commons:commons-compress:1.18'
 
@@ -378,6 +379,10 @@ build.dependsOn spec
 
 processResources {
   duplicatesStrategy = 'include'
+}
+
+processTestResources {
+    duplicatesStrategy = 'include'
 }
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
