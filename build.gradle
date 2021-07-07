@@ -339,7 +339,7 @@ configurations.all {
     exclude group: 'javax.media', module: 'jai_imageio'
 }
 
-compileScala.dependsOn(scalafmtAll)
+//compileScala.dependsOn(scalafmtAll)
 
 tasks.withType(ScalaCompile) {
     def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
