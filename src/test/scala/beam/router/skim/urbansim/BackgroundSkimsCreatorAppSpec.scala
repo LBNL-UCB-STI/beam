@@ -28,7 +28,7 @@ class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with S
       whenReady(BackgroundSkimsCreatorApp.runWithParams(params)) { _ =>
         BeamConfigChangesObservable.clear()
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
-        csv.size shouldBe 72
+        csv.size shouldBe 10
         csv.count(_.weightedGeneralizedTime > 0) shouldBe 10
         csv.count(_.weightedGeneralizedTime > 10) shouldBe 10
       }
@@ -38,7 +38,7 @@ class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with S
       whenReady(BackgroundSkimsCreatorApp.runWithParams(params.copy(input = None))) { _ =>
         BeamConfigChangesObservable.clear()
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
-        csv.size shouldBe 564
+        csv.size shouldBe 65
         csv.count(_.weightedGeneralizedTime > 10) shouldBe 65
       }
     }

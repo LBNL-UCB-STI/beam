@@ -267,11 +267,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
                   if (skims.nonEmpty) {
                     skims.foreach(s => writer.write(s.toCsvString))
                   } else {
-                    ActivitySimPathType.allPathTypes.foreach { pathType =>
-                      ActivitySimTimeBin.values.foreach { timeBin =>
-                        val excerptData = getExcerptData(timeBin, origin, destination, pathType)
-                        writer.write(excerptData.toCsvString)
-                      }
+                    getExcerptDataForOD(origin, destination).foreach { excerptData =>
+                      writer.write(excerptData.toCsvString)
                     }
                   }
               }
