@@ -214,7 +214,7 @@ class MasterActor(
     val dtInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startedAt)
     val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
     val msg =
-      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${nRouteSent / maxRequestsNumber * 100}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
+      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
          |AVG route per second: $avgRoutePerSecond, elapsed time: $dtInSeconds seconds
          |Current number of workers: ${workers.size}""".stripMargin
     log.info(msg)
