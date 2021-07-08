@@ -138,21 +138,26 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
   def runWithParams(params: InputParameters) = {
     val manualArgs = Array[String]("--config", params.configPath.toString)
     val (_, config) = prepareConfig(manualArgs, isConfigArgRequired = true)
-
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
-
     val (scenarioBuilt, beamScenario, _) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
-    val maxHour = DateUtils.getMaxHour(beamExecutionConfig.beamConfig)
-    val timeBinSizeInSeconds = beamExecutionConfig.beamConfig.beam.agentsim.timeBinSize
+    val scenario: MutableScenario = scenarioBuilt
+    val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
+    runWithServices(beamServices, params)
+  }
+
+  def runWithServices(beamServices: BeamServices, params: InputParameters) = {
+    val maxHour = DateUtils.getMaxHour(beamServices.beamConfig)
+    val timeBinSizeInSeconds = beamServices.beamConfig.beam.agentsim.timeBinSize
     val travelTime = params.linkstatsPath match {
       case Some(path) => new LinkTravelTimeContainer(path.toString, timeBinSizeInSeconds, maxHour)
       case None       => new FreeFlowTravelTime
     }
 
-    val tazMap: Map[String, GeoUnit.TAZ] = beamScenario.tazTreeMap.getTAZs
+    val tazMap: Map[String, GeoUnit.TAZ] = beamServices.beamScenario.tazTreeMap.getTAZs
       .map(taz => taz.tazId.toString -> GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
       .toMap
 
@@ -176,9 +181,6 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     val existingSkims: Map[String, Vector[ExcerptData]] =
       params.ODSkimsPath.map(path => readSkimsCsv(path.toString)).getOrElse(Vector.empty).groupBy(_.originId)
 
-    val scenario: MutableScenario = scenarioBuilt
-    val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-    val beamServices: BeamServices = buildBeamServices(injector, scenario)
     val skimmer = createSkimmer(beamServices, odRows, existingSkims)
 
     implicit val actorSystem = ActorSystem()
@@ -189,7 +191,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       case Some(path) =>
         new BackgroundSkimsCreator(
           beamServices = beamServices,
-          beamScenario = beamScenario,
+          beamScenario = beamServices.beamScenario,
           ODs = ODs,
           abstractSkimmer = skimmer,
           travelTime = travelTime,
@@ -202,7 +204,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       case None =>
         new BackgroundSkimsCreator(
           beamServices = beamServices,
-          beamScenario = beamScenario,
+          beamScenario = beamServices.beamScenario,
           ODs = ODs,
           abstractSkimmer = skimmer,
           travelTime = travelTime,
