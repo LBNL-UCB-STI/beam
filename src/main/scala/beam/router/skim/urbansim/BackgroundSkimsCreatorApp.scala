@@ -215,8 +215,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     }
 
     logger.info("Parallelism " + params.parallelism)
-    skimsCreator.increaseParallelismTo(params.parallelism)
     skimsCreator.start()
+    skimsCreator.increaseParallelismTo(params.parallelism)
 
     skimsCreator.getResult.flatMap(skimmer => {
       logger.info("Got populated skimmer")
