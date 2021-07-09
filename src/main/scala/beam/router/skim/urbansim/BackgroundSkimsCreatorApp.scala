@@ -127,9 +127,15 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
   OParser.parse(parser, args, InputParameters()) match {
     case Some(params) =>
       implicit val ec = ExecutionContext.global
-      runWithParams(params).andThen {
-        case _ =>
-          System.exit(0)
+      try {
+        runWithParams(params).andThen {
+          case _ =>
+            System.exit(0)
+        }
+      } catch {
+        case e: Throwable =>
+          e.printStackTrace()
+          System.exit(-1)
       }
     case _ =>
       logger.error("Could not process parameters")
@@ -145,11 +151,12 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     )
     val scenario: MutableScenario = scenarioBuilt
     val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
+    implicit val actorSystem: ActorSystem = injector.getInstance(classOf[ActorSystem])
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
     runWithServices(beamServices, params)
   }
 
-  def runWithServices(beamServices: BeamServices, params: InputParameters) = {
+  def runWithServices(beamServices: BeamServices, params: InputParameters)(implicit actorSystem: ActorSystem) = {
     val maxHour = DateUtils.getMaxHour(beamServices.beamConfig)
     val timeBinSizeInSeconds = beamServices.beamConfig.beam.agentsim.timeBinSize
     val travelTime = params.linkstatsPath match {
@@ -183,12 +190,11 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
     val skimmer = createSkimmer(beamServices, odRows, existingSkims)
 
-    implicit val actorSystem = ActorSystem()
     implicit val ec = actorSystem.dispatcher
 
     val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
     val skimsCreator = params.linkstatsPath match {
-      case Some(path) =>
+      case Some(_) =>
         new BackgroundSkimsCreator(
           beamServices = beamServices,
           beamScenario = beamServices.beamScenario,
