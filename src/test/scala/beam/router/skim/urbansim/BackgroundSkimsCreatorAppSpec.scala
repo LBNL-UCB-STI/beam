@@ -1,5 +1,6 @@
 package beam.router.skim.urbansim
 
+import akka.actor.ActorSystem
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim.urbansim.BackgroundSkimsCreatorApp.toCsvSkimRow
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -39,6 +40,7 @@ class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with S
   val (scenarioBuilt, beamScenario, _) = buildBeamServicesAndScenario(beamConfig, matsimConfig)
   val scenario: MutableScenario = scenarioBuilt
   val injector: Injector = buildInjector(config, beamConfig, scenario, beamScenario)
+  implicit val actorSystem: ActorSystem = injector.getInstance(classOf[ActorSystem])
   val beamServices: BeamServices = buildBeamServices(injector, scenario)
 
   "BackgroundSkimsCreatorApp" should {
