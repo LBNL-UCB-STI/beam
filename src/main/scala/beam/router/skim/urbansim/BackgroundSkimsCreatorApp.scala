@@ -1,6 +1,6 @@
 package beam.router.skim.urbansim
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Terminated}
 import beam.agentsim.infrastructure.geozone.{GeoIndex, TAZIndex}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
@@ -18,7 +18,7 @@ import scopt.OParser
 
 import java.io.{BufferedWriter, Closeable, File}
 import java.nio.file.Path
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 case class InputParameters(
@@ -144,7 +144,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       logger.error("Could not process parameters")
   }
 
-  def runWithParams(params: InputParameters) = {
+  def runWithParams(params: InputParameters): Future[Terminated] = {
     val manualArgs = Array[String]("--config", params.configPath.toString)
     val (_, config) = prepareConfig(manualArgs, isConfigArgRequired = true)
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
@@ -155,8 +155,12 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     val scenario: MutableScenario = scenarioBuilt
     val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     implicit val actorSystem: ActorSystem = injector.getInstance(classOf[ActorSystem])
+    implicit val ec = actorSystem.dispatcher
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
-    runWithServices(beamServices, params)
+    runWithServices(beamServices, params).flatMap { _ =>
+      logger.info("Terminating actorSystem")
+      actorSystem.terminate()
+    }
   }
 
   def runWithServices(beamServices: BeamServices, params: InputParameters)(implicit actorSystem: ActorSystem) = {
@@ -229,13 +233,11 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     skimsCreator.start()
     skimsCreator.increaseParallelismTo(params.parallelism)
 
-    skimsCreator.getResult.flatMap(skimmer => {
+    skimsCreator.getResult.map(skimmer => {
       logger.info("Got populated skimmer")
       skimmer.abstractSkimmer.writeToDisk(params.output.toString)
       logger.info("Stopping skimsCreator")
       skimsCreator.stop()
-      logger.info("Terminating actorSystem")
-      actorSystem.terminate()
     })
   }
 

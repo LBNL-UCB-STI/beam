@@ -11,6 +11,7 @@ import beam.utils.csv.GenericCsvReader
 import com.google.inject.Injector
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.scenario.MutableScenario
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
@@ -18,7 +19,13 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.nio.file.Paths
 
-class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with ScalaFutures with BeamHelper {
+class BackgroundSkimsCreatorAppSpec
+    extends AnyWordSpecLike
+    with Matchers
+    with ScalaFutures
+    with BeamHelper
+    with BeforeAndAfterAll {
+
   implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds))
   val outputPath = Paths.get("output.csv")
 
@@ -60,5 +67,9 @@ class BackgroundSkimsCreatorAppSpec extends AnyWordSpecLike with Matchers with S
         csv.count(_.weightedGeneralizedTime > 10) shouldBe 65
       }
     }
+  }
+
+  override protected def afterAll(): Unit = {
+    actorSystem.terminate()
   }
 }
