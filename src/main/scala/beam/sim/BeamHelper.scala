@@ -75,7 +75,7 @@ import scala.concurrent.Await
 import scala.sys.process.Process
 import scala.util.{Random, Try}
 
-trait BeamHelper extends LazyLogging {
+trait BeamHelper extends LazyLogging with Tracing {
   //  Kamon.init()
 
   protected val beamAsciiArt: String =
@@ -389,10 +389,7 @@ trait BeamHelper extends LazyLogging {
     isConfigArgRequired: Boolean = true
   ): Unit = {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
-    if (isMetricsEnable) {
-      val kamonConfig = config.withFallback(ConfigFactory.defaultReference())
-      Kamon.init(kamonConfig)
-    }
+    startKamonTracingIfEnabled(config)
 
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
@@ -680,13 +677,11 @@ trait BeamHelper extends LazyLogging {
     } mkString " , "
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
 
-    val executionSpan = Kamon.serverSpanBuilder("beamStarted", "beam").start()
     val executionId = BeamExecutionConfig.executionIdFromDirectory(outputDir)
-    executionSpan.tag("executionId", executionId)
-    Kamon.runWithSpan(executionSpan) {
+    tracing("beamStarted", ("executionId", executionId)) { _ =>
       run(beamServices)
     }
-    Kamon.stop()
+
   }
 
   private def applyFractionOfPlansWithSingleActivity(
