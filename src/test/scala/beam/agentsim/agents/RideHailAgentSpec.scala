@@ -62,15 +62,9 @@ class RideHailAgentSpec
 
   lazy val eventMgr = new EventsManagerImpl()
 
-  val (parkingNetworks, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
-
-  private lazy val zonalParkingManager =
-    system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
-
-  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
-
   case class TestTrigger(tick: Int) extends Trigger
+
+  var zonalParkingManager: ActorRef = _
 
   describe("A RideHailAgent") {
 
@@ -402,6 +396,8 @@ class RideHailAgentSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    val (parkingNetworks, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
+    zonalParkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
     eventMgr.addHandler(new BasicEventHandler {
       override def handleEvent(event: Event): Unit = {
         self ! event
