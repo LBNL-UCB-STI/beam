@@ -37,12 +37,15 @@ Example of parameters usage:
  --configPath test/input/beamville/beam.conf
  --input test/input/beamville/input.csv
  --output test/input/beamville/output.csv
- --linkstatsPath test/input/beamville/linkstats.csv.gz
+ --linkstatsPath test/input/beamville/linkstats.csv
  --ODSkimsPath test/input/beamville/odskims.csv
  --parallelism 2
 
+Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
+for example "--input test/input/beamville/input.csv.gz"
+
  Run with gradle:
- ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv.gz', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv.gz'"]
+ ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
   private val parser = {
