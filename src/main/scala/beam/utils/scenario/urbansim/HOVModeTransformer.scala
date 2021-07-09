@@ -135,26 +135,26 @@ object HOVModeTransformer extends LazyLogging {
       forcedCarHOVCount > 0 && forcedCarHOVCount > forcedHOV2Teleports + forcedHOV3Teleports
     }
 
-    def mapToHovCarBalancingForcedTeleports(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
+    def replaceHOVwithCar(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
           forcedHOV2Teleports -= 1
           hov2Leg.copy(legMode = Some(CAR_HOV2.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
           //as car_hov3 contains two passengers, reduce by 2
-          forcedHOV2Teleports -= 2
+          forcedHOV3Teleports -= 2
           hov3Leg.copy(legMode = Some(CAR_HOV3.value))
         case other => other
       }
     }
 
-    def mapToHOVTeleportationBalancingForcedCarHOV(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
+    def replaceHOVwithTeleportation(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
-          forcedHOV2Teleports -= 1
+          forcedCarHOV2Count -= 1
           hov2Leg.copy(legMode = Some(HOV2_TELEPORTATION.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
-          forcedHOV2Teleports -= 1
+          forcedCarHOV3Count -= 1
           hov3Leg.copy(legMode = Some(HOV3_TELEPORTATION.value))
         case other => other
       }
@@ -173,9 +173,9 @@ object HOVModeTransformer extends LazyLogging {
           forcedCarHOV3Count += forcedHOV3
           mappedTrip
         } else if (thereAreMoreHOVTeleportations) {
-          mapToHovCarBalancingForcedTeleports(trip)
+          replaceHOVwithCar(trip)
         } else if (thereAreMoreHOVCars) {
-          mapToHOVTeleportationBalancingForcedCarHOV(trip)
+          replaceHOVwithTeleportation(trip)
         } else {
           mapRandomHOVTeleportationOrCar(trip)
         }
