@@ -88,13 +88,13 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      val vehicleManagerActor = inquiry.beamVehicle match {
-        case Some(vehicle) => vehicle.getManager.get
-        case _             => sender()
-      }
       chargingNetworkMap(inquiry.vehicleManagerId).processParkingInquiry(inquiry) match {
-        case Some(parkingResponse) => vehicleManagerActor ! parkingResponse
-        case _                     => Future(parkingNetworkManager ? inquiry).pipeTo(vehicleManagerActor)
+        case Some(parkingResponse) => {
+          sender() ! parkingResponse
+        }
+        case _ => {
+          Future(parkingNetworkManager ? inquiry).pipeTo(sender())
+        }
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>

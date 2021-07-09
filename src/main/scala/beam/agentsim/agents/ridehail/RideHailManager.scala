@@ -25,7 +25,6 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -61,7 +60,6 @@ import java.util
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -1640,7 +1638,7 @@ class RideHailManager(
         .filter(veh => rideHailParkingNetwork.isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(veh._1))
         .map(tup => (tup, rideHailManagerHelper.getServiceStatusOf(tup._1)))
 
-    if (badVehicles.size > 0) {
+    if (badVehicles.nonEmpty) {
       log.debug(
         f"Some vehicles (${badVehicles.size}) still appear as 'idle' despite being on way to refuel or refueling, head: ${badVehicles.head}"
       )

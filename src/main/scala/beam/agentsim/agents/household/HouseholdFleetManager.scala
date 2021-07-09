@@ -60,7 +60,6 @@ class HouseholdFleetManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
         case (id, _) =>
           (parkingManager ? ParkingInquiry.init(
@@ -120,8 +119,12 @@ class HouseholdFleetManager(
       context.stop(self)
 
     case Success =>
+    case pir: ParkingInquiryResponse =>
+      println(s"$sender")
+      logger.error(s"STUCK with ParkingInquiryResponse: $pir")
+
     case x =>
-      logger.warn(s"No handler for ${x}")
+      logger.warn(s"No handler for $x")
   }
 }
 
