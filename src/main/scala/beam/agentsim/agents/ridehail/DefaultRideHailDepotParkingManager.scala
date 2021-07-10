@@ -55,7 +55,6 @@ import scala.util.{Failure, Random, Success, Try}
   *
   * @param parkingFilePath
   * @param valueOfTime
-  * @param tazTreeMap
   * @param random
   * @param boundingBox
   * @param distFunction
@@ -329,7 +328,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       case numInQueue if numInQueue == 0 =>
         1.0
       case numInQueue =>
-        (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
+        1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble
     }
     val adjustedQueueServiceTime = (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
     val result = Math
@@ -482,7 +481,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       chargingVehicleToParkingStallMap += beamVehicle.id -> stall
       parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.add(beamVehicle.id)
       val (chargingSessionDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
-      putNewTickAndObservation(beamVehicle.id, (tick, s"Charging(${source})"))
+      putNewTickAndObservation(beamVehicle.id, (tick, s"Charging($source)"))
       vehicleIdToEndRefuelTick.put(beamVehicle.id, tick + chargingSessionDuration)
       true
     }
@@ -574,7 +573,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         chargingQueue.size,
         parkingStall.parkingZoneId
       )
-      putNewTickAndObservation(vehicle.id, (vehicle.spaceTime.time, s"EnQueue(${source})"))
+      putNewTickAndObservation(vehicle.id, (vehicle.spaceTime.time, s"EnQueue($source)"))
       vehiclesInQueueToParkingZoneId.put(vehicle.id, parkingStall.parkingZoneId)
       chargingQueue.enqueue(chargingQueueEntry)
     }

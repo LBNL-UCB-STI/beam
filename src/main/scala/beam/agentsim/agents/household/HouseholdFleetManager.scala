@@ -116,7 +116,7 @@ class HouseholdFleetManager(
 
     case Success =>
     case x =>
-      logger.warn(s"No handler for ${x}")
+      logger.warn(s"No handler for $x")
   }
 }
 

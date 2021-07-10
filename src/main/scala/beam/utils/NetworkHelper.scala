@@ -39,7 +39,7 @@ class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with L
       .values()
       .asScala
       .map { link =>
-        (link.getId.toString.toInt, link.asInstanceOf[Link])
+        (link.getId.toString.toInt, link)
       }
       .toArray
     val (maxLinkId, _) = allLinks.maxBy { case (linkId, _) => linkId }

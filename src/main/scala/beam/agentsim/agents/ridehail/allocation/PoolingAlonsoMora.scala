@@ -107,7 +107,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
     toFinalize.foreach { request =>
       val routeResponses = vehicleAllocationRequest.requests(request)
-      val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
+      val indexedResponses = routeResponses.map(resp => resp.requestId -> resp).toMap
 
       // First check for broken route responses (failed routing attempt)
       if (routeResponses.exists(_.itineraries.isEmpty)) {

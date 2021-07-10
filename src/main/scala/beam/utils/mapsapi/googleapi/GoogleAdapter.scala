@@ -104,7 +104,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def toRoutes(jsObject: JsObject): Seq[Route] = {
-    (jsObject \ "status") match {
+    jsObject \ "status" match {
       case JsDefined(value) =>
         if (value != JsString("OK")) {
           val error = jsObject \ "error_message"

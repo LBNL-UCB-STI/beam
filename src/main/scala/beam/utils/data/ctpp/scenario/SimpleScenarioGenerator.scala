@@ -202,6 +202,6 @@ object SimpleScenarioGenerator {
       new SimpleScenarioGenerator("D:/Work/beam/Austin/2012-2016 CTPP documentation", databaseInfo, new Random(42))
     val f = scenarioGenerator.generate
     val result = Await.result(f, 5.minutes)
-    println(s"result: ${result}")
+    println(s"result: $result")
   }
 }

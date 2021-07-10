@@ -29,7 +29,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
         val gr = new GenericRecordMock(Map("key" -> null.asInstanceOf[AnyRef]).asJava)
         the[java.lang.AssertionError] thrownBy {
           ParquetScenarioReader.getIfNotNull(gr, "key")
-        } should have message ("assertion failed: Value in column 'key' is null")
+        } should have message "assertion failed: Value in column 'key' is null"
       }
     }
     "be able to create UnitInfo from GenericRecord" in {

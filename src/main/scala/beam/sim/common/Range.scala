@@ -23,7 +23,7 @@ case class Range(lowerBound: Int, upperBound: Int) {
     isEmpty || has(value)
   }
 
-  override def toString: String = s"{${lowerBound}:${upperBound}}"
+  override def toString: String = s"{$lowerBound:$upperBound}"
 }
 
 object Range {

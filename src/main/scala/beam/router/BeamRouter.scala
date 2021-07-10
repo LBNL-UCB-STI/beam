@@ -261,7 +261,7 @@ class BeamRouter(
 
   private def processByEventsManagerIfNeeded(work: Any): Unit = {
     work match {
-      case e: EmbodyWithCurrentTravelTime if (shouldWriteR5Routes(currentIteration)) =>
+      case e: EmbodyWithCurrentTravelTime if shouldWriteR5Routes(currentIteration) =>
         eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
       case req: RoutingRequest =>
         eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))

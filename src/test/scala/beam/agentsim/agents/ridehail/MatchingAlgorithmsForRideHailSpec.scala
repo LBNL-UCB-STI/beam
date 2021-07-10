@@ -402,7 +402,7 @@ object MatchingAlgorithmsForRideHailSpec {
       RideHailMatching.createPersonRequest(
         makeVehPersonId("p4"),
         taz2Loc,
-        (5.minutes.toSeconds).toInt,
+        5.minutes.toSeconds.toInt,
         taz1Loc,
         services,
         0
@@ -411,7 +411,7 @@ object MatchingAlgorithmsForRideHailSpec {
       RideHailMatching.createPersonRequest(
         makeVehPersonId("p2"),
         taz1Loc,
-        (1.minutes.toSeconds).toInt,
+        1.minutes.toSeconds.toInt,
         taz4Loc,
         services,
         0
@@ -420,7 +420,7 @@ object MatchingAlgorithmsForRideHailSpec {
       RideHailMatching.createPersonRequest(
         makeVehPersonId("p3"),
         taz2Loc,
-        (2.minutes.toSeconds).toInt,
+        2.minutes.toSeconds.toInt,
         taz1Loc,
         services,
         0

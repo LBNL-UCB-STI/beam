@@ -54,7 +54,7 @@ object RideHailVehicleId {
 case class RideHailVehicleId(id: String, fleetId: String) extends Ordered[RideHailVehicleId] {
 
   val beamVehicleId: Id[BeamVehicle] = Id.create(
-    f"${RideHailVehicleId.VEHICLE_ID_PREFIX}${id}${RideHailVehicleId.FLEET_SEPARATOR}${fleetId}",
+    f"${RideHailVehicleId.VEHICLE_ID_PREFIX}$id${RideHailVehicleId.FLEET_SEPARATOR}$fleetId",
     classOf[BeamVehicle]
   )
 

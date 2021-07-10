@@ -94,7 +94,7 @@ object ExperimentGenerator extends ExperimentApp {
     /*
      * Optionally write the mode choice params file
      */
-    experimentDef.header.modeChoiceTemplate.toString match {
+    experimentDef.header.modeChoiceTemplate match {
       case "" =>
         // Do nothing since modeChoiceParams wasn't specified in experiment.yaml file
         ""

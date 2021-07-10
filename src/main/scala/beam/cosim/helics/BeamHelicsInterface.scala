@@ -104,7 +104,7 @@ object BeamHelicsInterface {
       case JsNumber(n)                        => n.doubleValue()
       case JsTrue                             => true
       case JsFalse                            => false
-      case JsString(s)                        => s.asInstanceOf[String]
+      case JsString(s)                        => s
       case _                                  => deserializationError("JsNumber (Double or Int), JsTrue, JsFalse or JsString are expected")
     }
   }

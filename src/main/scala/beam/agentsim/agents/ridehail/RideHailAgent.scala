@@ -974,7 +974,7 @@ class RideHailAgent(
   def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData): Unit = {
     val (unlimitedSessionDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
     val secondsUntilEndOfSim = lastTickOfSimulation - 1 - tick
-    val sessionDurationLimit = (isCurrentlyOnShift || isStartingNewShift) match {
+    val sessionDurationLimit = isCurrentlyOnShift || isStartingNewShift match {
       case false if data.remainingShifts.nonEmpty =>
         Some(
           Math.min(

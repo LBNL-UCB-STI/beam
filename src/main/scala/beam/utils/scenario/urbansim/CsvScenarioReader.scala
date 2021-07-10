@@ -68,7 +68,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val x = Option(rec.get("x")).map(_.toDouble)
     val y = Option(rec.get("y")).map(_.toDouble)
     val endTime = Option(rec.get("endTime")).map(_.toDouble)
-    val mode = Option(rec.get("mode")).map(_.toString)
+    val mode: Option[String] = Option(rec.get("mode"))
     PlanElement(
       personId = personId,
       planElement = planElement,

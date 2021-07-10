@@ -100,7 +100,7 @@ object MatsimPlanConversion {
       case (person, index) =>
         val homeActivities = (person \\ "activity").filter(
           _.attributes.exists(
-            a => "type".equalsIgnoreCase(a.key.toString) && "home".equalsIgnoreCase(a.value.toString)
+            a => "type".equalsIgnoreCase(a.key) && "home".equalsIgnoreCase(a.value.toString)
           )
         )
         for {

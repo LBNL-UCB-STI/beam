@@ -20,7 +20,6 @@ import org.scalatest.matchers.must.Matchers
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 class SecondaryActivitiesSpec
@@ -100,9 +99,7 @@ class SecondaryActivitiesSpec
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       modeChoiceCommute.foreach {
-        case (mode, value) => {
-          assert(value <= modeChoice(mode))
-        }
+        case (mode, value) => assert(value <= modeChoice(mode))
       }
     }
 
@@ -142,9 +139,7 @@ class SecondaryActivitiesSpec
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
       modeChoiceCommute.foreach {
-        case (mode, value) => {
-          assert(value <= modeChoice(mode))
-        }
+        case (mode, value) => assert(value <= modeChoice(mode))
       }
     }
 

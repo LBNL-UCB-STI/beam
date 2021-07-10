@@ -3,7 +3,7 @@ package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamScenario
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
@@ -33,12 +33,12 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val categoryAndGroup = if (matchedGroups.size > 1) {
       logger.warn(
-        s"Multiple categories defined for household with income ${householdIncome}, choosing a default one"
+        s"Multiple categories defined for household with income $householdIncome, choosing a default one"
       )
       matchedGroups.head
     } else if (matchedGroups.isEmpty) {
       logger.warn(
-        s"No categories defined for household with income ${householdIncome}, choosing a default one"
+        s"No categories defined for household with income $householdIncome, choosing a default one"
       )
       vehicleTypesAndProbabilityByCategoryAndGroup.keys.head
     } else {
@@ -104,13 +104,13 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
                   vehicleTypeAndProbabilityList += ((vehType, probability.toDouble))
                 case _ =>
                   logger.warn(
-                    s"Badly formed category in vehicle adjustment: ${value}"
+                    s"Badly formed category in vehicle adjustment: $value"
                   )
               }
             }
           case _ =>
             logger.warn(
-              s"Badly formed vehicle sampling string in vehicle adjustment: ${group}"
+              s"Badly formed vehicle sampling string in vehicle adjustment: $group"
             )
         }
       }

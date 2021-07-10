@@ -563,7 +563,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   private def generateTCSEventIfPossible(pte: PathTraversalEvent): Unit = {
     (pte.fromStopIndex, pte.toStopIndex) match {
-      case (Some(fromStopIdx), Some(toStopIdx)) =>
+      case (Some(fromStopIdx), Some(_)) =>
         eventsManager.processEvent(
           new TransitCrowdingSkimmerEvent(
             pte.time,

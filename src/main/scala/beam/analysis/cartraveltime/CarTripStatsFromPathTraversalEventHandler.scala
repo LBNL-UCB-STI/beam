@@ -362,7 +362,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   ): Unit = {
     val carTypeFilename = s"$carType".toLowerCase
     val outputPath =
-      controlerIO.getIterationFilename(iterationNumber, s"${prefix}CarRideStats.${carTypeFilename}.csv.gz")
+      controlerIO.getIterationFilename(iterationNumber, s"${prefix}CarRideStats.$carTypeFilename.csv.gz")
 
     val csvWriter =
       new CsvWriter(
@@ -397,7 +397,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       }
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Writing ride stats to the ${outputPath} has failed with: ${ex.getMessage}", ex)
+        logger.error(s"Writing ride stats to the $outputPath has failed with: ${ex.getMessage}", ex)
     } finally {
       Try(csvWriter.close())
     }

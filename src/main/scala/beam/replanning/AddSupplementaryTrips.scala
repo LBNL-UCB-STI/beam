@@ -130,7 +130,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
     newPlan.setType(plan.getType)
 
     val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }
-    val nonWorker = (elements.length == 1)
+    val nonWorker = elements.length == 1
     val newActivitiesToAdd = elements.zipWithIndex.map {
       case (planElement, idx) =>
         val prevEndTime = if (idx > 0) {

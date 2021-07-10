@@ -86,7 +86,7 @@ class EventsFileSpec
     val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "trips.txt").map { stream =>
       Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
     }
-    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' ${gtfsZip}")
+    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' $gtfsZip")
 
     val trips = for (line <- maybeLines.get)
       yield line.split(",")(2)
@@ -108,7 +108,7 @@ class EventsFileSpec
     val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "stop_times.txt").map { stream =>
       Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
     }
-    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' ${gtfsZip}")
+    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' $gtfsZip")
 
     val stopTimes = for (line <- maybeLines.get)
       yield line.split(",")

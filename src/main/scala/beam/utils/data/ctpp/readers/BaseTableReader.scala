@@ -4,7 +4,7 @@ import java.io.{File, FileFilter}
 
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.Models.CTPPEntry
-import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 import com.typesafe.scalalogging.StrictLogging
 
 abstract class BaseTableReader(
@@ -97,7 +97,7 @@ object BaseTableReader {
     })
     require(
       foundFiles.size == 1,
-      s"Could not find file '${fileName}' under folder '${folderPath}'. Please, make sure input is correct"
+      s"Could not find file '$fileName' under folder '$folderPath'. Please, make sure input is correct"
     )
     foundFiles.head.getAbsolutePath
   }

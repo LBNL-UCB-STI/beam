@@ -72,6 +72,6 @@ object WorkedDurationGeneratorImpl {
       }
     }
 
-    println(s"Duration stats: ${Statistics(allDurations.map(_.toDouble))}")
+    println(s"Duration stats: ${Statistics(allDurations)}")
   }
 }

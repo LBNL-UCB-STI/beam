@@ -231,11 +231,8 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
                             mode,
                             origin.center,
                             destination.center,
-                            timeBin * 3600,
-                            dummyId,
                             vehicleType,
-                            fuelPrice,
-                            beamScenario
+                            fuelPrice
                           )
                       }
                     }

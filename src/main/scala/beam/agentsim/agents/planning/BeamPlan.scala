@@ -77,15 +77,12 @@ object BeamPlan {
       }
       .toList :+ plan.getPlanElements.asScala.last
     val newPlan = PopulationUtils.createPlan()
-    newPlanElements.foreach(
-      pe =>
-        pe match {
-          case a: Activity =>
-            newPlan.addActivity(a)
-          case l: Leg =>
-            newPlan.addLeg(l)
-      }
-    )
+    newPlanElements.foreach {
+      case a: Activity =>
+        newPlan.addActivity(a)
+      case l: Leg =>
+        newPlan.addLeg(l)
+    }
     newPlan.setPerson(plan.getPerson)
     newPlan.setType(plan.getType)
     newPlan.getAttributes.putAttribute("modality-style", plan.getAttributes.getAttribute("modality-style"))
