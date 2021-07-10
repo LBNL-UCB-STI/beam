@@ -244,7 +244,11 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         )
 
         val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-          zone.vehicleManager.isEmpty || vehicle.vehicleManager == zone.vehicleManager
+          if (vehicle.isSharedVehicle) {
+            vehicle.vehicleManager == zone.vehicleManager
+          } else {
+            zone.vehicleManager.isEmpty || vehicle.vehicleManager == zone.vehicleManager
+          }
         }
 
         val validChargingCapability = inquiry.beamVehicle.forall(

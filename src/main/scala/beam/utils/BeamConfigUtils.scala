@@ -92,4 +92,14 @@ object BeamConfigUtils {
     lines
   }
 
+  def parseListToMap(mapEntries: List[String]): Map[String, String] = {
+    mapEntries.map { entry =>
+      val keySeparatorValue = entry.split("\\s+")
+      require(keySeparatorValue.size >= 2, "Map entry must contain key value pair")
+      val key = keySeparatorValue.head
+      val value = keySeparatorValue.last
+      key -> value
+    }.toMap
+  }
+
 }
