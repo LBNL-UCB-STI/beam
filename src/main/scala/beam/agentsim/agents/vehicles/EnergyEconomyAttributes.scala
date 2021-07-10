@@ -115,6 +115,11 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
     def PowertrainFromMilesPerGallon(milesPerGallon: Double): Powertrain =
       new Powertrain(milesPerGallon / 120276367 * 1609.34) // 1609.34 m / mi; 120276367 J per gal
+
+    def apply(joulesPerMeter: Option[Double]): Powertrain =
+      joulesPerMeter
+        .map(new Powertrain(_))
+        .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
   }
 
 }

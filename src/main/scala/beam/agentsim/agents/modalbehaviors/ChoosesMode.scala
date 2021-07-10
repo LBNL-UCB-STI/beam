@@ -723,7 +723,7 @@ trait ChoosesMode {
             (
               requested + vehicleOnTrip,
               seq :+ (vehicleOnTrip -> ParkingInquiry(
-                geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
+                SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
                 Some(beamVehicles(leg.beamVehicleId).vehicle),
                 None,
@@ -1141,7 +1141,7 @@ trait ChoosesMode {
             if travelProposal.timeToCustomer(bodyVehiclePersonId) <= beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec =>
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
-            case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.equals(Some(RIDE_HAIL)) =>
+            case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL) =>
               val pooledLegs = origLegs.map { origLeg =>
                 origLeg.copy(
                   cost = origLeg.cost * poolingInfo.costFactor,

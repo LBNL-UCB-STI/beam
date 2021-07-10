@@ -23,9 +23,8 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
   "HierarchicalParkingManager" when {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {
-        val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, _, _, _) =
-          ParkingZoneFileUtils
-            .fromIterator[Link](linkLevelData, vehicleManagerId = VehicleManager.privateVehicleManager.managerId)
+        val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, linkTree, totalRows, failedRows) =
+          ParkingZoneFileUtils.fromIterator[Link](linkLevelData)
         val linkToTazMapping: Map[Id[Link], Id[TAZ]] = HashMap(
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),
@@ -84,7 +83,6 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
               .fromFile[TAZ](
                 "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
                 new Random(777934L),
-                vehicleManagerId = Id.create("default", classOf[VehicleManager])
               )
           parkingZones should have length 3648
           val zones205 = parkingZones.filter(_.geoId.toString == "205")
@@ -103,7 +101,6 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
             .fromFile[TAZ](
               "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
               new Random(777934L),
-              vehicleManagerId = Id.create("default", classOf[VehicleManager])
             )
         parkingZones should have length 3648
         val zones205 = parkingZones.filter(_.geoId.toString == "205")

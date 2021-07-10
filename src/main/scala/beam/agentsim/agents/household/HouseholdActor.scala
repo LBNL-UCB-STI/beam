@@ -471,7 +471,7 @@ object HouseholdActor {
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
             ParkingInquiryResponse(stall, _, _) <- parkingManager ? ParkingInquiry(
-              homeCoord,
+              veh.spaceTime,
               "init",
               triggerId = triggerId
             )

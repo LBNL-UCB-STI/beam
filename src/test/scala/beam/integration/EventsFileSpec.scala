@@ -51,7 +51,7 @@ class EventsFileSpec
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+    val (scenarioBuilt, beamScenario, plansMerged) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
@@ -59,7 +59,7 @@ class EventsFileSpec
     injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = buildBeamServices(injector)
 
-    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
+    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory, plansMerged)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala

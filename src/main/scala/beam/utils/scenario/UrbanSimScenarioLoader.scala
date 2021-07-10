@@ -29,7 +29,8 @@ class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
   val beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
-  val geo: GeoUtils
+  val geo: GeoUtils,
+  val previousRunPlanMerger: Option[PreviousRunPlanMerger] = None,
 ) extends LazyLogging {
 
   private implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
@@ -40,7 +41,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  def loadScenario(): Scenario = {
+  def loadScenario(): (Scenario, Boolean) = {
     clear()
 
     val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
@@ -98,9 +99,11 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val plans = Await.result(plansF, 500.seconds)
+    val inputPlans = Await.result(plansF, 500.seconds)
     val persons = Await.result(personsF, 500.seconds)
     val households = Await.result(householdsF, 500.seconds)
+
+    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -125,7 +128,7 @@ class UrbanSimScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
-    scenario
+    scenario -> plansMerged
   }
 
   private def clear(): Unit = {
@@ -227,8 +230,7 @@ class UrbanSimScenarioLoader(
             bvId,
             powerTrain,
             beamVehicleType,
-            managerId = VehicleManager.privateVehicleManager.managerId,
-            rand.nextInt
+            randomSeed = rand.nextInt
           )
           beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
           vehicleCounter = vehicleCounter + 1

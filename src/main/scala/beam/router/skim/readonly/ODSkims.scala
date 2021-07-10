@@ -169,7 +169,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
   ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
+        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
         .map(_.toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -232,12 +232,12 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
     val res = if (pastSkims.isEmpty) {
-      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest))
+      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString))
     } else {
       pastSkims
         .get(currentIteration - 1)
-        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
-        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
         .map(_.asInstanceOf[ODSkimmerInternal])
     }
     res.map(_.asInstanceOf[ODSkimmerInternal])
@@ -253,7 +253,8 @@ object ODSkims extends BeamHelper {
       _,
       _,
       beamScenario: BeamScenario,
-      services: BeamServices
+      services: BeamServices,
+      _
     ) = prepareBeamService(config, None)
 
     val skims = services.skims.od_skimmer
