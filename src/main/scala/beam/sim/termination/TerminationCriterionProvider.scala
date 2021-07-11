@@ -8,7 +8,7 @@ import org.matsim.core.config.groups.ControlerConfigGroup
 import org.matsim.core.controler.TerminationCriterion
 
 /** Provider class for TerminationCriteria */
-class TerminationCriterionProvider @Inject()(
+class TerminationCriterionProvider @Inject() (
   controlerConfigGroup: ControlerConfigGroup,
   beamConfigHolder: BeamConfigHolder,
   eventsManager: EventsManager,
@@ -25,9 +25,8 @@ class TerminationCriterionProvider @Inject()(
       terminationCriterionName
     )
 
-    val terminationCriterion = terminationCriterionTry.recoverWith {
-      case exception: Exception =>
-        throw new IllegalStateException(s"Unidentified termination criterion: `$terminationCriterionName`", exception)
+    val terminationCriterion = terminationCriterionTry.recoverWith { case exception: Exception =>
+      throw new IllegalStateException(s"Unidentified termination criterion: `$terminationCriterionName`", exception)
     }.get
 
     terminationCriterion

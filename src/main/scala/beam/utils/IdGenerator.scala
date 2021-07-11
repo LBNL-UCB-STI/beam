@@ -1,4 +1,5 @@
 package beam.utils
+
 import java.util.concurrent.atomic.AtomicInteger
 
 trait IdGenerator {

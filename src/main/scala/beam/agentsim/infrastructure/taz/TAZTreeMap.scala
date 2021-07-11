@@ -114,8 +114,8 @@ object TAZTreeMap {
   ): QuadTreeBounds = {
     val envelopes = features.asScala
       .map(_.getDefaultGeometry)
-      .collect {
-        case g: Geometry => g.getEnvelope.getEnvelopeInternal
+      .collect { case g: Geometry =>
+        g.getEnvelope.getEnvelopeInternal
       }
     ShapeUtils.quadTreeBounds(envelopes)
   }

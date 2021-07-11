@@ -19,7 +19,7 @@ private[aggregation] case class CsvTazParkingEntry(
   chargingType: String,
   reservedFor: String,
   numStalls: Long,
-  feeInCents: Double,
+  feeInCents: Double
 ) extends ParkingEntry[TazCoordinate] {
   override def id: TazCoordinate = taz
 }
@@ -31,7 +31,7 @@ private[aggregation] case class CsvH3IndexParkingEntry(
   chargingType: String,
   reservedFor: String,
   numStalls: Long,
-  feeInCents: Double,
+  feeInCents: Double
 ) extends ParkingEntry[H3Index] {
   override def id: H3Index = geoIndex
 }

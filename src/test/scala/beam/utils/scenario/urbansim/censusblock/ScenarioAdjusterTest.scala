@@ -108,10 +108,9 @@ class ScenarioAdjusterTest extends AnyFunSuite with Matchers {
       id   <- (1 to peoplePerMode).map(_ => UUID.randomUUID.toString)
     } yield (id, mode)
 
-    personIdWithMode.foreach {
-      case (id, mode) =>
-        val person = createPerson(population.getFactory, Id.createPersonId(id), mode)
-        population.addPerson(person)
+    personIdWithMode.foreach { case (id, mode) =>
+      val person = createPerson(population.getFactory, Id.createPersonId(id), mode)
+      population.addPerson(person)
     }
     population
   }

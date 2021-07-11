@@ -40,11 +40,10 @@ object R5MapStatsCalculator {
     println(s"All existing tags with the minimum frequency of $minTagFrequency (the format is <tag>[<frequency>]):")
     val tagToNumberOfOccurence = scala.collection.mutable.HashMap.empty[String, Int]
     osm.ways.asScala
-      .flatMap {
-        case (_, way) =>
-          way.tags.asScala.map { tag =>
-            tag.key
-          }
+      .flatMap { case (_, way) =>
+        way.tags.asScala.map { tag =>
+          tag.key
+        }
       }
       .foreach { tagKey =>
         val prevCnt = tagToNumberOfOccurence.getOrElse(tagKey, 0)
@@ -73,10 +72,9 @@ object R5MapStatsCalculator {
 
     case class TagInfo(tagName: String, hasTag: Int, doesNotHaveATag: Int, values: Seq[String])
     def toTagInfo(ways: Iterable[(String, lang.Long, Way)], tagToCollect: String): TagInfo = {
-      val tagVals = ways.map {
-        case (_, _, way) =>
-          if (way.hasTag(tagToCollect)) Some(way.getTag(tagToCollect))
-          else None
+      val tagVals = ways.map { case (_, _, way) =>
+        if (way.hasTag(tagToCollect)) Some(way.getTag(tagToCollect))
+        else None
       }
       val doesNotHaveATag = tagVals.count(tv => tv.isEmpty)
       val doesHaveATag = ways.size - doesNotHaveATag
@@ -87,53 +85,50 @@ object R5MapStatsCalculator {
     val allTags = Set("lanes", "maxspeed", "capacity")
 
     println("The number of tags present for each way, grouped by highway type.")
-    val highwayType2TagInfo = highwayType2Way.map {
-      case (highwayType, ways) =>
-        val tagInfos = allTags.map { tagToAnalyze =>
-          toTagInfo(ways, tagToAnalyze)
-        }
-        highwayType -> tagInfos
+    val highwayType2TagInfo = highwayType2Way.map { case (highwayType, ways) =>
+      val tagInfos = allTags.map { tagToAnalyze =>
+        toTagInfo(ways, tagToAnalyze)
+      }
+      highwayType -> tagInfos
     }
 
-    highwayType2TagInfo.foreach {
-      case (highwayType, tagInfos) =>
-        val numberOfWays = tagInfos.head.hasTag + tagInfos.head.doesNotHaveATag
-        println(s"\t$highwayType: $numberOfWays")
+    highwayType2TagInfo.foreach { case (highwayType, tagInfos) =>
+      val numberOfWays = tagInfos.head.hasTag + tagInfos.head.doesNotHaveATag
+      println(s"\t$highwayType: $numberOfWays")
 
-        def inPercentage(value: Int, fullValue: Int): Int = value * 100 / fullValue
-        val tagInfosStr = tagInfos.map(ti => s"${ti.tagName} (${inPercentage(ti.hasTag, numberOfWays)})").mkString(" ")
+      def inPercentage(value: Int, fullValue: Int): Int = value * 100 / fullValue
+      val tagInfosStr = tagInfos.map(ti => s"${ti.tagName} (${inPercentage(ti.hasTag, numberOfWays)})").mkString(" ")
 
-        println(s"\t\t$tagInfosStr")
+      println(s"\t\t$tagInfosStr")
     }
     println("The configuration text based on tags values:")
 
     val ms2mph = 2.237
 
-    highwayType2TagInfo.foreach {
-      case (highwayType, tagInfos) =>
-        val tag2Into = tagInfos.map(ti => ti.tagName -> ti).toMap
-        val maybeAverageSpeedIn_mph = tag2Into.get("maxspeed") flatMap { speedTagInfo =>
-          // expected values ~ "15 mph"
-          val speeds = speedTagInfo.values.map(v => v.split(" ")(0).toFloat)
-          maybeAverage(speeds)
-        }
+    highwayType2TagInfo.foreach { case (highwayType, tagInfos) =>
+      val tag2Into = tagInfos.map(ti => ti.tagName -> ti).toMap
+      val maybeAverageSpeedIn_mph = tag2Into.get("maxspeed") flatMap { speedTagInfo =>
+        // expected values ~ "15 mph"
+        val speeds = speedTagInfo.values.map(v => v.split(" ")(0).toFloat)
+        maybeAverage(speeds)
+      }
 
-        val maybeAverageNumberOfLanes = tag2Into.get("lanes") flatMap { lanesTagInfo =>
-          val numberOfLines = lanesTagInfo.values.map(_.toFloat)
-          maybeAverage(numberOfLines)
-        }
+      val maybeAverageNumberOfLanes = tag2Into.get("lanes") flatMap { lanesTagInfo =>
+        val numberOfLines = lanesTagInfo.values.map(_.toFloat)
+        maybeAverage(numberOfLines)
+      }
 
-        if (maybeAverageSpeedIn_mph.nonEmpty || maybeAverageNumberOfLanes.nonEmpty) {
-          println(s"\t$highwayType {")
-          if (maybeAverageSpeedIn_mph.nonEmpty) {
-            // speed should be in meters per second
-            println(s"\t\tspeed = ${math.round(maybeAverageSpeedIn_mph.get / ms2mph)}")
-          }
-          if (maybeAverageNumberOfLanes.nonEmpty) {
-            println(s"\t\tlanes = ${math.round(maybeAverageNumberOfLanes.get)}")
-          }
-          println(s"\t}")
+      if (maybeAverageSpeedIn_mph.nonEmpty || maybeAverageNumberOfLanes.nonEmpty) {
+        println(s"\t$highwayType {")
+        if (maybeAverageSpeedIn_mph.nonEmpty) {
+          // speed should be in meters per second
+          println(s"\t\tspeed = ${math.round(maybeAverageSpeedIn_mph.get / ms2mph)}")
         }
+        if (maybeAverageNumberOfLanes.nonEmpty) {
+          println(s"\t\tlanes = ${math.round(maybeAverageNumberOfLanes.get)}")
+        }
+        println(s"\t}")
+      }
     }
   }
 
@@ -174,24 +169,20 @@ object R5MapStatsCalculator {
     }
 
     val flagToCnt = it
-      .foldLeft(Map[EdgeFlag, Int]()) {
-        case (acc, c) =>
-          c.getFlags.asScala.foldLeft(acc) {
-            case (acc, flag) =>
-              acc.updated(flag, acc.getOrElse(flag, 0) + 1)
-          }
+      .foldLeft(Map[EdgeFlag, Int]()) { case (acc, c) =>
+        c.getFlags.asScala.foldLeft(acc) { case (acc, flag) =>
+          acc.updated(flag, acc.getOrElse(flag, 0) + 1)
+        }
       }
       .toSeq
-      .filter {
-        case (flag, _) =>
-          flag == EdgeFlag.ALLOWS_PEDESTRIAN || flag == EdgeFlag.ALLOWS_BIKE || flag == EdgeFlag.ALLOWS_CAR
+      .filter { case (flag, _) =>
+        flag == EdgeFlag.ALLOWS_PEDESTRIAN || flag == EdgeFlag.ALLOWS_BIKE || flag == EdgeFlag.ALLOWS_CAR
       }
       .sortBy { case (flag, _) => flag.toString }
 
     println("Edge flag to number of edges:")
-    flagToCnt.foreach {
-      case (flag, cnt) =>
-        println(s"$flag => $cnt")
+    flagToCnt.foreach { case (flag, cnt) =>
+      println(s"$flag => $cnt")
     }
     println(s"Number of edges in R5: ${tn.streetLayer.edgeStore.nEdges()}")
     println(s"Number of vertices in R5: ${tn.streetLayer.edgeStore.vertexStore.getVertexCount}")

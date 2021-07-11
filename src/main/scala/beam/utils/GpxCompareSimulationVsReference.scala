@@ -48,24 +48,23 @@ object GpxCompareSimulationVsReference {
 
           if (timeSimulated >= minimumTime)
             sourceid.foreach(source => {
-              dstid.foreach {
-                destination =>
-                  {
-                    outWriter.write("<rte>")
-                    outWriter.newLine()
-                    outWriter.write(s"""<rtept lon="${geo.utm2Wgs(source.coord).getX}" lat="${geo
-                      .utm2Wgs(source.coord)
-                      .getY}"><name>Source</name></rtept>""")
-                    outWriter.newLine()
-                    outWriter.write(s"""<rtept lon="${geo.utm2Wgs(destination.coord).getX}" lat="${geo
-                      .utm2Wgs(destination.coord)
-                      .getY}"><name>Destination</name></rtept>""")
-                    outWriter.newLine()
-                    outWriter.write(s"""<name>${line.get("hour")}, ${line.get("timeSimulated")}</name>""")
-                    outWriter.newLine()
-                    outWriter.write("</rte>")
-                    outWriter.newLine()
-                  }
+              dstid.foreach { destination =>
+                {
+                  outWriter.write("<rte>")
+                  outWriter.newLine()
+                  outWriter.write(s"""<rtept lon="${geo.utm2Wgs(source.coord).getX}" lat="${geo
+                    .utm2Wgs(source.coord)
+                    .getY}"><name>Source</name></rtept>""")
+                  outWriter.newLine()
+                  outWriter.write(s"""<rtept lon="${geo.utm2Wgs(destination.coord).getX}" lat="${geo
+                    .utm2Wgs(destination.coord)
+                    .getY}"><name>Destination</name></rtept>""")
+                  outWriter.newLine()
+                  outWriter.write(s"""<name>${line.get("hour")}, ${line.get("timeSimulated")}</name>""")
+                  outWriter.newLine()
+                  outWriter.write("</rte>")
+                  outWriter.newLine()
+                }
               }
             })
 

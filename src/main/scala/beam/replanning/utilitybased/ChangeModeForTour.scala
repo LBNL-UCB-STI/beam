@@ -46,6 +46,7 @@ class ChangeModeForTour(
       )
     )
   )
+
   private val rideHailConfig =
     beamServices.beamConfig.beam.agentsim.agents.rideHail
 
@@ -144,9 +145,8 @@ class ChangeModeForTour(
       TripStructureUtils.getSubtours(plan, stageActivityTypes)
     )
     subTours.zipWithIndex
-      .map({
-        case (tour, idx) =>
-          idx -> scoreTour(tour, plan.getPerson, modeChoiceCalculator)
+      .map({ case (tour, idx) =>
+        idx -> scoreTour(tour, plan.getPerson, modeChoiceCalculator)
       })
       .toMap
   }
@@ -154,10 +154,9 @@ class ChangeModeForTour(
   def changeModeForTour(subtour: Subtour, plan: Plan, mode: BeamMode): Unit = {
     val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
 
-    val legs = trips.flatMap(
-      trip =>
-        JavaConverters
-          .collectionAsScalaIterable(trip.getLegsOnly)
+    val legs = trips.flatMap(trip =>
+      JavaConverters
+        .collectionAsScalaIterable(trip.getLegsOnly)
     )
 
     if (legs.isEmpty) {
@@ -208,14 +207,13 @@ class ChangeModeForTour(
       .toIndexedSeq
     activities
       .sliding(2)
-      .foreach(
-        acts =>
-          insertEmptyTrip(
-            plan,
-            acts(0),
-            acts(1),
-            "car",
-            chainBasedTourVehicleAllocator.population.getFactory
+      .foreach(acts =>
+        insertEmptyTrip(
+          plan,
+          acts(0),
+          acts(1),
+          "car",
+          chainBasedTourVehicleAllocator.population.getFactory
         )
       )
   }
@@ -273,19 +271,18 @@ class ChangeModeForTour(
       .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
       .toIndexedSeq
 
-    rankedAlternatives.foreach({
-      case (tourIdx, alts) =>
-        val denom = Math.abs(alts.values.map(Math.exp).sum)
-        val altIter = alts.map { x =>
-          new Pair[BeamMode, java.lang.Double](x._1, Math.exp(x._2) / denom)
-        }
-        val dist = new EnumeratedDistribution[BeamMode](
-          rng,
-          JavaConverters.bufferAsJavaList(altIter.toBuffer)
-        )
-        val choice = dist.sample()
-        val subtour: Subtour = tours(tourIdx)
-        changeModeForTour(subtour, plan, choice)
+    rankedAlternatives.foreach({ case (tourIdx, alts) =>
+      val denom = Math.abs(alts.values.map(Math.exp).sum)
+      val altIter = alts.map { x =>
+        new Pair[BeamMode, java.lang.Double](x._1, Math.exp(x._2) / denom)
+      }
+      val dist = new EnumeratedDistribution[BeamMode](
+        rng,
+        JavaConverters.bufferAsJavaList(altIter.toBuffer)
+      )
+      val choice = dist.sample()
+      val subtour: Subtour = tours(tourIdx)
+      changeModeForTour(subtour, plan, choice)
     })
 
     scrubRoutes(plan)
@@ -293,9 +290,11 @@ class ChangeModeForTour(
   }
 
   private def maybeFixPlans(plan: Plan): Unit = {
-    if (JavaConverters
-          .collectionAsScalaIterable(TripStructureUtils.getLegs(plan))
-          .isEmpty) {
+    if (
+      JavaConverters
+        .collectionAsScalaIterable(TripStructureUtils.getLegs(plan))
+        .isEmpty
+    ) {
       addTripsBetweenActivities(plan)
     }
     plan.getPlanElements.asScala.foreach {

@@ -17,6 +17,7 @@ trait StallAssignmentStrategy {
 }
 
 class SeparateParkingZoneStallAssignmentStrategy extends StallAssignmentStrategy {
+
   override def execute[GEO](
     originalParkingZone: ParkingZone[GEO],
     parkingStall: ParkingStall,

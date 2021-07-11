@@ -35,7 +35,7 @@ final class LoggingAskableActorRef(val actorRef: ActorRef) extends AnyVal {
     context: ActorContext,
     timeout: Timeout,
     sender: ActorRef,
-    debug: Debug,
+    debug: Debug
   ): Future[Any] = {
     if (debug.messageLogging) {
       context.system.eventStream.publish(BeamMessage(sender, actorRef, message))
@@ -45,11 +45,10 @@ final class LoggingAskableActorRef(val actorRef: ActorRef) extends AnyVal {
       .ask(message)(timeout, sender)
     if (debug.messageLogging) {
       import scala.concurrent.ExecutionContext.Implicits.global
-      futureResponse.andThen {
-        case Success(msg) =>
-          //hopefully when ask pattern is used the response comes from the destination actor
-          //so we just swap sender and actor being asked
-          context.system.eventStream.publish(BeamMessage(actorRef, sender, msg))
+      futureResponse.andThen { case Success(msg) =>
+        //hopefully when ask pattern is used the response comes from the destination actor
+        //so we just swap sender and actor being asked
+        context.system.eventStream.publish(BeamMessage(actorRef, sender, msg))
       }
     } else futureResponse
 

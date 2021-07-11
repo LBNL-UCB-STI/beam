@@ -19,19 +19,18 @@ class RideHailCostPerMinuteSpec
     "create less entries for mode choice rideHail as value increases" in {
       val inputCostPerMinute = Seq(0.0, 100.0)
 
-      val modeChoice = inputCostPerMinute.map(
-        tc =>
-          new StartWithCustomConfig(
-            baseConfig
-              .withValue(
-                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-                ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
-              )
-              .withValue(
-                "beam.agentsim.agents.rideHail.defaultCostPerMinute",
-                ConfigValueFactory.fromAnyRef(tc)
-              )
-          ).groupedCount
+      val modeChoice = inputCostPerMinute.map(tc =>
+        new StartWithCustomConfig(
+          baseConfig
+            .withValue(
+              TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+              ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
+            )
+            .withValue(
+              "beam.agentsim.agents.rideHail.defaultCostPerMinute",
+              ConfigValueFactory.fromAnyRef(tc)
+            )
+        ).groupedCount
       )
       val tc = modeChoice
         .map(_.get("ride_hail"))

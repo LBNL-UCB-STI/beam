@@ -40,7 +40,7 @@ object UrbansimConverter {
       "SHARED2FREE"    -> "car",
       "SHARED3PAY"     -> "car",
       "WALK_LOC"       -> "walk_transit",
-      "DRIVE_LOC"      -> "drive_transit",
+      "DRIVE_LOC"      -> "drive_transit"
     )
     logger.info("Merging modes into plan...")
 
@@ -64,7 +64,7 @@ object UrbansimConverter {
   private def merge(
     inputPlans: Iterator[InputPlanElement],
     modes: Map[(String, Double), String],
-    modeMap: Map[String, String],
+    modeMap: Map[String, String]
   ): Iterator[PlanElement] = {
     val merger = new PlanMerger(modes, modeMap)
 

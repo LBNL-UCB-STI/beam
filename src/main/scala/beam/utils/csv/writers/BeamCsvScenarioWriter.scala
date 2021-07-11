@@ -30,6 +30,7 @@ object BeamCsvScenarioWriter {
       arr
     }
   }
+
   implicit def toPopulationWriter(elements: Iterable[PersonInfo]): PopulationWriter = {
     new PopulationWriter(elements.toArray)
   }
@@ -41,6 +42,7 @@ object BeamCsvScenarioWriter {
       arr
     }
   }
+
   implicit def toVehicleWriter(elements: Iterable[VehicleInfo]): VehicleWriter = {
     new VehicleWriter(elements.toArray)
   }
@@ -52,6 +54,7 @@ object BeamCsvScenarioWriter {
       arr
     }
   }
+
   implicit def toHouseholdWriter(elements: Iterable[HouseholdInfo]): HouseholdWriter = {
     new HouseholdWriter(elements.toArray)
   }

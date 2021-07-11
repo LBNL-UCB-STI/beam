@@ -24,6 +24,7 @@ class MasterActor(
   val requestTimes: Seq[Int]
 ) extends Actor
     with ActorLogging {
+
   override def postStop(): Unit = {
     logStat()
     log.info(s"Stopping $self")

@@ -28,6 +28,7 @@ trait RepositionManagerFactory {
   * Default implementation of [[RepositionManagerFactory]].
   */
 class DefaultRepositionManagerFactory extends RepositionManagerFactory {
+
   override def create(rideHailManager: RideHailManager, repositioningManagerName: String): Try[RepositioningManager] = {
 
     Try {

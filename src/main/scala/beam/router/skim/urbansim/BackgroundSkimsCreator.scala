@@ -65,11 +65,13 @@ class BackgroundSkimsCreator(
   }
 
   val maybeODRouter: Option[ODRouterR5GHForActivitySimSkims] =
-    if (useR5) { None } else {
+    if (useR5) { None }
+    else {
       Some(ODRouterR5GHForActivitySimSkims(r5Parameters, getPeakSecondsFromConfig(beamServices), Some(travelTime)))
     }
 
-  val router: Router = if (useR5) { maybeR5Router.get } else { maybeODRouter.get }
+  val router: Router = if (useR5) { maybeR5Router.get }
+  else { maybeODRouter.get }
 
   val skimmerEventFactory: AbstractSkimmerEventFactory =
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
@@ -166,6 +168,7 @@ object BackgroundSkimsCreator {
     tazClustering: TAZClustering
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
@@ -184,6 +187,7 @@ object BackgroundSkimsCreator {
 
   def createH3ActivitySimSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
@@ -206,6 +210,7 @@ object BackgroundSkimsCreator {
 
   def createTAZOdSkimmer(beamServices: BeamServices, tazClustering: TAZClustering): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(
@@ -226,6 +231,7 @@ object BackgroundSkimsCreator {
 
   def createH3ODSkimmer(beamServices: BeamServices, h3Clustering: H3Clustering): ODSkimmer =
     new ODSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+
       override def writeToDisk(event: IterationEndsEvent): Unit = {
         ProfilingUtils.timed(s"writeFullSkims on iteration ${event.getIteration}", v => logger.info(v)) {
           val filePath = event.getServices.getControlerIO.getIterationFilename(

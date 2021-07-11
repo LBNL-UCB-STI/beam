@@ -110,12 +110,12 @@ abstract class GraphHopperWrapper(
     val allLinkTravelTimes = getLinkTravelTimes(responsePath, totalTravelTime)
 
     val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-    // TODO ask why GH is producing negative travel time
-    //          .map { x =>
-    //            require(x > 0, "GOING BACK IN TIME")
-    //            x
-    //          }
-    //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+      // TODO ask why GH is producing negative travel time
+      //          .map { x =>
+      //            require(x > 0, "GOING BACK IN TIME")
+      //            x
+      //          }
+      //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
       .take(ghLinkIds.size)
 
     if (allLinkTravelTimes.size > ghLinkIds.size) {
@@ -261,7 +261,7 @@ object GraphHopperWrapper {
     weighting: Weighting,
     transportNetwork: TransportNetwork,
     osm: OSM,
-    directory: String,
+    directory: String
   ): Unit = {
     val ch = CHConfig.nodeBased(profile.getName, weighting)
     val ghDirectory = new GHDirectory(directory, DAType.RAM_STORE)

@@ -155,8 +155,8 @@ class DestinationChoiceModel(
       while (rows.hasNext) {
         val row = rows.next.split(",").map(_.trim)
         val hourInd = row.head.toInt
-        row.drop(1).zip(headers).foreach {
-          case (rate, actType) => out(actType) += (hourInd -> rate.toDouble)
+        row.drop(1).zip(headers).foreach { case (rate, actType) =>
+          out(actType) += (hourInd -> rate.toDouble)
         }
       }
       out.toMap
@@ -203,9 +203,8 @@ class DestinationChoiceModel(
       val paramValues = row
         .drop(1)
         .zip(headers)
-        .map {
-          case (param, actType) =>
-            actType -> param.toDouble
+        .map { case (param, actType) =>
+          actType -> param.toDouble
         }
         .toMap
       rowId match {
@@ -246,12 +245,12 @@ class DestinationChoiceModel(
     val (actStart, actEnd) = getRealStartEndTime(activity)
     val actDuration = actEnd - actStart
     val activityValueOfTime =
-    attributesOfIndividual.getVOT(actDuration / 3600) * activityVOTs.getOrElse(activity.getType, 1.0D)
+      attributesOfIndividual.getVOT(actDuration / 3600) * activityVOTs.getOrElse(activity.getType, 1.0d)
     val activityIntercept = activityRates
       .getOrElse(activity.getType, Map[Int, Double]())
-      .getOrElse(secondsToIndex(actStart), 0D)
+      .getOrElse(secondsToIndex(actStart), 0d)
     val tripIntercept = activity.getType.toLowerCase match {
-      case "home" | "work" => 0D
+      case "home" | "work" => 0d
       case _               => beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.additional_trip_utility
     }
     activityValueOfTime + activityIntercept + tripIntercept
@@ -260,8 +259,10 @@ class DestinationChoiceModel(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
-    val end = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+    val start = if (activity.getStartTime > 0) { activity.getStartTime }
+    else { 0 }
+    val end = if (activity.getEndTime > 0) { activity.getEndTime }
+    else { 3600 * 24 }
     (start, end)
   }
 

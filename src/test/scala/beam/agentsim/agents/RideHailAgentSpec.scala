@@ -308,7 +308,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager])),
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -348,14 +348,12 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]
 
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(TestTrigger(40000), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(TestTrigger(40000), _) =>
+        t
       }
 
       rideHailAgent ! Interrupt(1, 30000, 0)
@@ -371,14 +369,12 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(TestTrigger(50000), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(TestTrigger(50000), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
       rideHailAgent ! Finish
@@ -402,8 +398,7 @@ class RideHailAgentSpec
     import scala.concurrent.duration._
     import scala.language.postfixOps
     //we need to prevent getting this CompletionNotice from the Scheduler in the next test
-    receiveWhile(1000 millis) {
-      case _: CompletionNotice =>
+    receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }
 

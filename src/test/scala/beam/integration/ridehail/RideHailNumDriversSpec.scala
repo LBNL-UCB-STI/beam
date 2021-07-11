@@ -12,19 +12,18 @@ class RideHailNumDriversSpec extends AnyWordSpecLike with Matchers with BeamHelp
   "Running beam with modeChoice ModeChoiceRideHailIfAvailable and increasing defaultCostPerMinute value" must {
     "create less entries for mode choice rideHail as value increases" ignore {
       val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
-      val modeChoice = numDriversAsFractionOfPopulation.map(
-        tc =>
-          new StartWithCustomConfig(
-            baseConfig
-              .withValue(
-                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-                ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
-              )
-              .withValue(
-                "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
-                ConfigValueFactory.fromAnyRef(tc)
-              )
-          ).groupedCount
+      val modeChoice = numDriversAsFractionOfPopulation.map(tc =>
+        new StartWithCustomConfig(
+          baseConfig
+            .withValue(
+              TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+              ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
+            )
+            .withValue(
+              "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
+              ConfigValueFactory.fromAnyRef(tc)
+            )
+        ).groupedCount
       )
 
       val tc = modeChoice

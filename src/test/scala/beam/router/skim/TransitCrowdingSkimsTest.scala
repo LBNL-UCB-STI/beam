@@ -13,7 +13,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class TransitCrowdingSkimsTest extends AnyFlatSpec with Matchers with BeamHelper {

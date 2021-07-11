@@ -19,12 +19,12 @@ import org.matsim.core.controler.MatsimServices
 
 import scala.collection.mutable
 
-class Skims @Inject()(
+class Skims @Inject() (
   matsimServices: MatsimServices,
   odSkimmer: ODSkimmer,
   tazSkimmer: TAZSkimmer,
   driveTimeSkimmer: DriveTimeSkimmer,
-  transitCrowdingSkimmer: TransitCrowdingSkimmer,
+  transitCrowdingSkimmer: TransitCrowdingSkimmer
 ) extends LazyLogging {
 
   import Skims.SkimType
@@ -65,7 +65,7 @@ object Skims {
     SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
     SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName,
-    SkimType.AS_SKIMMER  -> skimCfg.activity_sim_skimmer.fileBaseName,
+    SkimType.AS_SKIMMER  -> skimCfg.activity_sim_skimmer.fileBaseName
   )
 
   def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =

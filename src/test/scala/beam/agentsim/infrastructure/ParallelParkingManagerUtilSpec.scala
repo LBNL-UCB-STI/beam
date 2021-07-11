@@ -8,7 +8,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
@@ -34,7 +33,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
         (new Coord(125, 125), 2500),
         (new Coord(175, 125), 2500),
         (new Coord(125, 175), 2500),
-        (new Coord(175, 175), 2500),
+        (new Coord(175, 175), 2500)
       )
 
       val numZones = List(1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 11, 12, 13, 14, 15, 16)
@@ -51,7 +50,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
         (new Coord(25, 25), 2500),
         (new Coord(75, 25), 2500),
         (new Coord(25, 75), 2500),
-        (new Coord(75, 75), 2500),
+        (new Coord(75, 75), 2500)
       )
 
       val numZones = List(1, 2, 3, 4)
@@ -62,9 +61,8 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
         .drop(1)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 42)
-      val sumTAZesOverAllClusters = clusters.foldLeft(0) {
-        case (acc, a) =>
-          acc + a.tazes.size
+      val sumTAZesOverAllClusters = clusters.foldLeft(0) { case (acc, a) =>
+        acc + a.tazes.size
       }
       sumTAZesOverAllClusters should be(treeMap.tazQuadTree.size())
     }

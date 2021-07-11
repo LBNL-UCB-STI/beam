@@ -13,7 +13,7 @@ import org.matsim.core.config.Config
 import org.matsim.core.replanning.selectors.RandomPlanSelector
 import org.matsim.core.replanning.{PlanStrategy, PlanStrategyImpl, ReplanningContext}
 
-class UtilityBasedModeChoice @Inject()(
+class UtilityBasedModeChoice @Inject() (
   config: Config,
   beamServices: BeamServices,
   scenario: Scenario,

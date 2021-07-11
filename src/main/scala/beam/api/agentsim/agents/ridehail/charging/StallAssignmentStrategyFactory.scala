@@ -34,6 +34,7 @@ trait StallAssignmentStrategyFactory {
   * Default implementation of [[StallAssignmentStrategyFactory]].
   */
 class DefaultStallAssignmentStrategyFactory extends StallAssignmentStrategyFactory {
+
   override def create[GEO: GeoLevel](
     rideHailDepotParkingManager: RideHailDepotParkingManager[GEO],
     stallAssignmentStrategyName: String

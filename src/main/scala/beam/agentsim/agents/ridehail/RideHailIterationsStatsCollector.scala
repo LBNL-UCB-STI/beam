@@ -95,14 +95,17 @@ class RideHailIterationsStatsCollector(
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
   private val timeBinSizeInSec = rideHailConfig.iterationStats.timeBinSizeInSec
+
   private val numberOfTimeBins = Math
     .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec)
     .toInt + 1
 
   private val rideHailModeChoiceEvents = mutable.Map[String, ModeChoiceEvent]()
+
   private val rideHailEventsTuples =
     mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
+
   private val vehicleIdlingBins =
     mutable.Map[String, mutable.Map[Int, String]]()
   private val vehicles = mutable.Map[String, Int]()
