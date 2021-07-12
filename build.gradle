@@ -313,6 +313,8 @@ dependencies {
 
     // AWS S3
     implementation group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
+    implementation group: 'software.amazon.awssdk', name: 'sts', version: '2.16.68'
+    implementation group: 'software.amazon.awssdk', name: 'lambda', version: '2.16.68'
     implementation group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
 
 }
