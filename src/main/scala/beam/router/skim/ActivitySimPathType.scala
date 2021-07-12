@@ -157,6 +157,11 @@ object ActivitySimPathType {
     WALK,
   )
 
+  val allPathTypesMap: Map[String, ActivitySimPathType] =
+    allPathTypes.map(x => x.toString -> x).toMap
+
+  def fromString(str: String): Option[ActivitySimPathType] = allPathTypesMap.get(str)
+
   private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
     case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM | BeamMode.CABLE_CAR => true
 

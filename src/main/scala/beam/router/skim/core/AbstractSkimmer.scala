@@ -170,6 +170,15 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     }
   }
 
+  def writeToDisk(filePath: String): Unit = {
+    ProfilingUtils.timed(
+      "beam.router.skim.writeSkims",
+      v => logger.info(v)
+    ) {
+      writeSkim(currentSkim, filePath)
+    }
+  }
+
   def writeToDisk(event: IterationEndsEvent): Unit = {
     if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
       ProfilingUtils.timed(
