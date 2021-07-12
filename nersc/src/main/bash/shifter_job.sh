@@ -1,10 +1,17 @@
 #!/bin/bash
-
 #SBATCH --nodes=1-1
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=64
 #SBATCH --qos=regular
 #SBATCH --constraint=haswell
 #SBATCH --time=48:00:00
+#SBATCH --mail-user=@userEmail@
+#SBATCH --mail-type=ALL
+#SBATCH --job-name=@jobName@
+
+#OpenMP settings:
+export OMP_NUM_THREADS=64
+export OMP_PLACES=threads
+export OMP_PROC_BIND=spread
 
 srun -n 1 shifter \
  -e BEAM_BRANCH_NAME=$BEAM_BRANCH_NAME \

@@ -20,6 +20,8 @@ remotes {
     }
 }
 
+import org.apache.tools.ant.filters.ReplaceTokens
+
 task deployToNersc {
     def propsFileName = "../gradle.deploy.properties"
     if (project.hasProperty('propsFile')) {
@@ -37,6 +39,8 @@ task deployToNersc {
         }
     }
 
+    def runName = "${ext.getParameterValue('runName')}"
+    def git_user_email = "${getCurrentGitUserEmail()}"
     def branch = "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}"
     def commit = "${ext.getParameterValue('beamCommit') ?: 'HEAD'}"
     def configs = "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}"
@@ -47,11 +51,20 @@ task deployToNersc {
     def aws_secret_access_key = "${System.getenv('AWS_SECRET_ACCESS_KEY') ?: 'not-set-in-env'}"
     def region = "${ext.getParameterValue('region') ?: defaultRegion}"
 
+    doFirst {
+        copy {
+            from('src/main/bash/shifter_job.sh') {
+                filter(ReplaceTokens, tokens: ['jobName': runName.toString(), 'userEmail': git_user_email.toString()])
+            }
+            into "${project.rootDir}/build/generated/scripts"
+        }
+    }
+
     doLast {
         ssh.run {
             session(remotes.nerscLoginNode) {
                 put from: 'nersc/src/main/bash/run_beam_on_nersc.sh', into: "run_beam.sh"
-                put from: 'nersc/src/main/bash/shifter_job.sh', into: "shifter_job.sh"
+                put from: "${project.rootDir}/build/generated/scripts/shifter_job.sh", into: "shifter_job.sh"
                 execute "chmod +x run_beam.sh shifter_job.sh"
                 execute "./run_beam.sh \
                             --branch='$branch' \
@@ -66,4 +79,23 @@ task deployToNersc {
             }
         }
     }
+}
+
+def getCurrentGitUserEmail() {
+    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
+    return rawGitUserEmail
+}
+
+def getGitResultFromWorkingDirUsing(command, defaultResult) {
+    def gitResult = defaultResult
+    try {
+        def workingDir = new File("${project.projectDir}")
+        def result = command.execute(null, workingDir)
+        result.waitFor()
+        if (result.exitValue() == 0) {
+            gitResult = result.text.trim()
+        }
+    } catch (ignored) {
+    }
+    return gitResult
 }
