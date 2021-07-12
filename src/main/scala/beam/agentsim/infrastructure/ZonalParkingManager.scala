@@ -158,7 +158,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult[GEO] = {
     val inquiryKey = s"Inquiry-${inquiry.requestId}"
     def _logInquiryInfo(str: String): Unit = {
-      logger.info(s"$inquiryKey: $str")
+      logger.debug(s"$inquiryKey: $str")
     }
 
     _logInquiryInfo(inquiry.toString)
