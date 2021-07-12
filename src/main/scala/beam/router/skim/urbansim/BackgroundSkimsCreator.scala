@@ -3,7 +3,7 @@ package beam.router.skim.urbansim
 import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern._
 import akka.util.Timeout
-import beam.agentsim.infrastructure.geozone.H3Wrapper
+import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, H3Wrapper, TAZIndex}
 import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.r5.{R5Parameters, R5Wrapper}
@@ -23,7 +23,7 @@ import scala.concurrent.Future
 class BackgroundSkimsCreator(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
-  val geoClustering: GeoClustering,
+  val ODs: Array[(GeoIndex, GeoIndex)],
   val abstractSkimmer: AbstractSkimmer,
   val travelTime: TravelTime,
   val beamModes: Seq[BeamMode],
@@ -33,6 +33,47 @@ class BackgroundSkimsCreator(
   val calculationTimeoutHours: Int
 )(implicit actorSystem: ActorSystem)
     extends LazyLogging {
+  def this(
+    beamServices: BeamServices,
+    beamScenario: BeamScenario,
+    geoClustering: GeoClustering,
+    abstractSkimmer: AbstractSkimmer,
+    travelTime: TravelTime,
+    beamModes: Seq[BeamMode],
+    withTransit: Boolean,
+    buildDirectWalkRoute: Boolean,
+    buildDirectCarRoute: Boolean,
+    calculationTimeoutHours: Int
+  )(implicit actorSystem: ActorSystem) {
+    this(
+      beamServices,
+      beamScenario,
+      ODs = geoClustering match {
+        case h3Clustering: H3Clustering =>
+          val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
+          h3Indexes.flatMap { srcGeo =>
+            h3Indexes.map { dstGeo =>
+              (srcGeo.index, dstGeo.index)
+            }
+          }.toArray
+
+        case tazClustering: TAZClustering =>
+          val tazs = tazClustering.tazTreeMap.getTAZs
+          tazs.flatMap { srcTAZ =>
+            tazs.map { destTAZ =>
+              (TAZIndex(srcTAZ), TAZIndex(destTAZ))
+            }
+          }.toArray
+      },
+      abstractSkimmer,
+      travelTime,
+      beamModes,
+      withTransit,
+      buildDirectWalkRoute,
+      buildDirectCarRoute,
+      calculationTimeoutHours
+    )
+  }
 
   import BackgroundSkimsCreator._
 
@@ -96,10 +137,10 @@ class BackgroundSkimsCreator(
     val actorName = s"Modes-${beamModes.mkString("_")}-with-transit-$withTransit-${UUID.randomUUID()}"
 
     val masterProps = MasterActor.props(
-      geoClustering,
       abstractSkimmer,
       odRequester,
-      requestTimes = getPeakSecondsFromConfig(beamServices)
+      requestTimes = getPeakSecondsFromConfig(beamServices),
+      ODs
     )
     actorSystem.actorOf(masterProps, actorName)
   }
