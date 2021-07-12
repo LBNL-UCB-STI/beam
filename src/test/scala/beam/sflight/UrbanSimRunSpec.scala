@@ -49,7 +49,7 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, beamScenario) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, plansMerged) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig,
       )
@@ -74,7 +74,8 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
         services,
         scenario,
         beamScenario,
-        output
+        output,
+        plansMerged,
       )
 
       //val (_, output) = runBeamWithConfig(conf)

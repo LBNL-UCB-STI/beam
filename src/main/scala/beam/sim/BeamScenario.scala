@@ -2,6 +2,7 @@ package beam.sim
 
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
+import beam.agentsim.agents.freight.FreightCarrier
 import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
@@ -45,7 +46,8 @@ case class BeamScenario(
   linkIdMapping: Map[Id[Link], Link],
   linkToTAZMapping: Map[Link, TAZ],
   modeIncentives: ModeIncentive,
-  h3taz: H3TAZ
+  h3taz: H3TAZ,
+  freightCarriers: IndexedSeq[FreightCarrier],
 ) {
   val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
 

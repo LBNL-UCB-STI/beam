@@ -51,11 +51,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   }
 
   val (parkingZones: Array[ParkingZone[TAZ]], zoneSearchTree: ZoneSearchTree[TAZ]) =
-    ParkingZoneFileUtils.fromFile[TAZ](
-      argsMap("taz-parking"),
-      new Random(),
-      vehicleManagerId = VehicleManager.privateVehicleManager.managerId
-    )
+    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random())
 
   val linkToTaz = LinkLevelOperations.getLinkToTazMapping(network, tazMap)
 
@@ -79,11 +75,13 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           stallsAvailable = zone.stallsAvailable,
           maxStalls = zone.maxStalls,
-          vehicleManagerId = zone.vehicleManagerId,
+          reservedFor = zone.reservedFor,
+          vehicleManager = zone.vehicleManager,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
-          parkingZoneName = None, // FIXME?
-          landCostInUSDPerSqft = None // FIXME?
+          timeRestrictions = zone.timeRestrictions,
+          parkingZoneName = zone.parkingZoneName,
+          landCostInUSDPerSqft = zone.landCostInUSDPerSqft,
         )
     }
     .toArray
@@ -132,11 +130,13 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           stallsAvailable = numZones,
           maxStalls = numZones,
-          vehicleManagerId = zone.vehicleManagerId,
+          reservedFor = zone.reservedFor,
+          vehicleManager = zone.vehicleManager,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
-          parkingZoneName = None, // FIXME ?
-          landCostInUSDPerSqft = None // FIXME ?
+          timeRestrictions = zone.timeRestrictions,
+          parkingZoneName = zone.parkingZoneName,
+          landCostInUSDPerSqft = zone.landCostInUSDPerSqft,
         )
       }
     }

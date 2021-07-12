@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.Id
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
+class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork], beamConfig: BeamConfig)
     extends LazyLogging {
   import SitePowerManager._
 
@@ -72,8 +72,8 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
         val msgToPublish = estimatedLoad.get.map {
           case (station, powerInKW) =>
             Map(
-              "managerId"         -> station.zone.managerId,
-              "tazId"             -> station.zone.tazId.toString,
+              "vehicleManager"    -> station.zone.vehicleManager,
+              "taz"               -> station.zone.geoId.toString,
               "parkingType"       -> station.zone.parkingType.toString,
               "chargingPointType" -> station.zone.chargingPointType.toString,
               "numChargers"       -> station.zone.numChargers,
@@ -94,10 +94,13 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
-          val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
+          val managerId = x("vehicleManager").asInstanceOf[String] match {
+            case managerIdString if managerIdString.isEmpty => None
+            case managerIdString                            => Some(Id.create(managerIdString, classOf[VehicleManager]))
+          }
           val chargingNetwork = chargingNetworkMap(managerId)
           chargingNetwork.lookupStation(
-            Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
+            Id.create(x("taz").asInstanceOf[String], classOf[TAZ]),
             ParkingType(x("parkingType").asInstanceOf[String]),
             ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
           ) match {

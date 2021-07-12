@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, HeavyDutyTruck, LightDutyTruck}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
@@ -47,7 +47,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
-  val managerId: Id[VehicleManager],
+  val vehicleManager: Option[Id[VehicleManager]] = None,
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
@@ -148,7 +148,7 @@ class BeamVehicle(
     * @param startTick
     */
   def connectToChargingPoint(startTick: Int): Unit = {
-    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       chargerRWLock.write {
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
@@ -376,9 +376,9 @@ class BeamVehicle(
     val mode = beamVehicleType.vehicleCategory match {
       case Bike =>
         BIKE
-      case Car if isCAV =>
+      case Car | LightDutyTruck | HeavyDutyTruck if isCAV =>
         CAV
-      case Car =>
+      case Car | LightDutyTruck | HeavyDutyTruck =>
         CAR
       case Body =>
         WALK
@@ -387,7 +387,7 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
+  def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
 
