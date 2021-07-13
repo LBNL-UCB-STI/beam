@@ -30,6 +30,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     verifyTypesExist()
 
   }
+
   private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = if (!cfg.checkMaxNumberOfMessagesEnabled) {
     Map.empty
   } else {

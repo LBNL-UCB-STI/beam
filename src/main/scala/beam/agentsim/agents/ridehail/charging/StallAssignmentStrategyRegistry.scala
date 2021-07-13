@@ -9,8 +9,7 @@ object StallAssignmentStrategyRegistry {
 
 }
 
-/**
-  * List of default stall assignment strategies.
+/** List of default stall assignment strategies.
   */
 object DefaultStallAssignmentStrategyRegistry extends Registry[StallAssignmentStrategyName] {
 

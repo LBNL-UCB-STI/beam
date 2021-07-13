@@ -22,8 +22,7 @@ object BeamSigoptTuner {
 
   // Fields //
 
-  /**
-    * Creates a new Sigopt [[Experiment]] based on the [[ExperimentDef]] model or else
+  /** Creates a new Sigopt [[Experiment]] based on the [[ExperimentDef]] model or else
     * fetches it from the online database.
     *
     * @return The fully instantiated [[Experiment]].
@@ -37,8 +36,8 @@ object BeamSigoptTuner {
 
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
-      .filter(
-        (experiment: Experiment) => experiment.getId == experimentId & experiment.getDevelopment == development
+      .filter((experiment: Experiment) =>
+        experiment.getId == experimentId && experiment.getDevelopment.booleanValue() == development
       )
       .findFirst
     optExperiment.toOption
@@ -56,8 +55,7 @@ object BeamSigoptTuner {
     expCall.call()
   }
 
-  /**
-    * Converts a [[Factor factor]] to a [[List]] of SigOpt [[Parameter parameters]]
+  /** Converts a [[Factor factor]] to a [[List]] of SigOpt [[Parameter parameters]]
     * assuming that there are [[Level levels]] with High and Low names.
     *
     * The type of the parameter values is equivalent to the first key of the `High`

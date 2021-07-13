@@ -14,8 +14,7 @@ import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.core.controler._
 
-/**
-  * MATSim heavily uses Guice-based dependency injection (DI),
+/** MATSim heavily uses Guice-based dependency injection (DI),
   * and BEAM somewhat uses it, too.
   *
   * This class is a device used by BEAM classes that can't passively use DI,
@@ -54,7 +53,6 @@ import org.matsim.core.controler._
   * of a refactoring device. Real code never needs to directly reference the injector in any way, except
   * in the outermost layer, the main method basically. [[BeamHelper]] in our case.
   * If you see a reference to an injector in user code, please try to remove it.
-  *
   */
 @ImplementedBy(classOf[BeamServicesImpl])
 trait BeamServices {
@@ -81,7 +79,7 @@ trait BeamServices {
   def beamCustomizationAPI: BeamCustomizationAPI
 }
 
-class BeamServicesImpl @Inject()(val injector: Injector) extends BeamServices {
+class BeamServicesImpl @Inject() (val injector: Injector) extends BeamServices {
   val controler: ControlerI = injector.getInstance(classOf[ControlerI])
 
   override val bikeLanesAdjustment: BikeLanesAdjustment = injector.getInstance(classOf[BikeLanesAdjustment])

@@ -1,4 +1,5 @@
 package beam.utils
+
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.BeamConfig
 import com.conveyal.r5.streets.EdgeStore
@@ -7,8 +8,7 @@ import com.typesafe.config.Config
 import scala.collection.mutable
 import scala.language.postfixOps
 
-/**
-  * @author Bhavya Latha Bandaru.
+/** @author Bhavya Latha Bandaru.
   * Loads network and then exports required data to an output file.
   */
 object NetworkEdgeOutputGenerator extends App {

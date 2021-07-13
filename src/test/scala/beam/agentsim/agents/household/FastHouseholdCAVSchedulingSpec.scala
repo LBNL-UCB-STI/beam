@@ -1,4 +1,5 @@
 package beam.agentsim.agents.household
+
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
@@ -17,8 +18,9 @@ import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles.Vehicle
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.immutable.List
 import scala.collection.{mutable, JavaConverters}
@@ -41,9 +43,8 @@ class FastHouseholdCAVSchedulingSpec
       )
     )
     with Matchers
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MockitoSugar
     with BeamHelper
     with ImplicitSender {
 
@@ -64,12 +65,7 @@ class FastHouseholdCAVSchedulingSpec
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {
       val cavs = List[BeamVehicle](
-        new BeamVehicle(
-          Id.createVehicleId("id1"),
-          new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          managerId = VehicleManager.privateVehicleManager.managerId,
-        )
+        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
       )
       val household = scenario1(cavs)
       val alg = new FastHouseholdCAVScheduling(household, cavs, services)
@@ -88,14 +84,12 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          managerId = VehicleManager.privateVehicleManager.managerId,
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          vehicleType,
-          managerId = VehicleManager.privateVehicleManager.managerId,
+          vehicleType
         )
       )
       val household = scenario2(cavs)
@@ -118,14 +112,12 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          managerId = VehicleManager.privateVehicleManager.managerId,
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          managerId = VehicleManager.privateVehicleManager.managerId,
+          defaultCAVBeamVehicleType
         )
       )
       val household = scenario5(cavs)
@@ -141,7 +133,9 @@ class FastHouseholdCAVSchedulingSpec
       // first check
       val schedules1 = alg.getAllFeasibleSchedules
       schedules1 should have length 3
-      schedules1 foreach (_.schedulesMap(cavs.head).schedule should (have length 1 or (have length 6 or have length 10)))
+      schedules1 foreach (_.schedulesMap(
+        cavs.head
+      ).schedule should (have length 1 or (have length 6 or have length 10)))
       // second check
       val schedules2 = alg.getBestProductiveSchedule
       schedules2.foldLeft(0)(_ + _.schedule.size) shouldBe 10

@@ -8,8 +8,7 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
 
-/**
-  * Default Charging Manager that uses the BeamVehicle.isRefuelNeeded method to decide which CAVs to recharge (human
+/** Default Charging Manager that uses the BeamVehicle.isRefuelNeeded method to decide which CAVs to recharge (human
   * drive ride hail vehicles are ignored and assumed to decide on their own) and then where they should charge based
   * on method in RideHailDepotParkingManager.
   *
@@ -21,6 +20,7 @@ class DefaultChargingManager(
   resources: mutable.Map[Id[BeamVehicle], BeamVehicle],
   rideHailDepotParkingManager: RideHailDepotParkingManager[_]
 ) extends VehicleChargingManager(beamServices, resources) {
+
   override def findStationsForVehiclesInNeedOfCharging(
     tick: Int,
     idleVehicles: collection.Map[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
@@ -39,13 +39,12 @@ class DefaultChargingManager(
       }
     }
 
-    val assignments = idleVehicleIdsWantingToRefuelWithLocation.map {
-      case (vehicleId, rideHailAgentLocation) =>
-        val beamVehicle = resources(vehicleId)
-        val parkingStall = rideHailDepotParkingManager
-          .findDepot(rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices), beamVehicle, tick)
-          .getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
-        (vehicleId, parkingStall)
+    val assignments = idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
+      val beamVehicle = resources(vehicleId)
+      val parkingStall = rideHailDepotParkingManager
+        .findDepot(rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices), beamVehicle, tick)
+        .getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
+      (vehicleId, parkingStall)
     }
 
     VehicleChargingManagerResult(assignments)

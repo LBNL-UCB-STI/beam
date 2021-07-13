@@ -11,11 +11,10 @@ import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
-/**
-  * Analyzes the average travel time by car mode for every iteration (including walk)
+/** Analyzes the average travel time by car mode for every iteration (including walk)
   * @param beamConfig Beam config instance
   */
-class PersonAverageTravelTimeAnalysis @Inject()(
+class PersonAverageTravelTimeAnalysis @Inject() (
   beamConfig: BeamConfig
 ) extends GraphAnalysis {
 
@@ -66,8 +65,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
   // Stores the average travel times for all people for all iterations (car only)
   val averageCarTravelTimesForAllIterations: mutable.HashMap[Int, Double] = mutable.HashMap.empty[Int, Double]
 
-  /**
-    * Processes the required events to compute the average travel time.
+  /** Processes the required events to compute the average travel time.
     * @param event instance of event
     */
   override def processStats(event: Event): Unit = {
@@ -89,8 +87,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     }
   }
 
-  /**
-    * Processes the person entering the vehicle event to compute the walk and travel times.
+  /** Processes the person entering the vehicle event to compute the walk and travel times.
     * @param pev instance of PersonEntersVehicleEvent
     */
   private def processPersonEntersVehicleEvent(pev: PersonEntersVehicleEvent): Unit = {
@@ -116,8 +113,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     }
   }
 
-  /**
-    * Processes the person leaving the vehicle events to compute the walk and travel times.
+  /** Processes the person leaving the vehicle events to compute the walk and travel times.
     * @param plv instance of PersonLeavesVehicleEvent
     */
   private def processPersonLeavesVehicleEvent(plv: PersonLeavesVehicleEvent) = {
@@ -157,8 +153,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     }
   }
 
-  /**
-    * Processes and tracks the departure event of the person to compute the travel times.
+  /** Processes and tracks the departure event of the person to compute the travel times.
     * @param event PersonDepartureEvent
     */
   private def processDepartureEvent(event: PersonDepartureEvent): Unit = {
@@ -167,8 +162,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     personTravelTimeIncludingWalkForCurrentDeparture.put(event.getPersonId.toString, 0.0)
   }
 
-  /**
-    * Processes the arrival at destination event compute the total/average travel times.
+  /** Processes the arrival at destination event compute the total/average travel times.
     * @param event PersonArrivalEvent
     */
   private def processArrivalEvent(event: PersonArrivalEvent): Unit = {
@@ -181,7 +175,10 @@ class PersonAverageTravelTimeAnalysis @Inject()(
         // Stop tracking the departure of this person
         personCarDepartures.remove(personId)
         // add including walk cumulative time of the current depature - arrival to total list
-        val updatedTime = personTotalTravelTimesIncludingWalk.getOrElse(personId, List.empty[Double]) :+ personTravelTimeIncludingWalkForCurrentDeparture
+        val updatedTime = personTotalTravelTimesIncludingWalk.getOrElse(
+          personId,
+          List.empty[Double]
+        ) :+ personTravelTimeIncludingWalkForCurrentDeparture
           .getOrElse(personId, 0.0)
         personTotalTravelTimesIncludingWalk.put(personId, updatedTime)
         // clear state
@@ -190,13 +187,13 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     }
   }
 
-  /**
-    * Creates two line graphs : Average car travel times / Average car travel times (including walk).
+  /** Creates two line graphs : Average car travel times / Average car travel times (including walk).
     * @param event instance of IterationEndsEvent
     */
   override def createGraph(event: IterationEndsEvent): Unit = {
     // Total travel times of all people (car mode only) including walk to/from the car before/after travel
-    val totalTravelTimesIncludingWalk = personTotalCarTravelTimes.values.toList.flatten ++ personTotalTravelTimesIncludingWalk.values.flatten
+    val totalTravelTimesIncludingWalk =
+      personTotalCarTravelTimes.values.toList.flatten ++ personTotalTravelTimesIncludingWalk.values.flatten
     // Tracks the average travel time (including walk) for each iteration
     averageCarTravelTimesIncludingWalkForAllIterations.put(
       event.getIteration,
@@ -217,8 +214,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     }
   }
 
-  /**
-    * Generates the series data required for the XY graph
+  /** Generates the series data required for the XY graph
     * @param data data that needs to be converted to the series data
     * @param event instance of iteration ends event
     * @param title title for the series graph
@@ -234,8 +230,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     GraphUtils.createXYSeries(title, "", "", items)
   }
 
-  /**
-    * Computes the average travel time (in minutes) from the total travel times.
+  /** Computes the average travel time (in minutes) from the total travel times.
     * @param totalTravelTimes Total travel times recorded by all people during the current iteration
     * @return average travel time (in minutes)
     */
@@ -244,12 +239,11 @@ class PersonAverageTravelTimeAnalysis @Inject()(
       val averageTravelTime = totalTravelTimes.sum / totalTravelTimes.length
       java.util.concurrent.TimeUnit.SECONDS.toMinutes(Math.ceil(averageTravelTime).toLong).toDouble
     } catch {
-      case _: Exception => 0D
+      case _: Exception => 0d
     }
   }
 
-  /**
-    * Plots graph for average travel times (car mode only) at root level
+  /** Plots graph for average travel times (car mode only) at root level
     * @param event IterationEndsEvent
     */
   private def createRootGraphForAverageCarTravelTime(
@@ -281,23 +275,20 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     )
   }
 
-  /**
-    * Checks if the given mode is car mode or not
+  /** Checks if the given mode is car mode or not
     * @param mode beam mode
     * @return boolean
     */
   private def isCarMode(mode: String) = mode.equalsIgnoreCase("car")
 
-  /**
-    * Checks if the current vehicle is the person's body (walk modes)
+  /** Checks if the current vehicle is the person's body (walk modes)
     * @param vehicle id of the vehicle
     * @param personId id of the person
     * @return boolean
     */
   private def isPersonBody(vehicle: String, personId: String) = vehicle.equalsIgnoreCase(s"body-$personId")
 
-  /**
-    * Resets all collections at the end of current iteration.
+  /** Resets all collections at the end of current iteration.
     */
   override def resetStats(): Unit = {
     personCarDepartures.clear()

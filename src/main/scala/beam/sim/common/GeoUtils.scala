@@ -17,8 +17,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
 case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
-/**
-  * Created by sfeygin on 4/2/17.
+/** Created by sfeygin on 4/2/17.
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
@@ -28,6 +27,7 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   lazy val utm2Wgs: GeotoolsTransformation =
     new GeotoolsTransformation(localCRS, "EPSG:4326")
+
   lazy val wgs2Utm: GeotoolsTransformation =
     new GeotoolsTransformation("EPSG:4326", localCRS)
 
@@ -57,11 +57,11 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distUTMInMeters(wgs2Utm(coord1), wgs2Utm(coord2))
 
-  def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
+  def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1e5): Int = {
     getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
   }
 
-  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
+  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1e5): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
       val closestEdgesToTheCorners = ProfilingUtils
@@ -92,21 +92,21 @@ trait GeoUtils extends ExponentialLazyLogging {
   def snapToR5Edge(
     streetLayer: StreetLayer,
     coordWGS: Coord,
-    maxRadius: Double = 1E5,
+    maxRadius: Double = 1e5,
     streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
     if (theSplit == null) {
       coordWGS
     } else {
-      new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
+      new Coord(theSplit.fixedLon.toDouble / 1.0e7, theSplit.fixedLat.toDouble / 1.0e7)
     }
   }
 
   def getR5Split(
     streetLayer: StreetLayer,
     coord: Coord,
-    maxRadius: Double = 1E5,
+    maxRadius: Double = 1e5,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
     var radius = 10.0
@@ -219,8 +219,7 @@ object GeoUtils {
     Math.sqrt(Math.pow(x1 - x2, 2.0) + Math.pow(y1 - y2, 2.0))
   }
 
-  /**
-    * Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
+  /** Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
     *
     * Source: Shahid, Rizwan, u. a. „Comparison of Distance Measures in Spatial Analytical Modeling for Health Service Planning“. BMC Health Services Research, Bd. 9, Nr. 1, Dezember 2009. Crossref, doi:10.1186/1472-6963-9-200.
     *
@@ -235,8 +234,7 @@ object GeoUtils {
     Math.pow(a + b, 1 / exponent)
   }
 
-  /**
-    * Calculate the Manhattan distance (i.e., L_1-norm) between two coordinates. The provided
+  /** Calculate the Manhattan distance (i.e., L_1-norm) between two coordinates. The provided
     * coordinates must be in UTM.
     *
     * Source: https://en.wikipedia.org/wiki/Taxicab_geometry
@@ -258,8 +256,7 @@ object GeoUtils {
   case object Right extends TurningDirection
   case object HardRight extends TurningDirection
 
-  /**
-    * Get the desired direction to be taken , based on the angle between the coordinates
+  /** Get the desired direction to be taken , based on the angle between the coordinates
     *
     * @param source source coordinates
     * @param destination destination coordinates
@@ -279,8 +276,7 @@ object GeoUtils {
     }
   }
 
-  /**
-    * Generate the vector coordinates from the link nodes
+  /** Generate the vector coordinates from the link nodes
     *
     * @param link link in the network
     * @return vector coordinates
@@ -292,8 +288,7 @@ object GeoUtils {
     )
   }
 
-  /**
-    * Generate the vector coordinates from the link nodes
+  /** Generate the vector coordinates from the link nodes
     *
     * @param link link in the network
     * @return vector coordinates
@@ -305,8 +300,7 @@ object GeoUtils {
     )
   }
 
-  /**
-    * Computes the angle between two coordinates
+  /** Computes the angle between two coordinates
     *
     * @param source source coordinates
     * @param destination destination coordinates
@@ -333,8 +327,7 @@ object GeoUtils {
     new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
   }
 
-  /**
-    * Returns the WGS coordinates of a link's end.
+  /** Returns the WGS coordinates of a link's end.
     *
     * Note: by convention, a BeamPath starts at the **end** of the first link and ends at the end of the last link.
     *
@@ -350,7 +343,7 @@ object GeoUtils {
 
 }
 
-class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
+class GeoUtilsImpl @Inject() (val beamConfig: BeamConfig) extends GeoUtils {
   override def localCRS: String = beamConfig.beam.spatial.localCRS
 }
 

@@ -8,8 +8,7 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  * BEAM
+/** BEAM
   */
 object RoutingModel {
 
@@ -29,10 +28,9 @@ object RoutingModel {
 
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
       val events = new ArrayBuffer[Event]()
-      links.sliding(2).zip(timesAtNodes.iterator).foreach {
-        case (Seq(from, to), timeAtNode) =>
-          events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
-          events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
+      links.sliding(2).zip(timesAtNodes.iterator).foreach { case (Seq(from, to), timeAtNode) =>
+        events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
+        events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
       }
       events.toIterator
     } else {

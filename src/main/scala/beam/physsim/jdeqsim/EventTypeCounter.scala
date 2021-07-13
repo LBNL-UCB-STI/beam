@@ -17,8 +17,8 @@ class EventTypeCounter extends BasicEventHandler with StrictLogging {
   }
 
   def getStats: Seq[(String, Long)] = {
-    typeToNumberOfMessages.map { case (clazz, cnt) => clazz.getSimpleName -> cnt }.toList.sortBy {
-      case (clazz, _) => clazz
+    typeToNumberOfMessages.map { case (clazz, cnt) => clazz.getSimpleName -> cnt }.toList.sortBy { case (clazz, _) =>
+      clazz
     }
   }
 }

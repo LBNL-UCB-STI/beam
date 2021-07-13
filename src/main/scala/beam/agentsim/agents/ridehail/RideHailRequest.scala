@@ -3,6 +3,7 @@ package beam.agentsim.agents.ridehail
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.utils.RideHailRequestIdGenerator
@@ -19,13 +20,15 @@ case class RideHailRequest(
   groupedWithOtherRequests: List[RideHailRequest] = List(),
   requestId: Int = RideHailRequestIdGenerator.nextId,
   requestTime: Option[Int] = None,
-  quotedWaitTime: Option[Int] = None
-) {
+  quotedWaitTime: Option[Int] = None,
+  triggerId: Long
+) extends HasTriggerId {
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
+
   override def toString: String =
     s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
 }
@@ -39,7 +42,8 @@ object RideHailRequest {
       customerRequest.pickup.activity.getCoord,
       customerRequest.pickup.activity.getEndTime.toInt,
       customerRequest.dropoff.activity.getCoord,
-      asPooled
+      asPooled,
+      triggerId = customerRequest.triggerId
     )
   }
 
@@ -48,11 +52,11 @@ object RideHailRequest {
     PersonIdWithActorRef(Id.create("dummy", classOf[Person]), ActorRef.noSender),
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
-    new Coord(Double.NaN, Double.NaN)
+    new Coord(Double.NaN, Double.NaN),
+    triggerId = -1
   )
 
-  /**
-    * Converts the request's pickup and drop coordinates from WGS to UTM
+  /** Converts the request's pickup and drop coordinates from WGS to UTM
     * @param request ridehail request
     * @param beamServices an instance of beam services
     */

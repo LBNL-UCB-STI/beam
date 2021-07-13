@@ -15,11 +15,13 @@ import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest._
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
 class AgentsimWithMaximallyBadRouterSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with BadRouterForTest
@@ -60,7 +62,7 @@ class AgentsimWithMaximallyBadRouterSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
     }
@@ -77,9 +79,8 @@ object AgentsimWithMaximallyBadRouterSpec {
     override def beforeAll: Unit = {
       super.beforeAll()
       router = TestActorRef(Props(new Actor {
-        override def receive: Receive = {
-          case _ =>
-            sender ! Failure(new RuntimeException("No idea how to route."))
+        override def receive: Receive = { case _ =>
+          sender ! Failure(new RuntimeException("No idea how to route."))
         }
       }))
       services.beamRouter = router

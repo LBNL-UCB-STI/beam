@@ -63,8 +63,7 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
 
   import SynthHouseholdParser._
 
-  /**
-    * Parses the synthetic households file.
+  /** Parses the synthetic households file.
     *
     * @param synthFileName : synthetic households filename
     * @return the [[Vector]] of [[SynthHousehold]]s
@@ -182,6 +181,7 @@ trait HasXY[T] {
 object HasXY {
 
   implicit object PlanXY extends HasXY[Plan] {
+
     override def getX(p: Plan): Double =
       PopulationUtils.getFirstActivity(p).getCoord.getX
 
@@ -226,9 +226,8 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   ): QuadTreeExtent = {
     val envelopes = features.asScala
       .map(_.getDefaultGeometry)
-      .collect {
-        case g: Geometry =>
-          wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
+      .collect { case g: Geometry =>
+        wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
       }
     val bounds = ShapeUtils.quadTreeBounds(envelopes)
     QuadTreeExtent(bounds.minx, bounds.miny, bounds.maxx, bounds.maxy)
@@ -624,8 +623,7 @@ object PlansSampler {
   }
 }
 
-/**
-  * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
+/** This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
   * command-line args]:
   *
   * [0] Raw plans input filename

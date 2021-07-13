@@ -21,8 +21,7 @@ import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicle
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
-/**
-  * BEAM
+/** BEAM
   */
 object TransitDriverAgent {
 
@@ -79,6 +78,7 @@ object TransitDriverAgent {
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0
   ) extends DrivingData {
+
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
 
@@ -113,9 +113,9 @@ class TransitDriverAgent(
   override val id: Id[TransitDriverAgent] = transitDriverId
 
   val myUnhandled: StateFunction = {
-    case Event(TransitReservationRequest(fromIdx, toIdx, passenger), data) =>
+    case Event(TransitReservationRequest(fromIdx, toIdx, passenger, triggerId), data) =>
       val slice = legs.slice(fromIdx, toIdx)
-      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger), data))
+      drivingBehavior(Event(ReservationRequest(slice.head, slice.last, passenger, triggerId), data))
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
@@ -128,29 +128,28 @@ class TransitDriverAgent(
 
   startWith(Uninitialized, TransitDriverData(null))
 
-  when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data: TransitDriverData) =>
-      logDebug(s" $id has been initialized, going to Waiting state")
-      beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
-      vehicle.becomeDriver(self)
-      eventsManager.processEvent(
-        new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
-      )
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
-      val schedule = data.passengerSchedule.addLegs(legs)
-      goto(WaitingToDrive) using data
-        .copy(currentVehicle = Vector(vehicle.id))
-        .withPassengerSchedule(schedule)
-        .asInstanceOf[TransitDriverData] replying
-      CompletionNotice(
-        triggerId,
-        Vector(
-          ScheduleTrigger(
-            StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
-            self
-          )
+  when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data: TransitDriverData) =>
+    logDebug(s" $id has been initialized, going to Waiting state")
+    beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
+    vehicle.becomeDriver(self)
+    eventsManager.processEvent(
+      new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
+    )
+    eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
+    val schedule = data.passengerSchedule.addLegs(legs)
+    goto(WaitingToDrive) using data
+      .copy(currentVehicle = Vector(vehicle.id))
+      .withPassengerSchedule(schedule)
+      .asInstanceOf[TransitDriverData] replying
+    CompletionNotice(
+      triggerId,
+      Vector(
+        ScheduleTrigger(
+          StartLegTrigger(schedule.schedule.firstKey.startTime, schedule.schedule.firstKey),
+          self
         )
       )
+    )
   }
 
   when(PassengerScheduleEmpty) {
@@ -158,9 +157,9 @@ class TransitDriverAgent(
     // Instead, we ask the scheduler to be notified after the
     // concurrency time window has passed, and then stop.
     // This is because other agents may still want to interact with us until then.
-    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
-      scheduler ! ScheduleKillTrigger(self)
+      scheduler ! ScheduleKillTrigger(self, triggerId)
       scheduler ! CompletionNotice(triggerId)
       stay
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>

@@ -9,8 +9,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 
 import scala.collection.mutable.ListBuffer
 
-/**
-  * BEAM
+/** BEAM
   */
 class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalculator {
 

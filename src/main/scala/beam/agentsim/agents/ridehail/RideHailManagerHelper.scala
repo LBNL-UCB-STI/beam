@@ -23,6 +23,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
+
   override def compare(
     o1: RideHailAgentETA,
     o2: RideHailAgentETA
@@ -32,6 +33,7 @@ object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgen
 }
 
 object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] {
+
   override def compare(
     o1: RideHailAgentETA,
     o2: RideHailAgentETA
@@ -41,6 +43,7 @@ object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] 
 }
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
+
   override def compare(
     o1: (RideHailAgentLocation, Double),
     o2: (RideHailAgentLocation, Double)
@@ -49,8 +52,7 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
   }
 }
 
-/**
-  * BEAM
+/** BEAM
   */
 class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envelope) extends LazyLogging {
 
@@ -251,7 +253,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       beamScenario = rideHailManager.beamScenario,
       skimmer = rideHailManager.beamServices.skims.od_skimmer,
       maybeOrigTazId = None,
-      maybeDestTazId = Some(pickupTazId),
+      maybeDestTazId = Some(pickupTazId)
     )
     val skimTimeAndDistanceOfTrip = BeamRouter.computeTravelTimeAndDistanceAndCost(
       originUTM = pickupLocation,
@@ -264,7 +266,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       beamScenario = rideHailManager.beamScenario,
       skimmer = rideHailManager.beamServices.skims.od_skimmer,
       maybeOrigTazId = Some(pickupTazId),
-      maybeDestTazId = Some(dropOffTazId),
+      maybeDestTazId = Some(dropOffTazId)
     )
     // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
     // already moving or dropping off a customer, etc.)
@@ -315,8 +317,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       }
   }
 
-  /**
-    * Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
+  /** Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
     * any that should be excluded according to the doNotUseInAllocation map.
     * @return HashMap from Id[BeamVehicle] to RideHailAgentLocation
     */
@@ -328,11 +329,10 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     def addIfNotInAllocation(
       idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
     ): Unit = {
-      idleOrRepositioning.foreach {
-        case (vehicleId, location) =>
-          if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
-            filteredVehicles.put(vehicleId, location)
-          }
+      idleOrRepositioning.foreach { case (vehicleId, location) =>
+        if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
+          filteredVehicles.put(vehicleId, location)
+        }
       }
     }
 
@@ -404,8 +404,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     }
   }
 
-  /**
-    * This will go through all in-motion vehicles (i.e. all vehicles in inService and refueling spatial indices)
+  /** This will go through all in-motion vehicles (i.e. all vehicles in inService and refueling spatial indices)
     * and update the location of the agent in that spatial index based on where they are in the current beamLeg at
     * time tick.
     *
@@ -767,8 +766,7 @@ object RideHailManagerHelper {
     serviceStatus: Option[RideHailServiceStatus] = None
   ) {
 
-    /**
-      * Returns the current location of the RideHailAgent based on the currentTick parameter. This accounts for where the
+    /** Returns the current location of the RideHailAgent based on the currentTick parameter. This accounts for where the
       * agent would be along the route if the currentTick is between the start and end times of the BeamLeg currently underway.
       *
       * @param currentTick

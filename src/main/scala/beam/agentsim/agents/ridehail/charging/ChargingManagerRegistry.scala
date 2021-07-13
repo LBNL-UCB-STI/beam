@@ -7,8 +7,7 @@ object ChargingManagerRegistry {
   trait VehicleChargingManagerName
 }
 
-/**
-  * List of default vehicle charging managers.
+/** List of default vehicle charging managers.
   */
 object VehicleChargingManagerRegistry extends Registry[VehicleChargingManagerName] {
 

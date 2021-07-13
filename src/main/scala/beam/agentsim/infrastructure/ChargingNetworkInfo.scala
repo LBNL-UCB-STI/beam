@@ -21,8 +21,7 @@ case class ChargingNetworkInfo(
 
 object ChargingNetworkInfo {
 
-  /**
-    * load parking stalls with charging point
+  /** load parking stalls with charging point
     * @param beamServices BeamServices
     * @return QuadTree of ChargingZone
     */
@@ -57,20 +56,20 @@ object ChargingNetworkInfo {
       envelopeInUTM.getMaxX,
       envelopeInUTM.getMaxY
     )
-    zonesWithCharger.foreach {
-      case (zone, taz) =>
-        stationsQuadTree.put(
-          taz.coord.getX,
-          taz.coord.getY,
-          ChargingZone(
-            zone.geoId,
-            zone.parkingType,
-            zone.maxStalls,
-            zone.chargingPointType.get,
-            zone.pricingModel.get,
-            zone.vehicleManagerId
-          )
+    zonesWithCharger.foreach { case (zone, taz) =>
+      stationsQuadTree.put(
+        taz.coord.getX,
+        taz.coord.getY,
+        ChargingZone(
+          zone.geoId,
+          zone.geoId,
+          zone.parkingType,
+          zone.maxStalls,
+          zone.chargingPointType.get,
+          zone.pricingModel.get,
+          zone.vehicleManager
         )
+      )
     }
     stationsQuadTree
   }

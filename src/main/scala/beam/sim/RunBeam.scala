@@ -43,6 +43,7 @@ object RunBeam extends BeamHelper {
   }
 
   object UnhandledExceptionHandler extends Thread.UncaughtExceptionHandler() with LazyLogging {
+
     override def uncaughtException(t: Thread, e: Throwable): Unit = {
       logger.error(s"Unhandled exception caught: $e")
       logger.error("Terminating application.")

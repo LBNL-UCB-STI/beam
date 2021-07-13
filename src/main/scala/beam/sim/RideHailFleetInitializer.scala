@@ -59,7 +59,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       geofenceTazs = geofenceTazIds,
       geofenceTAZFile = geofenceTAZFile,
       fleetId = fleetId,
-      initialStateOfCharge = initialStateOfCharge,
+      initialStateOfCharge = initialStateOfCharge
     )
   }
 
@@ -70,8 +70,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
   }
 
-  /**
-    * Writes the initialized fleet data to a CSV file in the iteration output directory.
+  /** Writes the initialized fleet data to a CSV file in the iteration output directory.
     *
     * @param beamServices beam services instance.
     * @param fleetData data to be written.
@@ -90,8 +89,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     writeFleetData(filePath, fleetData)
   }
 
-  /**
-    * Writes the initialized fleet data to a CSV file.
+  /** Writes the initialized fleet data to a CSV file.
     *
     * @param filePath path to the CSV file where the data should be written.
     * @param fleetData data to be written.
@@ -109,7 +107,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       "geofenceRadius",
       "geofenceTAZFile",
       "fleetId",
-      "initialStateOfCharge",
+      "initialStateOfCharge"
     )
     if (Files.exists(Paths.get(filePath).getParent)) {
       val csvWriter = new CsvWriter(filePath, fileHeader)
@@ -128,7 +126,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
             fleetData.geofenceRadius.getOrElse(""),
             fleetData.geofenceTAZFile.getOrElse(""),
             fleetData.fleetId,
-            fleetData.initialStateOfCharge,
+            fleetData.initialStateOfCharge
           )
         }
 
@@ -142,8 +140,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     }
   }
 
-  /**
-    * Reads the ride hail fleet csv as [[RideHailAgentInputData]] objects
+  /** Reads the ride hail fleet csv as [[RideHailAgentInputData]] objects
     *
     * @param filePath path to the csv file
     * @return list of [[RideHailAgentInputData]] objects
@@ -165,8 +162,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     }
   }
 
-  /**
-    * Generates Ranges from the range value as string
+  /** Generates Ranges from the range value as string
     *
     * @param rangesAsString ranges as string value
     * @return List of ranges
@@ -206,8 +202,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     "geofenceRadius"
   )
 
-  /**
-    * An intermediary class to hold the ride hail fleet data read from the file.
+  /** An intermediary class to hold the ride hail fleet data read from the file.
     *
     * @param id id of the vehicle
     * @param rideHailManagerId id of the ride hail manager
@@ -234,7 +229,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofenceTazs: Option[Set[Id[TAZ]]],
     geofenceTAZFile: Option[String],
     fleetId: String,
-    initialStateOfCharge: Double = 1.0,
+    initialStateOfCharge: Double = 1.0
   ) {
 
     /*
@@ -275,8 +270,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     shiftsStr.map(_.split(";").map(Shift(_)).toList)
   }
 
-  /**
-    * Holds the data necessary to initialize a ride hail agent.
+  /** Holds the data necessary to initialize a ride hail agent.
     *
     * This is a sister class to RideHailAgentInputData. RideHailAgentInputData serializes the data of this class to CSV.
     *
@@ -298,13 +292,12 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     initialStateOfCharge: Double,
     initialLocation: Coord,
     geofence: Option[Geofence],
-    fleetId: String,
+    fleetId: String
   ) {
     val rideHailAgentId: Id[RideHailAgent] = Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
     val beamVehicleId: Id[BeamVehicle] = RideHailVehicleId(id, fleetId).beamVehicleId
 
-    /**
-      * Creates a BeamVehicle using the initialization data in the class.
+    /** Creates a BeamVehicle using the initialization data in the class.
       *
       * @param manager Ride Hail Manager Actor
       * @param randomSeed Random seed
@@ -319,7 +312,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        managerId = rideHailManagerId,
+        vehicleManager = Some(rideHailManagerId),
         randomSeed
       )
 
@@ -365,8 +358,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     }
   }
 
-  /**
-    * Get description of fields written to the output files.
+  /** Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -464,8 +456,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
 }
 
-/**
-  * Interface for algorithms that specify how the ride hail fleet should be initialized.
+/** Interface for algorithms that specify how the ride hail fleet should be initialized.
   *
   * This trait also supports overriding at runtime how the fleet should be initalzed in future iterations.
   */
@@ -473,8 +464,7 @@ trait RideHailFleetInitializer extends LazyLogging {
   private var rideHailAgentInitializersOpt: Option[IndexedSeq[RideHailAgentInitializer]] = None
   val linkFleetStateAcrossIterations = true
 
-  /**
-    * Returns a sequence of RideHailAgentInitializer that were generated using an initialization algorithm or through
+  /** Returns a sequence of RideHailAgentInitializer that were generated using an initialization algorithm or through
     * overrideRideHailAgentInitializers.
     *
     * @param rideHailManagerId ID of the ride hail manager.
@@ -509,14 +499,14 @@ trait RideHailFleetInitializer extends LazyLogging {
   ): IndexedSeq[RideHailAgentInitializer]
 }
 
-/**
-  * Initializes the ride hail fleet by reading a file. See RideHailAgentInputData for format.
+/** Initializes the ride hail fleet by reading a file. See RideHailAgentInputData for format.
   *
   * @param beamServices BEAM services
   * @param beamScenario BEAM scenario
   */
 class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScenario: BeamScenario)
     extends RideHailFleetInitializer {
+
   protected def generateRideHailAgentInitializers(
     rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
@@ -528,8 +518,7 @@ class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScena
   }
 }
 
-/**
-  * Initializes the ride hail fleet through sampling.
+/** Initializes the ride hail fleet through sampling.
   *
   * @param beamServices BEAM services
   * @param beamScenario BEAM scenario
@@ -607,8 +596,10 @@ class ProceduralRideHailFleetInitializer(
               realDistribution
             )
             .head
-          if (beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
-                (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8) {
+          if (
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
+              (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8
+          ) {
             logger.error(
               "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
             )
@@ -666,8 +657,8 @@ class ProceduralRideHailFleetInitializer(
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
             person.getSelectedPlan.getPlanElements.asScala
-              .collect {
-                case activity: Activity => activity.getCoord
+              .collect { case activity: Activity =>
+                activity.getCoord
               }
               .toList
               .dropRight(1)
@@ -723,7 +714,7 @@ class ProceduralRideHailFleetInitializer(
 }
 
 /** Provider class for RideHailFleetInitializer */
-class RideHailFleetInitializerProvider @Inject()(
+class RideHailFleetInitializerProvider @Inject() (
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val scenario: Scenario
@@ -749,24 +740,20 @@ class RideHailFleetInitializerProvider @Inject()(
   }
 }
 
-/**
-  * Geofence defining the area, where a ride hail vehicle should stay
+/** Geofence defining the area, where a ride hail vehicle should stay
   */
 trait Geofence {
 
-  /**
-    * Check whether provided point defined by x,y coordinates is inside Geofence
+  /** Check whether provided point defined by x,y coordinates is inside Geofence
     */
   def contains(x: Double, y: Double): Boolean
 
-  /**
-    * Check whether provided coordinate is inside Geofence
+  /** Check whether provided coordinate is inside Geofence
     */
   def contains(coord: Coord): Boolean = contains(coord.getX, coord.getY)
 }
 
-/**
-  * Circular Geofence defined by center coordinates of circle and radius
+/** Circular Geofence defined by center coordinates of circle and radius
   */
 case class CircularGeofence(
   geofenceX: Double,
@@ -781,8 +768,7 @@ case class CircularGeofence(
 
 }
 
-/**
-  * Geofence defined by set of TAZ Ids
+/** Geofence defined by set of TAZ Ids
   */
 case class TAZGeofence(
   tazs: Set[Id[TAZ]],
@@ -793,6 +779,7 @@ case class TAZGeofence(
   override def contains(x: Double, y: Double): Boolean = {
     tazs.contains(tazTreeMap.getTAZ(x, y).tazId)
   }
+
   override def toString() = {
     s"TAZGeofence(${tazs.size} tazs from file: $geofenceTAZFile)"
   }

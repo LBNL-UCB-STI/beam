@@ -12,8 +12,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable
 
-/**
-  * Class for storing and retrieving spatial and temporal key performance indicators (kpis) with indexing based on aggregations.
+/** Class for storing and retrieving spatial and temporal key performance indicators (kpis) with indexing based on aggregations.
   *
   * Key behaviors:
   * -- Stores Double-valued metrics.
@@ -36,8 +35,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   private val kpis: mutable.HashMap[SpatioTemporalKey, mutable.ListBuffer[Double]] =
     mutable.HashMap.empty[SpatioTemporalKey, mutable.ListBuffer[Double]]
 
-  /**
-    * Store an observation of a KPI with at a particular time.
+  /** Store an observation of a KPI with at a particular time.
     *
     * @param value observation to be stored
     * @param kpi kpi characterizing the observation
@@ -47,8 +45,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     storeObservation(value, kpi, time, None, None)
   }
 
-  /**
-    * Store an observation of a KPI with at a particular time and location
+  /** Store an observation of a KPI with at a particular time and location
     *
     * @param value observation to be stored
     * @param kpi kpi characterizing the observation
@@ -59,8 +56,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
 //    storeObservation(value, kpi, time, Some(location))
 //  }
 
-  /**
-    * Convenience function that converts a TAZSkimmerEvent to storage of the appropriate KPI and value internally. There is
+  /** Convenience function that converts a TAZSkimmerEvent to storage of the appropriate KPI and value internally. There is
     * potentially duplication of functionality between Skimmers and this class, this method facilitates keeping the structure of these
     * collectors consistent.
     *
@@ -72,8 +68,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     storeObservation(event.value, kpi, event.time, event.getTazIndex, event.getHexIndex)
   }
 
-  /**
-    * Internal method to fully characterize how to store an observation... with location as an Option.
+  /** Internal method to fully characterize how to store an observation... with location as an Option.
     *
     * @param value
     * @param kpi
@@ -91,8 +86,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     putObservation(IndexedSpatioTemporalKpi(kpi, time, quarterHour, halfHour, hour, hexIndexMaybe, idTazMaybe), value)
   }
 
-  /**
-    * Retrieve all observed kpis from the TAZ that matches the location argument for the given time and TemporalAggregation.
+  /** Retrieve all observed kpis from the TAZ that matches the location argument for the given time and TemporalAggregation.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
     * Hourly means all observations within the same hour as the time argument, and so on.
@@ -118,8 +112,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     )
   }
 
-  /**
-    * Retrieve all observation from the HEX that matches the location argument for the given time and TemporalAggregation.
+  /** Retrieve all observation from the HEX that matches the location argument for the given time and TemporalAggregation.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
     * Hourly means all observations within the same hour as the time argument, and so on.
@@ -145,8 +138,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     )
   }
 
-  /**
-    * Retrieve all observed kpis for the given time and TemporalAggregation as well as the optional spatial keys specified.
+  /** Retrieve all observed kpis for the given time and TemporalAggregation as well as the optional spatial keys specified.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
     * Hourly means all observations within the same hour as the time argument, and so on.
@@ -184,8 +176,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     theResult
   }
 
-  /**
-    * Retrieve all observed kpis for the most recent time and TemporalAggregation for which data is available.
+  /** Retrieve all observed kpis for the most recent time and TemporalAggregation for which data is available.
     *
     * The temporal aggregation indicates what temporal grouping of observations are of interest: None means no-aggregation,
     * [[Hourly]] means aggregated over all observations within the same hour as the time argument, and so on.
@@ -206,7 +197,8 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     hexKey: Option[HexIndex] = None,
     tazKey: Option[Id[TAZ]] = None
   ) = {
-    val latestTimeOnASampleRate = (time.toDouble / observationSampleRateInSeconds.toDouble).toInt * observationSampleRateInSeconds
+    val latestTimeOnASampleRate =
+      (time.toDouble / observationSampleRateInSeconds.toDouble).toInt * observationSampleRateInSeconds
     Iterator
       .iterate((toTimeOrBin(latestTimeOnASampleRate, temporalAggregation), Vector[Double]())) {
         case (currentTimeOrBin, _) =>
@@ -226,8 +218,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
       .getOrElse(Vector())
   }
 
-  /**
-    * Internal method to store the observation using all appropriate indexes.
+  /** Internal method to store the observation using all appropriate indexes.
     *
     * @param observation instance of [[IndexedSpatioTemporalKpi]]
     * @param value the double value of the observation to store
@@ -251,8 +242,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     }
   }
 
-  /**
-    * Adds the value so the kpis HashMap using the key.
+  /** Adds the value so the kpis HashMap using the key.
     *
     * @param key the key to use when adding to the HashMap
     * @param value the value of the kpi
@@ -266,8 +256,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     }
   }
 
-  /**
-    * Helper method to covert a time in seconds to the appropriate 15-minute, 30-minute, and 60-minute bin.
+  /** Helper method to covert a time in seconds to the appropriate 15-minute, 30-minute, and 60-minute bin.
     *
     * @param time the time in seconds
     * @return a 3-tuple with the 15-minute, 30-minute, and 60-minute bins
@@ -279,8 +268,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
       (time.toDouble / (60.0 * 60.0)).toInt
     )
 
-  /**
-    * Helper method to convert a give time or bin (i.e. it could be a time in seconds or a bin number) to a
+  /** Helper method to convert a give time or bin (i.e. it could be a time in seconds or a bin number) to a
     * corresponding time in seconds. For bins, this will always be the time in seconds at the beginning of the
     * time interval. I.e. for Hourly and timeOrBin == 1, a value of 3600 will be returned.
     *
@@ -301,8 +289,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     }
   }
 
-  /**
-    * Helper method to convert a time in seconds to a time bin number. If temporalAggregation is None, then the value
+  /** Helper method to convert a time in seconds to a time bin number. If temporalAggregation is None, then the value
     * of timeInSeconds is returned.
     *
     * @param timeInSeconds a time in seconds
@@ -328,6 +315,7 @@ object RideHailKpisObject {
   type HalfHourBin = Int
   type HourBin = Int
   case class SpatialKeys(hexIndex: HexIndex, taz: Id[TAZ])
+
   case class SpatioTemporalKey(
     kpi: Kpi,
     time: Option[Int],
@@ -338,8 +326,7 @@ object RideHailKpisObject {
     idTaz: Option[Id[TAZ]]
   )
 
-  /**
-    * An IndexedSpatioTemporalKpi contains all of the fields necessary to create a [[SpatioTemporalKey]] for any needed
+  /** An IndexedSpatioTemporalKpi contains all of the fields necessary to create a [[SpatioTemporalKey]] for any needed
     * level of temporal or spatial aggregation.
     *
     * @param kpi

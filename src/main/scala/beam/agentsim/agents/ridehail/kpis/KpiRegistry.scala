@@ -9,8 +9,7 @@ object KpiRegistry {
 
 }
 
-/**
-  * List of default key performance indicators.
+/** List of default key performance indicators.
   */
 object DefaultKpiRegistry extends Registry[Kpi] {
 

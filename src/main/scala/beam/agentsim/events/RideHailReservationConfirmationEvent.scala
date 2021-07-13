@@ -36,8 +36,7 @@ object RideHailReservationConfirmationEvent {
   case object Pooled extends RideHailReservationType
 }
 
-/**
-  * Event capturing the details of a ride hail reservation confirmation
+/** Event capturing the details of a ride hail reservation confirmation
   */
 class RideHailReservationConfirmationEvent(
   val time: Double,
@@ -54,7 +53,7 @@ class RideHailReservationConfirmationEvent(
   val dropOffLocationWgs: Coord, /* Same CRS as in PathTraversalEvent */
   val offeredPickUpTimeOpt: Option[Int], /*  None if the reservation failed */
   val directRouteDistanceInMOpt: Option[Double],
-  val directRouteDurationInSOpt: Option[Int],
+  val directRouteDurationInSOpt: Option[Int]
 ) extends Event(time)
     with ScalaEvent {
   import RideHailReservationConfirmationEvent._

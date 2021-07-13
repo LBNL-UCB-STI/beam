@@ -2,8 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import scala.util.{Failure, Success, Try}
 
-/**
-  * A ParkingZone may have a PricingModel, which is used to calculate the currency cost for parking in that zone
+/** A ParkingZone may have a PricingModel, which is used to calculate the currency cost for parking in that zone
   */
 sealed trait PricingModel {
   def costInDollars: Double
@@ -11,16 +10,14 @@ sealed trait PricingModel {
 
 object PricingModel {
 
-  /**
-    * A flat parking fee, such as an all-day rate at a parking garage
+  /** A flat parking fee, such as an all-day rate at a parking garage
     * @param costInDollars the all-day rate, in dollars
     */
   case class FlatFee(costInDollars: Double) extends PricingModel {
     override def toString: String = "FlatFee"
   }
 
-  /**
-    * A parking fee that occurs over block intervals, such as an hourly parking meter
+  /** A parking fee that occurs over block intervals, such as an hourly parking meter
     * @param costInDollars the cost per interval
     * @param intervalSeconds the duration of the charging interval
     */
@@ -28,16 +25,13 @@ object PricingModel {
     override def toString: String = "Block"
   }
 
-  /**
-    * 1 hour is the default interval
+  /** 1 hour is the default interval
     */
   val DefaultPricingInterval: Int = 3600
 
-  /**
-    * construct an optional PricingModel based on a parsed input string
+  /** construct an optional PricingModel based on a parsed input string
     * @param s the input string, scraped from a configuration file
     * @return an optional PricingModel if the input is recognized, otherwise None
-    *
     */
   def apply(
     s: String,
@@ -62,8 +56,7 @@ object PricingModel {
         throw new java.io.IOException(s"Pricing Model is invalid: $s")
     }
 
-  /**
-    * computes the cost of this pricing model for some duration. only considers the PricingModel, and does not include any fueling costs
+  /** computes the cost of this pricing model for some duration. only considers the PricingModel, and does not include any fueling costs
     * @param pricingModel the pricing model
     * @param parkingDurationInSeconds duration of parking in seconds
     * @return monetary cost of parking, in cents
@@ -76,8 +69,7 @@ object PricingModel {
     }
   }
 
-  /**
-    * helper function that converts a value to an integer
+  /** helper function that converts a value to an integer
     * @param valueString the text value taken from an input file
     * @param model the name of the ADT that this value is associated with
     * @return an integer, or throw an IllegalArgumentException
@@ -99,8 +91,7 @@ object PricingModel {
     }
   }
 
-  /**
-    * helper function that converts a value to an integer
+  /** helper function that converts a value to an integer
     * @param valueString the text value taken from an input file
     * @param model the name of the ADT that this value is associated with
     * @return an integer, or throw an IllegalArgumentException

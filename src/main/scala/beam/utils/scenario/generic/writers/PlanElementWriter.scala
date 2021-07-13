@@ -10,6 +10,7 @@ trait PlanElementWriter {
 }
 
 object CsvPlanElementWriter extends PlanElementWriter {
+
   private val headers: Array[String] = Array(
     "personId",
     "planIndex",

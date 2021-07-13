@@ -122,8 +122,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }
-    val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS } else { 1.0 }
-    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost } else { 1.0 }
+    val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS }
+    else { 1.0 }
+    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost }
+    else { 1.0 }
     (timeFactor, costFactor)
   }
 
@@ -136,8 +138,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
     beamScenario: BeamScenario,
-    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] = None, //If multiple times the same origin/destination is used, it
-    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] = None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None, //If multiple times the same origin/destination is used, it
+    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
   ): Skim = {
     val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
@@ -178,7 +182,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
   ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
+        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
         .map(_.toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -244,12 +248,12 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
     val res = if (pastSkims.isEmpty) {
-      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest))
+      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString))
     } else {
       pastSkims
         .get(currentIteration - 1)
-        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
-        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
+        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
         .map(_.asInstanceOf[ODSkimmerInternal])
     }
     res.map(_.asInstanceOf[ODSkimmerInternal])
@@ -265,7 +269,8 @@ object ODSkims extends BeamHelper {
       beamExecutionConfig: BeamExecutionConfig,
       scenario: MutableScenario,
       beamScenario: BeamScenario,
-      services: BeamServices
+      services: BeamServices,
+      _
     ) = prepareBeamService(config, None)
 
     val skims = services.skims.od_skimmer

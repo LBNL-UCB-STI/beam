@@ -13,11 +13,9 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
 
-/**
-  *
-  * @author Dmitry Openkov
+/** @author Dmitry Openkov
   */
-class TransitCrowdingSkimmer @Inject()(
+class TransitCrowdingSkimmer @Inject() (
   matsimServices: MatsimServices,
   beamScenario: BeamScenario,
   beamConfig: BeamConfig
@@ -87,7 +85,7 @@ object TransitCrowdingSkimmer extends LazyLogging {
   case class TransitCrowdingSkimmerInternal(
     numberOfPassengers: Int,
     capacity: Int,
-    iterations: Int = 1,
+    iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = numberOfPassengers + "," + capacity + "," + observations + "," + iterations
 

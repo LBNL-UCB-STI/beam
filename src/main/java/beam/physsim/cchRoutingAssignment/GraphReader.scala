@@ -1,4 +1,5 @@
 package beam.physsim.cchRoutingAssignment
+
 import java.io.File
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -11,8 +12,7 @@ import scala.collection.mutable
 case class Vertex(id: Long, coordinate: Coordinate)
 case class RoutingFrameworkGraph(vertices: Seq[Vertex])
 
-/**
-  * Reads graph in binary routing framework format
+/** Reads graph in binary routing framework format
   */
 trait RoutingFrameworkGraphReader {
   def read(graph: File): RoutingFrameworkGraph
@@ -60,10 +60,9 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
           if (attributeName == "lat_lng") {
             readInt() // skip list size
             (0 until numOfVertices)
-              .foreach(
-                i =>
-                  vertexId2Coordinate
-                    .put(i, new Coordinate(readInt() / coordinatePrecision, readInt() / coordinatePrecision))
+              .foreach(i =>
+                vertexId2Coordinate
+                  .put(i, new Coordinate(readInt() / coordinatePrecision, readInt() / coordinatePrecision))
               )
           } else {
             source.skip(size)

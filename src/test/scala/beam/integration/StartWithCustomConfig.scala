@@ -1,4 +1,5 @@
 package beam.integration
+
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.utils.EventReader._

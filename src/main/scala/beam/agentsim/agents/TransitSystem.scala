@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Terminated}
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -14,7 +14,7 @@ import beam.router.{BeamRouter, Modes, TransitInitializer}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.{FileUtils, NetworkHelper}
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -35,7 +35,7 @@ class TransitSystem(
   val geo: GeoUtils,
   val networkHelper: NetworkHelper,
   val eventsManager: EventsManager
-) extends Actor
+) extends LoggingMessageActor
     with ActorLogging {
 
   override val supervisorStrategy: OneForOneStrategy =
@@ -47,7 +47,7 @@ class TransitSystem(
   initDriverAgents()
   log.info("Transit schedule has been initialized")
 
-  override def receive: PartialFunction[Any, Unit] = {
+  override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       sender ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
@@ -55,9 +55,8 @@ class TransitSystem(
     case Finish =>
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-      context.become {
-        case Terminated(_) =>
-          dieIfNoChildren()
+      contextBecome { case Terminated(_) =>
+        dieIfNoChildren()
       }
   }
 
@@ -80,29 +79,28 @@ class TransitSystem(
       BeamRouter.oneSecondTravelTime
     ).initMap
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    transitSchedule.foreach {
-      case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
-          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
-          val transitDriverAgentProps = TransitDriverAgent.props(
-            scheduler,
-            beamServices,
-            beamScenario,
-            transportNetwork,
-            tollCalculator,
-            eventsManager,
-            parkingManager,
-            chargingNetworkManager,
-            transitDriverId,
-            vehicle,
-            legs,
-            geo,
-            networkHelper
-          )
-          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          context.watch(transitDriver)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
-        }
+    transitSchedule.foreach { case (tripVehId, (route, legs)) =>
+      initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
+        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+        val transitDriverAgentProps = TransitDriverAgent.props(
+          scheduler,
+          beamServices,
+          beamScenario,
+          transportNetwork,
+          tollCalculator,
+          eventsManager,
+          parkingManager,
+          chargingNetworkManager,
+          transitDriverId,
+          vehicle,
+          legs,
+          geo,
+          networkHelper
+        )
+        val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+        context.watch(transitDriver)
+        scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
+      }
     }
   }
 }
@@ -124,9 +122,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
     val vehicleType = getVehicleType(route, mode)
     mode match {
       case BUS | SUBWAY | TRAM | CABLE_CAR | RAIL | FERRY | GONDOLA if vehicleType != null =>
-        val powertrain = Option(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-          .map(new Powertrain(_))
-          .getOrElse(Powertrain.PowertrainFromMilesPerGallon(Powertrain.AverageMilesPerGallon))
+        val powertrain = Powertrain(Option(vehicleType.primaryFuelConsumptionInJoulePerMeter))
 
         val beamVehicleId = BeamVehicle.createId(transitVehId) //, Some(mode.toString)
 
@@ -134,8 +130,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
           beamVehicleId,
           powertrain,
           vehicleType,
-          managerId = VehicleManager.transitVehicleManager.managerId,
-          randomSeed
+          randomSeed = randomSeed
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
       case _ =>

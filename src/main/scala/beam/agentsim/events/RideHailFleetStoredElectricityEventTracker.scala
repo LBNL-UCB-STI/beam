@@ -2,8 +2,7 @@ package beam.agentsim.events
 
 import com.typesafe.scalalogging.LazyLogging
 
-/**
-  * Track the first and last [[RideHailFleetStoredElectricityEvent]] in an iteration to determine the electricity
+/** Track the first and last [[RideHailFleetStoredElectricityEvent]] in an iteration to determine the electricity
   * stored in the fleet at the beginning and end of the iteration.
   */
 trait RideHailFleetStoredElectricityEventTracker extends LazyLogging {
@@ -35,7 +34,7 @@ trait RideHailFleetStoredElectricityEventTracker extends LazyLogging {
     initialAndFinalRideHailFleetStoredElectricityEventOpt match {
       case (Some(initialRideHailFleetStoredElectricityEvent), Some(finalRideHailFleetStoredElectricityEvent)) =>
         val storedElectricityDifferenceInJoules = (finalRideHailFleetStoredElectricityEvent.storedElectricityInJoules
-        - initialRideHailFleetStoredElectricityEvent.storedElectricityInJoules)
+          - initialRideHailFleetStoredElectricityEvent.storedElectricityInJoules)
 
         val storageCapacityInJoules = initialRideHailFleetStoredElectricityEvent.storageCapacityInJoules
 

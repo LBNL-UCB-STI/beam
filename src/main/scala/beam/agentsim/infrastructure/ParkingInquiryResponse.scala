@@ -1,3 +1,5 @@
 package beam.agentsim.infrastructure
 
-case class ParkingInquiryResponse(stall: ParkingStall, requestId: Int)
+import beam.agentsim.scheduler.HasTriggerId
+
+case class ParkingInquiryResponse(stall: ParkingStall, requestId: Int, triggerId: Long) extends HasTriggerId

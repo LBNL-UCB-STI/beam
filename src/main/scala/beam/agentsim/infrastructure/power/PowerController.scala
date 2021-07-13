@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
 class PowerController(
-  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork],
+  chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork],
   beamConfig: BeamConfig,
   beamFederateOption: Option[BeamFederate]
 ) extends LazyLogging {
@@ -24,8 +24,7 @@ class PowerController(
   private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(chargingStationsMap.values.toList.distinct).value
   private var currentBin = -1
 
-  /**
-    * Obtains physical bounds from the grid
+  /** Obtains physical bounds from the grid
     *
     * @param currentTime current time
     *  @param estimatedLoadMaybe map required power per zone
@@ -37,17 +36,16 @@ class PowerController(
   ): Map[ChargingStation, PhysicalBounds] = {
     val msgToPublish = estimatedLoadMaybe match {
       case Some(estimatedLoad) =>
-        val msg = estimatedLoad.map {
-          case (station, powerInKW) =>
-            //logger.info(s"DELETE-THIS-${station.zone.id},$powerInKW,$currentTime")
-            Map(
-              "managerId"         -> station.zone.managerId,
-              "tazId"             -> station.zone.tazId.toString,
-              "parkingType"       -> station.zone.parkingType.toString,
-              "chargingPointType" -> station.zone.chargingPointType.toString,
-              "numChargers"       -> station.zone.numChargers,
-              "estimatedLoad"     -> powerInKW
-            )
+        val msg = estimatedLoad.map { case (station, powerInKW) =>
+          logger.info(s"DELETE-THIS-${station.zone.id},$powerInKW,$currentTime")
+          Map(
+            "managerId"         -> station.zone.vehicleManager.getOrElse(""),
+            "tazId"             -> station.zone.tazId.toString,
+            "parkingType"       -> station.zone.parkingType.toString,
+            "chargingPointType" -> station.zone.chargingPointType.toString,
+            "numChargers"       -> station.zone.numChargers,
+            "estimatedLoad"     -> powerInKW
+          )
         }.toList
         msg
       case _ => List.empty[Map[String, Any]]
@@ -64,7 +62,7 @@ class PowerController(
         val gridBounds = beamFederate.syncThenCollectJSON(currentTime + 1)
         // PROCESS
         gridBounds.flatMap { x =>
-          val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
+          val managerId = Some(Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager]))
           val chargingNetwork = chargingNetworkMap(managerId)
           chargingNetwork.lookupStation(
             Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),

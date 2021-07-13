@@ -2,9 +2,10 @@ package beam.agentsim.infrastructure.charging
 
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import org.scalactic.source
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ChargingPointTypeSpec extends WordSpec with Matchers {
+class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
   "ChargingPointType" when {
     "formal charging point types" when {
       "given string names of built-in charging point types" should {
@@ -113,8 +114,7 @@ class ChargingPointTypeSpec extends WordSpec with Matchers {
 
 object ChargingPointTypeSpec extends org.scalatest.Assertions {
 
-  /**
-    * helper test function which handles the common parsing failures
+  /** helper test function which handles the common parsing failures
     * @param input a string representation of a CustomChargingPoint
     * @param pos required for calling "fail" here, an implicit that tracks the call point of an error
     * @return either an error string, or a CustomChargingPoint

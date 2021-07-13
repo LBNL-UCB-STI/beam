@@ -8,8 +8,7 @@ import akka.event.LoggingAdapter
 
 import scala.collection.mutable
 
-/**
-  * Not thread safe. Intended to be used inside an actor.
+/** Not thread safe. Intended to be used inside an actor.
   *
   * @author Dmitry Openkov
   */

@@ -7,8 +7,7 @@ import beam.agentsim.infrastructure.parking.ParkingZone
 
 object ParkingSearchFilterPredicates {
 
-  /**
-    * if the destination activity is "home" then we are a PEV. this function is true when:
+  /** if the destination activity is "home" then we are a PEV. this function is true when:
     *
     * 1. we are not headed home (i.e. not a PersonAgent driving their car home)
     * 2. if we are headed home,
@@ -56,7 +55,7 @@ object ParkingSearchFilterPredicates {
 
   def requireStallHasCharger(
     activityTypeLowerCased: String,
-    beamVehicleOption: Option[BeamVehicle],
+    beamVehicleOption: Option[BeamVehicle]
   ): Boolean =
     activityTypeLowerCased match {
       case "fast-charge" => true

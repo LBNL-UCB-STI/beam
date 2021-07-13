@@ -1,14 +1,13 @@
 package beam.utils
+
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-/**
-  * Created by sfeygin on 4/10/17.
+/** Created by sfeygin on 4/10/17.
   */
 object MathUtils {
 
-  /**
-    * Safely round numbers using a specified scale
+  /** Safely round numbers using a specified scale
     *
     * @param inVal value to round
     * @param scale number of decimal places to use
@@ -18,8 +17,7 @@ object MathUtils {
     BigDecimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
-  /**
-    * Calculates the median for the given collection of doubles
+  /** Calculates the median for the given collection of doubles
     * @param list the list of data
     * @return median of the given list
     */
@@ -44,8 +42,7 @@ object MathUtils {
     number > 0 && ((number & (number - 1)) == 0)
   }
 
-  /**
-    * Sums together things in log space.
+  /** Sums together things in log space.
     * @return log(\sum exp(a_i))
     * Taken from Sameer Singh
     * https://github.com/sameersingh/scala-utils/blob/master/misc/src/main/scala/org/sameersingh/utils/misc/Math.scala
@@ -60,16 +57,14 @@ object MathUtils {
     output
   }
 
-  /**
-    * Sums together things in log space.
+  /** Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
   def logSumExp(a: Double, b: Double, c: Double*): Double = {
     logSumExp(Array(a, b) ++ c)
   }
 
-  /**
-    * Sums together things in log space.
+  /** Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
   def logSumExp(iter: Iterator[Double], max: Double): Double = {
@@ -82,8 +77,15 @@ object MathUtils {
     max + math.log(accum)
   }
 
-  /**
-    * Sums together things in log space.
+  def randomPointInCircle(rSquared: Double, rnd: Random): (Double, Double) = {
+    val xSquared = rnd.nextDouble() * rSquared
+    val ySquared = rnd.nextDouble() * (rSquared - xSquared)
+    val xSign = Math.signum(rnd.nextDouble() - 0.5)
+    val ySign = Math.signum(rnd.nextDouble() - 0.5)
+    (xSign * Math.sqrt(xSquared), ySign * Math.sqrt(ySquared))
+  }
+
+  /** Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
   @SuppressWarnings(Array("UnsafeTraversableMethods"))
@@ -109,8 +111,7 @@ object MathUtils {
 
   def roundToFraction(x: Double, fraction: Long): Double = (x * fraction).round.toDouble / fraction
 
-  /**
-    * Tested with not negative
+  /** Tested with not negative
     * @param x float to round
     * @return one of the nearest integers depending on the random value and the fraction of x
     */
@@ -127,5 +128,6 @@ object MathUtils {
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
 
-  def nanToZero(x: Double) = if (x.isNaN) { 0.0 } else { x }
+  def nanToZero(x: Double) = if (x.isNaN) { 0.0 }
+  else { x }
 }

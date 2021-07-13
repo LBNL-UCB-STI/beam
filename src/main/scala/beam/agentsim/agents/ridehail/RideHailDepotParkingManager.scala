@@ -4,8 +4,8 @@ import beam.agentsim.Resource
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.parking.ParkingZone
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingNetwork, ParkingStall}
+import beam.agentsim.infrastructure.parking.ParkingNetwork
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.BeamRouter.Location
 import beam.sim.Geofence
@@ -14,10 +14,9 @@ import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
-trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
+trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
 
-  /**
-    * Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
+  /** Assigns a [[ParkingStall]] to a CAV Ride Hail vehicle.
     *
     * @param locationUtm the position of this agent
     * @param beamVehicle the [[BeamVehicle]] associated with the driver
@@ -32,8 +31,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
     findDepotAttributes: Option[FindDepotAttributes] = None
   ): Option[ParkingStall]
 
-  /**
-    * Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
+  /** Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
     *
     * @param vehicleId
     * @return the optional [[ParkingStall]] of the vehicle if it was found in the internal tracking, None if
@@ -41,8 +39,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
     */
   def notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId: VehicleId): Option[ParkingStall]
 
-  /**
-    * Makes an attempt to "claim" the parking stall passed in as an argument and returns a [[StartRefuelSessionTrigger]]
+  /** Makes an attempt to "claim" the parking stall passed in as an argument and returns a [[StartRefuelSessionTrigger]]
     * or puts the vehicle into a queue.
     *
     * @param beamVehicle
@@ -60,16 +57,14 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
     source: RefuelSource
   ): (Vector[ScheduleTrigger], Option[Int])
 
-  /**
-    * This vehicle is no longer charging and should be removed from internal tracking data.
+  /** This vehicle is no longer charging and should be removed from internal tracking data.
     *
     * @param vehicle
     * @return the stall if found and successfully removed
     */
   def removeFromCharging(vehicle: VehicleId, tick: Int): Option[ParkingStall]
 
-  /**
-    * Given a parkingZoneId, dequeue the next vehicle that is waiting to charge.
+  /** Given a parkingZoneId, dequeue the next vehicle that is waiting to charge.
     *
     * @param parkingZoneId
     * @param tick
@@ -80,53 +75,40 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
     tick: Int
   ): Option[ChargingQueueEntry]
 
-  /**
-    * Give depot manager opportunity to internalize geofences associated with fleet.
+  /** Give depot manager opportunity to internalize geofences associated with fleet.
     *
     * @param vehicleIdToGeofenceMap
     */
   def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]])
 
-  /**
-    * Is the [[vehicleId]] currently on the way to a refueling depot to charge or actively charging?
+  /** Is the [[vehicleId]] currently on the way to a refueling depot to charge or actively charging?
     *
     * @param vehicleId
     * @return
     */
   def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean
 
-  /**
-    * Notify this [[RideHailDepotParkingManager]] that vehicles are on the way to the depot for the purpose of refueling.
+  /** Notify this [[RideHailDepotParkingManager]] that vehicles are on the way to the depot for the purpose of refueling.
     *
     * @param newVehiclesHeadedToDepot
     */
   def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit
 
-  /**
-    * Is the [[vehicleId]] currently on the way to a refueling depot to charge?
+  /** Is the [[vehicleId]] currently on the way to a refueling depot to charge?
     *
     * @param vehicleId
     * @return
     */
   def isOnWayToRefuelingDepot(vehicleId: VehicleId): Boolean
 
-  /**
-    * Gives back the ParkingZones managed by the RidehailDepotParkingManager
-    * @return
-    */
-  def getParkingZones(): Array[ParkingZone[GEO]]
-
-  /**
-    * Gets the location in UTM for a parking zone.
+  /** Gets the location in UTM for a parking zone.
     *
     * @param parkingZoneId ID of the parking zone
     * @return Parking zone location in UTM.
     */
   def getParkingZoneLocationUtm(parkingZoneId: Int): Coord
 
-  /**
-    *
-    * @param inquiry
+  /** @param inquiry
     * @param parallelizationCounterOption
     * @return
     */
@@ -135,9 +117,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork {
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = None
 
-  /**
-    *
-    * @param release
+  /** @param release
     */
   override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = Unit
 

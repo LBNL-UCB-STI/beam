@@ -6,8 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.ShiftEvent._
 import org.matsim.api.core.v01.events.Event
 
-/**
-  * Event capturing the details of a ride hail shift start/end.
+/** Event capturing the details of a ride hail shift start/end.
   */
 case class ShiftEvent(
   tick: Double,

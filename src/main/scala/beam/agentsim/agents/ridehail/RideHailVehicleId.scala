@@ -7,8 +7,7 @@ object RideHailVehicleId {
   private val VEHICLE_ID_PREFIX = f"rideHailVehicle-"
   private val FLEET_SEPARATOR = "@"
 
-  /**
-    * Create a [[RideHailVehicleId]] from an [[Id[BeamVehicle]]].
+  /** Create a [[RideHailVehicleId]] from an [[Id[BeamVehicle]]].
     *
     * @param vehicleId Ride-hail vehicle ID.
     * @return Corresponding [[RideHailVehicleId]]
@@ -27,14 +26,13 @@ object RideHailVehicleId {
     }
   }
 
-  /**  Returns true if an [[Id[BeamVehicle]]] represents a ride-hail vehicle ID. */
+  /** Returns true if an [[Id[BeamVehicle]]] represents a ride-hail vehicle ID. */
   def isRideHail(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.startsWith(VEHICLE_ID_PREFIX)
   }
 }
 
-/**
-  * RideHailVehicleId is a wrapper around [[Id[BeamVehicle]]] to better identify ride-hail vehicles.
+/** RideHailVehicleId is a wrapper around [[Id[BeamVehicle]]] to better identify ride-hail vehicles.
   *
   * The beamVehicleId (e.g., rideHailVehicle-1@myFleet) is comprised of three parts:
   * 1. Prefix: "rideHailVehicle-" which indicates that this is a ride-hail vehicle.

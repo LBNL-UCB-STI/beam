@@ -1,12 +1,12 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.router.BeamRouter.Location
+import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 
-/**
-  * message sent from a ChoosesParking agent to a Parking Manager to request parking
+/** message sent from a ChoosesParking agent to a Parking Manager to request parking
   *
   * @param destinationUtm  the location where we are seeking nearby parking
   * @param activityType    the activity that the agent will partake in after parking
@@ -18,15 +18,17 @@ import beam.utils.ParkingManagerIdGenerator
   * @param requestId       a unique ID generated for this inquiry
   */
 case class ParkingInquiry(
-  destinationUtm: Location,
+  destinationUtm: SpaceTime,
   activityType: String,
   parkingDuration: Double = 60.0, // 1 min as a default value
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,
   reserveStall: Boolean = true,
-  requestId: Int = ParkingManagerIdGenerator.nextId // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-) {
+  requestId: Int =
+    ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  triggerId: Long
+) extends HasTriggerId {
   val activityTypeLowerCased: String = activityType.toLowerCase
 }
 

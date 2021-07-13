@@ -14,16 +14,17 @@ import beam.utils.TestConfigUtils.testConfig
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.EventsManagerImpl
-import org.scalatest.Matchers._
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, MustMatchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.should.Matchers
 
 class BeamAgentSchedulerSpec
     extends TestKit(
       ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf").resolve())
     )
-    with FunSpecLike
+    with AnyFunSpecLike
     with BeforeAndAfterAll
-    with MustMatchers
+    with Matchers
     with ImplicitSender {
 
   lazy val config: BeamConfig = BeamConfig(system.settings.config)
@@ -118,13 +119,11 @@ object BeamAgentSchedulerSpec {
 
     startWith(Uninitialized, MyData())
 
-    when(Uninitialized) {
-      case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
-        goto(Initialized) replying CompletionNotice(triggerId, Vector())
+    when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
+      goto(Initialized) replying CompletionNotice(triggerId, Vector())
     }
-    when(Initialized) {
-      case Event(TriggerWithId(_, triggerId), _) =>
-        stay() replying CompletionNotice(triggerId, Vector())
+    when(Initialized) { case Event(TriggerWithId(_, triggerId), _) =>
+      stay() replying CompletionNotice(triggerId, Vector())
     }
     whenUnhandled {
       case Event(IllegalTriggerGoToError(_), _) =>

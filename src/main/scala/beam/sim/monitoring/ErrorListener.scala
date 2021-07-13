@@ -12,9 +12,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, WorkAvailable}
 import org.matsim.api.core.v01.Id
 
-/**
-  * @author sid.feygin
-  *
+/** @author sid.feygin
   */
 class ErrorListener() extends Actor with ActorLogging {
   private var nextCounter = 1
@@ -35,7 +33,7 @@ class ErrorListener() extends Actor with ActorLogging {
           log.warning(
             s"Person ${d.sender} attempted to reserve ride with agent ${d.recipient} that was not found, message sent to dead letters."
           )
-          d.sender ! ReservationResponse(Left(DriverNotFoundError))
+          d.sender ! ReservationResponse(Left(DriverNotFoundError), m.triggerId)
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
         case TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), triggerId) =>
@@ -74,19 +72,17 @@ class ErrorListener() extends Actor with ActorLogging {
 
     val msgCounts = terminatedPrematurelyEvents
       .groupBy(event => "ALL")
-      .mapValues(
-        eventsPerReason =>
-          eventsPerReason
-            .groupBy(event => hourOrMinus1(event))
-            .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
+      .mapValues(eventsPerReason =>
+        eventsPerReason
+          .groupBy(event => hourOrMinus1(event))
+          .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
       )
     msgCounts
-      .map {
-        case (msg, cntByHour) =>
-          val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
-          s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
-            .map { case (_, cnt)                             => cnt.toString }
-            .mkString("\t")}"
+      .map { case (msg, cntByHour) =>
+        val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
+        s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
+          .map { case (_, cnt) => cnt.toString }
+          .mkString("\t")}"
       }
       .mkString("\n")
   }

@@ -28,8 +28,7 @@ import scala.io.Source
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 import scala.util.{Failure, Random, Success, Try}
 
-/**
-  * Created by sfeygin on 1/30/17.
+/** Created by sfeygin on 1/30/17.
   */
 object FileUtils extends LazyLogging {
 
@@ -116,8 +115,7 @@ object FileUtils extends LazyLogging {
     }
   }
 
-  /**
-    * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
+  /** Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
     * that indicates that file is being created.
     * @param path the file path
     * @param atMost wait at most this time before starting reading the file
@@ -193,6 +191,35 @@ object FileUtils extends LazyLogging {
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
   }
 
+  def readerFromIterator(iterator: Iterator[String]): java.io.Reader = {
+    new Reader() {
+      var currentLine: String = ""
+      var position: Int = 0
+
+      override def read(cbuf: Array[Char], off: Int, len: Int): Int = {
+        if (len == 0) return 0
+        if (position >= currentLine.length && !receiveNextLine()) return -1
+        val read = Math.min(currentLine.length - position, len)
+        currentLine.getChars(position, position + read, cbuf, off)
+        position += read
+        read
+      }
+
+      private def receiveNextLine() = {
+        if (iterator.hasNext) {
+          currentLine = iterator.next()
+          position = 0
+          true
+        } else {
+          currentLine = ""
+          false
+        }
+      }
+
+      override def close(): Unit = {}
+    }
+  }
+
   def readerFromURL(url: String): java.io.BufferedReader = {
     require(isRemote(url, "http://") || isRemote(url, "https://"))
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
@@ -238,8 +265,7 @@ object FileUtils extends LazyLogging {
     concatString.hashCode
   }
 
-  /**
-    * Writes data to the output file at specified path.
+  /** Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
     * @param fileHeader an optional header to be appended (if any)
     * @param data data to be written to the file
@@ -273,8 +299,7 @@ object FileUtils extends LazyLogging {
     }
   }
 
-  /**
-    * Writes data to the output file at specified path.
+  /** Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
     * @param fileHeader an optional header to be appended (if any)
     * @param data data to be written to the file
@@ -353,8 +378,7 @@ object FileUtils extends LazyLogging {
     sourceFilePath.startsWith(remoteIfStartsWith)
   }
 
-  /**
-    * Reads files in parallel and returns all the loaded records as Iterable
+  /** Reads files in parallel and returns all the loaded records as Iterable
     * @param dir the directory where the files reside
     * @param fileNamePattern glob file pattern
     * @param atMost the expected time interval for file reading
@@ -370,8 +394,7 @@ object FileUtils extends LazyLogging {
       (path, loader(path, reader))
     }.values.flatten
 
-  /**
-    * Reads files in parallel and returns loaded data as a map containing each loaded file data as values
+  /** Reads files in parallel and returns loaded data as a map containing each loaded file data as values
     * @param dir the directory where the files reside
     * @param fileNamePattern glob file pattern
     * @param atMost the expected time interval for file reading
@@ -401,8 +424,7 @@ object FileUtils extends LazyLogging {
     Await.result(Future.sequence(futures), atMost).toMap
   }
 
-  /**
-    * Writes data to separate files in parallel
+  /** Writes data to separate files in parallel
     * @param outputDir the ouput dir
     * @param fileNamePattern the file name pattern. It must contains $i which is substituted with the part number
     * @param numberOfParts the number of parts
@@ -420,13 +442,12 @@ object FileUtils extends LazyLogging {
       .map { i =>
         (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
       }
-    val futures = fileList.map {
-      case (i: Int, path: Path) =>
-        Future {
-          using(IOUtils.getBufferedWriter(path.toString)) { writer =>
-            saver(i, path, writer)
-          }
+    val futures = fileList.map { case (i: Int, path: Path) =>
+      Future {
+        using(IOUtils.getBufferedWriter(path.toString)) { writer =>
+          saver(i, path, writer)
         }
+      }
     }
     Await.result(Future.sequence(futures), atMost)
   }
@@ -448,8 +469,7 @@ object FileUtils extends LazyLogging {
     }
   }
 
-  /**
-    * Not recursive (accepts only files)
+  /** Not recursive (accepts only files)
     * @param out the output file path
     * @param files a sequence of pairs zip entry name -> file path
     */
@@ -457,18 +477,17 @@ object FileUtils extends LazyLogging {
     import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
     import java.util.zip.{ZipEntry, ZipOutputStream}
 
-    val existed = files.filter { case (_, path)      => Files.exists(path) && Files.isRegularFile(path) }
+    val existed = files.filter { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
     val notExited = files.filterNot { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
     notExited.foreach { case (name, _) => logger.error(s"Cannot find $name") }
 
     using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) { zip =>
-      existed.foreach {
-        case (name, path) =>
-          zip.putNextEntry(new ZipEntry(name))
-          using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
-            IOUtils.copyStream(in, zip)
-          }
-          zip.closeEntry()
+      existed.foreach { case (name, path) =>
+        zip.putNextEntry(new ZipEntry(name))
+        using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
+          IOUtils.copyStream(in, zip)
+        }
+        zip.closeEntry()
       }
     }
     out

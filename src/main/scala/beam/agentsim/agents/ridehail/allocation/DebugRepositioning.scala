@@ -4,8 +4,7 @@ import beam.agentsim.agents.ridehail.RideHailManager
 import beam.utils.{PointToPlot, SpatialPlot}
 import java.awt.Color
 
-/**
-  * BEAM
+/** BEAM
   */
 class DebugRepositioning {}
 

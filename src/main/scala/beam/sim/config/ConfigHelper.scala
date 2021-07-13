@@ -14,8 +14,7 @@ object ConfigHelper {
     "matsim.modules.strategy.planSelectorForRemoval"
   )
 
-  /**
-    * This method merges all configuration parameters into a single file including parameters from
+  /** This method merges all configuration parameters into a single file including parameters from
     * 'include' statements. Two full config files are written out: One without comments and one with
     * comments in JSON format.
     * @param config the input config file

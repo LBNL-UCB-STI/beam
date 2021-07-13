@@ -16,12 +16,12 @@ import org.matsim.core.api.experimental.events.EventsManager
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-/**
-  * BEAM
+/** BEAM
   */
 trait ModeChoiceCalculator {
 
   val beamConfig: BeamConfig
+
   lazy val random: Random = new Random(
     beamConfig.matsim.modules.global.randomSeed
   )
@@ -145,17 +145,13 @@ object ModeChoiceCalculator {
               throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
-        _ =>
-          new ModeChoiceTransitIfAvailable(beamServices)
+        _ => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        _ =>
-          new ModeChoiceDriveIfAvailable(beamServices)
+        _ => new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        _ =>
-          new ModeChoiceRideHailIfAvailable(beamServices)
+        _ => new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        _ =>
-          new ModeChoiceUniformRandom(beamServices.beamConfig)
+        _ => new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
         val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>

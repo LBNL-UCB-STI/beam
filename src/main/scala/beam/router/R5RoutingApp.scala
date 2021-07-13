@@ -41,15 +41,14 @@ class RoutingHandler(val workerRouter: ActorRef) extends FailFastCirceSupport {
 
 object CustomExceptionHandling extends LazyLogging {
 
-  def handler: ExceptionHandler = ExceptionHandler {
-    case t: Throwable =>
-      extractClientIP { remoteAddress =>
-        extractRequest { request =>
-          val msg = s"Exception during processing $request from $remoteAddress: ${t.getMessage}"
-          logger.error(msg, t)
-          complete(HttpResponse(StatusCodes.InternalServerError, entity = msg))
-        }
+  def handler: ExceptionHandler = ExceptionHandler { case t: Throwable =>
+    extractClientIP { remoteAddress =>
+      extractRequest { request =>
+        val msg = s"Exception during processing $request from $remoteAddress: ${t.getMessage}"
+        logger.error(msg, t)
+        complete(HttpResponse(StatusCodes.InternalServerError, entity = msg))
       }
+    }
   }
 }
 
@@ -112,7 +111,8 @@ object R5RoutingApp extends BeamHelper {
       departureTime = departureTime,
       withTransit = false,
       personId = Some(personId),
-      streetVehicles = Vector(bodyStreetVehicle)
+      streetVehicles = Vector(bodyStreetVehicle),
+      triggerId = -1
     )
 
     println(routingRequest.asJson.toString())

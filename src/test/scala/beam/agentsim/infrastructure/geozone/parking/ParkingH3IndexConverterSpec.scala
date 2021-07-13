@@ -1,13 +1,13 @@
 package beam.agentsim.infrastructure.geozone.parking
 
 import java.nio.file.{Files, Path, Paths}
-
 import beam.agentsim.infrastructure.geozone.aggregation._
 import beam.agentsim.infrastructure.geozone.aggregation.ParkingH3IndexConverter.H3IndexParkingEntryGroup
 import beam.agentsim.infrastructure.geozone.{H3Index, H3IndexMapper, H3Wrapper}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ParkingH3IndexConverterSpec extends WordSpec with Matchers {
+class ParkingH3IndexConverterSpec extends AnyWordSpec with Matchers {
 
   "ParkingH3IndexConverter" should {
 
@@ -27,7 +27,7 @@ class ParkingH3IndexConverterSpec extends WordSpec with Matchers {
 
       val expectedValue = ParkingEntryValues(
         numStalls = 50,
-        feeInCents = 16D
+        feeInCents = 16d
       )
       assertResult(Seq(expectedValue)) {
         val entryGroup = H3IndexParkingEntryGroup(
@@ -54,7 +54,7 @@ class ParkingH3IndexConverterSpec extends WordSpec with Matchers {
         .aggregate(ValueAggregator.StallSummationAndFeeWeightAvg)
       val expectedValue = ParkingEntryValues(
         numStalls = 5,
-        feeInCents = 18D
+        feeInCents = 18d
       )
       assertResult(Seq(expectedValue)) {
         val entryGroup = H3IndexParkingEntryGroup(

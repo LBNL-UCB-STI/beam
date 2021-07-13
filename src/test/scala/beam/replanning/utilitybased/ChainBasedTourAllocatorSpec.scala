@@ -13,13 +13,15 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsImpl}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
+import org.scalatest.GivenWhenThen
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
-class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper with MockitoSugar with GivenWhenThen {
+class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHelper with GivenWhenThen {
 
   val MODE = "Car"
 
@@ -116,6 +118,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
 
   private def createHouseholdWithEnoughVehicles = new ChainBasedTourAllocatorTestFixture {
     override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+
     override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
       personList.map(Id.createVehicleId(_))
     init()
@@ -123,6 +126,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
 
   private def createHouseholdsWithTooFewVehicles = new ChainBasedTourAllocatorTestFixture {
     override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+
     override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
       (1 to 2).map(Id.createVehicleId(_))
     init()

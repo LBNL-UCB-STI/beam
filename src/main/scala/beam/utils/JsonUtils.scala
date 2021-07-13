@@ -6,14 +6,14 @@ import org.matsim.core.utils.io.IOUtils
 
 import scala.xml.XML
 
-/**
-  * [[Encoder]]s, implicit encoders, and output serialization utilities
+/** [[Encoder]]s, implicit encoders, and output serialization utilities
   * Created by sfeygin on 3/28/17.
   */
 object JsonUtils {
 
   // Put global implicit encoders here. Can import wholesale in implementing code.
   object syntax {
+
     implicit val encodeCoord: Encoder[Coord] = (a: Coord) => {
       Json.fromValues(
         Seq(

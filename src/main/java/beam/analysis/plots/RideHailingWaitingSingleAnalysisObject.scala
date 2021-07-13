@@ -10,8 +10,7 @@ object RideHailingWaitingSingleAnalysisObject extends OutputDataDescriptor {
 
   private val fileName = "rideHailWaitingSingleStats"
 
-  /**
-    * Get description of fields written to the output files.
+  /** Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

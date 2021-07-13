@@ -28,6 +28,7 @@ object H3IndexMapperBuilder {
     bucketsFactor: Double,
     initialResolution: Int
   ) extends H3IndexMapperBuilder {
+
     override def buildMapper(coordinates: ParSet[WgsCoordinate]): H3IndexMapper = {
       val expectedNumberOfBuckets = Math.max((coordinates.size * bucketsFactor).toInt, 1)
       TopDownEqualDemandH3IndexMapper.from(coordinates, expectedNumberOfBuckets, initialResolution)
@@ -37,6 +38,7 @@ object H3IndexMapperBuilder {
   class H3ZoneDirectMapperBuilder(
     targetIndexes: ParSet[H3Index]
   ) extends H3IndexMapperBuilder {
+
     override def buildMapper(wgsCoordinates: ParSet[WgsCoordinate]): H3IndexMapper = {
       new WgsCoordinateH3IndexMapper(wgsCoordinates, targetIndexes)
     }

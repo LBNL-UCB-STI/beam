@@ -13,8 +13,7 @@ object ParkingRanking {
 
   val PlaceholderForChargingCosts = 0.0
 
-  /**
-    * computes the cost of a given parking alternative based on the stall rental and optional charging capabilities
+  /** computes the cost of a given parking alternative based on the stall rental and optional charging capabilities
     * @param parkingZone the zone, which is a set of parking attributes in a TAZ with similar attributes
     * @param parkingDuration duration of the agent's activity and therefore time parking
     * @param distanceToStall walking distance to cells

@@ -27,10 +27,13 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
     if (comparisonType == ErrorComparisonType.AbsoluteError) {
       compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc))
     } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity) {
-      compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc)) + getStatsFromFile(runDataFileLoc).size * 0.1
+      compareStatsAbsolutError(benchmarkData, getStatsFromFile(runDataFileLoc)) + getStatsFromFile(
+        runDataFileLoc
+      ).size * 0.1
     } else if (comparisonType == ErrorComparisonType.AbsoluteErrorWithMinLevelRepresentationOfMode) {
       val runModeStats = getStatsFromFile(runDataFileLoc)
-      var objective = compareStatsAbsolutError(benchmarkData, runModeStats) + getStatsFromFile(runDataFileLoc).size * 0.1
+      var objective =
+        compareStatsAbsolutError(benchmarkData, runModeStats) + getStatsFromFile(runDataFileLoc).size * 0.1
 
       if (minLevelRepresentationOfMode(runModeStats, benchmarkData, 0.8, "car")) {
         objective = objective + 0.1
@@ -83,20 +86,18 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
   ): Double = {
     val res =
       runData
-        .flatMap({
-          case (k, y_hat) =>
-            benchmarkData
-              .get(k)
-              .map { y =>
-                Math.abs(y - y_hat)
-              }
+        .flatMap({ case (k, y_hat) =>
+          benchmarkData
+            .get(k)
+            .map { y =>
+              Math.abs(y - y_hat)
+            }
         })
         .sum
     -res
   }
 
-  /**
-    * Computes MPE between run data and benchmark data on a mode-to-mode basis.
+  /** Computes MPE between run data and benchmark data on a mode-to-mode basis.
     *
     * @param benchmarkData target values of mode shares
     * @param runData       output values of mode shares given current suggestion.
@@ -107,13 +108,12 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
     runData: Map[String, Double]
   ): Double = {
     val res = -Math.sqrt(
-      runData.flatMap {
-        case (k, y_hat) =>
-          benchmarkData
-            .get(k)
-            .map { y =>
-              Math.pow((y - y_hat) / y, 2)
-            }
+      runData.flatMap { case (k, y_hat) =>
+        benchmarkData
+          .get(k)
+          .map { y =>
+            Math.pow((y - y_hat) / y, 2)
+          }
       }.sum / runData.size
     )
     res

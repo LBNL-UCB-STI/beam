@@ -15,11 +15,10 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-/**
-  * Created by haitamlaarabi
+/** Created by haitamlaarabi
   */
 
-class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: QuadTree[ChargingZone])
+class ChargingNetwork(vehicleManager: Option[Id[VehicleManager]], chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
   import ChargingNetwork._
 
@@ -28,21 +27,16 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
 
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
-  /**
-    *
-    * @return all vehicles still connected to a charging point
+  /** @return all vehicles still connected to a charging point
     */
   def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
     chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
-  /**
-    *
-    * @return all vehicles, connected, and the ones waiting in line
+  /** @return all vehicles, connected, and the ones waiting in line
     */
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
 
-  /**
-    * lookup a station from attributes
+  /** lookup a station from attributes
     * @param tazId the taz id
     * @param parkingType the parking type
     * @param chargingPointType the charging type
@@ -53,29 +47,22 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     parkingType: ParkingType,
     chargingPointType: ChargingPointType
   ): Option[ChargingStation] =
-    chargingZoneKeyToChargingStationMap.get(constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType))
+    chargingZoneKeyToChargingStationMap.get(
+      constructChargingZoneKey(vehicleManager, tazId, parkingType, chargingPointType)
+    )
 
-  /**
-    * lookup information about charging vehicle
+  /** lookup information about charging vehicle
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
   def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
 
-  /**
-    * get name of the vehicle manager
-    * @return VehicleManager
-    */
-  def vehicleManagerId: Id[VehicleManager] = managerId
-
-  /**
-    * clear charging vehicle map
+  /** clear charging vehicle map
     */
   def clearAllMappedStations(): Unit =
     chargingZoneKeyToChargingStationMap.foreach(_._2.clearAllVehiclesFromTheStation())
 
-  /**
-    * Connect to charging point or add to waiting line
+  /** Connect to charging point or add to waiting line
     * @param tick current time
     * @param vehicle vehicle to charge
     * @return a tuple of the status of the charging vehicle and the connection status
@@ -87,7 +74,7 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
           case Some(station) => Some(station.connect(tick, vehicle, stall, theSender))
           case _ =>
             logger.error(
-              s"CNM cannot find a $managerId station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
+              s"CNM cannot find a $vehicleManager station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
             )
             None
         }
@@ -99,16 +86,14 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     }
   }
 
-  /**
-    * Disconnect the vehicle for the charging point/station
+  /** Disconnect the vehicle for the charging point/station
     * @param chargingVehicle vehicle to disconnect
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def disconnectVehicle(chargingVehicle: ChargingVehicle): Option[ChargingVehicle] =
     chargingVehicle.chargingStation.disconnect(chargingVehicle.vehicle.id)
 
-  /**
-    * transfer vehciles from waiting line to connected
+  /** transfer vehciles from waiting line to connected
     * @param station the corresponding station
     * @return list of vehicle that connected
     */
@@ -126,6 +111,7 @@ object ChargingNetwork {
   final case class ChargingStation(zone: ChargingZone) {
     import ConnectionStatus._
     private val connectedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
+
     private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
@@ -137,8 +123,7 @@ object ChargingNetwork {
 
     def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehicles ++ waitingLineVehicles
 
-    /**
-      * add vehicle to connected list and connect to charging point
+    /** add vehicle to connected list and connect to charging point
       * @param tick current time
       * @param vehicle vehicle to connect
       * @return status of connection
@@ -160,8 +145,7 @@ object ChargingNetwork {
       }
     }
 
-    /**
-      * remove vehicle from connected list and disconnect from charging point
+    /** remove vehicle from connected list and disconnect from charging point
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
@@ -172,8 +156,7 @@ object ChargingNetwork {
       }
     }
 
-    /**
-      * process waiting line by removing vehicle from waiting line and adding it to the connected list
+    /** process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
     private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
@@ -211,13 +194,13 @@ object ChargingNetwork {
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
+
     private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
       connectionStatus.append(status)
       this
     }
 
-    /**
-      * adding a new charging cycle to the charging session
+    /** adding a new charging cycle to the charging session
       * @param startTime start time of the charging cycle
       * @param energy energy delivered
       * @param duration duration of charging

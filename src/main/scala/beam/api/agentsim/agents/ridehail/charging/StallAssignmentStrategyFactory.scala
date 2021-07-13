@@ -15,8 +15,7 @@ import beam.agentsim.infrastructure.parking.GeoLevel
 
 import scala.util.Try
 
-/**
-  * API defining [[StallAssignmentStrategyFactory]] and its default implementation ([[DefaultStallAssignmentStrategyFactory]]), which
+/** API defining [[StallAssignmentStrategyFactory]] and its default implementation ([[DefaultStallAssignmentStrategyFactory]]), which
   * allows to instantiate from a variety of stall assignment strategies ([[StallAssignmentStrategy]]) currently available in BEAM.
   * In order to add new custom stall assignment strategies, a new [[StallAssignmentStrategyFactory]] can be implemented similar to [[DefaultStallAssignmentStrategyFactory]] and
   * [[DefaultStallAssignmentStrategyFactory]] can be used as a delegate to access the stall assignment strategies.
@@ -30,10 +29,10 @@ trait StallAssignmentStrategyFactory {
 
 }
 
-/**
-  * Default implementation of [[StallAssignmentStrategyFactory]].
+/** Default implementation of [[StallAssignmentStrategyFactory]].
   */
 class DefaultStallAssignmentStrategyFactory extends StallAssignmentStrategyFactory {
+
   override def create[GEO: GeoLevel](
     rideHailDepotParkingManager: RideHailDepotParkingManager[GEO],
     stallAssignmentStrategyName: String

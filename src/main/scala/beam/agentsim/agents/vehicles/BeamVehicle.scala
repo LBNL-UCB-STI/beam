@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, HeavyDutyTruck, LightDutyTruck}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
@@ -30,8 +30,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.util.Random
 
-/**
-  * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
+/** A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
   * implementing [[beam.agentsim.agents.modalbehaviors.DrivesVehicle]]). The passengers in the [[BeamVehicle]]
   * are also [[BeamVehicle]]s, however, others are possible). The
   * reference to a parent [[BeamVehicle]] is maintained in its carrier. All other information is
@@ -48,7 +47,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
-  val managerId: Id[VehicleManager],
+  val vehicleManager: Option[Id[VehicleManager]] = None,
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
@@ -71,8 +70,7 @@ class BeamVehicle(
   def isMustBeDrivenHome: Boolean = mustBeDrivenHomeInternal.get()
   def setMustBeDrivenHome(value: Boolean): Unit = mustBeDrivenHomeInternal.set(value)
 
-  /**
-    * The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
+  /** The [[PersonAgent]] who is currently driving the vehicle (or None ==> it is idle).
     * Effectively, this is the main controller of the vehicle in space and time in the scenario environment;
     * whereas, the manager is ultimately responsible for assignment and (for now) ownership
     * of the vehicle as a physical property.
@@ -98,15 +96,13 @@ class BeamVehicle(
   private var chargerConnectedTick: Option[Int] = None
   private var chargerConnectedPrimaryFuel: Option[Double] = None
 
-  /**
-    * Called by the driver.
+  /** Called by the driver.
     */
   def unsetDriver(): Unit = {
     driver.set(None)
   }
 
-  /**
-    * Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
+  /** Only permitted if no driver is currently set. Driver has full autonomy in vehicle, so only
     * a call of [[unsetDriver]] will remove the driver.
     *
     * @param newDriver incoming driver
@@ -144,12 +140,10 @@ class BeamVehicle(
     }
   }
 
-  /**
-    *
-    * @param startTick
+  /** @param startTick
     */
   def connectToChargingPoint(startTick: Int): Unit = {
-    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType == Electricity) {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       chargerRWLock.write {
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
@@ -187,8 +181,7 @@ class BeamVehicle(
     }
   }
 
-  /**
-    * useFuel
+  /** useFuel
     *
     * This method estimates energy consumed for [beamLeg] using data in [beamServices]. It accommodates a secondary
     * powertrain and tracks the fuel consumed by each powertrain in cascading order (i.e. primary first until tank is
@@ -202,7 +195,6 @@ class BeamVehicle(
     * When fuel level goes negative, it is assumed to happen on the primary power train, not the secondary.
     *
     * It is up to the manager / driver of this vehicle to decide how to react if fuel level becomes negative.
-    *
     */
   def useFuel(
     beamLeg: BeamLeg,
@@ -243,14 +235,16 @@ class BeamVehicle(
               fallBack = powerTrain.getRateInJoulesPerMeter,
               Secondary
             )
-          secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoulesInternal) / primaryEnergyConsumed
+          secondaryEnergyConsumed =
+            secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoulesInternal) / primaryEnergyConsumed
           if (secondaryFuelLevelInJoulesInternal < secondaryEnergyConsumed) {
             logger.warn(
               "Vehicle does not have sufficient fuel to make trip (in both primary and secondary fuel tanks), allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
               id,
               beamLeg.travelPath.distanceInM
             )
-            primaryEnergyConsumed = primaryEnergyForFullLeg - secondaryFuelLevelInJoulesInternal / secondaryEnergyConsumed
+            primaryEnergyConsumed =
+              primaryEnergyForFullLeg - secondaryFuelLevelInJoulesInternal / secondaryEnergyConsumed
             secondaryEnergyConsumed = secondaryFuelLevelInJoulesInternal
           } else {
             primaryEnergyConsumed = primaryFuelLevelInJoulesInternal
@@ -287,8 +281,7 @@ class BeamVehicle(
     }
   }
 
-  /**
-    * Estimates the duration and energy that will be required to refuel this BeamVehicle using the [[ParkingStall]]
+  /** Estimates the duration and energy that will be required to refuel this BeamVehicle using the [[ParkingStall]]
     * passed in as an argument.
     *
     * @param parkingStall
@@ -323,8 +316,7 @@ class BeamVehicle(
     }
   }
 
-  /**
-    * Estimates the duration and energy that will be required to refuel this BeamVehicle using the [[ParkingStall]] at
+  /** Estimates the duration and energy that will be required to refuel this BeamVehicle using the [[ParkingStall]] at
     * which this vehicle is currently parked.
     *
     * @param sessionDurationLimit the maximum allowable charging duration to be considered.
@@ -358,17 +350,15 @@ class BeamVehicle(
 
   def getTotalRemainingRange: Double = {
     primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1) + beamVehicleType.secondaryFuelCapacityInJoule
-      .map(
-        _ => secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get
-      )
+      .map(_ => secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get)
       .getOrElse(0.0)
   }
 
   def getRemainingRange: (Double, Option[Double]) = {
     (
       primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
-      beamVehicleType.secondaryFuelCapacityInJoule.map(
-        _ => secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get
+      beamVehicleType.secondaryFuelCapacityInJoule.map(_ =>
+        secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get
       )
     )
   }
@@ -377,9 +367,9 @@ class BeamVehicle(
     val mode = beamVehicleType.vehicleCategory match {
       case Bike =>
         BIKE
-      case Car if isCAV =>
+      case Car | LightDutyTruck | HeavyDutyTruck if isCAV =>
         CAV
-      case Car =>
+      case Car | LightDutyTruck | HeavyDutyTruck =>
         CAR
       case Body =>
         WALK
@@ -388,7 +378,7 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
+  def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
 
@@ -398,8 +388,7 @@ class BeamVehicle(
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
 
-  /**
-    * Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
+  /** Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
     *
     * For non-electric vehicles, initialSoc is ignored. For hybrids, secondaryFuelLevelInJoules is set to
     * secondaryFuelCapacityInJoule.
@@ -432,8 +421,7 @@ class BeamVehicle(
     }
   }
 
-  /**
-    * Initialize the vehicle's fuel levels to a uniformly distributed state of charge with given mean.
+  /** Initialize the vehicle's fuel levels to a uniformly distributed state of charge with given mean.
     *
     * @param meanSoc Mean state of charge
     */
@@ -472,7 +460,8 @@ class BeamVehicle(
       )
       false
     } else {
-      val probabilityOfRefuel = 1.0 - (remainingRangeInMeters - refuelRequiredThresholdInMeters) / (noRefuelThresholdInMeters - refuelRequiredThresholdInMeters)
+      val probabilityOfRefuel =
+        1.0 - (remainingRangeInMeters - refuelRequiredThresholdInMeters) / (noRefuelThresholdInMeters - refuelRequiredThresholdInMeters)
       val refuelNeeded = rand.nextDouble() < probabilityOfRefuel
       if (refuelNeeded) {
         logger.debug("Refueling because random draw exceeded probability to refuel of {}", probabilityOfRefuel)
@@ -560,8 +549,7 @@ object BeamVehicle {
     numberOfStops: Option[Int] = None
   )
 
-  /**
-    * Organizes the fuel consumption data table
+  /** Organizes the fuel consumption data table
     *
     * @param beamLeg Instance of beam leg
     * @param networkHelper the transport network instance
@@ -579,19 +567,18 @@ object BeamVehicle {
     } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
       beamLeg.travelPath.linkIds
         .drop(1)
-        .map(
-          id =>
-            FuelConsumptionData(
-              linkId = id,
-              vehicleType = theVehicleType,
-              linkNumberOfLanes = None,
-              linkCapacity = None,
-              linkLength = networkHelper.getLink(id).map(_.getLength),
-              averageSpeed = None,
-              freeFlowSpeed = None,
-              linkArrivalTime = None,
-              turnAtLinkEnd = None,
-              numberOfStops = None
+        .map(id =>
+          FuelConsumptionData(
+            linkId = id,
+            vehicleType = theVehicleType,
+            linkNumberOfLanes = None,
+            linkCapacity = None,
+            linkLength = networkHelper.getLink(id).map(_.getLength),
+            averageSpeed = None,
+            freeFlowSpeed = None,
+            linkArrivalTime = None,
+            turnAtLinkEnd = None,
+            numberOfStops = None
           )
         )
     } else {
@@ -600,27 +587,27 @@ object BeamVehicle {
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
 //      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
 //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
-      linkIds.zipWithIndex.map {
-        case (id, idx) =>
-          val travelTime = linkTravelTimes(idx)
-          val currentLink: Option[Link] = networkHelper.getLink(id)
-          val averageSpeed = try {
+      linkIds.zipWithIndex.map { case (id, idx) =>
+        val travelTime = linkTravelTimes(idx)
+        val currentLink: Option[Link] = networkHelper.getLink(id)
+        val averageSpeed =
+          try {
             if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
           } catch {
             case _: Exception => 0.0
           }
-          FuelConsumptionData(
-            linkId = id,
-            vehicleType = theVehicleType,
-            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
-            linkCapacity = None, //currentLink.map(_.getCapacity),
-            linkLength = currentLink.map(_.getLength),
-            averageSpeed = Some(averageSpeed),
-            freeFlowSpeed = None,
-            linkArrivalTime = None, //Some(arrivalTime),
-            turnAtLinkEnd = None, //Some(turnAtLinkEnd),
-            numberOfStops = None //Some(numStops)
-          )
+        FuelConsumptionData(
+          linkId = id,
+          vehicleType = theVehicleType,
+          linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+          linkCapacity = None, //currentLink.map(_.getCapacity),
+          linkLength = currentLink.map(_.getLength),
+          averageSpeed = Some(averageSpeed),
+          freeFlowSpeed = None,
+          linkArrivalTime = None, //Some(arrivalTime),
+          turnAtLinkEnd = None, //Some(turnAtLinkEnd),
+          numberOfStops = None //Some(numStops)
+        )
       }
     }
   }

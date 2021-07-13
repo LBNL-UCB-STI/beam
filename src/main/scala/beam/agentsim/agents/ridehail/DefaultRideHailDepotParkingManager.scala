@@ -5,7 +5,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartRefuelSessionTrigg
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.charging.StallAssignmentStrategy
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
@@ -33,8 +33,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Random, Success, Try}
 
-/**
-  * Manages the parking/charging depots for the RideHailManager. Depots can contain heterogeneous [[ChargingPlugTypes]]
+/** Manages the parking/charging depots for the RideHailManager. Depots can contain heterogeneous [[ChargingPlugTypes]]
   * and any queues for those charger types are tracked separately.
   *
   * A Depot is a collection of ParkingZones... each zone represents the combination of a location (i.e. a TAZ) and a ChargingPointType
@@ -74,8 +73,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   parkingStallCountScalingFactor: Double = 1.0,
   beamServices: BeamServices,
   skims: Skims,
-  outputDirectory: OutputDirectoryHierarchy,
-  override val vehicleManagerId: Id[VehicleManager]
+  outputDirectory: OutputDirectoryHierarchy
 ) extends RideHailDepotParkingManager[GEO] {
 
   // load parking from a parking file, or generate it using the geo beam input
@@ -85,21 +83,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
     ParkingZoneFileUtils
-      .generateDefaultParkingFromGeoObjects(
-        geoQuadTree.values().asScala,
-        random,
-        Seq(ParkingType.Workplace),
-        vehicleManagerId
-      )
+      .generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random, Seq(ParkingType.Workplace))
   } else {
     Try {
-      ParkingZoneFileUtils
-        .fromFile[GEO](
-          parkingFilePath,
-          random,
-          parkingStallCountScalingFactor,
-          vehicleManagerId = vehicleManagerId
-        )
+      ParkingZoneFileUtils.fromFile[GEO](parkingFilePath, random, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
         logger.info(s"generating ride hail parking from file $parkingFilePath")
@@ -108,12 +95,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
         logger.info(s"generating ubiquitous ride hail parking")
         ParkingZoneFileUtils
-          .generateDefaultParkingFromGeoObjects(
-            geoQuadTree.values().asScala,
-            random,
-            Seq(ParkingType.Workplace),
-            vehicleManagerId
-          )
+          .generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random, Seq(ParkingType.Workplace))
     }
   }
 
@@ -165,19 +147,22 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[VehicleId, ParkingStall]
   private val vehiclesOnWayToDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
+
   private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, ParkingZoneId] =
     mutable.Map.empty[VehicleId, ParkingZoneId]
+
   private val vehicleIdToLastObservedTickAndAction: mutable.Map[VehicleId, mutable.ListBuffer[(Int, String)]] =
     mutable.Map.empty[VehicleId, mutable.ListBuffer[(Int, String)]]
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
+
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
    * accessible via a Map on the ParkingZoneId
    */
   private val parkingZoneIdToParkingZoneDepotData: mutable.Map[ParkingZoneId, ParkingZoneDepotData] =
     mutable.Map.empty[ParkingZoneId, ParkingZoneDepotData]
-  rideHailParkingZones.foreach(
-    parkingZone => parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
+  rideHailParkingZones.foreach(parkingZone =>
+    parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
   )
 
   /*
@@ -202,8 +187,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * searches for a nearby [[ParkingZone]] depot for CAV Ride Hail Agents and returns a [[ParkingStall]] in that zone.
+  /** searches for a nearby [[ParkingZone]] depot for CAV Ride Hail Agents and returns a [[ParkingStall]] in that zone.
     *
     * all parking stalls are expected to be associated with a TAZ stored in the beamScenario.tazTreeMap.
     * the position of the stall will be at the centroid of the TAZ.
@@ -282,7 +266,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           .refuelingSessionDurationAndEnergyInJoulesForStall(
             Some(
               ParkingStall
-                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative, vehicleManagerId)
+                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative)
             ),
             None,
             None,
@@ -298,15 +282,16 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <- ParkingZoneSearch
-        .incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction,
-          geoToTAZ
-        )
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <-
+        ParkingZoneSearch
+          .incrementalParkingZoneSearch(
+            parkingZoneSearchConfiguration,
+            parkingZoneSearchParams,
+            parkingZoneFilterFunction,
+            parkingZoneLocSamplingFunction,
+            parkingZoneMNLParamsFunction,
+            geoToTAZ
+          )
     } yield {
 
       logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
@@ -324,8 +309,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
   }
 
-  /**
-    * Estimates the amount of time a vehicle will spend waiting for its turn to charge. The estimate is an average wait time
+  /** Estimates the amount of time a vehicle will spend waiting for its turn to charge. The estimate is an average wait time
     * calculated as the sum of all remaining time needed to for actively charging vehicles (if all plugs are in use, otherwise this is zero)
     * plus the time needed to charge all vehicles in the current queue, all divided by the number of plugs (of the same plug type) in this depot.
     *
@@ -346,9 +330,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
     val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
     val chargingQueue = parkingZoneDepotData.chargingQueue
-    val chargeDurationFromQueue = chargingQueue.map {
-      case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
+    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
+      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
     }.sum
     val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
     val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
@@ -358,7 +341,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       case numInQueue =>
         (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
     }
-    val adjustedQueueServiceTime = (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
+    val adjustedQueueServiceTime =
+      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
     val result = Math
       .round(
         (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
@@ -367,8 +351,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     result
   }
 
-  /**
-    * Gets the location in UTM for a parking zone.
+  /** Gets the location in UTM for a parking zone.
     *
     * @param parkingZoneId ID of the parking zone
     * @return Parking zone location in UTM.
@@ -380,8 +363,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     geo.centroidLocation
   }
 
-  /**
-    * Makes an attempt to "claim" the parking stall passed in as an argument, or optionally a stall from a different
+  /** Makes an attempt to "claim" the parking stall passed in as an argument, or optionally a stall from a different
     * ParkingZone in the same Depot depending on the [[StallAssignmentStrategy]] selected. If the assigned stall is
     * available, then the vehicle will be added to internal tracking as a charging vehicle and a
     * [[StartRefuelSessionTrigger]] will be returned. If all parking stalls of the same type in the associated depot are
@@ -423,8 +405,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Given a parkingZoneId, dequeue the next vehicle that is waiting to charge.
+  /** Given a parkingZoneId, dequeue the next vehicle that is waiting to charge.
     *
     * @param parkingZoneId
     * @return optional tuple with [[BeamVehicle]] and [[ParkingStall]]
@@ -445,8 +426,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Looks up the ParkingZone associated with the parkingStall argument and claims a stall from that Zone if there
+  /** Looks up the ParkingZone associated with the parkingStall argument and claims a stall from that Zone if there
     * are any available, returning the stall as an output. Otherwise, if no stalls are available returns None.
     *
     * @param parkingStall the parking stall to claim
@@ -475,8 +455,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Adds a vehicle to internal data structures to track that it is engaged in a charging session.
+  /** Adds a vehicle to internal data structures to track that it is engaged in a charging session.
     *
     * @param stall
     * @param beamVehicle
@@ -515,8 +494,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Store the last tick and action observed by this vehicle. For debugging purposes.
+  /** Store the last tick and action observed by this vehicle. For debugging purposes.
     *
     * @param vehicleId
     * @param tickAndAction a tuple with the tick and action label (String) to store
@@ -533,8 +511,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * This vehicle is no longer charging and should be removed from internal tracking data.
+  /** This vehicle is no longer charging and should be removed from internal tracking data.
     *
     * @param vehicle
     * @return the stall if found and successfully removed
@@ -551,8 +528,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     stallOpt
   }
 
-  /**
-    * releases a single stall in use at this Depot
+  /** releases a single stall in use at this Depot
     *
     * @param parkingStall stall we want to release
     * @return Boolean if zone is defined and remove was success
@@ -571,8 +547,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Adds the vehicle to the appropriate queue for the depot and [[ChargingPlugType]] associatd with the parkingStall argument.
+  /** Adds the vehicle to the appropriate queue for the depot and [[ChargingPlugType]] associatd with the parkingStall argument.
     *
     * @param vehicle
     * @param parkingStall
@@ -607,49 +582,45 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
   }
 
-  /**
-    * Notify this [[RideHailDepotParkingManager]] that vehicles are on the way to the depot for the purpose of refueling.
+  /** Notify this [[RideHailDepotParkingManager]] that vehicles are on the way to the depot for the purpose of refueling.
     *
     * @param newVehiclesHeadedToDepot
     */
   def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
-    newVehiclesHeadedToDepot.foreach {
-      case (vehicleId, parkingStall) =>
-        logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
-        vehiclesOnWayToDepot.put(vehicleId, parkingStall)
-        val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
-        parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
+    newVehiclesHeadedToDepot.foreach { case (vehicleId, parkingStall) =>
+      logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
+      vehiclesOnWayToDepot.put(vehicleId, parkingStall)
+      val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
+      parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
     }
   }
 
-  /**
-    * Is the [[vehicleId]] currently on the way to a refueling depot to charge?
+  /** Is the [[vehicleId]] currently on the way to a refueling depot to charge?
     *
     * @param vehicleId
     * @return
     */
   def isOnWayToRefuelingDepot(vehicleId: VehicleId): Boolean = vehiclesOnWayToDepot.contains(vehicleId)
 
-  /**
-    * Is the [[vehicleId]] currently on the way to a refueling depot to charge or actively charging?
+  /** Is the [[vehicleId]] currently on the way to a refueling depot to charge or actively charging?
     *
     * @param vehicleId
     * @return
     */
   def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean =
-    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(vehicleId) || vehiclesInQueueToParkingZoneId
+    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(
+      vehicleId
+    ) || vehiclesInQueueToParkingZoneId
       .contains(vehicleId)
 
-  /**
-    * Get all vehicles that are on the way to the refueling depot specified by the [[ParkingZone]] id.
+  /** Get all vehicles that are on the way to the refueling depot specified by the [[ParkingZone]] id.
     * @param parkingZoneId
     * @return a [[Vector]] of [[VechicleId]]s
     */
   def getVehiclesOnWayToRefuelingDepot(parkingZoneId: Int): Vector[VehicleId] =
     parkingZoneIdToParkingZoneDepotData(parkingZoneId).vehiclesOnWayToDepot.toVector
 
-  /**
-    * Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
+  /** Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
     *
     * @param vehicleId
     * @return the optional [[ParkingStall]] of the vehicle if it was found in the internal tracking, None if
@@ -665,8 +636,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     parkingStallOpt
   }
 
-  /**
-    * Gives back the ParkingZones managed by the RidehailDepotParkingManager
+  /** Gives back the ParkingZones managed by the RidehailDepotParkingManager
     *
     * @return
     */
@@ -691,8 +661,7 @@ object DefaultRideHailDepotParkingManager {
     parkingStallCountScalingFactor: Double,
     beamServices: BeamServices,
     skims: Skims,
-    outputDirectory: OutputDirectoryHierarchy,
-    vehicleManagerId: Id[VehicleManager]
+    outputDirectory: OutputDirectoryHierarchy
   ): RideHailDepotParkingManager[TAZ] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -706,8 +675,7 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices: BeamServices,
       skims = skims: Skims,
-      outputDirectory = outputDirectory: OutputDirectoryHierarchy,
-      vehicleManagerId = vehicleManagerId
+      outputDirectory = outputDirectory: OutputDirectoryHierarchy
     )
   }
 
@@ -723,8 +691,7 @@ object DefaultRideHailDepotParkingManager {
     parkingStallCountScalingFactor: Double,
     beamServices: BeamServices,
     skims: Skims,
-    outputDirectory: OutputDirectoryHierarchy,
-    vehicleManagerId: Id[VehicleManager]
+    outputDirectory: OutputDirectoryHierarchy
   ): RideHailDepotParkingManager[Link] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -738,8 +705,7 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices,
       skims = skims,
-      outputDirectory = outputDirectory,
-      vehicleManagerId = vehicleManagerId
+      outputDirectory = outputDirectory
     )
   }
 }

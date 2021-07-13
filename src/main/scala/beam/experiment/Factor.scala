@@ -2,8 +2,7 @@ package beam.experiment
 
 import scala.beans.BeanProperty
 
-/**
-  * @author dserdiuk on 10/22/17.
+/** @author dserdiuk on 10/22/17.
   */
 case class Factor(
   @BeanProperty var title: String,

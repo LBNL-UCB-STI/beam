@@ -16,8 +16,7 @@ import scala.util.Random
 
 object ParkingZoneSearch extends LazyLogging {
 
-  /**
-    * a nested structure to support a search over available parking attributes,
+  /** a nested structure to support a search over available parking attributes,
     * where traversal either terminates in an un-defined branch (no options found),
     * or a leaf, which contains the index of a ParkingZone in the ParkingZones lookup array
     * with the matching attributes. type parameter A is a tag from a graph partitioning, such as a TAZ,
@@ -31,8 +30,7 @@ object ParkingZoneSearch extends LazyLogging {
   // fallback value for stall pricing model evaluation
   val DefaultParkingPrice: Double = 0.0
 
-  /**
-    * static configuration for all parking zone searches in this simulation
+  /** static configuration for all parking zone searches in this simulation
     *
     * @param searchStartRadius radius of the first concentric ring search
     * @param searchMaxRadius maximum radius for the search
@@ -45,11 +43,10 @@ object ParkingZoneSearch extends LazyLogging {
     searchMaxRadius: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
-    searchExpansionFactor: Double = 2.0,
+    searchExpansionFactor: Double = 2.0
   )
 
-  /**
-    * dynamic data for a parking zone search, related to parking infrastructure and inquiry
+  /** dynamic data for a parking zone search, related to parking infrastructure and inquiry
     *
     * @param destinationUTM destination of inquiry
     * @param parkingDuration duration of the activity agent wants to park for
@@ -71,8 +68,7 @@ object ParkingZoneSearch extends LazyLogging {
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
   )
 
-  /**
-    * result of a [[ParkingZoneSearch]]
+  /** result of a [[ParkingZoneSearch]]
     *
     * @param parkingStall the embodied stall with sampled coordinate
     * @param parkingZone the [[ParkingZone]] associated with this stall
@@ -86,8 +82,7 @@ object ParkingZoneSearch extends LazyLogging {
     iterations: Int = 1
   )
 
-  /**
-    * these are the alternatives that are generated/instantiated by a search
+  /** these are the alternatives that are generated/instantiated by a search
     * and then are selected by a sampling function
     *
     * @param geo geoLevel (TAZ, Link, etc) of the alternative
@@ -104,21 +99,18 @@ object ParkingZoneSearch extends LazyLogging {
     costInDollars: Double
   )
 
-  /**
-    * used within a search to track search data
+  /** used within a search to track search data
     *
     * @param isValidAlternative
     * @param parkingAlternative
     * @param utilityParameters
     */
   private[ParkingZoneSearch] case class ParkingSearchAlternative[GEO](
-    isValidAlternative: Boolean,
     parkingAlternative: ParkingAlternative[GEO],
     utilityParameters: Map[ParkingMNL.Parameters, Double]
   )
 
-  /**
-    * search for valid parking zones by incremental ring search and sample the highest utility alternative
+  /** search for valid parking zones by incremental ring search and sample the highest utility alternative
     *
     * @param config static search parameters for all searches in a simulation
     * @param params inquiry and infrastructure data used as parameters for this search
@@ -133,7 +125,7 @@ object ParkingZoneSearch extends LazyLogging {
     parkingZoneFilterFunction: ParkingZone[GEO] => Boolean,
     parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord,
     parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double],
-    geoToTAZ: GEO => TAZ,
+    geoToTAZ: GEO => TAZ
   ): Option[ParkingZoneSearchResult[GEO]] = {
     import GeoLevel.ops._
 
@@ -165,9 +157,9 @@ object ParkingZoneSearch extends LazyLogging {
             parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
             parkingZoneId       <- parkingZoneIds
             parkingZone         <- ParkingZone.getParkingZone(params.parkingZones, parkingZoneId)
+            if parkingZoneFilterFunction(parkingZone)
           } yield {
             // wrap ParkingZone in a ParkingAlternative
-            val isValidParkingZone: Boolean = parkingZoneFilterFunction(parkingZone)
             val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
             val stallPriceInDollars: Double =
               parkingZone.pricingModel match {
@@ -176,18 +168,17 @@ object ParkingZoneSearch extends LazyLogging {
                   PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
               }
             val parkingAlternative: ParkingAlternative[GEO] =
-              ParkingAlternative(zone, parkingType, parkingZone, stallLocation, stallPriceInDollars)
+              ParkingAlternative(zone, parkingZone.parkingType, parkingZone, stallLocation, stallPriceInDollars)
             val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
               parkingZoneMNLParamsFunction(parkingAlternative)
             ParkingSearchAlternative(
-              isValidParkingZone,
               parkingAlternative,
               parkingAlternativeUtility
             )
           }
         }
 
-        if (!alternatives.exists(_.isValidAlternative)) {
+        if (alternatives.isEmpty) {
           _search(
             thisOuterRadius,
             thisOuterRadius * config.searchExpansionFactor,
@@ -199,9 +190,8 @@ object ParkingZoneSearch extends LazyLogging {
 
           // remove any invalid parking alternatives
           val alternativesToSample: Map[ParkingAlternative[GEO], Map[ParkingMNL.Parameters, Double]] =
-            alternatives.collect {
-              case a if a.isValidAlternative =>
-                a.parkingAlternative -> a.utilityParameters
+            alternatives.map { a =>
+              a.parkingAlternative -> a.utilityParameters
             }.toMap
 
           val mnl: MultinomialLogit[ParkingAlternative[GEO], ParkingMNL.Parameters] =
@@ -223,7 +213,8 @@ object ParkingZoneSearch extends LazyLogging {
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,
-              parkingZone.vehicleManagerId
+              parkingZone.reservedFor,
+              parkingZone.vehicleManager
             )
 
             val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }

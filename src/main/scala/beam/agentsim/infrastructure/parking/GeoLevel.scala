@@ -58,8 +58,7 @@ object GeoLevel {
     override def centroidLocation(a: Link): Location = a.getCoord
   }
 
-  /**
-    * This method can be used to get the special geo ids at runtime
+  /** This method can be used to get the special geo ids at runtime
     * @param geoLevel the geo level ("TAZ", "Link")
     * @return a tuple (emergency id, default id)
     */

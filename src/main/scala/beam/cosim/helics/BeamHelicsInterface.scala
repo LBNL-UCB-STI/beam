@@ -18,8 +18,7 @@ object BeamHelicsInterface {
     helics.helicsCloseLibrary()
   }
 
-  /**
-    * Create a Federate Instance
+  /** Create a Federate Instance
     * @param fedName FEDERATE_NAME
     * @param bufferSize BUFFER_SIZE
     * @param dataOutStreamPointMaybe "PUBLICATION_NAME"
@@ -49,8 +48,7 @@ object BeamHelicsInterface {
     )
   }
 
-  /**
-    * Create a Broker instance and a Federate Instance
+  /** Create a Broker instance and a Federate Instance
     * @param brokerName BROKER_NAME
     * @param numFederates number of federates to consider
     * @param fedName FEDERATE_NAME
@@ -108,6 +106,7 @@ object BeamHelicsInterface {
       case _                                  => deserializationError("JsNumber (Double or Int), JsTrue, JsFalse or JsString are expected")
     }
   }
+
   implicit object MapAnyJsonFormat extends JsonFormat[Map[String, Any]] {
 
     def write(c: Map[String, Any]): JsValue = {
@@ -119,6 +118,7 @@ object BeamHelicsInterface {
       case _           => deserializationError("JsObject expected")
     }
   }
+
   implicit object ListMapAnyJsonFormat extends JsonFormat[List[Map[String, Any]]] {
 
     def write(c: List[Map[String, Any]]): JsValue = {
@@ -167,8 +167,7 @@ object BeamHelicsInterface {
     logger.debug(s"Federate successfully entered the Executing Mode")
     // **************************
 
-    /**
-      * Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
+    /** Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
       * @param labeledData List of Key -> Value
       */
     def publishJSON(labeledData: List[Map[String, Any]]): Unit = {
@@ -178,8 +177,7 @@ object BeamHelicsInterface {
       logger.debug("Data published via HELICS")
     }
 
-    /**
-      * Convert a list of values into a string of element separated with a comma, then publishes it via HELICS
+    /** Convert a list of values into a string of element separated with a comma, then publishes it via HELICS
       * @param unlabeledData list of values or strings in form of "key:value"
       */
     def publish(unlabeledData: List[Any]): Unit = {
@@ -187,8 +185,7 @@ object BeamHelicsInterface {
       logger.debug("Data published via HELICS: " + unlabeledData)
     }
 
-    /**
-      * Requests a co-simulation time and wait until it is awarded. The HELICS broker doesn't aware the requested time
+    /** Requests a co-simulation time and wait until it is awarded. The HELICS broker doesn't aware the requested time
       * until all the federates in co-simulation are synchronized
       * @param time the requested time
       * @return the awarded time
@@ -201,8 +198,7 @@ object BeamHelicsInterface {
       currentTime
     }
 
-    /**
-      * Collect message that has been published by other federates
+    /** Collect message that has been published by other federates
       * @param time the requested time
       * @return raw message in string format
       */
@@ -218,8 +214,7 @@ object BeamHelicsInterface {
         .getOrElse("")
     }
 
-    /**
-      * Collect JSON messages that has been published by other federates
+    /** Collect JSON messages that has been published by other federates
       * The message is expected to be JSON, if not this method will fail
       * @param time the requested time
       * @return Message in List of Maps format
@@ -236,8 +231,7 @@ object BeamHelicsInterface {
       } else List.empty[Map[String, Any]]
     }
 
-    /**
-      * Collect list of String messages that has been published by other federates
+    /** Collect list of String messages that has been published by other federates
       * The message is expected to be list of string, if not this method will fail
       * @param time the requested time
       * @return message in list of Strings format
@@ -250,8 +244,7 @@ object BeamHelicsInterface {
       } else List.empty[Any]
     }
 
-    /**
-      * Register a publication channel
+    /** Register a publication channel
       * @param pubName the publication id which **is not expected** to be prefixed by a federate name, such as
       *                "PUBLICATION_NAME"
       */
@@ -262,8 +255,7 @@ object BeamHelicsInterface {
       logger.debug(s"registering $pubName to CombinationFederate")
     }
 
-    /**
-      * Register a subscription channel
+    /** Register a subscription channel
       * @param subName the subscription id which **is expected** to be prefixed by a federate name, such as
       *                "FEDERATE_NAME/SUBSCRIPTION_NAME"
       */
@@ -272,8 +264,7 @@ object BeamHelicsInterface {
       logger.debug(s"registering $subName to CombinationFederate")
     }
 
-    /**
-      * close HELICS library
+    /** close HELICS library
       */
     def close(): Unit = {
       logger.debug(s"closing BeamFederate")
@@ -302,6 +293,7 @@ object BeamHelicsInterface {
   ) extends StrictLogging {
     private val broker = helics.helicsCreateBroker(coreType, "", s"-f $numFederates --name=$brokerName")
     lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
+
     private val federate: Option[BeamFederate] = if (isConnected) {
       Some(
         getFederate(

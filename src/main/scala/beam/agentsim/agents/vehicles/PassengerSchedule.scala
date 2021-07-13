@@ -10,8 +10,7 @@ import org.matsim.api.core.v01.population.Person
 
 import scala.collection.immutable.TreeMap
 
-/**
-  * Holds information about the numbers and identities of agents in on board a vehicle
+/** Holds information about the numbers and identities of agents in on board a vehicle
   * and the BeamLegs they are taking through the network
   */
 case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
@@ -124,6 +123,7 @@ object PassengerSchedule {
     boarders: Set[PersonIdWithActorRef] = Set.empty,
     alighters: Set[PersonIdWithActorRef] = Set.empty
   ) {
+
     override def toString: String = {
       s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
     }

@@ -189,7 +189,7 @@ class RideHailFleetAnalysisInternal(
     graphName: String
   ) {
     class Utilization(
-      ) {
+    ) {
       // DoubleAdder here allows for effective adding values into the array during parallel computation.
       private val timeInternal: Array[Array[DoubleAdder]] =
         Array.fill[DoubleAdder](timeBins.size, keys.values.max + 1) {
@@ -207,8 +207,10 @@ class RideHailFleetAnalysisInternal(
         distanceInternal.map(arrayAdder => arrayAdder.map(adder => adder.doubleValue()))
 
       def add(time: Array[Array[Double]], distance: Array[Array[Double]]): Unit = {
-        for (idx1 <- timeBins.indices;
-             idx2 <- 0 until keys.values.max + 1) {
+        for (
+          idx1 <- timeBins.indices;
+          idx2 <- 0 until keys.values.max + 1
+        ) {
           timeInternal(idx1)(idx2).add(time(idx1)(idx2))
           distanceInternal(idx1)(idx2).add(distance(idx1)(idx2))
         }
@@ -223,32 +225,30 @@ class RideHailFleetAnalysisInternal(
       utilization.add(timeUtilization, distanceUtilization)
     }
 
-    utilization.calculateTime.transpose.zipWithIndex.foreach {
-      case (row, index) =>
-        val key = states(index)
-        val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
-        row.grouped(amountOfBinsPerHour).zipWithIndex.foreach {
-          case (result, hour) =>
-            if (hour <= processedHour)
-              write(s"$graphName-count", result.sum / amountOfBinsPerHour, hour, key)
-            else
-              write(s"$graphName-count", 0, hour, key)
-          case _ =>
-        }
+    utilization.calculateTime.transpose.zipWithIndex.foreach { case (row, index) =>
+      val key = states(index)
+      val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
+      row.grouped(amountOfBinsPerHour).zipWithIndex.foreach {
+        case (result, hour) =>
+          if (hour <= processedHour)
+            write(s"$graphName-count", result.sum / amountOfBinsPerHour, hour, key)
+          else
+            write(s"$graphName-count", 0, hour, key)
+        case _ =>
+      }
     }
 
-    utilization.calculateDistance.transpose.zipWithIndex.foreach {
-      case (row, index) =>
-        val key = states(index)
-        val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
-        row.grouped(amountOfBinsPerHour).zipWithIndex.foreach {
-          case (result, hour) =>
-            if (hour <= processedHour)
-              write(s"$graphName-distance", (result.sum / amountOfBinsPerHour) * 12, hour, key)
-            else
-              write(s"$graphName-distance", 0, hour, key)
-          case _ =>
-        }
+    utilization.calculateDistance.transpose.zipWithIndex.foreach { case (row, index) =>
+      val key = states(index)
+      val amountOfBinsPerHour = secondsInHour / resolutionInSeconds
+      row.grouped(amountOfBinsPerHour).zipWithIndex.foreach {
+        case (result, hour) =>
+          if (hour <= processedHour)
+            write(s"$graphName-distance", (result.sum / amountOfBinsPerHour) * 12, hour, key)
+          else
+            write(s"$graphName-distance", 0, hour, key)
+        case _ =>
+      }
     }
   }
 
@@ -321,10 +321,9 @@ class RideHailFleetAnalysisInternal(
       val afterEventStart = Array.ofDim[Boolean](timeBins.size)
       val duringEvent = Array.ofDim[Boolean](timeBins.size)
 
-      timeBinsWithIndex.foreach {
-        case (timeBin, index) =>
-          afterEventStart(index) = timeBin >= eventCharacteristics.start
-          duringEvent(index) = afterEventStart(index) && timeBin < eventCharacteristics.end
+      timeBinsWithIndex.foreach { case (timeBin, index) =>
+        afterEventStart(index) = timeBin >= eventCharacteristics.start
+        duringEvent(index) = afterEventStart(index) && timeBin < eventCharacteristics.end
       }
 
       // In order to achieve a performance boost, the zipWithIndex command was replaced with manual work with indexes.
@@ -371,11 +370,10 @@ class RideHailFleetAnalysisInternal(
       }
 
       eventCharacteristics.nextType.foreach { nextType =>
-        timeBinsWithIndex.foreach {
-          case (timeBin, index) =>
-            if (timeBin >= eventCharacteristics.end) {
-              timeUtilization(index)(keys(nextType)) += 1.0
-            }
+        timeBinsWithIndex.foreach { case (timeBin, index) =>
+          if (timeBin >= eventCharacteristics.end) {
+            timeUtilization(index)(keys(nextType)) += 1.0
+          }
         }
       }
 

@@ -21,9 +21,7 @@ import org.matsim.core.mobsim.framework.Mobsim
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-/**
-  *
-  * @author Dmitry Openkov
+/** @author Dmitry Openkov
   */
 class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager, seed: Long)
     extends Mobsim
@@ -42,6 +40,7 @@ class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManag
 }
 
 object ParallelBPRSimulation extends LazyLogging {
+
   private def createClusters(links: Iterable[Link], numClusters: Int, seed: Long): Vector[Set[Id[Link]]] = {
     logger.info(s"creating clusters, links.size = ${links.size}")
     if (links.isEmpty) {
@@ -82,11 +81,10 @@ object ParallelBPRSimulation extends LazyLogging {
   private def createDatabase(links: Iterable[Link]): Database = {
     val data = Array.ofDim[Double](links.size, 2)
     val labels: Array[String] = Array.ofDim[String](links.size)
-    links.zipWithIndex.foreach {
-      case (link, idx) =>
-        val center = GeoUtils.linkCenter(link)
-        data.update(idx, Array(center.getX, center.getY))
-        labels.update(idx, idx.toString)
+    links.zipWithIndex.foreach { case (link, idx) =>
+      val center = GeoUtils.linkCenter(link)
+      data.update(idx, Array(center.getX, center.getY))
+      labels.update(idx, idx.toString)
     }
     val dbc = new ArrayAdapterDatabaseConnection(data, labels)
     val db = new StaticArrayDatabase(dbc, null)

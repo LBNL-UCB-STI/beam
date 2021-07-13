@@ -1,6 +1,7 @@
 package beam.router.skim.core
 
 import beam.agentsim.events.ScalaEvent
+import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.router.skim.Skims.SkimType
 import beam.router.skim.CsvSkimReader
@@ -31,13 +32,30 @@ trait AbstractSkimmerKey {
 trait AbstractSkimmerInternal {
   val observations: Int
   val iterations: Int
+
   def toCsv: String
+}
+
+abstract class AbstractSkimmerEventFactory {
+
+  def createEvent(
+    origin: String,
+    destination: String,
+    eventTime: Double,
+    trip: EmbodiedBeamTrip,
+    generalizedTimeInHours: Double,
+    generalizedCost: Double,
+    energyConsumption: Double
+  ): AbstractSkimmerEvent
 }
 
 abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) with ScalaEvent {
   protected val skimName: String
+
   def getKey: AbstractSkimmerKey
+
   def getSkimmerInternal: AbstractSkimmerInternal
+
   def getEventType: String = skimName + "-event"
 }
 
@@ -49,8 +67,7 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
 
   def currentIteration: Int = currentIterationInternal
 
-  /**
-    *  This method creates a copy of `currentSkimInternal`, so careful when you use it often! Consider using `getCurrentSkimValue` in such scenario
+  /**  This method creates a copy of `currentSkimInternal`, so careful when you use it often! Consider using `getCurrentSkimValue` in such scenario
     *  or expose other method to access `currentSkimInternal`
     */
   def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
@@ -74,12 +91,14 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimName: String
   protected val skimType: SkimType.Value
   private lazy val eventType = skimName + "-event"
+
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
 
   import readOnlySkim._
 
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
+
   protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
@@ -95,9 +114,11 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       .getOrElse(List.empty)
       .find(_.skimType == skimType.toString)
     currentIterationInternal = event.getIteration
-    if (currentIterationInternal == 0
-        && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
-        && skimFilePath.isDefined) {
+    if (
+      currentIterationInternal == 0
+      && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
+      && skimFilePath.isDefined
+    ) {
       val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
       aggregatedFromPastSkimsInternal = if (file.isFile) {
@@ -151,7 +172,16 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     }
   }
 
-  protected def writeToDisk(event: IterationEndsEvent): Unit = {
+  def writeToDisk(filePath: String): Unit = {
+    ProfilingUtils.timed(
+      "beam.router.skim.writeSkims",
+      v => logger.info(v)
+    ) {
+      writeSkim(currentSkim, filePath)
+    }
+  }
+
+  def writeToDisk(event: IterationEndsEvent): Unit = {
     if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
       ProfilingUtils.timed(
         s"beam.router.skim.writeSkimsInterval on iteration $currentIterationInternal",
@@ -162,7 +192,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         writeSkim(currentSkim, filePath)
       }
 
-    if (skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0) {
+    if (
+      skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0
+    ) {
       ProfilingUtils.timed(
         s"beam.router.skim.writeAggregatedSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)

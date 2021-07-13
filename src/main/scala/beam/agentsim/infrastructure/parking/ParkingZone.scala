@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleManagerType
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.agents.vehicles.VehicleManager
 import com.typesafe.scalalogging.LazyLogging
@@ -8,8 +8,7 @@ import org.matsim.api.core.v01.Id
 
 import scala.language.higherKinds
 
-/**
-  * stores the number of stalls in use for a zone of parking stalls with a common set of attributes
+/** stores the number of stalls in use for a zone of parking stalls with a common set of attributes
   *
   * @param parkingZoneId the Id of this Zone, which directly corresponds to the Array index of this used in the ParkingZoneSearch Array[ParkingZone]
   * @param stallsAvailable a (mutable) count of stalls free, which is mutated to track the current state of stalls in a way that is logically similar to a semiphore
@@ -23,15 +22,16 @@ class ParkingZone[GEO](
   val parkingType: ParkingType,
   var stallsAvailable: Int,
   val maxStalls: Int,
-  val vehicleManagerId: Id[VehicleManager],
+  val reservedFor: Seq[VehicleCategory],
+  val vehicleManager: Option[Id[VehicleManager]],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
+  val timeRestrictions: Map[VehicleCategory, Range],
   val parkingZoneName: Option[String],
   val landCostInUSDPerSqft: Option[Double]
 ) {
 
-  /**
-    * the percentage of parking available in this ParkingZone
+  /** the percentage of parking available in this ParkingZone
     *
     * @return percentage [0.0, 1.0]
     */
@@ -56,9 +56,11 @@ class ParkingZone[GEO](
       this.parkingType,
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
-      this.vehicleManagerId,
+      this.reservedFor,
+      this.vehicleManager,
       this.chargingPointType,
       this.pricingModel,
+      this.timeRestrictions,
       this.parkingZoneName,
       this.landCostInUSDPerSqft
     )
@@ -76,8 +78,7 @@ object ParkingZone extends LazyLogging {
   // which would tell us that we had 1 extra releaseStall event.
   val UbiqiutousParkingAvailability: Int = 1000000
 
-  /**
-    * creates a new StallValues object
+  /** creates a new StallValues object
     *
     * @param chargingType if this stall has charging, this is the type of charging
     * @param pricingModel if this stall has pricing, this is the type of pricing
@@ -88,9 +89,11 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     numStalls: Int = 0,
-    vehicleManagerId: Id[VehicleManager],
+    reservedFor: Seq[VehicleCategory],
+    vehicleManagerId: Option[Id[VehicleManager]] = None,
     chargingType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
+    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     parkingZoneName: Option[String] = None,
     landCostInUSDPerSqft: Option[Double] = None
   ): ParkingZone[GEO] =
@@ -100,15 +103,16 @@ object ParkingZone extends LazyLogging {
       parkingType,
       numStalls,
       numStalls,
+      reservedFor,
       vehicleManagerId,
       chargingType,
       pricingModel,
+      timeRestrictions,
       parkingZoneName,
       landCostInUSDPerSqft
     )
 
-  /**
-    * increment the count of stalls in use
+  /** increment the count of stalls in use
     *
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
@@ -125,8 +129,7 @@ object ParkingZone extends LazyLogging {
       true
     }
 
-  /**
-    * decrement the count of stalls in use. doesn't allow negative-values (fails silently)
+  /** decrement the count of stalls in use. doesn't allow negative-values (fails silently)
     *
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
@@ -143,8 +146,7 @@ object ParkingZone extends LazyLogging {
       false
     }
 
-  /**
-    * Option-wrapped Array index lookup for Array[ParkingZone]
+  /** Option-wrapped Array index lookup for Array[ParkingZone]
     *
     * @param parkingZones collection of parking zones
     * @param parkingZoneId an array index

@@ -18,8 +18,10 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.mock
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
@@ -37,9 +39,8 @@ class SitePowerManagerSpec
                        |akka.test.single-expect-default = 10 s""".stripMargin)
       )
     )
-    with WordSpecLike
+    with AnyWordSpecLike
     with Matchers
-    with MockitoSugar
     with BeamHelper
     with ImplicitSender
     with BeforeAndAfterEach {
@@ -87,22 +88,23 @@ class SitePowerManagerSpec
   private val beamServices = new BeamServicesImpl(injector)
   private val tazMap = beamServices.beamScenario.tazTreeMap
 
-  val beamFederateMock: BeamFederate = mock[BeamFederate]
+  val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
 
   private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
 
   val dummyChargingZone: ChargingZone = ChargingZone(
     tazMap.getTAZs.head.tazId,
+    tazMap.getTAZs.head.tazId,
     ParkingType.Workplace,
     2,
     ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC"),
     PricingModel.FlatFee(0.0),
-    VehicleManager.privateVehicleManager.managerId
+    None
   )
 
   private val vehiclesList = {
     val parkingStall1: ParkingStall = ParkingStall(
-      dummyChargingZone.tazId,
+      dummyChargingZone.geoId,
       dummyChargingZone.tazId,
       0,
       tazMap.getTAZ(dummyChargingZone.tazId).get.coord,
@@ -110,19 +112,17 @@ class SitePowerManagerSpec
       Some(dummyChargingZone.chargingPointType),
       Some(dummyChargingZone.pricingModel),
       dummyChargingZone.parkingType,
-      managerId = VehicleManager.privateVehicleManager.managerId,
+      reservedFor = Seq.empty
     )
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
-      managerId = VehicleManager.privateVehicleManager.managerId
+      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType]))
     )
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
-      managerId = VehicleManager.privateVehicleManager.managerId
+      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
     )
     v1.useParkingStall(parkingStall1)
     v2.useParkingStall(parkingStall1.copy())
@@ -140,9 +140,8 @@ class SitePowerManagerSpec
 
     val dummyStation = ChargingStation(dummyChargingZone)
     zoneTree.put(tazMap.getTAZs.head.coord.getX, tazMap.getTAZs.head.coord.getY, dummyChargingZone)
-    val dummyNetwork = new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, zoneTree)
-    val trieMap =
-      Map[Id[VehicleManager], ChargingNetwork](VehicleManager.privateVehicleManager.managerId -> dummyNetwork)
+    val dummyNetwork = new ChargingNetwork(None, zoneTree)
+    val trieMap = Map[Option[Id[VehicleManager]], ChargingNetwork](None -> dummyNetwork)
     val sitePowerManager = new SitePowerManager(trieMap, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
@@ -174,7 +173,7 @@ class SitePowerManagerSpec
           300,
           chargingVehicle,
           SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-        ) should (be((1, 250000.0)) or be((300, 7.5E7)))
+        ) should (be((1, 250000.0)) or be((300, 7.5e7)))
       }
 
     }

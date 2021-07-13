@@ -2,7 +2,7 @@ package beam.analysis.plots
 
 import beam.analysis.summary.PersonCostAnalysis
 import com.typesafe.config.{Config, ConfigFactory}
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {
 

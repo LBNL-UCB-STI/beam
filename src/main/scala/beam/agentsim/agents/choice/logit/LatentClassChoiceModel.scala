@@ -79,6 +79,7 @@ object LatentClassChoiceModel {
     @BeanProperty var latentClass: String = "",
     @BeanProperty var value: Double = Double.NaN
   ) extends Cloneable {
+
     override def clone(): AnyRef =
       new LccmData(model, tourType, variable, alternative, units, latentClass, value)
   }

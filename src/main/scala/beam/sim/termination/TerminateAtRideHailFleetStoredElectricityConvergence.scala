@@ -9,8 +9,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.TerminationCriterion
 import org.matsim.core.events.handler.BasicEventHandler
 
-/**
-  * Termination criterion to stop the iterations when the electricity stored in the ride hail fleet at the beginning of
+/** Termination criterion to stop the iterations when the electricity stored in the ride hail fleet at the beginning of
   * the iteration is close to the amount stored at the end.
   *
   * The combination of setting the config parameter beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations to true
@@ -42,7 +41,7 @@ import org.matsim.core.events.handler.BasicEventHandler
   *
   * @see <a href="http://fourier.eng.hmc.edu/e176/lectures/NM/node17.html">More information on fixed point iteration</a>
   */
-class TerminateAtRideHailFleetStoredElectricityConvergence @Inject()(
+class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
   beamConfigHolder: BeamConfigHolder,
   eventsManager: EventsManager
 ) extends TerminationCriterion
@@ -53,8 +52,10 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject()(
 
   private val minLastIteration =
     beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.minLastIteration
+
   private val maxLastIteration =
     beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.maxLastIteration
+
   private val relativeTolerance =
     beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.relativeTolerance
 
@@ -108,8 +109,7 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject()(
     super[RideHailFleetStoredElectricityEventTracker].reset()
   }
 
-  /**
-    * Handle RideHailFleetStoredElectricityEvents to determine the electricity stored in the fleet at the beginning and
+  /** Handle RideHailFleetStoredElectricityEvents to determine the electricity stored in the fleet at the beginning and
     * end of the iteration.
     *
     * @param event Event

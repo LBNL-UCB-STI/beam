@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.power
 
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.ChargingNetwork
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.skim.event
 import beam.sim.BeamServices
@@ -12,7 +12,7 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
 
-class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamServices: BeamServices)
+class SitePowerManager(chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork], beamServices: BeamServices)
     extends LazyLogging {
   import SitePowerManager._
 
@@ -21,8 +21,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
   private val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
 
-  /**
-    * Get required power for electrical vehicles
+  /** Get required power for electrical vehicles
     *
     * @param tick current time
     * @return power (in Kilo Watt) over planning horizon
@@ -37,9 +36,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     plans
   }
 
-  /**
-    *
-    * @param chargingVehicle the vehicle being charging
+  /** @param chargingVehicle the vehicle being charging
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
     */
@@ -63,8 +60,7 @@ class SitePowerManager(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwo
     )
   }
 
-  /**
-    * Collect rough power demand per vehicle
+  /** Collect rough power demand per vehicle
     * @param time start time of charging cycle
     * @param duration duration of charging cycle
     * @param vehicle vehicle charging
@@ -107,21 +103,19 @@ object SitePowerManager {
     lpmWithControlSignal: Double
   )
 
-  /**
-    * create unlimited physical bounds
+  /** create unlimited physical bounds
     * @param stations sequence of stations for which to produce physical bounds
     * @return map of physical bounds
     */
   def getUnlimitedPhysicalBounds(stations: Seq[ChargingStation]): Eval[Map[ChargingStation, PhysicalBounds]] = {
     Eval.later {
-      stations.map {
-        case station @ ChargingStation(zone) =>
-          station -> PhysicalBounds(
-            station,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
-            0.0
-          )
+      stations.map { case station @ ChargingStation(zone) =>
+        station -> PhysicalBounds(
+          station,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
+          0.0
+        )
       }.toMap
     }
   }

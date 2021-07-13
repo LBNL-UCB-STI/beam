@@ -4,14 +4,15 @@ sealed trait UtilityFunctionOperation {
   def apply(value: Double): Double
 }
 
-/**
-  * Operation one can execute on a utility function.
+/** Operation one can execute on a utility function.
   */
 
 object UtilityFunctionOperation {
+
   case class Intercept(coefficient: Double) extends UtilityFunctionOperation {
     override def apply(value: Double): Double = coefficient
   }
+
   case class Multiplier(coefficient: Double) extends UtilityFunctionOperation {
     override def apply(value: Double): Double = coefficient * value
   }

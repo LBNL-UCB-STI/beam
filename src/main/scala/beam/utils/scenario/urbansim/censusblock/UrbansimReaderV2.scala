@@ -15,7 +15,8 @@ class UrbansimReaderV2(
   val inputTripsPath: String,
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
-  val shouldConvertWgs2Utm: Boolean
+  val shouldConvertWgs2Utm: Boolean,
+  val modeMap: Map[String, String]
 ) extends ScenarioSource {
 
   private val logger = LoggerFactory.getLogger(getClass)
@@ -55,7 +56,7 @@ class UrbansimReaderV2(
       .iterator()
       .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
       .toMap
-    val merger = new PlanMerger(modes)
+    val merger = new PlanMerger(modes, modeMap)
 
     logger.info("Merging modes into plan...")
 

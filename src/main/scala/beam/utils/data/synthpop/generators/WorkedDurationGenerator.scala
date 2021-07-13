@@ -21,6 +21,7 @@ trait WorkedDurationGenerator {
 class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGenerator)
     extends WorkedDurationGenerator
     with LazyLogging {
+
   private val jd = JointDistribution.fromCsvFile(
     pathToCsv = pathToCsv,
     rndGen = rndGen,

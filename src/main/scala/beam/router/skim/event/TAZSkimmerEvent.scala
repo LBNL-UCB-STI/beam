@@ -39,6 +39,7 @@ case class TAZSkimmerEvent(
       actor,
       key
     )
+
   override def getSkimmerInternal: AbstractSkimmerInternal =
     TAZSkimmerInternal(value, 1, beamServices.matsimServices.getIterationNumber + 1)
 }

@@ -13,7 +13,7 @@
 //import com.vividsolutions.jts.geom.Envelope
 //import org.geotools.data.shapefile.index.quadtree.QuadTree
 //
-//class ParkingZoneSearchSpec extends WordSpec with Matchers {
+//class ParkingZoneSearchSpec extends AnyWordSpec with Matchers {
 //  "A ParkingZoneSearch" when {
 //    "searched for something when there are no alternatives" should {
 //      "result in None" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {

@@ -1,7 +1,6 @@
 package beam.physsim.bprsim
 
-/**
-  * @author Dmitry Openkov
+/** @author Dmitry Openkov
   */
 trait ConcurrentPriorityQueue[A] {
 

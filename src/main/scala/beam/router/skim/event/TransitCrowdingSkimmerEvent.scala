@@ -5,9 +5,7 @@ import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, Abs
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-/**
-  *
-  * @author Dmitry Openkov
+/** @author Dmitry Openkov
   */
 class TransitCrowdingSkimmerEvent(
   eventTime: Double,
@@ -16,7 +14,7 @@ class TransitCrowdingSkimmerEvent(
   fromStopIdx: Int,
   toStopIdx: Int,
   numberOfPassengers: Int,
-  capacity: Int,
+  capacity: Int
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = transitCrowdingSkimmerConfig.name

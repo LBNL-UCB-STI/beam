@@ -13,14 +13,12 @@ import org.apache.commons.lang.SystemUtils
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-/**
-  * Generate beam.conf and run script for individual run.
+/** Generate beam.conf and run script for individual run.
   * Couple notes:
   *  1. paths n config and templates should be relative to project root
   *  2. --experiments is used to pass location of experiments.yml
   *
   * This generator will create sub-directories relatively to experiments.yml
-  *
   */
 object ExperimentGenerator extends ExperimentApp {
   import beam.experiment.ExperimentApp
@@ -47,9 +45,8 @@ object ExperimentGenerator extends ExperimentApp {
   val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.header.beamTemplateConfPath).toFile)
   val experimentVariations: immutable.Seq[(ExperimentRun, Int)] = experimentDef.combinationsOfLevels().zipWithIndex
 
-  val experimentRuns = experimentVariations.map {
-    case (run, runIdx) =>
-      ExperimentRunSandbox(experimentDef, run, runIdx, baseConfig)
+  val experimentRuns = experimentVariations.map { case (run, runIdx) =>
+    ExperimentRunSandbox(experimentDef, run, runIdx, baseConfig)
   }
 
   val modeChoiceTemplate = Resources.toString(

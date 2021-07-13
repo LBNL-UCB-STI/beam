@@ -17,8 +17,7 @@ object VehicleChargingManager {
     sendToCharge: Vector[(Id[BeamVehicle], ParkingStall)]
   )
 
-  /**
-    * Instantiate [[VehicleChargingManager]] following to beam.agentsim.agents.rideHail.charging.vehicleChargingManager.name.
+  /** Instantiate [[VehicleChargingManager]] following to beam.agentsim.agents.rideHail.charging.vehicleChargingManager.name.
     *
     * @param beamServices Beam services
     * @param resources Map from Id[BeamVehicle] to BeamVehicle with all vehicles controlled by the ride hail manager.
@@ -43,17 +42,15 @@ object VehicleChargingManager {
       vehicleChargingManagerName
     )
 
-    val vehicleChargingManager = chargingManagerTry.recoverWith {
-      case exception: Exception =>
-        throw new IllegalStateException(s"There is no implementation for `$vehicleChargingManagerName`", exception)
+    val vehicleChargingManager = chargingManagerTry.recoverWith { case exception: Exception =>
+      throw new IllegalStateException(s"There is no implementation for `$vehicleChargingManagerName`", exception)
     }.get
 
     vehicleChargingManager
   }
 }
 
-/**
-  * Interface to specify VehicleChargingManagers.
+/** Interface to specify VehicleChargingManagers.
   *
   * @param resources Map from Id[BeamVehicle] to BeamVehicle with all vehicles controlled by the ride hail manager.
   */
@@ -62,14 +59,12 @@ abstract class VehicleChargingManager(
   val resources: mutable.Map[Id[BeamVehicle], BeamVehicle]
 ) {
 
-  /**
-    * queuePriority can be used by any implementing class to manage how vehicles are prioritized. See getQueuePriority
+  /** queuePriority can be used by any implementing class to manage how vehicles are prioritized. See getQueuePriority
     * for how this behaves.
     */
   protected val queuePriority: mutable.Map[Id[BeamVehicle], Double] = mutable.Map.empty[Id[BeamVehicle], Double]
 
-  /**
-    * If any vehicles are added to queuePriority, then whatever value they hold will be used for ordering, with largest
+  /** If any vehicles are added to queuePriority, then whatever value they hold will be used for ordering, with largest
     * values meaning the vehicle has higher priority. If a vehicle is not found in the queuePriority map (but others are present)
     * then this vehicle is given lowest priority (-Infinity). This allows a charge dispatch algorithm to be very selective
     * about which vehicles will move to the head of the priority queue.
@@ -92,8 +87,7 @@ abstract class VehicleChargingManager(
     }
   }
 
-  /**
-    * Determine which idle vehicles should be sent to charge and at which charging station.
+  /** Determine which idle vehicles should be sent to charge and at which charging station.
     *
     * This Function called by [[RideHailManager]] once every beam.agentsim.agents.rideHail.repositioningManager.timeout
     * seconds by the ride hail manager.
@@ -130,8 +124,7 @@ abstract class VehicleChargingManager(
     beamVehicle.getTotalRemainingRange
   }
 
-  /**
-    * Perform finalization tasks right before the [[RideHailManager]] finishes and the iteration ends.
+  /** Perform finalization tasks right before the [[RideHailManager]] finishes and the iteration ends.
     *
     * This method can be overriden optionally. By default, no finalization tasks are performed.
     *

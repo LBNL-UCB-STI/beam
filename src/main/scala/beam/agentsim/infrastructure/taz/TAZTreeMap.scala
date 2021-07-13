@@ -16,8 +16,7 @@ import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 
-/**
-  * TAZTreeMap manages a quadTree to find the closest TAZ to any coordinate.
+/** TAZTreeMap manages a quadTree to find the closest TAZ to any coordinate.
   *
   * @param tazQuadTree quadtree containing the TAZs
   * @param useCache Currently [as of 10-2020] the use of the TAZ quadtree cache is less performant than just keeping it off (better to reduce calls to TAZ quadtree
@@ -114,8 +113,8 @@ object TAZTreeMap {
   ): QuadTreeBounds = {
     val envelopes = features.asScala
       .map(_.getDefaultGeometry)
-      .collect {
-        case g: Geometry => g.getEnvelope.getEnvelopeInternal
+      .collect { case g: Geometry =>
+        g.getEnvelope.getEnvelopeInternal
       }
     ShapeUtils.quadTreeBounds(envelopes)
   }
@@ -207,8 +206,7 @@ object TAZTreeMap {
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
   }
 
-  /**
-    * performs a concentric ring search from the present location to find elements up to the SearchMaxRadius
+  /** performs a concentric ring search from the present location to find elements up to the SearchMaxRadius
     * @param quadTree tree to search
     * @param searchCenter central location from which concentric discs will be built with an expanding radius
     * @param startRadius the beginning search radius

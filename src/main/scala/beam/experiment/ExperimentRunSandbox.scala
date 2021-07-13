@@ -4,8 +4,7 @@ import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
-/**
-  * Created by dserdiuk on 11/25/17.
+/** Created by dserdiuk on 11/25/17.
   */
 case class ExperimentRunSandbox(
   experimentDef: ExperimentDef,
@@ -41,9 +40,7 @@ case class ExperimentRunSandbox(
     experimentDef.projectRoot.relativize(Paths.get(scenariosDirectory.toAbsolutePath.toString, "beam.conf"))
   }
 
-  /**
-    *
-    * @return path to an output folder relatively to project root
+  /** @return path to an output folder relatively to project root
     */
   def beamOutputDir: Path = {
     experimentDef.projectRoot.relativize(Paths.get(runsDirectory.toAbsolutePath.toString, "output_"))
@@ -60,12 +57,11 @@ case class ExperimentRunSandbox(
     // beam.outputs.baseOutputDirectory
     val runConfig: Config = (Map(
       "beam.agentsim.simulationName"               -> "output",
-      "beam.outputs.addTimestampToOutputDirectory" -> "false",
+      "beam.outputs.addTimestampToOutputDirectory" -> "false"
     ) ++ modeChoiceConfigIfDefined ++ experimentRun.params)
-      .foldLeft(beamTplConf) {
-        case (prevConfig, (paramName, paramValue)) =>
-          val configValue = ConfigValueFactory.fromAnyRef(paramValue)
-          prevConfig.withValue(paramName, configValue)
+      .foldLeft(beamTplConf) { case (prevConfig, (paramName, paramValue)) =>
+        val configValue = ConfigValueFactory.fromAnyRef(paramValue)
+        prevConfig.withValue(paramName, configValue)
       }
 
     // Removing the baseOutputDirectoryString is necessary in this way due to idiosyncratic behavior of withFallback.

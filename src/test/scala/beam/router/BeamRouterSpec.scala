@@ -20,17 +20,15 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
-import org.scalatest.FlatSpec
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
 
-/**
-  * Specs for BeamRouter
+/** Specs for BeamRouter
   */
-class BeamRouterSpec extends FlatSpec with MockitoSugar {
+class BeamRouterSpec extends AnyFlatSpec {
   it should "use odSkim travel times for car" in {
     val beamScenario = getBeamScenario(1.0)
 
@@ -74,8 +72,8 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       BeamRouter.replaceTravelTimeForCarModeWithODSkims(
         walkRoutingResponse,
         odSkims,
-        mock[BeamScenario],
-        mock[GeoUtils]
+        mock(classOf[BeamScenario]),
+        mock(classOf[GeoUtils])
       )
     assert(
       updatedRoutingResponse.itineraries.head.beamLegs.head.duration != updatedDuration,
@@ -103,9 +101,9 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       primaryFuelCapacityInJoule = 0.1,
       vehicleCategory = VehicleCategory.Car
     )
-    val vehicleTypes = Map(vehicleType.id                -> vehicleType)
+    val vehicleTypes = Map(vehicleType.id -> vehicleType)
     val fuelTypePrices = Map(vehicleType.primaryFuelType -> 10.0)
-    val tazMap = mock[TAZTreeMap]
+    val tazMap = mock(classOf[TAZTreeMap])
     when(tazMap.getTAZ(any[java.lang.Double](), any[java.lang.Double]()))
       .thenReturn(TAZ.DefaultTAZ)
 
@@ -113,21 +111,22 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
       TrieMap.empty,
-      vehicleEnergy = mock[VehicleEnergy],
+      vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       ),
       ptFares = PtFares(List.empty),
-      transportNetwork = mock[TransportNetwork],
-      network = mock[Network],
+      transportNetwork = mock(classOf[TransportNetwork]),
+      network = mock(classOf[Network]),
       tazTreeMap = tazMap,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
-      h3taz = null
+      h3taz = null,
+      freightCarriers = IndexedSeq.empty
     )
   }
 
@@ -147,7 +146,7 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
                   transitStops = None,
                   startPoint = SpaceTime(0.0, 0.0, 28800),
                   endPoint = SpaceTime(1.0, 1.0, 28850),
-                  distanceInM = 1000D
+                  distanceInM = 1000d
                 )
               ),
               beamVehicleId = Id.createVehicleId("car"),
@@ -161,12 +160,13 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar {
       ),
       requestId = 1,
       None,
-      true
+      true,
+      37373L
     )
   }
 
   private def getSkimMock(skim: Skim): ODSkims = {
-    val odSkims = mock[ODSkims]
+    val odSkims = mock(classOf[ODSkims])
     when(
       odSkims.getTimeDistanceAndCost(
         any[Location],

@@ -14,8 +14,7 @@ object ParkingMNL {
     Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
   )
 
-  /**
-    * used to determine charging choice, range anxiety
+  /** used to determine charging choice, range anxiety
     *
     * @param primaryFuelLevelInJoules range of vehicle in meters
     * @param primaryFuelConsumptionInJoulePerMeter fuel consumption rate
@@ -29,8 +28,7 @@ object ParkingMNL {
     rangeAnxietyBuffer: Double = 20000.0
   ) {
 
-    /**
-      * models range anxiety with a piecewise function.
+    /** models range anxiety with a piecewise function.
       *
       * from 0 (no anxiety) to 1 (anxiety) when we still have enough fuel to complete our tour
       * jumps to 2 when we don't have enough fuel to complete our tour
@@ -41,8 +39,8 @@ object ParkingMNL {
     def rangeAnxiety(withAddedFuelInJoules: Double = 0.0): Double = {
       if (remainingTourDistance == 0) 0.0
       else {
-        val newRange
-          : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
+        val newRange: Double =
+          (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
         if (newRange > remainingTourDistance) {
           val excessFuelProportion: Double = newRange / (remainingTourDistance + rangeAnxietyBuffer)
           1 - math.min(1.0, math.max(0.0, excessFuelProportion))
@@ -55,9 +53,8 @@ object ParkingMNL {
 
   def prettyPrintAlternatives(params: Map[ParkingMNL.Parameters, Double]): String = {
     params
-      .map {
-        case (param, value) =>
-          f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+      .map { case (param, value) =>
+        f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
       .mkString("", " ", ": ")
   }

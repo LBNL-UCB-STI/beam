@@ -15,8 +15,7 @@ import org.matsim.api.core.v01.Id
 import scala.collection.mutable
 import scala.util.Try
 
-/**
-  * API defining [[ChargingManagerFactory]] and its default implementation ([[DefaultChargingManagerFactory]]), which
+/** API defining [[ChargingManagerFactory]] and its default implementation ([[DefaultChargingManagerFactory]]), which
   * allows to instantiate from a variety of vehicle charging managers ([[VehicleChargingManager]]) currently available in BEAM. In order to
   * add new custom vehicle charging managers, a new [[ChargingManagerFactory]] can be implemented similar to [[DefaultChargingManagerFactory]] and
   * [[DefaultChargingManagerFactory]] can be used as a delegate to access the existing vehicle charging managers.
@@ -33,10 +32,10 @@ trait ChargingManagerFactory {
 
 }
 
-/**
-  * Default implementation of [[ChargingManagerFactory]].
+/** Default implementation of [[ChargingManagerFactory]].
   */
 class DefaultChargingManagerFactory extends ChargingManagerFactory {
+
   override def create(
     beamServices: BeamServices,
     resources: mutable.Map[Id[BeamVehicle], BeamVehicle],

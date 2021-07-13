@@ -13,8 +13,7 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Skims csv reader.
+/** Skims csv reader.
   *
   * @param aggregatedSkimsFilePath path to skims file
   * @param fromCsv                 column mapping function (depends on skimmer type)
@@ -45,10 +44,9 @@ class CsvSkimReader(
   }
 
   def readSkims(reader: BufferedReader): Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
-    tryReadSkims(reader).recover {
-      case ex: Throwable =>
-        logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
-        Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+    tryReadSkims(reader).recover { case ex: Throwable =>
+      logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
+      Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     }.get
   }
 

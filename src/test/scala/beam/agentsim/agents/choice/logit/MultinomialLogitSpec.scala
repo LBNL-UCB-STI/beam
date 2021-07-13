@@ -1,9 +1,10 @@
 package beam.agentsim.agents.choice.logit
 
 import scala.util.Random
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class MultinomialLogitSpec extends WordSpecLike with Matchers {
+class MultinomialLogitSpec extends AnyWordSpecLike with Matchers {
 
   "An MNL Model with standard data" must {
     val utilityFunctions = Map(
@@ -20,7 +21,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
 
     val alts = Map(
       "car"  -> Map("cost" -> 30.0, "time" -> 50.0),
-      "walk" -> Map("cost" -> 0.0, "time"  -> 40.0)
+      "walk" -> Map("cost" -> 0.0, "time" -> 40.0)
     )
 
     "should evaluate utility functions as expected" in {
@@ -81,7 +82,7 @@ class MultinomialLogitSpec extends WordSpecLike with Matchers {
 
     val alts: Map[Mode, Map[FunctionParam, Double]] = Map(
       Car  -> Map(Cost -> 30.0, Time -> 50.0),
-      Walk -> Map(Cost -> 0.0, Time  -> 40.0)
+      Walk -> Map(Cost -> 0.0, Time -> 40.0)
     )
 
     "should evaluate utility functions as expected" in {
