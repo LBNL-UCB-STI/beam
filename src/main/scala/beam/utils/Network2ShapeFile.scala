@@ -173,7 +173,7 @@ object Network2ShapeFile extends LazyLogging {
     val reader = new NetworkReaderMatsimV2(network)
     reader.readFile(beamvilleNetwork)
 
-    def mapToID2AllProperties(mathTransform: MathTransform, feature: SimpleFeature): (String, Map[String,AnyRef]) = {
+    def mapToID2AllProperties(mathTransform: MathTransform, feature: SimpleFeature): (String, Map[String, AnyRef]) = {
       val featureId = feature.getAttribute("ID").toString
       val allProps = feature.getProperties.asScala.map(property => property.getName.toString -> property.getValue).toMap
 
@@ -192,7 +192,7 @@ object Network2ShapeFile extends LazyLogging {
 
   /* the main method to run transformation from matsim network into SHP file */
   def main(args: Array[String]): Unit = {
-//    test()
+    //    simpleTest()
 
     val matsimNetworkPath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/physsim-network.xml"
     val outputShapeFilePath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/output-physsim-network.shp"
