@@ -1,6 +1,7 @@
 package beam.utils
 
 import beam.sim.common.GeoUtils
+import beam.utils.map.ShapefileReader
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, LineString}
 import org.geotools.feature.simple.{SimpleFeatureBuilder, SimpleFeatureTypeBuilder}
@@ -11,6 +12,7 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.ShapeFileWriter
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
+import org.opengis.referencing.operation.MathTransform
 
 import scala.collection.JavaConverters._
 import scala.util.Try;
@@ -156,8 +158,42 @@ object Network2ShapeFile extends LazyLogging {
     logger.info("Done");
   }
 
+  def simpleTest(): Unit = {
+    val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
+    val outputShapeFile = "output/beamville-network.shp"
+
+    val crsString = "epsg:32631"
+    val crs = MGC.getCRS(crsString)
+
+    // write out shapefile
+    networkToShapeFile(beamvilleNetwork, outputShapeFile, crs, _ => true)
+
+    // read network agaim
+    val network = NetworkUtils.createNetwork()
+    val reader = new NetworkReaderMatsimV2(network)
+    reader.readFile(beamvilleNetwork)
+
+    def mapToID2AllProperties(mathTransform: MathTransform, feature: SimpleFeature): (String, Map[String,AnyRef]) = {
+      val featureId = feature.getAttribute("ID").toString
+      val allProps = feature.getProperties.asScala.map(property => property.getName.toString -> property.getValue).toMap
+
+      featureId -> allProps
+    }
+
+    // read all features from shp file
+    val shpFeatures = ShapefileReader.read(crsString, outputShapeFile, _ => true, mapToID2AllProperties).toMap
+
+    // compare the lengths
+    val originalNumberOfLinks = network.getLinks.size()
+    val resultCount = shpFeatures.size
+
+    assert(resultCount == originalNumberOfLinks)
+  }
+
   /* the main method to run transformation from matsim network into SHP file */
   def main(args: Array[String]): Unit = {
+//    test()
+
     val matsimNetworkPath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/physsim-network.xml"
     val outputShapeFilePath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/output-physsim-network.shp"
     val crsString = "epsg:26910"
