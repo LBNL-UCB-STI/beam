@@ -32,6 +32,11 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   override protected val skimFileHeader: String =
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
 
+  protected lazy val dummyId = Id.create(
+    beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+    classOf[BeamVehicleType]
+  )
+
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
     if (config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval > 0 && event.getIteration % config.origin_destination_skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval == 0) {
@@ -181,6 +186,51 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
     }
   }
 
+  protected def writeSkimRow(
+    writer: BufferedWriter,
+    uniqueTimeBins: Seq[Int],
+    origin: GeoUnit,
+    destination: GeoUnit,
+    mode: BeamMode
+  ): Unit = {
+    val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
+    val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
+    uniqueTimeBins
+      .foreach { timeBin =>
+        val theSkim: ODSkimmer.Skim =
+          getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
+            .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
+            .getOrElse {
+              val destCoord =
+                if (origin.equals(destination)) {
+                  new Coord(
+                    origin.center.getX,
+                    origin.center.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+                  )
+                } else {
+                  destination.center
+                }
+              readOnlySkim
+                .asInstanceOf[ODSkims]
+                .getSkimDefaultValue(
+                  mode,
+                  origin.center,
+                  destCoord,
+                  timeBin * 3600,
+                  dummyId,
+                  vehicleType,
+                  fuelPrice,
+                  beamScenario
+                )
+            }
+
+        //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
+        writer.write(
+          s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.count}\n"
+        )
+      }
+  }
+
   protected def writeFullSkims(
     origins: Seq[GeoUnit],
     destinations: Seq[GeoUnit],
@@ -189,12 +239,6 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
   ): Unit = {
     val uniqueModes = currentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
     require(uniqueModes.nonEmpty, s"Expected to get ODSkimmerKey which contains modes")
-    val dummyId = Id.create(
-      beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-      classOf[BeamVehicleType]
-    )
-    val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
-    val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
     var writer: BufferedWriter = null
     try {
@@ -204,50 +248,7 @@ class ODSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScen
       origins.foreach { origin =>
         destinations.foreach { destination =>
           uniqueModes.foreach { mode =>
-            uniqueTimeBins
-              .foreach { timeBin =>
-                val theSkim: ODSkimmer.Skim =
-                  getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
-                    .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
-                    .getOrElse {
-                      if (origin.equals(destination)) {
-                        val newDestCoord = new Coord(
-                          origin.center.getX,
-                          origin.center.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-                        )
-                        readOnlySkim
-                          .asInstanceOf[ODSkims]
-                          .getSkimDefaultValue(
-                            mode,
-                            origin.center,
-                            newDestCoord,
-                            timeBin * 3600,
-                            dummyId,
-                            vehicleType,
-                            fuelPrice,
-                            beamScenario
-                          )
-                      } else {
-                        readOnlySkim
-                          .asInstanceOf[ODSkims]
-                          .getSkimDefaultValue(
-                            mode,
-                            origin.center,
-                            destination.center,
-                            timeBin * 3600,
-                            dummyId,
-                            vehicleType,
-                            fuelPrice,
-                            beamScenario
-                          )
-                      }
-                    }
-
-                // "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
-                writer.write(
-                  s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.count}\n"
-                )
-              }
+            writeSkimRow(writer, uniqueTimeBins, origin, destination, mode)
           }
         }
       }
