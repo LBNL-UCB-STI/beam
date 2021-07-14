@@ -1,4 +1,5 @@
 package beam.router
+
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 

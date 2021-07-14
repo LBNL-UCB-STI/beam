@@ -81,15 +81,14 @@ case class ActivitySimSkimmerEvent(
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val distInMeters = beamLegs.map(_.travelPath.distanceInM).sum
     val (driveTimeInSeconds, driveDistanceInMeters, ferryTimeInSeconds, lightRailTimeInSeconds) =
-      beamLegs.foldLeft((0, 0.0, 0, 0)) {
-        case ((driveTime, driveDistanceInM, ferryTime, railTime), leg) =>
-          leg.mode match {
-            case BeamMode.CAV | BeamMode.CAR =>
-              (driveTime + leg.duration, driveDistanceInM + leg.travelPath.distanceInM, ferryTime, railTime)
-            case BeamMode.FERRY                => (driveTime, driveDistanceInM, ferryTime + leg.duration, railTime)
-            case BeamMode.TRAM | BeamMode.RAIL => (driveTime, driveDistanceInM, ferryTime, railTime + leg.duration)
-            case _                             => (driveTime, driveDistanceInM, ferryTime, railTime)
-          }
+      beamLegs.foldLeft((0, 0.0, 0, 0)) { case ((driveTime, driveDistanceInM, ferryTime, railTime), leg) =>
+        leg.mode match {
+          case BeamMode.CAV | BeamMode.CAR =>
+            (driveTime + leg.duration, driveDistanceInM + leg.travelPath.distanceInM, ferryTime, railTime)
+          case BeamMode.FERRY                => (driveTime, driveDistanceInM, ferryTime + leg.duration, railTime)
+          case BeamMode.TRAM | BeamMode.RAIL => (driveTime, driveDistanceInM, ferryTime, railTime + leg.duration)
+          case _                             => (driveTime, driveDistanceInM, ferryTime, railTime)
+        }
       }
 
     val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination)
@@ -101,7 +100,8 @@ case class ActivitySimSkimmerEvent(
         travelTimeInMinutes = correctedTrip.totalTravelTimeInSecs.toDouble / 60.0,
         generalizedTimeInMinutes = generalizedTimeInHours * 60,
         generalizedCost = generalizedCost,
-        distanceInMeters = if (distInMeters > 0.0) { distInMeters } else { 1.0 },
+        distanceInMeters = if (distInMeters > 0.0) { distInMeters }
+        else { 1.0 },
         cost = correctedTrip.costEstimate,
         energy = energyConsumption,
         walkAccessInMinutes = walkAccess / 60.0,

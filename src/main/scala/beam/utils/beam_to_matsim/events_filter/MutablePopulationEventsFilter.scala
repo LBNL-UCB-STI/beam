@@ -7,7 +7,7 @@ import scala.collection.mutable
 object MutablePopulationEventsFilter {
 
   def apply(
-    populationSampling: Seq[PopulationSample] = Seq.empty[PopulationSample],
+    populationSampling: Seq[PopulationSample] = Seq.empty[PopulationSample]
   ): MutablePopulationEventsFilter = {
 
     val selectNewPersonById: String => Boolean =

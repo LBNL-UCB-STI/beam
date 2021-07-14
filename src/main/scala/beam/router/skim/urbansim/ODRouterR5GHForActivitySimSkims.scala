@@ -142,10 +142,9 @@ case class ODRouterR5GHForActivitySimSkims(
       val wayId2TravelTime = travelTime
         .map { times =>
           workerParams.networkHelper.allLinks.toSeq
-            .map(
-              l =>
-                l.getId.toString.toLong ->
-                times.getLinkTravelTime(l, time, null, null)
+            .map(l =>
+              l.getId.toString.toLong ->
+              times.getLinkTravelTime(l, time, null, null)
             )
             .toMap
         }

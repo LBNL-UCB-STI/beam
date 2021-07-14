@@ -7,6 +7,7 @@ sealed trait ValueAggregator {
 object ValueAggregator {
 
   object StallSummationAndFeeWeightAvg extends ValueAggregator {
+
     override def aggregate(values: Seq[ParkingEntryValues]): Seq[ParkingEntryValues] = {
       val stallTotalSum = values.map(_.numStalls).sum
       val stallWeightedSum = values.map(v => v.numStalls * v.feeInCents).sum

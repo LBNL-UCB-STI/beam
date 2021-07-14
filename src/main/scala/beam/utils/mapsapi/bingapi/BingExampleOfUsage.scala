@@ -18,6 +18,7 @@ object BingExampleOfUsage extends App {
 
   private val timeout = FiniteDuration(20, TimeUnit.SECONDS)
   private val apiKey = args(0)
+
   private val points: Array[WgsCoordinate] = args(1).split(";").flatMap { latLong =>
     Try {
       val elements = latLong.split(",")

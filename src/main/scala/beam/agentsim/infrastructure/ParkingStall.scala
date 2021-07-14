@@ -59,7 +59,7 @@ object ParkingStall {
     random: Random = Random,
     costInDollars: Double = CostOfEmergencyStallInDollars,
     tazId: Id[TAZ] = TAZ.EmergencyTAZId,
-    geoId: Id[_],
+    geoId: Id[_]
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -89,7 +89,7 @@ object ParkingStall {
     */
   def defaultResidentialStall(
     locationUTM: Location,
-    defaultGeoId: Id[_],
+    defaultGeoId: Id[_]
   ): ParkingStall = ParkingStall(
     geoId = defaultGeoId,
     tazId = TAZ.DefaultTAZId,
@@ -108,8 +108,8 @@ object ParkingStall {
     * @param parkingAlternative
     * @return
     */
-  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(
-    implicit gl: GeoLevel[GEO]
+  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(implicit
+    gl: GeoLevel[GEO]
   ): ParkingStall = {
     import GeoLevel.ops._
     ParkingStall(

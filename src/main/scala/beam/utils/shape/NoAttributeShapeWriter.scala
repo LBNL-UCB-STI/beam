@@ -1,4 +1,5 @@
 package beam.utils.shape
+
 import beam.utils.shape.ShapeWriter.OriginalToPersistedFeatureIdMap
 import com.vividsolutions.jts.geom.{Geometry => JtsGeometry}
 import org.geotools.referencing.crs.DefaultGeographicCRS
@@ -23,8 +24,8 @@ class NoAttributeShapeWriter[G <: JtsGeometry](private val crs: CoordinateRefere
 
 object NoAttributeShapeWriter {
 
-  def worldGeodetic[G <: JtsGeometry](path: String)(
-    implicit evG: ClassTag[G]
+  def worldGeodetic[G <: JtsGeometry](path: String)(implicit
+    evG: ClassTag[G]
   ): NoAttributeShapeWriter[G] = {
     // WGS84 is the same as EPSG:4326 https://epsg.io/4326
     new NoAttributeShapeWriter[G](DefaultGeographicCRS.WGS84, path)

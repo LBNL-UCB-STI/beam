@@ -9,7 +9,7 @@ import org.matsim.core.replanning.selectors.RandomPlanSelector
 import org.matsim.core.replanning.{PlanStrategy, ReplanningContext}
 import org.slf4j.LoggerFactory
 
-class ClearModes @Inject()(config: Config) extends PlansStrategyAdopter {
+class ClearModes @Inject() (config: Config) extends PlansStrategyAdopter {
 
   private val log = LoggerFactory.getLogger(classOf[ClearModes])
 

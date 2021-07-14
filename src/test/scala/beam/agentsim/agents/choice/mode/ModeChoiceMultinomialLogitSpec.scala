@@ -16,11 +16,11 @@ class ModeChoiceMultinomialLogitSpec extends AnyWordSpec {
   "ModeChoiceMultinomialLogit" when {
     "pathScaledForWaiting" must {
       "skip the first element of BeamPath and sum all travelTime when bikeLaneScaleFactor is 1" in {
-        val value1 = 11.4D
-        val value2 = 12.3D
-        val path = randomPath(travelTimes = 10D, value1, value2)
+        val value1 = 11.4d
+        val value2 = 12.3d
+        val path = randomPath(travelTimes = 10d, value1, value2)
         val bikeLaneLinkIds = randomIntList.toSet
-        val data = BikeLanesData(scaleFactorFromConfig = 1D, bikeLanesLinkIds = bikeLaneLinkIds)
+        val data = BikeLanesData(scaleFactorFromConfig = 1d, bikeLanesLinkIds = bikeLaneLinkIds)
         val adjustment = new BikeLanesAdjustment(data)
 
         val result: Double = ModeChoiceMultinomialLogit.pathScaledForWaiting(path, adjustment)
@@ -30,7 +30,7 @@ class ModeChoiceMultinomialLogitSpec extends AnyWordSpec {
       }
 
       "be zero when path has zero or only one element" in {
-        val path = if (Random.nextBoolean()) randomPath() else randomPath(travelTimes = 10D)
+        val path = if (Random.nextBoolean()) randomPath() else randomPath(travelTimes = 10d)
         val scaleFactor = Random.nextDouble()
         val bikeLaneLinkIds = randomIntList.toSet
         val data = BikeLanesData(scaleFactorFromConfig = scaleFactor, bikeLanesLinkIds = bikeLaneLinkIds)
@@ -43,14 +43,14 @@ class ModeChoiceMultinomialLogitSpec extends AnyWordSpec {
       }
 
       "pathScaledForWaiting scale disproportionately linkIds that are specified on BikeLaneAdjustment" in {
-        val value1 = 11.4D
-        val value2 = 12.3D
+        val value1 = 11.4d
+        val value2 = 12.3d
         val sharedLinkId1 = 2
         val nonSharedLinkId = 3
         val linkIds = Seq(1, sharedLinkId1, nonSharedLinkId)
-        val path = randomPath(travelTimes = Seq(10D, value1, value2), linkIds)
+        val path = randomPath(travelTimes = Seq(10d, value1, value2), linkIds)
         val data = new BikeLanesData(
-          scaleFactorFromConfig = 2D,
+          scaleFactorFromConfig = 2d,
           bikeLanesLinkIds = Set(sharedLinkId1, nonSharedLinkId + 1)
         )
         val adjustment = new BikeLanesAdjustment(data)

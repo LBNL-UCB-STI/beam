@@ -157,7 +157,9 @@ class TimeDependentRoutingSpec
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.totalTravelTimeInSecs == 147)
 
-      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) =>
+        1000
+      ) // Every link takes 1000 sec to traverse.
       router ! RoutingRequest(
         originUTM = origin,
         destinationUTM = destination,
@@ -251,7 +253,9 @@ class TimeDependentRoutingSpec
     }
 
     "give updated travel times for a given route after travel times were updated" in {
-      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) => 1000) // Every link takes 1000 sec to traverse.
+      router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) =>
+        1000
+      ) // Every link takes 1000 sec to traverse.
       val leg = BeamLeg(
         28800,
         BeamMode.CAR,
@@ -272,7 +276,9 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 3000) // Convention is to traverse from end of first link to end of last, so 3 full links
+      assert(
+        response.itineraries.head.beamLegs.head.duration == 3000
+      ) // Convention is to traverse from end of first link to end of last, so 3 full links
     }
 
   }

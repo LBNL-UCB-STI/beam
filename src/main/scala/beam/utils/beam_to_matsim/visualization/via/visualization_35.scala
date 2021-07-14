@@ -16,6 +16,7 @@ object visualization_35 extends App {
   val viaIdFile = beamEventsFilePath + ".all.ids.txt"
 
   object Selector extends MutableVehiclesFilter.SelectNewVehicle {
+
     override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean = {
       vehicleMode match {
         case "CAR" | "BUS" => true
@@ -29,27 +30,25 @@ object visualization_35 extends App {
 
     def alternativePathToVehiclesTrips(path: Seq[BeamPathTraversal], idPrefix: String): Iterable[VehicleTrip] = {
       val trips = mutable.Map.empty[String, VehicleTrip]
-      path.foreach(
-        pte => {
-          val vId = idPrefix + pte.vehicleId
-          val pteWithCorrectVehicleId = new BeamPathTraversal(
-            pte.time,
-            vId,
-            pte.driverId,
-            pte.vehicleType,
-            pte.mode,
-            pte.numberOfPassengers,
-            pte.arrivalTime,
-            pte.linkIds,
-            pte.linkTravelTime
-          )
+      path.foreach(pte => {
+        val vId = idPrefix + pte.vehicleId
+        val pteWithCorrectVehicleId = new BeamPathTraversal(
+          pte.time,
+          vId,
+          pte.driverId,
+          pte.vehicleType,
+          pte.mode,
+          pte.numberOfPassengers,
+          pte.arrivalTime,
+          pte.linkIds,
+          pte.linkTravelTime
+        )
 
-          trips.get(vId) match {
-            case Some(trip) => trip.trip += pteWithCorrectVehicleId
-            case None       => trips(vId) = VehicleTrip(vId, pteWithCorrectVehicleId)
-          }
+        trips.get(vId) match {
+          case Some(trip) => trip.trip += pteWithCorrectVehicleId
+          case None       => trips(vId) = VehicleTrip(vId, pteWithCorrectVehicleId)
         }
-      )
+      })
 
       trips.values
     }

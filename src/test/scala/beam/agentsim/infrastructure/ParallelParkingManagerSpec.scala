@@ -86,7 +86,7 @@ class ParallelParkingManagerSpec
           ),
           new Random(randomSeed),
           tazId = TAZ.EmergencyTAZId,
-          geoId = TAZ.EmergencyTAZId,
+          geoId = TAZ.EmergencyTAZId
         )
 
         val response = parkingManager.processParkingInquiry(inquiry)
@@ -125,7 +125,7 @@ class ParallelParkingManagerSpec
         ),
         new Random(randomSeed),
         tazId = TAZ.EmergencyTAZId,
-        geoId = TAZ.EmergencyTAZId,
+        geoId = TAZ.EmergencyTAZId
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)
@@ -149,7 +149,8 @@ class ParallelParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
@@ -194,7 +195,7 @@ class ParallelParkingManagerSpec
         response2 match {
           case Some(res @ ParkingInquiryResponse(stall, responseId, triggerId))
               if stall.geoId == TAZ.EmergencyTAZId
-              && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
+                && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
             res
           case _ => assert(response2.isDefined, "no response")
         }
@@ -214,7 +215,8 @@ class ParallelParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
@@ -345,7 +347,7 @@ class ParallelParkingManagerSpec
         tazMap.tazQuadTree,
         1.0,
         1.0,
-        new Random(randomSeed),
+        new Random(randomSeed)
       )
       val zpm =
         ParallelParkingManager.init(

@@ -45,10 +45,14 @@ class HierarchicalParkingManager(
   private val actualLinkParkingZones: Array[ParkingZone[Link]] = HierarchicalParkingManager.collapse(parkingZones)
 
   private val tazLinks: Map[Id[TAZ], QuadTree[Link]] = createTazLinkQuadTreeMapping(linkToTAZMapping)
+
   private val (tazParkingZones, linkZoneToTazZoneMap) =
-    convertToTazParkingZones(actualLinkParkingZones, linkToTAZMapping.map {
-      case (link, taz) => link.getId -> taz.tazId
-    })
+    convertToTazParkingZones(
+      actualLinkParkingZones,
+      linkToTAZMapping.map { case (link, taz) =>
+        link.getId -> taz.tazId
+      }
+    )
   private val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones)
 
   private val tazSearchFunctions: ZonalParkingManagerFunctions[TAZ] = new ZonalParkingManagerFunctions[TAZ](
@@ -144,7 +148,8 @@ class HierarchicalParkingManager(
     if (inquiry.reserveStall) {
 
       logger.debug(
-        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
+        else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
       )
 
       ParkingZone.claimStall(parkingZone)
@@ -238,7 +243,7 @@ object HierarchicalParkingManager {
     timeRestrictions: Map[VehicleCategory, Range],
     parkingZoneName: Option[String],
     landCostInUSDPerSqft: Option[Double],
-    vehicleManager: Option[Id[VehicleManager]] = None,
+    vehicleManager: Option[Id[VehicleManager]] = None
   )
 
   object ParkingZoneDescription {
@@ -366,32 +371,29 @@ object HierarchicalParkingManager {
     val tazZonesMap = parkingZones.groupBy(zone => linkToTAZMapping(zone.geoId))
 
     // list of parking zone description including TAZ and link zones
-    val tazZoneDescriptions = tazZonesMap.flatMap {
-      case (tazId, currentTazParkingZones) =>
-        val tazLevelZoneDescriptions = currentTazParkingZones.groupBy(ParkingZoneDescription.describeParkingZone)
-        tazLevelZoneDescriptions.map {
-          case (description, linkZones) =>
-            (tazId, description, linkZones)
-        }
+    val tazZoneDescriptions = tazZonesMap.flatMap { case (tazId, currentTazParkingZones) =>
+      val tazLevelZoneDescriptions = currentTazParkingZones.groupBy(ParkingZoneDescription.describeParkingZone)
+      tazLevelZoneDescriptions.map { case (description, linkZones) =>
+        (tazId, description, linkZones)
+      }
     }
     //generate taz parking zones
-    val tazZones = tazZoneDescriptions.zipWithIndex.map {
-      case ((tazId, description, linkZones), id) =>
-        val numStalls = Math.min(linkZones.map(_.maxStalls.toLong).sum, Int.MaxValue).toInt
-        new ParkingZone[TAZ](
-          parkingZoneId = id,
-          geoId = tazId,
-          parkingType = description.parkingType,
-          stallsAvailable = numStalls,
-          maxStalls = numStalls,
-          reservedFor = description.reservedFor,
-          vehicleManager = description.vehicleManager,
-          chargingPointType = description.chargingPointType,
-          pricingModel = description.pricingModel,
-          timeRestrictions = description.timeRestrictions,
-          parkingZoneName = description.parkingZoneName,
-          landCostInUSDPerSqft = description.landCostInUSDPerSqft,
-        )
+    val tazZones = tazZoneDescriptions.zipWithIndex.map { case ((tazId, description, linkZones), id) =>
+      val numStalls = Math.min(linkZones.map(_.maxStalls.toLong).sum, Int.MaxValue).toInt
+      new ParkingZone[TAZ](
+        parkingZoneId = id,
+        geoId = tazId,
+        parkingType = description.parkingType,
+        stallsAvailable = numStalls,
+        maxStalls = numStalls,
+        reservedFor = description.reservedFor,
+        vehicleManager = description.vehicleManager,
+        chargingPointType = description.chargingPointType,
+        pricingModel = description.pricingModel,
+        timeRestrictions = description.timeRestrictions,
+        parkingZoneName = description.parkingZoneName,
+        landCostInUSDPerSqft = description.landCostInUSDPerSqft
+      )
     }
     //link zone to taz zone map
     val linkZoneToTazZoneMap = tazZones
@@ -414,9 +416,8 @@ object HierarchicalParkingManager {
 
   def createTazLinkQuadTreeMapping(linkToTAZMapping: Map[Link, TAZ]): Map[Id[TAZ], QuadTree[Link]] = {
     val tazToLinks = invertMap(linkToTAZMapping)
-    tazToLinks.map {
-      case (taz, links) =>
-        taz.tazId -> LinkLevelOperations.getLinkTreeMap(links.toSeq)
+    tazToLinks.map { case (taz, links) =>
+      taz.tazId -> LinkLevelOperations.getLinkTreeMap(links.toSeq)
     }
   }
 
@@ -432,31 +433,29 @@ object HierarchicalParkingManager {
   def collapse[GEO](parkingZones: Array[ParkingZone[GEO]]): Array[ParkingZone[GEO]] =
     parkingZones
       .groupBy(_.geoId)
-      .flatMap {
-        case (linkId, zones) =>
-          zones
-            .groupBy(ParkingZoneDescription.describeParkingZone)
-            .map { case (descr, linkZones) => (linkId, descr, linkZones.map(_.maxStalls.toLong).sum) }
+      .flatMap { case (linkId, zones) =>
+        zones
+          .groupBy(ParkingZoneDescription.describeParkingZone)
+          .map { case (descr, linkZones) => (linkId, descr, linkZones.map(_.maxStalls.toLong).sum) }
       }
       .filter { case (_, _, maxStalls) => maxStalls > 0 }
       .zipWithIndex
-      .map {
-        case ((linkId, description, maxStalls), id) =>
-          val numStalls = Math.min(maxStalls, Int.MaxValue).toInt
-          new ParkingZone[GEO](
-            parkingZoneId = id,
-            geoId = linkId,
-            parkingType = description.parkingType,
-            stallsAvailable = numStalls,
-            maxStalls = numStalls,
-            reservedFor = description.reservedFor,
-            vehicleManager = description.vehicleManager,
-            chargingPointType = description.chargingPointType,
-            pricingModel = description.pricingModel,
-            timeRestrictions = description.timeRestrictions,
-            parkingZoneName = description.parkingZoneName,
-            landCostInUSDPerSqft = description.landCostInUSDPerSqft,
-          )
+      .map { case ((linkId, description, maxStalls), id) =>
+        val numStalls = Math.min(maxStalls, Int.MaxValue).toInt
+        new ParkingZone[GEO](
+          parkingZoneId = id,
+          geoId = linkId,
+          parkingType = description.parkingType,
+          stallsAvailable = numStalls,
+          maxStalls = numStalls,
+          reservedFor = description.reservedFor,
+          vehicleManager = description.vehicleManager,
+          chargingPointType = description.chargingPointType,
+          pricingModel = description.pricingModel,
+          timeRestrictions = description.timeRestrictions,
+          parkingZoneName = description.parkingZoneName,
+          landCostInUSDPerSqft = description.landCostInUSDPerSqft
+        )
       }
       .toArray
 }

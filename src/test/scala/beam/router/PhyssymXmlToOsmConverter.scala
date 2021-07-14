@@ -122,8 +122,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     val modes = startElement.getAttributeByName(new QName("modes")).getValue
 
     val result: Seq[(String, String)] = buildSequenceForNonNullValues(
-      attributes =
-      "lanes" -> permLanes.getValue,
+      attributes = "lanes" -> permLanes.getValue,
       "oneway"   -> (if (Seq("1", "true").contains(oneway.getValue.toLowerCase)) "yes" else "no"),
       "capacity" -> capacity.getValue,
       "maxspeed" -> freeSpeedy.getValue
@@ -137,11 +136,11 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       .map(_.trim)
       .flatMap {
         case BeamMode.CAR.value    => Some("motorcar" -> "yes")
-        case BeamMode.BUS.value    => Some("bus"      -> "yes")
-        case BeamMode.RAIL.value   => Some("rail"     -> "yes")
-        case BeamMode.SUBWAY.value => Some("subway"   -> "yes")
-        case BeamMode.TRAM.value   => Some("tram"     -> "yes")
-        case BeamMode.BIKE.value   => Some("bicycle"  -> "yes")
+        case BeamMode.BUS.value    => Some("bus" -> "yes")
+        case BeamMode.RAIL.value   => Some("rail" -> "yes")
+        case BeamMode.SUBWAY.value => Some("subway" -> "yes")
+        case BeamMode.TRAM.value   => Some("tram" -> "yes")
+        case BeamMode.BIKE.value   => Some("bicycle" -> "yes")
         case somethingElseNotFoundOnOsmDocumentation: String =>
           Some(somethingElseNotFoundOnOsmDocumentation -> "yes")
       }
@@ -156,7 +155,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
     val y = startElement.getAttributeByName(new QName("y"))
     val wgsCoordinate = WgsCoordinate.fromUtm(
       longitude = x.getValue.toDouble,
-      latitude = y.getValue.toDouble,
+      latitude = y.getValue.toDouble
     )
     Node(id.getValue, wgsCoordinate)
   }
@@ -233,15 +232,14 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       writeNd(xmlStreamWriter, way.from)
       writeNd(xmlStreamWriter, way.to)
 
-      way.attributes.foreach {
-        case (prop, value) =>
-          xmlStreamWriter.writeCharacters(indentation * 2)
+      way.attributes.foreach { case (prop, value) =>
+        xmlStreamWriter.writeCharacters(indentation * 2)
 
-          xmlStreamWriter.writeEmptyElement("tag")
-          xmlStreamWriter.writeAttribute("k", prop)
-          xmlStreamWriter.writeAttribute("v", value)
+        xmlStreamWriter.writeEmptyElement("tag")
+        xmlStreamWriter.writeAttribute("k", prop)
+        xmlStreamWriter.writeAttribute("v", value)
 
-          xmlStreamWriter.writeCharacters(breakLine)
+        xmlStreamWriter.writeCharacters(breakLine)
       }
     }
 
@@ -327,6 +325,7 @@ private object PhyssymXmlToOsmConverterParams {
   case class ConverterParams(sourceFile: File = null, targetFile: File = null, outputType: OutputType = OutputType.Pbf)
 
   private val builder = OParser.builder[ConverterParams]
+
   private val parser1 = {
     implicit val outputTypeRead: scopt.Read[OutputType.Value] =
       scopt.Read.reads(OutputType.withName)

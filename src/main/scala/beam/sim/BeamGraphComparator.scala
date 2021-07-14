@@ -59,19 +59,23 @@ object BeamGraphComparator extends LazyLogging {
           <strong>{grp._1._2}</strong>
           <ul>
             {
-            ListMap(grp._2.toSeq.sortBy(_._1): _*) map { t =>
-              <li>
-                <h4><a href="javascript:" onclick={displayAllGraphs(t._2 map { f =>
-                  Json.obj("path" -> f._2.getCanonicalPath.replace(event.getServices.getControlerIO.getOutputPath + "/",""),
-                    "name" -> f._2.getName)
-                })}>{t._1}</a></h4>
+          ListMap(grp._2.toSeq.sortBy(_._1): _*) map { t =>
+            <li>
+                <h4><a href="javascript:" onclick={
+              displayAllGraphs(t._2 map { f =>
+                Json.obj(
+                  "path" -> f._2.getCanonicalPath.replace(event.getServices.getControlerIO.getOutputPath + "/", ""),
+                  "name" -> f._2.getName
+                )
+              })
+            }>{t._1}</a></h4>
               </li>
-            }
-            }
+          }
+        }
           </ul>
         </li>
       }
-      }
+    }
     </ul>
 
     // Generate holder blocks to display the selected images and their titles
@@ -123,7 +127,6 @@ object BeamGraphComparator extends LazyLogging {
   }
 
   /**
-    *
     * @param event A matsim controller event
     * @param firstIteration value of first iteration
     * @param lastIteration value of last iteration
@@ -165,12 +168,12 @@ object BeamGraphComparator extends LazyLogging {
       "tripHistogram",
       "freeFlowSpeedDistribution"
     )
-    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] = fileNames.groupBy(_._1) groupBy (
-      grouping =>
+    val chartsGroupedByPrefix: Map[String, Map[String, Array[(String, File)]]] =
+      fileNames.groupBy(_._1) groupBy (grouping =>
         knownChartPrefixes
           .collectFirst { case prefix if grouping._1.startsWith(prefix) => prefix.capitalize }
           .getOrElse("Misc")
-    )
+      )
     val subGroups = mutable.HashMap.empty[(String, String), Map[String, Array[(String, File)]]]
     // set priorities for the grouped chart files
     chartsGroupedByPrefix.foreach(gc => {

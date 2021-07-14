@@ -24,6 +24,7 @@ object NetworkCsvWriter extends ScenarioCsvWriter {
     toLocationX: String,
     toLocationY: String
   ) {
+
     override def toString: String = {
       Seq(
         linkId,

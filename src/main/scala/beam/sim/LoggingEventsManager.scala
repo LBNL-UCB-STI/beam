@@ -1,4 +1,5 @@
 package beam.sim
+
 import java.util.concurrent._
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
@@ -15,7 +16,7 @@ import org.matsim.core.scoring.{EventsToActivities, EventsToLegs}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-class LoggingEventsManager @Inject()(
+class LoggingEventsManager @Inject() (
   @Named("ParallelEM") eventManager: EventsManager
 ) extends EventsManager
     with LazyLogging {
@@ -38,6 +39,7 @@ class LoggingEventsManager @Inject()(
   private val blockingQueue: BlockingQueue[Event] = new LinkedBlockingQueue[Event]
   private val isFinished: AtomicBoolean = new AtomicBoolean(false)
   private var dedicatedHandler: Option[Future[Unit]] = None
+
   private val stacktraceToException: collection.mutable.HashMap[StackTraceElement, Exception] =
     collection.mutable.HashMap()
 
@@ -77,6 +79,7 @@ class LoggingEventsManager @Inject()(
     tryLog("afterSimStep", sequentialEventManager.afterSimStep(time))
     tryLog("afterSimStep", defaultEventManager.afterSimStep(time))
   }
+
   override def finishProcessing(): Unit = {
     val s = System.currentTimeMillis()
     isFinished.set(true)
@@ -154,9 +157,8 @@ class LoggingEventsManager @Inject()(
   private def logErrorsDuringEventProcessing(): Unit = {
     if (stacktraceToException.nonEmpty) {
       logger.error("There were errors during events processing: ")
-      stacktraceToException.foreach {
-        case (st, ex) =>
-          logger.error(st.toString, ex)
+      stacktraceToException.foreach { case (st, ex) =>
+        logger.error(st.toString, ex)
       }
     }
   }

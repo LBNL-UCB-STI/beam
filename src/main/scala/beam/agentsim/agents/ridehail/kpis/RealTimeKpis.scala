@@ -197,7 +197,8 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     hexKey: Option[HexIndex] = None,
     tazKey: Option[Id[TAZ]] = None
   ) = {
-    val latestTimeOnASampleRate = (time.toDouble / observationSampleRateInSeconds.toDouble).toInt * observationSampleRateInSeconds
+    val latestTimeOnASampleRate =
+      (time.toDouble / observationSampleRateInSeconds.toDouble).toInt * observationSampleRateInSeconds
     Iterator
       .iterate((toTimeOrBin(latestTimeOnASampleRate, temporalAggregation), Vector[Double]())) {
         case (currentTimeOrBin, _) =>
@@ -319,6 +320,7 @@ object RideHailKpisObject {
   type HalfHourBin = Int
   type HourBin = Int
   case class SpatialKeys(hexIndex: HexIndex, taz: Id[TAZ])
+
   case class SpatioTemporalKey(
     kpi: Kpi,
     time: Option[Int],

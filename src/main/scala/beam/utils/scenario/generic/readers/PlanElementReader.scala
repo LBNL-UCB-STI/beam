@@ -69,11 +69,10 @@ object XmlPlanElementReader extends PlanElementReader {
 
     scenario.getPopulation.getPersons.values.asScala
       .flatMap { person =>
-        person.getPlans.asScala.zipWithIndex.flatMap {
-          case (plan, planIdx) =>
-            plan.getPlanElements.asScala.zipWithIndex.map {
-              case (planElement, planElementIdx) => (person, plan, planIdx, planElement, planElementIdx)
-            }
+        person.getPlans.asScala.zipWithIndex.flatMap { case (plan, planIdx) =>
+          plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIdx) =>
+            (person, plan, planIdx, planElement, planElementIdx)
+          }
         }
       }
       .collect {

@@ -180,7 +180,7 @@ object InfluxDbSimulationMetricCollector {
   }
 }
 
-class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
+class InfluxDbSimulationMetricCollector @Inject() (beamCfg: BeamConfig)
     extends SimulationMetricCollector
     with LazyLogging {
 
@@ -261,16 +261,16 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
         .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
         .tag("simulation-hour", time.hours.toString)
 
-      val withFields = values.foldLeft(rawPoint) {
-        case (p, (n, v)) => p.addField(n, v)
+      val withFields = values.foldLeft(rawPoint) { case (p, (n, v)) =>
+        p.addField(n, v)
       }
 
-      val withDefaultTags = defaultTags.foldLeft(withFields) {
-        case (p, (k, v)) => p.tag(k, v)
+      val withDefaultTags = defaultTags.foldLeft(withFields) { case (p, (k, v)) =>
+        p.tag(k, v)
       }
 
-      val withOtherTags = tags.foldLeft(withDefaultTags) {
-        case (p, (k, v)) => p.tag(k, v)
+      val withOtherTags = tags.foldLeft(withDefaultTags) { case (p, (k, v)) =>
+        p.tag(k, v)
       }
 
       maybeInfluxDB.foreach(_.write(withOtherTags.build()))
@@ -290,16 +290,16 @@ class InfluxDbSimulationMetricCollector @Inject()(beamCfg: BeamConfig)
         .time(influxTime(metricName, time.seconds, overwriteIfExist), TimeUnit.NANOSECONDS)
         .tag("simulation-hour", time.hours.toString)
 
-      val withFields = values.foldLeft(rawPoint) {
-        case (p, (n, v)) => p.addField(n, v)
+      val withFields = values.foldLeft(rawPoint) { case (p, (n, v)) =>
+        p.addField(n, v)
       }
 
-      val withDefaultTags = defaultTags.foldLeft(withFields) {
-        case (p, (k, v)) => p.tag(k, v)
+      val withDefaultTags = defaultTags.foldLeft(withFields) { case (p, (k, v)) =>
+        p.tag(k, v)
       }
 
-      val withOtherTags = tags.foldLeft(withDefaultTags) {
-        case (p, (k, v)) => p.tag(k, v)
+      val withOtherTags = tags.foldLeft(withDefaultTags) { case (p, (k, v)) =>
+        p.tag(k, v)
       }
 
       maybeInfluxDB.foreach(_.write(withOtherTags.build()))

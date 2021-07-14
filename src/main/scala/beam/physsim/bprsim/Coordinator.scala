@@ -14,7 +14,6 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class Coordinator(
@@ -23,6 +22,7 @@ class Coordinator(
   config: BPRSimConfig,
   eventManager: EventsManager
 ) extends StrictLogging {
+
   private val executorService =
     Executors.newFixedThreadPool(
       clusters.size,
@@ -32,6 +32,7 @@ class Coordinator(
         .build()
     )
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
+
   private val eventExecutor =
     Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("main-bpr-thread").build())
   val eventEC: ExecutionContext = ExecutionContext.fromExecutor(eventExecutor)
@@ -75,14 +76,14 @@ class Coordinator(
   }
 
   var seqFuture: Future[Unit] = Future.successful(())
+
   private def asyncFlushEvents(events: Vector[Event]): Unit = {
-    seqFuture = seqFuture.flatMap(
-      _ =>
-        Future {
-          import BPRSimulation.eventTimeOrdering
-          val sorted = util.Sorting.stableSort(events)
-          sorted.foreach(eventManager.processEvent)
-        }(eventEC)
+    seqFuture = seqFuture.flatMap(_ =>
+      Future {
+        import BPRSimulation.eventTimeOrdering
+        val sorted = util.Sorting.stableSort(events)
+        sorted.foreach(eventManager.processEvent)
+      }(eventEC)
     )(eventEC)
   }
 

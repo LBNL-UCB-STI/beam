@@ -62,7 +62,7 @@ class AgentsimWithMaximallyBadRouterSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
     }
@@ -79,9 +79,8 @@ object AgentsimWithMaximallyBadRouterSpec {
     override def beforeAll: Unit = {
       super.beforeAll()
       router = TestActorRef(Props(new Actor {
-        override def receive: Receive = {
-          case _ =>
-            sender ! Failure(new RuntimeException("No idea how to route."))
+        override def receive: Receive = { case _ =>
+          sender ! Failure(new RuntimeException("No idea how to route."))
         }
       }))
       services.beamRouter = router

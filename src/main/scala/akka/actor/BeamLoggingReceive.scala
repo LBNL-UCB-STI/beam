@@ -67,20 +67,22 @@ object BeamLoggingReceive {
     withLabel(label, Logging.DebugLevel)(r)
 }
 
-class BeamLoggingReceive(source: Option[AnyRef], r: Receive, label: Option[String], logLevel: LogLevel)(
-  implicit context: ActorContext
+class BeamLoggingReceive(source: Option[AnyRef], r: Receive, label: Option[String], logLevel: LogLevel)(implicit
+  context: ActorContext
 ) extends LoggingReceive(source, r, label, logLevel) {
+
   override def isDefinedAt(o: Any): Boolean = {
     val handled = r.isDefinedAt(o)
     if (context.system.eventStream.logLevel >= logLevel) {
       val src = source.getOrElse(context.asInstanceOf[ActorCell].actor)
       val (str, clazz) = LogSource.fromAnyRef(src)
-      val message = "###Actor### received " + (if (handled) "handled" else "unhandled") + " message " + o + " from " + context
+      val message = "###Actor### received " + (if (handled) "handled"
+                                               else "unhandled") + " message " + o + " from " + context
         .sender() +
-      (label match {
-        case Some(l) => " in state " + l
-        case _       => ""
-      })
+        (label match {
+          case Some(l) => " in state " + l
+          case _       => ""
+        })
       val event = src match {
         case a: DiagnosticActorLogging => LogEvent(logLevel, str, clazz, message, a.log.mdc)
         case _                         => LogEvent(logLevel, str, clazz, message)

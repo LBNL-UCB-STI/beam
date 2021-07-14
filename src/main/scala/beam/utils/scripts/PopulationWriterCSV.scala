@@ -26,10 +26,10 @@ class PopulationWriterCSV(
     * the specified version.
     * If plans-streaming is on, the file will already be opened and the file-header be written.
     * If plans-streaming is off, the file will not be created until `#write(java.lang.String)` is called.
-    *
-    **/
+    */
 
   val handler: PopulationWriterHandler = new PopulationWriterHandler {
+
     override def writeHeaderAndStartElement(out: BufferedWriter): Unit =
       out.write("id,type,x,y,end.time,customAttributes\n")
 

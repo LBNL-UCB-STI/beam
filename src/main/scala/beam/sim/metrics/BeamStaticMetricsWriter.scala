@@ -65,14 +65,18 @@ object BeamStaticMetricsWriter {
 
     def metricEnabled(metricName: String): Boolean = beamServices.simMetricCollector.metricEnabled(metricName)
 
-    if (metricEnabled("beam-run-charging-depots-cnt") ||
-        metricEnabled("beam-run-public-fast-charge-cnt") ||
-        metricEnabled("beam-run-public-fast-charge-stalls-cnt") ||
-        metricEnabled("beam-run-charging-depots-stalls-cnt")) {
+    if (
+      metricEnabled("beam-run-charging-depots-cnt") ||
+      metricEnabled("beam-run-public-fast-charge-cnt") ||
+      metricEnabled("beam-run-public-fast-charge-stalls-cnt") ||
+      metricEnabled("beam-run-charging-depots-stalls-cnt")
+    ) {
 
       val (chargingDepotsFilePath: String, publicFastChargerFilePath: String) = {
-        if (fileExist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath) &&
-            fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
+        if (
+          fileExist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath) &&
+          fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)
+        ) {
           (
             beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
             beamConfig.beam.agentsim.taz.parkingFilePath
@@ -92,11 +96,10 @@ object BeamStaticMetricsWriter {
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
-        chargingDepots.foreach(
-          parkingZone =>
-            if (parkingZone.chargingPointType.nonEmpty) {
-              cntChargingDepots += 1
-              cntChargingDepotsStalls += parkingZone.stallsAvailable
+        chargingDepots.foreach(parkingZone =>
+          if (parkingZone.chargingPointType.nonEmpty) {
+            cntChargingDepots += 1
+            cntChargingDepotsStalls += parkingZone.stallsAvailable
           }
         )
 
@@ -107,13 +110,12 @@ object BeamStaticMetricsWriter {
           val (publicChargers, _) =
             ParkingZoneFileUtils.fromFile[TAZ](publicFastChargerFilePath, rand, parkingStallCountScalingFactor)
 
-          publicChargers.foreach(
-            publicCharger =>
-              if (publicCharger.chargingPointType.nonEmpty) {
-                if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
-                  cntPublicFastCharge += 1
-                  cntPublicFastChargeStalls += publicCharger.stallsAvailable
-                }
+          publicChargers.foreach(publicCharger =>
+            if (publicCharger.chargingPointType.nonEmpty) {
+              if (ChargingPointType.getChargingPointCurrent(publicCharger.chargingPointType.get) == DC) {
+                cntPublicFastCharge += 1
+                cntPublicFastChargeStalls += publicCharger.stallsAvailable
+              }
             }
           )
         }

@@ -33,7 +33,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
@@ -73,7 +72,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           1.0,
           900,
           (time, link, _, _) => link.getLength / link.getFreespeed(time),
-          None,
+          None
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new BPRSimulation(scenario, bprConfig, eventManager)
@@ -92,7 +91,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           1.0,
           900,
           (time, link, _, _) => link.getLength / link.getFreespeed(time),
-          None,
+          None
         )
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager, 42)
@@ -127,15 +126,14 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
       case event: LinkLeaveEvent if event.getVehicleId == vehicle10 => event.asInstanceOf[HasLinkId]
     }
     linkEvents.size should be(32)
-    linkEvents.zipWithIndex.foreach {
-      case (event, i) =>
-        if (i % 2 == 0) event should be(an[LinkLeaveEvent])
-        else event should be(an[LinkEnterEvent])
+    linkEvents.zipWithIndex.foreach { case (event, i) =>
+      if (i % 2 == 0) event should be(an[LinkLeaveEvent])
+      else event should be(an[LinkEnterEvent])
     }
     linkEvents.map(_.getLinkId).toList should be(
       List[Id[Link]](
         228, 206, 206, 180, 180, 178, 178, 184, 184, 102, 34, 38, 38, 52, 52, 50, 50, 44, 44, 336, 336, 126, 126, 116,
-        116, 202, 202, 192, 192, 316, 316, 196,
+        116, 202, 202, 192, 192, 316, 316, 196
       )
     )
   }
