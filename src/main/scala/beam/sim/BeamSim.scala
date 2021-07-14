@@ -795,13 +795,12 @@ class BeamSim @Inject() (
           .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
-        val geoClustering = skimCreator.geoClustering
 
         val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
         val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
           beamServices,
           beamScenario,
-          geoClustering,
+          skimCreator.ODs,
           abstractSkimmer,
           currentTravelTime,
           Array(BeamMode.CAR, BeamMode.WALK),

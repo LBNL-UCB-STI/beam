@@ -75,19 +75,19 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     )
   }
 
-  protected def writeSkimsForTimePeriods(origins: Seq[GeoUnit], destinations: Seq[GeoUnit], filePath: String): Unit = {
-    //  from activity sim documentation:
-    //    EA - early AM, 3 am to 6 am
-    //    AM - peak period, 6 am to 10 am,
-    //    MD - midday period, 10 am to 3 pm,
-    //    PM - peak period, 3 pm to 7 pm,
-    //    EV - evening, 7 pm to 3 am the next day
+  protected def writeSkimRow(
+    writer: BufferedWriter,
+    origin: GeoUnit,
+    destination: GeoUnit,
+    pathType: ActivitySimPathType
+  ): Unit = {
+    ActivitySimTimeBin.values.foreach { timeBin =>
+      val excerptData = getExcerptData(timeBin, origin, destination, pathType)
+      writer.write(excerptData.toCsvString)
+    }
+  }
 
-    val EAHours = (3 until 6).toList
-    val AMHours = (6 until 10).toList
-    val MDHours = (10 until 15).toList
-    val PMHours = (15 until 19).toList
-    val EVHours = (0 until 3).toList ++ (19 until 24).toList
+  protected def writeSkimsForTimePeriods(origins: Seq[GeoUnit], destinations: Seq[GeoUnit], filePath: String): Unit = {
 
     val pathTypes = ActivitySimPathType.allPathTypes
     var writer: BufferedWriter = null
@@ -100,25 +100,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         pathTypes.foreach { pathType =>
           origins.foreach { origin =>
             destinations.foreach { destination =>
-              def getExcerptDataForTimePeriod(timePeriodName: String, timePeriodHours: List[Int]): ExcerptData = {
-                getExcerptData(
-                  timePeriodName,
-                  timePeriodHours,
-                  origin,
-                  destination,
-                  pathType
-                )
-              }
-
-              val ea = getExcerptDataForTimePeriod("EA", EAHours)
-              val am = getExcerptDataForTimePeriod("AM", AMHours)
-              val md = getExcerptDataForTimePeriod("MD", MDHours)
-              val pm = getExcerptDataForTimePeriod("PM", PMHours)
-              val ev = getExcerptDataForTimePeriod("EV", EVHours)
-
-              List(ea, am, md, pm, ev).foreach { excerptData: ExcerptData =>
-                writer.write(excerptData.toCsvString)
-              }
+              writeSkimRow(writer, origin, destination, pathType)
             }
           }
         }
@@ -132,72 +114,90 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
   }
 
+  def getExcerptDataForOD(
+    origin: GeoUnit,
+    destination: GeoUnit
+  ): Seq[ExcerptData] = {
+    ActivitySimPathType.allPathTypes.flatMap { pathType =>
+      ActivitySimTimeBin.values.flatMap(timeBin => getExcerptDataOption(timeBin, origin, destination, pathType))
+    }
+  }
+
+  def getExcerptDataOption(
+    timeBin: ActivitySimTimeBin,
+    origin: GeoUnit,
+    destination: GeoUnit,
+    pathType: ActivitySimPathType
+  ): Option[ExcerptData] = {
+    val individualSkims = timeBin.hours.flatMap { hour =>
+      readOnlySkim
+        .getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+        .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+    }
+    if (individualSkims.isEmpty) {
+      None
+    } else {
+      val weights = individualSkims.map(sk => sk.observations)
+      val sumWeights = if (weights.sum == 0) 1 else weights.sum
+
+      def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double =
+        individualSkims.map(getValue).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+
+      val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
+      val weightedGeneralizedTime = getWeightedSkimsValue(_.generalizedTimeInMinutes)
+      val weightedGeneralizedCost = getWeightedSkimsValue(_.generalizedCost)
+      val weightedCost = getWeightedSkimsValue(_.cost)
+      val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
+      val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
+      val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
+      val weightedTotalInVehicleTime = getWeightedSkimsValue(_.totalInVehicleTimeInMinutes)
+      val weightedDriveTime = getWeightedSkimsValue(_.driveTimeInMinutes)
+      val weightedDriveDistance = getWeightedSkimsValue(_.driveDistanceInMeters)
+      val weightedLightRailTime = getWeightedSkimsValue(_.lightRailInVehicleTimeInMinutes)
+      val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
+      val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
+      val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
+
+      Some(
+        ExcerptData(
+          timePeriodString = timeBin.toString,
+          pathType = pathType,
+          originId = origin.id,
+          destinationId = destination.id,
+          weightedGeneralizedTime = weightedGeneralizedTime,
+          weightedGeneralizedCost = weightedGeneralizedCost,
+          weightedDistance = weightedDistance,
+          weightedWalkAccess = weightedWalkAccessTime,
+          weightedWalkEgress = weightedWalkEgressTime,
+          weightedWalkAuxiliary = weightedWalkAuxiliaryTime,
+          weightedTotalInVehicleTime = weightedTotalInVehicleTime,
+          weightedDriveTimeInMinutes = weightedDriveTime,
+          weightedDriveDistanceInMeters = weightedDriveDistance,
+          weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
+          weightedLightRailInVehicleTimeInMinutes = weightedLightRailTime,
+          weightedTransitBoardingsCount = weightedTransitBoardingsCount,
+          weightedCost = weightedCost,
+          debugText = debugText
+        )
+      )
+    }
+  }
+
   def getExcerptData(
-    timePeriodString: String,
-    hoursIncluded: List[Int],
+    timeBin: ActivitySimTimeBin,
     origin: GeoUnit,
     destination: GeoUnit,
     pathType: ActivitySimPathType
   ): ExcerptData = {
-    import scala.language.implicitConversions
-    val individualSkims = {
-      val skimsForHours = hoursIncluded.flatMap { timeBin =>
-        readOnlySkim
-          .getCurrentSkimValue(ActivitySimSkimmerKey(timeBin, pathType, origin.id, destination.id))
-          .map(_.asInstanceOf[ActivitySimSkimmerInternal])
-      }
-      if (skimsForHours.nonEmpty) { skimsForHours }
-      else {
-        List(ActivitySimSkimmerInternal.empty)
-      }
-    }
-
-    val weights = individualSkims.map(sk => sk.observations)
-    val sumWeights = if (weights.sum == 0) { 1 }
-    else { weights.sum }
-
-    def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double =
-      individualSkims.map(getValue).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-
-    val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
-    val weightedGeneralizedTime = getWeightedSkimsValue(_.generalizedTimeInMinutes)
-    val weightedGeneralizedCost = getWeightedSkimsValue(_.generalizedCost)
-    val weightedCost = getWeightedSkimsValue(_.cost)
-    val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
-    val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
-    val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
-    val weightedTotalInVehicleTime = getWeightedSkimsValue(_.totalInVehicleTimeInMinutes)
-    val weightedDriveTime = getWeightedSkimsValue(_.driveTimeInMinutes)
-    val weightedDriveDistance = getWeightedSkimsValue(_.driveDistanceInMeters)
-    val weightedLightRailTime = getWeightedSkimsValue(_.lightRailInVehicleTimeInMinutes)
-    val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
-    val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
-    val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
-
-    ExcerptData(
-      timePeriodString = timePeriodString,
-      pathType = pathType,
-      originId = origin.id,
-      destinationId = destination.id,
-      weightedGeneralizedTime = weightedGeneralizedTime,
-      weightedGeneralizedCost = weightedGeneralizedCost,
-      weightedDistance = weightedDistance,
-      weightedWalkAccess = weightedWalkAccessTime,
-      weightedWalkEgress = weightedWalkEgressTime,
-      weightedWalkAuxiliary = weightedWalkAuxiliaryTime,
-      weightedTotalInVehicleTime = weightedTotalInVehicleTime,
-      weightedDriveTimeInMinutes = weightedDriveTime,
-      weightedDriveDistanceInMeters = weightedDriveDistance,
-      weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
-      weightedLightRailInVehicleTimeInMinutes = weightedLightRailTime,
-      weightedTransitBoardingsCount = weightedTransitBoardingsCount,
-      weightedCost = weightedCost,
-      debugText = debugText
+    getExcerptDataOption(timeBin, origin, destination, pathType).getOrElse(
+      ExcerptData(timeBin.toString, pathType, origin.id, destination.id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "")
     )
   }
 }
 
 object ActivitySimSkimmer extends LazyLogging {
+  case class ActivitySimSkimmerODKey(origin: String, destination: String)
+  case class ActivitySimSkimmerPathHourKey(pathType: ActivitySimPathType, hour: Int)
 
   case class ActivitySimSkimmerKey(hour: Int, pathType: ActivitySimPathType, origin: String, destination: String)
       extends AbstractSkimmerKey {
