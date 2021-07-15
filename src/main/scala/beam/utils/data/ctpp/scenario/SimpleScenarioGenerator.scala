@@ -86,15 +86,15 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
       householdSizeMap           <- householdSizeMapF
       usualHoursWorkedPerWeekMap <- usualHoursWorkedPerWeekMapF
     } yield generate(
-        totalPopulationMap,
-        ageMap,
-        vehiclesAvailableMap,
-        sexMap,
-        medianHouseholdIncomeMap,
-        meanHouseholdIncomeMap,
-        householdSizeMap,
-        usualHoursWorkedPerWeekMap
-      )
+      totalPopulationMap,
+      ageMap,
+      vehiclesAvailableMap,
+      sexMap,
+      medianHouseholdIncomeMap,
+      meanHouseholdIncomeMap,
+      householdSizeMap,
+      usualHoursWorkedPerWeekMap
+    )
   }
 
   private def generate(
@@ -110,7 +110,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
 
     val allGeoIds =
       ageMap.keySet ++ totalPopulation.keySet ++ vehiclesAvailableMap.keySet ++ sexMap.keySet ++ medianHouseholdIncome.keySet ++ meanHouseholdIncome.keySet ++
-        householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
+      householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
     allGeoIds.foreach { _ =>
       println()
     }

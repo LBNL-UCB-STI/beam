@@ -212,7 +212,7 @@ class HierarchicalParkingManagerSpec
         response2 match {
           case Some(ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
               if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
-          case _                                                                                             => assert(response2.isDefined, "no response")
+          case _ => assert(response2.isDefined, "no response")
         }
       }
     }

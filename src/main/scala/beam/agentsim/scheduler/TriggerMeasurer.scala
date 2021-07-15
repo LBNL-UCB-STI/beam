@@ -127,7 +127,6 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     }
     val triggerType2MaxMessagesPerActorType = temp
       .groupBy { case (triggerType, _) => triggerType }
-
       .map { case (triggerType, seq) =>
         val actorType2Count = seq.map { case (_, (actorType, count)) => (actorType, count) }
         triggerType -> actorType2Count

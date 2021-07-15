@@ -98,8 +98,8 @@ class SecondaryActivitiesSpec
       val (_, output, _) = runBeamWithConfig(config)
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
-      modeChoiceCommute.foreach {
-        case (mode, value) => assert(value <= modeChoice(mode))
+      modeChoiceCommute.foreach { case (mode, value) =>
+        assert(value <= modeChoice(mode))
       }
     }
 
@@ -138,8 +138,8 @@ class SecondaryActivitiesSpec
       val (_, output, _) = runBeamWithConfig(baseConf)
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
-      modeChoiceCommute.foreach {
-        case (mode, value) => assert(value <= modeChoice(mode))
+      modeChoiceCommute.foreach { case (mode, value) =>
+        assert(value <= modeChoice(mode))
       }
     }
 

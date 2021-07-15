@@ -227,8 +227,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   when(Driving) {
     case _ @Event(
-        TriggerWithId(EndLegTrigger(tick), triggerId),
-        LiterallyDrivingData(data, legEndingAt, _)
+          TriggerWithId(EndLegTrigger(tick), triggerId),
+          LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
       updateLatestObservedTick(tick)
       log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)

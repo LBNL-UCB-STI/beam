@@ -6,6 +6,7 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 
 class SwitchModalityStyle() extends PlansStrategyAdopter {
+
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     ReplanningUtil.makeExperiencedMobSimCompatible(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)

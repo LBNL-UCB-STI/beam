@@ -246,7 +246,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           )
         val remainingRange = beamVehicle.getTotalRemainingRange
         val hasInsufficientRange =
-          if (remainingRange < travelTimeAndDistanceToDepot.distance + beamServices.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters) {
+          if (
+            remainingRange < travelTimeAndDistanceToDepot.distance + beamServices.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+          ) {
             1.0
           } else 0.0
         val queueTime = secondsToServiceQueueAndChargingVehicles(
