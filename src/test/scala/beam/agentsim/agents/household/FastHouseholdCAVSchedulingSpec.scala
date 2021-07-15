@@ -1,4 +1,5 @@
 package beam.agentsim.agents.household
+
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
@@ -132,7 +133,9 @@ class FastHouseholdCAVSchedulingSpec
       // first check
       val schedules1 = alg.getAllFeasibleSchedules
       schedules1 should have length 3
-      schedules1 foreach (_.schedulesMap(cavs.head).schedule should (have length 1 or (have length 6 or have length 10)))
+      schedules1 foreach (_.schedulesMap(
+        cavs.head
+      ).schedule should (have length 1 or (have length 6 or have length 10)))
       // second check
       val schedules2 = alg.getBestProductiveSchedule
       schedules2.foldLeft(0)(_ + _.schedule.size) shouldBe 10

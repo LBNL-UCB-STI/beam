@@ -62,48 +62,63 @@ object MeansOfTransportation {
   case object `Car, truck, or van -- Drove alone` extends MeansOfTransportation {
     override def lineNumber: Int = 2
   }
+
   case object `Car, truck, or van -- In a 2-person carpool` extends MeansOfTransportation {
     override def lineNumber: Int = 3
   }
+
   case object `Car, truck, or van -- In a 3-person carpool` extends MeansOfTransportation {
     override def lineNumber: Int = 4
   }
+
   case object `Car, truck, or van -- In a 4-person carpool` extends MeansOfTransportation {
     override def lineNumber: Int = 5
   }
+
   case object `Car, truck, or van -- In a 5-or-6-person carpool` extends MeansOfTransportation {
     override def lineNumber: Int = 6
   }
+
   case object `Car, truck, or van -- In a 7-or-more-person carpool` extends MeansOfTransportation {
     override def lineNumber: Int = 7
   }
+
   case object `Bus or trolley bus` extends MeansOfTransportation {
     override def lineNumber: Int = 8
   }
+
   case object `Streetcar or trolley car` extends MeansOfTransportation {
     override def lineNumber: Int = 9
   }
+
   case object `Subway or elevated` extends MeansOfTransportation {
     override def lineNumber: Int = 10
   }
+
   case object `Railroad` extends MeansOfTransportation {
     override def lineNumber: Int = 11
   }
+
   case object `Ferryboat` extends MeansOfTransportation {
     override def lineNumber: Int = 12
   }
+
   case object `Bicycle` extends MeansOfTransportation {
     override def lineNumber: Int = 13
   }
+
   case object `Walked` extends MeansOfTransportation {
     override def lineNumber: Int = 14
   }
+
   case object `Taxicab` extends MeansOfTransportation {
     override def lineNumber: Int = 15
   }
+
   case object `Motorcycle` extends MeansOfTransportation {
     override def lineNumber: Int = 16
   }
+
   case object `Other method` extends MeansOfTransportation {
     override def lineNumber: Int = 17
   }

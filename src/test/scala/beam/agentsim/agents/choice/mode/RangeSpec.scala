@@ -1,4 +1,5 @@
 package beam.agentsim.agents.choice.mode
+
 import org.scalatest.flatspec.AnyFlatSpec
 import beam.sim.common.Range
 

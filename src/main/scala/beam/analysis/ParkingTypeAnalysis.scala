@@ -1,4 +1,5 @@
 package beam.analysis
+
 import java.util.concurrent.TimeUnit
 
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent}
@@ -69,16 +70,13 @@ class ParkingTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialLa
 
     val maxHour = TimeUnit.SECONDS.toHours(maxTime).toInt
     val dataset = new DefaultCategoryDataset
-    vehicleParkingInHour.foreach({
-      case (VehicleParking(_, parkingType), hour) =>
-        (hour to maxHour).foreach(updateParkingCount(_, parkingType))
+    vehicleParkingInHour.foreach({ case (VehicleParking(_, parkingType), hour) =>
+      (hour to maxHour).foreach(updateParkingCount(_, parkingType))
     })
-    hourlyParkingTypeCount.foreach({
-      case (hour, parkingTypeCount) =>
-        parkingTypeCount.foreach({
-          case (parkingType, count) =>
-            dataset.addValue(count, parkingType, hour)
-        })
+    hourlyParkingTypeCount.foreach({ case (hour, parkingTypeCount) =>
+      parkingTypeCount.foreach({ case (parkingType, count) =>
+        dataset.addValue(count, parkingType, hour)
+      })
     })
     dataset
   }

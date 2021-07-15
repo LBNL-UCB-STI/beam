@@ -35,13 +35,12 @@ object R5NetworkPlayground extends BeamHelper {
       // First 4 points reprecent LEFT, TOP, RIGHT, BOTTOM coordinates
       gpxWriter.drawRectangle(corners.take(4))
 
-      r.foreach {
-        case (edgeWithCoord, cornerPoint) =>
-          val point = GpxPoint(
-            s"${edgeWithCoord.edgeIndex}_${cornerPoint.name}",
-            new Coord(edgeWithCoord.wgsCoord.x, edgeWithCoord.wgsCoord.y)
-          )
-          gpxWriter.drawMarker(point)
+      r.foreach { case (edgeWithCoord, cornerPoint) =>
+        val point = GpxPoint(
+          s"${edgeWithCoord.edgeIndex}_${cornerPoint.name}",
+          new Coord(edgeWithCoord.wgsCoord.x, edgeWithCoord.wgsCoord.y)
+        )
+        gpxWriter.drawMarker(point)
       }
     } finally {
       gpxWriter.close()

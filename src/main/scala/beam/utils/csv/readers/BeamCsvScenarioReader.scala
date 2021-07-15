@@ -20,18 +20,20 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
   override def readPersonsFile(path: String): Array[PersonInfo] = {
     readAs[PersonInfo](path, "readPersonsFile", toPersonInfo)
   }
+
   override def readPlansFile(path: String): Array[PlanElement] = {
     readAs[PlanElement](path, "readPlansFile", toPlanInfo)
   }
+
   override def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo] = {
-    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map {
-      case (householdId, listOfCars) => (householdId, listOfCars.size)
+    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map { case (householdId, listOfCars) =>
+      (householdId, listOfCars.size)
     }
     readAs[HouseholdInfo](householdsPath, "readHouseholdsFile", toHouseholdInfo(householdToNumberOfCars))
   }
 
-  private[readers] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(
-    implicit ct: ClassTag[T]
+  private[readers] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(implicit
+    ct: ClassTag[T]
   ): Array[T] = {
     ProfilingUtils.timed(what, x => logger.info(x)) {
       FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)) { csvRdr =>
@@ -103,7 +105,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
-    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0D)
+    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0d)
     PersonInfo(
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),

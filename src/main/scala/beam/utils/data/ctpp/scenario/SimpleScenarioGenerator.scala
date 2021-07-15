@@ -25,8 +25,8 @@ import org.matsim.households.Households
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInfo, val javaRnd: Random)(
-  implicit val ex: ExecutionContext
+class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInfo, val javaRnd: Random)(implicit
+  val ex: ExecutionContext
 ) extends ScenarioGenerator
     with StrictLogging {
 
@@ -65,6 +65,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
   private val householdSizeMapF = Future {
     new HouseholdSizeByUnitsInStructureTableReader(dbInfo, residenceGeography).read()
   }
+
   private val usualHoursWorkedPerWeekMapF = Future {
     new UsualHoursWorkedPerWeekTableReader(dbInfo, residenceGeography).read()
   }
@@ -84,8 +85,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
       meanHouseholdIncomeMap     <- meanHouseholdIncomeMapF
       householdSizeMap           <- householdSizeMapF
       usualHoursWorkedPerWeekMap <- usualHoursWorkedPerWeekMapF
-    } yield
-      generate(
+    } yield generate(
         totalPopulationMap,
         ageMap,
         vehiclesAvailableMap,
@@ -108,8 +108,9 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
     usualHoursWorkedPerWeekMap: Map[String, Map[WorkedHours, Double]]
   ): (Households, Population) = {
 
-    val allGeoIds = ageMap.keySet ++ totalPopulation.keySet ++ vehiclesAvailableMap.keySet ++ sexMap.keySet ++ medianHouseholdIncome.keySet ++ meanHouseholdIncome.keySet ++
-    householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
+    val allGeoIds =
+      ageMap.keySet ++ totalPopulation.keySet ++ vehiclesAvailableMap.keySet ++ sexMap.keySet ++ medianHouseholdIncome.keySet ++ meanHouseholdIncome.keySet ++
+        householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
     allGeoIds.foreach { _ =>
       println()
     }

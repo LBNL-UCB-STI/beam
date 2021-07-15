@@ -1,4 +1,5 @@
 package beam.utils
+
 import beam.utils.ProfilingUtils._
 import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
@@ -13,7 +14,7 @@ trait NetworkHelper {
   def getLinkUnsafe(linkId: Int): Link
 }
 
-class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with LazyLogging {
+class NetworkHelperImpl @Inject() (network: Network) extends NetworkHelper with LazyLogging {
 
   val (allLinks, maxLinkId) = timed("NetworkHelperImpl init", x => logger.info(x)) {
     init(network)
@@ -45,9 +46,8 @@ class NetworkHelperImpl @Inject()(network: Network) extends NetworkHelper with L
     val (maxLinkId, _) = allLinks.maxBy { case (linkId, _) => linkId }
     logger.info(s"Total number of links is ${allLinks.length} and MaxLinkId is $maxLinkId.")
     val links = Array.ofDim[Link](maxLinkId + 1)
-    allLinks.foreach {
-      case (linkId, link) =>
-        links(linkId) = link
+    allLinks.foreach { case (linkId, link) =>
+      links(linkId) = link
     }
     (links, maxLinkId)
   }

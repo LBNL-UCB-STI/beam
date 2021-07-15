@@ -37,10 +37,9 @@ trait PopulationAdjustment extends LazyLogging {
       .toMap
 
     //Iterate over each person in the population
-    population.getPersons.asScala.foreach {
-      case (_, person) =>
-        val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
-        person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
+    population.getPersons.asScala.foreach { case (_, person) =>
+      val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
   }
@@ -250,7 +249,7 @@ object PopulationAdjustment extends LazyLogging {
     // Read person attribute "income" and default it to 0 if not set
     val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
       .map(_.asInstanceOf[Double])
-      .getOrElse(0D)
+      .getOrElse(0d)
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -286,7 +285,8 @@ object PopulationAdjustment extends LazyLogging {
   }
 
   def incomeToValueOfTime(income: Double, minimumValueOfTime: Double = 7.25): Option[Double] = {
-    val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
+    val workHoursPerYear =
+      51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5
     if (income > 0) {
       Some(math.max(income / workHoursPerYear * wageFactor, minimumValueOfTime))

@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
   * beam.replanning.ModuleProbability_3 = 0.0
   * beam.replanning.ModuleProbability_4 = 0.0
   */
-class StaticModes @Inject()() extends PlansStrategyAdopter {
+class StaticModes @Inject() () extends PlansStrategyAdopter {
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     // To keep modes static, simply do nothing here and set config parameters as shown above

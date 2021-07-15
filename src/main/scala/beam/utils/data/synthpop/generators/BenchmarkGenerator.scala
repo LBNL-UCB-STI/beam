@@ -59,8 +59,10 @@ object BenchmarkGenerator {
   }
 
   private val pathToCTPP: String = "d:/Work/beam/CTPP/"
+
   private val newYorkCountiesShapeFile: String =
     "D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_36_taz10/tl_2011_36_taz10.shp"
+
   private val newJerseyCountiesShapeFile: String =
     "D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_34_taz10/tl_2011_34_taz10.shp"
   private val pathToOSMFile: String = "D:/Work/beam/NewYork/input/OSM/newyork-14-counties-incomplete.osm.pbf"
@@ -112,10 +114,9 @@ object BenchmarkGenerator {
     val totalCount = modes.map(_._2).sum
     val csvWriter = new CsvWriter(path, Array("mode", "count", "percent"))
     try {
-      modes.foreach {
-        case (mode, count) =>
-          val pct = 100 * count / totalCount
-          csvWriter.write(mode, count, pct)
+      modes.foreach { case (mode, count) =>
+        val pct = 100 * count / totalCount
+        csvWriter.write(mode, count, pct)
       }
     } finally {
       csvWriter.close()

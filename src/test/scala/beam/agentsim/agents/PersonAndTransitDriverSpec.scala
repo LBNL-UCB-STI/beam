@@ -319,7 +319,7 @@ class PersonAndTransitDriverSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -341,7 +341,7 @@ class PersonAndTransitDriverSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),

@@ -96,6 +96,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
 
   private def createHouseholdWithEnoughVehicles = new ChainBasedTourAllocatorTestFixture {
     override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+
     override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
       personList.map(Id.createVehicleId(_))
     init()
@@ -103,6 +104,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
 
   private def createHouseholdsWithTooFewVehicles = new ChainBasedTourAllocatorTestFixture {
     override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+
     override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
       (1 to 2).map(Id.createVehicleId(_))
     init()

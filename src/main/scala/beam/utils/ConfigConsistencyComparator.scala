@@ -15,6 +15,7 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val borderLeft = "**  "
   private val topicBorderLeft = "** "
   private val sessionSeparator = "*" * 122
+
   private val top = {
     eol + sessionSeparator +
     buildTopicTile("Config File Consistency Check") +
@@ -157,10 +158,9 @@ object ConfigConsistencyComparator extends LazyLogging {
       .entrySet()
       .asScala
       .map(entry => (entry.getKey, resolve(entry.getValue)))
-      .filter {
-        case (key, value) =>
-          val shouldCheck = !ignorePaths.contains(key)
-          shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile
+      .filter { case (key, value) =>
+        val shouldCheck = !ignorePaths.contains(key)
+        shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile
       }
       .toSeq
   }

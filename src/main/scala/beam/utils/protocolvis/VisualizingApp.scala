@@ -133,7 +133,7 @@ object VisualizingApp extends StrictLogging {
           .required()
           .valueName("<diagram type>")
           .action((x, c) => c.copy(diagramType = x))
-          .text("Sequence | ActorAsState | AgentState | SingleActorAsState"),
+          .text("Sequence | ActorAsState | AgentState | SingleActorAsState")
       )
     }
     OParser.parse(parser1, args, CliOptions())
@@ -144,7 +144,7 @@ object VisualizingApp extends StrictLogging {
     output: Path = Paths.get("."),
     diagramType: DiagramType = DiagramType.Sequence,
     forceOverwriting: Boolean = false,
-    personId: String = "",
+    personId: String = ""
   )
 
   sealed abstract class DiagramType(val isMultiFileOutput: Boolean) extends EnumEntry

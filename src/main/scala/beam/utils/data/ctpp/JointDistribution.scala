@@ -37,14 +37,15 @@ object JointDistribution extends GenericCsvReader {
   ): JointDistribution = {
     def toScalaMap(rec: JavaMap[String, String]): Map[String, String] = rec.asScala.toMap
     val (it, toClose) = readAs[Map[String, String]](pathToCsv, toScalaMap, _ => true)
-    val mappedArray: Array[Map[String, String]] = try {
-      it.toArray
-    } finally {
-      Try(toClose.close())
-    }
+    val mappedArray: Array[Map[String, String]] =
+      try {
+        it.toArray
+      } finally {
+        Try(toClose.close())
+      }
 
-    val detectedColumn = mappedArray(0).map {
-      case (key, value) => (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
+    val detectedColumn = mappedArray(0).map { case (key, value) =>
+      (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
     }
     if (columnMapping.nonEmpty)
       new JointDistribution(mappedArray, rndGen, columnMapping, scale)
@@ -54,7 +55,6 @@ object JointDistribution extends GenericCsvReader {
 }
 
 /**
-  *
   * @param mappedArray Array of csv column values map
   * @param rndGen Random number generator. If an instance of `JointDistribution` is shared across multiple threads,
   *               make sure you use thread-safe instance of `RandomGenerator`, for example, `SynchronizedRandomGenerator`
@@ -101,14 +101,13 @@ class JointDistribution(
 
   private def row(values: Map[String, String], range: Boolean): Map[String, String] = {
     if (range) {
-      values.map {
-        case (key, value) =>
-          if (value.contains(",")) {
-            val startEnd = toRange(Left(value), trimBracket = true)
-            key -> (startEnd.start + (startEnd.end - startEnd.start) * rndGen.nextDouble()).toString
-          } else {
-            key -> value
-          }
+      values.map { case (key, value) =>
+        if (value.contains(",")) {
+          val startEnd = toRange(Left(value), trimBracket = true)
+          key -> (startEnd.start + (startEnd.end - startEnd.start) * rndGen.nextDouble()).toString
+        } else {
+          key -> value
+        }
       }
     } else {
       values

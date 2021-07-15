@@ -56,7 +56,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
     val attribs = event.getAttributes
     // We need only PathTraversal with mode `CAR`, no ride hail
     val isNeededEvent = event.getEventType == "PathTraversal" && Option(attribs.get("mode")).contains("car") &&
-    !Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
+      !Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
     isNeededEvent
   }
 
@@ -85,12 +85,11 @@ object TazTravelTimeAnalyzer extends LazyLogging {
         .groupBy { x =>
           x.vehicleId
         }
-        .flatMap {
-          case (_, xs) =>
-            // sliding 2 by 2 because every trip must have two path traversal events (1 + parking)
-            xs.sortBy(x => x.departureTime).sliding(2, 2).map { legs =>
-              Trip(legs)
-            }
+        .flatMap { case (_, xs) =>
+          // sliding 2 by 2 because every trip must have two path traversal events (1 + parking)
+          xs.sortBy(x => x.departureTime).sliding(2, 2).map { legs =>
+            Trip(legs)
+          }
         }
         .toArray
 

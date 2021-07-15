@@ -6,7 +6,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class TransitCrowdingSkimmerEvent(
@@ -15,7 +14,7 @@ class TransitCrowdingSkimmerEvent(
   vehicleId: Id[Vehicle],
   fromStopIdx: Int,
   numberOfPassengers: Int,
-  capacity: Int,
+  capacity: Int
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = transitCrowdingSkimmerConfig.name

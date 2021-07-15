@@ -22,8 +22,10 @@ trait RepositionManager extends LoggingMessageActor with ActorLogging {
   val (algorithm, repTime, statTime) = getRepositionAlgorithmType match {
     case Some(algorithmType) =>
       var alg: RepositionAlgorithm = null
-      if (getServices.matsimServices.getIterationNumber > 0 ||
-          BeamWarmStart.isFullWarmStart(getServices.beamConfig.beam.warmStart)) {
+      if (
+        getServices.matsimServices.getIterationNumber > 0 ||
+        BeamWarmStart.isFullWarmStart(getServices.beamConfig.beam.warmStart)
+      ) {
         alg = algorithmType.getInstance(getId, getServices)
         getScheduler ! ScheduleTrigger(REPVehicleRepositionTrigger(algorithmType.getRepositionTimeBin), self)
       }
@@ -55,10 +57,9 @@ trait RepositionManager extends LoggingMessageActor with ActorLogging {
           algorithm.getVehiclesForReposition(tick, repTime, queryAvailableVehicles)
         val triggers = vehForReposition
           .filter(rep => makeUnavailable(rep._1.id, rep._1.toStreetVehicle).isDefined)
-          .map {
-            case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
-              collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
-              ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
+          .map { case (vehicle, _, _, dstWhereWhen, dstTAZ) =>
+            collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.pickup)
+            ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
           }
           .toVector
         sender ! CompletionNotice(triggerId, triggers :+ ScheduleTrigger(REPVehicleRepositionTrigger(nextTick), self))
@@ -81,6 +82,7 @@ trait RepositionManager extends LoggingMessageActor with ActorLogging {
 }
 
 case class REPVehicleRepositionTrigger(tick: Int) extends Trigger
+
 case class REPVehicleTeleportTrigger(tick: Int, whereWhen: SpaceTime, vehicle: BeamVehicle, idTAZ: Id[TAZ])
     extends Trigger
 

@@ -25,11 +25,10 @@ class BeamOutputDataDescriptionGenerator() extends LazyLogging {
     */
   def generateDescriptors(event: ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors
-      : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
-      classRef =>
+    val descriptors: Seq[OutputDataDescription] =
+      BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap { classRef =>
         classRef.getOutputDataDescriptions(event.getServices().getControlerIO()).asScala.toList
-    }
+      }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
       d.asInstanceOf[Product].productIterator mkString ","

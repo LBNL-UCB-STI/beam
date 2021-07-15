@@ -63,9 +63,8 @@ class BikeTransitModeSpec
         .values()
         .forEach { person =>
           {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("bike_transit")
+            person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+              leg.setMode("bike_transit")
             }
           }
         }
@@ -96,7 +95,7 @@ class BikeTransitModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
@@ -113,9 +112,8 @@ class BikeTransitModeSpec
         .values()
         .forEach { person =>
           {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("bike_transit")
+            person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+              leg.setMode("bike_transit")
             }
           }
         }
@@ -153,7 +151,7 @@ class BikeTransitModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 

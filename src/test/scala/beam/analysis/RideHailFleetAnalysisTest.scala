@@ -249,7 +249,9 @@ class RideHailFleetAnalysisTest extends AnyFlatSpec with Matchers {
           "hash SAME "
         else
           "          "
-      println(s"${accum.hashCode()} $hashInfo $changed ret acc val: ${retVal.getContent} $funcInfo") // acc hash: ${accum.hashCode()} threadId: ${Thread.currentThread().getId}")
+      println(
+        s"${accum.hashCode()} $hashInfo $changed ret acc val: ${retVal.getContent} $funcInfo"
+      ) // acc hash: ${accum.hashCode()} threadId: ${Thread.currentThread().getId}")
       retVal
     }
 

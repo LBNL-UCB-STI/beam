@@ -20,7 +20,6 @@ import org.scalatest.funspec.AnyFunSpecLike
 import scala.collection.immutable.TreeMap
 
 /**
-  *
   */
 class PassengerScheduleTest
     extends TestKit(ActorSystem("PassengerScheduleTest"))

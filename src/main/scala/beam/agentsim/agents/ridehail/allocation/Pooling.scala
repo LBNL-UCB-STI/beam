@@ -39,7 +39,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
     beamServices: BeamServices,
-    triggerId: Long,
+    triggerId: Long
   ): AllocationResponse = {
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
     var toPool: Set[RideHailRequest] = Set()
@@ -246,7 +246,7 @@ object Pooling {
             pickUpTime,
             requestUpdated,
             agentETA.agentLocation,
-            request.triggerId,
+            request.triggerId
           )
         )
       case None =>

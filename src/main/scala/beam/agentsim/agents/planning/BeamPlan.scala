@@ -4,11 +4,8 @@ import java.{lang, util}
 
 import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
 import beam.router.Modes.BeamMode
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.population.routes.RouteFactories
 import org.matsim.utils.objectattributes.attributable.Attributes
 
 import scala.collection.JavaConverters._
@@ -27,7 +24,6 @@ import scala.collection.mutable
   * to influence within-day Agent behavior. Strategies can be mapped to a Plan at any level (e.g. the whole plan,
   * to a tour, a trip, etc.) but can be looked up at any level as well (allowing a Tour to have a strategy and a
   * lookup on a Leg within that tour will yield that strategy).
-  *
   */
 object BeamPlan {
 
@@ -58,17 +54,16 @@ object BeamPlan {
         var outputElems = List(elems.head)
         if (elems.size == 2) {
           elems.head match {
-            case activity: Activity if activity.equals(originActivity) =>
+            case headActivity: Activity if headActivity.equals(originActivity) =>
               elems.last match {
-                case activity1: Activity if activity1.equals(destinationActivity) =>
+                case lastActivity: Activity if lastActivity.equals(destinationActivity) =>
                   outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
                 case _: Leg =>
                   outputElems = outputElems :+ leg.asInstanceOf[PlanElement]
                 case _ =>
               }
-            case _: Leg
-                if elems.last.asInstanceOf[Activity].equals(destinationActivity) && elems.last
-                  .isInstanceOf[Activity] =>
+            case _: Leg if elems.last.asInstanceOf[Activity].equals(destinationActivity) && elems.last
+              .isInstanceOf[Activity] =>
               outputElems = List()
             case _ =>
           }
@@ -100,6 +95,7 @@ class BeamPlan extends Plan {
   lazy val activities: Vector[Activity] = tours.flatMap(_.trips.map(_.activity))
   lazy val legs: Vector[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
   private val actsLegToTrip: mutable.Map[PlanElement, Trip] = mutable.Map()
+
   private val strategies: mutable.Map[PlanElement, mutable.Map[Class[_ <: Strategy], Strategy]] =
     mutable.Map()
   // Beam-Specific members

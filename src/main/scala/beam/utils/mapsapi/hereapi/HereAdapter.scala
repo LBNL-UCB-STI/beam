@@ -80,9 +80,8 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
 
   override def close(): Unit = {
     Http().shutdownAllConnectionPools
-      .andThen {
-        case _ =>
-          system.terminate()
+      .andThen { case _ =>
+        system.terminate()
       }
   }
 }

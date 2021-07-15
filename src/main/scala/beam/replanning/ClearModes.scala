@@ -4,7 +4,6 @@ import org.matsim.api.core.v01.population.{HasPlansAndId, Leg, Person, Plan}
 import org.slf4j.LoggerFactory
 
 class ClearModes() extends PlansStrategyAdopter {
-
   private val log = LoggerFactory.getLogger(classOf[ClearModes])
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {

@@ -4,13 +4,12 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
-import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.router.{BeamRouter, Modes, TransitInitializer}
+import beam.router.{Modes, TransitInitializer}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
@@ -56,9 +55,8 @@ class TransitSystem(
     case Finish =>
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-      contextBecome {
-        case Terminated(_) =>
-          dieIfNoChildren()
+      contextBecome { case Terminated(_) =>
+        dieIfNoChildren()
       }
   }
 
@@ -81,29 +79,28 @@ class TransitSystem(
       oneSecondTravelTime
     ).initMap
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    transitSchedule.foreach {
-      case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, rand.nextInt()).foreach { vehicle =>
-          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
-          val transitDriverAgentProps = TransitDriverAgent.props(
-            scheduler,
-            beamServices,
-            beamScenario,
-            transportNetwork,
-            tollCalculator,
-            eventsManager,
-            parkingManager,
-            chargingNetworkManager,
-            transitDriverId,
-            vehicle,
-            legs,
-            geo,
-            networkHelper
-          )
-          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          context.watch(transitDriver)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
-        }
+    transitSchedule.foreach { case (tripVehId, (route, legs)) =>
+      initializer.createTransitVehicle(tripVehId, route, rand.nextInt()).foreach { vehicle =>
+        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+        val transitDriverAgentProps = TransitDriverAgent.props(
+          scheduler,
+          beamServices,
+          beamScenario,
+          transportNetwork,
+          tollCalculator,
+          eventsManager,
+          parkingManager,
+          chargingNetworkManager,
+          transitDriverId,
+          vehicle,
+          legs,
+          geo,
+          networkHelper
+        )
+        val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+        context.watch(transitDriver)
+        scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
+      }
     }
   }
 }

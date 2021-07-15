@@ -39,8 +39,8 @@ object FindIdsInCircles extends App {
 
   val interestingLinks = LinkCoordinate
     .parseNetwork(networkXml, interestingNodes)
-    .foldLeft(mutable.HashSet.empty[Int]) {
-      case (links, (linkId, _)) => links += linkId
+    .foldLeft(mutable.HashSet.empty[Int]) { case (links, (linkId, _)) =>
+      links += linkId
     }
 
   class CircleAccumulator() {
@@ -55,10 +55,14 @@ object FindIdsInCircles extends App {
   }
 
   val vehiclesInCircle = BeamEventsReader
-    .fromFileFoldLeft[CircleAccumulator](sourcePath, new CircleAccumulator(), (acc, event) => {
-      acc.process(event)
-      acc
-    })
+    .fromFileFoldLeft[CircleAccumulator](
+      sourcePath,
+      new CircleAccumulator(),
+      (acc, event) => {
+        acc.process(event)
+        acc
+      }
+    )
     .getOrElse(new CircleAccumulator())
     .interestingVehicles
 

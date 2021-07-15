@@ -18,6 +18,7 @@ trait IntegrationSpecCommon {
   private val configLocation = ConfigFactory.parseString("config=" + configFileName)
 
   protected def extensionConfig: Config = ConfigFactory.empty
+
   protected lazy val unResolvedBaseConfig: Config = {
     extensionConfig
       .withFallback(testConfig(configFileName))

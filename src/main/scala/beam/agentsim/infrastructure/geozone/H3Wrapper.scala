@@ -43,7 +43,8 @@ object H3Wrapper {
       .toSet
   }
 
-  /** Average hexagon area in square meters at the given resolution.
+  /**
+    * Average hexagon area in square meters at the given resolution.
     * @param resolution Resolution
     */
   def hexAreaM2(resolution: Int): Double = {

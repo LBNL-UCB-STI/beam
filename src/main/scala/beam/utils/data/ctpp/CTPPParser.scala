@@ -21,23 +21,24 @@ object CTPPParser extends LazyLogging {
   }
 
   def main(args: Array[String]): Unit = {}
+
   private[ctpp] def toCTTPEntry(rec: java.util.Map[String, String]): Option[CTPPEntry] = {
     val geoId = GenericCsvReader.getIfNotNull(rec, "GEOID")
     val tblId = GenericCsvReader.getIfNotNull(rec, "TBLID")
     val lineNo = GenericCsvReader.getIfNotNull(rec, "LINENO").toInt
     val estimateStr = GenericCsvReader.getIfNotNull(rec, "EST").replaceAll(",", "")
-    val maybeEstimate = try {
-      Some(estimateStr.toDouble)
-    } catch {
-      case NonFatal(ex) =>
-        // TODO Better error propagation to the caller.
-        logger.info(s"Can't convert estimate '$estimateStr' to double", ex)
-        None
-    }
+    val maybeEstimate =
+      try {
+        Some(estimateStr.toDouble)
+      } catch {
+        case NonFatal(_) =>
+          // TODO Better error propagation to the caller.
+          // logger.info(s"Can't convert estimate '$estimateStr' to double", ex)
+          None
+      }
     val marginOfError = GenericCsvReader.getIfNotNull(rec, "MOE")
-    maybeEstimate.map(
-      estimate =>
-        CTPPEntry(geoId = geoId, tblId = tblId, lineNumber = lineNo, estimate = estimate, marginOfError = marginOfError)
+    maybeEstimate.map(estimate =>
+      CTPPEntry(geoId = geoId, tblId = tblId, lineNumber = lineNo, estimate = estimate, marginOfError = marginOfError)
     )
   }
 }

@@ -51,7 +51,7 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
 
       val (scenario, beamScenario, plansMerged) = buildBeamServicesAndScenario(
         beamConfig,
-        matsimConfig,
+        matsimConfig
       )
 
       val listOfVehicleTypes = beamScenario.vehicleTypes.values.filter(_.vehicleCategory == Car).map(_.id.toString)
@@ -75,7 +75,7 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
         scenario,
         beamScenario,
         output,
-        plansMerged,
+        plansMerged
       )
 
       //val (_, output) = runBeamWithConfig(conf)
@@ -90,9 +90,7 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
       itrDir.list should have length totalIterations
       itrDir
         .listFiles()
-        .foreach(
-          itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz"))
-        )
+        .foreach(itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz")))
       val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
       if (travelDistanceStats != null)
         travelDistanceStats.close()

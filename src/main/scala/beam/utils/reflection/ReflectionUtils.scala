@@ -16,7 +16,6 @@ import scala.reflect.ClassTag
 trait ReflectionUtils {
 
   /**
-    *
     * @return package name to scan in
     */
   def packageName: String

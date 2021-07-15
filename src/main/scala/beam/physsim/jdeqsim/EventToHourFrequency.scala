@@ -56,10 +56,9 @@ class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
 
     try {
       (0 to maxHour).map { hour =>
-        eventToHourFreq.map {
-          case (event, hourFreq) =>
-            val cnt = hourFreq.getOrElse(hour, 0)
-            csvWriter.write(event, hour, cnt)
+        eventToHourFreq.map { case (event, hourFreq) =>
+          val cnt = hourFreq.getOrElse(hour, 0)
+          csvWriter.write(event, hour, cnt)
         }
       }
     } finally {

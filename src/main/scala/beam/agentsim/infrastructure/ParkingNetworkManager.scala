@@ -17,11 +17,13 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkInfo: Park
     with ActorLogging {
   import beamServices._
   private val beamConfig: BeamConfig = beamScenario.beamConfig
+
   private val counter = {
     val displayPerformanceTimings = beamConfig.beam.agentsim.taz.parkingManager.displayPerformanceTimings
     val logLevel = if (displayPerformanceTimings) Logging.InfoLevel else Logging.DebugLevel
     new SimpleCounter(log, logLevel, "Receiving {} per seconds of ParkingInquiry for {}")
   }
+
   private val tickTask: Cancellable =
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 

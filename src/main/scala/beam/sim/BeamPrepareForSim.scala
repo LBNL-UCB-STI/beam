@@ -7,7 +7,7 @@ import org.matsim.core.controler.PrepareForSim
 
 import scala.util.Random
 
-class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
+class BeamPrepareForSim @Inject() (scenario: Scenario) extends PrepareForSim {
 
   override def run(): Unit = {
     assignInitialModalityStyles()

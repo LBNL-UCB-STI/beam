@@ -19,34 +19,32 @@ object BeamVehicleUtils {
   ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
     val rand: Random = new Random(randomSeed)
 
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) {
-      case (line, acc) =>
-        val vehicleIdString = line.get("vehicleId")
-        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) { case (line, acc) =>
+      val vehicleIdString = line.get("vehicleId")
+      val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
-        val vehicleTypeIdString = line.get("vehicleTypeId")
-        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
+      val vehicleTypeIdString = line.get("vehicleTypeId")
+      val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+      val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-        val beamVehicle =
-          new BeamVehicle(
-            vehicleId,
-            powerTrain,
-            vehicleType,
-            randomSeed = rand.nextInt
-          )
-        acc += ((vehicleId, beamVehicle))
-        acc
+      val beamVehicle =
+        new BeamVehicle(
+          vehicleId,
+          powerTrain,
+          vehicleType,
+          randomSeed = rand.nextInt
+        )
+      acc += ((vehicleId, beamVehicle))
+      acc
     }
   }
 
   def readFuelTypeFile(filePath: String): scala.collection.Map[FuelType, Double] = {
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) {
-      case (line, z) =>
-        val fuelType = FuelType.fromString(line.get("fuelTypeId"))
-        val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
-        z += ((fuelType, priceInDollarsPerMJoule))
+    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[FuelType, Double]()) { case (line, z) =>
+      val fuelType = FuelType.fromString(line.get("fuelTypeId"))
+      val priceInDollarsPerMJoule = line.get("priceInDollarsPerMJoule").toDouble
+      z += ((fuelType, priceInDollarsPerMJoule))
     }
   }
 
@@ -106,7 +104,7 @@ object BeamVehicleUtils {
           sampleProbabilityWithinCategory,
           sampleProbabilityString,
           chargingCapability,
-          payloadCapacity,
+          payloadCapacity
         )
         z += ((vehicleTypeId, bvt))
     }.toMap

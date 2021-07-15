@@ -20,7 +20,6 @@ import scala.collection.immutable
   *  2. --experiments is used to pass location of experiments.yml
   *
   * This generator will create sub-directories relatively to experiments.yml
-  *
   */
 object ExperimentGenerator extends ExperimentApp {
   import beam.experiment.ExperimentApp
@@ -47,9 +46,8 @@ object ExperimentGenerator extends ExperimentApp {
   val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.header.beamTemplateConfPath).toFile)
   val experimentVariations: immutable.Seq[(ExperimentRun, Int)] = experimentDef.combinationsOfLevels().zipWithIndex
 
-  val experimentRuns = experimentVariations.map {
-    case (run, runIdx) =>
-      ExperimentRunSandbox(experimentDef, run, runIdx, baseConfig)
+  val experimentRuns = experimentVariations.map { case (run, runIdx) =>
+    ExperimentRunSandbox(experimentDef, run, runIdx, baseConfig)
   }
 
   val modeChoiceTemplate = Resources.toString(

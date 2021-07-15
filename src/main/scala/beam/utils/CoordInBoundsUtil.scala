@@ -1,4 +1,5 @@
 package beam.utils
+
 import java.util.Random
 
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -93,15 +94,14 @@ object CoordInBoundsUtil extends App {
   }
 
   def readPlansFile(filePath: String): ListBuffer[Coord] = {
-    readCsvFileByLine(filePath, ListBuffer[Coord]()) {
-      case (line, acc) =>
-        val lng = line.get("x")
-        val lat = line.get("y")
+    readCsvFileByLine(filePath, ListBuffer[Coord]()) { case (line, acc) =>
+      val lng = line.get("x")
+      val lat = line.get("y")
 
-        (lng, lat) match {
-          case (lng_, lat_) if lng_ != null && lat_ != null => acc += new Coord(lng.toDouble, lat.toDouble)
-          case _                                            => acc
-        }
+      (lng, lat) match {
+        case (lng_, lat_) if lng_ != null && lat_ != null => acc += new Coord(lng.toDouble, lat.toDouble)
+        case _                                            => acc
+      }
 
     }
   }

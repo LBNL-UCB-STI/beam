@@ -173,7 +173,7 @@ object VehiclesDataConversion extends App {
       null,
       null,
       null
-    ),
+    )
   )
 
   if (null == args || args.length < 3) {
@@ -227,7 +227,7 @@ object VehiclesDataConversion extends App {
       val standingCap = vt \ "capacity" \\ "standingRoom" \@ "persons"
       val length = vt \\ "length" \@ "meter"
       val fuelType = (vt \ "engineInformation" \\ "fuelType").text
-      val litersPerMeter = Try((vt \ "engineInformation" \\ "gasConsumption" \@ "literPerMeter").toDouble).getOrElse(0D)
+      val litersPerMeter = Try((vt \ "engineInformation" \\ "gasConsumption" \@ "literPerMeter").toDouble).getOrElse(0d)
       val joulesPerMeter = Powertrain.litersPerMeterToJoulesPerMeter(fuelType, litersPerMeter)
 
       Seq(
@@ -252,9 +252,8 @@ object VehiclesDataConversion extends App {
   }
 
   def generateVehiclesDataFromPersons(persons: NodeSeq, conversionConfig: ConversionConfig): Seq[Seq[String]] = {
-    val vehicles = persons.zipWithIndex.map {
-      case (_, index) =>
-        Seq(s"${index + 1}", "CAR")
+    val vehicles = persons.zipWithIndex.map { case (_, index) =>
+      Seq(s"${index + 1}", "CAR")
     }
     val beamVehiclesPath = conversionConfig.scenarioDirectory + "/vehicles.csv"
     writeCsvFile(beamVehiclesPath, vehicles, beamVehicleTitles)
@@ -265,10 +264,9 @@ object VehiclesDataConversion extends App {
     FileUtils.using(new CsvMapWriter(new FileWriter(beamVehiclesPath), CsvPreference.STANDARD_PREFERENCE)) { writer =>
       writer.writeHeader(titles: _*)
       val rows = data.map { row =>
-        row.zipWithIndex.foldRight(new util.HashMap[String, Object]()) {
-          case ((s, i), acc) =>
-            acc.put(titles(i), s)
-            acc
+        row.zipWithIndex.foldRight(new util.HashMap[String, Object]()) { case ((s, i), acc) =>
+          acc.put(titles(i), s)
+          acc
         }
       }
       val titlesArray = titles.toArray

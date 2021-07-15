@@ -104,7 +104,7 @@ object CaccSpec {
       .tail
       .map(_.toDouble)
 
-    val relevantTimes = allHourAvg.filterNot(_ == 0D)
+    val relevantTimes = allHourAvg.filterNot(_ == 0d)
     relevantTimes.sum / relevantTimes.length
   }
 

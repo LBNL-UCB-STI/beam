@@ -15,6 +15,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
 object AlonsoMoraMatchingWithMIPAssignment {
+
   private lazy val initialize: Unit = {
     OrToolsLoader.load()
   }
@@ -84,21 +85,20 @@ class AlonsoMoraMatchingWithMIPAssignment(
       customers = customers.take(solutionSpaceSizePerVehicle)
 
       customers
-        .foreach(
-          r =>
-            RideHailMatching
-              .getRideHailSchedule(
-                v.schedule,
-                List(r.pickup, r.dropoff),
-                v.vehicleRemainingRangeInMeters.toInt,
-                v.getRequestWithCurrentVehiclePosition,
-                beamServices,
-                Some(v.vehicle.beamVehicleType)
-              )
-              .foreach { schedule =>
-                rvG.addVertex(v)
-                rvG.addVertex(r)
-                rvG.addEdge(v, r, RideHailTrip(List(r), schedule, Some(v)))
+        .foreach(r =>
+          RideHailMatching
+            .getRideHailSchedule(
+              v.schedule,
+              List(r.pickup, r.dropoff),
+              v.vehicleRemainingRangeInMeters.toInt,
+              v.getRequestWithCurrentVehiclePosition,
+              beamServices,
+              Some(v.vehicle.beamVehicleType)
+            )
+            .foreach { schedule =>
+              rvG.addVertex(v)
+              rvG.addVertex(r)
+              rvG.addEdge(v, r, RideHailTrip(List(r), schedule, Some(v)))
             }
         )
     }
@@ -126,8 +126,10 @@ class AlonsoMoraMatchingWithMIPAssignment(
         val pairRequestsList = ListBuffer.empty[RideHailTrip]
         val combinations = ListBuffer.empty[String]
         for (t1 <- individualRequestsList) {
-          for (t2 <- individualRequestsList
-                 .filter(x => t1 != x && rvG.containsEdge(t1.requests.head, x.requests.head))) {
+          for (
+            t2 <- individualRequestsList
+              .filter(x => t1 != x && rvG.containsEdge(t1.requests.head, x.requests.head))
+          ) {
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
@@ -147,12 +149,13 @@ class AlonsoMoraMatchingWithMIPAssignment(
         for (k <- 3 to v.getFreeSeats) {
           val kRequestsList = ListBuffer.empty[RideHailTrip]
           for (t1 <- finalRequestsList) {
-            for (t2 <- finalRequestsList
-                   .drop(finalRequestsList.indexOf(t1))
-                   .filter(
-                     x =>
-                       !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
-                   )) {
+            for (
+              t2 <- finalRequestsList
+                .drop(finalRequestsList.indexOf(t1))
+                .filter(x =>
+                  !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
+                )
+            ) {
               val temp = t1.requests ++ t2.requests
               val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
               if (!combinations.contains(matchId)) {
@@ -190,19 +193,18 @@ class AlonsoMoraMatchingWithMIPAssignment(
       //solver.setNumThreads(96)
       val objective = solver.objective()
       val epsilonCostMap = mutable.Map.empty[Integer, mutable.Map[Integer, (MPVariable, Double)]]
-      combinations.groupBy(_.vehicle).foreach {
-        case (vehicle, alternatives) =>
-          val j = vehicles.indexOf(vehicle.get)
-          // + constraint 1
-          val ct1_j = solver.makeConstraint(0.0, 1.0, s"ct1_$j")
-          alternatives.foreach { trip =>
-            val i = trips.indexOf(trip.matchId)
-            val c_ij = trip.sumOfDelays
-            val (epsilon_ij, _) = epsilonCostMap
-              .getOrElseUpdate(i, mutable.Map.empty[Integer, (MPVariable, Double)])
-              .getOrElseUpdate(j, (solver.makeBoolVar(s"epsilon($i,$j)"), c_ij))
-            ct1_j.setCoefficient(epsilon_ij, 1)
-          }
+      combinations.groupBy(_.vehicle).foreach { case (vehicle, alternatives) =>
+        val j = vehicles.indexOf(vehicle.get)
+        // + constraint 1
+        val ct1_j = solver.makeConstraint(0.0, 1.0, s"ct1_$j")
+        alternatives.foreach { trip =>
+          val i = trips.indexOf(trip.matchId)
+          val c_ij = trip.sumOfDelays
+          val (epsilon_ij, _) = epsilonCostMap
+            .getOrElseUpdate(i, mutable.Map.empty[Integer, (MPVariable, Double)])
+            .getOrElseUpdate(j, (solver.makeBoolVar(s"epsilon($i,$j)"), c_ij))
+          ct1_j.setCoefficient(epsilon_ij, 1)
+        }
       }
       spatialDemand
         .values()
@@ -210,23 +212,22 @@ class AlonsoMoraMatchingWithMIPAssignment(
         .map(r => combinations.filter(_.matchId.contains(r.getId)))
         .filter(_.nonEmpty)
         .zipWithIndex
-        .foreach {
-          case (alternatives, k) =>
-            val c_k0 = 24 * 3600
-            val chiVar = solver.makeBoolVar(s"chi($k)")
-            val ct2_k = solver.makeConstraint(1.0, 1.0, s"ct2_$k")
-            alternatives.foreach { trip =>
-              val i = trips.indexOf(trip.matchId)
-              val j = vehicles.indexOf(trip.vehicle.get)
-              ct2_k.setCoefficient(epsilonCostMap(i)(j)._1, 1)
-            }
-            ct2_k.setCoefficient(chiVar, 1)
-            // Ck0 * Chi
-            objective.setCoefficient(chiVar, c_k0)
+        .foreach { case (alternatives, k) =>
+          val c_k0 = 24 * 3600
+          val chiVar = solver.makeBoolVar(s"chi($k)")
+          val ct2_k = solver.makeConstraint(1.0, 1.0, s"ct2_$k")
+          alternatives.foreach { trip =>
+            val i = trips.indexOf(trip.matchId)
+            val j = vehicles.indexOf(trip.vehicle.get)
+            ct2_k.setCoefficient(epsilonCostMap(i)(j)._1, 1)
+          }
+          ct2_k.setCoefficient(chiVar, 1)
+          // Ck0 * Chi
+          objective.setCoefficient(chiVar, c_k0)
         }
       // setting up the first half of the objective function
-      epsilonCostMap.flatMap(_._2.values).foreach {
-        case (epsilon, c) => objective.setCoefficient(epsilon, c)
+      epsilonCostMap.flatMap(_._2.values).foreach { case (epsilon, c) =>
+        objective.setCoefficient(epsilon, c)
       }
 
       objective.setMinimization()

@@ -40,21 +40,20 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
 
   def compute: Statistics = {
     val groupedByPerson = events.groupBy(x => x.personId)
-    val allTravelTimes = groupedByPerson.flatMap {
-      case (_, xs) =>
-        val sorted = xs.sortBy(z => z.time)
-        val sliding = sorted.sliding(2, 2)
-        val travelTimes = sliding
-          .map { curr =>
-            if (curr.size != 2) {
-              0
-            } else {
-              val travelTime = curr(1).time - curr(0).time
-              travelTime
-            }
+    val allTravelTimes = groupedByPerson.flatMap { case (_, xs) =>
+      val sorted = xs.sortBy(z => z.time)
+      val sliding = sorted.sliding(2, 2)
+      val travelTimes = sliding
+        .map { curr =>
+          if (curr.size != 2) {
+            0
+          } else {
+            val travelTime = curr(1).time - curr(0).time
+            travelTime
           }
-          .filter(x => x != 0)
-        travelTimes
+        }
+        .filter(x => x != 0)
+      travelTimes
     }
     Statistics(allTravelTimes.map(t => t.toDouble / 60).toArray)
   }
