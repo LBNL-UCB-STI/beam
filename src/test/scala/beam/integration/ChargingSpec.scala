@@ -73,14 +73,14 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
                 case ChargingPlugInEvent(_, _, _, `vehicleId`, fuelLevel, _) => chargingPlugInEvents += fuelLevel
                 case ChargingPlugOutEvent(_, _, `vehicleId`, fuelLevel, _)   => chargingPlugOutEvents += fuelLevel
                 case RefuelSessionEvent(
-                    _,
-                    stall,
-                    energyInJoules,
-                    _,
-                    sessionDuration,
-                    `vehicleId`,
-                    _,
-                    _
+                      _,
+                      stall,
+                      energyInJoules,
+                      _,
+                      sessionDuration,
+                      `vehicleId`,
+                      _,
+                      _
                     ) =>
                   refuelSessionEvents += (
                     (
@@ -117,15 +117,14 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
     // Only driving allowed
     val noCarModes = BeamMode.allModes.filter(_ != BeamMode.CAR).map(_.value.toLowerCase) mkString ","
-    population.getPersons.forEach {
-      case (personId, person) =>
-        person.getPlans.forEach { plan =>
-          plan.getPlanElements.forEach {
-            case leg: Leg => leg.setMode("car")
-            case _        =>
-          }
+    population.getPersons.forEach { case (personId, person) =>
+      person.getPlans.forEach { plan =>
+        plan.getPlanElements.forEach {
+          case leg: Leg => leg.setMode("car")
+          case _        =>
         }
-        population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, noCarModes)
+      }
+      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, noCarModes)
     }
     transportNetwork.transitLayer.tripPatterns.clear()
     DefaultPopulationAdjustment(services).update(scenario)
@@ -146,9 +145,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     chargingPlugInEventsAmount should equal(chargingPlugOutEventsAmount)
 
     // ensure each refuel event is difference of amounts of fuel before and after charging
-    refuelSessionEvents.zipWithIndex foreach {
-      case ((energyAdded, _, _), id) =>
-        chargingPlugInEvents(id) + energyAdded shouldBe chargingPlugOutEvents(id)
+    refuelSessionEvents.zipWithIndex foreach { case ((energyAdded, _, _), id) =>
+      chargingPlugInEvents(id) + energyAdded shouldBe chargingPlugOutEvents(id)
     }
 
     val energyChargedInKWh = refuelSessionEvents.map(_._1).sum / 3.6e+6

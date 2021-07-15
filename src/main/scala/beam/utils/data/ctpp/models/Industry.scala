@@ -24,32 +24,38 @@ object Industry {
     val lineNumber: Int = 2
     val name: String = "Agriculture, forestry, fishing and hunting, and mining; + Construction; + Armed Forces"
   }
+
   case object Manufacturing extends Industry {
     val lineNumber: Int = 3
 
     val name: String = "Manufacturing"
   }
+
   case object WholesaleTrade extends Industry {
     val lineNumber: Int = 4
 
     val name: String = "Wholesale trade; + Retail Trade; + Transportation and warehousing, and utilities"
   }
+
   case object Information extends Industry {
     val lineNumber: Int = 5
 
     val name: String =
       "Information; + Finance, insurance, real estate and rental and leasing; + Professional, scientific, management, administrative, and waste management services"
   }
+
   case object Educational extends Industry {
     val lineNumber: Int = 6
 
     val name: String = "Educational, health and social services"
   }
+
   case object Arts extends Industry {
     val lineNumber: Int = 7
 
     val name: String = "Arts, entertainment, recreation, accommodation and food services"
   }
+
   case object OtherServices extends Industry {
     val lineNumber: Int = 8
 

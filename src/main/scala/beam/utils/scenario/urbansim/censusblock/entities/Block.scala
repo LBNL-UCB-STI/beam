@@ -11,6 +11,7 @@ case class Block(
 )
 
 object Block extends EntityTransformer[Block] {
+
   override def transform(rec: util.Map[String, String]): Block = {
     val blockId = getIfNotNull(rec, "block_id").toLong
     val x = getIfNotNull(rec, "x").toDouble

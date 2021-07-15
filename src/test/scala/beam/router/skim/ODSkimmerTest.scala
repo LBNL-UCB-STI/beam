@@ -41,6 +41,7 @@ class ODSkimmerTest extends AnyFunSuite with StrictLogging {
 }
 
 object ODSkimmerTest {
+
   private[skim] def createSkimmer[S <: AbstractSkimmer](
     skimType: SkimType.Value,
     inputFilePath: String,

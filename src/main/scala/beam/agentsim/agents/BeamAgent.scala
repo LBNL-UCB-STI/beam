@@ -36,20 +36,19 @@ trait BeamAgent[T] extends BeamLoggingFSM[BeamAgentState, T] with Stash with Has
 
   def id: Id[_]
 
-  onTermination {
-    case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
-      reason match {
-        case FSM.Shutdown =>
-          log.error(
-            "BeamAgent Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception. In state {}, with stateData {}\n",
-            currentState,
-            stateData
-          )
-        case _ =>
-      }
-      log.error("State: {} Event: {}", currentState, event.toString)
-      log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
-      context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
+  onTermination { case event @ StopEvent(reason @ (FSM.Failure(_) | FSM.Shutdown), currentState, _) =>
+    reason match {
+      case FSM.Shutdown =>
+        log.error(
+          "BeamAgent Got Shutdown. This means actorRef.stop() was called externally, e.g. by supervisor because of an exception. In state {}, with stateData {}\n",
+          currentState,
+          stateData
+        )
+      case _ =>
+    }
+    log.error("State: {} Event: {}", currentState, event.toString)
+    log.error("Events leading up to this point:\n\t" + getLog.mkString("\n\t"))
+    context.system.eventStream.publish(TerminatedPrematurelyEvent(self, reason, _currentTick))
   }
 
   def logPrefix(): String

@@ -47,23 +47,22 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
     // solution size resizing
     customers = customers.take(solutionSpaceSizePerVehicle)
 
-    customers.foreach(
-      r =>
-        RideHailMatching
-          .getRideHailSchedule(
-            v.schedule,
-            List(r.pickup, r.dropoff),
-            v.vehicleRemainingRangeInMeters.toInt,
-            v.getRequestWithCurrentVehiclePosition,
-            beamServices,
-            Some(v.vehicle.beamVehicleType)
-          )
-          .foreach { schedule =>
-            val t = RideHailTrip(List(r), schedule, Some(v))
-            finalRequestsList append t
-            if (!vertices.contains(v)) vertices append v
-            vertices append (r, t)
-            edges append ((r, t), (t, v))
+    customers.foreach(r =>
+      RideHailMatching
+        .getRideHailSchedule(
+          v.schedule,
+          List(r.pickup, r.dropoff),
+          v.vehicleRemainingRangeInMeters.toInt,
+          v.getRequestWithCurrentVehiclePosition,
+          beamServices,
+          Some(v.vehicle.beamVehicleType)
+        )
+        .foreach { schedule =>
+          val t = RideHailTrip(List(r), schedule, Some(v))
+          finalRequestsList append t
+          if (!vertices.contains(v)) vertices append v
+          vertices append (r, t)
+          edges append ((r, t), (t, v))
         }
     )
     if (finalRequestsList.nonEmpty) {
@@ -71,11 +70,13 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
         val combinations = ListBuffer.empty[String]
         val kRequestsList = ListBuffer.empty[RideHailTrip]
         for (t1 <- finalRequestsList) {
-          for (t2 <- finalRequestsList
-                 .drop(finalRequestsList.indexOf(t1))
-                 .filter(
-                   x => !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
-                 )) {
+          for (
+            t2 <- finalRequestsList
+              .drop(finalRequestsList.indexOf(t1))
+              .filter(x =>
+                !(x.requests exists (s => t1.requests contains s)) && (t1.requests.size + x.requests.size) == k
+              )
+          ) {
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
@@ -102,17 +103,15 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
       })
       .map { result =>
         val rTvG = RTVGraph(classOf[DefaultEdge])
-        result foreach {
-          case (vertices, edges) =>
-            vertices foreach (vertex => rTvG.addVertex(vertex))
-            edges foreach { case (vertexSrc, vertexDst) => rTvG.addEdge(vertexSrc, vertexDst) }
+        result foreach { case (vertices, edges) =>
+          vertices foreach (vertex => rTvG.addVertex(vertex))
+          edges foreach { case (vertexSrc, vertexDst) => rTvG.addEdge(vertexSrc, vertexDst) }
         }
         rTvG
       }
-      .recover {
-        case e =>
-          logger.error(e.getMessage)
-          RTVGraph(classOf[DefaultEdge])
+      .recover { case e =>
+        logger.error(e.getMessage)
+        RTVGraph(classOf[DefaultEdge])
       }
   }
 
@@ -136,20 +135,18 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
         greedyAssignmentList.append(trip)
         r_ok.appendAll(trip.requests)
         v_ok.append(trip.vehicle.get)
-        temp = temp.filter(
-          t =>
-            !v_ok.contains(t.asInstanceOf[RideHailTrip].vehicle.get) && !t
-              .asInstanceOf[RideHailTrip]
-              .requests
-              .exists(r => r_ok.contains(r))
-        )
-      }
-      outputList = outputList.filter(
-        t =>
+        temp = temp.filter(t =>
           !v_ok.contains(t.asInstanceOf[RideHailTrip].vehicle.get) && !t
             .asInstanceOf[RideHailTrip]
             .requests
             .exists(r => r_ok.contains(r))
+        )
+      }
+      outputList = outputList.filter(t =>
+        !v_ok.contains(t.asInstanceOf[RideHailTrip].vehicle.get) && !t
+          .asInstanceOf[RideHailTrip]
+          .requests
+          .exists(r => r_ok.contains(r))
       )
     }
     greedyAssignmentList.toList

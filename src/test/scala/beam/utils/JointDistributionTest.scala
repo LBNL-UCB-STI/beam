@@ -40,7 +40,7 @@ class JointDistributionTest extends AnyWordSpecLike with Matchers {
       assert(
         ~=(
           jointDistribution.getProbability(("startTimeIndex", Left("4.00, 4.50")), ("durationIndex", Left("0.0, 2.5"))),
-          9.869863907610778E-8,
+          9.869863907610778e-8,
           0.0000000001
         )
       )

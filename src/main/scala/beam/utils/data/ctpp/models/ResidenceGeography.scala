@@ -3,28 +3,34 @@ package beam.utils.data.ctpp.models
 sealed trait ResidenceGeography {
   def name: String
 
-  /** CTPP Summary Level
+  /**
+    * CTPP Summary Level
     */
   def level: String
 }
 
 object ResidenceGeography {
+
   case object Nation extends ResidenceGeography {
     override def name: String = "Nation (US Total)"
     override def level: String = "C01"
   }
+
   case object State extends ResidenceGeography {
     override def name: String = "State"
     override def level: String = "C02"
   }
+
   case object StateCounty extends ResidenceGeography {
     override def name: String = "State-County"
     override def level: String = "C03"
   }
+
   case object StateCountyMCD extends ResidenceGeography {
     override def name: String = "State-County-MCD"
     override def level: String = "C04"
   }
+
   case object StatePlace extends ResidenceGeography {
     override def name: String = "State-Place"
     override def level: String = "C05"

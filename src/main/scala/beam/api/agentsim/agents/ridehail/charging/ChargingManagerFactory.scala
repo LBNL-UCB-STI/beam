@@ -37,6 +37,7 @@ trait ChargingManagerFactory {
   * Default implementation of [[ChargingManagerFactory]].
   */
 class DefaultChargingManagerFactory extends ChargingManagerFactory {
+
   override def create(
     beamServices: BeamServices,
     resources: mutable.Map[Id[BeamVehicle], BeamVehicle],

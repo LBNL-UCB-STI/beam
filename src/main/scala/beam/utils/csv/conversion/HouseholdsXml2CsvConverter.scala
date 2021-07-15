@@ -34,6 +34,7 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
     homeCoordY: Double,
     housingType: String
   ) {
+
     override def toString: String = {
       val values = Seq(householdId, homeCoordX, homeCoordY, housingType)
       values.mkString(FieldSeparator)

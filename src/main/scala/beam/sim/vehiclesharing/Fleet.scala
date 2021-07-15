@@ -1,4 +1,5 @@
 package beam.sim.vehiclesharing
+
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory, VehicleManager}
@@ -66,6 +67,7 @@ case class FixedNonReservingFleetByTAZ(
 
   case class FixedNonReservingFleetByTAZException(message: String, cause: Throwable = null)
       extends Exception(message, cause)
+
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
@@ -79,17 +81,15 @@ case class FixedNonReservingFleetByTAZ(
     config.vehiclesSharePerTAZFromCSV match {
       case Some(fileName) =>
         logger.info(s"Reading shared vehicle fleet from file: $fileName")
-        FleetUtils.readCSV(fileName).foreach {
-          case (idTaz, coord, share) =>
-            val fleetShare: Int = MathUtils.roundUniformly(share * config.fleetSize).toInt
-            (0 until fleetShare).foreach(
-              _ =>
-                initialLocation
-                  .append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-                    case Some(taz) if coord.getX == 0.0 & coord.getY == 0.0 => TAZTreeMap.randomLocationInTAZ(taz, rand)
-                    case _                                                  => coord
-                  })
-            )
+        FleetUtils.readCSV(fileName).foreach { case (idTaz, coord, share) =>
+          val fleetShare: Int = MathUtils.roundUniformly(share * config.fleetSize).toInt
+          (0 until fleetShare).foreach(_ =>
+            initialLocation
+              .append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
+                case Some(taz) if coord.getX == 0.0 & coord.getY == 0.0 => TAZTreeMap.randomLocationInTAZ(taz, rand)
+                case _                                                  => coord
+              })
+          )
         }
       case _ =>
         logger.info(s"Random distribution of shared vehicle fleet i.e. no file or shares by Taz")
@@ -105,7 +105,7 @@ case class FixedNonReservingFleetByTAZ(
     val vehicleType = FleetType.getAndValidateSharedTypeId(
       config.vehicleTypeId,
       beamServices.beamScenario.vehicleTypes,
-      beamServices.beamConfig.beam.agentsim.agents.vehicles,
+      beamServices.beamConfig.beam.agentsim.agents.vehicles
     )
     Props(
       new FixedNonReservingFleetManager(
@@ -142,7 +142,7 @@ case class FixedNonReservingFleet(
     val vehicleType = FleetType.getAndValidateSharedTypeId(
       config.vehicleTypeId,
       beamServices.beamScenario.vehicleTypes,
-      beamServices.beamConfig.beam.agentsim.agents.vehicles,
+      beamServices.beamConfig.beam.agentsim.agents.vehicles
     )
     Props(
       new FixedNonReservingFleetManager(
@@ -161,7 +161,7 @@ case class FixedNonReservingFleet(
 case class InexhaustibleReservingFleet(
   vehicleManager: Id[VehicleManager],
   parkingFilePath: String,
-  config: SharedFleets$Elm.InexhaustibleReserving,
+  config: SharedFleets$Elm.InexhaustibleReserving
 ) extends FleetType {
 
   override def props(
@@ -172,7 +172,7 @@ case class InexhaustibleReservingFleet(
     val vehicleType = FleetType.getAndValidateSharedTypeId(
       config.vehicleTypeId,
       beamServices.beamScenario.vehicleTypes,
-      beamServices.beamConfig.beam.agentsim.agents.vehicles,
+      beamServices.beamConfig.beam.agentsim.agents.vehicles
     )
     Props(
       new InexhaustibleReservingFleetManager(
@@ -180,7 +180,7 @@ case class InexhaustibleReservingFleet(
         parkingManager,
         vehicleType,
         beamServices.beamConfig.matsim.modules.global.randomSeed,
-        beamServices.beamConfig.beam.debug,
+        beamServices.beamConfig.beam.debug
       )
     )
   }

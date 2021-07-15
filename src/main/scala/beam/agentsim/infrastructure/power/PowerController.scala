@@ -41,10 +41,9 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
           case _                       => None
         }
       )
-    }.recoverWith {
-      case e =>
-        logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
-        Failure(e)
+    }.recoverWith { case e =>
+      logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
+      Failure(e)
     }.toOption
   } else None
 
@@ -69,16 +68,15 @@ class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], Chargi
           if helicsConfig.connectionEnabled && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
-        val msgToPublish = estimatedLoad.get.map {
-          case (station, powerInKW) =>
-            Map(
-              "vehicleManager"    -> station.zone.vehicleManager,
-              "taz"               -> station.zone.geoId.toString,
-              "parkingType"       -> station.zone.parkingType.toString,
-              "chargingPointType" -> station.zone.chargingPointType.toString,
-              "numChargers"       -> station.zone.numChargers,
-              "estimatedLoad"     -> powerInKW
-            )
+        val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
+          Map(
+            "vehicleManager"    -> station.zone.vehicleManager,
+            "taz"               -> station.zone.geoId.toString,
+            "parkingType"       -> station.zone.parkingType.toString,
+            "chargingPointType" -> station.zone.chargingPointType.toString,
+            "numChargers"       -> station.zone.numChargers,
+            "estimatedLoad"     -> powerInKW
+          )
         }
         beamFederate.publishJSON(msgToPublish.toList)
 

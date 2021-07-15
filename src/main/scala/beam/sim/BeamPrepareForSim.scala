@@ -12,7 +12,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters
 import scala.util.Random
 
-class BeamPrepareForSim @Inject()(scenario: Scenario) extends PrepareForSim {
+class BeamPrepareForSim @Inject() (scenario: Scenario) extends PrepareForSim {
 
   override def run(): Unit = {
 //    keepOnlyActivities()

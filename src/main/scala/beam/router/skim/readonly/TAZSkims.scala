@@ -40,19 +40,19 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
     try {
       skims
         .toSet[TAZSkimmerInternal]
-        .foldLeft[Option[TAZSkimmerInternal]](None) {
-          case (accSkimMaybe, skim: TAZSkimmerInternal) =>
-            accSkimMaybe match {
-              case Some(accSkim) =>
-                Some(
-                  TAZSkimmerInternal(
-                    value = (accSkim.value * accSkim.observations + skim.value + skim.observations) / (accSkim.observations + skim.observations),
-                    observations = accSkim.observations + skim.observations,
-                    iterations = accSkim.iterations
-                  )
+        .foldLeft[Option[TAZSkimmerInternal]](None) { case (accSkimMaybe, skim: TAZSkimmerInternal) =>
+          accSkimMaybe match {
+            case Some(accSkim) =>
+              Some(
+                TAZSkimmerInternal(
+                  value =
+                    (accSkim.value * accSkim.observations + skim.value + skim.observations) / (accSkim.observations + skim.observations),
+                  observations = accSkim.observations + skim.observations,
+                  iterations = accSkim.iterations
                 )
-              case _ => Some(skim)
-            }
+              )
+            case _ => Some(skim)
+          }
         }
     } catch {
       case e: ClassCastException =>

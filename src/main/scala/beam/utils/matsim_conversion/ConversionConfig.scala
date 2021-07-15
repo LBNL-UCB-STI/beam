@@ -9,6 +9,7 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import scala.util.Try
 
 case class HouseholdIncome(currency: String, period: String, value: Int)
+
 case class ConversionConfig(
   scenarioName: String,
   scenarioDirectory: String,

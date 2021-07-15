@@ -21,6 +21,7 @@ class DefaultChargingManager(
   resources: mutable.Map[Id[BeamVehicle], BeamVehicle],
   rideHailDepotParkingManager: RideHailDepotParkingManager[_]
 ) extends VehicleChargingManager(beamServices, resources) {
+
   override def findStationsForVehiclesInNeedOfCharging(
     tick: Int,
     idleVehicles: collection.Map[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
@@ -39,13 +40,12 @@ class DefaultChargingManager(
       }
     }
 
-    val assignments = idleVehicleIdsWantingToRefuelWithLocation.map {
-      case (vehicleId, rideHailAgentLocation) =>
-        val beamVehicle = resources(vehicleId)
-        val parkingStall = rideHailDepotParkingManager
-          .findDepot(rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices), beamVehicle, tick)
-          .getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
-        (vehicleId, parkingStall)
+    val assignments = idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
+      val beamVehicle = resources(vehicleId)
+      val parkingStall = rideHailDepotParkingManager
+        .findDepot(rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices), beamVehicle, tick)
+        .getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
+      (vehicleId, parkingStall)
     }
 
     VehicleChargingManagerResult(assignments)

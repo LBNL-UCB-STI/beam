@@ -42,6 +42,7 @@ class ODRequester(
   private val dummyCarVehicleType: BeamVehicleType = vehicleTypes.values
     .find(theType => theType.vehicleCategory == VehicleCategory.Car && theType.maxVelocity.isEmpty)
     .get
+
   private val dummyBodyVehicleType: BeamVehicleType =
     vehicleTypes.values.find(theType => theType.vehicleCategory == VehicleCategory.Body).get
 
@@ -50,6 +51,7 @@ class ODRequester(
 
   private val thresholdDistanceForBikeMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.bike
+
   private val thresholdDistanceForWalkMeters: Double =
     beamConfig.beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk
 
@@ -92,7 +94,8 @@ class ODRequester(
           RouteExecutionInfo(r5ExecutionTime = System.nanoTime() - startExecution, r5Responses = 1)
         )
         response
-      } else {
+      }
+      else {
         Try(RoutingResponse.dummyRoutingResponse.get)
       }
 
@@ -231,6 +234,7 @@ class ODRequester(
 }
 
 object ODRequester {
+
   case class Response(
     srcIndex: GeoIndex,
     dstIndex: GeoIndex,

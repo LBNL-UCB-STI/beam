@@ -154,7 +154,7 @@ object ActivitySimPathType {
     WLK_LRF_WLK,
     // ignored because we did not understand what kind of vehicles are TRN yet
     //    WLK_TRN_WLK
-    WALK,
+    WALK
   )
 
   val allPathTypesMap: Map[String, ActivitySimPathType] =

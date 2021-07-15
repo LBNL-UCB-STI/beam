@@ -154,8 +154,8 @@ object ShapeUtils {
   }
 
   private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {
-    ((1 to elems.length) zip elems map {
-      case (index, elem) => elem.copy(id = s"${id}_$index")
+    ((1 to elems.length) zip elems map { case (index, elem) =>
+      elem.copy(id = s"${id}_$index")
     }).toArray
   }
 

@@ -50,19 +50,17 @@ class Population(
       case _: AssertionError => Stop
     }
 
-  override def loggedReceive: PartialFunction[Any, Unit] = {
-    case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
-      sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
-      contextBecome(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
+  override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
+    implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
+    sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
+    contextBecome(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
   }
 
   def getVehicleTypes(triggerId: Long, responsesLeft: Int, vehicleTypes: Set[BeamVehicleType]): Receive = {
     if (responsesLeft <= 0) {
       finishInitialization(triggerId, vehicleTypes)
-    } else {
-      case VehicleTypesResponse(sharedVehicleTypes, _) =>
-        contextBecome(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
+    } else { case VehicleTypesResponse(sharedVehicleTypes, _) =>
+      contextBecome(getVehicleTypes(triggerId, responsesLeft - 1, vehicleTypes ++ sharedVehicleTypes))
     }
   }
 
@@ -75,9 +73,8 @@ class Population(
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
-        contextBecome {
-          case Terminated(_) =>
-            dieIfNoChildren()
+        contextBecome { case Terminated(_) =>
+          dieIfNoChildren()
         }
     }
     awaitFinish
@@ -94,14 +91,18 @@ class Population(
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
-      if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordx") == null) {
+      if (
+        scenario.getHouseholds.getHouseholdAttributes
+          .getAttribute(household.getId.toString, "homecoordx") == null
+      ) {
         log.error(
           s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
         )
       }
-      if (scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null) {
+      if (
+        scenario.getHouseholds.getHouseholdAttributes
+          .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null
+      ) {
         log.error(
           s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
         )

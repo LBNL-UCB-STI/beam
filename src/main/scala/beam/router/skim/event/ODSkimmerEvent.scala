@@ -43,7 +43,8 @@ case class ODSkimmerEvent(
         travelTimeInS = correctedTrip.totalTravelTimeInSecs.toDouble,
         generalizedTimeInS = generalizedTimeInHours * 3600,
         generalizedCost = generalizedCost,
-        distanceInM = if (dist > 0.0) { dist } else { 1.0 },
+        distanceInM = if (dist > 0.0) { dist }
+        else { 1.0 },
         cost = correctedTrip.costEstimate,
         energy = energyConsumption,
         level4CavTravelTimeScalingFactor = level4CavTravelTimeScalingFactor
