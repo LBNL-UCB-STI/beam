@@ -15,6 +15,10 @@ buildscript {
 
 apply plugin: 'org.hidetake.ssh'
 
+if (!project.hasProperty("nerscUser")) {
+    ext.nerscUser = "unknown_nersc_user"
+}
+
 remotes {
     nerscLoginNode {
         host = 'cori.nersc.gov'
