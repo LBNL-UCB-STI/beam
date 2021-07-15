@@ -6,8 +6,8 @@ import akka.pattern._
 import scala.concurrent.{ExecutionContextExecutorService, Future}
 import scala.util.control.NonFatal
 
-class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(
-  implicit val ec: ExecutionContextExecutorService
+class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(implicit
+  val ec: ExecutionContextExecutorService
 ) extends Actor
     with ActorLogging {
 
@@ -17,6 +17,7 @@ class WorkerActor(val masterActor: ActorRef, val r5Requester: ODRequester)(
   override def preStart(): Unit = {
     requestWork()
   }
+
   override def postStop(): Unit = {
     log.info(s"$self is stopped. Total number of requests: $nTotalRequests, success: $nSuccess")
   }

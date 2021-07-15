@@ -37,22 +37,20 @@ object TncToday {
     }
 
     groupedByTaz
-      .map {
-        case (tazId, statsByTaz) =>
-          val groupedByDay = statsByTaz.groupBy(_.day_of_week)
-          val groupedByDayWithAllData = groupedByDay.map {
-            case (day, statsByDay) =>
-              val byHours = statsByDay.map(e => (e.time, e)).toMap
-              val allHours = (0 to 23).map { h =>
-                val hs = "%02d:00:00".format(h)
-                byHours.getOrElse(hs, TazStats(tazId, day, hs, 0d, 0d))
-              }
-              (day, allHours)
+      .map { case (tazId, statsByTaz) =>
+        val groupedByDay = statsByTaz.groupBy(_.day_of_week)
+        val groupedByDayWithAllData = groupedByDay.map { case (day, statsByDay) =>
+          val byHours = statsByDay.map(e => (e.time, e)).toMap
+          val allHours = (0 to 23).map { h =>
+            val hs = "%02d:00:00".format(h)
+            byHours.getOrElse(hs, TazStats(tazId, day, hs, 0d, 0d))
           }
-          val allDaysWithAllHours = (0 to 6)
-            .map(i => (i, groupedByDayWithAllData.getOrElse(i, generateDataForDay(i, tazId))))
-            .toMap
-          (tazId, allDaysWithAllHours.values.flatten)
+          (day, allHours)
+        }
+        val allDaysWithAllHours = (0 to 6)
+          .map(i => (i, groupedByDayWithAllData.getOrElse(i, generateDataForDay(i, tazId))))
+          .toMap
+        (tazId, allDaysWithAllHours.values.flatten)
       }
       .values
       .flatten
@@ -65,19 +63,17 @@ object TncToday {
 
     val groupedByTaz = data.groupBy(_.taz)
     val roundAtThree = roundAt(3) _
-    groupedByTaz.flatMap {
-      case (taz, statsByTaz) =>
-        val byDay = statsByTaz.groupBy(_.day_of_week)
-        byDay.map {
-          case (day, statsByDay) =>
-            val totalDropoffs = statsByDay.foldLeft(0d) {
-              case (a, b) => roundAtThree(a + b.dropoffs)
-            }
-            val totalPickups = statsByDay.foldLeft(0d) {
-              case (a, b) => roundAtThree(a + b.pickups)
-            }
-            TazStatsTotals(taz, day, totalDropoffs, totalPickups)
+    groupedByTaz.flatMap { case (taz, statsByTaz) =>
+      val byDay = statsByTaz.groupBy(_.day_of_week)
+      byDay.map { case (day, statsByDay) =>
+        val totalDropoffs = statsByDay.foldLeft(0d) { case (a, b) =>
+          roundAtThree(a + b.dropoffs)
         }
+        val totalPickups = statsByDay.foldLeft(0d) { case (a, b) =>
+          roundAtThree(a + b.pickups)
+        }
+        TazStatsTotals(taz, day, totalDropoffs, totalPickups)
+      }
     }.toSeq
   }
 

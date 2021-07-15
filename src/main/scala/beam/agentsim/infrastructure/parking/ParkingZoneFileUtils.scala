@@ -312,16 +312,17 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private val TimeRestriction = """(\w+)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+
   private[parking] def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleCategory, Range] = {
 
     def parseTimeRestriction(timeRestrictionString: String): Option[(VehicleCategory, Range)] = {
       timeRestrictionString match {
         case TimeRestriction(
-            categoryStr,
-            hour1,
-            minute1,
-            hour2,
-            minute2,
+              categoryStr,
+              hour1,
+              minute1,
+              hour2,
+              minute2
             ) =>
           val category = VehicleCategory.fromString(categoryStr)
           val from = hour1.toInt * 3600 + Option(minute1).map(_.toInt).getOrElse(0) * 60
@@ -364,7 +365,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     nextParkingZoneId: Int,
     rand: Random,
     parkingStallCountScalingFactor: Double = 1.0,
-    parkingCostScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0
   ): Option[ParkingLoadingDataRow[GEO]] = {
     if (!validateCsvRow(csvRow)) {
       logger.error(s"Failed to match row of parking configuration '$csvRow' to expected schema")
@@ -435,12 +436,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
     val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents")
-      .forall(
-        key => {
-          val value = csvRow.get(key)
-          value != null && value.nonEmpty
-        }
-      )
+      .forall(key => {
+        val value = csvRow.get(key)
+        value != null && value.nonEmpty
+      })
     allRequiredPresented &&
     Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
     Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
@@ -457,11 +456,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
             .split('|')
             .map(categoryStr => categoryStr -> VehicleCategory.fromStringOptional(categoryStr))
             .toIndexedSeq
-        maybeCategories.foreach {
-          case (categoryStr, maybeCategory) =>
-            if (maybeCategory.isEmpty) {
-              logger.error(s"Wrong category '$categoryStr' for zone $geoId, ignoring the category")
-            }
+        maybeCategories.foreach { case (categoryStr, maybeCategory) =>
+          if (maybeCategory.isEmpty) {
+            logger.error(s"Wrong category '$categoryStr' for zone $geoId, ignoring the category")
+          }
         }
         maybeCategories.flatMap { case (_, maybeCategory) => maybeCategory }
     }

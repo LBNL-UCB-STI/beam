@@ -67,8 +67,8 @@ class JDEQSimRunner(
 
     val eventTypeCounter = new EventTypeCounter
     jdeqsimEvents.addHandler(eventTypeCounter)
-    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map {
-      case (k, v) => k -> Boolean2boolean(v)
+    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map { case (k, v) =>
+      k -> Boolean2boolean(v)
     })
     jdeqsimEvents.addHandler(carTravelTimeHandler)
 
@@ -129,7 +129,7 @@ class JDEQSimRunner(
           new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
         ),
         physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
-        (),
+        ()
       )(scala.concurrent.ExecutionContext.global)
     }
     SimulationResult(
@@ -166,9 +166,9 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
-            maybeCACCSettings,
+            maybeCACCSettings
           ),
-          maybeCACCSettings,
+          maybeCACCSettings
         )
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
       case "PARBPRSim" =>
@@ -192,7 +192,7 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings
           ),
-          maybeCACCSettings,
+          maybeCACCSettings
         )
         new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents, beamConfig.matsim.modules.global.randomSeed)
       case "JDEQSim" =>
@@ -238,41 +238,38 @@ class JDEQSimRunner(
     functionName: String,
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
-    maybeCaccSettings: Option[CACCSettings],
+    maybeCaccSettings: Option[CACCSettings]
   ): (Double, Link, Double, Double) => Double = {
     functionName match {
       case "FREE_FLOW" =>
-        (time, link, _, _) =>
-          link.getLength / link.getFreespeed(time)
+        (time, link, _, _) => link.getLength / link.getFreespeed(time)
       case "BPR" =>
         maybeCaccSettings match {
           case Some(caccSettings) =>
-            (time, link, caccShare, volume) =>
-              {
-                val ftt = link.getLength / (link.getFreespeed(time) * caccSettings.speedAdjustmentFactor)
-                if (volume >= minVolumeToUseBPRFunction) {
-                  val capacity = flowCapacityFactor *
+            (time, link, caccShare, volume) => {
+              val ftt = link.getLength / (link.getFreespeed(time) * caccSettings.speedAdjustmentFactor)
+              if (volume >= minVolumeToUseBPRFunction) {
+                val capacity = flowCapacityFactor *
                   caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
-                  //volume is calculated as number of vehicles entered the road per hour
-                  //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-                  val tmp = volume / (capacity * 3600)
-                  val result = ftt * (1 + tmp * tmp)
-                  Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
-                } else {
-                  ftt
-                }
+                //volume is calculated as number of vehicles entered the road per hour
+                //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+                val tmp = volume / (capacity * 3600)
+                val result = ftt * (1 + tmp * tmp)
+                Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
+              } else {
+                ftt
               }
+            }
           case None =>
-            (time, link, _, volume) =>
-              {
-                val ftt = link.getLength / link.getFreespeed(time)
-                if (volume >= minVolumeToUseBPRFunction) {
-                  val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                  ftt * (1 + tmp * tmp)
-                } else {
-                  ftt
-                }
+            (time, link, _, volume) => {
+              val ftt = link.getLength / link.getFreespeed(time)
+              if (volume >= minVolumeToUseBPRFunction) {
+                val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
+                ftt * (1 + tmp * tmp)
+              } else {
+                ftt
               }
+            }
         }
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
     }

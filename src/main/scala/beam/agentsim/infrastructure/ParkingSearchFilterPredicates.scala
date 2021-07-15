@@ -56,7 +56,7 @@ object ParkingSearchFilterPredicates {
 
   def requireStallHasCharger(
     activityTypeLowerCased: String,
-    beamVehicleOption: Option[BeamVehicle],
+    beamVehicleOption: Option[BeamVehicle]
   ): Boolean =
     activityTypeLowerCased match {
       case "fast-charge" => true

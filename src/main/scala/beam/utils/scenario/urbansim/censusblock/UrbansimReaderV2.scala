@@ -16,7 +16,7 @@ class UrbansimReaderV2(
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean,
-  val modeMap: Map[String, String],
+  val modeMap: Map[String, String]
 ) extends ScenarioSource {
 
   private val logger = LoggerFactory.getLogger(getClass)

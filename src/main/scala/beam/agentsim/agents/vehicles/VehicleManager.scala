@@ -16,7 +16,7 @@ object VehicleManager {
     vehicleType: BeamVehicleType,
     isRideHail: Boolean = false,
     isShared: Boolean = false,
-    isFreight: Boolean = false,
+    isFreight: Boolean = false
   ): VehicleManagerType =
     VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, Some(vehicleType.vehicleCategory))
 }
@@ -34,7 +34,8 @@ object VehicleManagerType extends Enum[VehicleManagerType] {
   case object Cars extends VehicleManagerType(isPrivate = true) //for private cars
   case object Bikes extends VehicleManagerType(isPrivate = true) //for private bikes
   case object Carsharing extends VehicleManagerType(isPrivate = false, isShared = true) //for shared fleet of type car
-  case object SharedMicromobility extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
+  case object SharedMicromobility
+      extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
   case object Ridehail extends VehicleManagerType(isPrivate = false) //for ridehail
   case object Freight extends VehicleManagerType(isPrivate = false, isFreight = true)
   case object Transit extends VehicleManagerType(isPrivate = false, isShared = true) // for transit

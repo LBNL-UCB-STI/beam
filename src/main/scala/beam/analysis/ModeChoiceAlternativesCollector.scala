@@ -47,18 +47,17 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
               (mco.modeCostTimeTransfers.get(tripType), mco.alternativesUtility.get(tripType)) match {
                 case (Some(tripCostTimeTransfer), Some(tripUtility)) =>
                   val duration = trip.legs.map(_.beamLeg.duration).sum
-                  trip.legs.foreach(
-                    leg =>
-                      writeAlternative(
-                        mco.personId,
-                        idx,
-                        idx == mco.chosenAlternativeIdx,
-                        tripCostTimeTransfer,
-                        tripUtility,
-                        duration,
-                        tripType,
-                        leg,
-                        tripCategory
+                  trip.legs.foreach(leg =>
+                    writeAlternative(
+                      mco.personId,
+                      idx,
+                      idx == mco.chosenAlternativeIdx,
+                      tripCostTimeTransfer,
+                      tripUtility,
+                      duration,
+                      tripType,
+                      leg,
+                      tripCategory
                     )
                   )
                 case _ =>
@@ -80,7 +79,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
     tripDuration: Int,
     tripType: String,
     leg: EmbodiedBeamLeg,
-    tripCategory: Int,
+    tripCategory: Int
   ): Unit = {
     val beamLegType = if (leg.beamVehicleTypeId != null) leg.beamVehicleTypeId.toString else "DEFAULT"
     val vehicleType = if (leg.isRideHail) "RH_" + beamLegType else beamLegType

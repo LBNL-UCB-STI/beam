@@ -35,7 +35,7 @@ trait RideHailFleetStoredElectricityEventTracker extends LazyLogging {
     initialAndFinalRideHailFleetStoredElectricityEventOpt match {
       case (Some(initialRideHailFleetStoredElectricityEvent), Some(finalRideHailFleetStoredElectricityEvent)) =>
         val storedElectricityDifferenceInJoules = (finalRideHailFleetStoredElectricityEvent.storedElectricityInJoules
-        - initialRideHailFleetStoredElectricityEvent.storedElectricityInJoules)
+          - initialRideHailFleetStoredElectricityEvent.storedElectricityInJoules)
 
         val storageCapacityInJoules = initialRideHailFleetStoredElectricityEvent.storageCapacityInJoules
 

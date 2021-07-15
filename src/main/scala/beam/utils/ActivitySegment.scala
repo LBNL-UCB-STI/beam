@@ -64,9 +64,8 @@ object ActivitySegment {
       }
       .groupBy { case (binIdx, act) => binIdx }
       .map { case (binIdx, xs) => binIdx -> xs.map(_._2) }
-    binToActivities.foreach {
-      case (bin, acts) =>
-        arr.update(bin, acts)
+    binToActivities.foreach { case (bin, acts) =>
+      arr.update(bin, acts)
     }
     arr
   }

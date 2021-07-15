@@ -281,7 +281,7 @@ class BeamWarmStartSpec
     }
 
     "not sample population when sampling disabled" in {
-      loadScenarioAndGetPopulationSize(0.5, true, 0) shouldBe (50)
+      loadScenarioAndGetPopulationSize(0.5, true, 0) shouldBe 50
     }
 
     "should not impact population sampling when warmstart disabled" in {

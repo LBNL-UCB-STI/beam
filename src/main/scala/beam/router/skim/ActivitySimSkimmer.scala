@@ -14,7 +14,7 @@ import java.io.BufferedWriter
 import scala.util.Failure
 import scala.util.control.NonFatal
 
-class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
+class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
 
   private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
@@ -91,7 +91,9 @@ class ActivitySimSkimmer @Inject()(matsimServices: MatsimServices, beamScenario:
     val currSkim = currObservation.asInstanceOf[ActivitySimSkimmerInternal]
 
     def aggregatedDoubleSkimValue(getValue: ActivitySimSkimmerInternal => Double): Double = {
-      (getValue(prevSkim) * prevSkim.observations + getValue(currSkim) * currSkim.observations) / (prevSkim.observations + currSkim.observations)
+      (getValue(prevSkim) * prevSkim.observations + getValue(
+        currSkim
+      ) * currSkim.observations) / (prevSkim.observations + currSkim.observations)
     }
 
     ActivitySimSkimmerInternal(
@@ -300,7 +302,7 @@ object ActivitySimSkimmer extends LazyLogging {
     transitBoardingsCount: Double,
     observations: Int = 1,
     iterations: Int = 0,
-    debugText: String = "",
+    debugText: String = ""
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =

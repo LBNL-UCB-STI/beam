@@ -30,10 +30,12 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
         //logger.error(s"Refuel event encountered: $refuelSessionEvent - Current load mapping: $vehicleTypeToHourlyLoad")
         val vehicleType = refuelSessionEvent.vehicleType
         val loadVehicleType =
-          if (refuelSessionEvent.getAttributes
-                .get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
-                .toLowerCase
-                .contains("ridehail")) {
+          if (
+            refuelSessionEvent.getAttributes
+              .get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
+              .toLowerCase
+              .contains("ridehail")
+          ) {
             if (vehicleType.isCaccEnabled) "CAV RideHail" else "Human RideHail"
           } else "Personal"
         val energyInkWh = refuelSessionEvent.energyInJoules / 3.6e6
@@ -135,16 +137,15 @@ class LoadOverTimeAnalysis(geoUtils: GeoUtils, simMetricCollector: SimulationMet
   ): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
     val allHours = hourlyLoadData.flatMap(tup => tup._2.keys).toList.distinct.sorted
-    hourlyLoadData.foreach {
-      case (loadType, hourlyLoadMap) =>
-        allHours.foreach { hour =>
-          hourlyLoadMap.get(hour) match {
-            case Some((average, _)) =>
-              dataset.addValue(average, loadType, hour)
-            case None =>
-              dataset.addValue(0.0, loadType, hour)
-          }
+    hourlyLoadData.foreach { case (loadType, hourlyLoadMap) =>
+      allHours.foreach { hour =>
+        hourlyLoadMap.get(hour) match {
+          case Some((average, _)) =>
+            dataset.addValue(average, loadType, hour)
+          case None =>
+            dataset.addValue(0.0, loadType, hour)
         }
+      }
     }
     dataset
   }

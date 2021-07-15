@@ -12,16 +12,15 @@ class RideHailPriceSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing rideHailPrice value" must {
     "create less entries for mode choice rideHail as value increases" ignore {
       val inputRideHailPrice = Seq(0.1, 1.0)
-      val modeChoice = inputRideHailPrice.map(
-        tc =>
-          new StartWithCustomConfig(
-            baseConfig
-              .withValue(
-                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-                ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
-              )
-              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
-          ).groupedCount
+      val modeChoice = inputRideHailPrice.map(tc =>
+        new StartWithCustomConfig(
+          baseConfig
+            .withValue(
+              TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+              ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
+            )
+            .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
+        ).groupedCount
       )
 
       val tc = modeChoice

@@ -19,7 +19,7 @@ import org.matsim.core.controler.MatsimServices
 
 import scala.collection.mutable
 
-class Skims @Inject()(
+class Skims @Inject() (
   matsimServices: MatsimServices,
   odSkimmer: ODSkimmer,
   tazSkimmer: TAZSkimmer,

@@ -20,6 +20,7 @@ import org.matsim.households.Household
 object AvailableModeUtils extends LazyLogging {
 
   object AllowAllModes extends PermissibleModesCalculator {
+
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
       JavaConverters.asJavaCollection(BeamMode.allModes.map(_.toString))
     }

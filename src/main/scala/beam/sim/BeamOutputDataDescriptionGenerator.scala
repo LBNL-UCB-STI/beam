@@ -18,7 +18,7 @@ import scala.collection.JavaConverters._
 /**
   * Generate data descriptions table for all output file generating classes.
   */
-class BeamOutputDataDescriptionGenerator @Inject()(
+class BeamOutputDataDescriptionGenerator @Inject() (
   private val transportNetwork: TransportNetwork,
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
@@ -35,11 +35,10 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     */
   def generateDescriptors(event: ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors
-      : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
-      classRef =>
+    val descriptors: Seq[OutputDataDescription] =
+      BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap { classRef =>
         classRef.getOutputDataDescriptions(event.getServices().getControlerIO()).asScala.toList
-    }
+      }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
       d.asInstanceOf[Product].productIterator mkString ","

@@ -182,6 +182,7 @@ trait HasXY[T] {
 object HasXY {
 
   implicit object PlanXY extends HasXY[Plan] {
+
     override def getX(p: Plan): Double =
       PopulationUtils.getFirstActivity(p).getCoord.getX
 
@@ -226,9 +227,8 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   ): QuadTreeExtent = {
     val envelopes = features.asScala
       .map(_.getDefaultGeometry)
-      .collect {
-        case g: Geometry =>
-          wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
+      .collect { case g: Geometry =>
+        wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
       }
     val bounds = ShapeUtils.quadTreeBounds(envelopes)
     QuadTreeExtent(bounds.minx, bounds.miny, bounds.maxx, bounds.maxy)

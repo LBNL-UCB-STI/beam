@@ -20,6 +20,7 @@ class InfluxDbSimulationMetricCollectorTest extends AnyWordSpecLike with Matcher
   val numberOfRuns = 42
 
   class Writer() extends Thread {
+
     override def run(): Unit = {
       for (_ <- 1 to numberOfRuns) {
         InfluxDbSimulationMetricCollector.getNextInfluxTs(concurrentMap, metricName, metricTime, delta)

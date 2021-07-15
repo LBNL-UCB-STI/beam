@@ -1,4 +1,5 @@
 package beam.utils
+
 import beam.analysis.via.CSVWriter
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
@@ -66,8 +67,8 @@ object UberOSMSpeedMapper extends GenericCsvReader with LazyLogging {
       .split(",")
       .flatMap(readAs[(String, Double)](_, toSpeed, _ => true)._1)
       .groupBy(_._1)
-      .map({
-        case (key, values) => key -> values.map(_._2).max
+      .map({ case (key, values) =>
+        key -> values.map(_._2).max
       })
   }
 

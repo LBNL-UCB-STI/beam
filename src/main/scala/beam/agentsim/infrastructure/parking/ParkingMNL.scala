@@ -41,8 +41,8 @@ object ParkingMNL {
     def rangeAnxiety(withAddedFuelInJoules: Double = 0.0): Double = {
       if (remainingTourDistance == 0) 0.0
       else {
-        val newRange
-          : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
+        val newRange: Double =
+          (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
         if (newRange > remainingTourDistance) {
           val excessFuelProportion: Double = newRange / (remainingTourDistance + rangeAnxietyBuffer)
           1 - math.min(1.0, math.max(0.0, excessFuelProportion))
@@ -55,9 +55,8 @@ object ParkingMNL {
 
   def prettyPrintAlternatives(params: Map[ParkingMNL.Parameters, Double]): String = {
     params
-      .map {
-        case (param, value) =>
-          f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+      .map { case (param, value) =>
+        f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
       .mkString("", " ", ": ")
   }

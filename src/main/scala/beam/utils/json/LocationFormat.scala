@@ -5,6 +5,7 @@ import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
 object LocationFormat extends Encoder[Location] with Decoder[Location] {
+
   override def apply(a: Location): Json = Json.obj(
     ("x", Json.fromString(a.getX.toString)),
     ("y", Json.fromString(a.getY.toString))

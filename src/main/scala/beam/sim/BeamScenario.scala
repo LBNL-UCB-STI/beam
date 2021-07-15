@@ -29,7 +29,6 @@ import scala.collection.concurrent.TrieMap
   * The so far only legitimate iteration-to-iteration-mutable global thing in BEAM are the Plans,
   * and they happen to be on the MATSim Scenario for now. Everything else is kept private in
   * classes that observe the simulation.
-  *
   */
 case class BeamScenario(
   fuelTypePrices: FuelTypePrices,
@@ -48,7 +47,7 @@ case class BeamScenario(
   linkToTAZMapping: Map[Link, TAZ],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
-  freightCarriers: IndexedSeq[FreightCarrier],
+  freightCarriers: IndexedSeq[FreightCarrier]
 ) {
   val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
 

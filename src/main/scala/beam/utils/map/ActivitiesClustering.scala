@@ -29,6 +29,7 @@ private case class ClusterAttributes(size: Int, homes: Int, works: Int) extends 
 
 class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends StrictLogging {
   private val geometryFactory: GeometryFactory = new GeometryFactory()
+
   private val geoUtils = new GeoUtils {
     def localCRS: String = "epsg:26910"
   }
@@ -43,27 +44,26 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
       c -> convexHullGeom
     }
     val shapeWriter = ShapeWriter.worldGeodetic[Polygon, ClusterAttributes]("clusters.shp")
-    clusterWithConvexHull.zipWithIndex.foreach {
-      case ((c, geom), idx) =>
-        if (geom.getNumPoints > 2) {
-          val wgsCoords = geom.getCoordinates.map { c =>
-            val wgsCoord = geoUtils.utm2Wgs(new Coord(c.x, c.y))
-            new Coordinate(wgsCoord.getX, wgsCoord.getY)
-          }
-          try {
-            val polygon = geometryFactory.createPolygon(wgsCoords)
-            val nHomes = c.activitiesLocation.count(x => x.label == "Home")
-            val nWorks = c.activitiesLocation.count(x => x.label == "Work")
-            shapeWriter.add(
-              polygon,
-              idx.toString,
-              ClusterAttributes(size = c.size, homes = nHomes, works = nWorks)
-            )
-          } catch {
-            case NonFatal(ex) =>
-              logger.error("Can't create or add", ex)
-          }
+    clusterWithConvexHull.zipWithIndex.foreach { case ((c, geom), idx) =>
+      if (geom.getNumPoints > 2) {
+        val wgsCoords = geom.getCoordinates.map { c =>
+          val wgsCoord = geoUtils.utm2Wgs(new Coord(c.x, c.y))
+          new Coordinate(wgsCoord.getX, wgsCoord.getY)
         }
+        try {
+          val polygon = geometryFactory.createPolygon(wgsCoords)
+          val nHomes = c.activitiesLocation.count(x => x.label == "Home")
+          val nWorks = c.activitiesLocation.count(x => x.label == "Work")
+          shapeWriter.add(
+            polygon,
+            idx.toString,
+            ClusterAttributes(size = c.size, homes = nHomes, works = nWorks)
+          )
+        } catch {
+          case NonFatal(ex) =>
+            logger.error("Can't create or add", ex)
+        }
+      }
     }
     shapeWriter.write()
   }
@@ -79,25 +79,24 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
       true
     )
     val result = kmeans.run(db)
-    result.getAllClusters.asScala.zipWithIndex.map {
-      case (cluster, idx) =>
-        logger.info(s"# $idx: ${cluster.getNameAutomatic}")
-        logger.info(s"Size: ${cluster.size()}")
-        logger.info(s"Model: ${cluster.getModel}")
-        logger.info(s"Center: ${cluster.getModel.getMean.toVector}")
-        logger.info(s"getPrototype: ${cluster.getModel.getPrototype.toString}")
-        val vectors = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
-        val labels = db.getRelation(TypeUtil.STRING)
-        val coords: ArrayBuffer[CoordWithLabel] = new ArrayBuffer(cluster.size())
-        val iter: DBIDIter = cluster.getIDs.iter()
-        while (iter.valid()) {
-          val o: DoubleVector = vectors.get(iter)
-          val arr = o.toArray
-          val coord = new Coord(arr(0), arr(1))
-          coords += CoordWithLabel(coord, labels.get(iter))
-          iter.advance()
-        }
-        ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords)
+    result.getAllClusters.asScala.zipWithIndex.map { case (cluster, idx) =>
+      logger.info(s"# $idx: ${cluster.getNameAutomatic}")
+      logger.info(s"Size: ${cluster.size()}")
+      logger.info(s"Model: ${cluster.getModel}")
+      logger.info(s"Center: ${cluster.getModel.getMean.toVector}")
+      logger.info(s"getPrototype: ${cluster.getModel.getPrototype.toString}")
+      val vectors = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
+      val labels = db.getRelation(TypeUtil.STRING)
+      val coords: ArrayBuffer[CoordWithLabel] = new ArrayBuffer(cluster.size())
+      val iter: DBIDIter = cluster.getIDs.iter()
+      while (iter.valid()) {
+        val o: DoubleVector = vectors.get(iter)
+        val arr = o.toArray
+        val coord = new Coord(arr(0), arr(1))
+        coords += CoordWithLabel(coord, labels.get(iter))
+        iter.advance()
+      }
+      ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords)
     }.toArray
   }
 
@@ -110,13 +109,12 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
   private def createAndInitializeDatabase(acts: scala.collection.Iterable[PlanElement]): Database = {
     val data: Array[Array[Double]] = Array.ofDim[Double](acts.size, 2)
     val labels: Array[String] = Array.ofDim[String](acts.size)
-    acts.zipWithIndex.foreach {
-      case (act, idx) =>
-        val x = act.activityLocationX.get
-        val y = act.activityLocationY.get
-        val label = act.activityType.get
-        data.update(idx, Array(x, y))
-        labels.update(idx, label)
+    acts.zipWithIndex.foreach { case (act, idx) =>
+      val x = act.activityLocationX.get
+      val y = act.activityLocationY.get
+      val label = act.activityType.get
+      data.update(idx, Array(x, y))
+      labels.update(idx, label)
     }
     val dbc = new ArrayAdapterDatabaseConnection(data, labels)
     val db = new StaticArrayDatabase(dbc, null)

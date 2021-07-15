@@ -12,6 +12,7 @@ case class InputHousehold(
 )
 
 object InputHousehold extends EntityTransformer[InputHousehold] {
+
   override def transform(rec: util.Map[String, String]): InputHousehold = {
     val householdId = getIfNotNull(rec, "household_id")
     val income = getIfNotNull(rec, "income").toInt

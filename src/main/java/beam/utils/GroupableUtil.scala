@@ -1,4 +1,5 @@
 package beam.utils
+
 import scala.collection.generic.CanBuildFrom
 import scala.collection.{mutable, GenTraversableOnce}
 import scala.language.higherKinds

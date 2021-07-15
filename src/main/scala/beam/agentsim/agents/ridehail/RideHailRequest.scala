@@ -21,13 +21,14 @@ case class RideHailRequest(
   requestId: Int = RideHailRequestIdGenerator.nextId,
   requestTime: Option[Int] = None,
   quotedWaitTime: Option[Int] = None,
-  triggerId: Long,
+  triggerId: Long
 ) extends HasTriggerId {
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
+
   override def toString: String =
     s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
 }

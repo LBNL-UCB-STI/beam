@@ -34,13 +34,13 @@ class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers
     )
 
     spatialIndex.put(10, 10, rideHailAgentLocation)
-    spatialIndex.size() shouldBe (1)
+    spatialIndex.size() shouldBe 1
 
     val updatedRideHailAgentLocation = rideHailAgentLocation.copy(latestUpdatedLocationUTM = SpaceTime(2, 2, 4))
     spatialIndex.put(10, 10, updatedRideHailAgentLocation)
-    spatialIndex.size() shouldBe (1)
+    spatialIndex.size() shouldBe 1
 
-    spatialIndex.getDisk(0, 0, 20).asScala.head shouldBe (rideHailAgentLocation)
+    spatialIndex.getDisk(0, 0, 20).asScala.head shouldBe rideHailAgentLocation
   }
 
   test("Remove should respect only `RideHailAgentLocation.vehicleId`") {
@@ -69,6 +69,6 @@ class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers
       geofence = Some(CircularGeofence(1, 2, 3))
     )
     spatialIndex.remove(10, 10, updatedRideHailAgentLocation)
-    spatialIndex.size() shouldBe (0)
+    spatialIndex.size() shouldBe 0
   }
 }
