@@ -7,6 +7,7 @@ sealed trait HouseholdSize {
 }
 
 object HouseholdSize {
+
   case object `1-person household` extends HouseholdSize {
     override def count: Int = 1
 

@@ -23,6 +23,7 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
   )
+
   private val beamConfigDisabled = BeamConfig(
     ConfigFactory
       .parseString(s"beam.exchange.scenario.urbansim.activitySimEnabled = false")

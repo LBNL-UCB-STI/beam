@@ -25,8 +25,8 @@ object MessageReader extends LazyLogging {
       val paths = Files.newDirectoryStream(dir, "*.actor_messages_*.csv.gz").iterator().asScala.toSeq
       val pathWithNum = paths
         .map(path => path -> path.getFileName.toString)
-        .collect {
-          case (path, FileNum(num)) => path -> num.toInt
+        .collect { case (path, FileNum(num)) =>
+          path -> num.toInt
         }
       val sorted = pathWithNum.sortBy { case (_, num) => num }
       sorted.map { case (path, _) => path }
@@ -114,7 +114,7 @@ object MessageReader extends LazyLogging {
     payload: String,
     data: String,
     tick: Int,
-    triggerId: Long,
+    triggerId: Long
   ) extends RowData
 
   case class Message(
@@ -122,7 +122,7 @@ object MessageReader extends LazyLogging {
     receiver: Actor,
     payload: String,
     tick: Int,
-    triggerId: Long,
+    triggerId: Long
   ) extends RowData
 
   case class Transition(
@@ -131,7 +131,7 @@ object MessageReader extends LazyLogging {
     prevState: String,
     state: String,
     tick: Int,
-    triggerId: Long,
+    triggerId: Long
   ) extends RowData
 
   case class Actor(parent: String, name: String)

@@ -221,9 +221,8 @@ object RouteRequester extends BeamHelper {
       println(additionalInfo.get)
     }
     println(s"Number of routes: ${threeModesResp.itineraries.length}")
-    threeModesResp.itineraries.zipWithIndex.foreach {
-      case (route, idx) =>
-        println(s"$idx\t$route")
+    threeModesResp.itineraries.zipWithIndex.foreach { case (route, idx) =>
+      println(s"$idx\t$route")
     }
     println("######################################################" + new String(Array.fill(name.length + 2) { '#' }))
   }

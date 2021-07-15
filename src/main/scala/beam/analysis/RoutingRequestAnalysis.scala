@@ -43,9 +43,8 @@ class RoutingRequestAnalysis extends GraphAnalysis {
     val filePath = controller.getIterationFilename(event.getIteration, "routingModeChoice.csv")
     FileUtils.using(new CsvWriter(filePath, IndexedSeq("PersonId", "ModeChoice", "RoutingRequestIds"))) { writer =>
       {
-        modeChoiceList.foreach(
-          row =>
-            writer.writeRow(IndexedSeq(row.personId, row.modeChoice, s""""${row.routingRequests.mkString(",")}""""))
+        modeChoiceList.foreach(row =>
+          writer.writeRow(IndexedSeq(row.personId, row.modeChoice, s""""${row.routingRequests.mkString(",")}""""))
         )
       }
     }

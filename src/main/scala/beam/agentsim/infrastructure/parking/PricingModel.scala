@@ -37,7 +37,6 @@ object PricingModel {
     * construct an optional PricingModel based on a parsed input string
     * @param s the input string, scraped from a configuration file
     * @return an optional PricingModel if the input is recognized, otherwise None
-    *
     */
   def apply(
     s: String,

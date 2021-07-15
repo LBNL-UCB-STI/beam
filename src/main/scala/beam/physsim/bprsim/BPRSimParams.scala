@@ -15,7 +15,7 @@ case class BPRSimConfig(
   flowCapacityFactor: Double,
   inFlowAggregationTimeWindow: Int,
   travelTimeFunction: (Double, Link, Double, Double) => Double,
-  caccSettings: Option[CACCSettings],
+  caccSettings: Option[CACCSettings]
 )
 
 case class BPRSimParams(config: BPRSimConfig, volumeCalculator: VolumeCalculator)

@@ -10,7 +10,7 @@ import beam.router.model.EmbodiedBeamTrip
   */
 object RideHailDefaults {
   val DEFAULT_COST_PER_MILE = 2.00
-  private val zero: Double = 0D
+  private val zero: Double = 0d
 
   def estimateRideHailCost(alternatives: Seq[EmbodiedBeamTrip]): Seq[Double] = {
     alternatives.map { alt =>

@@ -9,7 +9,7 @@ import beam.sim.config.BeamConfig
 import com.conveyal.gtfs.GTFSFeed
 import javax.inject.Inject
 
-class FareCalculator @Inject()(beamConfig: BeamConfig) {
+class FareCalculator @Inject() (beamConfig: BeamConfig) {
 
   private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
@@ -44,7 +44,6 @@ class FareCalculator @Inject()(beamConfig: BeamConfig) {
 
     /**
       * Checks whether its a valid gtfs feed and has fares data.
-      *
       */
     val hasFares: FileFilter = file => {
       var isFareExist = false
@@ -214,7 +213,6 @@ object FareCalculator {
   )
 
   /**
-    *
     * @param fare            Contains a fare object from fare_attributes.
     * @param agencyId        Defines an agency for the specified route. This value is referenced from the agency.txt file.
     * @param patternIndex    Represents the pattern index from TransitJournyID to locate SegmentPattern from a specific TransitSegment
@@ -343,9 +341,7 @@ object FareCalculator {
           case _ =>
             Vector(lhs.head) ++ iterateTransfers(
               lhs.view.tail.zipWithIndex
-                .filter(
-                  fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans
-                )
+                .filter(fst => fst._1.segmentDuration > lhs.head.fare.transferDuration || fst._2 > trans)
                 .map(s => BeamFareSegment(s._1, s._1.segmentDuration - lhs.head.segmentDuration))
                 .toVector
             )

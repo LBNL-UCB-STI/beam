@@ -23,6 +23,7 @@ class MasterActor(
   val ODs: Array[(GeoIndex, GeoIndex)]
 ) extends Actor
     with ActorLogging {
+
   override def postStop(): Unit = {
     logStat()
     log.info(s"Stopping $self")

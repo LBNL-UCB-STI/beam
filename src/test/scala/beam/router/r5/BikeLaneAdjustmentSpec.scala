@@ -16,7 +16,7 @@ class BikeLaneAdjustmentSpec extends AnyFlatSpec {
   import beam.router.r5.BikeLaneAdjustmentSpec._
 
   "BikeLanesAdjustment scaleFactor" should "calculate scalaFactor accordingly to linkId" in {
-    val scaleFactor = 10D
+    val scaleFactor = 10d
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
@@ -30,7 +30,7 @@ class BikeLaneAdjustmentSpec extends AnyFlatSpec {
   }
 
   it should "calculate scalaFactor accordingly to beamMode/isEnabled" in {
-    val scaleFactor = 10D
+    val scaleFactor = 10d
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
@@ -48,7 +48,7 @@ class BikeLaneAdjustmentSpec extends AnyFlatSpec {
   }
 
   it should "calculate scalaFactor accordingly to BeamVehicleType and linkId" in {
-    val scaleFactor = 10D
+    val scaleFactor = 10d
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 

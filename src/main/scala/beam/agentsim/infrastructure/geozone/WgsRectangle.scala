@@ -13,12 +13,13 @@ case class WgsRectangle(
   bottomRight: WgsCoordinate,
   bottomLeft: WgsCoordinate
 ) {
+
   private[geozone] def asGeoBoundary: JList[GeoCoord] = {
     util.Arrays.asList(
       new GeoCoord(topLeft.latitude, topLeft.longitude),
       new GeoCoord(topRight.latitude, topRight.longitude),
       new GeoCoord(bottomRight.latitude, bottomRight.longitude),
-      new GeoCoord(bottomLeft.latitude, bottomLeft.longitude),
+      new GeoCoord(bottomLeft.latitude, bottomLeft.longitude)
     )
   }
   def coordinates: Set[WgsCoordinate] = Set(topLeft, topRight, bottomRight, bottomLeft)
@@ -41,7 +42,7 @@ object WgsRectangle {
       topLeft = WgsCoordinate(latitude = latMax, longitude = longMin),
       topRight = WgsCoordinate(latitude = latMax, longitude = longMax),
       bottomRight = WgsCoordinate(latitude = latMin, longitude = longMax),
-      bottomLeft = WgsCoordinate(latitude = latMin, longitude = longMin),
+      bottomLeft = WgsCoordinate(latitude = latMin, longitude = longMin)
     )
   }
 

@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory
   * beam.replanning.ModuleProbability_3 = 0.0
   * beam.replanning.ModuleProbability_4 = 0.0
   */
-class StaticModes @Inject()() extends PlansStrategyAdopter {
+class StaticModes @Inject() () extends PlansStrategyAdopter {
 
   private val log = LoggerFactory.getLogger(classOf[StaticModes])
 

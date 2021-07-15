@@ -25,8 +25,8 @@ abstract class RepositioningManager(
 
 object RepositioningManager {
 
-  def apply[T <: RepositioningManager](beamServices: BeamServices, rideHailManager: RideHailManager)(
-    implicit ct: ClassTag[T]
+  def apply[T <: RepositioningManager](beamServices: BeamServices, rideHailManager: RideHailManager)(implicit
+    ct: ClassTag[T]
   ): T = {
     val constructors = ct.runtimeClass.getDeclaredConstructors
     require(
@@ -39,6 +39,7 @@ object RepositioningManager {
 
 class DefaultRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager) {
+
   override def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     tick: Int
@@ -47,12 +48,13 @@ class DefaultRepositioningManager(val beamServices: BeamServices, val rideHailMa
 
 class TheSameLocationRepositioningManager(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager) {
+
   override def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     tick: Int
   ): Vector[(Id[BeamVehicle], Location)] = {
-    rideHailManager.rideHailManagerHelper.getIdleVehiclesAndFilterOutExluded.map {
-      case (id, rha) => (id, rha.getCurrentLocationUTM(tick, beamServices))
+    rideHailManager.rideHailManagerHelper.getIdleVehiclesAndFilterOutExluded.map { case (id, rha) =>
+      (id, rha.getCurrentLocationUTM(tick, beamServices))
     }.toVector
   }
 }

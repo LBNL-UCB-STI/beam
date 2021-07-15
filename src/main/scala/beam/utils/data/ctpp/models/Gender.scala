@@ -18,6 +18,7 @@ object Gender {
   case object Male extends Gender {
     override def lineNumber: Int = 2
   }
+
   case object Female extends Gender {
     override def lineNumber: Int = 3
   }

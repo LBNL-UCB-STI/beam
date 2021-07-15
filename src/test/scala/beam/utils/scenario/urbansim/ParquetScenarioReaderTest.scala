@@ -29,7 +29,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
         val gr = new GenericRecordMock(Map("key" -> null.asInstanceOf[AnyRef]).asJava)
         the[java.lang.AssertionError] thrownBy {
           ParquetScenarioReader.getIfNotNull(gr, "key")
-        } should have message ("assertion failed: Value in column 'key' is null")
+        } should have message "assertion failed: Value in column 'key' is null"
       }
     }
     "be able to create UnitInfo from GenericRecord" in {
@@ -41,7 +41,11 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
 
     "be able to create ParcelAttribute from GenericRecord" in {
       val gr = new GenericRecordMock(
-        Map("parcel_id" -> "1".asInstanceOf[AnyRef], "x" -> 1.0.asInstanceOf[AnyRef], "y" -> 2.0.asInstanceOf[AnyRef]).asJava
+        Map(
+          "parcel_id" -> "1".asInstanceOf[AnyRef],
+          "x"         -> 1.0.asInstanceOf[AnyRef],
+          "y"         -> 2.0.asInstanceOf[AnyRef]
+        ).asJava
       )
       ParquetScenarioReader.toParcelAttribute(gr) should be(ParcelAttribute(primaryId = "1", x = 1.0, y = 2.0))
     }
@@ -83,7 +87,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
           "x"                -> 2.0.asInstanceOf[AnyRef],
           "y"                -> 3.0.asInstanceOf[AnyRef],
           "endTime"          -> 4.0.asInstanceOf[AnyRef],
-          "mode"             -> "mode".asInstanceOf[AnyRef],
+          "mode"             -> "mode".asInstanceOf[AnyRef]
         ).asJava
       )
       ParquetScenarioReader.toPlanInfo(gr) should be(

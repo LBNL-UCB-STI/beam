@@ -41,9 +41,8 @@ object GeoZone {
   }
 
   private[geozone] def mapCoordinateToIndex(content: GeoZoneContent): Map[WgsCoordinate, H3Index] = {
-    content.flatMap {
-      case (index, coordinates) =>
-        coordinates.map(coordinate => (coordinate, index))
+    content.flatMap { case (index, coordinates) =>
+      coordinates.map(coordinate => (coordinate, index))
     }
   }
 }

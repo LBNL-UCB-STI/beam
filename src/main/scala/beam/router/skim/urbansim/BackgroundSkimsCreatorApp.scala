@@ -48,6 +48,7 @@ for example "--input test/input/beamville/input.csv.gz"
  ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
+
   private val parser = {
     val builder = OParser.builder[InputParameters]
     import builder._
@@ -131,9 +132,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     case Some(params) =>
       implicit val ec = ExecutionContext.global
       try {
-        runWithParams(params).andThen {
-          case _ =>
-            System.exit(0)
+        runWithParams(params).andThen { case _ =>
+          System.exit(0)
         }
       } catch {
         case e: Throwable =>
@@ -180,12 +180,12 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       case None =>
         val origins = tazMap.values
         val destinations = tazMap.values
-        (origins.flatMap { origin =>
+        origins.flatMap { origin =>
           destinations.collect {
             case destination if origin != destination =>
               ODRow(origin, destination)
           }
-        }).toVector
+        }.toVector
     }
     val ODs: Array[(GeoIndex, GeoIndex)] = odRows.map { row =>
       (TAZIndex(tazUnitToTAZ(row.origin)), TAZIndex(tazUnitToTAZ(row.destination)))
@@ -262,6 +262,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     existingSkims: Map[String, Vector[ExcerptData]]
   ): ActivitySimSkimmer =
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
+
       override def writeToDisk(filePath: String): Unit = {
         ProfilingUtils.timed(s"writeFullSkims", v => logger.info(v)) {
           var writer: BufferedWriter = null
@@ -271,19 +272,18 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             writer.write("\n")
 
             ProfilingUtils.timed("Writing skims for time periods for all pathTypes", x => logger.info(x)) {
-              rows.foreach {
-                case ODRow(origin, destination) =>
-                  val skims = existingSkims
-                    .get(origin.id)
-                    .map(_.filter(skim => skim.destinationId == destination.id))
-                    .getOrElse(Vector.empty)
-                  if (skims.nonEmpty) {
-                    skims.foreach(s => writer.write(s.toCsvString))
-                  } else {
-                    getExcerptDataForOD(origin, destination).foreach { excerptData =>
-                      writer.write(excerptData.toCsvString)
-                    }
+              rows.foreach { case ODRow(origin, destination) =>
+                val skims = existingSkims
+                  .get(origin.id)
+                  .map(_.filter(skim => skim.destinationId == destination.id))
+                  .getOrElse(Vector.empty)
+                if (skims.nonEmpty) {
+                  skims.foreach(s => writer.write(s.toCsvString))
+                } else {
+                  getExcerptDataForOD(origin, destination).foreach { excerptData =>
+                    writer.write(excerptData.toCsvString)
                   }
+                }
               }
             }
           } catch {
@@ -311,11 +311,10 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
             writer = org.matsim.core.utils.io.IOUtils.getBufferedWriter(filePath)
             writer.write(skimFileHeader + "\n")
 
-            rows.foreach {
-              case ODRow(origin, destination) =>
-                BeamMode.allModes.foreach { beamMode =>
-                  writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
-                }
+            rows.foreach { case ODRow(origin, destination) =>
+              BeamMode.allModes.foreach { beamMode =>
+                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
+              }
             }
           } catch {
             case NonFatal(ex) =>

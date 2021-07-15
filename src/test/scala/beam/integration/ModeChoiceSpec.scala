@@ -6,7 +6,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
   * Created by fdariasm on 29/08/2017
-  *
   */
 class ModeChoiceSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 

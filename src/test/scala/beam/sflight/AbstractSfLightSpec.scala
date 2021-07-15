@@ -18,8 +18,12 @@ class AbstractSfLightSpec(val name: String)
     with SimRunnerForTest
     with RouterForTest
     with ImplicitSender {
-  lazy implicit val system: ActorSystem = ActorSystem(name, ConfigFactory.parseString("""
-      |akka.test.timefactor=10""".stripMargin))
+
+  lazy implicit val system: ActorSystem = ActorSystem(
+    name,
+    ConfigFactory.parseString("""
+      |akka.test.timefactor=10""".stripMargin)
+  )
 
   def outputDirPath: String = basePath + "/" + testOutputDir + name
   def config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()

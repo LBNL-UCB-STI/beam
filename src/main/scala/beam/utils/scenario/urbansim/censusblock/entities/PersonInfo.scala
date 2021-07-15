@@ -34,6 +34,7 @@ case class InputPersonInfo(
 )
 
 object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
+
   override def transform(rec: util.Map[String, String]): InputPersonInfo = {
     val personId = getIfNotNull(rec, "person_id")
     val householdId = getIfNotNull(rec, "household_id")

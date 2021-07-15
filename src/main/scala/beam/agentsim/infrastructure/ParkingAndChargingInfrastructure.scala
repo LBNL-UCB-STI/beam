@@ -22,6 +22,7 @@ case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelope
 
   // ALL OTHERS
   private val mainParkingFilePath: String = beamConfig.beam.agentsim.taz.parkingFilePath
+
   // ADD HERE ALL PARKING FILES THAT BELONGS TO VEHICLE MANAGERS
   private val vehicleManagersParkingFilePaths: IndexedSeq[String] = {
     val sharedFleetsParkingFilePaths =
@@ -39,6 +40,7 @@ case class ParkingAndChargingInfrastructure(beamServices: BeamServices, envelope
 }
 
 object ParkingAndChargingInfrastructure extends LazyLogging {
+
   private def buildParkingNetwork(
     beamServices: BeamServices,
     envelopeInUTM: Envelope,
@@ -149,21 +151,20 @@ object ParkingAndChargingInfrastructure extends LazyLogging {
           envelopeInUTM.getMaxX,
           envelopeInUTM.getMaxY
         )
-        zones.foreach {
-          case (zone, coord) =>
-            stationsQuadTree.put(
-              coord.getX,
-              coord.getY,
-              ChargingZone(
-                zone.geoId,
-                beamScenario.tazTreeMap.getTAZ(coord).tazId,
-                zone.parkingType,
-                zone.maxStalls,
-                zone.chargingPointType.get,
-                zone.pricingModel.get,
-                zone.vehicleManager
-              )
+        zones.foreach { case (zone, coord) =>
+          stationsQuadTree.put(
+            coord.getX,
+            coord.getY,
+            ChargingZone(
+              zone.geoId,
+              beamScenario.tazTreeMap.getTAZ(coord).tazId,
+              zone.parkingType,
+              zone.maxStalls,
+              zone.chargingPointType.get,
+              zone.pricingModel.get,
+              zone.vehicleManager
             )
+          )
         }
         stationsQuadTree
       }
