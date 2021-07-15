@@ -48,10 +48,9 @@ object PolygonShapeToCsvConverter extends App with StrictLogging {
 
     def writeCenters(path: Path): Try[Unit] = {
       val csvWriter = new CsvWriter(path.toString, Array("taz", "coord-x", "coord-y", "area"))
-      val rows = idToGeom.view.map {
-        case (geoId, geo) =>
-          val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
-          Seq(geoId, utmCoord.getX, utmCoord.getY, geo.getArea)
+      val rows = idToGeom.view.map { case (geoId, geo) =>
+        val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
+        Seq(geoId, utmCoord.getX, utmCoord.getY, geo.getArea)
       }
       csvWriter.writeAllAndClose(rows)
     }
@@ -69,7 +68,7 @@ object PolygonShapeToCsvConverter extends App with StrictLogging {
     crsCode: String,
     idAttributeName: String,
     input: Path,
-    output: Path,
+    output: Path
   )
 
   private def parseArgs(args: Array[String]): Option[CliOptions] = {

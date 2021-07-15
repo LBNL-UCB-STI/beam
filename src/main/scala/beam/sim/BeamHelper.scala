@@ -324,7 +324,7 @@ trait BeamHelper extends LazyLogging {
       linkToTAZMapping,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
-      freightCarriers,
+      freightCarriers
     )
   }
 

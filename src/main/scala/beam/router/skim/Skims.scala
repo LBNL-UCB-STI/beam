@@ -25,7 +25,7 @@ class Skims @Inject() (
   tazSkimmer: TAZSkimmer,
   driveTimeSkimmer: DriveTimeSkimmer,
   transitCrowdingSkimmer: TransitCrowdingSkimmer,
-  asSkimmer: ActivitySimSkimmer,
+  asSkimmer: ActivitySimSkimmer
 ) extends LazyLogging {
 
   import Skims.SkimType
@@ -66,7 +66,7 @@ object Skims {
     SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
     SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
-    SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName,
+    SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
     //we should not put AS_SKIMMER here because it is not used in warm start
   )
 

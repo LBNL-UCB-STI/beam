@@ -2506,12 +2506,14 @@ object BeamConfig {
     )
 
     object Exchange {
+
       case class Output(
         activitySimSkimsEnabled: scala.Boolean,
         geo: BeamConfig.Beam.Exchange.Output.Geo
       )
 
       object Output {
+
         case class Geo(
           filePath: scala.Option[java.lang.String]
         )

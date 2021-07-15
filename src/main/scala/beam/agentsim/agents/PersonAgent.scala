@@ -1064,7 +1064,7 @@ class PersonAgent(
               odSkimmerEvent.generalizedTimeInHours,
               odSkimmerEvent.generalizedCost,
               odSkimmerEvent.energyConsumption,
-              beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name,
+              beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
             )
             eventsManager.processEvent(asSkimmerEvent)
           }

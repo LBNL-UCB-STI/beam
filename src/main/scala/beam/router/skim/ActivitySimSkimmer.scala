@@ -76,7 +76,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       ferryInVehicleTimeInMinutes = aggregate(_.ferryInVehicleTimeInMinutes),
       lightRailInVehicleTimeInMinutes = aggregate(_.lightRailInVehicleTimeInMinutes),
       transitBoardingsCount = aggregate(_.transitBoardingsCount),
-      observations = (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations =
+        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -167,14 +168,12 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
       val excerptData = readOnlySkim.currentSkim
         .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
-        .groupBy {
-          case (key, _) =>
-            val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
-            ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
+        .groupBy { case (key, _) =>
+          val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
+          ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
         }
-        .map {
-          case (key, skimMap) =>
-            weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
+        .map { case (key, skimMap) =>
+          weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
 
       val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
@@ -360,7 +359,7 @@ object ActivitySimSkimmer extends LazyLogging {
       "FERRYIVT_minutes",
       "BOARDS",
       "WeightedCost",
-      "DEBUG_TEXT",
+      "DEBUG_TEXT"
     )
 
     val csvHeader: String = csvHeaderSeq.mkString(",")
