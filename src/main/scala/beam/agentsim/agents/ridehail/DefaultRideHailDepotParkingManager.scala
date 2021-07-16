@@ -148,19 +148,22 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[VehicleId, ParkingStall]
   private val vehiclesOnWayToDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
+
   private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, ParkingZoneId] =
     mutable.Map.empty[VehicleId, ParkingZoneId]
+
   private val vehicleIdToLastObservedTickAndAction: mutable.Map[VehicleId, mutable.ListBuffer[(Int, String)]] =
     mutable.Map.empty[VehicleId, mutable.ListBuffer[(Int, String)]]
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
+
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
    * accessible via a Map on the ParkingZoneId
    */
   private val parkingZoneIdToParkingZoneDepotData: mutable.Map[ParkingZoneId, ParkingZoneDepotData] =
     mutable.Map.empty[ParkingZoneId, ParkingZoneDepotData]
-  rideHailParkingZones.foreach(
-    parkingZone => parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
+  rideHailParkingZones.foreach(parkingZone =>
+    parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
   )
 
   /*
@@ -281,15 +284,16 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <- ParkingZoneSearch
-        .incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction,
-          geoToTAZ
-        )
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <-
+        ParkingZoneSearch
+          .incrementalParkingZoneSearch(
+            parkingZoneSearchConfiguration,
+            parkingZoneSearchParams,
+            parkingZoneFilterFunction,
+            parkingZoneLocSamplingFunction,
+            parkingZoneMNLParamsFunction,
+            geoToTAZ
+          )
     } yield {
 
       logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
@@ -329,9 +333,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
     val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
     val chargingQueue = parkingZoneDepotData.chargingQueue
-    val chargeDurationFromQueue = chargingQueue.map {
-      case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
+    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
+      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
     }.sum
     val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
     val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
@@ -341,7 +344,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       case numInQueue =>
         (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
     }
-    val adjustedQueueServiceTime = (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
+    val adjustedQueueServiceTime =
+      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
     val result = Math
       .round(
         (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
@@ -596,12 +600,11 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @param newVehiclesHeadedToDepot
     */
   def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
-    newVehiclesHeadedToDepot.foreach {
-      case (vehicleId, parkingStall) =>
-        logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
-        vehiclesOnWayToDepot.put(vehicleId, parkingStall)
-        val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
-        parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
+    newVehiclesHeadedToDepot.foreach { case (vehicleId, parkingStall) =>
+      logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
+      vehiclesOnWayToDepot.put(vehicleId, parkingStall)
+      val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
+      parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
     }
   }
 
@@ -620,7 +623,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @return
     */
   def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean =
-    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(vehicleId) || vehiclesInQueueToParkingZoneId
+    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(
+      vehicleId
+    ) || vehiclesInQueueToParkingZoneId
       .contains(vehicleId)
 
   /**

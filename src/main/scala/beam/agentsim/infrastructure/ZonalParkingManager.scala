@@ -79,7 +79,8 @@ class ZonalParkingManager[GEO: GeoLevel](
     if (inquiry.reserveStall) {
 
       logger.debug(
-        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
+        else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
       )
 
       // update the parking stall data
@@ -207,7 +208,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         parkingZones,
         geoQuadTree,
         rand,
-        preferredParkingTypes,
+        preferredParkingTypes
       )
 
     // filters out ParkingZones which do not apply to this agent
@@ -232,41 +233,43 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
         val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-        val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(
-          vehicle => zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
+        val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
+          zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
         )
 
-        val isValidTime = inquiry.beamVehicle.forall(
-          vehicle =>
-            zone.timeRestrictions
-              .get(vehicle.beamVehicleType.vehicleCategory)
-              .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
+        val isValidTime = inquiry.beamVehicle.forall(vehicle =>
+          zone.timeRestrictions
+            .get(vehicle.beamVehicleType.vehicleCategory)
+            .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
         )
 
         val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-          zone.vehicleManager.isEmpty || vehicle.vehicleManager == zone.vehicleManager
+          if (vehicle.isSharedVehicle) {
+            vehicle.vehicleManager == zone.vehicleManager
+          } else {
+            zone.vehicleManager.isEmpty || vehicle.vehicleManager == zone.vehicleManager
+          }
         }
 
-        val validChargingCapability = inquiry.beamVehicle.forall(
-          vehicle =>
-            vehicle.beamVehicleType.chargingCapability match {
+        val validChargingCapability = inquiry.beamVehicle.forall(vehicle =>
+          vehicle.beamVehicleType.chargingCapability match {
 
-              // if the charging zone has no charging point then by default the vehicle has valid charging capability
-              case Some(_) if zone.chargingPointType.isEmpty => true
+            // if the charging zone has no charging point then by default the vehicle has valid charging capability
+            case Some(_) if zone.chargingPointType.isEmpty => true
 
-              // if the vehicle is FC capable, it cannot charges in XFC charging points
-              case Some(chargingCapability) if chargingCapability == ChargingCapability.DCFC =>
-                ChargingPointType
-                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdXFCinKW
+            // if the vehicle is FC capable, it cannot charges in XFC charging points
+            case Some(chargingCapability) if chargingCapability == ChargingCapability.DCFC =>
+              ChargingPointType
+                .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdXFCinKW
 
-              // if the vehicle is not capable of DCFC, it can only charges in level 1 and 2
-              case Some(chargingCapability) if chargingCapability == ChargingCapability.AC =>
-                ChargingPointType
-                  .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdDCFCinKW
+            // if the vehicle is not capable of DCFC, it can only charges in level 1 and 2
+            case Some(chargingCapability) if chargingCapability == ChargingCapability.AC =>
+              ChargingPointType
+                .getChargingPointInstalledPowerInKw(zone.chargingPointType.get) < chargingPointConfig.thresholdDCFCinKW
 
-              // EITHER the vehicle is XFC capable and it can charges everywhere
-              // OR the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
-              case _ => true
+            // EITHER the vehicle is XFC capable and it can charges everywhere
+            // OR the vehicle has no charging capability defined and we flag it as valid, to ensure backward compatibility
+            case _ => true
           }
         )
 
@@ -331,13 +334,13 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
             }
             .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
-        val distanceFactor
-          : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+        val distanceFactor: Double =
+          (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
 
         val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
-        val goingHome
-          : Boolean = inquiry.activityTypeLowerCased == "home" && parkingAlternative.parkingType == ParkingType.Residential
+        val goingHome: Boolean =
+          inquiry.activityTypeLowerCased == "home" && parkingAlternative.parkingType == ParkingType.Residential
         val chargingVehicle: Boolean = inquiry.beamVehicle match {
           case Some(beamVehicle) =>
             beamVehicle.beamVehicleType.primaryFuelType match {
@@ -396,7 +399,7 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
         parkingZoneFilterFunction,
         parkingZoneLocSamplingFunction,
         parkingZoneMNLParamsFunction,
-        geoToTAZ,
+        geoToTAZ
       ) match {
         case Some(result) =>
           result
@@ -439,11 +442,10 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
 
   def chargingTypeToNo(parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)]): String = {
     parkingZonesSampled
-      .map(
-        triple =>
-          triple._2 match {
-            case Some(x) => x
-            case None    => "NoCharger"
+      .map(triple =>
+        triple._2 match {
+          case Some(x) => x
+          case None    => "NoCharger"
         }
       )
       .groupBy(identity)
@@ -633,26 +635,25 @@ object ZonalParkingManager extends LazyLogging {
           )
       }
     }
-    val parkingLoadingAccumulator = depotFilePaths.foldLeft(initialAccumulator) {
-      case (acc, filePath) =>
-        filePath.trim match {
-          case "" => acc
-          case depotParkingFilePath @ _ =>
-            Try {
-              ParkingZoneFileUtils.fromFileToAccumulator(
-                depotParkingFilePath,
-                random,
-                parkingStallCountScalingFactor,
-                parkingCostScalingFactor,
-                acc
-              )
-            } match {
-              case Success(accumulator) => accumulator
-              case Failure(e) =>
-                logger.error(s"unable to read contents of provided parking file $depotParkingFilePath", e)
-                acc
-            }
-        }
+    val parkingLoadingAccumulator = depotFilePaths.foldLeft(initialAccumulator) { case (acc, filePath) =>
+      filePath.trim match {
+        case "" => acc
+        case depotParkingFilePath @ _ =>
+          Try {
+            ParkingZoneFileUtils.fromFileToAccumulator(
+              depotParkingFilePath,
+              random,
+              parkingStallCountScalingFactor,
+              parkingCostScalingFactor,
+              acc
+            )
+          } match {
+            case Success(accumulator) => accumulator
+            case Failure(e) =>
+              logger.error(s"unable to read contents of provided parking file $depotParkingFilePath", e)
+              acc
+          }
+      }
     }
     (parkingLoadingAccumulator.zones.toArray, parkingLoadingAccumulator.tree)
   }

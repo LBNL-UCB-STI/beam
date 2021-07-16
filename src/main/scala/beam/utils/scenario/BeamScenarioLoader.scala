@@ -287,7 +287,8 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
     val householdIdToVehicles = vehicles
       .groupBy(_.householdId)
       .map {
-        case (id, vehicleInfo) => HouseholdId(id) -> vehicleInfo
+        case (id, vehicleInfo) =>
+          HouseholdId(id) -> vehicleInfo
       }
 
     val householdIdToPersons = people.groupBy(_.householdId)

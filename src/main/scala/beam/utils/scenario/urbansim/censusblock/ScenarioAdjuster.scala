@@ -62,6 +62,7 @@ class ScenarioAdjuster(val urbansim: Beam.Urbansim, val population: Population, 
 }
 
 object ScenarioAdjuster extends StrictLogging {
+
   private[censusblock] def clearModes(
     persons: Iterable[Person],
     mode: String,
@@ -69,7 +70,7 @@ object ScenarioAdjuster extends StrictLogging {
     fractionToClear: Double,
     seed: Int
   ): Unit = {
-    if (!fractionToClear.equals(0D)) {
+    if (!fractionToClear.equals(0d)) {
       val allLegsWithMode = persons.flatMap { person: Person =>
         val legs = person.getSelectedPlan.getPlanElements.asScala.collect {
           case leg: Leg if predicate(leg) => leg

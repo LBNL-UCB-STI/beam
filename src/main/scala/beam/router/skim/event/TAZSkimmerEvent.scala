@@ -17,6 +17,7 @@ case class TAZSkimmerEvent(
   private val hexIndex = beamServices.beamScenario.h3taz.getIndex(coord)
   private val idTaz = beamServices.beamScenario.h3taz.getTAZ(hexIndex)
   override def getKey: AbstractSkimmerKey = TAZSkimmerKey(time, idTaz, hexIndex, actor, key)
+
   override def getSkimmerInternal: AbstractSkimmerInternal =
     TAZSkimmerInternal(value, 1, beamServices.matsimServices.getIterationNumber + 1)
 }

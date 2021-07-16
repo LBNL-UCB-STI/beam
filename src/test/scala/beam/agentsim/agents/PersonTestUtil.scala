@@ -1,4 +1,5 @@
 package beam.agentsim.agents
+
 import beam.router.Modes.BeamMode
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.matsim.api.core.v01.population.Person

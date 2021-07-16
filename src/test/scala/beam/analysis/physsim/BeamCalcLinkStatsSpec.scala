@@ -79,9 +79,8 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
     "Each link contains 93 records" in {
       val expetedResult = TFHours * TypeStats
       val map = mapGroupRecordForLinks(0, fileCsvPath)
-      map.foreach {
-        case (_, link) =>
-          link.size shouldBe expetedResult
+      map.foreach { case (_, link) =>
+        link.size shouldBe expetedResult
       }
     }
   }

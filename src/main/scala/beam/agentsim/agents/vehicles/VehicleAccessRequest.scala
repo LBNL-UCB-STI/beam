@@ -12,7 +12,7 @@ case class ReservationRequest(
   departFrom: BeamLeg,
   arriveAt: BeamLeg,
   passengerVehiclePersonId: PersonIdWithActorRef,
-  triggerId: Long,
+  triggerId: Long
 )
 
 object ReservationRequest {
@@ -28,7 +28,7 @@ object ReservationRequest {
       departFrom,
       arriveAt,
       passengerVehiclePersonId,
-      triggerId,
+      triggerId
     )
 }
 

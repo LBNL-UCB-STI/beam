@@ -20,8 +20,8 @@ object MutableVehiclesFilter {
     val vehicleTypeSamplesMap = Map(vehicleSampling.map(vs => vs.vehicleType -> vs.percentage): _*)
 
     val selectNewVehicleByIdType: (String, String) => Boolean =
-      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0)(_, _) => true
-      else if (vehicleSampling.isEmpty)(_, _) => Math.random() <= vehicleSamplingOtherTypes
+      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0) (_, _) => true
+      else if (vehicleSampling.isEmpty) (_, _) => Math.random() <= vehicleSamplingOtherTypes
       else if (vehicleSamplingOtherTypes >= 1.0) { (_, vehicleType) =>
         vehicleTypeSamplesMap.get(vehicleType) match {
           case Some(percentage) => Math.random() <= percentage
@@ -50,8 +50,8 @@ object MutableVehiclesFilter {
     val vehicleTypeSamplesMap = Map(vehicleSampling.map(vs => vs.vehicleType -> vs.percentage): _*)
 
     val selectNewVehicleByIdType: (String, String) => Boolean =
-      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0)(_, _) => true
-      else if (vehicleSampling.isEmpty)(_, _) => Math.random() <= vehicleSamplingOtherTypes
+      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0) (_, _) => true
+      else if (vehicleSampling.isEmpty) (_, _) => Math.random() <= vehicleSamplingOtherTypes
       else if (vehicleSamplingOtherTypes >= 1.0) { (vId, vehicleType) =>
         !excludedVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
           case Some(percentage) => Math.random() <= percentage
@@ -80,9 +80,9 @@ object MutableVehiclesFilter {
     val vehicleTypeSamplesMap = Map(vehicleSampling.map(vs => vs.vehicleType -> vs.percentage): _*)
 
     val selectNewVehicleByIdType: (String, String) => Boolean =
-      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0)(vId, _) => preSelectVehicles.contains(vId)
-      else if (vehicleSampling.isEmpty)(vId, _) =>
-        preSelectVehicles.contains(vId) && Math.random() <= vehicleSamplingOtherTypes
+      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0) (vId, _) => preSelectVehicles.contains(vId)
+      else if (vehicleSampling.isEmpty)
+        (vId, _) => preSelectVehicles.contains(vId) && Math.random() <= vehicleSamplingOtherTypes
       else if (vehicleSamplingOtherTypes >= 1.0) { (vId, vehicleType) =>
         preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
           case Some(percentage) => Math.random() <= percentage
@@ -112,18 +112,21 @@ object MutableVehiclesFilter {
     val vehicleTypeSamplesMap = Map(vehicleSampling.map(vs => vs.vehicleType -> vs.percentage): _*)
 
     val selectNewVehicleByIdType: (String, String) => Boolean =
-      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0)(vId, _) =>
-        necessaryVehicles.contains(vId) || preSelectVehicles.contains(vId)
-      else if (vehicleSampling.isEmpty)(vId, _) =>
-        necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && Math
-          .random() <= vehicleSamplingOtherTypes)
+      if (vehicleSampling.isEmpty && vehicleSamplingOtherTypes >= 1.0)
+        (vId, _) => necessaryVehicles.contains(vId) || preSelectVehicles.contains(vId)
+      else if (vehicleSampling.isEmpty)
+        (vId, _) =>
+          necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && Math
+            .random() <= vehicleSamplingOtherTypes)
       else if (vehicleSamplingOtherTypes >= 1.0) { (vId, vehicleType) =>
-        necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
+        necessaryVehicles
+          .contains(vId) || (preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
           case Some(percentage) => Math.random() <= percentage
           case None             => true
         }))
       } else { (vId, vehicleType) =>
-        necessaryVehicles.contains(vId) || (preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
+        necessaryVehicles
+          .contains(vId) || (preSelectVehicles.contains(vId) && (vehicleTypeSamplesMap.get(vehicleType) match {
           case Some(percentage) => Math.random() <= percentage
           case None             => Math.random() <= vehicleSamplingOtherTypes
         }))

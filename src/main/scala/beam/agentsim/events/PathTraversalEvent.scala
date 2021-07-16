@@ -40,7 +40,8 @@ case class PathTraversalEvent(
   amountPaid: Double,
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
-  currentTourMode: Option[String], /*,
+  currentTourMode: Option[String],
+  /*,
   linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
   linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
   linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
@@ -166,7 +167,8 @@ object PathTraversalEvent {
     secondaryFuelConsumed: Double,
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
-    amountPaid: Double, /*
+    amountPaid: Double,
+    /*
     linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
     linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
     linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],

@@ -19,6 +19,7 @@ import org.supercsv.prefs.CsvPreference
 case class VehicleLocation(vehicleId: Id[BeamVehicle], x: Double, y: Double, time: Int, numOfPassangers: Int)
 
 object RepositioningAnalyzer extends LazyLogging {
+
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")

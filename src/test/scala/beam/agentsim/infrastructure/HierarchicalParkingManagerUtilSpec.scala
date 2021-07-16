@@ -29,17 +29,16 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83661) -> Id.create(100026, classOf[TAZ]),
-          Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ]),
+          Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ])
         )
         private val (tazZones, linkToTaz) =
           HierarchicalParkingManager.convertToTazParkingZones(linkZones.toArray, linkToTazMapping)
 
         println(tazZones.mkString("Array(", ", ", ")"))
         tazZones.length should be(9)
-        val joinZone: Option[ParkingZone[TAZ]] = tazZones.find(
-          zone =>
-            zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
-              CustomChargingPoint("dcfast", 50.0, DC)
+        val joinZone: Option[ParkingZone[TAZ]] = tazZones.find(zone =>
+          zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
+            CustomChargingPoint("dcfast", 50.0, DC)
           )
         )
 
@@ -82,7 +81,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
             ParkingZoneFileUtils
               .fromFile[TAZ](
                 "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
-                new Random(777934L),
+                new Random(777934L)
               )
           parkingZones should have length 3648
           val zones205 = parkingZones.filter(_.geoId.toString == "205")
@@ -100,7 +99,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           ParkingZoneFileUtils
             .fromFile[TAZ](
               "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
-              new Random(777934L),
+              new Random(777934L)
             )
         parkingZones should have length 3648
         val zones205 = parkingZones.filter(_.geoId.toString == "205")

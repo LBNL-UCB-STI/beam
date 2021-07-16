@@ -18,6 +18,7 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
     })
 
   def toPathStr(strPath: String): String = Paths.get(strPath).toString
+
   private val mockText = Array(
     "# This version, base-sf-light.conf, is configured to use a subsample of the population located in:",
     "#  ${beam.inputDirectory}\"/sample\"",

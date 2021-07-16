@@ -15,6 +15,7 @@ import scala.collection.mutable
   */
 class NoChargingManager(beamServices: BeamServices, resources: mutable.Map[Id[BeamVehicle], BeamVehicle])
     extends VehicleChargingManager(beamServices, resources) {
+
   override def findStationsForVehiclesInNeedOfCharging(
     tick: Int,
     idleVehicles: collection.Map[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]

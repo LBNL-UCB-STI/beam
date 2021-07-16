@@ -172,6 +172,7 @@ object PersonAgent {
     numberOfReplanningAttempts: Int = 0,
     lastUsedParkingStall: Option[ParkingStall] = None
   ) extends PersonData {
+
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
 
@@ -416,7 +417,9 @@ class PersonAgent(
   startWith(Uninitialized, BasePersonData())
 
   def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
-    attributes.unitConversionVOTT(timeInSeconds) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
+    attributes.unitConversionVOTT(
+      timeInSeconds
+    ) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
   }
 
   def currentTour(data: BasePersonData): Tour = {
@@ -565,7 +568,7 @@ class PersonAgent(
 
     /**
       * Callback from [[ChoosesMode]]
-      **/
+      */
     case Event(
         TriggerWithId(PersonDepartureTrigger(tick), triggerId),
         data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
@@ -969,16 +972,14 @@ class PersonAgent(
         nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
         nextLeg.beamLeg.travelPath.transitStops.get.toIdx,
         PersonIdWithActorRef(id, self),
-        getCurrentTriggerIdOrGenerate,
+        getCurrentTriggerIdOrGenerate
       )
       TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _))
         if nextLeg.isRideHail =>
-      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
-        leg => leg.beamVehicleId == nextLeg.beamVehicleId
-      )
+      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
 
       rideHailManager ! RideHailRequest(
         ReserveRide,
@@ -989,7 +990,7 @@ class PersonAgent(
         nextLeg.isPooledTrip,
         requestTime = _currentTick,
         quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
-        triggerId = getCurrentTriggerIdOrGenerate,
+        triggerId = getCurrentTriggerIdOrGenerate
       )
 
       eventsManager.processEvent(
@@ -1025,14 +1026,12 @@ class PersonAgent(
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _)) =>
-      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(
-        leg => leg.beamVehicleId == nextLeg.beamVehicleId
-      )
+      val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
         legSegment.last.beamLeg,
         PersonIdWithActorRef(id, self),
-        getCurrentTriggerIdOrGenerate,
+        getCurrentTriggerIdOrGenerate
       )
       context.actorSelection(
         householdRef.path.child(HouseholdCAVDriverAgent.idFromVehicleId(nextLeg.beamVehicleId).toString)
@@ -1245,7 +1244,8 @@ class PersonAgent(
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
     data.currentTourMode
       .collect {
-        case mode => s"$prefix $mode"
+        case mode =>
+          s"$prefix $mode"
       }
       .getOrElse(prefix)
   }
@@ -1334,7 +1334,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _,
+          _
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
@@ -1361,7 +1361,7 @@ class PersonAgent(
           _,
           _,
           _,
-          _,
+          _
         )
         ) =>
       handleBoardOrAlightOutOfPlace(triggerId, currentTrip)

@@ -49,9 +49,8 @@ class ChargingNetworkManager(
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
   private val chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork] =
-    chargingInfrastructure.chargingNetwork.map {
-      case (vehicleManagerId, zones) =>
-        vehicleManagerId -> new ChargingNetwork(vehicleManagerId, zones)
+    chargingInfrastructure.chargingNetwork.map { case (vehicleManagerId, zones) =>
+      vehicleManagerId -> new ChargingNetwork(vehicleManagerId, zones)
     }
 
   private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
@@ -256,13 +255,12 @@ class ChargingNetworkManager(
   ): Vector[ScheduleTrigger] = {
     chargingNetworkMap
       .flatMap(_._2.vehicles)
-      .map {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, status, _)) =>
-          if (status.last == Connected) {
-            val (duration, energy) = dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
-            chargingVehicle.processChargingCycle(tick, energy, duration)
-          }
-          ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
+      .map { case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, status, _)) =>
+        if (status.last == Connected) {
+          val (duration, energy) = dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
+          chargingVehicle.processChargingCycle(tick, energy, duration)
+        }
+        ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
       }
       .toVector
   }
@@ -409,6 +407,7 @@ object ChargingNetworkManager {
     vehicleManager: Option[Id[VehicleManager]]
   ) {
     val id: String = constructChargingZoneKey(vehicleManager, geoId, parkingType, chargingPointType)
+
     override def equals(that: Any): Boolean =
       that match {
         case that: ChargingZone =>

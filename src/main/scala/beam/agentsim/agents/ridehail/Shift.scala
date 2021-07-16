@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.Coord
   * @param startLocation an optional coordinate for the starting location of the shift
   */
 case class Shift(range: Range, startLocation: Option[Coord]) {
+
   override def toString(): String = {
     val locationStr = startLocation
       .map { location =>

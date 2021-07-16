@@ -27,10 +27,9 @@ class CsvWriter(
   }
 
   def writeRow(values: Seq[Any]): Unit = {
-    values.zipWithIndex.foreach {
-      case (value, idx) =>
-        val shouldAddDelimiter = idx != values.length - 1
-        CsvWriter.writeColumnValue(value, shouldAddDelimiter)
+    values.zipWithIndex.foreach { case (value, idx) =>
+      val shouldAddDelimiter = idx != values.length - 1
+      CsvWriter.writeColumnValue(value, shouldAddDelimiter)
     }
     CsvWriter.writeLineSeparator
   }
@@ -67,7 +66,8 @@ object CsvWriter {
       case x       => x
     }
     val strValue = toWrite.toString
-    val strValueToAppend = if (strValue.contains(',')) "\"" + strValue + "\"" else strValue
+    val strValueToAppend =
+      if (!strValue.startsWith("\"") && strValue.contains(',')) "\"" + strValue + "\"" else strValue
     wrt.append(strValueToAppend)
     if (shouldAddDelimiter)
       wrt.append(delimiter.value)
@@ -76,10 +76,9 @@ object CsvWriter {
   def writeHeader(
     headers: Seq[String]
   )(implicit wrt: Writer, delimiter: Delimiter, lineSeparator: LineSeparator): Unit = {
-    headers.zipWithIndex.foreach {
-      case (header, idx) =>
-        val shouldAddDelimiter = idx != headers.size - 1
-        writeColumnValue(header, shouldAddDelimiter)
+    headers.zipWithIndex.foreach { case (header, idx) =>
+      val shouldAddDelimiter = idx != headers.size - 1
+      writeColumnValue(header, shouldAddDelimiter)
     }
     wrt.append(lineSeparator.value)
     wrt.flush()

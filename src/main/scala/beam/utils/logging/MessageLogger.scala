@@ -84,7 +84,7 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
       "payload",
       "state",
       "tick",
-      "triggerId",
+      "triggerId"
     )
   }
 
@@ -138,6 +138,7 @@ object MessageLogger {
 
   case class BeamMessage(sender: ActorRef, receiver: ActorRef, payload: Any)
   case class BeamFSMMessage(sender: ActorRef, actor: ActorRef, event: Event[_], tick: Int, agentTriggerId: Long)
+
   case class BeamStateTransition[S](
     sender: ActorRef,
     actor: ActorRef,

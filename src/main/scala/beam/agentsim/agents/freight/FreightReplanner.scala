@@ -23,7 +23,7 @@ import scala.util.Random
 class FreightReplanner(
   beamServices: BeamServices,
   skimmer: ODSkims,
-  rnd: Random,
+  rnd: Random
 ) extends LazyLogging {
 
   def replanIfNeeded(
@@ -61,25 +61,23 @@ class FreightReplanner(
     population: util.Map[Id[Person], _ <: Person],
     freightCarrier: FreightCarrier
   ): Iterable[Plan] = {
-    routes.groupBy(_.vehicle.id).map {
-      case (vehicleIdStr, routes) =>
-        val vehicleId = Id.createVehicleId(vehicleIdStr)
-        val person = population.get(PayloadPlansConverter.createPersonId(vehicleId))
+    routes.groupBy(_.vehicle.id).map { case (vehicleIdStr, routes) =>
+      val vehicleId = Id.createVehicleId(vehicleIdStr)
+      val person = population.get(PayloadPlansConverter.createPersonId(vehicleId))
 
-        val toursAndPlans = routes.zipWithIndex.map {
-          case (route, i) =>
-            convertToFreightTourWithPayloadPlans(
-              s"freight-tour-${route.vehicle.id}-$i".createId,
-              route,
-              freightCarrier.payloadPlans
-            )
-        }
-        val tours = toursAndPlans.map(_._1)
-        val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
+      val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
+        convertToFreightTourWithPayloadPlans(
+          s"freight-tour-${route.vehicle.id}-$i".createId,
+          route,
+          freightCarrier.payloadPlans
+        )
+      }
+      val tours = toursAndPlans.map(_._1)
+      val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
 
-        val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
-        PayloadPlansConverter
-          .createPersonPlan(tours, plansPerTour, person, if (convertWgs2Utm) Some(beamServices.geo) else None)
+      val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
+      PayloadPlansConverter
+        .createPersonPlan(tours, plansPerTour, person, if (convertWgs2Utm) Some(beamServices.geo) else None)
     }
   }
 
@@ -95,25 +93,24 @@ class FreightReplanner(
       route.duration * 2
     )
 
-    val plans = route.activities.zipWithIndex.map {
-      case (activity, i) =>
-        val freightRequestType: FreightRequestType = activity.service match {
-          case _: Dropoff => FreightRequestType.Unloading
-          case _: Pickup  => FreightRequestType.Loading
-        }
-        val payloadPlan = payloadPlans(activity.service.id.createId)
-        PayloadPlan(
-          activity.service.id.createId,
-          i,
-          tour.tourId,
-          payloadPlan.payloadType,
-          activity.service.capacity,
-          freightRequestType,
-          activity.service.location,
-          activity.arrivalTime,
-          payloadPlan.arrivalTimeWindowInSec,
-          payloadPlan.operationDurationInSec,
-        )
+    val plans = route.activities.zipWithIndex.map { case (activity, i) =>
+      val freightRequestType: FreightRequestType = activity.service match {
+        case _: Dropoff => FreightRequestType.Unloading
+        case _: Pickup  => FreightRequestType.Loading
+      }
+      val payloadPlan = payloadPlans(activity.service.id.createId)
+      PayloadPlan(
+        activity.service.id.createId,
+        i,
+        tour.tourId,
+        payloadPlan.payloadType,
+        activity.service.capacity,
+        freightRequestType,
+        activity.service.location,
+        activity.arrivalTime,
+        payloadPlan.arrivalTimeWindowInSec,
+        payloadPlan.operationDurationInSec
+      )
     }
     (tour, plans)
   }
@@ -180,7 +177,7 @@ class FreightReplanner(
         beamVehicle.id.toString,
         getVehicleHouseholdLocation(beamVehicle),
         beamVehicle.beamVehicleType.payloadCapacityInKg.get,
-        departureTime,
+        departureTime
       )
     }
 
@@ -230,13 +227,12 @@ class FreightReplanner(
         solveForVehicleTour
     }
 
-    solution.routes.foreach(
-      route =>
-        logger.debug(
-          "Found route for vehicle {}, start time {}, number of services: {}",
-          route.vehicle.id,
-          route.startTime,
-          route.activities.size
+    solution.routes.foreach(route =>
+      logger.debug(
+        "Found route for vehicle {}, start time {}, number of services: {}",
+        route.vehicle.id,
+        route.startTime,
+        route.activities.size
       )
     )
 
@@ -248,6 +244,7 @@ class FreightReplanner(
 }
 
 object FreightReplanner {
+
   private def needReplanning(
     iteration: Int,
     freightCarrier: FreightCarrier,

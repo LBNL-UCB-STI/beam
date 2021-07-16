@@ -12,7 +12,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) extends AbstractSkimmerReadOnly {

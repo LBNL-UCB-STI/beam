@@ -37,17 +37,16 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     val scenario = new Scenario()
     val adjustmentsByRouteId: Map[String, Set[FrequencyAdjustmentInput]] =
       adjustmentInputs.groupBy(adjustment => s"${feeds.head.feedId}:${getTripForId(adjustment.tripId).route_id}")
-    util.Arrays.asList(adjustmentsByRouteId.foreach {
-      case (rid, adjustments) =>
-        val adjustFrequency: AdjustFrequency = new AdjustFrequency
-        adjustFrequency.route = rid
-        val entries: util.Set[AddTrips.PatternTimetable] = adjustments.map { adjustmentInput =>
-          adjustTripFrequency(adjustmentInput)
-        }.asJava
-        val listEntries: util.List[AddTrips.PatternTimetable] = new util.ArrayList[AddTrips.PatternTimetable]()
-        listEntries.addAll(entries)
-        adjustFrequency.entries = listEntries
-        scenario.modifications.add(adjustFrequency)
+    util.Arrays.asList(adjustmentsByRouteId.foreach { case (rid, adjustments) =>
+      val adjustFrequency: AdjustFrequency = new AdjustFrequency
+      adjustFrequency.route = rid
+      val entries: util.Set[AddTrips.PatternTimetable] = adjustments.map { adjustmentInput =>
+        adjustTripFrequency(adjustmentInput)
+      }.asJava
+      val listEntries: util.List[AddTrips.PatternTimetable] = new util.ArrayList[AddTrips.PatternTimetable]()
+      listEntries.addAll(entries)
+      adjustFrequency.entries = listEntries
+      scenario.modifications.add(adjustFrequency)
     })
 
     scenario

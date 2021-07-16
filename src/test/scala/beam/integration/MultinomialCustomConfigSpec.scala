@@ -58,7 +58,7 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode bike when intercept is very high versus very low" taggedAs (FlakyTest) in {
+    "Prefer mode bike when intercept is very high versus very low" taggedAs FlakyTest in {
 
       val config1: Config = baseConfig
         .withValue(

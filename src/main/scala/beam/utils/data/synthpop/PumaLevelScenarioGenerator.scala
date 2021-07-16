@@ -36,7 +36,7 @@ class PumaLevelScenarioGenerator(
   val pathToOsmMap: String,
   val randomSeed: Int,
   val offPeakSpeedMetersPerSecond: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
-  val defaultValueOfTime: Double = 8.0,
+  val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
 
@@ -83,10 +83,13 @@ class PumaLevelScenarioGenerator(
 
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
     new RandomWorkDestinationGenerator(dbInfo)
+
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
+
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
+
   private val sourceToTimeLeavingOD =
     new TimeLeavingHomeTableReader(dbInfo, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
@@ -104,8 +107,10 @@ class PumaLevelScenarioGenerator(
       }
       .groupBy(x => x.id)
       .map { case (hhId, xs) => hhId -> xs.head }
+
   private val householdIdToPersons: Map[String, Seq[Models.Person]] =
     new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
+
   private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = householdIdToPersons.map {
     case (hhId, persons) =>
       val household = households(hhId)
