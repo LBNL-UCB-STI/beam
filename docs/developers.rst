@@ -198,7 +198,7 @@ For demo and presentation material, please follow the link_ on google drive.
 BEAM run on NERSC
 ~~~~~~~~~~~~~~~~~
 
-In order to run BEAM on NERSC one needs to get an `ssh key <https://docs.nersc.gov/connect/mfa/#sshproxy>`_ that allows you to ssh to NERSC sstems without further authentication until the key expires (24 hours). You also need to specify your user name on NERSC in the following property: **nerscUser**, i.e::
+In order to run BEAM on NERSC one needs to get an `ssh key <https://docs.nersc.gov/connect/mfa/#sshproxy>`_ that allows you to ssh to NERSC systems without further authentication until the key expires (24 hours). You also need to specify your user name on NERSC in the following property: **nerscUser**, i.e::
 
  ./gradlew deployToNersc -PnerscUser=dmitriio
 
