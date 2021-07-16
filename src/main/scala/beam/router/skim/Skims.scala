@@ -67,7 +67,6 @@ object Skims {
     SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
     SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
-    //we should not put AS_SKIMMER here because it is not used in warm start
   )
 
   def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =
