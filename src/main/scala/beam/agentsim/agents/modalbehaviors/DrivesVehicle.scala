@@ -234,8 +234,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   when(Driving) {
     case Event(
-        TriggerWithId(EndLegTrigger(tick), triggerId),
-        LiterallyDrivingData(data: BasePersonData, _, _)
+          TriggerWithId(EndLegTrigger(tick), triggerId),
+          LiterallyDrivingData(data: BasePersonData, _, _)
         ) if data.currentTourMode.contains(HOV2_TELEPORTATION) || data.currentTourMode.contains(HOV3_TELEPORTATION) =>
       updateLatestObservedTick(tick)
 

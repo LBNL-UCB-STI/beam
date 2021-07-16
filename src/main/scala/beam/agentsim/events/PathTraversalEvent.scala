@@ -206,7 +206,8 @@ object PathTraversalEvent {
       amountPaid = amountPaid,
       fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
       toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx),
-      currentTourMode = currentTourMode, /*
+      currentTourMode = currentTourMode,
+      /*
       linkIdsToLaneOptions = linkIdsToLaneOptions,
       linkIdsToSpeedOptions = linkIdsToSpeedOptions,
       linkIdsToGradientOptions = linkIdsToGradientOptions,

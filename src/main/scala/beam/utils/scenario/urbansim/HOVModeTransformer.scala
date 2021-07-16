@@ -16,7 +16,8 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.collection.mutable
 import scala.util.Random
 
-/** ActivitySim HOV modes transformer to their Beam representation.
+/**
+  * ActivitySim HOV modes transformer to their Beam representation.
   *
   * ActivitySim provide modes wider than beam modes, like `HOV2` and `HOV3`. <br>
   * `HOV2` - Ride a car with 2 persons in it. <br>
@@ -52,6 +53,7 @@ object HOVModeTransformer extends LazyLogging {
 
   private val allCarModes = Seq(CAR, CAV, CAR_HOV2, CAR_HOV3).map(_.value.toLowerCase)
   private val allHOVModes = Set(hov2, hov3)
+
   private val allCarModesWithHOV: Set[String] =
     (allCarModes ++ allHOVModes).toSet
 
@@ -72,9 +74,7 @@ object HOVModeTransformer extends LazyLogging {
       .toSet
 
     val allExpectedCarUsers: Set[PersonId] = plansProbablyWithHOV
-      .filter(
-        planElement => planElement.legMode.exists(mode => allCarModesWithHOV.contains(mode.toLowerCase))
-      )
+      .filter(planElement => planElement.legMode.exists(mode => allCarModesWithHOV.contains(mode.toLowerCase)))
       .map(_.personId)
       .toSet
 

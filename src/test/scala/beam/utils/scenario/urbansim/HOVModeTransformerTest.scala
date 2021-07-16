@@ -14,9 +14,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
   test("only 'HOV' legs should be affected") {
     val modes = BeamMode.allModes ++ Seq(HOV2_TELEPORTATION, HOV3_TELEPORTATION, CAR_HOV2, CAR_HOV3)
-    val plansBefore = modes.zipWithIndex.flatMap {
-      case (mode, idx) =>
-        newTrip(personId = idx, 1, mode.value)
+    val plansBefore = modes.zipWithIndex.flatMap { case (mode, idx) =>
+      newTrip(personId = idx, 1, mode.value)
     }
     val persons = Seq(newPerson(1, 1))
     val households = Seq(newHousehold(1, 1))
@@ -356,8 +355,8 @@ object HOVModeTransformerTest {
     val firstActivity: PlanElement = newActivity(personId, startIndex, activities.head)
     val theRest = modes
       .zip(activities.tail)
-      .flatMap {
-        case (mode, act) => Seq(newLeg(personId, startIndex + 1, mode), newActivity(personId, startIndex + 2, act))
+      .flatMap { case (mode, act) =>
+        Seq(newLeg(personId, startIndex + 1, mode), newActivity(personId, startIndex + 2, act))
       }
       .toSeq
 
