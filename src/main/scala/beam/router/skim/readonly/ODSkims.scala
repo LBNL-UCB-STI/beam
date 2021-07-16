@@ -247,16 +247,11 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
   }
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
-    val res = if (pastSkims.isEmpty) {
-      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString))
-    } else {
-      pastSkims
-        .get(currentIteration - 1)
-        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
-        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
-        .map(_.asInstanceOf[ODSkimmerInternal])
-    }
-    res.map(_.asInstanceOf[ODSkimmerInternal])
+    pastSkims
+      .get(currentIteration - 1)
+      .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .orElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .asInstanceOf[Option[ODSkimmerInternal]]
   }
 
 }
