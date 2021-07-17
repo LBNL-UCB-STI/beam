@@ -122,6 +122,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       transportNetwork = mock(classOf[TransportNetwork]),
       network = mock(classOf[Network]),
       tazTreeMap = tazMap,
+      None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,

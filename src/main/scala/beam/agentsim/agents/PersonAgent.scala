@@ -32,7 +32,7 @@ import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
-import beam.router.skim.Skims
+import beam.router.skim.{ActivitySimSkimmerEvent, Skims}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
@@ -1038,16 +1038,36 @@ class PersonAgent(
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
             .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-          eventsManager.processEvent(
-            ODSkimmerEvent.forTaz(
-              tick,
-              beamServices,
-              correctedTrip,
-              generalizedTime,
-              generalizedCost,
-              curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
-            )
+          val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
+            tick,
+            beamServices,
+            correctedTrip,
+            generalizedTime,
+            generalizedCost,
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )
+          eventsManager.processEvent(odSkimmerEvent)
+          if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
+            val (origin, destination) = beamScenario.exchangeGeoMap match {
+              case Some(geoMap) =>
+                val origGeo = geoMap.getTAZ(origCoord)
+                val destGeo = geoMap.getTAZ(destCoord)
+                (origGeo.tazId.toString, destGeo.tazId.toString)
+              case None =>
+                (odSkimmerEvent.origin, odSkimmerEvent.destination)
+            }
+            val asSkimmerEvent = ActivitySimSkimmerEvent(
+              origin,
+              destination,
+              odSkimmerEvent.eventTime,
+              odSkimmerEvent.trip,
+              odSkimmerEvent.generalizedTimeInHours,
+              odSkimmerEvent.generalizedCost,
+              odSkimmerEvent.energyConsumption,
+              beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+            )
+            eventsManager.processEvent(asSkimmerEvent)
+          }
 
           correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach {
             carLeg =>
