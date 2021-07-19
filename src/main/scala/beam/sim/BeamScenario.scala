@@ -41,6 +41,7 @@ case class BeamScenario(
   transportNetwork: TransportNetwork,
   network: Network,
   tazTreeMap: TAZTreeMap,
+  exchangeGeoMap: Option[TAZTreeMap],
   linkQuadTree: QuadTree[Link],
   linkIdMapping: Map[Id[Link], Link],
   linkToTAZMapping: Map[Link, TAZ],
