@@ -212,7 +212,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
           buildDirectWalkRoute = false,
           buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
-          calculationTimeoutHours = 1
+          calculationTimeoutHours = Int.MaxValue
         )
       case None =>
         new BackgroundSkimsCreator(
@@ -225,7 +225,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
           buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
           buildDirectCarRoute = false,
-          calculationTimeoutHours = 1
+          calculationTimeoutHours = Int.MaxValue
         )
     }
 
