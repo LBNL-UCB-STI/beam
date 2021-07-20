@@ -1644,6 +1644,10 @@ object BeamConfig {
                       scala.Some(
                         BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
                           .MinAvailabilityUndersupplyAlgorithm(c.getConfig("min-availability-undersupply-algorithm"))
+                      ) else if (c.hasPathOrNull("min-availability-observed-algorithm"))
+                      scala.Some(
+                        BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
+                          .MinAvailabilityUndersupplyAlgorithm(c.getConfig("min-availability-observed-algorithm"))
                       )
                     else None,
                   name = if (c.hasPathOrNull("name")) c.getString("name") else "my-reposition-algorithm",
