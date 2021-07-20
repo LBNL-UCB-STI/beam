@@ -11,7 +11,7 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
 
-case class AvailabilityBasedRepositioning(
+case class AvailabilityBehaviorBasedRepositioning(
                                            repositionTimeBin: Int,
                                            statTimeBin: Int,
                                            matchLimit: Int,
