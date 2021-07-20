@@ -1,4 +1,5 @@
 package beam.integration
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
 import beam.agentsim.infrastructure.taz.TAZ

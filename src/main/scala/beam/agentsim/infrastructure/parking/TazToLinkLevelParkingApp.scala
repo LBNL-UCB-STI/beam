@@ -59,30 +59,28 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
 
   val tazToLinks: Map[TAZ, List[Link]] = linkToTaz.groupBy(_._2).mapValues(_.keys.toList)
 
-  val zonesLink: Iterable[ParkingZone[Link]] = tazToLinks.flatMap {
-    case (taz, links) =>
-      distributeParking(taz, links, parkingZones, zoneSearchTree)
+  val zonesLink: Iterable[ParkingZone[Link]] = tazToLinks.flatMap { case (taz, links) =>
+    distributeParking(taz, links, parkingZones, zoneSearchTree)
   }
 
   val zoneArrayLink: Array[ParkingZone[Link]] = zonesLink
     .filter(_.maxStalls > 0)
     .zipWithIndex
-    .map {
-      case (zone, idx) =>
-        new ParkingZone[Link](
-          parkingZoneId = idx,
-          geoId = zone.geoId,
-          parkingType = zone.parkingType,
-          stallsAvailable = zone.stallsAvailable,
-          maxStalls = zone.maxStalls,
-          reservedFor = zone.reservedFor,
-          vehicleManager = zone.vehicleManager,
-          chargingPointType = zone.chargingPointType,
-          pricingModel = zone.pricingModel,
-          timeRestrictions = zone.timeRestrictions,
-          parkingZoneName = zone.parkingZoneName,
-          landCostInUSDPerSqft = zone.landCostInUSDPerSqft,
-        )
+    .map { case (zone, idx) =>
+      new ParkingZone[Link](
+        parkingZoneId = idx,
+        geoId = zone.geoId,
+        parkingType = zone.parkingType,
+        stallsAvailable = zone.stallsAvailable,
+        maxStalls = zone.maxStalls,
+        reservedFor = zone.reservedFor,
+        vehicleManager = zone.vehicleManager,
+        chargingPointType = zone.chargingPointType,
+        pricingModel = zone.pricingModel,
+        timeRestrictions = zone.timeRestrictions,
+        parkingZoneName = zone.parkingZoneName,
+        landCostInUSDPerSqft = zone.landCostInUSDPerSqft
+      )
     }
     .toArray
 
@@ -136,7 +134,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           pricingModel = zone.pricingModel,
           timeRestrictions = zone.timeRestrictions,
           parkingZoneName = zone.parkingZoneName,
-          landCostInUSDPerSqft = zone.landCostInUSDPerSqft,
+          landCostInUSDPerSqft = zone.landCostInUSDPerSqft
         )
       }
     }

@@ -122,8 +122,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }
-    val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS } else { 1.0 }
-    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost } else { 1.0 }
+    val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS }
+    else { 1.0 }
+    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost }
+    else { 1.0 }
     (timeFactor, costFactor)
   }
 
@@ -136,8 +138,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
     beamScenario: BeamScenario,
-    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] = None, //If multiple times the same origin/destination is used, it
-    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] = None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None, //If multiple times the same origin/destination is used, it
+    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
   ): Skim = {
     val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
@@ -243,16 +247,11 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
   }
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
-    val res = if (pastSkims.isEmpty) {
-      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString))
-    } else {
-      pastSkims
-        .get(currentIteration - 1)
-        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
-        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
-        .map(_.asInstanceOf[ODSkimmerInternal])
-    }
-    res.map(_.asInstanceOf[ODSkimmerInternal])
+    pastSkims
+      .get(currentIteration - 1)
+      .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .orElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .asInstanceOf[Option[ODSkimmerInternal]]
   }
 
 }

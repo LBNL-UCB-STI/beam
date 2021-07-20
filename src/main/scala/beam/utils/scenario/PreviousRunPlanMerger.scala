@@ -97,11 +97,10 @@ object LastRunOutputSource extends LazyLogging {
         .sortWith((path1, path2) => path1.getFileName.toString.compareTo(path2.getFileName.toString) > 0)
         .view
       itDirAndNumber <- findDirs(outputDir.resolve("ITERS"), "it.")
-        .flatMap(
-          itPath =>
-            itPath.getFileName.toString match {
-              case IterationNumber(num) => Some(itPath -> num.toInt)
-              case _                    => None
+        .flatMap(itPath =>
+          itPath.getFileName.toString match {
+            case IterationNumber(num) => Some(itPath -> num.toInt)
+            case _                    => None
           }
         )
         .sortBy { case (_, itNumber) => -itNumber }
@@ -110,15 +109,15 @@ object LastRunOutputSource extends LazyLogging {
   }
 
   import collection.JavaConverters._
+
   private def findDirs(parentDir: Path, prefix: String) =
     Try {
       Files
         .find(parentDir, 1, (path: Path, attr) => attr.isDirectory && path.getFileName.toString.startsWith(prefix))
         .collect(Collectors.toList[Path])
         .asScala
-    }.recover {
-      case e: IOException =>
-        logger.warn("Failed to find parent dir. {}", parentDir, e)
-        mutable.Buffer.empty[Path]
+    }.recover { case e: IOException =>
+      logger.warn("Failed to find parent dir. {}", parentDir, e)
+      mutable.Buffer.empty[Path]
     }.get
 }

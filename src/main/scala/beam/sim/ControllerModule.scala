@@ -1,4 +1,5 @@
 package beam.sim
+
 import org.matsim.analysis._
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.EventsManagerModule
@@ -18,6 +19,7 @@ import org.matsim.vis.snapshotwriters.SnapshotWritersModule
   * A custom controller module for matsim modules.
   */
 class ControllerModule extends AbstractModule {
+
   override def install(): Unit = {
     install(new EventsManagerModule)
     install(new DefaultMobsimModule)

@@ -144,7 +144,6 @@ class BeamVehicle(
   }
 
   /**
-    *
     * @param startTick
     */
   def connectToChargingPoint(startTick: Int): Unit = {
@@ -201,7 +200,6 @@ class BeamVehicle(
     * When fuel level goes negative, it is assumed to happen on the primary power train, not the secondary.
     *
     * It is up to the manager / driver of this vehicle to decide how to react if fuel level becomes negative.
-    *
     */
   def useFuel(
     beamLeg: BeamLeg,
@@ -242,14 +240,16 @@ class BeamVehicle(
               fallBack = powerTrain.getRateInJoulesPerMeter,
               Secondary
             )
-          secondaryEnergyConsumed = secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoulesInternal) / primaryEnergyConsumed
+          secondaryEnergyConsumed =
+            secondaryEnergyForFullLeg * (primaryEnergyForFullLeg - primaryFuelLevelInJoulesInternal) / primaryEnergyConsumed
           if (secondaryFuelLevelInJoulesInternal < secondaryEnergyConsumed) {
             logger.warn(
               "Vehicle does not have sufficient fuel to make trip (in both primary and secondary fuel tanks), allowing trip to happen and setting fuel level negative: vehicle {} trip distance {} m",
               id,
               beamLeg.travelPath.distanceInM
             )
-            primaryEnergyConsumed = primaryEnergyForFullLeg - secondaryFuelLevelInJoulesInternal / secondaryEnergyConsumed
+            primaryEnergyConsumed =
+              primaryEnergyForFullLeg - secondaryFuelLevelInJoulesInternal / secondaryEnergyConsumed
             secondaryEnergyConsumed = secondaryFuelLevelInJoulesInternal
           } else {
             primaryEnergyConsumed = primaryFuelLevelInJoulesInternal
@@ -357,17 +357,15 @@ class BeamVehicle(
 
   def getTotalRemainingRange: Double = {
     primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1) + beamVehicleType.secondaryFuelCapacityInJoule
-      .map(
-        _ => secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get
-      )
+      .map(_ => secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get)
       .getOrElse(0.0)
   }
 
   def getRemainingRange: (Double, Option[Double]) = {
     (
       primaryFuelLevelInJoules / powerTrain.estimateConsumptionInJoules(1),
-      beamVehicleType.secondaryFuelCapacityInJoule.map(
-        _ => secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get
+      beamVehicleType.secondaryFuelCapacityInJoule.map(_ =>
+        secondaryFuelLevelInJoules / beamVehicleType.secondaryFuelConsumptionInJoulePerMeter.get
       )
     )
   }
@@ -471,7 +469,8 @@ class BeamVehicle(
       )
       false
     } else {
-      val probabilityOfRefuel = 1.0 - (remainingRangeInMeters - refuelRequiredThresholdInMeters) / (noRefuelThresholdInMeters - refuelRequiredThresholdInMeters)
+      val probabilityOfRefuel =
+        1.0 - (remainingRangeInMeters - refuelRequiredThresholdInMeters) / (noRefuelThresholdInMeters - refuelRequiredThresholdInMeters)
       val refuelNeeded = rand.nextDouble() < probabilityOfRefuel
       if (refuelNeeded) {
         logger.debug("Refueling because random draw exceeded probability to refuel of {}", probabilityOfRefuel)
@@ -578,19 +577,18 @@ object BeamVehicle {
     } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
       beamLeg.travelPath.linkIds
         .drop(1)
-        .map(
-          id =>
-            FuelConsumptionData(
-              linkId = id,
-              vehicleType = theVehicleType,
-              linkNumberOfLanes = None,
-              linkCapacity = None,
-              linkLength = networkHelper.getLink(id).map(_.getLength),
-              averageSpeed = None,
-              freeFlowSpeed = None,
-              linkArrivalTime = None,
-              turnAtLinkEnd = None,
-              numberOfStops = None
+        .map(id =>
+          FuelConsumptionData(
+            linkId = id,
+            vehicleType = theVehicleType,
+            linkNumberOfLanes = None,
+            linkCapacity = None,
+            linkLength = networkHelper.getLink(id).map(_.getLength),
+            averageSpeed = None,
+            freeFlowSpeed = None,
+            linkArrivalTime = None,
+            turnAtLinkEnd = None,
+            numberOfStops = None
           )
         )
     } else {
@@ -599,27 +597,27 @@ object BeamVehicle {
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
 //      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
 //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
-      linkIds.zipWithIndex.map {
-        case (id, idx) =>
-          val travelTime = linkTravelTimes(idx)
-          val currentLink: Option[Link] = networkHelper.getLink(id)
-          val averageSpeed = try {
+      linkIds.zipWithIndex.map { case (id, idx) =>
+        val travelTime = linkTravelTimes(idx)
+        val currentLink: Option[Link] = networkHelper.getLink(id)
+        val averageSpeed =
+          try {
             if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
           } catch {
             case _: Exception => 0.0
           }
-          FuelConsumptionData(
-            linkId = id,
-            vehicleType = theVehicleType,
-            linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
-            linkCapacity = None, //currentLink.map(_.getCapacity),
-            linkLength = currentLink.map(_.getLength),
-            averageSpeed = Some(averageSpeed),
-            freeFlowSpeed = None,
-            linkArrivalTime = None, //Some(arrivalTime),
-            turnAtLinkEnd = None, //Some(turnAtLinkEnd),
-            numberOfStops = None //Some(numStops)
-          )
+        FuelConsumptionData(
+          linkId = id,
+          vehicleType = theVehicleType,
+          linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+          linkCapacity = None, //currentLink.map(_.getCapacity),
+          linkLength = currentLink.map(_.getLength),
+          averageSpeed = Some(averageSpeed),
+          freeFlowSpeed = None,
+          linkArrivalTime = None, //Some(arrivalTime),
+          turnAtLinkEnd = None, //Some(turnAtLinkEnd),
+          numberOfStops = None //Some(numStops)
+        )
       }
     }
   }

@@ -27,7 +27,7 @@ object RideHailVehicleId {
     }
   }
 
-  /**  Returns true if an [[Id[BeamVehicle]]] represents a ride-hail vehicle ID. */
+  /** Returns true if an [[Id[BeamVehicle]]] represents a ride-hail vehicle ID. */
   def isRideHail(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.startsWith(VEHICLE_ID_PREFIX)
   }

@@ -6,6 +6,7 @@ sealed trait WorkedHours {
 }
 
 object WorkedHours {
+
   case object `Usually worked 1 to 14 hours per week` extends WorkedHours {
     override def range: Range = Range.inclusive(1, 14)
 

@@ -1,4 +1,5 @@
 package beam.sim.vehiclesharing
+
 import java.util.concurrent.TimeUnit
 import akka.actor.{ActorLogging, ActorRef}
 import akka.pattern.pipe
@@ -28,7 +29,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long,
-  implicit val debug: Debug,
+  implicit val debug: Debug
 ) extends LoggingMessageActor
     with ActorLogging {
 
@@ -60,10 +61,9 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
       // Park it and forward it to the customer
       (parkingManager ? parkingInquiry(whenWhere, triggerId))
-        .collect {
-          case ParkingInquiryResponse(stall, _, triggerId) =>
-            vehicle.useParkingStall(stall)
-            MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+          vehicle.useParkingStall(stall)
+          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
         } pipeTo sender
 
     case ReleaseVehicle(_, _) =>

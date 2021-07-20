@@ -14,6 +14,7 @@ case class RideHailResponse(
   triggersToSchedule: Vector[ScheduleTrigger] = Vector(),
   directTripTravelProposal: Option[TravelProposal] = None
 ) extends HasTriggerId {
+
   override def toString: String =
     s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal)"
 

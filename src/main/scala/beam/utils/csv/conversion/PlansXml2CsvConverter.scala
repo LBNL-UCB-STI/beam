@@ -31,6 +31,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
     endTime: String,
     mode: String
   ) {
+
     override def toString: String = {
       Seq(personId, planId, planElementType, activityIndex, activityType, locationX, locationY, endTime, mode).mkString(
         FieldSeparator

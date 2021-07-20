@@ -1,4 +1,5 @@
 package beam.utils
+
 import java.io.{File, PrintWriter}
 
 import org.scalatest.wordspec.AnyWordSpecLike

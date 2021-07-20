@@ -1,10 +1,11 @@
 package beam.sim.config
+
 import java.util.{Observable, Observer}
 
 import beam.sim.{BeamConfigChangesObservable, BeamConfigChangesObserver}
 import javax.inject.Inject
 
-class BeamConfigHolder @Inject()(
+class BeamConfigHolder @Inject() (
   beamConfigChangesObservable: BeamConfigChangesObservable,
   config: BeamConfig
 ) extends BeamConfigChangesObserver {

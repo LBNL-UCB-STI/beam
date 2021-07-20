@@ -139,11 +139,10 @@ case class BeamPathTraversal(
 
     val paths = linkIds
       .zip(times)
-      .flatMap {
-        case (linkId, (enteredTime, leftTime)) =>
-          val entered = ViaTraverseLinkEvent.entered(enteredTime, vehicleId, linkId)
-          val left = ViaTraverseLinkEvent.left(leftTime, vehicleId, linkId)
-          Seq(entered, left)
+      .flatMap { case (linkId, (enteredTime, leftTime)) =>
+        val entered = ViaTraverseLinkEvent.entered(enteredTime, vehicleId, linkId)
+        val left = ViaTraverseLinkEvent.left(leftTime, vehicleId, linkId)
+        Seq(entered, left)
       }
 
     paths

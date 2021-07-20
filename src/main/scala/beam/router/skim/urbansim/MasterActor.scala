@@ -1,7 +1,7 @@
 package beam.router.skim.urbansim
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, PoisonPill, Props, Terminated}
-import beam.agentsim.infrastructure.geozone.{GeoIndex, GeoZoneSummaryItem, TAZIndex}
+import beam.agentsim.infrastructure.geozone.GeoIndex
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.core.AbstractSkimmer
@@ -9,7 +9,6 @@ import beam.router.skim.urbansim.MasterActor.Request.Monitor
 import beam.router.skim.urbansim.MasterActor.Response.PopulatedSkimmer
 import beam.router.skim.urbansim.MasterActor.{Request, Response}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import org.matsim.api.core.v01.Coord
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.duration._
@@ -18,12 +17,13 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 
 class MasterActor(
-  val geoClustering: GeoClustering,
   val abstractSkimmer: AbstractSkimmer,
   val odRequester: ODRequester,
-  val requestTimes: Seq[Int]
+  val requestTimes: Seq[Int],
+  val ODs: Array[(GeoIndex, GeoIndex)]
 ) extends Actor
     with ActorLogging {
+
   override def postStop(): Unit = {
     logStat()
     log.info(s"Stopping $self")
@@ -32,41 +32,13 @@ class MasterActor(
 
   private val maxWorkers: Int = Runtime.getRuntime.availableProcessors()
 
-  private val allODs: Array[(GeoIndex, GeoIndex)] = {
-    //    def coordIsSelected(coord: Coord): Boolean = {
-    //      val isSelected = math.round(coord.getX) % 3 == 0 && math.round(coord.getY) % 3 == 0
-    //      isSelected
-    //    }
-
-    geoClustering match {
-      case h3Clustering: H3Clustering =>
-        val h3Indexes: Seq[GeoZoneSummaryItem] = h3Clustering.h3Indexes
-        log.info(s"Number of h3Indexes: ${h3Indexes.size}")
-
-        h3Indexes.flatMap { srcGeo =>
-          h3Indexes.map { dstGeo =>
-            (srcGeo.index, dstGeo.index)
-          }
-        }.toArray
-
-      case tazClustering: TAZClustering =>
-        val tazs = tazClustering.tazTreeMap.getTAZs
-        log.info(s"Number of TAZs: ${tazs.size}")
-        tazs.flatMap { srcTAZ =>
-          tazs.map { destTAZ =>
-            (TAZIndex(srcTAZ), TAZIndex(destTAZ))
-          }
-        }.toArray
-    }
-  }
-
-  private val maxRequestsNumber: Int = allODs.length * requestTimes.length
+  private val maxRequestsNumber: Int = ODs.length * requestTimes.length
 
   private var currentIdx: Int = 0
   private var currentTime: Int = 0
 
   log.info(
-    s"Total number of OD pairs: ${allODs.length}, number of request time entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
+    s"Total number of OD pairs: ${ODs.length}, number of request time entries: ${requestTimes.length}, maxWorkers: $maxWorkers"
   )
 
   private var workers: Set[ActorRef] = Set.empty
@@ -195,12 +167,12 @@ class MasterActor(
   }
 
   private def moreWorkExist: Boolean = {
-    currentIdx < allODs.length && currentTime < requestTimes.length
+    currentIdx < ODs.length && currentTime < requestTimes.length
   }
 
   private def getNextODTime: (GeoIndex, GeoIndex, Int) = {
     val requestTime = requestTimes(currentTime)
-    val (o, d) = allODs(currentIdx)
+    val (o, d) = ODs(currentIdx)
 
     currentTime += 1
     if (currentTime >= requestTimes.length) {
@@ -212,7 +184,7 @@ class MasterActor(
   }
 
   private def checkAndGiveTheResult(): Unit = {
-    if (totalResponses == allODs.length * requestTimes.length) {
+    if (totalResponses == ODs.length * requestTimes.length) {
       replyToWhenFinish.foreach { actorRef =>
         actorRef ! PopulatedSkimmer(abstractSkimmer)
       }
@@ -240,13 +212,13 @@ class MasterActor(
   }
 
   private def logStat(): Unit = {
-    val dtInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startedAt)
-    val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
-    val msg =
-      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${nRouteSent / maxRequestsNumber * 100}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
+    lazy val dtInSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startedAt)
+    lazy val avgRoutePerSecond = (nSuccessRoutes + nFailedRoutes).toDouble / dtInSeconds
+    log.info(
+      s"""nRouteSent: $nRouteSent out of $maxRequestsNumber (${(nRouteSent.toFloat / maxRequestsNumber * 100).toInt}%), nSuccessRoutes: $nSuccessRoutes, nFailedRoutes: $nFailedRoutes, nSkimEvents: $nSkimEvents
          |AVG route per second: $avgRoutePerSecond, elapsed time: $dtInSeconds seconds
          |Current number of workers: ${workers.size}""".stripMargin
-    log.info(msg)
+    )
   }
 }
 
@@ -273,11 +245,11 @@ object MasterActor {
   }
 
   def props(
-    geoClustering: GeoClustering,
     abstractSkimmer: AbstractSkimmer,
     odR5Requester: ODRequester,
-    requestTimes: Seq[Int]
+    requestTimes: Seq[Int],
+    ODs: Array[(GeoIndex, GeoIndex)]
   ): Props = {
-    Props(new MasterActor(geoClustering, abstractSkimmer, odR5Requester: ODRequester, requestTimes))
+    Props(new MasterActor(abstractSkimmer, odR5Requester: ODRequester, requestTimes, ODs))
   }
 }

@@ -27,6 +27,7 @@ class RideHailModifyPassengerScheduleManager(
 
   private val interruptIdToModifyPassengerScheduleStatus =
     mutable.Map[Int, RideHailModifyPassengerScheduleStatus]()
+
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[BeamVehicle], RideHailModifyPassengerScheduleStatus]()
   private val interruptedVehicleIds = mutable.Set[Id[Vehicle]]() // For debug only
@@ -190,7 +191,7 @@ class RideHailModifyPassengerScheduleManager(
     rideHailAgentRef: ActorRef,
     tick: Int,
     triggerId: Long,
-    reservationRequestIdOpt: Option[Int] = None,
+    reservationRequestIdOpt: Option[Int] = None
   ): Unit = {
     vehicleIdToModifyPassengerScheduleStatus.get(rideHailVehicleId) match {
       case Some(status) =>
@@ -199,16 +200,16 @@ class RideHailModifyPassengerScheduleManager(
         val isNotRefueling = rideHailManager.rideHailManagerHelper.getServiceStatusOf(rideHailVehicleId) != Refueling
         interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
           case Some(
-              RideHailModifyPassengerScheduleStatus(
-                _,
-                _,
-                _,
-                _,
-                _,
-                _,
-                rideHailAgentRef,
-                InterruptSent
-              )
+                RideHailModifyPassengerScheduleStatus(
+                  _,
+                  _,
+                  _,
+                  _,
+                  _,
+                  _,
+                  rideHailAgentRef,
+                  InterruptSent
+                )
               ) =>
             reply match {
               case InterruptedWhileOffline(_, _, _, triggerId) if isRepositioning && isNotRefueling =>
@@ -232,7 +233,9 @@ class RideHailModifyPassengerScheduleManager(
                   reply.tick,
                   reply.getClass.getCanonicalName
                 )
-                val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
+                val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(
+                  reply.interruptId
+                ).modifyPassengerSchedule.reservationRequestId
                 val requestId = requestIdOpt match {
                   case Some(_) => requestIdOpt
                   case None    => reservationRequestIdOpt
@@ -378,6 +381,7 @@ class RideHailModifyPassengerScheduleManager(
       log.debug("remove interrupt from clearModifyStatusFromCacheWithVehicleId {}", status.interruptId)
     }
   }
+
   private def clearModifyStatusFromCacheWithInterruptId(
     interruptId: Int
   ): Unit = {
@@ -406,9 +410,8 @@ class RideHailModifyPassengerScheduleManager(
   ): Boolean = {
     vehicleIdToModifyPassengerScheduleStatus
       .get(vehicleId)
-      .exists(
-        stat =>
-          stat.interruptOrigin == SingleReservation && stat.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
+      .exists(stat =>
+        stat.interruptOrigin == SingleReservation && stat.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
       )
   }
 

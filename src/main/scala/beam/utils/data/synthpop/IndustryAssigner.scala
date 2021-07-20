@@ -28,8 +28,8 @@ object IndustryAssigner {
     val homeWorkActivities = CsvPlanElementReader
       .read(pathToPlans)
       .filter { plan =>
-        plan.planElementType.equalsIgnoreCase("activity") && plan.activityType.exists(
-          act => act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
+        plan.planElementType.equalsIgnoreCase("activity") && plan.activityType.exists(act =>
+          act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
         )
       }
     println(s"Read ${homeWorkActivities.length} home-work activities")
@@ -38,21 +38,19 @@ object IndustryAssigner {
       .groupBy(plan => plan.personId.id)
       .filter { case (_, xs) => xs.length >= 2 }
       .toSeq
-      .map {
-        case (_, xs) =>
-          // First activity is home, so we can get its geoid
-          val homeGeoId = xs(0).geoId.get.replace("-", "")
-          // The second activity is work
-          val workGeoId = xs(1).geoId.get.replace("-", "")
-          ((homeGeoId, workGeoId), 1)
+      .map { case (_, xs) =>
+        // First activity is home, so we can get its geoid
+        val homeGeoId = xs(0).geoId.get.replace("-", "")
+        // The second activity is work
+        val workGeoId = xs(1).geoId.get.replace("-", "")
+        ((homeGeoId, workGeoId), 1)
       }
 
     val homeGeoIdToWorkGeoIdWithCounts = homeGeoIdToWorkGeoId
       .groupBy { case ((o, d), _) => (o, d) }
       .toSeq
-      .map {
-        case ((o, d), xs) =>
-          ((o, d), xs.map(_._2).sum)
+      .map { case ((o, d), xs) =>
+        ((o, d), xs.map(_._2).sum)
       }
       .sortBy(x => -x._2)
     println(s"homeGeoIdToWorkGeoIdWithCounts ${homeGeoIdToWorkGeoIdWithCounts.size}")

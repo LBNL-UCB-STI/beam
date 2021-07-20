@@ -9,6 +9,7 @@ import beam.sim.BeamServices
 
 case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, carLeg: EmbodiedBeamLeg)
     extends AbstractSkimmerEvent(eventTime) {
+
   override protected val skimName: String =
     beamServices.beamConfig.beam.router.skim.drive_time_skimmer.name
   override def getKey: AbstractSkimmerKey = key

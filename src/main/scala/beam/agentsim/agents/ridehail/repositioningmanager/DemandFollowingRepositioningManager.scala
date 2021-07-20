@@ -63,17 +63,16 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   val timeBinToActivities: Map[Int, collection.Set[Activity]] =
-    Range(0, activitySegment.maxTime + horizon, horizon).zipWithIndex.map {
-      case (t, idx) =>
-        val activities = activitySegment.getActivities(t, t + horizon)
-        logger.debug(s"Time [$t, ${t + horizon}], idx $idx, num of activities: ${activities.size}")
-        idx -> activities
+    Range(0, activitySegment.maxTime + horizon, horizon).zipWithIndex.map { case (t, idx) =>
+      val activities = activitySegment.getActivities(t, t + horizon)
+      logger.debug(s"Time [$t, ${t + horizon}], idx $idx, num of activities: ${activities.size}")
+      idx -> activities
     }.toMap
 
   val totalNumberOfActivities: Int = activitySegment.sorted.length
 
-  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
-    case (timeBin, acts) => timeBin -> acts.size.toDouble / totalNumberOfActivities
+  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map { case (timeBin, acts) =>
+    timeBin -> acts.size.toDouble / totalNumberOfActivities
   }
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
 
@@ -185,57 +184,54 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   private def createClusters: Map[Int, Array[ClusterInfo]] = {
     // Build clusters for every time bin. Number of clusters is configured
-    timeBinToActivities.map {
-      case (timeBin, acts) =>
-        val clusters =
-          if (acts.isEmpty) Array.empty[ClusterInfo]
-          else {
-            val db: Database = createDatabase(acts)
-            try {
-              val kmeans = new KMeansElkan[NumberVector](
-                SquaredEuclideanDistanceFunction.STATIC,
-                numberOfClustersForDemand,
-                1000,
-                new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
-                true
-              )
-              val result = kmeans.run(db)
-              logger.debug(s"timeBin: $timeBin, seconds: ${timeBinToSeconds(timeBin)}")
-              result.getAllClusters.asScala.zipWithIndex.map {
-                case (clu, idx) =>
-                  logger.debug(s"# $idx: ${clu.getNameAutomatic}")
-                  logger.debug(s"Size: ${clu.size()}")
-                  logger.debug(s"Model: ${clu.getModel}")
-                  logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
-                  logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
-                  val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
-                  val coords: ArrayBuffer[Coord] = new ArrayBuffer(clu.size())
-                  var iter: DBIDIter = clu.getIDs.iter()
-                  while (iter.valid()) {
-                    val o: DoubleVector = rel.get(iter)
-                    val arr = o.toArray
-                    coords += new Coord(arr(0), arr(1))
-                    iter.advance()
-                  }
-                  ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
-              }.toArray
-            } catch {
-              case ex: Exception =>
-                logger.error("err clustering", ex)
-                throw ex
-            }
+    timeBinToActivities.map { case (timeBin, acts) =>
+      val clusters =
+        if (acts.isEmpty) Array.empty[ClusterInfo]
+        else {
+          val db: Database = createDatabase(acts)
+          try {
+            val kmeans = new KMeansElkan[NumberVector](
+              SquaredEuclideanDistanceFunction.STATIC,
+              numberOfClustersForDemand,
+              1000,
+              new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
+              true
+            )
+            val result = kmeans.run(db)
+            logger.debug(s"timeBin: $timeBin, seconds: ${timeBinToSeconds(timeBin)}")
+            result.getAllClusters.asScala.zipWithIndex.map { case (clu, idx) =>
+              logger.debug(s"# $idx: ${clu.getNameAutomatic}")
+              logger.debug(s"Size: ${clu.size()}")
+              logger.debug(s"Model: ${clu.getModel}")
+              logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
+              logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
+              val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
+              val coords: ArrayBuffer[Coord] = new ArrayBuffer(clu.size())
+              var iter: DBIDIter = clu.getIDs.iter()
+              while (iter.valid()) {
+                val o: DoubleVector = rel.get(iter)
+                val arr = o.toArray
+                coords += new Coord(arr(0), arr(1))
+                iter.advance()
+              }
+              ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
+            }.toArray
+          } catch {
+            case ex: Exception =>
+              logger.error("err clustering", ex)
+              throw ex
           }
-        timeBin -> clusters
+        }
+      timeBin -> clusters
     }
   }
 
   private def createDatabase(acts: scala.collection.Iterable[Activity]): Database = {
     val data = Array.ofDim[Double](acts.size, 2)
-    acts.zipWithIndex.foreach {
-      case (act, idx) =>
-        val x = act.getCoord.getX
-        val y = act.getCoord.getY
-        data.update(idx, Array(x, y))
+    acts.zipWithIndex.foreach { case (act, idx) =>
+      val x = act.getCoord.getX
+      val y = act.getCoord.getY
+      data.update(idx, Array(x, y))
     }
     val dbc = new ArrayAdapterDatabaseConnection(data)
     // Create a database (which may contain multiple relations!)

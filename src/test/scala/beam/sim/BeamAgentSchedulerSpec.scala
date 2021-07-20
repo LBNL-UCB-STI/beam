@@ -119,13 +119,11 @@ object BeamAgentSchedulerSpec {
 
     startWith(Uninitialized, MyData())
 
-    when(Uninitialized) {
-      case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
-        goto(Initialized) replying CompletionNotice(triggerId, Vector())
+    when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
+      goto(Initialized) replying CompletionNotice(triggerId, Vector())
     }
-    when(Initialized) {
-      case Event(TriggerWithId(_, triggerId), _) =>
-        stay() replying CompletionNotice(triggerId, Vector())
+    when(Initialized) { case Event(TriggerWithId(_, triggerId), _) =>
+      stay() replying CompletionNotice(triggerId, Vector())
     }
     whenUnhandled {
       case Event(IllegalTriggerGoToError(_), _) =>

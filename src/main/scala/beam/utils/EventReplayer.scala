@@ -1,4 +1,5 @@
 package beam.utils
+
 import beam.analysis.DelayMetricAnalysis
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.BeamHelper
@@ -48,6 +49,7 @@ object EventReplayer extends BeamHelper {
       s"DelayMetricAnalysis processed ${events.size}. Total time $total ms, average $avg ms, number of iterations $maxIter"
     )
   }
+
   private def readEvents(path: String): IndexedSeq[Event] = {
     val eventsManager = EventsUtils.createEventsManager()
     var numOfEvents: Int = 0

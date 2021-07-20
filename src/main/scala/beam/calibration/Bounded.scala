@@ -13,6 +13,7 @@ object Bounded {
   }
 
   implicit object IntBounded extends Bounded[Int] {
+
     override def bound(minValue: Int, maxValue: Int): Bounds =
       new Bounds(minValue.toDouble, maxValue.toDouble)
   }

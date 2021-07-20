@@ -27,8 +27,8 @@ object Memberships {
 
     case class MemberWithRank[T <: Identifiable[T]](memberId: Id[T], rank: Option[Int])
 
-    implicit def rankedHousehold(household: Household)(
-      implicit population: org.matsim.api.core.v01.population.Population
+    implicit def rankedHousehold(household: Household)(implicit
+      population: org.matsim.api.core.v01.population.Population
     ): RankedGroup[Person, Household] = new RankedGroup[Person, Household] {
 
       override def lookupMemberRank(member: Id[Person]): Option[Int] = {
