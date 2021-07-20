@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
-import beam.agentsim.infrastructure.parking.GeoLevel
 import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toCoord, H3, HexIndex}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -20,7 +19,8 @@ import scala.collection.JavaConverters._
 import scala.collection._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
-  private def cfgH3Taz = beamConfig.beam.agentsim.h3taz
+
+  private def cfgH3Taz: BeamConfig.Beam.Agentsim.H3taz = beamConfig.beam.agentsim.h3taz
   if (cfgH3Taz.lowerBoundResolution > cfgH3Taz.upperBoundResolution)
     logger.error("lowerBoundResolution > upperBoundResolution")
 

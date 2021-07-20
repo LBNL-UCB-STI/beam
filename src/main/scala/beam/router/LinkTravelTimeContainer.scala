@@ -1,17 +1,15 @@
 package beam.router
 
-import java.io.{BufferedReader, FileInputStream, InputStreamReader}
-import java.util.zip.GZIPInputStream
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-
-import beam.utils.TravelTimeCalculatorHelper
+import beam.utils.FileUtils.using
+import beam.utils.{FileUtils, TravelTimeCalculatorHelper}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHour: Int)
     extends TravelTime
@@ -25,9 +23,7 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
     val linkTravelTimeMap: mutable.HashMap[String, Array[Double]] = mutable.HashMap()
     logger.info(s"Stats fileName [$fileName] is being loaded")
 
-    val gzipStream = new GZIPInputStream(new FileInputStream(fileName))
-    val bufferedReader = new BufferedReader(new InputStreamReader(gzipStream))
-    try {
+    using(FileUtils.readerFromFile(fileName)) { bufferedReader =>
       var line: String = null
       while ({
         line = bufferedReader.readLine
@@ -48,9 +44,6 @@ class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHo
           }
         }
       }
-    } finally {
-      bufferedReader.close()
-      gzipStream.close()
     }
     val end = System.currentTimeMillis()
     logger.info("LinkTravelTimeMap is initialized in {} ms", end - start)

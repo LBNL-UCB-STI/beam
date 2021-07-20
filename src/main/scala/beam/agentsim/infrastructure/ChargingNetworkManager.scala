@@ -46,6 +46,7 @@ class ChargingNetworkManager(
 
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
+
   private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
 
   private val powerController =

@@ -14,6 +14,7 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import scala.collection.immutable.HashMap
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.util.Random
 
 /**
   * @author Dmitry Openkov
@@ -74,7 +75,24 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           "323"
         )
       }
-
+      "collapsing parking zones " should {
+        "produce a simplified structure" in {
+          val (parkingZones, _) =
+            ParkingZoneFileUtils
+              .fromFile[Link](
+                "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+                new Random(777934L),
+                defaultVehicleManagerId = VehicleManager.defaultManager
+              )
+          parkingZones should have size 3648
+          val zones205 = parkingZones.filter(_._2.geoId.toString == "205")
+          zones205 should have size 20
+          val collapsed = HierarchicalParkingManager.collapse(parkingZones)
+          val collapsedZones205 = collapsed.filter(_._2.geoId.toString == "205")
+          collapsedZones205 should have size 11
+          collapsed should have size 2236
+        }
+      }
     }
   }
 }

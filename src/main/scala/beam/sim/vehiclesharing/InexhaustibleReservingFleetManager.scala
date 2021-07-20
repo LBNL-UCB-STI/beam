@@ -8,7 +8,6 @@ import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId

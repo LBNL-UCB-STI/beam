@@ -23,7 +23,6 @@ class ZonalParkingManager[GEO: GeoLevel](
     ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
 
   override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
-
 }
 
 object ZonalParkingManager extends LazyLogging {

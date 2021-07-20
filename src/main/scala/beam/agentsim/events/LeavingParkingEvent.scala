@@ -1,18 +1,15 @@
 package beam.agentsim.events
 
-import java.util
-
-import scala.collection.JavaConverters._
-
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
+
+import java.util
+import scala.collection.JavaConverters._
 
 case class LeavingParkingEvent(
   time: Double,
@@ -24,7 +21,6 @@ case class LeavingParkingEvent(
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType]
 ) extends Event(time)
-//    with HasPersonId (removed to support Id[Person] and Id[RideHailAgent] parking events)
     with ScalaEvent {
   import LeavingParkingEvent._
 

@@ -9,7 +9,6 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}

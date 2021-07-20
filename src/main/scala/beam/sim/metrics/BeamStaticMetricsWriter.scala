@@ -98,6 +98,7 @@ object BeamStaticMetricsWriter {
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
+
         chargingDepots.foreach { case (_, parkingZone) =>
           if (parkingZone.chargingPointType.nonEmpty) {
             cntChargingDepots += 1

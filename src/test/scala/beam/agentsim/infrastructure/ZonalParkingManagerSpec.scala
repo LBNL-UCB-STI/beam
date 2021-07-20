@@ -8,9 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
-import beam.agentsim.infrastructure.charging.ElectricCurrentType
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
+import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -615,9 +613,7 @@ object ZonalParkingManagerSpec {
   def makeParkingConfiguration(split: List[Int]): Iterator[String] = {
     val header = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId"
     val result = split.zipWithIndex
-      .map { case (stalls, i) =>
-        s"${i + 1},Workplace,FlatFee,None,$stalls,0,,"
-      }
+      .map { case (stalls, i) => s"${i + 1},Workplace,FlatFee,None,$stalls,0,," }
       .mkString(s"$header\n", "\n", "")
       .split("\n")
       .toIterator

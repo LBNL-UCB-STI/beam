@@ -2,7 +2,7 @@ package beam.sim.vehiclesharing
 
 import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -24,6 +24,38 @@ trait FleetType {
     parkingManager: ActorRef,
     chargingManager: ActorRef
   ): Props
+}
+
+object FleetType {
+
+  def getAndValidateSharedTypeId(
+    vehicleTypeId: String,
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    vehicleCfg: BeamConfig.Beam.Agentsim.Agents.Vehicles
+  ): BeamVehicleType = {
+    require(
+      vehicleTypeId.startsWith("sharedVehicle"),
+      s"Shared vehicle type id must start with 'sharedVehicle' prefix: $vehicleTypeId"
+    )
+
+    val typeId = Id.create(vehicleTypeId, classOf[BeamVehicleType])
+    require(vehicleTypes.contains(typeId), s"Not found in vehicle types this id: $vehicleTypeId")
+
+    val vehicleType = vehicleTypes(typeId)
+    vehicleType.vehicleCategory match {
+      case VehicleCategory.Bike =>
+        val dummyBikeId = Id.create(vehicleCfg.dummySharedBike.vehicleTypeId, classOf[BeamVehicleType])
+        require(vehicleTypes.contains(dummyBikeId), s"dummySharedBike type id not found: $dummyBikeId")
+      case VehicleCategory.Car =>
+        val dummyCarId = Id.create(vehicleCfg.dummySharedCar.vehicleTypeId, classOf[BeamVehicleType])
+        require(vehicleTypes.contains(dummyCarId), s"dummySharedCar type id not found: $dummyCarId")
+      case _ =>
+        throw new RuntimeException(
+          s"Unsupported shared vehicle category: ${vehicleType.vehicleCategory} in vehicle type $vehicleType"
+        )
+    }
+    vehicleType
+  }
 }
 
 case class FixedNonReservingFleetByTAZ(
@@ -72,9 +104,10 @@ case class FixedNonReservingFleetByTAZ(
         }
     }
 
-    val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
-      Id.create("sharedVehicle-" + config.vehicleTypeId, classOf[BeamVehicleType]),
-      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
+    val vehicleType = FleetType.getAndValidateSharedTypeId(
+      config.vehicleTypeId,
+      beamServices.beamScenario.vehicleTypes,
+      beamServices.beamConfig.beam.agentsim.agents.vehicles
     )
     Props(
       new FixedNonReservingFleetManager(
@@ -109,9 +142,11 @@ case class FixedNonReservingFleet(
         .values()
         .asScala
         .map(Population.personInitialLocation)
-    val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
-      Id.create("sharedVehicle-" + config.vehicleTypeId, classOf[BeamVehicleType]),
-      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
+
+    val vehicleType = FleetType.getAndValidateSharedTypeId(
+      config.vehicleTypeId,
+      beamServices.beamScenario.vehicleTypes,
+      beamServices.beamConfig.beam.agentsim.agents.vehicles
     )
     Props(
       new FixedNonReservingFleetManager(
@@ -140,9 +175,10 @@ case class InexhaustibleReservingFleet(
     parkingManager: ActorRef,
     chargingManager: ActorRef
   ): Props = {
-    val vehicleType = beamServices.beamScenario.vehicleTypes.getOrElse(
-      Id.create("sharedVehicle-" + config.vehicleTypeId, classOf[BeamVehicleType]),
-      throw new RuntimeException("Vehicle type id not found: " + config.vehicleTypeId)
+    val vehicleType = FleetType.getAndValidateSharedTypeId(
+      config.vehicleTypeId,
+      beamServices.beamScenario.vehicleTypes,
+      beamServices.beamConfig.beam.agentsim.agents.vehicles
     )
     Props(
       new InexhaustibleReservingFleetManager(

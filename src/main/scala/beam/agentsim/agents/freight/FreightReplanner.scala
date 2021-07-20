@@ -39,7 +39,7 @@ class FreightReplanner(
   def replan(freightCarrier: FreightCarrier): Unit = {
     val strategyName = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.strategy
     val departureTime = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.departureTime
-    val routes = solve(freightCarrier, strategyName, departureTime)
+    val routes = calculateRoutes(freightCarrier, strategyName, departureTime)
     val population = beamServices.matsimServices.getScenario.getPopulation.getPersons
     val newPlans = convertToPlans(routes, population, freightCarrier)
 
@@ -131,7 +131,7 @@ class FreightReplanner(
     Location(x, y)
   }
 
-  private[freight] def solve(
+  private[freight] def calculateRoutes(
     freightCarrier: FreightCarrier,
     strategyName: String,
     departureTime: Int

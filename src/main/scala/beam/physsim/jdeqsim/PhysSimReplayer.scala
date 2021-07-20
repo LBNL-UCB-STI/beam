@@ -41,7 +41,7 @@ object PhysSimReplayer extends StrictLogging {
       val beamTypesafeConfig = readBeamConfig(pathToBeamConfig, args(1))
 
       val beamHelper = new BeamHelper {}
-      val (execCfg, matsimScenario, beamScenario, beamSvc) = beamHelper.prepareBeamService(beamTypesafeConfig, None)
+      val (execCfg, matsimScenario, beamScenario, beamSvc, _) = beamHelper.prepareBeamService(beamTypesafeConfig, None)
       logger.info("BeamService is prepared")
 
       val eventsManager = new EventsManagerImpl

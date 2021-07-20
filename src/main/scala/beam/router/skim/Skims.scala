@@ -24,7 +24,8 @@ class Skims @Inject() (
   odSkimmer: ODSkimmer,
   tazSkimmer: TAZSkimmer,
   driveTimeSkimmer: DriveTimeSkimmer,
-  transitCrowdingSkimmer: TransitCrowdingSkimmer
+  transitCrowdingSkimmer: TransitCrowdingSkimmer,
+  asSkimmer: ActivitySimSkimmer
 ) extends LazyLogging {
 
   import Skims.SkimType
@@ -38,6 +39,7 @@ class Skims @Inject() (
   skims.put(SkimType.TAZ_SKIMMER, addEvent(tazSkimmer))
   skims.put(SkimType.DT_SKIMMER, addEvent(driveTimeSkimmer))
   skims.put(SkimType.TC_SKIMMER, addEvent(transitCrowdingSkimmer))
+  skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
 
   private def addEvent(skimmer: AbstractSkimmer): AbstractSkimmer = {
     matsimServices.addControlerListener(skimmer)
@@ -57,6 +59,7 @@ object Skims {
     val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
+    val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
   }
 
   def skimFileNames(skimCfg: Router.Skim) = IndexedSeq(

@@ -23,17 +23,21 @@ import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter.ODSkimmerReady
+import beam.router.BeamRouter.UpdateTravelTimeLocal
+import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
+import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.watcher.MethodWatcher
 import org.matsim.core.router.util.TravelTime
 
 import scala.util.Try
-//import beam.sim.metrics.MetricsPrinter.{Print, Subscribe}
-//import beam.sim.metrics.{MetricsPrinter, MetricsSupport}
+import scala.concurrent.duration._
+
+import scala.util.control.NonFatal
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scripts.FailFast
@@ -43,11 +47,8 @@ import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
-//import com.zaxxer.nuprocess.NuProcess
 import beam.analysis.PythonProcess
-import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
-import org.apache.commons.lang3.text.WordUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -162,6 +163,15 @@ class BeamSim @Inject() (
   )
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
+
+  beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
+    beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
+    beamServices,
+    configHolder,
+    eventsManager
+  )
+
+  var backgroundSkimsCreator: Option[BackgroundSkimsCreator] = None
 
   private var initialTravelTime = Option.empty[TravelTime]
 
@@ -285,6 +295,36 @@ class BeamSim @Inject() (
     // For example take a look to `run_name` variable in the dashboard
     BeamStaticMetricsWriter.writeBaseMetrics(beamScenario, beamServices)
 
+    if (beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.enabled) {
+      val geoClustering: GeoClustering =
+        beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsGeoType match {
+          case "h3" =>
+            new H3Clustering(
+              beamServices.matsimServices.getScenario.getPopulation,
+              beamServices.geo,
+              beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.numberOfH3Indexes
+            )
+          case "taz" => new TAZClustering(beamScenario.tazTreeMap)
+        }
+
+      val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
+      val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
+      val skimCreator = new BackgroundSkimsCreator(
+        beamServices,
+        beamScenario,
+        geoClustering,
+        abstractSkimmer,
+        new FreeFlowTravelTime,
+        Array(BeamMode.WALK),
+        withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
+        buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
+        buildDirectCarRoute = false,
+        calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+      )(actorSystem)
+      skimCreator.start()
+      backgroundSkimsCreator = Some(skimCreator)
+    }
+
     FailFast.run(beamServices)
     if (beamServices.beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
       beamServices.beamRouter ! ODSkimmerReady(beamServices.skims.od_skimmer)
@@ -292,6 +332,7 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
         beamServices.beamCustomizationAPI.getEventBuilders(beamServices.matsimServices.getEvents)
@@ -354,6 +395,8 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
+    backgroundSkimsCreator.foreach(_.increaseParallelismTo(Runtime.getRuntime.availableProcessors() - 1))
+
     val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
 
     if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
@@ -538,6 +581,8 @@ class BeamSim @Inject() (
   }
 
   override def notifyShutdown(event: ShutdownEvent): Unit = {
+    finalizeBackgroundSkimsCreator()
+
     carTravelTimeFromPtes.foreach(_.notifyShutdown(event))
 
     val firstIteration = beamServices.beamConfig.matsim.modules.controler.firstIteration
@@ -740,4 +785,47 @@ class BeamSim @Inject() (
     )
   }
 
+  private def finalizeBackgroundSkimsCreator(): Unit = {
+    val timeoutForSkimmer = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.calculationTimeoutHours.hours
+    backgroundSkimsCreator match {
+      case Some(skimCreator) =>
+        val abstractSkimmer = Await.result(skimCreator.getResult, timeoutForSkimmer).abstractSkimmer
+        skimCreator.stop()
+        val currentTravelTime = Await
+          .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
+          .asInstanceOf[UpdateTravelTimeLocal]
+          .travelTime
+
+        val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
+        val carAndDriveTransitSkimCreator = new BackgroundSkimsCreator(
+          beamServices,
+          beamScenario,
+          skimCreator.ODs,
+          abstractSkimmer,
+          currentTravelTime,
+          Array(BeamMode.CAR, BeamMode.WALK),
+          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
+          buildDirectWalkRoute = false,
+          buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
+          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+        )(actorSystem)
+        carAndDriveTransitSkimCreator.start()
+        carAndDriveTransitSkimCreator.increaseParallelismTo(Runtime.getRuntime.availableProcessors())
+        try {
+          val finalSkimmer = Await.result(carAndDriveTransitSkimCreator.getResult, timeoutForSkimmer).abstractSkimmer
+          carAndDriveTransitSkimCreator.stop()
+          finalSkimmer.writeToDisk(
+            new IterationEndsEvent(beamServices.matsimServices, beamServices.matsimServices.getIterationNumber)
+          )
+        } catch {
+          case NonFatal(ex) =>
+            logger.error(
+              s"Can't get the result from background skims creator or write the result to the disk: ${ex.getMessage}",
+              ex
+            )
+        }
+
+      case None =>
+    }
+  }
 }

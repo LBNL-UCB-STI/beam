@@ -49,6 +49,7 @@ class HierarchicalParkingManager(
         link.getId -> taz.tazId
       }
     )
+
   protected val tazZoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones.values.toSeq)
 
   override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
@@ -359,6 +360,7 @@ object HierarchicalParkingManager {
       )
       parkingZone.parkingZoneId -> parkingZone
     }.toMap
+
     //link zone to taz zone map
     val linkZoneToTazZoneMap = tazZones
       .zip(tazZoneDescriptions.map { case (_, _, linkZones) => linkZones })

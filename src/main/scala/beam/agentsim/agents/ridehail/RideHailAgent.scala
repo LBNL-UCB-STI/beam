@@ -1213,7 +1213,5 @@ class RideHailAgent(
 
     case _ -> _ =>
       unstashAll()
-
   }
-
 }

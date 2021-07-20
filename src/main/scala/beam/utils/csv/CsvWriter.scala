@@ -46,9 +46,10 @@ class CsvWriter(
     Try(writer.close())
   }
 
-  def writeAllAndClose(rows: Iterable[Seq[Any]]): Unit = {
-    rows.foreach(writeRow)
+  def writeAllAndClose(rows: Iterable[Seq[Any]]): Try[Unit] = {
+    val result = Try(rows.foreach(writeRow))
     close()
+    result
   }
 }
 
@@ -66,7 +67,8 @@ object CsvWriter {
       case x       => x
     }
     val strValue = toWrite.toString
-    val strValueToAppend = if (strValue.contains(',')) "\"" + strValue + "\"" else strValue
+    val strValueToAppend =
+      if (!strValue.startsWith("\"") && strValue.contains(',')) "\"" + strValue + "\"" else strValue
     wrt.append(strValueToAppend)
     if (shouldAddDelimiter)
       wrt.append(delimiter.value)
