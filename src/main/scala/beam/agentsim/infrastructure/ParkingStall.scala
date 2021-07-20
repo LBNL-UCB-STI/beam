@@ -111,7 +111,7 @@ object ParkingStall {
     */
   def defaultResidentialStall(
     locationUTM: Location,
-    defaultGeoId: Id[_],
+    defaultGeoId: Id[_]
   ): ParkingStall = ParkingStall(
     geoId = defaultGeoId,
     tazId = TAZ.DefaultTAZId,
@@ -131,8 +131,8 @@ object ParkingStall {
     * @param parkingAlternative Parking Alternative
     * @return
     */
-  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(
-    implicit gl: GeoLevel[GEO]
+  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(implicit
+    gl: GeoLevel[GEO]
   ): ParkingStall = {
     import GeoLevel.ops._
     ParkingStall(

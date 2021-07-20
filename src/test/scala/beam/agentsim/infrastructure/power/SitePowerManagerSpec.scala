@@ -166,7 +166,7 @@ class SitePowerManagerSpec
           300,
           chargingVehicle,
           SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-        ) should (be((1, 250000.0)) or be((300, 7.5E7)))
+        ) should (be((1, 250000.0)) or be((300, 7.5e7)))
       }
 
     }

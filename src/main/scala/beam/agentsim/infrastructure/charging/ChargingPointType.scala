@@ -143,7 +143,10 @@ object ChargingPointType {
           case AC =>
             (vehicleAcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule)
           case DC =>
-            (vehicleDcChargingLimitsInWatts / 1000.0, batteryCapacityInJoule * 0.8) // DC limits charging to 0.8 * battery capacity
+            (
+              vehicleDcChargingLimitsInWatts / 1000.0,
+              batteryCapacityInJoule * 0.8
+            ) // DC limits charging to 0.8 * battery capacity
         }
     }
 
@@ -168,7 +171,8 @@ object ChargingPointType {
       )
       .intValue()
 
-    val sessionEnergyInJoules = sessionLength.toDouble / 3600.0 * Math.min(chargingLimits._1, chargingPowerLimiter) * 3.6e6
+    val sessionEnergyInJoules =
+      sessionLength.toDouble / 3600.0 * Math.min(chargingLimits._1, chargingPowerLimiter) * 3.6e6
     (sessionLength, sessionEnergyInJoules)
   }
 

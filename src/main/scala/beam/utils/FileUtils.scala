@@ -446,13 +446,12 @@ object FileUtils extends LazyLogging {
       .map { i =>
         (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
       }
-    val futures = fileList.map {
-      case (i: Int, path: Path) =>
-        Future {
-          using(IOUtils.getBufferedWriter(path.toString)) { writer =>
-            saver(i, path, writer)
-          }
+    val futures = fileList.map { case (i: Int, path: Path) =>
+      Future {
+        using(IOUtils.getBufferedWriter(path.toString)) { writer =>
+          saver(i, path, writer)
         }
+      }
     }
     Await.result(Future.sequence(futures), atMost)
   }
@@ -483,18 +482,17 @@ object FileUtils extends LazyLogging {
     import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
     import java.util.zip.{ZipEntry, ZipOutputStream}
 
-    val existed = files.filter { case (_, path)      => Files.exists(path) && Files.isRegularFile(path) }
+    val existed = files.filter { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
     val notExited = files.filterNot { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
     notExited.foreach { case (name, _) => logger.error(s"Cannot find $name") }
 
     using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) { zip =>
-      existed.foreach {
-        case (name, path) =>
-          zip.putNextEntry(new ZipEntry(name))
-          using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
-            IOUtils.copyStream(in, zip)
-          }
-          zip.closeEntry()
+      existed.foreach { case (name, path) =>
+        zip.putNextEntry(new ZipEntry(name))
+        using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
+          IOUtils.copyStream(in, zip)
+        }
+        zip.closeEntry()
       }
     }
     out

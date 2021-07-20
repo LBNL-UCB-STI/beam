@@ -75,7 +75,7 @@ object GeometryPerformance {
       tazMap.tazQuadTree,
       1.0,
       1.0,
-      new Random(18389),
+      new Random(18389)
     )
 
     val clusters: Vector[ParallelParkingManager.ParkingCluster] =

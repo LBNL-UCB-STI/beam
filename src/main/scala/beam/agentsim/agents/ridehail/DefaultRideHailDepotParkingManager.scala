@@ -41,7 +41,6 @@ import scala.collection.mutable.ListBuffer
   * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier = "double | -0.01666667" // one minute of queueing is one util
   * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier = "double | -0.01666667" // one minute of charging is one util
   * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
-  *
   */
 class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   vehicleManagerId: Id[VehicleManager],
@@ -56,9 +55,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
    */
   protected val parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData] =
     mutable.Map.empty[Id[ParkingZoneId], ParkingZoneDepotData]
-  parkingZones.foreach {
-    case (parkingZoneId, _) =>
-      parkingZoneIdToParkingZoneDepotData.put(parkingZoneId, ParkingZoneDepotData.empty)
+  parkingZones.foreach { case (parkingZoneId, _) =>
+    parkingZoneIdToParkingZoneDepotData.put(parkingZoneId, ParkingZoneDepotData.empty)
   }
 
   override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
@@ -83,8 +81,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[VehicleId, ParkingStall]
   private val vehiclesOnWayToDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
+
   private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, Id[ParkingZoneId]] =
     mutable.Map.empty[VehicleId, Id[ParkingZoneId]]
+
   private val vehicleIdToLastObservedTickAndAction: mutable.Map[VehicleId, mutable.ListBuffer[(Int, String)]] =
     mutable.Map.empty[VehicleId, mutable.ListBuffer[(Int, String)]]
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
@@ -124,22 +124,21 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       }
     }
 
-    idleVehicleIdsWantingToRefuelWithLocation.map {
-      case (vehicleId, rideHailAgentLocation) =>
-        val beamVehicle = resources(vehicleId)
-        val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
-        val parkingStall =
-          processParkingInquiry(
-            ParkingInquiry.init(
-              SpaceTime(locationUtm, tick),
-              "wherever",
-              vehicleManagerId = vehicleManagerId,
-              Some(beamVehicle),
-              valueOfTime = rideHailConfig.cav.valueOfTime,
-              triggerId = 0
-            )
-          ).map(_.stall).getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
-        (vehicleId, parkingStall)
+    idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
+      val beamVehicle = resources(vehicleId)
+      val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
+      val parkingStall =
+        processParkingInquiry(
+          ParkingInquiry.init(
+            SpaceTime(locationUtm, tick),
+            "wherever",
+            vehicleManagerId = vehicleManagerId,
+            Some(beamVehicle),
+            valueOfTime = rideHailConfig.cav.valueOfTime,
+            triggerId = 0
+          )
+        ).map(_.stall).getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
+      (vehicleId, parkingStall)
     }
   }
 
@@ -283,12 +282,11 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @param newVehiclesHeadedToDepot
     */
   def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
-    newVehiclesHeadedToDepot.foreach {
-      case (vehicleId, parkingStall) =>
-        logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
-        vehiclesOnWayToDepot.put(vehicleId, parkingStall)
-        val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
-        parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
+    newVehiclesHeadedToDepot.foreach { case (vehicleId, parkingStall) =>
+      logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
+      vehiclesOnWayToDepot.put(vehicleId, parkingStall)
+      val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
+      parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
     }
   }
 
@@ -307,7 +305,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @return
     */
   def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean =
-    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(vehicleId) || vehiclesInQueueToParkingZoneId
+    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(
+      vehicleId
+    ) || vehiclesInQueueToParkingZoneId
       .contains(vehicleId)
 
   /**

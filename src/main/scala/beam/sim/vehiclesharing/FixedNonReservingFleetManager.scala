@@ -51,18 +51,17 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
   private val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-  private val vehicles = (locations.zipWithIndex map {
-    case (location, ix) =>
-      val vehicle = new BeamVehicle(
-        Id.createVehicleId(self.path.name + "-" + ix),
-        new Powertrain(0.0),
-        vehicleType,
-        vehicleManagerId = vehicleManagerId,
-        rand.nextInt()
-      )
-      vehicle.setManager(Some(self))
-      vehicle.spaceTime = SpaceTime(location, 0)
-      vehicle.id -> vehicle
+  private val vehicles = (locations.zipWithIndex map { case (location, ix) =>
+    val vehicle = new BeamVehicle(
+      Id.createVehicleId(self.path.name + "-" + ix),
+      new Powertrain(0.0),
+      vehicleType,
+      vehicleManagerId = vehicleManagerId,
+      rand.nextInt()
+    )
+    vehicle.setManager(Some(self))
+    vehicle.spaceTime = SpaceTime(location, 0)
+    vehicle.id -> vehicle
   }).toMap
 
   private val availableVehicles = mutable.Map.empty[Id[BeamVehicle], BeamVehicle]
@@ -95,9 +94,12 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
-      sender ! MobilityStatusResponse(nearbyVehicles.take(5).map { vehicle =>
-        Token(vehicle.id, self, vehicle)
-      }, triggerId)
+      sender ! MobilityStatusResponse(
+        nearbyVehicles.take(5).map { vehicle =>
+          Token(vehicle.id, self, vehicle)
+        },
+        triggerId
+      )
       collectData(whenWhere.time, whenWhere.loc, RepositionManager.inquiry)
 
     case TryToBoardVehicle(token, who, triggerId) =>
@@ -124,6 +126,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
   }
 
   override def getId: Id[VehicleManager] = vehicleManagerId
+
   override def queryAvailableVehicles: List[BeamVehicle] =
     availableVehiclesIndex.queryAll().asScala.map(_.asInstanceOf[BeamVehicle]).toList
   override def getScheduler: ActorRef = mainScheduler

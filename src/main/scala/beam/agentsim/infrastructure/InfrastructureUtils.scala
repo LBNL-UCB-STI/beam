@@ -21,7 +21,6 @@ import scala.util.{Failure, Random, Success, Try}
 object InfrastructureUtils extends LazyLogging {
 
   /**
-    *
     * @param beamScenario
     * @param beamConfig
     * @param geo
@@ -205,7 +204,6 @@ object InfrastructureUtils extends LazyLogging {
   }
 
   /**
-    *
     * @param parkingFilePath
     * @param depotFilePaths
     * @param geoQuadTree
@@ -283,7 +281,6 @@ object InfrastructureUtils extends LazyLogging {
   }
 
   /**
-    *
     * @param stalls Map[Id[ParkingZoneId], ParkingZone[GEO]]
     * @return
     */
@@ -296,7 +293,6 @@ object InfrastructureUtils extends LazyLogging {
   }
 
   /**
-    *
     * @param stalls Map[Id[ParkingZoneId], ParkingZone[GEO]]
     * @return
     */

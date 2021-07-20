@@ -122,7 +122,7 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       parkingZoneName,
-      landCostInUSDPerSqft,
+      landCostInUSDPerSqft
     )
 
   def defaultInit[GEO](
@@ -163,7 +163,7 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       parkingZoneName,
-      landCostInUSDPerSqft,
+      landCostInUSDPerSqft
     )
   }
 

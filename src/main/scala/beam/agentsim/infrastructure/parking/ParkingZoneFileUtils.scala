@@ -366,16 +366,17 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private val TimeRestriction = """(\w+)\|(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?""".r
+
   private[parking] def parseTimeRestrictions(timeRestrictionsString: String): Map[VehicleCategory, Range] = {
 
     def parseTimeRestriction(timeRestrictionString: String): Option[(VehicleCategory, Range)] = {
       timeRestrictionString match {
         case TimeRestriction(
-            categoryStr,
-            hour1,
-            minute1,
-            hour2,
-            minute2,
+              categoryStr,
+              hour1,
+              minute1,
+              hour2,
+              minute2
             ) =>
           val category = VehicleCategory.fromString(categoryStr)
           val from = hour1.toInt * 3600 + Option(minute1).map(_.toInt).getOrElse(0) * 60
@@ -493,12 +494,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
   private def validateCsvRow(csvRow: jMap): Boolean = {
     val allRequiredPresented = Seq("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents")
-      .forall(
-        key => {
-          val value = csvRow.get(key)
-          value != null && value.nonEmpty
-        }
-      )
+      .forall(key => {
+        val value = csvRow.get(key)
+        value != null && value.nonEmpty
+      })
     allRequiredPresented &&
     Try(csvRow.get("numStalls").toDouble).toOption.exists(_ >= 0) &&
     Try(csvRow.get("feeInCents").toDouble).toOption.exists(_ >= 0)
@@ -515,11 +514,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
             .split('|')
             .map(categoryStr => categoryStr -> VehicleCategory.fromStringOptional(categoryStr))
             .toIndexedSeq
-        maybeCategories.foreach {
-          case (categoryStr, maybeCategory) =>
-            if (maybeCategory.isEmpty) {
-              logger.error(s"Wrong category '$categoryStr' for zone $geoId, ignoring the category")
-            }
+        maybeCategories.foreach { case (categoryStr, maybeCategory) =>
+          if (maybeCategory.isEmpty) {
+            logger.error(s"Wrong category '$categoryStr' for zone $geoId, ignoring the category")
+          }
         }
         maybeCategories.flatMap { case (_, maybeCategory) => maybeCategory }
     }
@@ -637,22 +635,21 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     */
   def toCsv[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]], filePath: String): Unit = {
     val fileContent = parkingZones
-      .map {
-        case (_, parkingZone) =>
-          List(
-            parkingZone.geoId,
-            parkingZone.parkingType,
-            parkingZone.pricingModel.getOrElse(""),
-            parkingZone.chargingPointType.getOrElse(""),
-            parkingZone.maxStalls,
-            parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
-            parkingZone.parkingZoneName.getOrElse(""),
-            parkingZone.landCostInUSDPerSqft.getOrElse(""),
-            parkingZone.reservedFor.mkString("|"),
-            parkingZone.timeRestrictions.map(x => x._1.toString + "|" + x._2.toString).mkString(";"),
-            parkingZone.toString,
-            parkingZone.parkingZoneId
-          ).mkString(",")
+      .map { case (_, parkingZone) =>
+        List(
+          parkingZone.geoId,
+          parkingZone.parkingType,
+          parkingZone.pricingModel.getOrElse(""),
+          parkingZone.chargingPointType.getOrElse(""),
+          parkingZone.maxStalls,
+          parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
+          parkingZone.parkingZoneName.getOrElse(""),
+          parkingZone.landCostInUSDPerSqft.getOrElse(""),
+          parkingZone.reservedFor.mkString("|"),
+          parkingZone.timeRestrictions.map(x => x._1.toString + "|" + x._2.toString).mkString(";"),
+          parkingZone.toString,
+          parkingZone.parkingZoneId
+        ).mkString(",")
       }
       .mkString(System.lineSeparator())
 

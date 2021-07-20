@@ -170,19 +170,19 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         parkingZoneFilterFunction,
         parkingZoneLocSamplingFunction,
         parkingZoneMNLParamsFunction,
-        geoToTAZ,
+        geoToTAZ
       )
     )
 
     result match {
       case Some(
-          _ @ParkingZoneSearch.ParkingZoneSearchResult(
-            _,
-            _,
-            parkingZonesSeen,
-            parkingZonesSampled,
-            iterations
-          )
+            _ @ParkingZoneSearch.ParkingZoneSearchResult(
+              _,
+              _,
+              parkingZonesSeen,
+              parkingZonesSampled,
+              iterations
+            )
           ) =>
         logger.debug(
           s"sampled over ${parkingZonesSampled.length} (found ${parkingZonesSeen.length}) parking zones over $iterations iterations."
@@ -207,11 +207,10 @@ object InfrastructureFunctions {
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled
-      .map(
-        triple =>
-          triple._2 match {
-            case Some(x) => x
-            case None    => "NoCharger"
+      .map(triple =>
+        triple._2 match {
+          case Some(x) => x
+          case None    => "NoCharger"
         }
       )
       .groupBy(identity)

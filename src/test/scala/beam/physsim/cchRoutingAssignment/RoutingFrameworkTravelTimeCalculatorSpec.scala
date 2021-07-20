@@ -83,16 +83,15 @@ class RoutingFrameworkTravelTimeCalculatorSpec extends AnyFlatSpec with Matchers
     )
 
     res.size shouldBe expected.size
-    res.foreach {
-      case (linkId, travelTimes) =>
-        expected(linkId) shouldBe travelTimes
+    res.foreach { case (linkId, travelTimes) =>
+      expected(linkId) shouldBe travelTimes
     }
   }
 
   private def event(
     departureTime: Int,
     linkIds: IndexedSeq[Int],
-    linkTravelTime: IndexedSeq[Double],
+    linkTravelTime: IndexedSeq[Double]
   ): PathTraversalEvent = {
     val e = mock(classOf[PathTraversalEvent])
     when(e.departureTime).thenReturn(departureTime)

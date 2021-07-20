@@ -10,7 +10,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.collection.JavaConverters._
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class FileUtilsSpec extends AnyWordSpecLike with Matchers {

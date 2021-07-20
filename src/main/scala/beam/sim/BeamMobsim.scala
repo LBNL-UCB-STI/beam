@@ -50,7 +50,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Random
 
-class BeamMobsim @Inject()(
+class BeamMobsim @Inject() (
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val transportNetwork: TransportNetwork,
@@ -64,7 +64,7 @@ class BeamMobsim @Inject()(
   val geo: GeoUtils,
   val planCleaner: ModeIterationPlanCleaner,
   val networkHelper: NetworkHelper,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -117,7 +117,7 @@ class BeamMobsim @Inject()(
 
     val defaultName = SimulationMetricCollector.defaultMetricName
     writeZeros("ride-hail-trip-distance", tags = Map("trip-type" -> "1"))
-    writeZeros("average-travel-time", tags = Map("mode"          -> "car"))
+    writeZeros("average-travel-time", tags = Map("mode" -> "car"))
 
     writeZeros("parking", tags = Map("parking-type" -> "Public"))
     writeZeros("ride-hail-allocation-reserved")
@@ -133,14 +133,13 @@ class BeamMobsim @Inject()(
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
     ConcurrentUtils.parallelExecution(
-      beamScenario.freightCarriers.zipWithIndex.map {
-        case (carrier, i) =>
-          () =>
-            new FreightReplanner(
-              beamServices,
-              skims.od_skimmer,
-              new Random(beamConfig.matsim.modules.global.randomSeed + i)
-            ).replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
+      beamScenario.freightCarriers.zipWithIndex.map { case (carrier, i) =>
+        () =>
+          new FreightReplanner(
+            beamServices,
+            skims.od_skimmer,
+            new Random(beamConfig.matsim.modules.global.randomSeed + i)
+          ).replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
       }
     )(scala.concurrent.ExecutionContext.global)
 
@@ -176,8 +175,8 @@ class BeamMobsim @Inject()(
     households.getHouseholds.values.forEach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
-      val persons = household.getMemberIds.asScala.collect {
-        case personId => matsimServices.getScenario.getPopulation.getPersons.get(personId)
+      val persons = household.getMemberIds.asScala.collect { case personId =>
+        matsimServices.getScenario.getPopulation.getPersons.get(personId)
       }
       val destinationChoiceModel = beamScenario.destinationChoiceModel
 
@@ -206,9 +205,11 @@ class BeamMobsim @Inject()(
           addSupplementaryTrips.run(person)
         }
 
-        if (person.getSelectedPlan.getPlanElements.asScala
-              .collect { case activity: Activity => activity.getType }
-              .contains("Temp")) {
+        if (
+          person.getSelectedPlan.getPlanElements.asScala
+            .collect { case activity: Activity => activity.getType }
+            .contains("Temp")
+        ) {
           val supplementaryTripGenerator =
             new SupplementaryTripGenerator(
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
@@ -306,19 +307,23 @@ class BeamMobsim @Inject()(
   }
 
   def validateVehicleTypes(): Unit = {
-    if (!beamScenario.vehicleTypes.contains(
-          Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
-        )) {
+    if (
+      !beamScenario.vehicleTypes.contains(
+        Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+      )
+    ) {
       throw new RuntimeException(
         "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
       )
     }
-    if (!beamScenario.vehicleTypes.contains(
-          Id.create(
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-            classOf[BeamVehicleType]
-          )
-        )) {
+    if (
+      !beamScenario.vehicleTypes.contains(
+        Id.create(
+          beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          classOf[BeamVehicleType]
+        )
+      )
+    ) {
       throw new RuntimeException(
         "Vehicle type for ride-hail: " + beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
       )
@@ -333,7 +338,7 @@ class BeamMobsimIteration(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
 ) extends LoggingMessageActor
     with ActorLogging
     with MetricsSupport {
@@ -355,6 +360,7 @@ class BeamMobsimIteration(
   context.watch(errorListener)
   context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
   context.system.eventStream.subscribe(errorListener, classOf[DeadLetter])
+
   private val scheduler = context.actorOf(
     Props(
       classOf[BeamAgentScheduler],
@@ -379,6 +385,7 @@ class BeamMobsimIteration(
 
   private val (parkingNetwork, chargingNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
+
   // Parking Network Manager
   private val parkingNetworkManager = context.actorOf(
     ParkingNetworkManager
@@ -404,6 +411,7 @@ class BeamMobsimIteration(
       VehicleManager.BEAMRideHail
     )
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
+
   private val rideHailManager = context.actorOf(
     Props(
       new RideHailManager(
@@ -592,10 +600,10 @@ class BeamMobsimIteration(
 
   def buildActivityQuadTreeBounds(population: MATSimPopulation): QuadTreeBounds = {
     val persons = population.getPersons.values().asInstanceOf[java.util.Collection[Person]].asScala.view
-    val activities = persons.flatMap(p => p.getSelectedPlan.getPlanElements.asScala.view).collect {
-      case activity: Activity =>
+    val activities =
+      persons.flatMap(p => p.getSelectedPlan.getPlanElements.asScala.view).collect { case activity: Activity =>
         activity
-    }
+      }
     val coordinates = activities.map(_.getCoord)
     // Force to compute xs and ys arrays
     val xs = coordinates.map(_.getX).toArray

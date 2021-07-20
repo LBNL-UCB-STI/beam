@@ -247,15 +247,15 @@ object BeamWarmStart extends LazyLogging {
       val newWarmStartConfig: Beam.WarmStart = {
         val skimCfg = beamConfig.beam.router.skim
 
-        val newSkimsFilePath: IndexedSeq[SkimsFilePaths$Elm] = Skims.skimAggregatedFileNames(skimCfg).map {
-          case (skimType, fileName) =>
+        val newSkimsFilePath: IndexedSeq[SkimsFilePaths$Elm] =
+          Skims.skimAggregatedFileNames(skimCfg).map { case (skimType, fileName) =>
             val filePath = Try(instance.compressedLocation("Skims file", fileName))
               .getOrElse(instance.parentRunPath)
             SkimsFilePaths$Elm(skimType.toString, filePath)
-        }
+          }
 
         beamConfig.beam.warmStart.copy(
-          skimsFilePaths = Some(newSkimsFilePath.toList),
+          skimsFilePaths = Some(newSkimsFilePath.toList)
         )
       }
 
@@ -351,23 +351,22 @@ object BeamWarmStart extends LazyLogging {
           .skimAggregatedFileNames(skimCfg)
           .map { case (_, name) => name }
           .map(name => name -> controllerIO.getIterationFilename(iteration, name))
-        val skimFiles = skimFileNames.map {
-          case (name, pathStr) => s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(pathStr)
+        val skimFiles = skimFileNames.map { case (name, pathStr) =>
+          s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(pathStr)
         }
         val rootFiles = IndexedSeq(
           "output_personAttributes.xml.gz",
           "population.csv.gz",
           "households.csv.gz",
-          "vehicles.csv.gz",
+          "vehicles.csv.gz"
         ).map(name => name -> Paths.get(controllerIO.getOutputFilename(name)))
         val iterationFiles = IndexedSeq(
           "linkstats.csv.gz",
           "plans.csv.gz",
           "plans.xml.gz",
-          "rideHailFleet.csv.gz",
-        ).map(
-          name =>
-            s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
+          "rideHailFleet.csv.gz"
+        ).map(name =>
+          s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
         )
         val files = rootFiles ++ skimFiles ++ iterationFiles
         Some(FileUtils.zipFiles(controllerIO.getOutputFilename("warmstart_data.zip"), files))

@@ -66,13 +66,13 @@ class ParkingFunctions[GEO: GeoLevel](
   ): Map[ParkingMNL.Parameters, Double] = {
     val distance: Double = distanceFunction(inquiry.destinationUtm.loc, parkingAlternative.coord)
 
-    val distanceFactor
-      : Double = (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+    val distanceFactor: Double =
+      (distance / ZonalParkingManager.AveragePersonWalkingSpeed / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
 
     val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
-    val goingHome
-      : Boolean = inquiry.activityType == ParkingActivityType.Home && parkingAlternative.parkingType == ParkingType.Residential
+    val goingHome: Boolean =
+      inquiry.activityType == ParkingActivityType.Home && parkingAlternative.parkingType == ParkingType.Residential
 
     val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
 
@@ -174,15 +174,14 @@ class ParkingFunctions[GEO: GeoLevel](
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-    val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(
-      vehicle => zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
+    val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
+      zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
     )
 
-    val isValidTime = inquiry.beamVehicle.forall(
-      vehicle =>
-        zone.timeRestrictions
-          .get(vehicle.beamVehicleType.vehicleCategory)
-          .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
+    val isValidTime = inquiry.beamVehicle.forall(vehicle =>
+      zone.timeRestrictions
+        .get(vehicle.beamVehicleType.vehicleCategory)
+        .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
 
     val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>

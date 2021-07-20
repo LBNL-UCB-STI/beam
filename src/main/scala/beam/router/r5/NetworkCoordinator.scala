@@ -112,13 +112,12 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
-    overwriteLinkParamMap.foreach {
-      case (linkId, param) =>
-        val link = network.getLinks.get(Id.createLinkId(linkId))
-        require(link != null, s"Could not find link with id $linkId")
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        // Overwrite params
-        param.overwriteFor(link, edge)
+    overwriteLinkParamMap.foreach { case (linkId, param) =>
+      val link = network.getLinks.get(Id.createLinkId(linkId))
+      require(link != null, s"Could not find link with id $linkId")
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      // Overwrite params
+      param.overwriteFor(link, edge)
     }
   }
 
@@ -156,24 +155,23 @@ trait NetworkCoordinator extends LazyLogging {
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>
           val tripStartTimes = ts.startTimes(0).until(ts.endTimes(0)).by(ts.headwaySeconds(0)).toVector
-          tripStartTimes.zipWithIndex.map {
-            case (startTime, ind) =>
-              val tsNew = ts.clone()
-              val newTripId = s"${tsNew.tripId}-$ind"
-              val newArrivals = new Array[Int](ts.arrivals.length)
-              val newDepartures = new Array[Int](ts.arrivals.length)
-              for (i <- tsNew.arrivals.indices) {
-                newArrivals(i) = tsNew.arrivals(i) + startTime
-                newDepartures(i) = tsNew.departures(i) + startTime
-              }
-              tsNew.arrivals = newArrivals
-              tsNew.departures = newDepartures
-              tsNew.tripId = newTripId
-              tsNew.frequencyEntryIds = null
-              tsNew.headwaySeconds = null
-              tsNew.startTimes = null
-              tsNew.endTimes = null
-              tsNew
+          tripStartTimes.zipWithIndex.map { case (startTime, ind) =>
+            val tsNew = ts.clone()
+            val newTripId = s"${tsNew.tripId}-$ind"
+            val newArrivals = new Array[Int](ts.arrivals.length)
+            val newDepartures = new Array[Int](ts.arrivals.length)
+            for (i <- tsNew.arrivals.indices) {
+              newArrivals(i) = tsNew.arrivals(i) + startTime
+              newDepartures(i) = tsNew.departures(i) + startTime
+            }
+            tsNew.arrivals = newArrivals
+            tsNew.departures = newDepartures
+            tsNew.tripId = newTripId
+            tsNew.frequencyEntryIds = null
+            tsNew.headwaySeconds = null
+            tsNew.startTimes = null
+            tsNew.endTimes = null
+            tsNew
           }
         }
         tp.tripSchedules.clear()
@@ -213,6 +211,7 @@ trait NetworkCoordinator extends LazyLogging {
 }
 
 object NetworkCoordinator {
+
   private[r5] def createHighwaySetting(highwayType: Physsim.Network.OverwriteRoadTypeProperties): HighwaySetting = {
     if (!highwayType.enabled) {
       HighwaySetting.empty()

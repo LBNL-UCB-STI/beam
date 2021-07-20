@@ -44,7 +44,7 @@ object ParkingZoneSearch {
     searchMaxRadius: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
-    searchExpansionFactor: Double = 2.0,
+    searchExpansionFactor: Double = 2.0
   )
 
   /**
@@ -132,7 +132,7 @@ object ParkingZoneSearch {
     parkingZoneFilterFunction: ParkingZone[GEO] => Boolean,
     parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord,
     parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double],
-    geoToTAZ: GEO => TAZ,
+    geoToTAZ: GEO => TAZ
   ): Option[ParkingZoneSearchResult[GEO]] = {
     import GeoLevel.ops._
 

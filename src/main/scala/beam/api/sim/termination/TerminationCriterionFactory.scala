@@ -33,6 +33,7 @@ trait TerminationCriterionFactory {
   * Default implementation of [[TerminationCriterionFactory]].
   */
 class DefaultTerminationCriterionFactory extends TerminationCriterionFactory {
+
   override def create(
     controlerConfigGroup: ControlerConfigGroup,
     beamConfigHolder: BeamConfigHolder,

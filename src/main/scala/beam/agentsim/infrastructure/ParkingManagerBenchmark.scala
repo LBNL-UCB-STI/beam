@@ -31,8 +31,8 @@ import scala.util.Random
 class ParkingManagerBenchmark(
   val possibleParkingLocations: Array[(Coord, String)],
   val parkingNetwork: ParkingNetwork[_]
-)(
-  implicit val actorSystem: ActorSystem,
+)(implicit
+  val actorSystem: ActorSystem,
   val ec: ExecutionContext
 ) extends StrictLogging {
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
@@ -42,11 +42,10 @@ class ParkingManagerBenchmark(
   def benchmark(): List[ParkingInquiryResponse] = {
     val parkingResponses =
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
-        possibleParkingLocations.flatMap {
-          case (coord, actType) =>
-            parkingNetwork.processParkingInquiry(
-              ParkingInquiry.init(SpaceTime(coord, 0), actType, parkingNetwork.getVehicleManagerId, triggerId = -1L)
-            )
+        possibleParkingLocations.flatMap { case (coord, actType) =>
+          parkingNetwork.processParkingInquiry(
+            ParkingInquiry.init(SpaceTime(coord, 0), actType, parkingNetwork.getVehicleManagerId, triggerId = -1L)
+          )
         }.toList
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")
@@ -242,9 +241,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         parkingLocations: immutable.IndexedSeq[Array[(Coord, String)]]
       ): (String, immutable.IndexedSeq[List[ParkingInquiryResponse]]) = {
         val start = System.currentTimeMillis()
-        val responses = (1 to nTimes).zip(parkingLocations).map {
-          case (_, parkingLocation) =>
-            runBench(parkingLocation, managerType)
+        val responses = (1 to nTimes).zip(parkingLocations).map { case (_, parkingLocation) =>
+          runBench(parkingLocation, managerType)
         }
         val end = System.currentTimeMillis()
         val diff = end - start
@@ -262,8 +260,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         rnd.shuffle(allActivityLocations.toList).take(nToTake).toArray
       }
       CsvWriter("./parking_inquiries.csv.gz", "activity-type", "x", "y")
-        .writeAllAndClose(parkingLocations.flatten.map {
-          case (coord, actType) => List(actType, coord.getX, coord.getY)
+        .writeAllAndClose(parkingLocations.flatten.map { case (coord, actType) =>
+          List(actType, coord.getX, coord.getY)
         })
       logger.info("activities written")
 

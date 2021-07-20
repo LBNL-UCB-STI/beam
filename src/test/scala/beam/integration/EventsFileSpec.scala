@@ -88,8 +88,9 @@ class EventsFileSpec
     }
     require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' ${gtfsZip}")
 
-    val trips = for (line <- maybeLines.get)
-      yield line.split(",")(2)
+    val trips =
+      for (line <- maybeLines.get)
+        yield line.split(",")(2)
     trips.toSet
   }
 
@@ -110,8 +111,9 @@ class EventsFileSpec
     }
     require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' ${gtfsZip}")
 
-    val stopTimes = for (line <- maybeLines.get)
-      yield line.split(",")
+    val stopTimes =
+      for (line <- maybeLines.get)
+        yield line.split(",")
     val stopTimesByTrip = stopTimes.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
   }

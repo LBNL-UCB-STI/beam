@@ -367,15 +367,14 @@ trait BeamHelper extends LazyLogging {
   private def maybeScaleTransit(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {
     beamConfig.beam.agentsim.tuning.transitCapacity match {
       case Some(scalingFactor) =>
-        vehicleTypes.map {
-          case (id, bvt) =>
-            id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
-                     bvt.copy(
-                       seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
-                       standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
-                     )
-                   else
-                     bvt)
+        vehicleTypes.map { case (id, bvt) =>
+          id -> (if (bvt.vehicleCategory == MediumDutyPassenger)
+                   bvt.copy(
+                     seatingCapacity = Math.ceil(bvt.seatingCapacity.toDouble * scalingFactor).toInt,
+                     standingRoomCapacity = Math.ceil(bvt.standingRoomCapacity.toDouble * scalingFactor).toInt
+                   )
+                 else
+                   bvt)
         }
       case None => vehicleTypes
     }
@@ -418,10 +417,12 @@ trait BeamHelper extends LazyLogging {
 
     val location = ConfigFactory.parseString(s"""config="${parsedArgs.configLocation.get}"""")
     System.setProperty("configFileLocation", parsedArgs.configLocation.getOrElse(""))
-    val config = embedSelectArgumentsIntoConfig(parsedArgs, {
-      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
-      else parsedArgs.config.get
-    }).withFallback(location).resolve()
+    val config = embedSelectArgumentsIntoConfig(
+      parsedArgs, {
+        if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
+        else parsedArgs.config.get
+      }
+    ).withFallback(location).resolve()
 
     checkDockerIsInstalledForCCHPhysSim(config)
 
@@ -445,8 +446,10 @@ trait BeamHelper extends LazyLogging {
     val out = new FileOutputStream(Paths.get(outputDirectory, "beam.properties").toFile)
     props.store(out, "Simulation out put props.")
     val beamConfig = BeamConfig(config)
-    if (beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
-          .equalsIgnoreCase("ModeChoiceLCCM")) {
+    if (
+      beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass
+        .equalsIgnoreCase("ModeChoiceLCCM")
+    ) {
       Files.copy(
         Paths.get(beamConfig.beam.agentsim.agents.modalBehaviors.lccm.filePath),
         Paths.get(
@@ -513,9 +516,12 @@ trait BeamHelper extends LazyLogging {
     system.eventStream.subscribe(replayer, classOf[DeadLetter])
 
     import scala.concurrent.ExecutionContext.Implicits.global
-    Await.ready(system.whenTerminated.map(_ => {
-      logger.info("Exiting BEAM")
-    }), scala.concurrent.duration.Duration.Inf)
+    Await.ready(
+      system.whenTerminated.map(_ => {
+        logger.info("Exiting BEAM")
+      }),
+      scala.concurrent.duration.Duration.Inf
+    )
   }
 
   def runBeamWithConfig(
@@ -545,7 +551,7 @@ trait BeamHelper extends LazyLogging {
     val beamExecutionConfig = updateConfigWithWarmStart(setupBeamWithConfig(config))
     val (scenario, beamScenario) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
-      beamExecutionConfig.matsimConfig,
+      beamExecutionConfig.matsimConfig
     )
     logger.info(s"Java version: ${System.getProperty("java.version")}")
     logger.info(
@@ -615,7 +621,7 @@ trait BeamHelper extends LazyLogging {
 
   def buildBeamServices(
     injector: inject.Injector,
-    scenario: MutableScenario,
+    scenario: MutableScenario
   ): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
     result
@@ -640,7 +646,7 @@ trait BeamHelper extends LazyLogging {
     beamScenario: BeamScenario,
     outputDir: String
   ): Unit = {
-    if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0D)) {
+    if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0d)) {
       applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
 
@@ -660,12 +666,11 @@ trait BeamHelper extends LazyLogging {
       .asScala
       .flatMap(_.getVehicleIds.asScala)
 
-    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(
-      v => beamScenario.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
+    val vehiclesGroupedByType = houseHoldVehiclesInScenario.groupBy(v =>
+      beamScenario.privateVehicles.get(v).map(_.beamVehicleType.id.toString).getOrElse("")
     )
-    val vehicleInfo = vehiclesGroupedByType.map {
-      case (vehicleType, groupedValues) =>
-        s"$vehicleType (${groupedValues.size})"
+    val vehicleInfo = vehiclesGroupedByType.map { case (vehicleType, groupedValues) =>
+      s"$vehicleType (${groupedValues.size})"
     } mkString " , "
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
 
@@ -711,9 +716,8 @@ trait BeamHelper extends LazyLogging {
         .filter(_._2.size > 1) // too many of them and we don't need such unique data in logs
         .toSeq
         .sortBy(_._2.size)(Ordering[Int].reverse)
-        .foreach {
-          case (planKey, people) =>
-            logger.info("There are {} people with plan `{}`", people.size, planKey)
+        .foreach { case (planKey, people) =>
+          logger.info("There are {} people with plan `{}`", people.size, planKey)
         }
     }
   }
@@ -833,22 +837,21 @@ trait BeamHelper extends LazyLogging {
       )
 
       val allowedModes = Seq(BeamMode.CAR.value)
-      plans.foreach {
-        case (household, plan) =>
-          households.getHouseholds.put(household.getId, household)
-          population.addPerson(plan.getPerson)
-          AvailableModeUtils.setAvailableModesForPerson_v2(
-            beamScenario,
-            plan.getPerson,
-            household,
-            population,
-            allowedModes,
-          )
-          val freightVehicle = beamScenario.privateVehicles(household.getVehicleIds.get(0))
-          households.getHouseholdAttributes
-            .putAttribute(household.getId.toString, "homecoordx", freightVehicle.spaceTime.loc.getX)
-          households.getHouseholdAttributes
-            .putAttribute(household.getId.toString, "homecoordy", freightVehicle.spaceTime.loc.getY)
+      plans.foreach { case (household, plan) =>
+        households.getHouseholds.put(household.getId, household)
+        population.addPerson(plan.getPerson)
+        AvailableModeUtils.setAvailableModesForPerson_v2(
+          beamScenario,
+          plan.getPerson,
+          household,
+          population,
+          allowedModes
+        )
+        val freightVehicle = beamScenario.privateVehicles(household.getVehicleIds.get(0))
+        households.getHouseholdAttributes
+          .putAttribute(household.getId.toString, "homecoordx", freightVehicle.spaceTime.loc.getX)
+        households.getHouseholdAttributes
+          .putAttribute(household.getId.toString, "homecoordy", freightVehicle.spaceTime.loc.getY)
       }
     }
   }
@@ -928,11 +931,10 @@ trait BeamHelper extends LazyLogging {
     val confNameToPath = BeamConfigUtils.getFileNameToPath(location)
 
     logger.info("Processing configs for [{}] simulation.", beamConfig.beam.agentsim.simulationName)
-    confNameToPath.foreach {
-      case (fileName, filePath) =>
-        val outFile = Paths.get(outputDirectory, fileName)
-        Files.copy(Paths.get(filePath), outFile, StandardCopyOption.REPLACE_EXISTING)
-        logger.info("Config '{}' copied to '{}'.", filePath, outFile)
+    confNameToPath.foreach { case (fileName, filePath) =>
+      val outFile = Paths.get(outputDirectory, fileName)
+      Files.copy(Paths.get(filePath), outFile, StandardCopyOption.REPLACE_EXISTING)
+      logger.info("Config '{}' copied to '{}'.", filePath, outFile)
     }
   }
 
@@ -959,11 +961,11 @@ trait BeamHelper extends LazyLogging {
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
     vehicleIds
-      .groupBy(
-        vehicleId => beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
+      .groupBy(vehicleId =>
+        beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
-      .map {
-        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
+      .map { case (vehicleType, ids) =>
+        s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
   }

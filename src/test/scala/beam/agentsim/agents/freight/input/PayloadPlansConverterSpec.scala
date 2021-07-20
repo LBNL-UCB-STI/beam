@@ -67,7 +67,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
         'tourId ("tour-1".createId[FreightTour]),
         'departureTimeInSec (1000),
         'warehouseLocation (new Coord(170525.60810804204, 3616.646677168515)),
-        'maxTourDurationInSec (36000),
+        'maxTourDurationInSec (36000)
       )
       carrier1.plansPerTour should have size 3
       carrier1.plansPerTour("tour-1".createId) should have size 2
@@ -111,7 +111,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
         readCarriers,
         populationFactory,
         householdFactory,
-        None,
+        None
       )
 
       personPlans should have size 3

@@ -138,7 +138,7 @@ class ChargingFunctions[GEO: GeoLevel](
 
     val params = parkingParameters ++ new Map.Map1(
       key1 = ParkingMNL.Parameters.RangeAnxietyCost,
-      value1 = rangeAnxietyFactor,
+      value1 = rangeAnxietyFactor
     )
 
     params

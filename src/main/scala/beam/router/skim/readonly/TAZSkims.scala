@@ -1,9 +1,12 @@
 package beam.router.skim.readonly
 
+import beam.agentsim.infrastructure.parking.GeoLevel
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamScenario
 import org.matsim.api.core.v01.Id
+import beam.agentsim.infrastructure.taz.TAZ
+import org.matsim.api.core.v01.network.Link
 
 case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
@@ -39,19 +42,19 @@ case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly 
     try {
       skims
         .toSet[TAZSkimmerInternal]
-        .foldLeft[Option[TAZSkimmerInternal]](None) {
-          case (accSkimMaybe, skim: TAZSkimmerInternal) =>
-            accSkimMaybe match {
-              case Some(accSkim) =>
-                Some(
-                  TAZSkimmerInternal(
-                    value = (accSkim.value * accSkim.observations + skim.value + skim.observations) / (accSkim.observations + skim.observations),
-                    observations = accSkim.observations + skim.observations,
-                    iterations = accSkim.iterations
-                  )
+        .foldLeft[Option[TAZSkimmerInternal]](None) { case (accSkimMaybe, skim: TAZSkimmerInternal) =>
+          accSkimMaybe match {
+            case Some(accSkim) =>
+              Some(
+                TAZSkimmerInternal(
+                  value =
+                    (accSkim.value * accSkim.observations + skim.value + skim.observations) / (accSkim.observations + skim.observations),
+                  observations = accSkim.observations + skim.observations,
+                  iterations = accSkim.iterations
                 )
-              case _ => Some(skim)
-            }
+              )
+            case _ => Some(skim)
+          }
         }
     } catch {
       case e: ClassCastException =>

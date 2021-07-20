@@ -23,6 +23,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
+
   override def compare(
     o1: RideHailAgentETA,
     o2: RideHailAgentETA
@@ -32,6 +33,7 @@ object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgen
 }
 
 object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] {
+
   override def compare(
     o1: RideHailAgentETA,
     o2: RideHailAgentETA
@@ -41,6 +43,7 @@ object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] 
 }
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
+
   override def compare(
     o1: (RideHailAgentLocation, Double),
     o2: (RideHailAgentLocation, Double)
@@ -251,7 +254,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       beamScenario = rideHailManager.beamScenario,
       skimmer = rideHailManager.beamServices.skims.od_skimmer,
       maybeOrigTazId = None,
-      maybeDestTazId = Some(pickupTazId),
+      maybeDestTazId = Some(pickupTazId)
     )
     val skimTimeAndDistanceOfTrip = BeamRouter.computeTravelTimeAndDistanceAndCost(
       originUTM = pickupLocation,
@@ -264,7 +267,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       beamScenario = rideHailManager.beamScenario,
       skimmer = rideHailManager.beamServices.skims.od_skimmer,
       maybeOrigTazId = Some(pickupTazId),
-      maybeDestTazId = Some(dropOffTazId),
+      maybeDestTazId = Some(dropOffTazId)
     )
     // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
     // already moving or dropping off a customer, etc.)
@@ -328,11 +331,10 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     def addIfNotInAllocation(
       idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
     ): Unit = {
-      idleOrRepositioning.foreach {
-        case (vehicleId, location) =>
-          if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
-            filteredVehicles.put(vehicleId, location)
-          }
+      idleOrRepositioning.foreach { case (vehicleId, location) =>
+        if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
+          filteredVehicles.put(vehicleId, location)
+        }
       }
     }
 
@@ -752,7 +754,8 @@ object RideHailManagerHelper {
     )
   }
 
-  /** Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
+  /**
+    * Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
     */
   case class RideHailAgentLocation(
     rideHailAgent: ActorRef,

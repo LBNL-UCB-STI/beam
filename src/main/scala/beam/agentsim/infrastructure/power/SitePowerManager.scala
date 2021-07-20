@@ -19,6 +19,7 @@ class SitePowerManager(
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val tazSkimmer = beamServices.skims.taz_skimmer
+
   private[infrastructure] val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
     chargingNetworkMap.flatMap(_._2.chargingStations).toSeq
   ).value
@@ -51,7 +52,12 @@ class SitePowerManager(
   private def observedPowerDemandInKW(tick: Int, zone: ParkingZone[_]): Option[Double] = {
     if (!tazSkimmer.isLatestSkimEmpty) {
       val currentTimeBin = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
-      beamServices.skims.taz_skimmer.getLatestSkim(currentTimeBin, zone.geoId, "CNM", zone.parkingZoneId.toString) match {
+      beamServices.skims.taz_skimmer.getLatestSkim(
+        currentTimeBin,
+        zone.geoId,
+        "CNM",
+        zone.parkingZoneId.toString
+      ) match {
         case Some(skim) => Some(skim.value * skim.observations)
         case None       => Some(0.0)
       }
@@ -73,7 +79,6 @@ class SitePowerManager(
   }
 
   /**
-    *
     * @param chargingVehicle the vehicle being charging
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
@@ -144,14 +149,13 @@ object SitePowerManager {
     */
   def getUnlimitedPhysicalBounds(stations: Seq[ChargingStation]): Eval[Map[ChargingStation, PhysicalBounds]] = {
     Eval.later {
-      stations.map {
-        case station @ ChargingStation(zone) =>
-          station -> PhysicalBounds(
-            station,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
-            0.0
-          )
+      stations.map { case station @ ChargingStation(zone) =>
+        station -> PhysicalBounds(
+          station,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
+          0.0
+        )
       }.toMap
     }
   }

@@ -17,6 +17,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class DummyEventsHandler extends BasicEventHandler {
   val allEvents: ArrayBuffer[Event] = ArrayBuffer()
+
   override def handleEvent(event: Event): Unit = {
     allEvents += event
   }
@@ -167,11 +168,10 @@ class DrivesVehicleTest extends AnyFunSuite {
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 
       var curTime = leg.startTime
-      linksWithTime.foreach {
-        case (Seq(from, to), timeAtNode) =>
-          curTime = math.round(curTime + timeAtNode).intValue()
-          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
+      linksWithTime.foreach { case (Seq(from, to), timeAtNode) =>
+        curTime = math.round(curTime + timeAtNode).intValue()
+        eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+        eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
       }
     }
   }

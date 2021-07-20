@@ -28,7 +28,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83661) -> Id.create(100026, classOf[TAZ]),
-          Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ]),
+          Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ])
         )
         private val (tazZones, linkToTaz) =
           HierarchicalParkingManager.convertToTazParkingZones(linkZones.toMap, linkToTazMapping)

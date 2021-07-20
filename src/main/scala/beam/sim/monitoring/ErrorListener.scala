@@ -12,7 +12,6 @@ import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, Work
 
 /**
   * @author sid.feygin
-  *
   */
 class ErrorListener() extends Actor with ActorLogging {
   private var nextCounter = 1
@@ -69,19 +68,17 @@ class ErrorListener() extends Actor with ActorLogging {
 
     val msgCounts = terminatedPrematurelyEvents
       .groupBy(event => "ALL")
-      .mapValues(
-        eventsPerReason =>
-          eventsPerReason
-            .groupBy(event => hourOrMinus1(event))
-            .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
+      .mapValues(eventsPerReason =>
+        eventsPerReason
+          .groupBy(event => hourOrMinus1(event))
+          .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
       )
     msgCounts
-      .map {
-        case (msg, cntByHour) =>
-          val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
-          s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
-            .map { case (_, cnt)                             => cnt.toString }
-            .mkString("\t")}"
+      .map { case (msg, cntByHour) =>
+        val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
+        s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
+          .map { case (_, cnt) => cnt.toString }
+          .mkString("\t")}"
       }
       .mkString("\n")
   }

@@ -22,7 +22,6 @@ abstract class ParkingNetwork[GEO: GeoLevel](
   def getVehicleManagerId: Id[VehicleManager] = vehicleManagerId
 
   /**
-    *
     * @param inquiry ParkingInquiry
     * @param parallelizationCounterOption Option[SimpleCounter]
     * @return
@@ -37,7 +36,8 @@ abstract class ParkingNetwork[GEO: GeoLevel](
         // reserveStall is false when agent is only seeking pricing information
         if (inquiry.reserveStall) {
           logger.debug(
-            s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging" else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+            s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
+            else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
           )
           // update the parking stall data
           val claimed: Boolean = ParkingZone.claimStall(parkingZone)
@@ -53,7 +53,6 @@ abstract class ParkingNetwork[GEO: GeoLevel](
   }
 
   /**
-    *
     * @param release ReleaseParkingStall
     * @return
     */

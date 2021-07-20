@@ -72,9 +72,8 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
           .map(_.getID)
           .toSeq
           .zip(persistedFeatureIds.asScala)
-          .map {
-            case (originalFeatureId, persistedFeatureId) =>
-              originalFeatureId -> persistedFeatureId.getID
+          .map { case (originalFeatureId, persistedFeatureId) =>
+            originalFeatureId -> persistedFeatureId.getID
           }
           .toMap
 
@@ -101,8 +100,8 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
 object ShapeWriter {
   case class OriginalToPersistedFeatureIdMap(map: Map[String, String])
 
-  def worldGeodetic[G <: JtsGeometry, A <: Attributes](path: String)(
-    implicit evG: ClassTag[G],
+  def worldGeodetic[G <: JtsGeometry, A <: Attributes](path: String)(implicit
+    evG: ClassTag[G],
     evA: ClassTag[A]
   ): ShapeWriter[G, A] = {
     // WGS84 is the same as EPSG:4326 https://epsg.io/4326

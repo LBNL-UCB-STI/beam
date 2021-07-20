@@ -39,24 +39,20 @@ object R5MapStatsCalculator {
     }
 
     val flagToCnt = it
-      .foldLeft(Map[EdgeFlag, Int]()) {
-        case (acc, c) =>
-          c.getFlags.asScala.foldLeft(acc) {
-            case (acc, flag) =>
-              acc.updated(flag, acc.getOrElse(flag, 0) + 1)
-          }
+      .foldLeft(Map[EdgeFlag, Int]()) { case (acc, c) =>
+        c.getFlags.asScala.foldLeft(acc) { case (acc, flag) =>
+          acc.updated(flag, acc.getOrElse(flag, 0) + 1)
+        }
       }
       .toSeq
-      .filter {
-        case (flag, _) =>
-          flag == EdgeFlag.ALLOWS_PEDESTRIAN || flag == EdgeFlag.ALLOWS_BIKE || flag == EdgeFlag.ALLOWS_CAR
+      .filter { case (flag, _) =>
+        flag == EdgeFlag.ALLOWS_PEDESTRIAN || flag == EdgeFlag.ALLOWS_BIKE || flag == EdgeFlag.ALLOWS_CAR
       }
       .sortBy { case (flag, _) => flag.toString }
 
     println("Edge flag to number of edges:")
-    flagToCnt.foreach {
-      case (flag, cnt) =>
-        println(s"$flag => $cnt")
+    flagToCnt.foreach { case (flag, cnt) =>
+      println(s"$flag => $cnt")
     }
     println(s"Number of edges in R5: ${tn.streetLayer.edgeStore.nEdges()}")
     println(s"Number of vertices in R5: ${tn.streetLayer.edgeStore.vertexStore.getVertexCount}")

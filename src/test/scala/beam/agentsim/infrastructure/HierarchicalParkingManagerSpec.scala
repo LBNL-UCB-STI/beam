@@ -94,7 +94,7 @@ class HierarchicalParkingManagerSpec
           ),
           new Random(randomSeed),
           tazId = TAZ.EmergencyTAZId,
-          geoId = LinkLevelOperations.EmergencyLinkId,
+          geoId = LinkLevelOperations.EmergencyLinkId
         )
 
         val response = parkingManager.processParkingInquiry(inquiry)
@@ -136,7 +136,7 @@ class HierarchicalParkingManagerSpec
         ),
         new Random(randomSeed),
         tazId = TAZ.EmergencyTAZId,
-        geoId = LinkLevelOperations.EmergencyLinkId,
+        geoId = LinkLevelOperations.EmergencyLinkId
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)
@@ -160,7 +160,8 @@ class HierarchicalParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
@@ -234,7 +235,8 @@ class HierarchicalParkingManagerSpec
           833000,
           10000000
         ) // one TAZ at agent coordinate
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
@@ -457,6 +459,7 @@ class HierarchicalParkingManagerSpec
 }
 
 object HierarchicalParkingManagerSpec {
+
   private def mockLinks(tazTreeMap: TAZTreeMap): Map[Link, TAZ] = {
     tazTreeMap.getTAZs
       .flatMap { taz =>

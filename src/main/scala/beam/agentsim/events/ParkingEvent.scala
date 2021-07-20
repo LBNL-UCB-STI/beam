@@ -14,7 +14,7 @@ import collection.JavaConverters._
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 
-/**HasPersonId is added as Matsim ScoringFunction for population requires it**/
+/** HasPersonId is added as Matsim ScoringFunction for population requires it* */
 case class ParkingEvent(
   time: Double,
   driverId: String,

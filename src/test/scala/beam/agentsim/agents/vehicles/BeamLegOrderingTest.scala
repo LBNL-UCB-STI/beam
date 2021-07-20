@@ -43,7 +43,10 @@ class BeamLegOrderingTest extends AnyWordSpec with Matchers {
       }
 
       "the first travelPath > the second travelPath" in {
-        BeamLegOrdering.compare(beamLeg.copy(travelPath = beamLeg.travelPath.copy(distanceInM = 5.0)), beamLeg) shouldBe 1
+        BeamLegOrdering.compare(
+          beamLeg.copy(travelPath = beamLeg.travelPath.copy(distanceInM = 5.0)),
+          beamLeg
+        ) shouldBe 1
       }
     }
 
@@ -57,7 +60,10 @@ class BeamLegOrderingTest extends AnyWordSpec with Matchers {
       }
 
       "the first travelPath < >the second travelPath" in {
-        BeamLegOrdering.compare(beamLeg.copy(travelPath = beamLeg.travelPath.copy(distanceInM = 1.0)), beamLeg) shouldBe -1
+        BeamLegOrdering.compare(
+          beamLeg.copy(travelPath = beamLeg.travelPath.copy(distanceInM = 1.0)),
+          beamLeg
+        ) shouldBe -1
       }
     }
   }

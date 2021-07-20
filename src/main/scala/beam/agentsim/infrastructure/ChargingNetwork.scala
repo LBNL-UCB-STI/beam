@@ -35,14 +35,12 @@ class ChargingNetwork[GEO: GeoLevel](
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
   /**
-    *
     * @return all vehicles still connected to a charging point
     */
   def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
     chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
   /**
-    *
     * @return all vehicles, connected, and the ones waiting in line
     */
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
@@ -254,6 +252,7 @@ object ChargingNetwork {
   final case class ChargingStation(zone: ParkingZone[_]) {
     import ConnectionStatus._
     private val connectedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
+
     private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
@@ -337,6 +336,7 @@ object ChargingNetwork {
     shiftStatus: ShiftStatus = NotApplicable
   ) extends LazyLogging {
     import ConnectionStatus._
+
     private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
       connectionStatus.append(status)
       this

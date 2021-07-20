@@ -82,7 +82,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
             result.zones(Id.create("parkingZone2", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
                 LightDutyTruck -> (63000 until 86400),
-                Car            -> (0 until 63000),
+                Car            -> (0 until 63000)
               )
             )
             println(result.zones)

@@ -23,13 +23,12 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
     val dataset = new DefaultCategoryDataset
     val revIteration = iterOverallRideStat.keys.toSeq.sorted
     revIteration.foreach { iteration =>
-      iterOverallRideStat(iteration).zipWithIndex.foreach {
-        case (rides, numOfPassenger) =>
-          dataset.addValue(
-            java.lang.Double.valueOf(rides.toString),
-            s"RideTripsWith${numOfPassenger}Passengers",
-            s"it.$iteration"
-          )
+      iterOverallRideStat(iteration).zipWithIndex.foreach { case (rides, numOfPassenger) =>
+        dataset.addValue(
+          java.lang.Double.valueOf(rides.toString),
+          s"RideTripsWith${numOfPassenger}Passengers",
+          s"it.$iteration"
+        )
       }
     }
     val fileName = event.getServices.getControlerIO.getOutputFilename("rideHailUtilisation.png")
@@ -54,10 +53,9 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
 
   override def getSummaryStats: util.Map[String, java.lang.Double] = {
     val summaryMap = overallRideStat.zipWithIndex
-      .map {
-        case (rides, numOfPassenger) =>
-          val value: java.lang.Double = java.lang.Double.valueOf(rides.toString)
-          s"RideTripsWith${numOfPassenger}Passengers" -> value
+      .map { case (rides, numOfPassenger) =>
+        val value: java.lang.Double = java.lang.Double.valueOf(rides.toString)
+        s"RideTripsWith${numOfPassenger}Passengers" -> value
       }
       .toMap
       .asJava

@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -10,6 +10,7 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
+import beam.agentsim.infrastructure.parking.ParkingNetwork
 import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
@@ -67,12 +68,8 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  val (parkingNetworks, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
-  private lazy val parkingManager =
-    system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
-
-  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
+  private var parkingNetworks: Map[Id[VehicleManager], ParkingNetwork[_]] = _
+  private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -380,7 +377,7 @@ class PersonAndTransitDriverSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -402,7 +399,7 @@ class PersonAndTransitDriverSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -467,9 +464,15 @@ class PersonAndTransitDriverSpec
 
   }
 
-  override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  override protected def beforeAll(): Unit = {
+    parkingNetworks = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)._1
+    parkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
+    super.beforeAll()
   }
 
 }

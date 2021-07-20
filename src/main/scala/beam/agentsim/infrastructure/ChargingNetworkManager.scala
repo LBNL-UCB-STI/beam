@@ -47,6 +47,7 @@ class ChargingNetworkManager(
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
   private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
+
   private val powerController =
     new PowerController(
       chargingNetworkMap,
@@ -89,12 +90,8 @@ class ChargingNetworkManager(
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
       chargingNetworkMap(inquiry.vehicleManagerId).processParkingInquiry(inquiry) match {
-        case Some(parkingResponse) => {
-          sender() ! parkingResponse
-        }
-        case _ => {
-          Future(parkingNetworkManager ? inquiry).pipeTo(sender())
-        }
+        case Some(parkingResponse) => sender() ! parkingResponse
+        case _                     => Future(parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -359,13 +356,12 @@ class ChargingNetworkManager(
   ): Seq[ScheduleTrigger] = {
     chargingNetworkMap
       .flatMap(_._2.vehicles)
-      .map {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, _, _, _, _, _, status, _, _)) =>
-          if (status.last == Connected) {
-            val (duration, energy) = sitePowerManager.dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
-            chargingVehicle.processChargingCycle(tick, energy, duration)
-          }
-          ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
+      .map { case (_, chargingVehicle @ ChargingVehicle(vehicle, _, _, _, _, _, status, _, _)) =>
+        if (status.last == Connected) {
+          val (duration, energy) = sitePowerManager.dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
+          chargingVehicle.processChargingCycle(tick, energy, duration)
+        }
+        ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
       }
       .toSeq
   }
@@ -376,6 +372,7 @@ object ChargingNetworkManager extends LazyLogging {
   case class ChargingZonesInquiry()
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
   case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
+
   case class ChargingPlugRequest(
     tick: Int,
     vehicle: BeamVehicle,
@@ -383,12 +380,14 @@ object ChargingNetworkManager extends LazyLogging {
     triggerId: Long,
     shiftStatus: ShiftStatus = NotApplicable
   ) extends HasTriggerId
+
   case class ChargingUnplugRequest(
     tick: Int,
     vehicle: BeamVehicle,
     triggerId: Long
   ) extends HasTriggerId
   case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
+
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
       extends HasTriggerId
   case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId

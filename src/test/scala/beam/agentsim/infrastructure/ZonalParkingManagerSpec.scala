@@ -95,7 +95,7 @@ class ZonalParkingManagerSpec
             inquiry.destinationUtm.loc.getY - 2000
           ),
           new Random(randomSeed),
-          geoId = TAZ.EmergencyTAZId,
+          geoId = TAZ.EmergencyTAZId
         )
 
         val response = zonalParkingManager.processParkingInquiry(inquiry)
@@ -192,7 +192,8 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
           |1,Workplace,FlatFee,None,1,1234,,0
           |
           """.stripMargin.split("\n").toIterator
@@ -434,24 +435,23 @@ class ZonalParkingManagerSpec
         null, //it is required only in case of failures
         1.0,
         1.0,
-        randomSeed,
+        randomSeed
       )
       val parkingZones = InfrastructureUtils.buildParkingZones(stalls)
-      val zonesMap = parkingZones.map {
-        case (vId, zones) =>
-          vId -> ZonalParkingManager[TAZ](
-            vId,
-            zones,
-            tazMap.tazQuadTree,
-            tazMap.idToTAZMapping,
-            identity[TAZ](_),
-            geo.distUTMInMeters(_, _),
-            boundingBox,
-            beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-            beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-            randomSeed,
-            beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
-          )
+      val zonesMap = parkingZones.map { case (vId, zones) =>
+        vId -> ZonalParkingManager[TAZ](
+          vId,
+          zones,
+          tazMap.tazQuadTree,
+          tazMap.idToTAZMapping,
+          identity[TAZ](_),
+          geo.distUTMInMeters(_, _),
+          boundingBox,
+          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+          randomSeed,
+          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+        )
       }
 
       assertParkingResponse(
@@ -497,7 +497,7 @@ class ZonalParkingManagerSpec
     pricingModel: PricingModel,
     parkingType: ParkingType,
     vehicleManagerId: Id[VehicleManager],
-    vehicleTypeName: String,
+    vehicleTypeName: String
   ) = {
     val vehicleType = beamScenario.vehicleTypes(Id.create(vehicleTypeName, classOf[BeamVehicleType]))
     val vehicle = new BeamVehicle(
@@ -615,9 +615,8 @@ object ZonalParkingManagerSpec {
   def makeParkingConfiguration(split: List[Int]): Iterator[String] = {
     val header = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId"
     val result = split.zipWithIndex
-      .map {
-        case (stalls, i) =>
-          s"${i + 1},Workplace,FlatFee,None,$stalls,0,,"
+      .map { case (stalls, i) =>
+        s"${i + 1},Workplace,FlatFee,None,$stalls,0,,"
       }
       .mkString(s"$header\n", "\n", "")
       .split("\n")
@@ -632,22 +631,21 @@ object ZonalParkingManagerSpec {
   ): Map[Id[ParkingZoneId], ParkingZone[TAZ]] = {
     val result = treeMap.getTAZs
       .zip(zones)
-      .foldLeft(Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]]) {
-        case (acc, (taz, numZones)) =>
-          val parkingZones = (0 until numZones).map { i =>
-            val zone = ParkingZone
-              .init[TAZ](
-                None,
-                taz.tazId,
-                ParkingType.Workplace,
-                vehicleManagerId,
-                5,
-                IndexedSeq.empty,
-                pricingModel = Some(FlatFee(3.0))
-              )
-            zone.parkingZoneId -> zone
-          }.toMap
-          acc ++ parkingZones
+      .foldLeft(Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]]) { case (acc, (taz, numZones)) =>
+        val parkingZones = (0 until numZones).map { i =>
+          val zone = ParkingZone
+            .init[TAZ](
+              None,
+              taz.tazId,
+              ParkingType.Workplace,
+              vehicleManagerId,
+              5,
+              IndexedSeq.empty,
+              pricingModel = Some(FlatFee(3.0))
+            )
+          zone.parkingZoneId -> zone
+        }.toMap
+        acc ++ parkingZones
       }
     result
   }

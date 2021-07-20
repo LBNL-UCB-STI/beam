@@ -33,8 +33,9 @@ case class ParkingInquiry(
   valueOfTime: Double = 0.0,
   parkingDuration: Double = 0,
   reserveStall: Boolean = true,
-  requestId: Int = ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-  triggerId: Long,
+  requestId: Int =
+    ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  triggerId: Long
 ) extends HasTriggerId {
 
   def isChargingRequestOrEV: Boolean = {

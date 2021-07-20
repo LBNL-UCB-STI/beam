@@ -55,9 +55,8 @@ class TransitSystem(
     case Finish =>
       context.children.foreach(_ ! Finish)
       dieIfNoChildren()
-      contextBecome {
-        case Terminated(_) =>
-          dieIfNoChildren()
+      contextBecome { case Terminated(_) =>
+        dieIfNoChildren()
       }
   }
 
@@ -80,29 +79,28 @@ class TransitSystem(
       BeamRouter.oneSecondTravelTime
     ).initMap
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    transitSchedule.foreach {
-      case (tripVehId, (route, legs)) =>
-        initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
-          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
-          val transitDriverAgentProps = TransitDriverAgent.props(
-            scheduler,
-            beamServices,
-            beamScenario,
-            transportNetwork,
-            tollCalculator,
-            eventsManager,
-            parkingManager,
-            chargingNetworkManager,
-            transitDriverId,
-            vehicle,
-            legs,
-            geo,
-            networkHelper
-          )
-          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-          context.watch(transitDriver)
-          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
-        }
+    transitSchedule.foreach { case (tripVehId, (route, legs)) =>
+      initializer.createTransitVehicle(tripVehId, route, legs, rand.nextInt()).foreach { vehicle =>
+        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+        val transitDriverAgentProps = TransitDriverAgent.props(
+          scheduler,
+          beamServices,
+          beamScenario,
+          transportNetwork,
+          tollCalculator,
+          eventsManager,
+          parkingManager,
+          chargingNetworkManager,
+          transitDriverId,
+          vehicle,
+          legs,
+          geo,
+          networkHelper
+        )
+        val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+        context.watch(transitDriver)
+        scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
+      }
     }
   }
 }

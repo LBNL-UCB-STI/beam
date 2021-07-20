@@ -26,8 +26,9 @@ case class FreightTour(
   tourId: Id[FreightTour],
   departureTimeInSec: Int,
   warehouseLocation: Coord,
-  maxTourDurationInSec: Int,
+  maxTourDurationInSec: Int
 )
+
 case class PayloadPlan(
   payloadId: Id[PayloadPlan],
   sequenceRank: Int,
@@ -38,7 +39,7 @@ case class PayloadPlan(
   location: Coord,
   estimatedTimeOfArrivalInSec: Int,
   arrivalTimeWindowInSec: Int,
-  operationDurationInSec: Int,
+  operationDurationInSec: Int
 )
 
 case class FreightCarrier(
@@ -46,5 +47,5 @@ case class FreightCarrier(
   tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]],
   payloadPlans: Map[Id[PayloadPlan], PayloadPlan],
   fleet: Map[Id[BeamVehicle], BeamVehicle],
-  plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
+  plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]]
 )

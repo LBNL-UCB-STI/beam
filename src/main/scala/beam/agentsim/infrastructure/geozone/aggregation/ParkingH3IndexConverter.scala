@@ -56,13 +56,13 @@ object ParkingH3IndexConverter {
     parkingType: String,
     pricingModel: String,
     chargingPointType: String,
-    reservedFor: String,
+    reservedFor: String
   )
 
   case class H3IndexParkingEntry(
     group: H3IndexParkingEntryGroup,
     numStalls: Long,
-    feeInCents: Double,
+    feeInCents: Double
   )
 
   def tazParkingToH3Index(

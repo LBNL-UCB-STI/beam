@@ -200,8 +200,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
 
 object MatchingAlgorithmsForRideHailSpec {
 
-  def scenario1()(
-    implicit
+  def scenario1()(implicit
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -275,8 +274,7 @@ object MatchingAlgorithmsForRideHailSpec {
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
-  def scenarioGeoFence()(
-    implicit
+  def scenarioGeoFence()(implicit
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -378,8 +376,7 @@ object MatchingAlgorithmsForRideHailSpec {
     new Envelope(minx, maxx, miny, maxy)
   }
 
-  def beamvilleScenario(vehicleType: BeamVehicleType, remainingRangeInM: Int = 10000)(
-    implicit
+  def beamvilleScenario(vehicleType: BeamVehicleType, remainingRangeInM: Int = 10000)(implicit
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef

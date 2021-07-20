@@ -71,7 +71,8 @@ class ChargingNetworkSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
                                                |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
           """.stripMargin.split("\n").toIterator
         chargingNetwork = ChargingNetworkSpec.mockChargingNetwork(

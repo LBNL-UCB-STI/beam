@@ -157,12 +157,11 @@ class SupplementaryTripGenerator(
           gatherSubtourCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
 
         val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
-          modeTazCosts.map {
-            case (alt, modeCost) =>
-              val tazMaxUtility = modeMNL.getExpectedMaximumUtility(modeCost)
-              alt -> Map[TripParameters, Double](
-                TripParameters.ExpMaxUtility -> tazMaxUtility.getOrElse(0)
-              )
+          modeTazCosts.map { case (alt, modeCost) =>
+            val tazMaxUtility = modeMNL.getExpectedMaximumUtility(modeCost)
+            alt -> Map[TripParameters, Double](
+              TripParameters.ExpMaxUtility -> tazMaxUtility.getOrElse(0)
+            )
           }
 
         val tripMaxUtility = destinationMNL.getExpectedMaximumUtility(modeChoice)
@@ -172,7 +171,7 @@ class SupplementaryTripGenerator(
             true -> Map[TripParameters, Double](
               TripParameters.ExpMaxUtility -> tripMaxUtility.getOrElse(0)
             ),
-            false -> noTrip,
+            false -> noTrip
           )
 
         tripMNL.sampleAlternative(tripChoice, r) match {
@@ -247,15 +246,14 @@ class SupplementaryTripGenerator(
               endTime - startTime,
               startTime
             )
-          alternative -> cost.map {
-            case (x, y) =>
-              DestinationChoiceModel.SupplementaryTripAlternative(
-                taz,
-                newActivityType,
-                x,
-                endTime - startTime,
-                startTime
-              ) -> DestinationChoiceModel.toUtilityParameters(y)
+          alternative -> cost.map { case (x, y) =>
+            DestinationChoiceModel.SupplementaryTripAlternative(
+              taz,
+              newActivityType,
+              x,
+              endTime - startTime,
+              startTime
+            ) -> DestinationChoiceModel.toUtilityParameters(y)
           }
         }.toMap
       }
@@ -265,8 +263,10 @@ class SupplementaryTripGenerator(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
-    val end = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+    val start = if (activity.getStartTime > 0) { activity.getStartTime }
+    else { 0 }
+    val end = if (activity.getEndTime > 0) { activity.getEndTime }
+    else { 3600 * 24 }
     (start, end)
   }
 
@@ -336,15 +336,13 @@ class SupplementaryTripGenerator(
 
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
 
-    val filtered = activityRates.map {
-      case (activityType, hourToRate) =>
-        activityType -> hourToRate
-          .filter {
-            case (hour, rate) =>
-              hour > secondsToIndex(altStart) & hour <= secondsToIndex(altEnd) & rate > 0
-          }
-          .values
-          .sum
+    val filtered = activityRates.map { case (activityType, hourToRate) =>
+      activityType -> hourToRate
+        .filter { case (hour, rate) =>
+          hour > secondsToIndex(altStart) & hour <= secondsToIndex(altEnd) & rate > 0
+        }
+        .values
+        .sum
     }
     val chosenType = drawKeyByValue(filtered)
 
@@ -362,9 +360,8 @@ class SupplementaryTripGenerator(
         val chosenStartIndex = if (latestPossibleEndIndex > earliestPossibleStartIndex + 1) {
           val filteredRates = activityRates
             .getOrElse(actType, Map[Int, Double]())
-            .filter {
-              case (hour, rate) =>
-                hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd - travelTimeBufferInSec) & rate > 0
+            .filter { case (hour, rate) =>
+              hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd - travelTimeBufferInSec) & rate > 0
             }
           drawKeyByValue(filteredRates)
         } else { None }

@@ -1,4 +1,5 @@
 package beam.analysis
+
 import java.util.concurrent.TimeUnit
 
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
@@ -72,16 +73,14 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
 
     val maxHour = TimeUnit.SECONDS.toHours(maxTime).toInt
 
-    hourlyActivityType.foreach({
-      case (_, ActivityTime(activity, hour)) => (hour to maxHour).foreach(updateActivityCount(_, activity))
+    hourlyActivityType.foreach({ case (_, ActivityTime(activity, hour)) =>
+      (hour to maxHour).foreach(updateActivityCount(_, activity))
     })
 
-    hourlyActivityCount.foreach({
-      case (hour, activityTypeCount) =>
-        activityTypeCount.foreach({
-          case (activityType, count) =>
-            dataset.addValue(count, activityType, hour)
-        })
+    hourlyActivityCount.foreach({ case (hour, activityTypeCount) =>
+      activityTypeCount.foreach({ case (activityType, count) =>
+        dataset.addValue(count, activityType, hour)
+      })
     })
     dataset
   }

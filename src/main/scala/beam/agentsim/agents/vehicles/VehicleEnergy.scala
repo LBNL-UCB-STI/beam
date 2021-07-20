@@ -71,6 +71,7 @@ class ConsumptionRateFilterStoreImpl(
       primaryConsumptionRateFilePathsByVehicleType,
       bvt => Some(bvt.primaryFuelType)
     )
+
   private val secondaryConsumptionRateFiltersByVehicleType: Map[BeamVehicleType, Future[ConsumptionRateFilter]] =
     beginLoadingConsumptionRateFiltersFor(secondaryConsumptionRateFilePathsByVehicleType, _.secondaryFuelType)
 
@@ -160,11 +161,10 @@ class ConsumptionRateFilterStoreImpl(
             mutable.Map(gradePercentBin -> mutable.Map(numberOfLanesBin -> rate))
         }
       })
-    currentRateFilter.toMap.map {
-      case (speedInMilesPerHourBin, gradePercentMap) =>
-        speedInMilesPerHourBin -> gradePercentMap.toMap.map {
-          case (gradePercentBin, lanesMap) => gradePercentBin -> lanesMap.toMap
-        }
+    currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
+      speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, lanesMap) =>
+        gradePercentBin -> lanesMap.toMap
+      }
     }
   }
 
@@ -227,7 +227,8 @@ class VehicleEnergy(
     powerTrainPriority: PowerTrainPriority
   ): Double = {
     /*(Double, Option[Double]) = {*/
-    if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack(fuelConsumptionData) } else {
+    if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack(fuelConsumptionData) }
+    else {
       val BeamVehicle.FuelConsumptionData(
         linkId,
         vehicleType,
@@ -248,11 +249,9 @@ class VehicleEnergy(
       (powerTrainPriority match {
         case Primary   => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType)
         case Secondary => consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(vehicleType)
-      }).flatMap(
-          consumptionRateFilterFuture =>
-            getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
-        )
-        .getOrElse(fallBack(fuelConsumptionData))
+      }).flatMap(consumptionRateFilterFuture =>
+        getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)
+      ).getOrElse(fallBack(fuelConsumptionData))
       /*.map(x=>(x,Option(gradePercent)))
       .getOrElse((fallBack(fuelConsumptionData), Option(gradePercent)))*/
     }
@@ -276,7 +275,7 @@ class VehicleEnergy(
     for {
       (_, gradeFilter) <- consumptionRateFilter
         .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.hasDouble(speedInMilesPerHour) }
-      (_, lanesFilter) <- gradeFilter.find { case (gradePercentBin, _)  => gradePercentBin.hasDouble(gradePercent) }
+      (_, lanesFilter) <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.hasDouble(gradePercent) }
       (_, rate)        <- lanesFilter.find { case (numberOfLanesBin, _) => numberOfLanesBin.has(numberOfLanes) }
     } yield rate
   }

@@ -86,7 +86,8 @@ object DrivesVehicle {
     val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
     val newDistance = newLinks.map(networkHelper.getLink(_).map(_.getLength.toInt).getOrElse(0)).sum
     val newStart = SpaceTime(geoUtils.utm2Wgs(networkHelper.getLink(newLinks.head).get.getCoord), stopTick)
-    val newDuration = if (newLinks.size <= 1) { 0 } else {
+    val newDuration = if (newLinks.size <= 1) { 0 }
+    else {
       math.round(startingLeg.travelPath.linkTravelTime.drop(indexOfStartingLink).tail.sum.toFloat)
     }
     val newTravelPath = BeamPath(
@@ -192,6 +193,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
+
   protected def currentBeamVehicle: BeamVehicle =
     beamVehicles(stateData.currentVehicle.head).asInstanceOf[ActualVehicle].vehicle
 
@@ -323,7 +325,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         fuelConsumed.secondaryFuel,
         currentBeamVehicle.primaryFuelLevelInJoules,
         currentBeamVehicle.secondaryFuelLevelInJoules,
-        tollOnCurrentLeg, /*
+        tollOnCurrentLeg,
+        /*
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
           fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
           fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
@@ -502,7 +505,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           data.passengerSchedule,
           currentBeamVehicle.getState,
           data.geofence,
-          triggerId,
+          triggerId
         )
       )
 
@@ -590,7 +593,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             fromStopIdx,
             toStopIdx,
             pte.numberOfPassengers,
-            pte.capacity,
+            pte.capacity
           )
         )
       case _ =>
@@ -662,7 +665,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         interruptId,
         currentBeamVehicle.id,
         latestObservedTick,
-        triggerId,
+        triggerId
       )
 
     case ev @ Event(NotifyVehicleResourceIdleReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger], _), _) =>
@@ -746,7 +749,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(
             AlightVehicleTrigger(
               legsInThePast.last.endTime,
-              data.currentVehicle.head,
+              data.currentVehicle.head
             ),
             sender()
           )
@@ -794,16 +797,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         .withPassengerSchedule(
           PassengerSchedule(
             data.passengerSchedule.schedule ++ data.passengerSchedule.schedule
-              .collect {
-                case (leg, manifest) =>
-                  (
-                    leg,
-                    manifest.copy(
-                      riders = manifest.riders - id,
-                      alighters = manifest.alighters - id,
-                      boarders = manifest.boarders - id
-                    )
+              .collect { case (leg, manifest) =>
+                (
+                  leg,
+                  manifest.copy(
+                    riders = manifest.riders - id,
+                    alighters = manifest.alighters - id,
+                    boarders = manifest.boarders - id
                   )
+                )
               }
           )
         )
@@ -812,8 +814,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     // The following 2 (Board and Alight) can happen idiosyncratically if a person ended up taking a much longer than expected
     // trip and meanwhile a CAV was scheduled to pick them up (and then drop them off) for the next trip, but they're still driving baby
     case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleId), triggerId),
-        data @ LiterallyDrivingData(_, _, _)
+          TriggerWithId(BoardVehicleTrigger(tick, vehicleId), triggerId),
+          data @ LiterallyDrivingData(_, _, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
@@ -824,8 +826,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         Vector(ScheduleTrigger(BoardVehicleTrigger(Math.max(currentLeg.endTime, tick), vehicleId), self))
       )
     case Event(
-        TriggerWithId(AlightVehicleTrigger(tick, vehicleId, _), triggerId),
-        data @ LiterallyDrivingData(_, _, _)
+          TriggerWithId(AlightVehicleTrigger(tick, vehicleId, _), triggerId),
+          data @ LiterallyDrivingData(_, _, _)
         ) =>
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)

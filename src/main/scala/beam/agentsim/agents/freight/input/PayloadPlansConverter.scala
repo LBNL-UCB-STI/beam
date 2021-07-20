@@ -80,7 +80,7 @@ object PayloadPlansConverter {
     plans: Map[Id[PayloadPlan], PayloadPlan],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
     tazTree: TAZTreeMap,
-    rnd: Random,
+    rnd: Random
   ): IndexedSeq[FreightCarrier] = {
 
     case class FreightCarrierRow(
@@ -94,24 +94,23 @@ object PayloadPlansConverter {
     def createCarrierVehicles(
       carrierId: Id[FreightCarrier],
       carrierRows: IndexedSeq[FreightCarrierRow],
-      depotLocation: Coord,
+      depotLocation: Coord
     ): IndexedSeq[BeamVehicle] = {
       val vehicles: IndexedSeq[BeamVehicle] = carrierRows
         .groupBy(_.vehicleId)
-        .map {
-          case (vehicleId, rows) =>
-            val firstRow = rows.head
-            val vehicleType = vehicleTypes.getOrElse(
-              firstRow.vehicleTypeId,
-              throw new IllegalArgumentException(
-                s"Vehicle type for vehicle $vehicleId not found: ${firstRow.vehicleTypeId}"
-              )
+        .map { case (vehicleId, rows) =>
+          val firstRow = rows.head
+          val vehicleType = vehicleTypes.getOrElse(
+            firstRow.vehicleTypeId,
+            throw new IllegalArgumentException(
+              s"Vehicle type for vehicle $vehicleId not found: ${firstRow.vehicleTypeId}"
             )
-            if (vehicleType.payloadCapacityInKg.isEmpty)
-              throw new IllegalArgumentException(
-                s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
-              )
-            createFreightVehicle(vehicleId, vehicleType, carrierId, depotLocation, rnd.nextInt())
+          )
+          if (vehicleType.payloadCapacityInKg.isEmpty)
+            throw new IllegalArgumentException(
+              s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
+            )
+          createFreightVehicle(vehicleId, vehicleType, carrierId, depotLocation, rnd.nextInt())
         }
         .toIndexedSeq
       vehicles
@@ -126,17 +125,16 @@ object PayloadPlansConverter {
         .groupBy(_.vehicleId)
         .mapValues { rows =>
           rows
-            .map(
-              row =>
-                tours
-                  .getOrElse(
-                    row.tourId,
-                    throw new IllegalArgumentException(
-                      s"Tour with id ${row.tourId} does not exist; check freight-tours.csv"
-                    )
+            .map(row =>
+              tours
+                .getOrElse(
+                  row.tourId,
+                  throw new IllegalArgumentException(
+                    s"Tour with id ${row.tourId} does not exist; check freight-tours.csv"
                   )
-                  //setting the tour warehouse location to be the carrier depot location
-                  .copy(warehouseLocation = depotLocation)
+                )
+                //setting the tour warehouse location to be the carrier depot location
+                .copy(warehouseLocation = depotLocation)
             )
             .sortBy(_.departureTimeInSec)
         }
@@ -163,9 +161,8 @@ object PayloadPlansConverter {
     }
     rows
       .groupBy(_.carrierId)
-      .map {
-        case (carrierId, carrierRows) =>
-          createCarrier(carrierId, carrierRows)
+      .map { case (carrierId, carrierRows) =>
+        createCarrier(carrierId, carrierRows)
       }
       .toIndexedSeq
   }
@@ -175,7 +172,7 @@ object PayloadPlansConverter {
     vehicleType: BeamVehicleType,
     carrierId: Id[FreightCarrier],
     initialLocation: Coord,
-    randomSeed: Int,
+    randomSeed: Int
   ): BeamVehicle = {
     val beamVehicleId = BeamVehicle.createId(vehicleId)
 
@@ -196,27 +193,26 @@ object PayloadPlansConverter {
     carriers: IndexedSeq[FreightCarrier],
     personFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory,
-    geoConverter: Option[GeoUtils],
+    geoConverter: Option[GeoUtils]
   ): IndexedSeq[(Household, Plan)] = {
 
     carriers.flatMap { carrier =>
-      carrier.tourMap.map {
-        case (vehicleId, tours) =>
-          val personId = createPersonId(vehicleId)
-          val person = personFactory.createPerson(personId)
+      carrier.tourMap.map { case (vehicleId, tours) =>
+        val personId = createPersonId(vehicleId)
+        val person = personFactory.createPerson(personId)
 
-          val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person, geoConverter)
+        val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person, geoConverter)
 
-          person.addPlan(currentPlan)
-          person.setSelectedPlan(currentPlan)
+        person.addPlan(currentPlan)
+        person.setSelectedPlan(currentPlan)
 
-          val freightHouseholdId = createHouseholdId(vehicleId)
-          val household: Household = householdsFactory.createHousehold(freightHouseholdId)
-          household.setIncome(new IncomeImpl(44444, Income.IncomePeriod.year))
-          household.getMemberIds.add(personId)
-          household.getVehicleIds.add(vehicleId)
+        val freightHouseholdId = createHouseholdId(vehicleId)
+        val household: Household = householdsFactory.createHousehold(freightHouseholdId)
+        household.setIncome(new IncomeImpl(44444, Income.IncomePeriod.year))
+        household.getMemberIds.add(personId)
+        household.getVehicleIds.add(vehicleId)
 
-          (household, currentPlan)
+        (household, currentPlan)
       }
     }
   }
@@ -240,7 +236,7 @@ object PayloadPlansConverter {
     tours: IndexedSeq[FreightTour],
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
     person: Person,
-    geoConverter: Option[GeoUtils],
+    geoConverter: Option[GeoUtils]
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =

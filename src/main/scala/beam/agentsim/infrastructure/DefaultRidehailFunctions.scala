@@ -127,7 +127,13 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   ): Option[ParkingZoneSearchResult[GEO]] = {
     parkingZoneSearchResult match {
       case Some(
-          result @ ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations)
+            result @ ParkingZoneSearch.ParkingZoneSearchResult(
+              parkingStall,
+              parkingZone,
+              parkingZonesSeen,
+              _,
+              iterations
+            )
           ) =>
         logger.debug(
           s"found ${parkingZonesSeen.length} parking zones over ${iterations} iterations"
@@ -181,9 +187,8 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     }
     val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
     val chargingQueue = parkingZoneDepotData.chargingQueue
-    val chargeDurationFromQueue = chargingQueue.map {
-      case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
+    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
+      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
     }.sum
     val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
     val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
@@ -193,7 +198,8 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
       case numInQueue =>
         (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
     }
-    val adjustedQueueServiceTime = (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
+    val adjustedQueueServiceTime =
+      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
     val result = Math
       .round(
         (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls

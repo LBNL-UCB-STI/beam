@@ -34,6 +34,7 @@ object PlansBuilder {
   val conf: Config = ConfigUtils.createConfig()
 
   private val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
+
   private val newPop: Population =
     PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
@@ -49,7 +50,7 @@ object PlansBuilder {
   private var pop = Vector[Person]()
   var outDir: String = ""
   var sampleNumber: Int = 0
-  val rand = new Random(4175l) // should this Random use a fixed seed from beamConfig ?
+  val rand = new Random(4175L) // should this Random use a fixed seed from beamConfig ?
 
   case class UTMConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
 
@@ -204,7 +205,8 @@ object PlansBuilder {
         }
 
         PersonUtils.setAge(newPerson, synthPerson.age)
-        val sex = if (synthPerson.sex == 0) { "M" } else { "F" }
+        val sex = if (synthPerson.sex == 0) { "M" }
+        else { "F" }
         // TODO: Include non-binary gender if data available
         PersonUtils.setSex(newPerson, sex)
         newPopAttributes

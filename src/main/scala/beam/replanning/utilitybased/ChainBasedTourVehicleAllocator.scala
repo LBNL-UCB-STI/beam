@@ -45,10 +45,9 @@ case class ChainBasedTourVehicleAllocator(
     householdMembershipAllocator
       .lookupVehicleForRankedPerson(person)
       .map(vehId => vehicles.getVehicles.get(vehId))
-      .filter(
-        vehicle =>
-          vehicle.getType.getDescription.equals("Car") || vehicle.getType.getDescription
-            .equals("SUV")
+      .filter(vehicle =>
+        vehicle.getType.getDescription.equals("Car") || vehicle.getType.getDescription
+          .equals("SUV")
       )
       .toVector
   }
@@ -223,11 +222,10 @@ object ChainBasedTourVehicleAllocator {
           case leg: Leg =>
             Option(leg)
               .flatMap(leg => Option(leg.getRoute))
-              .filterNot(
-                route =>
-                  Time.isUndefinedTime(Try {
-                    route.getTravelTime
-                  }.getOrElse(Double.NegativeInfinity))
+              .filterNot(route =>
+                Time.isUndefinedTime(Try {
+                  route.getTravelTime
+                }.getOrElse(Double.NegativeInfinity))
               )
               .map(_.getTravelTime)
               .filterNot(Time.isUndefinedTime)
