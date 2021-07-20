@@ -133,7 +133,7 @@ object ChargingNetwork {
 
   object ConnectionStatus extends Enumeration {
     type ConnectionStatus = Value
-    val WaitingToCharge, Connected, Disconnected, AtStation = Value
+    val WaitingToCharge, Connected, Disconnected, AlreadyAtStation = Value
   }
 
   def apply[GEO: GeoLevel](
@@ -284,7 +284,7 @@ object ChargingNetwork {
       shiftStatus: ShiftStatus = NotApplicable
     ): (ChargingVehicle, ConnectionStatus.Value) =
       vehicles.get(vehicle.id) match {
-        case Some(chargingVehicle) => (chargingVehicle, AtStation)
+        case Some(chargingVehicle) => (chargingVehicle, AlreadyAtStation)
         case _ =>
           val (sessionTime, status) = if (numAvailableChargers > 0) (tick, Connected) else (-1, WaitingToCharge)
           val listStatus = ListBuffer(status)

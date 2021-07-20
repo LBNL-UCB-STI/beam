@@ -95,7 +95,7 @@ class ChargingNetworkManager(
       log.debug(s"Received parking inquiry: $inquiry")
       chargingNetworkMap(inquiry.vehicleManagerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
-        case _                     => Future(parkingNetworkManager ? inquiry).pipeTo(sender())
+        case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -221,7 +221,7 @@ class ChargingNetworkManager(
           sender() ! WaitingInLine(tick, vehicle.id, triggerId)
         case Some((chargingVehicle, status)) if status == Connected =>
           handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
-        case Some((ChargingVehicle(_, _, station, _, _, _, _, _, _), status)) if status == AtStation =>
+        case Some((ChargingVehicle(_, _, station, _, _, _, _, _, _), status)) if status == AlreadyAtStation =>
           log.debug(s"Vehicle ${vehicle.id} already at the charging station $station!")
         case _ =>
           log.debug(s"Attempt to connect vehicle ${vehicle.id} to charger failed!")
