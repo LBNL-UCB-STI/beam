@@ -1600,6 +1600,7 @@ class RideHailManager(
         .map((notify.whenWhere.time, _))
 
     if (vehicleArrivedAtTickAndStall.isEmpty) {
+      //If not arrived for refueling;
       log.debug("Making vehicle {} available", notify.vehicleId)
       rideHailManagerHelper.makeAvailable(notify.vehicleId)
     }
