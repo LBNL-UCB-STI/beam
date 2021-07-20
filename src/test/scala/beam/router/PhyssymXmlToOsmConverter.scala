@@ -289,7 +289,9 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
   }
 
   private def metersPerSecondToKilometersPerHour(speed: String): String = {
-    val output = try { speed.toDouble * 3.6 } catch { case _: Throwable => DEFAULT_LINK_SPEED_KPH }
+    val output =
+      try { speed.toDouble * 3.6 }
+      catch { case _: Throwable => DEFAULT_LINK_SPEED_KPH }
     output.toString
   }
 
