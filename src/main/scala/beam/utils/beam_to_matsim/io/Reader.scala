@@ -14,10 +14,14 @@ object Reader {
   ): (Traversable[VehicleTrip], Traversable[PersonEvents]) = {
 
     val beamEventsFilter = BeamEventsReader
-      .fromFileFoldLeft[MutableSamplingFilter](eventsPath, filter, (f, ev) => {
-        f.filter(ev)
-        f
-      })
+      .fromFileFoldLeft[MutableSamplingFilter](
+        eventsPath,
+        filter,
+        (f, ev) => {
+          f.filter(ev)
+          f
+        }
+      )
       .getOrElse(filter)
 
     // fix overlapping of path traversal events for vehicle
@@ -163,7 +167,7 @@ object Reader {
 
         case class EventsTransformer(
           events: mutable.PriorityQueue[ViaEvent],
-          var prevEvent: Option[ViaTraverseLinkEvent] = None,
+          var prevEvent: Option[ViaTraverseLinkEvent] = None
         ) {
           def addPTEEvent(curr: ViaTraverseLinkEvent): Unit = {
             prevEvent match {
@@ -172,9 +176,11 @@ object Reader {
                   curr.time = prev.time + minTimeStep
                 }
 
-                if ((curr.time - prev.time > minTimeIntervalForContinuousMovement &&
-                    curr.eventType == EnteredLink &&
-                    prev.eventType == LeftLink) || (prev.vehicle != curr.vehicle)) {
+                if (
+                  (curr.time - prev.time > minTimeIntervalForContinuousMovement &&
+                  curr.eventType == EnteredLink &&
+                  prev.eventType == LeftLink) || (prev.vehicle != curr.vehicle)
+                ) {
 
                   if (curr.time - prev.time < minTimeIntervalForContinuousMovement) addPersonArrival(curr.time, prev)
                   else addPersonArrival(prev.time, prev)

@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.Id
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork], beamConfig: BeamConfig)
+class PowerController(chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork], beamConfig: BeamConfig)
     extends LazyLogging {
   import SitePowerManager._
 
@@ -41,10 +41,9 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
           case _                       => None
         }
       )
-    }.recoverWith {
-      case e =>
-        logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
-        Failure(e)
+    }.recoverWith { case e =>
+      logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
+      Failure(e)
     }.toOption
   } else None
 
@@ -69,16 +68,15 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
           if helicsConfig.connectionEnabled && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / cnmConfig.timeStepInSeconds) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
-        val msgToPublish = estimatedLoad.get.map {
-          case (station, powerInKW) =>
-            Map(
-              "managerId"         -> station.zone.managerId,
-              "tazId"             -> station.zone.tazId.toString,
-              "parkingType"       -> station.zone.parkingType.toString,
-              "chargingPointType" -> station.zone.chargingPointType.toString,
-              "numChargers"       -> station.zone.numChargers,
-              "estimatedLoad"     -> powerInKW
-            )
+        val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
+          Map(
+            "vehicleManager"    -> station.zone.vehicleManager,
+            "taz"               -> station.zone.geoId.toString,
+            "parkingType"       -> station.zone.parkingType.toString,
+            "chargingPointType" -> station.zone.chargingPointType.toString,
+            "numChargers"       -> station.zone.numChargers,
+            "estimatedLoad"     -> powerInKW
+          )
         }
         beamFederate.publishJSON(msgToPublish.toList)
 
@@ -94,10 +92,13 @@ class PowerController(chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwor
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
-          val managerId = Id.create(x("managerId").asInstanceOf[String], classOf[VehicleManager])
+          val managerId = x("vehicleManager").asInstanceOf[String] match {
+            case managerIdString if managerIdString.isEmpty => None
+            case managerIdString                            => Some(Id.create(managerIdString, classOf[VehicleManager]))
+          }
           val chargingNetwork = chargingNetworkMap(managerId)
           chargingNetwork.lookupStation(
-            Id.create(x("tazId").asInstanceOf[String], classOf[TAZ]),
+            Id.create(x("taz").asInstanceOf[String], classOf[TAZ]),
             ParkingType(x("parkingType").asInstanceOf[String]),
             ChargingPointType(x("chargingPointType").asInstanceOf[String]).get
           ) match {

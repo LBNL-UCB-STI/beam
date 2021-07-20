@@ -43,9 +43,8 @@ object VehicleChargingManager {
       vehicleChargingManagerName
     )
 
-    val vehicleChargingManager = chargingManagerTry.recoverWith {
-      case exception: Exception =>
-        throw new IllegalStateException(s"There is no implementation for `$vehicleChargingManagerName`", exception)
+    val vehicleChargingManager = chargingManagerTry.recoverWith { case exception: Exception =>
+      throw new IllegalStateException(s"There is no implementation for `$vehicleChargingManagerName`", exception)
     }.get
 
     vehicleChargingManager

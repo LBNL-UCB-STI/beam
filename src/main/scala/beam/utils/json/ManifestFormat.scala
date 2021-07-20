@@ -8,6 +8,7 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.matsim.api.core.v01.Id
 
 object ManifestFormat extends Encoder[Manifest] with Decoder[Manifest] {
+
   override def apply(a: Manifest): Json = {
     Json.obj(
       ("riders", Json.fromValues(a.riders.map(r => Json.fromString(r.personId.toString)))),

@@ -94,16 +94,17 @@ class SitePowerManagerSpec
 
   val dummyChargingZone: ChargingZone = ChargingZone(
     tazMap.getTAZs.head.tazId,
+    tazMap.getTAZs.head.tazId,
     ParkingType.Workplace,
     2,
     ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC"),
     PricingModel.FlatFee(0.0),
-    VehicleManager.privateVehicleManager.managerId
+    None
   )
 
   private val vehiclesList = {
     val parkingStall1: ParkingStall = ParkingStall(
-      dummyChargingZone.tazId,
+      dummyChargingZone.geoId,
       dummyChargingZone.tazId,
       0,
       tazMap.getTAZ(dummyChargingZone.tazId).get.coord,
@@ -111,19 +112,17 @@ class SitePowerManagerSpec
       Some(dummyChargingZone.chargingPointType),
       Some(dummyChargingZone.pricingModel),
       dummyChargingZone.parkingType,
-      managerId = VehicleManager.privateVehicleManager.managerId,
+      reservedFor = Seq.empty
     )
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
-      managerId = VehicleManager.privateVehicleManager.managerId
+      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType]))
     )
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
-      managerId = VehicleManager.privateVehicleManager.managerId
+      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
     )
     v1.useParkingStall(parkingStall1)
     v2.useParkingStall(parkingStall1.copy())
@@ -141,9 +140,8 @@ class SitePowerManagerSpec
 
     val dummyStation = ChargingStation(dummyChargingZone)
     zoneTree.put(tazMap.getTAZs.head.coord.getX, tazMap.getTAZs.head.coord.getY, dummyChargingZone)
-    val dummyNetwork = new ChargingNetwork(VehicleManager.privateVehicleManager.managerId, zoneTree)
-    val trieMap =
-      Map[Id[VehicleManager], ChargingNetwork](VehicleManager.privateVehicleManager.managerId -> dummyNetwork)
+    val dummyNetwork = new ChargingNetwork(None, zoneTree)
+    val trieMap = Map[Option[Id[VehicleManager]], ChargingNetwork](None -> dummyNetwork)
     val sitePowerManager = new SitePowerManager(trieMap, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
@@ -175,7 +173,7 @@ class SitePowerManagerSpec
           300,
           chargingVehicle,
           SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-        ) should (be((1, 250000.0)) or be((300, 7.5E7)))
+        ) should (be((1, 250000.0)) or be((300, 7.5e7)))
       }
 
     }

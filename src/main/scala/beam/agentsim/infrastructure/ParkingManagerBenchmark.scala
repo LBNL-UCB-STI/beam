@@ -2,9 +2,9 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorSystem
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingZone}
+import beam.agentsim.infrastructure.parking.{GeoLevel, LinkLevelOperations, ParkingNetwork, ParkingZone}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -29,9 +29,9 @@ import scala.util.Random
 
 class ParkingManagerBenchmark(
   val possibleParkingLocations: Array[(Coord, String)],
-  val parkingManagerActor: ParkingNetwork
-)(
-  implicit val actorSystem: ActorSystem,
+  val parkingManagerActor: ParkingNetwork[_]
+)(implicit
+  val actorSystem: ActorSystem,
   val ec: ExecutionContext
 ) extends StrictLogging {
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
@@ -41,9 +41,8 @@ class ParkingManagerBenchmark(
   def benchmark(): List[ParkingInquiryResponse] = {
     val parkingResponses =
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
-        possibleParkingLocations.flatMap {
-          case (coord, actType) =>
-            parkingManagerActor.processParkingInquiry(ParkingInquiry(coord, actType, triggerId = -1L))
+        possibleParkingLocations.flatMap { case (coord, actType) =>
+          parkingManagerActor.processParkingInquiry(ParkingInquiry(SpaceTime(coord, 0), actType, triggerId = -1L))
         }.toList
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")
@@ -151,11 +150,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       }
       val allActivityLocations: Array[(Coord, String)] = activities.map(act => (act.getCoord, act.getType)).toArray
 
-      val managers = Map[Id[VehicleManager], VehicleManager](
-        VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager
-      )
-
-      def createZonalParkingManager(isLink: Boolean): ParkingNetwork = {
+      def createZonalParkingManager(isLink: Boolean): ParkingNetwork[_] = {
         if (isLink) {
           val linkQuadTree: QuadTree[Link] = LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
           val linkIdMapping: collection.Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(network)
@@ -171,8 +166,7 @@ object ParkingManagerBenchmark extends StrictLogging {
             searchTree,
             geoUtils,
             new Random(seed),
-            boundingBox,
-            managers
+            boundingBox
           )
         } else {
           val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
@@ -185,15 +179,14 @@ object ParkingManagerBenchmark extends StrictLogging {
             searchTree,
             geoUtils,
             new Random(seed),
-            boundingBox,
-            managers
+            boundingBox
           )
         }
       }
 
       def runBench(activityLocations: Array[(Coord, String)], managerType: String): List[ParkingInquiryResponse] = {
         // This is important! because `ParkingZone` is mutable class
-        val parkingManager: ParkingNetwork = managerType match {
+        val parkingManager = managerType match {
           case "parallel" =>
             val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
             ParallelParkingManager.init(
@@ -204,8 +197,7 @@ object ParkingManagerBenchmark extends StrictLogging {
               6,
               geoUtils,
               42,
-              boundingBox,
-              managers
+              boundingBox
             )
           case "zonal" =>
             createZonalParkingManager(isLink = false)
@@ -226,7 +218,6 @@ object ParkingManagerBenchmark extends StrictLogging {
               boundingBox,
               mnlCfg,
               checkThatNumberOfStallsMatch = true,
-              managers,
               beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
             )
         }
@@ -242,9 +233,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         parkingLocations: immutable.IndexedSeq[Array[(Coord, String)]]
       ): (String, immutable.IndexedSeq[List[ParkingInquiryResponse]]) = {
         val start = System.currentTimeMillis()
-        val responses = (1 to nTimes).zip(parkingLocations).map {
-          case (_, parkingLocation) =>
-            runBench(parkingLocation, managerType)
+        val responses = (1 to nTimes).zip(parkingLocations).map { case (_, parkingLocation) =>
+          runBench(parkingLocation, managerType)
         }
         val end = System.currentTimeMillis()
         val diff = end - start
@@ -262,8 +252,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         rnd.shuffle(allActivityLocations.toList).take(nToTake).toArray
       }
       CsvWriter("./parking_inquiries.csv.gz", "activity-type", "x", "y")
-        .writeAllAndClose(parkingLocations.flatten.map {
-          case (coord, actType) => List(actType, coord.getX, coord.getY)
+        .writeAllAndClose(parkingLocations.flatten.map { case (coord, actType) =>
+          List(actType, coord.getX, coord.getY)
         })
       logger.info("activities written")
 

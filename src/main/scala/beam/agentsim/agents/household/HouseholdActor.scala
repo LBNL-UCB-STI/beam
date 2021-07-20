@@ -108,6 +108,7 @@ object HouseholdActor {
     triggerId: Long
   ) extends HasTriggerId
   case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
+
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None, triggerId: Long)
       extends HasTriggerId
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken], triggerId: Long) extends HasTriggerId
@@ -186,16 +187,15 @@ object HouseholdActor {
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
-        val fleetManagers = vehiclesByCategory.map {
-          case (category, vs) =>
-            val fleetManager =
-              context.actorOf(
-                Props(new HouseholdFleetManager(parkingManager, vs, homeCoord, beamServices.beamConfig.beam.debug)),
-                category.toString
-              )
-            context.watch(fleetManager)
-            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
-            fleetManager
+        val fleetManagers = vehiclesByCategory.map { case (category, vs) =>
+          val fleetManager =
+            context.actorOf(
+              Props(new HouseholdFleetManager(parkingManager, vs, homeCoord, beamServices.beamConfig.beam.debug)),
+              category.toString
+            )
+          context.watch(fleetManager)
+          schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+          fleetManager
         }
 
         // If any of my vehicles are CAVs then go through scheduling process
@@ -274,11 +274,14 @@ object HouseholdActor {
             //            log.debug("Household {} is done planning", household.getId)
             Future
               .sequence(
-                routingRequests.map(
-                  req =>
-                    beam.utils.logging.pattern
-                      .ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get })
-                      .mapTo[RoutingResponse]
+                routingRequests.map(req =>
+                  beam.utils.logging.pattern
+                    .ask(
+                      router,
+                      if (req.routeReq.isDefined) { req.routeReq.get }
+                      else { req.embodyReq.get }
+                    )
+                    .mapTo[RoutingResponse]
                 )
               )
               .map(RoutingResponses(tick, _, triggerId)) pipeTo self
@@ -386,7 +389,11 @@ object HouseholdActor {
                   passengersToAdd = passengersToAdd + person
                 }
               }
-              if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.nonEmpty) {
+              if (
+                serviceRequest.routingRequestId.isDefined && indexedResponses(
+                  serviceRequest.routingRequestId.get
+                ).itineraries.nonEmpty
+              ) {
                 if (updatedLegsIterator.hasNext) {
                   val leg = updatedLegsIterator.next
                   passengersToAdd.foreach { pass =>
@@ -433,16 +440,15 @@ object HouseholdActor {
             val cav = personAndActivityToCav((person.personId, originActivity))
             sender() ! CavTripLegsResponse(
               Some(cav),
-              legs.map(
-                bLeg =>
-                  EmbodiedBeamLeg(
-                    beamLeg = bLeg.copy(mode = CAV),
-                    beamVehicleId = cav.id,
-                    beamVehicleTypeId = cav.beamVehicleType.id,
-                    asDriver = false,
-                    cost = 0D,
-                    unbecomeDriverOnCompletion = false,
-                    isPooledTrip = false
+              legs.map(bLeg =>
+                EmbodiedBeamLeg(
+                  beamLeg = bLeg.copy(mode = CAV),
+                  beamVehicleId = cav.id,
+                  beamVehicleTypeId = cav.beamVehicleType.id,
+                  asDriver = false,
+                  cost = 0d,
+                  unbecomeDriverOnCompletion = false,
+                  isPooledTrip = false
                 )
               )
             )
@@ -458,9 +464,8 @@ object HouseholdActor {
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
-        contextBecome {
-          case Terminated(_) =>
-            dieIfNoChildren()
+        contextBecome { case Terminated(_) =>
+          dieIfNoChildren()
         }
 
       case Terminated(_) =>
@@ -480,7 +485,7 @@ object HouseholdActor {
           veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
             ParkingInquiryResponse(stall, _, _) <- parkingManager ? ParkingInquiry(
-              homeCoord,
+              veh.spaceTime,
               "init",
               triggerId = triggerId
             )

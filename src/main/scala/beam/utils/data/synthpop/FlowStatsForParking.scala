@@ -13,6 +13,7 @@ import org.opengis.referencing.operation.MathTransform
 
 class FlowStatsForParking(val dbInfo: CTPPDatabaseInfo, val tazGeoIdToGeomAndLandArea: Map[TazGeoId, (Geometry, Long)])
     extends StrictLogging {
+
   case class Row(
     sourceTaz: String,
     destinationTaz: String,
@@ -31,19 +32,17 @@ class FlowStatsForParking(val dbInfo: CTPPDatabaseInfo, val tazGeoIdToGeomAndLan
       (tupledKey, x.value)
     }
     .groupBy { case (key, _) => key }
-    .map {
-      case (key, xs) =>
-        key -> xs.map(_._2).sum
+    .map { case (key, xs) =>
+      key -> xs.map(_._2).sum
     }
 
   private val totalPopulation = new TotalPopulationTableReader(dbInfo, ResidenceGeography.TAZ).read()
 
-  private val allRows: Iterable[Row] = odToNumberOfWorkers.map {
-    case ((src, dst), numberOfWorkers) =>
-      val srcData = tazGeoIdToGeomAndLandArea.get(TazGeoId.fromString(src))
-      val dstData = tazGeoIdToGeomAndLandArea.get(TazGeoId.fromString(dst))
-      val totalPop = totalPopulation.getOrElse(src, 0)
-      Row(src, dst, numberOfWorkers.toInt, totalPop, srcData.map(_._2).getOrElse(0), dstData.map(_._2).getOrElse(0))
+  private val allRows: Iterable[Row] = odToNumberOfWorkers.map { case ((src, dst), numberOfWorkers) =>
+    val srcData = tazGeoIdToGeomAndLandArea.get(TazGeoId.fromString(src))
+    val dstData = tazGeoIdToGeomAndLandArea.get(TazGeoId.fromString(dst))
+    val totalPop = totalPopulation.getOrElse(src, 0)
+    Row(src, dst, numberOfWorkers.toInt, totalPop, srcData.map(_._2).getOrElse(0), dstData.map(_._2).getOrElse(0))
   }
   logger.info(s"allRows: ${allRows.size}")
 }

@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, 
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -236,7 +236,7 @@ class PersonAgentSpec
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(1.0, 1.0, 28850),
-                    distanceInM = 1000D
+                    distanceInM = 1000d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -429,7 +429,7 @@ class PersonAgentSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -451,7 +451,7 @@ class PersonAgentSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -669,19 +669,7 @@ class PersonAgentSpec
       )
 
       val parkingManager = system.actorOf(
-        Props(
-          new ParkingNetworkManager(
-            services,
-            ParkingNetworkInfo(
-              services,
-              boundingBox,
-              Map[Id[VehicleManager], VehicleManager](
-                VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
-                VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
-              )
-            )
-          )
-        ),
+        Props(new ParkingNetworkManager(services, ParkingAndChargingInfrastructure(services, boundingBox))),
         "ParkingManager"
       )
 
@@ -904,8 +892,7 @@ class PersonAgentSpec
     }
     maybeIteration = None
     //we need to prevent getting this CompletionNotice from the Scheduler in the next test
-    receiveWhile(1000 millis) {
-      case _: CompletionNotice =>
+    receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }
 

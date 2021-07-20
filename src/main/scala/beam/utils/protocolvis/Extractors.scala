@@ -8,11 +8,10 @@ import beam.utils.protocolvis.MessageReader.RowData
 object Extractors {
 
   def byPerson(personId: String): Iterator[RowData] => Iterator[RowData] = { stream =>
-    val (_, seq) = stream.foldLeft(Set.empty[Long] -> IndexedSeq.empty[RowData]) {
-      case ((ids, seq), row) =>
-        if (isSenderOrReceiver(personId, row)) (if (row.triggerId >= 0) ids + row.triggerId else ids, seq :+ row)
-        else if (ids.contains(row.triggerId)) (ids, seq :+ row)
-        else (ids, seq)
+    val (_, seq) = stream.foldLeft(Set.empty[Long] -> IndexedSeq.empty[RowData]) { case ((ids, seq), row) =>
+      if (isSenderOrReceiver(personId, row)) (if (row.triggerId >= 0) ids + row.triggerId else ids, seq :+ row)
+      else if (ids.contains(row.triggerId)) (ids, seq :+ row)
+      else (ids, seq)
     }
     seq.iterator
   }

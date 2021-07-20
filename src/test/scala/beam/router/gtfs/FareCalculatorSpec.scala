@@ -99,10 +99,10 @@ class FareCalculatorSpec extends AnyWordSpecLike with BeamHelper {
           .getFareSegments("CE", "ACE", null, null, Set("55448", "55449", "55643"))
           .map(BeamFareSegment(_, 0, 3200)) ++
 //          testFareCalc.getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
-        testFareCalc
-          .getFareSegments("CE", "ACE", "55644", "55645")
-          .map(BeamFareSegment(_, 0, 4300)) ++
-        testFareCalc.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
+          testFareCalc
+            .getFareSegments("CE", "ACE", "55644", "55645")
+            .map(BeamFareSegment(_, 0, 4300)) ++
+          testFareCalc.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
         val fsf = filterFaresOnTransfers(fr)
         assert(fsf.nonEmpty)
         assert(fsf.size == 3)

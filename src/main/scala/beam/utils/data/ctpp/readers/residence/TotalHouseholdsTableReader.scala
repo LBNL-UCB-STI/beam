@@ -11,16 +11,16 @@ class TotalHouseholdsTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeograph
   def read(): TotalHouseholds = {
     val map = readRaw()
       .groupBy(x => x.geoId)
-      .map {
-        case (geoId, xs) =>
-          // It is one to one relation, that's why we get the head
-          geoId -> xs.head.estimate.toInt
+      .map { case (geoId, xs) =>
+        // It is one to one relation, that's why we get the head
+        geoId -> xs.head.estimate.toInt
       }
     TotalHouseholds(map)
   }
 }
 
 object TotalHouseholdsTableReader {
+
   case class TotalHouseholds(private val map: Map[String, Int]) extends Map[String, Int] {
     override def +[V1 >: Int](kv: (String, V1)): Map[String, V1] = map.+(kv)
 
@@ -35,9 +35,8 @@ object TotalHouseholdsTableReader {
     val databaseInfo = CTPPDatabaseInfo(PathToData("d:/Work/beam/Austin/input/CTPP/"), Set("48"))
     val rdr = new TotalHouseholdsTableReader(databaseInfo, ResidenceGeography.State)
     val readData = rdr.read()
-    readData.foreach {
-      case (geoId, count) =>
-        println(s"$geoId: $count")
+    readData.foreach { case (geoId, count) =>
+      println(s"$geoId: $count")
     }
   }
 }

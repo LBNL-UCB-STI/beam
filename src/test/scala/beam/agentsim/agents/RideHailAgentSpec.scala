@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, ShiftEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager}
+import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -63,17 +63,7 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ParkingNetworkManager.props(
-      services,
-      ParkingNetworkInfo(
-        services,
-        boundingBox,
-        Map[Id[VehicleManager], VehicleManager](
-          VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
-          VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
-        )
-      )
-    ),
+    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
     "ParkingManager"
   )
 
@@ -165,8 +155,8 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          managerId =
-            Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          vehicleManager =
+            Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -246,7 +236,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -318,7 +308,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -358,14 +348,12 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]
 
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(TestTrigger(40000), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(TestTrigger(40000), _) =>
+        t
       }
 
       rideHailAgent ! Interrupt(1, 30000, 0)
@@ -381,14 +369,12 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(TestTrigger(50000), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(TestTrigger(50000), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
       rideHailAgent ! Finish
@@ -412,8 +398,7 @@ class RideHailAgentSpec
     import scala.concurrent.duration._
     import scala.language.postfixOps
     //we need to prevent getting this CompletionNotice from the Scheduler in the next test
-    receiveWhile(1000 millis) {
-      case _: CompletionNotice =>
+    receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }
 

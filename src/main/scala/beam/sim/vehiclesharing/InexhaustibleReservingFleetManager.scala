@@ -1,4 +1,5 @@
 package beam.sim.vehiclesharing
+
 import java.util.concurrent.TimeUnit
 import akka.actor.{ActorLogging, ActorRef}
 import akka.pattern.pipe
@@ -6,13 +7,7 @@ import akka.pattern.pipe
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.util.Timeout
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  GetVehicleTypes,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  VehicleTypesResponse
-}
+import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -25,14 +20,16 @@ import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
-  managerId: Id[VehicleManager],
+  vehicleManager: Id[VehicleManager],
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long,
-  implicit val debug: Debug,
+  implicit val debug: Debug
 ) extends LoggingMessageActor
     with ActorLogging {
 
@@ -54,7 +51,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
-        managerId = managerId,
+        vehicleManager = Some(vehicleManager),
         rand.nextInt()
       )
       nextVehicleIndex += 1
@@ -64,10 +61,9 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
       // Park it and forward it to the customer
       (parkingManager ? parkingInquiry(whenWhere, triggerId))
-        .collect {
-          case ParkingInquiryResponse(stall, _, triggerId) =>
-            vehicle.useParkingStall(stall)
-            MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+          vehicle.useParkingStall(stall)
+          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
         } pipeTo sender
 
     case ReleaseVehicle(_, _) =>
@@ -76,6 +72,6 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
   }
 
   def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
-    ParkingInquiry(whenWhere.loc, "wherever", triggerId = triggerId)
+    ParkingInquiry(whenWhere, "wherever", triggerId = triggerId)
 
 }

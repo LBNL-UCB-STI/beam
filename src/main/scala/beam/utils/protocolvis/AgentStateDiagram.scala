@@ -13,10 +13,9 @@ object AgentStateDiagram {
 
   def process(messages: Iterator[RowData], outputDir: Path): Unit = {
     val transitions = toTransitions(messages)
-    val singleActorStates = transitions.map {
-      case (actor, actorTransitions) =>
-        val entries = toPumlEntries(actorTransitions.values.toIndexedSeq)
-        toShortName(actor) -> entries
+    val singleActorStates = transitions.map { case (actor, actorTransitions) =>
+      val entries = toPumlEntries(actorTransitions.values.toIndexedSeq)
+      toShortName(actor) -> entries
     }
     writeToDir(singleActorStates, outputDir)
   }
@@ -25,15 +24,15 @@ object AgentStateDiagram {
     messages: Iterator[RowData]
   ): Map[String, Map[StateTransition, StateTransition]] = {
     messages
-      .collect {
-        case transition: Transition => transition
+      .collect { case transition: Transition =>
+        transition
       }
       .foldLeft(Map.empty[String, Map[StateTransition, StateTransition]]) { (acc, transition) =>
         val actor = userFriendlyActorName(transition.receiver)
         val stateTransition = StateTransition(
           transition.prevState,
           transition.state,
-          "",
+          ""
         )
         val actorMap = acc.getOrElse(actor, Map.empty)
         val transitions = actorMap.getOrElse(stateTransition, stateTransition)

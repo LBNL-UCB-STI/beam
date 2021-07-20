@@ -9,29 +9,25 @@ object ArgumentsParser {
   private def buildParser: OptionParser[Arguments] = {
     new scopt.OptionParser[Arguments]("beam") {
       opt[String]("config")
-        .action(
-          (value, args) => {
-            args.copy(
-              config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
-              configLocation = Option(value)
-            )
-          }
-        )
-        .validate(
-          value =>
-            if (value.trim.isEmpty) failure("config location cannot be empty")
-            else success
+        .action((value, args) => {
+          args.copy(
+            config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
+            configLocation = Option(value)
+          )
+        })
+        .validate(value =>
+          if (value.trim.isEmpty) failure("config location cannot be empty")
+          else success
         )
         .text("Location of the beam config file")
       opt[String]("cluster-type")
-        .action(
-          (value, args) =>
-            args.copy(
-              clusterType = value.trim.toLowerCase match {
-                case "master" => Some(Master)
-                case "worker" => Some(Worker)
-                case _        => None
-              }
+        .action((value, args) =>
+          args.copy(
+            clusterType = value.trim.toLowerCase match {
+              case "master" => Some(Master)
+              case "worker" => Some(Worker)
+              case _        => None
+            }
           )
         )
         .text("If running as a cluster, specify master or worker")
@@ -45,10 +41,9 @@ object ArgumentsParser {
         .text("Port used to run the remote actor system")
       opt[String]("seed-address")
         .action((value, args) => args.copy(seedAddress = Option(value)))
-        .validate(
-          value =>
-            if (value.trim.isEmpty) failure("seed-address cannot be empty")
-            else success
+        .validate(value =>
+          if (value.trim.isEmpty) failure("seed-address cannot be empty")
+          else success
         )
         .text(
           "Comma separated list of initial addresses used for the rest of the cluster to bootstrap"
@@ -62,13 +57,12 @@ object ArgumentsParser {
           "NOTE: For cluster, this will ONLY be checked if cluster-type=master"
         )
 
-      checkConfig(
-        args =>
-          if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddress.isEmpty))
-            failure("If using the cluster then node-host, node-port, and seed-address are required")
-          else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
-            failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
-          else success
+      checkConfig(args =>
+        if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddress.isEmpty))
+          failure("If using the cluster then node-host, node-port, and seed-address are required")
+        else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
+          failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
+        else success
       )
     }
   }

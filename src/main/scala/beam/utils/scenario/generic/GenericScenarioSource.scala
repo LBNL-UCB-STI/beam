@@ -12,6 +12,7 @@ class GenericScenarioSource(
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean
 ) extends ScenarioSource {
+
   override def getPersons: Iterable[PersonInfo] = {
     CsvPersonInfoReader.read(pathToPersonFile)
   }

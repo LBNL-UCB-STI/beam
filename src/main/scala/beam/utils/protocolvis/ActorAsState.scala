@@ -37,9 +37,8 @@ object ActorAsState {
     actorStates: Map[String, IndexedSeq[StateDiagramEntry]],
     outputDir: Path
   ): Unit = {
-    actorStates.foreach {
-      case (shortName, entries) =>
-        PumlWriter.writeData(entries, outputDir.resolve(shortName + ".puml"))(serializer)
+    actorStates.foreach { case (shortName, entries) =>
+      PumlWriter.writeData(entries, outputDir.resolve(shortName + ".puml"))(serializer)
     }
   }
 
@@ -53,7 +52,7 @@ object ActorAsState {
         val stateTransition = StateTransition(
           userFriendlyActorName(message.sender),
           userFriendlyActorName(message.receiver),
-          userFriendlyPayload(message.payload),
+          userFriendlyPayload(message.payload)
         )
         val transition = acc.getOrElse(stateTransition, stateTransition)
         acc.updated(stateTransition, transition.inc())
@@ -68,17 +67,15 @@ object ActorAsState {
     val allStates = getAllStates(transitions)
     val stateToShortName = allStates.map(state => state -> toShortName(state)).toMap
 
-    val descriptions = stateToShortName.map {
-      case (state, shortName) =>
-        StateDescription(state, shortName)
+    val descriptions = stateToShortName.map { case (state, shortName) =>
+      StateDescription(state, shortName)
     }.toIndexedSeq
-    val convertedTransitions = transitions.map(
-      transition =>
-        StateTransition(
-          fromState = stateToShortName(transition.fromState),
-          toState = stateToShortName(transition.toState),
-          message = transition.message,
-          number = transition.number
+    val convertedTransitions = transitions.map(transition =>
+      StateTransition(
+        fromState = stateToShortName(transition.fromState),
+        toState = stateToShortName(transition.toState),
+        message = transition.message,
+        number = transition.number
       )
     )
     descriptions ++ convertedTransitions

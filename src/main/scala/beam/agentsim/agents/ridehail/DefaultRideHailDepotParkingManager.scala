@@ -5,7 +5,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartRefuelSessionTrigg
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.charging.StallAssignmentStrategy
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
@@ -74,8 +74,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   parkingStallCountScalingFactor: Double = 1.0,
   beamServices: BeamServices,
   skims: Skims,
-  outputDirectory: OutputDirectoryHierarchy,
-  override val vehicleManagerId: Id[VehicleManager]
+  outputDirectory: OutputDirectoryHierarchy
 ) extends RideHailDepotParkingManager[GEO] {
 
   // load parking from a parking file, or generate it using the geo beam input
@@ -85,21 +84,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   ) = if (parkingFilePath.isEmpty) {
     logger.info(s"no parking file found. generating ubiquitous ride hail parking")
     ParkingZoneFileUtils
-      .generateDefaultParkingFromGeoObjects(
-        geoQuadTree.values().asScala,
-        random,
-        Seq(ParkingType.Workplace),
-        vehicleManagerId
-      )
+      .generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random, Seq(ParkingType.Workplace))
   } else {
     Try {
-      ParkingZoneFileUtils
-        .fromFile[GEO](
-          parkingFilePath,
-          random,
-          parkingStallCountScalingFactor,
-          vehicleManagerId = vehicleManagerId
-        )
+      ParkingZoneFileUtils.fromFile[GEO](parkingFilePath, random, parkingStallCountScalingFactor)
     } match {
       case Success((stalls, tree)) =>
         logger.info(s"generating ride hail parking from file $parkingFilePath")
@@ -108,12 +96,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         logger.warn(s"unable to read contents of provided parking file $parkingFilePath, got ${e.getMessage}.")
         logger.info(s"generating ubiquitous ride hail parking")
         ParkingZoneFileUtils
-          .generateDefaultParkingFromGeoObjects(
-            geoQuadTree.values().asScala,
-            random,
-            Seq(ParkingType.Workplace),
-            vehicleManagerId
-          )
+          .generateDefaultParkingFromGeoObjects(geoQuadTree.values().asScala, random, Seq(ParkingType.Workplace))
     }
   }
 
@@ -165,19 +148,22 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[VehicleId, ParkingStall]
   private val vehiclesOnWayToDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
+
   private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, ParkingZoneId] =
     mutable.Map.empty[VehicleId, ParkingZoneId]
+
   private val vehicleIdToLastObservedTickAndAction: mutable.Map[VehicleId, mutable.ListBuffer[(Int, String)]] =
     mutable.Map.empty[VehicleId, mutable.ListBuffer[(Int, String)]]
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
+
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
    * accessible via a Map on the ParkingZoneId
    */
   private val parkingZoneIdToParkingZoneDepotData: mutable.Map[ParkingZoneId, ParkingZoneDepotData] =
     mutable.Map.empty[ParkingZoneId, ParkingZoneDepotData]
-  rideHailParkingZones.foreach(
-    parkingZone => parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
+  rideHailParkingZones.foreach(parkingZone =>
+    parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
   )
 
   /*
@@ -282,7 +268,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           .refuelingSessionDurationAndEnergyInJoulesForStall(
             Some(
               ParkingStall
-                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative, vehicleManagerId)
+                .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative)
             ),
             None,
             None,
@@ -298,15 +284,16 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <- ParkingZoneSearch
-        .incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction,
-          geoToTAZ
-        )
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <-
+        ParkingZoneSearch
+          .incrementalParkingZoneSearch(
+            parkingZoneSearchConfiguration,
+            parkingZoneSearchParams,
+            parkingZoneFilterFunction,
+            parkingZoneLocSamplingFunction,
+            parkingZoneMNLParamsFunction,
+            geoToTAZ
+          )
     } yield {
 
       logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
@@ -346,9 +333,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
     val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
     val chargingQueue = parkingZoneDepotData.chargingQueue
-    val chargeDurationFromQueue = chargingQueue.map {
-      case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
+    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
+      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
     }.sum
     val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
     val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
@@ -358,7 +344,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       case numInQueue =>
         (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
     }
-    val adjustedQueueServiceTime = (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
+    val adjustedQueueServiceTime =
+      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
     val result = Math
       .round(
         (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
@@ -613,12 +600,11 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @param newVehiclesHeadedToDepot
     */
   def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
-    newVehiclesHeadedToDepot.foreach {
-      case (vehicleId, parkingStall) =>
-        logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
-        vehiclesOnWayToDepot.put(vehicleId, parkingStall)
-        val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
-        parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
+    newVehiclesHeadedToDepot.foreach { case (vehicleId, parkingStall) =>
+      logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
+      vehiclesOnWayToDepot.put(vehicleId, parkingStall)
+      val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
+      parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
     }
   }
 
@@ -637,7 +623,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @return
     */
   def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean =
-    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(vehicleId) || vehiclesInQueueToParkingZoneId
+    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(
+      vehicleId
+    ) || vehiclesInQueueToParkingZoneId
       .contains(vehicleId)
 
   /**
@@ -691,8 +679,7 @@ object DefaultRideHailDepotParkingManager {
     parkingStallCountScalingFactor: Double,
     beamServices: BeamServices,
     skims: Skims,
-    outputDirectory: OutputDirectoryHierarchy,
-    vehicleManagerId: Id[VehicleManager]
+    outputDirectory: OutputDirectoryHierarchy
   ): RideHailDepotParkingManager[TAZ] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -706,8 +693,7 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices: BeamServices,
       skims = skims: Skims,
-      outputDirectory = outputDirectory: OutputDirectoryHierarchy,
-      vehicleManagerId = vehicleManagerId
+      outputDirectory = outputDirectory: OutputDirectoryHierarchy
     )
   }
 
@@ -723,8 +709,7 @@ object DefaultRideHailDepotParkingManager {
     parkingStallCountScalingFactor: Double,
     beamServices: BeamServices,
     skims: Skims,
-    outputDirectory: OutputDirectoryHierarchy,
-    vehicleManagerId: Id[VehicleManager]
+    outputDirectory: OutputDirectoryHierarchy
   ): RideHailDepotParkingManager[Link] = {
     new DefaultRideHailDepotParkingManager(
       parkingFilePath = parkingFilePath,
@@ -738,8 +723,7 @@ object DefaultRideHailDepotParkingManager {
       parkingStallCountScalingFactor = parkingStallCountScalingFactor,
       beamServices = beamServices,
       skims = skims,
-      outputDirectory = outputDirectory,
-      vehicleManagerId = vehicleManagerId
+      outputDirectory = outputDirectory
     )
   }
 }

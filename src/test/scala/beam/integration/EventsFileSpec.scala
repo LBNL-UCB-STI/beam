@@ -51,7 +51,7 @@ class EventsFileSpec
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+    val (scenarioBuilt, beamScenario, plansMerged) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
@@ -59,7 +59,7 @@ class EventsFileSpec
     injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
     val services = buildBeamServices(injector, scenario)
 
-    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
+    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory, plansMerged)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -88,8 +88,9 @@ class EventsFileSpec
     }
     require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' ${gtfsZip}")
 
-    val trips = for (line <- maybeLines.get)
-      yield line.split(",")(2)
+    val trips =
+      for (line <- maybeLines.get)
+        yield line.split(",")(2)
     trips.toSet
   }
 
@@ -110,8 +111,9 @@ class EventsFileSpec
     }
     require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' ${gtfsZip}")
 
-    val stopTimes = for (line <- maybeLines.get)
-      yield line.split(",")
+    val stopTimes =
+      for (line <- maybeLines.get)
+        yield line.split(",")
     val stopTimesByTrip = stopTimes.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
   }

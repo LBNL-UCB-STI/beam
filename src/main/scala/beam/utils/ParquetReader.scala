@@ -24,9 +24,8 @@ object ParquetReader {
     // Read some rows
     val (iter, toClose) = read(args.head)
     try {
-      iter.take(20).zipWithIndex.foreach {
-        case (row, idx) =>
-          println(s"$idx: $row")
+      iter.take(20).zipWithIndex.foreach { case (row, idx) =>
+        println(s"$idx: $row")
       }
     } finally {
       toClose.close()

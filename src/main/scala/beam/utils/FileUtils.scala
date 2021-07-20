@@ -193,6 +193,35 @@ object FileUtils extends LazyLogging {
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
   }
 
+  def readerFromIterator(iterator: Iterator[String]): java.io.Reader = {
+    new Reader() {
+      var currentLine: String = ""
+      var position: Int = 0
+
+      override def read(cbuf: Array[Char], off: Int, len: Int): Int = {
+        if (len == 0) return 0
+        if (position >= currentLine.length && !receiveNextLine()) return -1
+        val read = Math.min(currentLine.length - position, len)
+        currentLine.getChars(position, position + read, cbuf, off)
+        position += read
+        read
+      }
+
+      private def receiveNextLine() = {
+        if (iterator.hasNext) {
+          currentLine = iterator.next()
+          position = 0
+          true
+        } else {
+          currentLine = ""
+          false
+        }
+      }
+
+      override def close(): Unit = {}
+    }
+  }
+
   def readerFromURL(url: String): java.io.BufferedReader = {
     require(isRemote(url, "http://") || isRemote(url, "https://"))
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
@@ -420,13 +449,12 @@ object FileUtils extends LazyLogging {
       .map { i =>
         (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
       }
-    val futures = fileList.map {
-      case (i: Int, path: Path) =>
-        Future {
-          using(IOUtils.getBufferedWriter(path.toString)) { writer =>
-            saver(i, path, writer)
-          }
+    val futures = fileList.map { case (i: Int, path: Path) =>
+      Future {
+        using(IOUtils.getBufferedWriter(path.toString)) { writer =>
+          saver(i, path, writer)
         }
+      }
     }
     Await.result(Future.sequence(futures), atMost)
   }
@@ -457,18 +485,17 @@ object FileUtils extends LazyLogging {
     import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
     import java.util.zip.{ZipEntry, ZipOutputStream}
 
-    val existed = files.filter { case (_, path)      => Files.exists(path) && Files.isRegularFile(path) }
+    val existed = files.filter { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
     val notExited = files.filterNot { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
     notExited.foreach { case (name, _) => logger.error(s"Cannot find $name") }
 
     using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) { zip =>
-      existed.foreach {
-        case (name, path) =>
-          zip.putNextEntry(new ZipEntry(name))
-          using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
-            IOUtils.copyStream(in, zip)
-          }
-          zip.closeEntry()
+      existed.foreach { case (name, path) =>
+        zip.putNextEntry(new ZipEntry(name))
+        using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
+          IOUtils.copyStream(in, zip)
+        }
+        zip.closeEntry()
       }
     }
     out

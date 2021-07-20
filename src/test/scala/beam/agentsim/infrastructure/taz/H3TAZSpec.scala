@@ -70,13 +70,12 @@ class H3TAZSpec extends AnyFlatSpec with Matchers with BeamHelper {
       (1 to 22).forall(groups.contains) && List(24, 25, 28, 29, 30, 32, 33, 34, 37, 52, 55).forall(groups.contains),
       "something went wrong with the algorithm"
     )
-    indexes.foreach {
-      case (h3Index, _) =>
-        val resolution = h3Index.resolution
-        require(
-          resolution >= lowestResolution && resolution <= highestResolution,
-          s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"
-        )
+    indexes.foreach { case (h3Index, _) =>
+      val resolution = h3Index.resolution
+      require(
+        resolution >= lowestResolution && resolution <= highestResolution,
+        s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"
+      )
     }
   }
 }

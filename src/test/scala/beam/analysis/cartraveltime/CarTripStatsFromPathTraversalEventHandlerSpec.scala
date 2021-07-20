@@ -1,4 +1,5 @@
 package beam.analysis.cartraveltime
+
 import beam.agentsim.agents.GenericEventsSpec
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.scalatest.Assertion

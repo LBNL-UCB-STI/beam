@@ -1,0 +1,109 @@
+group = 'beam'
+version = '0.8.0'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath 'org.hidetake:gradle-ssh-plugin:2.10.1'
+    }
+}
+
+apply plugin: 'org.hidetake.ssh'
+
+if (!project.hasProperty("nerscUser")) {
+    ext.nerscUser = "unknown_nersc_user"
+}
+
+remotes {
+    nerscLoginNode {
+        host = 'cori.nersc.gov'
+        user = "${nerscUser}"
+        identity = file("${System.properties['user.home']}/.ssh/nersc")
+    }
+}
+
+import org.apache.tools.ant.filters.ReplaceTokens
+
+task deployToNersc {
+        def propsFileName = "../gradle.deploy.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            if (project.hasProperty(paramName)) {
+                return project.findProperty(paramName)
+            } else {
+                return propsFile.getProperty(paramName)
+            }
+        }
+
+        def runName = "${ext.getParameterValue('runName')}"
+        def git_user_email = "${getCurrentGitUserEmail()}"
+        def branch = "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}"
+        def commit = "${ext.getParameterValue('beamCommit') ?: 'HEAD'}"
+        def configs = "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}"
+        def max_ram = '100g'
+        def google_api_key = "${System.getenv('GOOGLE_API_KEY') ?: 'not-set-in-env'}"
+        def s3_publish = "${ext.getParameterValue('s3Backup') ?: true}"
+        def aws_access_key_id = "${System.getenv('AWS_ACCESS_KEY_ID') ?: 'not-set-in-env'}"
+        def aws_secret_access_key = "${System.getenv('AWS_SECRET_ACCESS_KEY') ?: 'not-set-in-env'}"
+        def region = "${ext.getParameterValue('region') ?: defaultRegion}"
+
+    doFirst {
+        copy {
+            from('src/main/bash/shifter_job.sh') {
+                filter(ReplaceTokens, tokens: ['jobName': runName.toString(), 'userEmail': git_user_email.toString()])
+            }
+            into "${project.rootDir}/build/generated/scripts"
+        }
+    }
+
+    doLast {
+
+        ssh.run {
+            session(remotes.nerscLoginNode) {
+                put from: 'nersc/src/main/bash/run_beam_on_nersc.sh', into: "run_beam.sh"
+                put from: "${project.rootDir}/build/generated/scripts/shifter_job.sh", into: "shifter_job.sh"
+                execute "chmod +x run_beam.sh shifter_job.sh"
+                execute "./run_beam.sh \
+                            --branch='$branch' \
+                            --revision='$commit' \
+                            --config='$configs' \
+                            --max_ram=$max_ram \
+                            --google_api_key=$google_api_key \
+                            --s3_publish=$s3_publish \
+                            --aws_access_key_id=$aws_access_key_id \
+                            --aws_secret_access_key=$aws_secret_access_key \
+                            --region=$region"
+            }
+        }
+    }
+}
+
+def getCurrentGitUserEmail() {
+    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
+    return rawGitUserEmail
+}
+
+def getGitResultFromWorkingDirUsing(command, defaultResult) {
+    def gitResult = defaultResult
+    try {
+        def workingDir = new File("${project.projectDir}")
+        def result = command.execute(null, workingDir)
+        result.waitFor()
+        if (result.exitValue() == 0) {
+            gitResult = result.text.trim()
+        }
+    } catch (ignored) {
+    }
+    return gitResult
+}

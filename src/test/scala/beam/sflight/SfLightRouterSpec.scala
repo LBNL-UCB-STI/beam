@@ -307,14 +307,12 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
 
       val walkTrip =
         response.itineraries.find(_.tripClassifier == WALK).get.toBeamTrip
-      inside(walkTrip) {
-        case BeamTrip(legs) =>
-          legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
-          inside(legs.loneElement) {
-            case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
-              mode should be(WALK)
-              links should be('empty)
-          }
+      inside(walkTrip) { case BeamTrip(legs) =>
+        legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
+        inside(legs.loneElement) { case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
+          mode should be(WALK)
+          links should be('empty)
+        }
       }
 
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get

@@ -35,7 +35,7 @@ object WgsCoordinateGenerator {
   def buildSetWithFixedSize(
     expectedSize: Int,
     latitudeRange: Range.Inclusive = Range.inclusive(-90, 90),
-    longitudeRange: Range.Inclusive = Range.inclusive(-180, 180),
+    longitudeRange: Range.Inclusive = Range.inclusive(-180, 180)
   ): Set[WgsCoordinate] = {
     val result = collection.mutable.Set[WgsCoordinate]()
     while (result.size < expectedSize) {

@@ -15,14 +15,18 @@ object FailFast extends LazyLogging {
      * -- replanning delete strategy, tryToKeepOneOfEachClass, only relevant to LCCM
      * -- vice versa of above, LCCM requires tryToKeepOneOfEachClass
      */
-    if (config.matsim.modules.strategy.planSelectorForRemoval.equals("tryToKeepOneOfEachClass") &&
-        !config.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equals("ModeChoiceLCCM")) {
+    if (
+      config.matsim.modules.strategy.planSelectorForRemoval.equals("tryToKeepOneOfEachClass") &&
+      !config.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equals("ModeChoiceLCCM")
+    ) {
       throw new RuntimeException(
         "The replanning deletion strategy 'tryToKeepOneOfEachClass' must only be used along with the 'ModeChoiceLCCM' mode choice class. In other words, if the parameter beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass!=ModeChoiceLCCM then beamConfig.matsim.modules.strategy.planSelectorForRemoval != 'tryToKeepOneOfEachClass'"
       )
     }
-    if (!config.matsim.modules.strategy.planSelectorForRemoval.equals("tryToKeepOneOfEachClass") &&
-        config.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equals("ModeChoiceLCCM")) {
+    if (
+      !config.matsim.modules.strategy.planSelectorForRemoval.equals("tryToKeepOneOfEachClass") &&
+      config.beam.agentsim.agents.modalBehaviors.modeChoiceClass.equals("ModeChoiceLCCM")
+    ) {
       throw new RuntimeException(
         "The replanning deletion strategy 'tryToKeepOneOfEachClass' must be used along with the 'ModeChoiceLCCM' mode choice class. In other words, if the parameter beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass==ModeChoiceLCCM then beamConfig.matsim.modules.strategy.planSelectorForRemoval == 'tryToKeepOneOfEachClass'"
       )
@@ -31,13 +35,21 @@ object FailFast extends LazyLogging {
     /*
      * Pooling with timeout zero or non-pooling with non-zero don't mix yet
      */
-    if (config.beam.agentsim.agents.rideHail.allocationManager.name
-          .equals("POOLING_ALONSO_MORA") && config.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds == 0) {
+    if (
+      config.beam.agentsim.agents.rideHail.allocationManager.name
+        .equals(
+          "POOLING_ALONSO_MORA"
+        ) && config.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds == 0
+    ) {
       throw new RuntimeException(
         "PoolingAlonsoMora is not yet compatible with a parameter value of 0 for requestBufferTimeoutInSeconds. Either make that parameter non-zero or use DEFAULT_MANAGER for the allocationManager."
       )
-    } else if (config.beam.agentsim.agents.rideHail.allocationManager.name
-                 .equals("DEFAULT_MANAGER") && config.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0) {
+    } else if (
+      config.beam.agentsim.agents.rideHail.allocationManager.name
+        .equals(
+          "DEFAULT_MANAGER"
+        ) && config.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
+    ) {
       throw new RuntimeException(
         "AllocationManager DEFAULT_MANAGER is not yet compatible with a non-zero parameter value for requestBufferTimeoutInSeconds. Either make that parameter zero or use POOLING_ALONSO_MORA for the allocationManager."
       )

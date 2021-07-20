@@ -35,37 +35,36 @@ object ChoosesParking {
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-  onTransition {
-    case ReadyToChooseParking -> ChoosingParkingSpot =>
-      val personData = stateData.asInstanceOf[BasePersonData]
+  onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
+    val personData = stateData.asInstanceOf[BasePersonData]
 
-      val firstLeg = personData.restOfCurrentTrip.head
-      val lastLeg =
-        personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
+    val firstLeg = personData.restOfCurrentTrip.head
+    val lastLeg =
+      personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
-      val parkingDuration: Double = {
-        for {
-          act <- nextActivity(personData)
-          lastLegEndTime = lastLeg.beamLeg.endTime.toDouble
-        } yield act.getEndTime - lastLegEndTime
-      }.getOrElse(0.0)
-      val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
+    val parkingDuration: Double = {
+      for {
+        act <- nextActivity(personData)
+        lastLegEndTime = lastLeg.beamLeg.endTime.toDouble
+      } yield act.getEndTime - lastLegEndTime
+    }.getOrElse(0.0)
+    val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
 
-      // in meter (the distance that should be considered as buffer for range estimation
+    // in meter (the distance that should be considered as buffer for range estimation
 
-      val nextActivityType = nextActivity(personData).get.getType
+    val nextActivityType = nextActivity(personData).get.getType
 
-      val remainingTripData = calculateRemainingTripData(personData)
+    val remainingTripData = calculateRemainingTripData(personData)
 
-      parkingManager ! ParkingInquiry(
-        destinationUtm,
-        nextActivityType,
-        Some(this.currentBeamVehicle),
-        remainingTripData,
-        attributes.valueOfTime,
-        parkingDuration,
-        triggerId = getCurrentTriggerIdOrGenerate,
-      )
+    parkingManager ! ParkingInquiry(
+      SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
+      nextActivityType,
+      Some(this.currentBeamVehicle),
+      remainingTripData,
+      attributes.valueOfTime,
+      parkingDuration,
+      triggerId = getCurrentTriggerIdOrGenerate
+    )
   }
 
   when(ConnectingToChargingPoint) {
@@ -105,7 +104,6 @@ trait ChoosesParking extends {
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
           currentBeamVehicle,
-          VehicleManager.privateVehicleManager.managerId,
           triggerId
         )
         goto(ReleasingChargingPoint) using data
@@ -185,7 +183,7 @@ trait ChoosesParking extends {
           Some(id),
           Vector(carStreetVeh, bodyStreetVeh),
           Some(attributes),
-          triggerId = getCurrentTriggerIdOrGenerate,
+          triggerId = getCurrentTriggerIdOrGenerate
         )
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
@@ -207,7 +205,7 @@ trait ChoosesParking extends {
             )
           ),
           Some(attributes),
-          triggerId = getCurrentTriggerIdOrGenerate,
+          triggerId = getCurrentTriggerIdOrGenerate
         )
 
         val responses = for {
@@ -219,8 +217,8 @@ trait ChoosesParking extends {
         stay using data
       }
     case Event(
-        (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-        data: BasePersonData
+          (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
+          data: BasePersonData
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =

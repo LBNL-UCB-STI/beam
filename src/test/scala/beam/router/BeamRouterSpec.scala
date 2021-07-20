@@ -102,7 +102,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       primaryFuelCapacityInJoule = 0.1,
       vehicleCategory = VehicleCategory.Car
     )
-    val vehicleTypes = Map(vehicleType.id                -> vehicleType)
+    val vehicleTypes = Map(vehicleType.id -> vehicleType)
     val fuelTypePrices = Map(vehicleType.primaryFuelType -> 10.0)
     val tazMap = mock(classOf[TAZTreeMap])
     when(tazMap.getTAZ(any[java.lang.Double](), any[java.lang.Double]()))
@@ -122,11 +122,13 @@ class BeamRouterSpec extends AnyFlatSpec {
       transportNetwork = mock(classOf[TransportNetwork]),
       network = mock(classOf[Network]),
       tazTreeMap = tazMap,
+      None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
-      h3taz = null
+      h3taz = null,
+      freightCarriers = IndexedSeq.empty
     )
   }
 
@@ -146,7 +148,7 @@ class BeamRouterSpec extends AnyFlatSpec {
                   transitStops = None,
                   startPoint = SpaceTime(0.0, 0.0, 28800),
                   endPoint = SpaceTime(1.0, 1.0, 28850),
-                  distanceInM = 1000D
+                  distanceInM = 1000d
                 )
               ),
               beamVehicleId = Id.createVehicleId("car"),
@@ -161,7 +163,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       requestId = 1,
       None,
       true,
-      37373L,
+      37373L
     )
   }
 

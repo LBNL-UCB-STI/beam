@@ -33,16 +33,15 @@ case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) ex
   def adjustPopulationByDiffusionPotential(scenario: Scenario, modes: String*): Unit = {
     val population = scenario.getPopulation
 
-    scenario.getPopulation.getPersons.forEach {
-      case (_, person: Person) =>
-        val personId = person.getId.toString
+    scenario.getPopulation.getPersons.forEach { case (_, person: Person) =>
+      val personId = person.getId.toString
 
-        val diffPotential = limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
-        //        computeAutomatedVehicleDiffusionPotential(scenario, person)
+      val diffPotential = limitToZeroOne(computeRideHailDiffusionPotential(scenario, person))
+      //        computeAutomatedVehicleDiffusionPotential(scenario, person)
 
-        if (diffPotential > rand.nextDouble()) {
-          modes.foreach(mode => addMode(population, personId, mode))
-        }
+      if (diffPotential > rand.nextDouble()) {
+        modes.foreach(mode => addMode(population, personId, mode))
+      }
     }
   }
 

@@ -61,7 +61,6 @@ object Metrics {
 
   /**
     * Internal use only
-    *
     */
   private final val OffLevel = MetricLevel(Int.MinValue)
 

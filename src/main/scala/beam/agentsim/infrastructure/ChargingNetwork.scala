@@ -18,7 +18,7 @@ import scala.collection.mutable.ListBuffer
   * Created by haitamlaarabi
   */
 
-class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: QuadTree[ChargingZone])
+class ChargingNetwork(vehicleManager: Option[Id[VehicleManager]], chargingStationsQTree: QuadTree[ChargingZone])
     extends LazyLogging {
   import ChargingNetwork._
 
@@ -28,14 +28,12 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
   /**
-    *
     * @return all vehicles still connected to a charging point
     */
   def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
     chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
   /**
-    *
     * @return all vehicles, connected, and the ones waiting in line
     */
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
@@ -52,20 +50,17 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
     parkingType: ParkingType,
     chargingPointType: ChargingPointType
   ): Option[ChargingStation] =
-    chargingZoneKeyToChargingStationMap.get(constructChargingZoneKey(managerId, tazId, parkingType, chargingPointType))
+    chargingZoneKeyToChargingStationMap.get(
+      constructChargingZoneKey(vehicleManager, tazId, parkingType, chargingPointType)
+    )
 
   /**
     * lookup information about charging vehicle
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
-  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
-
-  /**
-    * get name of the vehicle manager
-    * @return VehicleManager
-    */
-  def vehicleManagerId: Id[VehicleManager] = managerId
+  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.values.view.flatMap(_.lookupVehicle(vehicleId)).headOption
 
   /**
     * clear charging vehicle map
@@ -86,7 +81,7 @@ class ChargingNetwork(managerId: Id[VehicleManager], chargingStationsQTree: Quad
           case Some(station) => Some(station.connect(tick, vehicle, stall, theSender))
           case _ =>
             logger.error(
-              s"CNM cannot find a $managerId station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
+              s"CNM cannot find a $vehicleManager station identified with tazId ${stall.tazId}, parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}. Attention required!"
             )
             None
         }
@@ -125,6 +120,7 @@ object ChargingNetwork {
   final case class ChargingStation(zone: ChargingZone) {
     import ConnectionStatus._
     private val connectedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
+
     private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
@@ -134,7 +130,11 @@ object ChargingNetwork {
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
 
-    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehicles ++ waitingLineVehicles
+    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
+      waitingLineVehicles ++ connectedVehiclesInternal
+
+    def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+      connectedVehiclesInternal.get(vehicleId).orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
 
     /**
       * add vehicle to connected list and connect to charging point
@@ -203,6 +203,7 @@ object ChargingNetwork {
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
+
     private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
       connectionStatus.append(status)
       this
