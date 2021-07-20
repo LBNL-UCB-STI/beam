@@ -33,7 +33,7 @@ class DriveTimeSkimmer @Inject() (
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
   override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims()
-  import readOnlySkim._
+
   override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
 
   override protected val skimFileHeader: String =
@@ -60,7 +60,7 @@ class DriveTimeSkimmer @Inject() (
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
-                  getCurrentSkimValue(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
+                  currentSkimInternal.get(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
                     theSkimInternal =>
                       series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
                       for (_ <- 1 to theSkimInternal.observations)

@@ -166,8 +166,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       destination: String
     )
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
-      val excerptData = readOnlySkim.currentSkim
-        .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
+      val excerptData = currentSkimInternal.toMap
+        .asInstanceOf[collection.Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
         .groupBy { case (key, _) =>
           val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
           ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
@@ -201,8 +201,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType
   ): Option[ExcerptData] = {
     val individualSkims = timeBin.hours.flatMap { hour =>
-      readOnlySkim
-        .getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+      currentSkimInternal
+        .get(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
     }
     if (individualSkims.isEmpty) {

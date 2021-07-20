@@ -9,7 +9,7 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.StrictLogging
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
-import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
@@ -58,19 +58,6 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     }
 
   def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
-
-  def getIndices(geoId: Id[_]): Iterable[HexIndex] = {
-    val cfgPrk = beamConfig.beam.agentsim.taz.parkingManager
-    beamConfig.beam.agentsim.taz.parkingManager.level.toLowerCase match {
-      case "taz"  => tazToH3TAZMapping.filter(_._2 == geoId.asInstanceOf[Id[TAZ]]).keys
-      case "link" => tazToH3TAZMapping.filter(_._2 == geoId.asInstanceOf[Id[Link]]).keys
-      case _ =>
-        throw new IllegalArgumentException(
-          s"Unsupported parking level type ${cfgPrk.level}, only TAZ | Link are supported"
-        )
-    }
-
-  }
   def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))

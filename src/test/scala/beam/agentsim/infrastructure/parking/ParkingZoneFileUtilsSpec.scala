@@ -189,7 +189,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
         val collapsedZones205 = collapsed.filter(_._2.geoId.toString == "205")
         collapsedZones205 should have size 11
         val zoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(collapsed.values.toSeq)
-        val subTree = zoneSearchTree(Id.create("205", classOf[TAZ]))
+        val subTree = zoneSearchTree(Id.create("205", classOf[Link]))
         subTree.values.map(_.length).sum should be(11)
         subTree(Public) should have length 4
         subTree(Workplace) should have length 3

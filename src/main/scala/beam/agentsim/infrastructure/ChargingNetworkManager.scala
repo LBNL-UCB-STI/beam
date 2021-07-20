@@ -57,6 +57,9 @@ class ChargingNetworkManager(
     )
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
+  import powerController._
+  import sitePowerManager._
+
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.Future
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
@@ -103,11 +106,11 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      val estimatedLoad = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
+      val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
-      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
+      val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
       val allConnectedVehicles = chargingNetworkMap.flatMap(_._2.connectedVehicles)
       val triggers = allConnectedVehicles.par.flatMap {
@@ -116,7 +119,16 @@ class ChargingNetworkManager(
           handleRefueling(chargingVehicle)
           // Calculate the energy to charge each vehicle connected to the a charging station
           val (chargingDuration, energyToCharge) =
-            sitePowerManager.dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
+            dispatchEnergy(cnmConfig.timeStepInSeconds, chargingVehicle, physicalBounds)
+          if (chargingDuration > 0 && energyToCharge == 0) {
+            log.error(
+              s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
+            )
+          } else if (chargingDuration == 0 && energyToCharge > 0) {
+            log.error(
+              s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken!!"
+            )
+          }
           // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
           chargingVehicle.processChargingCycle(timeBin, energyToCharge, chargingDuration).flatMap {
             case cycle if chargingIsCompleteUsing(cycle) =>
@@ -230,7 +242,7 @@ class ChargingNetworkManager(
     */
   private def chargingUnplugRequestMethod(tick: Int, vehicle: BeamVehicle, triggerId: Long): Unit = {
     log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
-    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
+    val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.stall match {
       case Some(stall) =>
         val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
@@ -241,7 +253,7 @@ class ChargingNetworkManager(
             val endTime = Math.max(tick, prevStartTime)
             val duration = endTime - startTime
             val (chargeDurationAtTick, energyToChargeAtTick) =
-              sitePowerManager.dispatchEnergy(duration, chargingVehicle, physicalBounds)
+              dispatchEnergy(duration, chargingVehicle, physicalBounds)
             chargingVehicle.processChargingCycle(startTime, energyToChargeAtTick, chargeDurationAtTick)
             handleEndCharging(tick, chargingVehicle, triggerId = triggerId, Some(sender))
           case _ =>
@@ -267,12 +279,12 @@ class ChargingNetworkManager(
     val nextTick = nextTimeBin(tick)
     val ChargingVehicle(vehicle, _, _, _, _, theSender, _, _, _) = chargingVehicle
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
-    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
+    val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.connectToChargingPoint(tick)
     theSender ! StartingRefuelSession(tick, vehicle.id, triggerId)
     handleStartChargingHelper(tick, chargingVehicle, beamServices)
     val (chargeDurationAtTick, energyToChargeAtTick) =
-      sitePowerManager.dispatchEnergy(nextTick - tick, chargingVehicle, physicalBounds)
+      dispatchEnergy(nextTick - tick, chargingVehicle, physicalBounds)
     chargingVehicle.processChargingCycle(tick, energyToChargeAtTick, chargeDurationAtTick)
     val endTime = chargingVehicle.computeSessionEndTime
     if (endTime < nextTick)
@@ -315,11 +327,13 @@ class ChargingNetworkManager(
     * @param chargingVehicle vehicle charging information
     */
   private def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
-    chargingVehicle.latestChargingCycle.foreach { cycle =>
-      val vehicle = chargingVehicle.vehicle
-      log.debug(s"Charging vehicle $vehicle. Stall ${vehicle.stall}. Provided energy of = ${cycle.energy} J")
-      vehicle.addFuel(cycle.energy)
-      sitePowerManager.collectObservedLoadInKW(chargingVehicle, cycle)
+    chargingVehicle.latestChargingCycle.foreach { case ChargingCycle(startTime, energy, duration) =>
+      collectObservedLoadInKW(startTime, duration, chargingVehicle.vehicle, chargingVehicle.chargingStation)
+      chargingVehicle.vehicle.addFuel(energy)
+      log.debug(
+        s"Charging vehicle ${chargingVehicle.vehicle}. " +
+        s"Stall ${chargingVehicle.vehicle.stall}. Provided energy of = $energy J"
+      )
     }
   }
 
@@ -359,7 +373,7 @@ class ChargingNetworkManager(
       .flatMap(_._2.vehicles)
       .map { case (_, chargingVehicle @ ChargingVehicle(vehicle, _, _, _, _, _, status, _, _)) =>
         if (status.last == Connected) {
-          val (duration, energy) = sitePowerManager.dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
+          val (duration, energy) = dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
           chargingVehicle.processChargingCycle(tick, energy, duration)
         }
         ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
