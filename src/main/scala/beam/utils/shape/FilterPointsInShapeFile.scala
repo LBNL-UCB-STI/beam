@@ -53,9 +53,8 @@ object FilterPointsInShapeFile {
     println(s"read ${personToPoint.length} points from plans")
 
     val setOfPersonsWithActivitiesWithinShapeFile = personToPoint
-      .filter {
-        case (_, point) =>
-          geoms.exists(geometry => geometry.contains(point))
+      .filter { case (_, point) =>
+        geoms.exists(geometry => geometry.contains(point))
       }
       .map { case (personId, _) => personId }
       .toSet
@@ -65,7 +64,7 @@ object FilterPointsInShapeFile {
     val outputPath = "/home/nikolay/Downloads/Oakland_Alamenda_TAZ/Oakland+Alameda+TAZ/persons_withing_shapefile.csv.gz"
     val csvWriter = new CsvWriter(outputPath, headers = Seq("personId"))
 
-    setOfPersonsWithActivitiesWithinShapeFile.foreach{ personId =>
+    setOfPersonsWithActivitiesWithinShapeFile.foreach { personId =>
       csvWriter.writeRow(IndexedSeq(personId))
     }
     csvWriter.close()
