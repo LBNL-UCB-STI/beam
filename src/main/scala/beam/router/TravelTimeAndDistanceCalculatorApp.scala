@@ -120,10 +120,9 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
   private def createCarGraphHopper(): CarGraphHopperWrapper = {
     val wayId2TravelTime =
       workerParams.networkHelper.allLinks.toSeq
-        .map(
-          l =>
-            l.getId.toString.toLong ->
-            travelTime.getLinkTravelTime(l, parameters.departureTime.toDouble, null, null)
+        .map(l =>
+          l.getId.toString.toLong ->
+          travelTime.getLinkTravelTime(l, parameters.departureTime.toDouble, null, null)
         )
         .toMap
 
@@ -211,18 +210,17 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
       Seq("id", "origin_x", "origin_y", "destination_x", "destination_y", "traveltime", "distance"): _*
     )
     try {
-      results.foreach(
-        row =>
-          writer.writeRow(
-            Seq(
-              row.id,
-              row.originUTM.getX,
-              row.originUTM.getY,
-              row.destinationUTM.getX,
-              row.destinationUTM.getY,
-              row.travelTime,
-              row.distance
-            )
+      results.foreach(row =>
+        writer.writeRow(
+          Seq(
+            row.id,
+            row.originUTM.getX,
+            row.originUTM.getY,
+            row.destinationUTM.getX,
+            row.destinationUTM.getY,
+            row.travelTime,
+            row.distance
+          )
         )
       )
     } finally {
