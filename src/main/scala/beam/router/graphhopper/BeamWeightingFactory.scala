@@ -15,6 +15,7 @@ class BeamWeightingFactory(
   ghStorage: GraphHopperStorage,
   encodingManager: EncodingManager
 ) extends DefaultWeightingFactory(ghStorage, encodingManager) {
+
   override def createWeighting(profile: Profile, requestHints: PMap, disableTurnCosts: Boolean): Weighting = {
     if (profile.getWeighting == BeamWeighting.Name) {
       createBeamWeighting(profile, requestHints, disableTurnCosts)
