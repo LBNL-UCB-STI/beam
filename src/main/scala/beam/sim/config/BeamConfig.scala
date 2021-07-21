@@ -1682,7 +1682,6 @@ object BeamConfig {
                           .MinAvailabilityUndersupplyAlgorithm(c.getConfig("min-availability-undersupply-algorithm"))
                       )
                     else None,
-
                   name = if (c.hasPathOrNull("name")) c.getString("name") else "my-reposition-algorithm",
                   repositionTimeBin = if (c.hasPathOrNull("repositionTimeBin")) c.getInt("repositionTimeBin") else 3600,
                   statTimeBin = if (c.hasPathOrNull("statTimeBin")) c.getInt("statTimeBin") else 300

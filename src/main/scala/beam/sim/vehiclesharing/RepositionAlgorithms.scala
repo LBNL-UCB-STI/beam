@@ -32,12 +32,13 @@ trait RepositionAlgorithmType {
 }
 
 case class AvailabilityBehaviorBasedRepositioningType(
-                                               params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
-                                             ) extends RepositionAlgorithmType {
+  params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
+) extends RepositionAlgorithmType {
+
   override def getInstance(
-                            vehicleManager: Id[VehicleManager],
-                            beamServices: BeamServices
-                          ): RepositionAlgorithm = {
+    vehicleManager: Id[VehicleManager],
+    beamServices: BeamServices
+  ): RepositionAlgorithm = {
     AvailabilityBehaviorBasedRepositioning(
       params.repositionTimeBin,
       params.statTimeBin,
@@ -49,7 +50,6 @@ case class AvailabilityBehaviorBasedRepositioningType(
   def getRepositionTimeBin: Int = params.repositionTimeBin
   def getStatTimeBin: Int = params.statTimeBin
 }
-
 
 case class AvailabilityBasedRepositioningType(
   params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
