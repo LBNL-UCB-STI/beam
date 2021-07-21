@@ -15,12 +15,11 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.Mockito._
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.concurrent.TrieMap
-
-class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach {
+class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterEach {
 
   private val config =
     ConfigFactory
@@ -30,6 +29,10 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
                       |
                       |  helics {
                       |    connectionEnabled = false
+                      |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
+                      |    coreType = "zmq"
+                      |    timeDeltaProperty = 1.0
+                      |    intLogLevel = 1
                       |    federateName = "CNMFederate"
                       |    dataOutStreamPoint = ""
                       |    dataInStreamPoint = ""
@@ -46,26 +49,26 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
       .resolve()
 
   val beamConfig: BeamConfig = BeamConfig(config)
-  val beamFederateMock: BeamFederate = mock[BeamFederate]
+  val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
   val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
 
   val dummyChargingZone: ChargingZone = ChargingZone(
-    1,
+    tazFromBeamville.tazId,
     tazFromBeamville.tazId,
     ParkingType.Public,
     1,
     ChargingPointType.ChargingStationType1,
     PricingModel.FlatFee(0.0),
-    VehicleManager.privateVehicleManager.managerId
+    None
   )
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
   val dummyPhysicalBounds = Map(
-    "tazId"   -> dummyChargingZone.tazId.toString,
-    "zoneId"  -> dummyChargingZone.chargingZoneId,
-    "minLoad" -> 5678.90,
-    "maxLoad" -> 5678.90
+    "tazId"                   -> dummyChargingZone.geoId.toString,
+    "power_limit_lower"       -> 5678.90,
+    "power_limit_upper"       -> 5678.90,
+    "lmp_with_control_signal" -> 0.0
   )
 
   val zoneTree = new QuadTree[ChargingZone](
@@ -77,19 +80,15 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
 
   override def beforeEach: Unit = {
     reset(beamFederateMock)
-    when(beamFederateMock.syncAndCollectJSON(300)).thenReturn((300.0, List(dummyPhysicalBounds)))
+    when(beamFederateMock.sync(300)).thenReturn(300.0)
+    when(beamFederateMock.collectJSON()).thenReturn(List(dummyPhysicalBounds))
     zoneTree.clear()
   }
 
   "PowerController when connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Id[VehicleManager], ChargingNetwork](
-        VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
-          VehicleManager.privateVehicleManager.managerId,
-          zoneTree
-        )
-      ),
+      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(None, zoneTree)),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = Some(beamFederateMock)
@@ -100,7 +99,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
         300,
         Some(Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
       )
-      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2))
+      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       // TODO: test beam federate connection
       //verify(beamFederateMock, times(1)).syncAndCollectJSON(300)
     }
@@ -109,12 +108,7 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
   "PowerController when not connected to grid" should {
     zoneTree.put(tazFromBeamville.coord.getX, tazFromBeamville.coord.getY, dummyChargingZone)
     val powerController: PowerController = new PowerController(
-      Map[Id[VehicleManager], ChargingNetwork](
-        VehicleManager.privateVehicleManager.managerId -> new ChargingNetwork(
-          VehicleManager.privateVehicleManager.managerId,
-          zoneTree
-        )
-      ),
+      Map[Option[Id[VehicleManager]], ChargingNetwork](None -> new ChargingNetwork(None, zoneTree)),
       beamConfig
     ) {
       override private[power] lazy val beamFederateOption = None
@@ -123,9 +117,9 @@ class PowerControllerSpec extends WordSpecLike with Matchers with MockitoSugar w
     "obtain default (0.0) power physical bounds" in {
       val bounds =
         powerController.obtainPowerPhysicalBounds(300, Some(Map[ChargingStation, Double](dummyChargingStation -> 0.0)))
-      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2))
-      verify(beamFederateMock, never()).syncAndCollectJSON(300)
+      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
+      verify(beamFederateMock, never()).sync(300)
+      verify(beamFederateMock, never()).collectJSON()
     }
-
   }
 }

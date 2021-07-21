@@ -1,6 +1,6 @@
 package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions
-import java.util.concurrent.ThreadLocalRandom
 
+import java.util.concurrent.ThreadLocalRandom
 import beam.sim.BeamConfigChangesObservable
 
 import scala.util.Random
@@ -12,11 +12,11 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.scenario.ScenarioUtils
-import org.scalatest.FunSpec
+import org.scalatest.funspec.AnyFunSpec
 
 import scala.collection.JavaConverters._
 
-class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
+class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends AnyFunSpec {
   private val NumberOfSecondsInOneHour = 3600
 
   private val javaRandom: ThreadLocalRandom = ThreadLocalRandom.current
@@ -66,7 +66,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends FunSpec {
     val toNode: Node = NetworkUtils.createNode(Id.create(Random.alphanumeric.take(20).toString(), classOf[Node]))
 
     val linkId = Id.createLinkId(edgeIndex)
-    NetworkUtils.createLink(linkId, fromNode, toNode, mNetwork, length, freeSpeed, capacity, 10D)
+    NetworkUtils.createLink(linkId, fromNode, toNode, mNetwork, length, freeSpeed, capacity, 10d)
   }
 
   describe("Hao2018CaccRoadCapacityAdjustmentFunction") {

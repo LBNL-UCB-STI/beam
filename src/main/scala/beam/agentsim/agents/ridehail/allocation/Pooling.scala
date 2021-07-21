@@ -21,11 +21,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.rideHailManagerHelper
       .getClosestIdleVehiclesWithinRadiusByETA(
-        inquiry.pickUpLocationUTM,
-        inquiry.destinationUTM,
-        rideHailManager.radiusInMeters,
-        inquiry.departAt,
-        maxWaitTimeInSec,
+        pickupLocation = inquiry.pickUpLocationUTM,
+        dropOffLocation = inquiry.destinationUTM,
+        radius = rideHailManager.radiusInMeters,
+        customerRequestTime = inquiry.departAt,
+        maxWaitingTimeInSec = maxWaitTimeInSec,
         includeRepositioningVehicles = true
       ) match {
       case Some(agentETA) =>
@@ -38,7 +38,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long
   ): AllocationResponse = {
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
     var toPool: Set[RideHailRequest] = Set()
@@ -107,11 +108,11 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
           val request2Utm = RideHailRequest.projectCoordinatesToUtm(request2, beamServices)
           rideHailManager.rideHailManagerHelper
             .getClosestIdleVehiclesWithinRadiusByETA(
-              request1Utm.pickUpLocationUTM,
-              request1Utm.destinationUTM,
-              rideHailManager.radiusInMeters,
-              tick,
-              maxWaitTimeInSec,
+              pickupLocation = request1Utm.pickUpLocationUTM,
+              dropOffLocation = request1Utm.destinationUTM,
+              radius = rideHailManager.radiusInMeters,
+              customerRequestTime = tick,
+              maxWaitingTimeInSec = maxWaitTimeInSec,
               excludeRideHailVehicles = alreadyAllocated,
               includeRepositioningVehicles = true
             ) match {
@@ -157,7 +158,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         startTime,
         withTransit = false,
         Some(req.customer.personId),
-        Vector(rideHailVehicleAtOrigin)
+        Vector(rideHailVehicleAtOrigin),
+        triggerId = req.triggerId
       )
       routeReqs = routeReqs :+ routeReq2Pickup
       tempPickDropStore.put(routeReq2Pickup.requestId, MobilityRequest.simpleRequest(Pickup, Some(req.customer), None))
@@ -180,7 +182,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         startTime,
         withTransit = false,
         Some(req.customer.personId),
-        Vector(rideHailVehicleAtOrigin)
+        Vector(rideHailVehicleAtOrigin),
+        triggerId = req.triggerId
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
       tempPickDropStore.put(
@@ -242,7 +245,8 @@ object Pooling {
           rideHailManager.createRoutingRequestsToCustomerAndDestination(
             pickUpTime,
             requestUpdated,
-            agentETA.agentLocation
+            agentETA.agentLocation,
+            request.triggerId
           )
         )
       case None =>

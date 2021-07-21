@@ -91,9 +91,10 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def parseRoutes(jsRoutes: Seq[JsValue]): Seq[Route] = {
-    jsRoutes.map { route =>
-      val firstAndUniqueLeg = (route \ "legs").as[JsArray].value.head
-      parseRoute(firstAndUniqueLeg.as[JsObject])
+    jsRoutes.flatMap { route: JsValue =>
+      (route \ "legs").as[JsArray].value.map { value =>
+        parseRoute(value.as[JsObject])
+      }
     }
   }
 
@@ -158,15 +159,15 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       ref ! PoisonPill
     }
     Http().shutdownAllConnectionPools
-      .andThen {
-        case _ =>
-          if (actorSystem.isEmpty) system.terminate()
+      .andThen { case _ =>
+        if (actorSystem.isEmpty) system.terminate()
       }
   }
 
 }
 
 object GoogleAdapter {
+
   case class RouteRequest[T](
     userObject: T,
     origin: WgsCoordinate,
@@ -199,7 +200,7 @@ object GoogleAdapter {
       s"origin=$originStr",
       s"destination=$destinationStr",
       s"traffic_model=${trafficModel.apiString}",
-      s"departure_time=${dateAsEpochSecond(departureAt)}",
+      s"departure_time=${dateAsEpochSecond(departureAt)}"
     )
     val optionalParams = {
       if (constraints.isEmpty) Seq.empty
@@ -218,6 +219,7 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
+
   override def receive: Receive = {
     case jsObject: JsObject =>
       val out = FileUtils.openOutputStream(file)

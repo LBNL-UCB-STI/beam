@@ -43,8 +43,8 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
     } else {
       featureIds.add(id)
       // Check for special case when no attribute
-      val maybeAttirb = if (attribute == EmptyAttributes) None else Some(attribute)
-      val feature = buildFeature(geom, id, maybeAttirb)
+      val maybeAttribute = if (EmptyAttributes eq attribute) None else Some(attribute)
+      val feature = buildFeature(geom, id, maybeAttribute)
       features.add(feature)
     }
   }
@@ -72,9 +72,8 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
           .map(_.getID)
           .toSeq
           .zip(persistedFeatureIds.asScala)
-          .map {
-            case (originalFeatureId, persistedFeatureId) =>
-              originalFeatureId -> persistedFeatureId.getID
+          .map { case (originalFeatureId, persistedFeatureId) =>
+            originalFeatureId -> persistedFeatureId.getID
           }
           .toMap
 
@@ -101,8 +100,8 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
 object ShapeWriter {
   case class OriginalToPersistedFeatureIdMap(map: Map[String, String])
 
-  def worldGeodetic[G <: JtsGeometry, A <: Attributes](path: String)(
-    implicit evG: ClassTag[G],
+  def worldGeodetic[G <: JtsGeometry, A <: Attributes](path: String)(implicit
+    evG: ClassTag[G],
     evA: ClassTag[A]
   ): ShapeWriter[G, A] = {
     // WGS84 is the same as EPSG:4326 https://epsg.io/4326

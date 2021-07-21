@@ -16,6 +16,7 @@ case class Statistics(
   `p99.99`: Double,
   sum: Double
 ) {
+
   override def toString: String = {
     f"numOfValues: $numOfValues, [$minValue%.2f, $maxValue%.2f], median: $median%.2f, avg: $avg%.2f, p75: $p75%.2f, p95: $p95%.2f, p99: $p99%.2f, p99.95: ${`p99.95`}%.2f, p99.99: ${`p99.99`}%.2f, sum: $sum%.2f"
   }
@@ -25,7 +26,9 @@ object Statistics {
 
   def apply(pq: Seq[Double], weights: Seq[Double] = Seq.empty): Statistics = {
     if (pq.nonEmpty) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val min = pq.min
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val max = pq.max
       val percentile = new Percentile()
       percentile.setData(pq.toArray)
@@ -66,7 +69,8 @@ object Statistics {
     }
   }
 
-  /** *
+  /**
+    * *
     * If there is no weights then just get a plain average  (v1 + v2 + ... + vN)/N,
     * otherwise calculated weighted average (w1*v1 + w2*v2 + ... + wN*vN)/(w1 + w2 + ... + wN)
     */

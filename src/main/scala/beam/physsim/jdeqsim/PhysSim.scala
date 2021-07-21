@@ -81,7 +81,7 @@ class PhysSim(
     firstResult: SimulationResult,
     lastResult: SimulationResult,
     carTravelTimeWriter: CsvWriter,
-    reroutedTravelTimeWriter: CsvWriter,
+    reroutedTravelTimeWriter: CsvWriter
   ): SimulationResult = {
     if (currentIter > nIterations) {
       logger.info("Last iteration compared with first")
@@ -171,12 +171,11 @@ class PhysSim(
     val diff =
       (currentResult.eventTypeToNumberOfMessages.map(_._1) ++ prevResult.eventTypeToNumberOfMessages.map(_._1)).toSet
     val diffMap = diff
-      .foldLeft(Map.empty[String, Long]) {
-        case (acc, key) =>
-          val currVal = currentResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
-          val prevVal = prevResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
-          val absDiff = Math.abs(currVal - prevVal)
-          acc + (key -> absDiff)
+      .foldLeft(Map.empty[String, Long]) { case (acc, key) =>
+        val currVal = currentResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
+        val prevVal = prevResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
+        val absDiff = Math.abs(currVal - prevVal)
+        acc + (key -> absDiff)
       }
       .toList
       .sortBy { case (k, _) => k }
@@ -220,10 +219,9 @@ object PhysSim extends LazyLogging {
 
   def printAverageCarTravelTime(people: Seq[Person]): Unit = {
     val timeToTravelTime = people.flatMap { person =>
-      person.getSelectedPlan.getPlanElements.asScala.collect {
-        case leg: Leg =>
-          val travelTime = leg.getAttributes.getAttribute("travel_time").toString.toDouble.toInt
-          travelTime
+      person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+        val travelTime = leg.getAttributes.getAttribute("travel_time").toString.toDouble.toInt
+        travelTime
       }
     }
     logger.info(s"Some others stats about travel time: ${Statistics(timeToTravelTime.map(_.toDouble))}")

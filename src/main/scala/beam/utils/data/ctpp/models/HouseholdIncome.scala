@@ -39,28 +39,36 @@ object HouseholdIncome {
 
     override val range: Range = Range(0, 1)
   }
+
   case object `Less than $15,000` extends HouseholdIncome {
     override val range: Range = Range(0, 15000)
   }
+
   case object `$15,000-$24,999` extends HouseholdIncome {
     override val range: Range = Range(0, 15000)
     override def contains(income: Int): Boolean = income >= 15000 && income <= 24999
   }
+
   case object `$25,000-$34,999` extends HouseholdIncome {
     override val range: Range = Range.inclusive(25000, 34999)
   }
+
   case object `$35,000-$49,999` extends HouseholdIncome {
     override val range: Range = Range.inclusive(35000, 49999)
   }
+
   case object `$50,000-$74,999` extends HouseholdIncome {
     override val range: Range = Range.inclusive(50000, 74999)
   }
+
   case object `$75,000-$99,999` extends HouseholdIncome {
     override val range: Range = Range.inclusive(75000, 99999)
   }
+
   case object `$100,000-$149,999` extends HouseholdIncome {
     override val range: Range = Range.inclusive(100000, 149999)
   }
+
   case object `$150,000 or more` extends HouseholdIncome {
     override val range: Range = Range.inclusive(150000, 150000)
     override def contains(income: Int): Boolean = income >= range.start

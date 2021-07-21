@@ -9,9 +9,11 @@ sealed trait UtilityFunctionOperation {
   */
 
 object UtilityFunctionOperation {
+
   case class Intercept(coefficient: Double) extends UtilityFunctionOperation {
     override def apply(value: Double): Double = coefficient
   }
+
   case class Multiplier(coefficient: Double) extends UtilityFunctionOperation {
     override def apply(value: Double): Double = coefficient * value
   }

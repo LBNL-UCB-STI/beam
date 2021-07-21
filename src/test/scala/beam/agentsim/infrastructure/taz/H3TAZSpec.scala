@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
 import scala.collection.JavaConverters._
-
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -12,9 +11,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
+class H3TAZSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "test demand inferred H3 Index set" must "H3 Indexes" in {
     val config = ConfigFactory
@@ -70,13 +70,12 @@ class H3TAZSpec extends FlatSpec with Matchers with BeamHelper {
       (1 to 22).forall(groups.contains) && List(24, 25, 28, 29, 30, 32, 33, 34, 37, 52, 55).forall(groups.contains),
       "something went wrong with the algorithm"
     )
-    indexes.foreach {
-      case (h3Index, _) =>
-        val resolution = h3Index.resolution
-        require(
-          resolution >= lowestResolution && resolution <= highestResolution,
-          s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"
-        )
+    indexes.foreach { case (h3Index, _) =>
+      val resolution = h3Index.resolution
+      require(
+        resolution >= lowestResolution && resolution <= highestResolution,
+        s"Expected to have resolution in [$lowestResolution, $highestResolution], but got $resolution"
+      )
     }
   }
 }

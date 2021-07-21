@@ -23,7 +23,7 @@ class RoutingRequestAnalysis extends GraphAnalysis {
 
   override def processStats(event: Event): Unit = {
     event match {
-      case RoutingRequestEvent(RoutingRequest(_, _, _, _, personId, _, _, _, requestId, _)) if personId.isDefined =>
+      case RoutingRequestEvent(RoutingRequest(_, _, _, _, personId, _, _, _, requestId, _, _)) if personId.isDefined =>
         personRoutingIds(personId.get.toString) = personRoutingIds(personId.get.toString) :+ requestId
       case modeChoiceEvent: ModeChoiceEvent =>
         val personId = modeChoiceEvent.personId.toString
@@ -43,9 +43,8 @@ class RoutingRequestAnalysis extends GraphAnalysis {
     val filePath = controller.getIterationFilename(event.getIteration, "routingModeChoice.csv")
     FileUtils.using(new CsvWriter(filePath, IndexedSeq("PersonId", "ModeChoice", "RoutingRequestIds"))) { writer =>
       {
-        modeChoiceList.foreach(
-          row =>
-            writer.writeRow(IndexedSeq(row.personId, row.modeChoice, s""""${row.routingRequests.mkString(",")}""""))
+        modeChoiceList.foreach(row =>
+          writer.writeRow(IndexedSeq(row.personId, row.modeChoice, s""""${row.routingRequests.mkString(",")}""""))
         )
       }
     }

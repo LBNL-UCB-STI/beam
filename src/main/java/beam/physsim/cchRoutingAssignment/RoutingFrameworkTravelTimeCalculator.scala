@@ -24,7 +24,7 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices,
   private val osmInfoHolder: OsmInfoHolder,
-  private val routingFrameworkWrapper: RoutingFrameworkWrapper,
+  private val routingFrameworkWrapper: RoutingFrameworkWrapper
 ) extends LazyLogging {
 
   private implicit val executionContext: ExecutionContext = ExecutionContext.fromExecutorService(
@@ -65,27 +65,26 @@ class RoutingFrameworkTravelTimeCalculator(
     val hour2Events = generateHour2Events(pathTraversalEvents)
 
     val odsCreationFutures = hour2Events
-      .map {
-        case (hour, events) =>
-          Future {
-            val stopWatch: StopWatch = new StopWatch
-            stopWatch.start()
+      .map { case (hour, events) =>
+        Future {
+          val stopWatch: StopWatch = new StopWatch
+          stopWatch.start()
 
-            val ods = generateOdsFromTravelInfos(events, id2Link).toList
+          val ods = generateOdsFromTravelInfos(events, id2Link).toList
 
-            val odStream = Stream.fill(odsFactor.toInt)(ods).flatten ++
+          val odStream = Stream.fill(odsFactor.toInt)(ods).flatten ++
             scala.util.Random.shuffle(ods).toStream.take(((odsFactor % 1) * ods.size).toInt)
 
-            routingFrameworkWrapper.writeOds(iterationNumber, hour, odStream)
+          routingFrameworkWrapper.writeOds(iterationNumber, hour, odStream)
 
-            logger.info(
-              "Generated {} ods ({} with ods factor), for hour {} in {} ms",
-              ods.size,
-              (ods.size * odsFactor).toInt,
-              hour,
-              stopWatch.getTime
-            )
-          }
+          logger.info(
+            "Generated {} ods ({} with ods factor), for hour {} in {} ms",
+            ods.size,
+            (ods.size * odsFactor).toInt,
+            hour,
+            stopWatch.getTime
+          )
+        }
       }
 
     Await.result(Future.sequence(odsCreationFutures), 10.minutes)
@@ -123,35 +122,34 @@ class RoutingFrameworkTravelTimeCalculator(
 
     val linkId2TravelTimeByHour = links
       .groupBy(linkWayId)
-      .flatMap {
-        case (maybeWayId, linksInWay) =>
-          linksInWay.map { link =>
-            val travelTimeByHour = maybeWayId match {
-              case Some(wayId) =>
-                var speedFoundForAtLeastOneHour = false
+      .flatMap { case (maybeWayId, linksInWay) =>
+        linksInWay.map { link =>
+          val travelTimeByHour = maybeWayId match {
+            case Some(wayId) =>
+              var speedFoundForAtLeastOneHour = false
 
-                val linkTravelTimeByHour = Array.tabulate(maxHour) { hour =>
-                  hour2Way2TravelTimes.get(hour).flatMap(_.get(wayId)) match {
-                    case Some(travelTime) =>
-                      speedFoundForAtLeastOneHour = true
-                      travelTime / linksInWay.size
+              val linkTravelTimeByHour = Array.tabulate(maxHour) { hour =>
+                hour2Way2TravelTimes.get(hour).flatMap(_.get(wayId)) match {
+                  case Some(travelTime) =>
+                    speedFoundForAtLeastOneHour = true
+                    travelTime / linksInWay.size
 
-                    case None =>
-                      link.getLength / link.getFreespeed
-                  }
+                  case None =>
+                    link.getLength / link.getFreespeed
                 }
+              }
 
-                if (!speedFoundForAtLeastOneHour)
-                  linksFailedToResolve = linksFailedToResolve + 1
-
-                linkTravelTimeByHour
-
-              case None =>
+              if (!speedFoundForAtLeastOneHour)
                 linksFailedToResolve = linksFailedToResolve + 1
-                Array.fill(maxHour) { link.getLength / link.getFreespeed }
-            }
-            link.getId.toString -> travelTimeByHour
+
+              linkTravelTimeByHour
+
+            case None =>
+              linksFailedToResolve = linksFailedToResolve + 1
+              Array.fill(maxHour) { link.getLength / link.getFreespeed }
           }
+          link.getId.toString -> travelTimeByHour
+        }
       }
     (linksFailedToResolve, linkId2TravelTimeByHour)
   }
@@ -172,14 +170,13 @@ class RoutingFrameworkTravelTimeCalculator(
         } yield origin -> destination
       }
       .collect { case Some(od @ (origin, destination)) if origin != destination => od }
-      .map {
-        case (origin, destination) =>
-          val firstVertexId: Long = coord2VertexId
-            .getOrElse(origin, getClosestVertexId(origin))
-          val secondVertexId: Long = coord2VertexId
-            .getOrElse(destination, getClosestVertexId(destination))
+      .map { case (origin, destination) =>
+        val firstVertexId: Long = coord2VertexId
+          .getOrElse(origin, getClosestVertexId(origin))
+        val secondVertexId: Long = coord2VertexId
+          .getOrElse(destination, getClosestVertexId(destination))
 
-          OD(firstVertexId, secondVertexId)
+        OD(firstVertexId, secondVertexId)
       }
   }
 
@@ -192,34 +189,32 @@ class RoutingFrameworkTravelTimeCalculator(
 
     val hours2EventsMutable = mutable.HashMap[Int, mutable.ArrayBuffer[TravelInfo]]()
 
-    preliminaryHour2Events.foreach {
-      case (hour, events) =>
-        events.foreach { event =>
-          val currentLinkIds = mutable.ArrayBuffer[Int]()
-          var currentHour = hour
+    preliminaryHour2Events.foreach { case (hour, events) =>
+      events.foreach { event =>
+        val currentLinkIds = mutable.ArrayBuffer[Int]()
+        var currentHour = hour
 
-          var currentTime = event.departureTime.toDouble
-          event.linkTravelTime.zip(event.linkIds).foreach {
-            case (travelTime, linkId) =>
-              currentLinkIds += linkId
-              currentTime = currentTime + travelTime
-              val possiblyNextHour = currentTime.toInt / 3600
+        var currentTime = event.departureTime.toDouble
+        event.linkTravelTime.zip(event.linkIds).foreach { case (travelTime, linkId) =>
+          currentLinkIds += linkId
+          currentTime = currentTime + travelTime
+          val possiblyNextHour = currentTime.toInt / 3600
 
-              if (possiblyNextHour != currentHour) {
-                val currentHourEvents =
-                  hours2EventsMutable.getOrElseUpdate(currentHour, new mutable.ArrayBuffer[TravelInfo]())
-                currentHourEvents += TravelInfo(currentLinkIds.toIndexedSeq)
-                currentLinkIds.clear()
-
-                currentHour = possiblyNextHour
-              }
-          }
-          if (currentLinkIds.nonEmpty) {
+          if (possiblyNextHour != currentHour) {
             val currentHourEvents =
               hours2EventsMutable.getOrElseUpdate(currentHour, new mutable.ArrayBuffer[TravelInfo]())
             currentHourEvents += TravelInfo(currentLinkIds.toIndexedSeq)
+            currentLinkIds.clear()
+
+            currentHour = possiblyNextHour
           }
         }
+        if (currentLinkIds.nonEmpty) {
+          val currentHourEvents =
+            hours2EventsMutable.getOrElseUpdate(currentHour, new mutable.ArrayBuffer[TravelInfo]())
+          currentHourEvents += TravelInfo(currentLinkIds.toIndexedSeq)
+        }
+      }
     }
 
     hours2EventsMutable.mapValues(_.toList).toMap

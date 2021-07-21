@@ -12,6 +12,7 @@ trait WorkDestinationGenerator {
 }
 
 class RandomWorkDestinationGenerator(val dbInfo: CTPPDatabaseInfo) extends WorkDestinationGenerator with StrictLogging {
+
   private val householdGeoIdToIncomeOD: Map[String, Iterable[OD[HouseholdIncome]]] =
     new HouseholdIncomeTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
       .read()

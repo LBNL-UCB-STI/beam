@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, ShiftEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingNetworkInfo, ParkingNetworkManager}
+import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -27,17 +27,16 @@ import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest.{BeforeAndAfter, FunSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
 
 //#Test needs to be updated/fixed on LBNL side
 class RideHailAgentSpec
-    extends FunSpecLike
+    extends AnyFunSpecLike
     with TestKitBase
     with SimRunnerForTest
-    with MockitoSugar
     with ImplicitSender
     with BeforeAndAfter
     with BeamvilleFixtures {
@@ -64,17 +63,7 @@ class RideHailAgentSpec
   lazy val eventMgr = new EventsManagerImpl()
 
   private lazy val zonalParkingManager = system.actorOf(
-    ParkingNetworkManager.props(
-      services,
-      ParkingNetworkInfo(
-        services,
-        boundingBox,
-        Map[Id[VehicleManager], VehicleManager](
-          VehicleManager.privateVehicleManager.managerId -> VehicleManager.privateVehicleManager,
-          VehicleManager.transitVehicleManager.managerId -> VehicleManager.transitVehicleManager
-        )
-      )
-    ),
+    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
     "ParkingManager"
   )
 
@@ -146,10 +135,10 @@ class RideHailAgentSpec
             )
           )
         )
-      rideHailAgent ! Interrupt(1, 30000)
+      rideHailAgent ! Interrupt(1, 30000, 0)
       expectMsgType[InterruptedWhileIdle]
-      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000)
-      rideHailAgent ! Resume
+      rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000, 0)
+      rideHailAgent ! Resume(0)
       val modifyPassengerScheduleAck = expectMsgType[ModifyPassengerScheduleAck]
       modifyPassengerScheduleAck.triggersToSchedule.foreach(scheduler ! _)
       expectMsgType[VehicleEntersTrafficEvent]
@@ -166,8 +155,8 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          managerId =
-            Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          vehicleManager =
+            Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -204,13 +193,13 @@ class RideHailAgentSpec
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailAgent ! Interrupt(1, 30000)
+      rideHailAgent ! Interrupt(1, 30000, 0)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
       // Still, I tell it to resume
-      rideHailAgent ! Resume
+      rideHailAgent ! Resume(0)
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -247,7 +236,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager])
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -284,16 +273,16 @@ class RideHailAgentSpec
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailAgent ! Interrupt(1, 30000)
+      rideHailAgent ! Interrupt(1, 30000, 0)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
       // I tell it to do nothing instead
-      rideHailAgent ! StopDriving(30000)
+      rideHailAgent ! StopDriving(30000, 0)
       assert(rideHailAgent.stateName == IdleInterrupted)
 
-      rideHailAgent ! Resume // That's the opposite of Interrupt(), not resume driving
+      rideHailAgent ! Resume(0) // That's the opposite of Interrupt(), not resume driving
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
 
@@ -319,7 +308,7 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId, classOf[VehicleManager]),
+          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
         )
       beamVehicle.setManager(Some(self))
 
@@ -359,37 +348,33 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]
 
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(TestTrigger(40000), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(TestTrigger(40000), _) =>
+        t
       }
 
-      rideHailAgent ! Interrupt(1, 30000)
+      rideHailAgent ! Interrupt(1, 30000, 0)
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)
       expectNoMessage()
       // Don't StopDriving() here because we have a Passenger and we don't know how that works yet.
-      rideHailAgent ! Resume
+      rideHailAgent ! Resume(0)
       scheduler ! ScheduleTrigger(TestTrigger(50000), self)
       scheduler ! CompletionNotice(trigger.triggerId)
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId, Vector())
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
-      trigger = expectMsgPF() {
-        case t @ TriggerWithId(TestTrigger(50000), _) =>
-          t
+      trigger = expectMsgPF() { case t @ TriggerWithId(TestTrigger(50000), _) =>
+        t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
       rideHailAgent ! Finish
@@ -413,8 +398,7 @@ class RideHailAgentSpec
     import scala.concurrent.duration._
     import scala.language.postfixOps
     //we need to prevent getting this CompletionNotice from the Scheduler in the next test
-    receiveWhile(1000 millis) {
-      case _: CompletionNotice =>
+    receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }
 

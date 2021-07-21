@@ -7,6 +7,7 @@ import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
 import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
+import org.matsim.api.core.v01.Id
 
 object BeamHelicsInterface {
   // Lazy makes sure that it is initialized only once
@@ -20,17 +21,32 @@ object BeamHelicsInterface {
   /**
     * Create a Federate Instance
     * @param fedName FEDERATE_NAME
+    * @param bufferSize BUFFER_SIZE
     * @param dataOutStreamPointMaybe "PUBLICATION_NAME"
-    * @param dataInStreamPointAndBufferSizeMaybe ("FEDERATE_NAME/SUBSCRIPTION_NAME" , "BUFFER_SIZE")
+    * @param dataInStreamPointMaybe "FEDERATE_NAME/SUBSCRIPTION_NAME"
     * @return
     */
   def getFederate(
     fedName: String,
+    coreType: String,
+    coreInitString: String,
+    timeDeltaProperty: Double,
+    intLogLevel: Int,
+    bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
-    dataInStreamPointAndBufferSizeMaybe: Option[(String, Int)] = None
+    dataInStreamPointMaybe: Option[String] = None
   ): BeamFederate = {
     loadHelicsIfNotAlreadyLoaded
-    BeamFederate(fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe)
+    BeamFederate(
+      fedName,
+      coreType,
+      coreInitString,
+      timeDeltaProperty,
+      intLogLevel,
+      bufferSize,
+      dataOutStreamPointMaybe,
+      dataInStreamPointMaybe
+    )
   }
 
   /**
@@ -38,19 +54,36 @@ object BeamHelicsInterface {
     * @param brokerName BROKER_NAME
     * @param numFederates number of federates to consider
     * @param fedName FEDERATE_NAME
+    * @param bufferSize BUFFER_SIZE
     * @param dataOutStreamPointMaybe PUBLICATION_NAME
-    * @param dataInStreamPointAndBufferSizeMaybe (FEDERATE_NAME/SUBSCRIPTION_NAME , BUFFER_SIZE)
+    * @param dataInStreamPointMaybe FEDERATE_NAME/SUBSCRIPTION_NAME
     * @return
     */
   def getBroker(
     brokerName: String,
     numFederates: Int,
     fedName: String,
+    coreType: String,
+    coreInitString: String,
+    timeDeltaProperty: Double,
+    intLogLevel: Int,
+    bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
-    dataInStreamPointAndBufferSizeMaybe: Option[(String, Int)] = None
+    dataInStreamPointMaybe: Option[String] = None
   ): BeamBroker = {
     loadHelicsIfNotAlreadyLoaded
-    BeamBroker(brokerName, numFederates, fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe)
+    BeamBroker(
+      brokerName,
+      numFederates,
+      fedName,
+      coreType,
+      coreInitString,
+      timeDeltaProperty,
+      intLogLevel,
+      bufferSize,
+      dataOutStreamPointMaybe,
+      dataInStreamPointMaybe
+    )
   }
 
   case class BeamFederateTrigger(tick: Int) extends Trigger
@@ -63,6 +96,7 @@ object BeamHelicsInterface {
       case b: Boolean if b  => JsTrue
       case b: Boolean if !b => JsFalse
       case s: String        => JsString(s)
+      case id: Id[_]        => JsString(id.toString)
     }
 
     def read(value: JsValue): Any = value match {
@@ -74,6 +108,7 @@ object BeamHelicsInterface {
       case _                                  => deserializationError("JsNumber (Double or Int), JsTrue, JsFalse or JsString are expected")
     }
   }
+
   implicit object MapAnyJsonFormat extends JsonFormat[Map[String, Any]] {
 
     def write(c: Map[String, Any]): JsValue = {
@@ -85,6 +120,7 @@ object BeamHelicsInterface {
       case _           => deserializationError("JsObject expected")
     }
   }
+
   implicit object ListMapAnyJsonFormat extends JsonFormat[List[Map[String, Any]]] {
 
     def write(c: List[Map[String, Any]]): JsValue = {
@@ -99,8 +135,13 @@ object BeamHelicsInterface {
 
   case class BeamFederate(
     fedName: String,
+    coreType: String,
+    coreInitString: String,
+    timeDeltaProperty: Double,
+    intLogLevel: Int,
+    bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
-    dataInStreamPointAndBufferSizeMaybe: Option[(String, Int)] = None
+    dataInStreamPointMaybe: Option[String] = None
   ) extends StrictLogging {
     private var dataOutStreamHandle: Option[SWIGTYPE_p_void] = None
     private var dataInStreamHandle: Option[SWIGTYPE_p_void] = None
@@ -108,10 +149,10 @@ object BeamHelicsInterface {
     // **************************
     val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
-    helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, "zmq")
-    helics.helicsFederateInfoSetCoreInitString(fedInfo, "--federates=1")
-    helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), 1.0)
-    helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), 1)
+    helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, coreType)
+    helics.helicsFederateInfoSetCoreInitString(fedInfo, coreInitString)
+    helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), timeDeltaProperty)
+    helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), intLogLevel)
     logger.debug(s"FederateInfo created")
     val fedComb: SWIGTYPE_p_void = helics.helicsCreateCombinationFederate(fedName, fedInfo)
     logger.debug(s"CombinationFederate created")
@@ -120,7 +161,7 @@ object BeamHelicsInterface {
     dataOutStreamPointMaybe.foreach(registerPublication)
     // ******
     // register new BEAM subscriptions here
-    dataInStreamPointAndBufferSizeMaybe.foreach(x => registerSubscription(x._1))
+    dataInStreamPointMaybe.foreach(registerSubscription)
     // ******
     helics.helicsFederateEnterInitializingMode(fedComb)
     logger.debug(s"Federate initialized and wait for Executing Mode to be granted")
@@ -163,54 +204,51 @@ object BeamHelicsInterface {
     }
 
     /**
-      * Call sync then collect message that has been published by other federates
+      * Collect message that has been published by other federates
       * @param time the requested time
-      * @return (the awarded time, raw message in string format)
+      * @return raw message in string format
       */
-    private def syncAndCollectRawData(time: Int): (Double, String) = {
-      (
-        sync(time),
-        dataInStreamHandle
-          .map { handle =>
-            val buffer = new Array[Byte](dataInStreamPointAndBufferSizeMaybe.get._2)
-            val bufferInt = new Array[Int](1)
-            helics.helicsInputGetString(handle, buffer, bufferInt)
-            buffer.take(bufferInt(0)).map(_.toChar).mkString
-          }
-          .getOrElse("")
-      )
+    private def collectRaw(): String = {
+      dataInStreamHandle
+        .map { handle =>
+          val buffer = new Array[Byte](bufferSize)
+          val bufferInt = new Array[Int](1)
+          helics.helicsInputGetString(handle, buffer, bufferInt)
+          buffer.take(bufferInt(0)).map(_.toChar).mkString
+        }
+        .getOrElse("")
     }
 
     /**
-      * Call sync then collect JSON messages that has been published by other federates
+      * Collect JSON messages that has been published by other federates
       * The message is expected to be JSON, if not this method will fail
       * @param time the requested time
-      * @return (the awarded time, message in List of Maps format)
+      * @return Message in List of Maps format
       */
-    def syncAndCollectJSON(time: Int): (Double, List[Map[String, Any]]) = {
-      val (currentTime, message) = syncAndCollectRawData(time)
-      (currentTime, if (message.nonEmpty) {
+    def collectJSON(): List[Map[String, Any]] = {
+      val message = collectRaw()
+      if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
-        message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
-      } else {
-        List.empty[Map[String, Any]]
-      })
+        try {
+          message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
+        } catch {
+          case _: Throwable => List.empty[Map[String, Any]]
+        }
+      } else List.empty[Map[String, Any]]
     }
 
     /**
-      * Call sync then collect list of String messages that has been published by other federates
+      * Collect list of String messages that has been published by other federates
       * The message is expected to be list of string, if not this method will fail
       * @param time the requested time
-      * @return (the awarded time, message in list of Strings format)
+      * @return message in list of Strings format
       */
-    def syncAndCollect(time: Int): (Double, List[Any]) = {
-      val (currentTime, message) = syncAndCollectRawData(time)
-      (currentTime, if (message.nonEmpty) {
+    def collectAny(): List[Any] = {
+      val message = collectRaw()
+      if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         message.split(",").toList
-      } else {
-        List.empty[Any]
-      })
+      } else List.empty[Any]
     }
 
     /**
@@ -255,14 +293,30 @@ object BeamHelicsInterface {
     brokerName: String,
     numFederates: Int,
     fedName: String,
+    coreType: String,
+    coreInitString: String,
+    timeDeltaProperty: Double,
+    intLogLevel: Int,
+    bufferSize: Int,
     dataOutStreamPointMaybe: Option[String] = None,
-    dataInStreamPointAndBufferSizeMaybe: Option[(String, Int)] = None
+    dataInStreamPointMaybe: Option[String] = None
   ) extends StrictLogging {
-    private val coreType: String = "zmq"
     private val broker = helics.helicsCreateBroker(coreType, "", s"-f $numFederates --name=$brokerName")
     lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
+
     private val federate: Option[BeamFederate] = if (isConnected) {
-      Some(getFederate(fedName, dataOutStreamPointMaybe, dataInStreamPointAndBufferSizeMaybe))
+      Some(
+        getFederate(
+          fedName,
+          coreType,
+          coreInitString,
+          timeDeltaProperty,
+          intLogLevel,
+          bufferSize,
+          dataOutStreamPointMaybe,
+          dataInStreamPointMaybe
+        )
+      )
     } else {
       None
     }

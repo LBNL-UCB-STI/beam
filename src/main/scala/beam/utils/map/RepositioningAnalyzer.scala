@@ -19,6 +19,7 @@ import org.supercsv.prefs.CsvPreference
 case class VehicleLocation(vehicleId: Id[BeamVehicle], x: Double, y: Double, time: Int, numOfPassangers: Int)
 
 object RepositioningAnalyzer extends LazyLogging {
+
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")
@@ -95,18 +96,16 @@ object RepositioningAnalyzer extends LazyLogging {
             val header = csvRdr.getHeader(true)
             Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(toPlanInfo).toArray
           }
-          .filter(
-            x =>
-              x.planElementType == "activity" && x.activityEndTime.isDefined && !x.activityEndTime
-                .contains(Double.NegativeInfinity)
+          .filter(x =>
+            x.planElementType == "activity" && x.activityEndTime.isDefined && !x.activityEndTime
+              .contains(Double.NegativeInfinity)
           )
           .map { planElement =>
             TimeUnit.SECONDS.toHours(planElement.activityEndTime.get.toLong).toInt -> planElement
           }
           .groupBy { case (hour, _) => hour }
-          .map {
-            case (hour, xs) =>
-              hour -> xs.map(_._2)
+          .map { case (hour, xs) =>
+            hour -> xs.map(_._2)
           }
       writeActivities(s"${basePath}/act_hour_location.csvh", activitiesPerHour)
     }
@@ -155,42 +154,38 @@ object RepositioningAnalyzer extends LazyLogging {
 
       val hourToLoc = withHour
         .groupBy { case (h, _) => h }
-        .map {
-          case (h, eventsThisHour) =>
-            val vehToLastEvent = eventsThisHour
-              .map(_._2)
-              .groupBy { x =>
-                x.vehicleId
-              }
-              .map {
-                case (vehId, xs) =>
-                  vehId -> xs.maxBy(x => x.time)
-              }
-            h -> vehToLastEvent
+        .map { case (h, eventsThisHour) =>
+          val vehToLastEvent = eventsThisHour
+            .map(_._2)
+            .groupBy { x =>
+              x.vehicleId
+            }
+            .map { case (vehId, xs) =>
+              vehId -> xs.maxBy(x => x.time)
+            }
+          h -> vehToLastEvent
         }
 
       val shouldAccumulate: Boolean = true
       val allData = if (shouldAccumulate) {
         (0 to hourToLoc.keys.max).map { hour =>
-          val dataWithPrevHours = (0 until hour).foldLeft(hourToLoc.getOrElse(hour, Map.empty)) {
-            case (acc, h) =>
-              val prevHourData = hourToLoc.getOrElse(h, Map.empty)
-              val allKeys = prevHourData.keySet ++ acc.keySet
-              allKeys.foldLeft(acc) {
-                case (toUpdate, key) =>
-                  val updated = (prevHourData.get(key), acc.get(key)) match {
-                    case (Some(prev), Some(current)) =>
-                      val time = if (prev.time != 0) prev.time else current.time
-                      current.copy(time = time)
-                    case (Some(prev), None) =>
-                      prev
-                    case (None, Some(curr)) =>
-                      curr
-                    case (None, None) =>
-                      throw new Exception("WTF?")
-                  }
-                  toUpdate.updated(key, updated)
+          val dataWithPrevHours = (0 until hour).foldLeft(hourToLoc.getOrElse(hour, Map.empty)) { case (acc, h) =>
+            val prevHourData = hourToLoc.getOrElse(h, Map.empty)
+            val allKeys = prevHourData.keySet ++ acc.keySet
+            allKeys.foldLeft(acc) { case (toUpdate, key) =>
+              val updated = (prevHourData.get(key), acc.get(key)) match {
+                case (Some(prev), Some(current)) =>
+                  val time = if (prev.time != 0) prev.time else current.time
+                  current.copy(time = time)
+                case (Some(prev), None) =>
+                  prev
+                case (None, Some(curr)) =>
+                  curr
+                case (None, None) =>
+                  throw new Exception("WTF?")
               }
+              toUpdate.updated(key, updated)
+            }
           }
           hour -> dataWithPrevHours
         }.toMap
@@ -207,15 +202,14 @@ object RepositioningAnalyzer extends LazyLogging {
       writer.write("\n")
 
       (0 to hourToLoc.keys.max).foreach { h =>
-        allData(h).foreach {
-          case (vehId, pte) =>
-            writeAsString(h)
-            writeAsString(vehId)
-            writeAsString(pte.x)
-            writeAsString(pte.y)
-            writeAsString(pte.time)
-            writeAsString(pte.numOfPassangers, shouldAddComma = false)
-            writer.write("\n")
+        allData(h).foreach { case (vehId, pte) =>
+          writeAsString(h)
+          writeAsString(vehId)
+          writeAsString(pte.x)
+          writeAsString(pte.y)
+          writeAsString(pte.time)
+          writeAsString(pte.numOfPassangers, shouldAddComma = false)
+          writer.write("\n")
         }
       }
       writer.flush()
@@ -235,7 +229,7 @@ object RepositioningAnalyzer extends LazyLogging {
     val attribs = event.getAttributes
     // We need only PathTraversal for ride hail vehicles with mode `CAR`
     val isNeededEvent = event.getEventType == "PathTraversal" && Option(attribs.get("mode")).contains("car") &&
-    Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
+      Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
     isNeededEvent
   }
 
@@ -260,15 +254,14 @@ object RepositioningAnalyzer extends LazyLogging {
       )
     writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
     writer.write("\n")
-    withHour.foreach {
-      case (h, vehicleLocation) =>
-        writeAsString(h)
-        writeAsString(vehicleLocation.vehicleId)
-        writeAsString(vehicleLocation.x)
-        writeAsString(vehicleLocation.y)
-        writeAsString(vehicleLocation.time)
-        writeAsString(vehicleLocation.numOfPassangers, shouldAddComma = false)
-        writer.write("\n")
+    withHour.foreach { case (h, vehicleLocation) =>
+      writeAsString(h)
+      writeAsString(vehicleLocation.vehicleId)
+      writeAsString(vehicleLocation.x)
+      writeAsString(vehicleLocation.y)
+      writeAsString(vehicleLocation.time)
+      writeAsString(vehicleLocation.numOfPassangers, shouldAddComma = false)
+      writer.write("\n")
     }
     writer.flush()
     writer.close()

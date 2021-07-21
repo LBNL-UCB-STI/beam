@@ -10,7 +10,7 @@ import org.matsim.core.replanning.selectors.ExpBetaPlanSelector
 import org.matsim.core.router.StageActivityTypes
 import org.slf4j.LoggerFactory
 
-class BeamTimeMutator @Inject()(config: Config) extends PlansStrategyAdopter {
+class BeamTimeMutator @Inject() (config: Config) extends PlansStrategyAdopter {
 
   private val log = LoggerFactory.getLogger(classOf[BeamTimeMutator])
 

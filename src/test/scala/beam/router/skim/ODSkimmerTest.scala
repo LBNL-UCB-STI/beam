@@ -10,10 +10,9 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationStartsEvent
 import org.mockito.Mockito._
-import org.scalatest.FunSuite
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.funsuite.AnyFunSuite
 
-class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
+class ODSkimmerTest extends AnyFunSuite with StrictLogging {
 
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
@@ -41,7 +40,8 @@ class ODSkimmerTest extends FunSuite with MockitoSugar with StrictLogging {
   }
 }
 
-object ODSkimmerTest extends MockitoSugar {
+object ODSkimmerTest {
+
   private[skim] def createSkimmer[S <: AbstractSkimmer](
     skimType: SkimType.Value,
     inputFilePath: String,
@@ -63,12 +63,12 @@ object ODSkimmerTest extends MockitoSugar {
         )
         .resolve()
     )
-    val services = mock[BeamServices]
+    val services = mock(classOf[BeamServices])
     when(services.beamConfig).thenReturn(beamConfig)
-    when(services.beamScenario).thenReturn(mock[BeamScenario])
-    when(services.matsimServices).thenReturn(mock[MatsimServices])
+    when(services.beamScenario).thenReturn(mock(classOf[BeamScenario]))
+    when(services.matsimServices).thenReturn(mock(classOf[MatsimServices]))
 
-    val event = mock[IterationStartsEvent]
+    val event = mock(classOf[IterationStartsEvent])
     when(event.getIteration).thenReturn(0)
 
     val skimmer = constructor(services)

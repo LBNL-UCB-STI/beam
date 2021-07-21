@@ -1,4 +1,5 @@
 package beam.agentsim.infrastructure.taz
+
 import scala.annotation.tailrec
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils

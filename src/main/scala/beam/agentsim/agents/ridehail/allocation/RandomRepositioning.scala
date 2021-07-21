@@ -264,9 +264,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // Make sure we exclude `srcLocations`
         val dstLocations = dst.take(newNumVehiclesToReposition)
 
-        val result = srcLocations.zip(dstLocations).map {
-          case (s, d) =>
-            (s.vehicleId, d.latestUpdatedLocationUTM.loc)
+        val result = srcLocations.zip(dstLocations).map { case (s, d) =>
+          (s.vehicleId, d.latestUpdatedLocationUTM.loc)
         }
         result.toVector
 
@@ -320,12 +319,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           showDistanceStats(result)
 
           logger.whenDebugEnabled {
-            result.foreach {
-              case (id, coord) =>
-                val vehLoc =
-                  rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
-                val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
-                logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
+            result.foreach { case (id, coord) =>
+              val vehLoc =
+                rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
+              val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
+              logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
             }
           }
 
@@ -381,12 +379,11 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           showDistanceStats(result)
 
           logger.whenDebugEnabled {
-            result.foreach {
-              case (id, coord) =>
-                val vehLoc =
-                  rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
-                val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
-                logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
+            result.foreach { case (id, coord) =>
+              val vehLoc =
+                rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
+              val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
+              logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
             }
           }
 
@@ -481,7 +478,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       case 6 =>
         if (tick == 0) {
-          val okToReposition = rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
+          val okToReposition =
+            rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
           val neverMovedVehiclesBatched = rand
             .shuffle(okToReposition)
             .toVector
@@ -511,10 +509,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           }
         }
         val vehicleSet = rideHailManager.rideHailManagerHelper.getIdleVehiclesAndFilterOutExluded
-        tickToLocation.getOrElse(tick, Vector.empty).filter {
-          case (vehicleId, _) =>
-            rideHailManager.modifyPassengerScheduleManager
-              .isVehicleNeitherRepositioningNorProcessingReservation(vehicleId) &&
+        tickToLocation.getOrElse(tick, Vector.empty).filter { case (vehicleId, _) =>
+          rideHailManager.modifyPassengerScheduleManager
+            .isVehicleNeitherRepositioningNorProcessingReservation(vehicleId) &&
             vehicleSet.contains(vehicleId)
         }
       // The same as 6 algo, but we will reposition
@@ -558,10 +555,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   }
 
   def showDistanceStats(result: Vector[(Id[BeamVehicle], Location)]): Unit = {
-    val distances = result.map {
-      case (id, coord) =>
-        val vehLoc = rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
-        rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
+    val distances = result.map { case (id, coord) =>
+      val vehLoc = rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
+      rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
     }
     val stats = Statistics.apply(distances)
     logger.info(s"Repositining distance stat: $stats")

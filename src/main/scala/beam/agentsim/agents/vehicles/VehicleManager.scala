@@ -6,35 +6,19 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.immutable
 
-case class VehicleManager(managerId: Id[VehicleManager], managerType: VehicleManagerType)
+trait VehicleManager
 
 object VehicleManager {
 
-  val bodiesVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("bodies", classOf[VehicleManager]), Some(VehicleCategory.Body))
-
-  val privateVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("private", classOf[VehicleManager]), Some(VehicleCategory.Car))
-
-  val transitVehicleManager: VehicleManager =
-    VehicleManager.create(Id.create("transit", classOf[VehicleManager]), None)
+  def createId(idString: String): Id[VehicleManager] = Id.create(idString, classOf[VehicleManager])
 
   def getType(
     vehicleType: BeamVehicleType,
     isRideHail: Boolean = false,
     isShared: Boolean = false,
-    isFreight: Boolean = false,
+    isFreight: Boolean = false
   ): VehicleManagerType =
     VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, Some(vehicleType.vehicleCategory))
-
-  def create(
-    managerId: Id[VehicleManager],
-    vehicleCategoryOption: Option[VehicleCategory],
-    isRideHail: Boolean = false,
-    isShared: Boolean = false,
-    isFreight: Boolean = false,
-  ): VehicleManager =
-    VehicleManager(managerId, VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, vehicleCategoryOption))
 }
 
 sealed abstract class VehicleManagerType(
@@ -50,7 +34,8 @@ object VehicleManagerType extends Enum[VehicleManagerType] {
   case object Cars extends VehicleManagerType(isPrivate = true) //for private cars
   case object Bikes extends VehicleManagerType(isPrivate = true) //for private bikes
   case object Carsharing extends VehicleManagerType(isPrivate = false, isShared = true) //for shared fleet of type car
-  case object SharedMicromobility extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
+  case object SharedMicromobility
+      extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
   case object Ridehail extends VehicleManagerType(isPrivate = false) //for ridehail
   case object Freight extends VehicleManagerType(isPrivate = false, isFreight = true)
   case object Transit extends VehicleManagerType(isPrivate = false, isShared = true) // for transit

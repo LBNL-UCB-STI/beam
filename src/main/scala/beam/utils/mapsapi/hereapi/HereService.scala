@@ -30,14 +30,13 @@ class HereService(adapter: HereAdapter) {
       }
     groupedSpans
       .map { values: Iterator[(HerePath, TmpSpan)] =>
-        values.toList.map {
-          case (path, span) =>
-            val coordinates = path.coordinates.slice(span.startIndex, span.endIndex + 1)
-            Segment(
-              coordinates = coordinates,
-              lengthInMeters = span.lengthInMeters,
-              speedLimitInMetersPerSecond = span.speedLimitInMetersPerSecond
-            )
+        values.toList.map { case (path, span) =>
+          val coordinates = path.coordinates.slice(span.startIndex, span.endIndex + 1)
+          Segment(
+            coordinates = coordinates,
+            lengthInMeters = span.lengthInMeters,
+            speedLimitInMetersPerSecond = span.speedLimitInMetersPerSecond
+          )
         }
       }
   }

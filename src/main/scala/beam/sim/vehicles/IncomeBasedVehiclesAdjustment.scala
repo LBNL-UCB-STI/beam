@@ -13,10 +13,9 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
 
   private val vehicleTypesAndProbabilityByCategoryAndGroup =
     scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
-  beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory).foreach {
-    case (cat, vehTypes) =>
-      val submap = getCategoryAndGroup(cat, vehTypes.toArray)
-      vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
+  beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory).foreach { case (cat, vehTypes) =>
+    val submap = getCategoryAndGroup(cat, vehTypes.toArray)
+    vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
   }
 
   override def sampleVehicleTypesForHousehold(
@@ -26,10 +25,11 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
     val matchedGroups =
       vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val categoryAndGroup = if (matchedGroups.size > 1) {
       logger.warn(
         s"Multiple categories defined for household with income ${householdIncome}, choosing a default one"
@@ -114,12 +114,11 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
         }
       }
     }
-    groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map {
-      case (groupID, vehicleTypeAndProbability) =>
-        val probSum = vehicleTypeAndProbability.map(_._2._2).sum
-        val cumulativeProbabilities = vehicleTypeAndProbability.map(_._2._2 / probSum).scan(0.0)(_ + _).drop(1)
-        val vehicleTypes = vehicleTypeAndProbability.map(_._2._1)
-        groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
+    groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map { case (groupID, vehicleTypeAndProbability) =>
+      val probSum = vehicleTypeAndProbability.map(_._2._2).sum
+      val cumulativeProbabilities = vehicleTypeAndProbability.map(_._2._2 / probSum).scan(0.0)(_ + _).drop(1)
+      val vehicleTypes = vehicleTypeAndProbability.map(_._2._1)
+      groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
     }
     groupIDs
   }

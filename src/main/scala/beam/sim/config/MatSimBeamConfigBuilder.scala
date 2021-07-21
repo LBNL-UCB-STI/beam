@@ -57,7 +57,9 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
         val group = paramSet.asInstanceOf[ConfigGroup]
         (group.getName, group.getClass.asInstanceOf[Class[ConfigGroup]])
       })
-      .filterNot(_._2.getName.contains("Old")) // there 2 version of ActivityParams class in different packages, remove old one
+      .filterNot(
+        _._2.getName.contains("Old")
+      ) // there 2 version of ActivityParams class in different packages, remove old one
       .toMap
 
     beamConf
@@ -69,52 +71,48 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
         (moduleAndProp, entry.getValue)
       })
       .filter(i => i._1.length > 1)
-      .foreach {
-        case (moduleName :: List(prop), value) =>
-          Option(matSimConfig.getModules.get(moduleName)) match {
-            case Some(configGroup) if prop.equalsIgnoreCase("parameterset") =>
-              value match {
-                case list: ConfigList =>
-                  list.unwrapped()
-                  val unwrappedParamSets = list.asScala
-                    .map(
-                      paramSet => paramSet.unwrapped().asInstanceOf[java.util.Map[String, _]].asScala
-                    )
-                    .toList
-                  unwrappedParamSets.foreach(parameterSet => {
-                    parameterSet.get("type") match {
-                      case Some(paramSetType) =>
-                        paramSetClassCache
-                          .get(paramSetType.toString)
-                          .foreach(paramSetClazz => {
-                            val c = paramSetClazz.getDeclaredConstructor()
-                            c.setAccessible(true)
-                            val paramSetInstance = c.newInstance()
-                            val paramSetProperties = parameterSet.filterNot(_._1 == "type")
-                            if (paramSetProperties.nonEmpty) {
-                              paramSetProperties.foreach {
-                                case (paramName, paramSetValue) =>
-                                  paramSetInstance.addParam(paramName, paramSetValue.toString)
-                              }
-                              configGroup.addParameterSet(paramSetInstance)
-                            } else {
-                              logger.warn(s"Configuration is malformed. Empty parameterset in ${unwrappedParamSets
-                                .mkString(",")}")
+      .foreach { case (moduleName :: List(prop), value) =>
+        Option(matSimConfig.getModules.get(moduleName)) match {
+          case Some(configGroup) if prop.equalsIgnoreCase("parameterset") =>
+            value match {
+              case list: ConfigList =>
+                list.unwrapped()
+                val unwrappedParamSets = list.asScala
+                  .map(paramSet => paramSet.unwrapped().asInstanceOf[java.util.Map[String, _]].asScala)
+                  .toList
+                unwrappedParamSets.foreach(parameterSet => {
+                  parameterSet.get("type") match {
+                    case Some(paramSetType) =>
+                      paramSetClassCache
+                        .get(paramSetType.toString)
+                        .foreach(paramSetClazz => {
+                          val c = paramSetClazz.getDeclaredConstructor()
+                          c.setAccessible(true)
+                          val paramSetInstance = c.newInstance()
+                          val paramSetProperties = parameterSet.filterNot(_._1 == "type")
+                          if (paramSetProperties.nonEmpty) {
+                            paramSetProperties.foreach { case (paramName, paramSetValue) =>
+                              paramSetInstance.addParam(paramName, paramSetValue.toString)
                             }
-                          })
-                      case None =>
-                        logger.warn(
-                          s"Configuration is malformed. Failed to find type of parameterset in ${unwrappedParamSets
-                            .mkString(",")}"
-                        )
-                    }
-                  })
-              }
-            case Some(configGroup) =>
-              configGroup.addParam(prop, value.unwrapped().toString)
-            case None =>
-              logger.warn(s"MATSim module '$moduleName' not found")
-          }
+                            configGroup.addParameterSet(paramSetInstance)
+                          } else {
+                            logger.warn(s"Configuration is malformed. Empty parameterset in ${unwrappedParamSets
+                              .mkString(",")}")
+                          }
+                        })
+                    case None =>
+                      logger.warn(
+                        s"Configuration is malformed. Failed to find type of parameterset in ${unwrappedParamSets
+                          .mkString(",")}"
+                      )
+                  }
+                })
+            }
+          case Some(configGroup) =>
+            configGroup.addParam(prop, value.unwrapped().toString)
+          case None =>
+            logger.warn(s"MATSim module '$moduleName' not found")
+        }
       }
     matSimConfig
   }
@@ -123,7 +121,6 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
 object MatSimBeamConfigBuilder extends ReflectionUtils {
 
   /**
-    *
     * @return package name to scan in
     */
   override def packageName: String = "org.matsim"
