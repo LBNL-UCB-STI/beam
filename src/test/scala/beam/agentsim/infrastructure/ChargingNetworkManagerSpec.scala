@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneId, PricingModel}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -118,13 +118,16 @@ class ChargingNetworkManagerSpec
 
   private val taz2 = beamServices.beamScenario.tazTreeMap.getTAZ("2").get
   private val chargingPointType = ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")
-  private val pricingModel = PricingModel.Block(0.0, 0)
+  private val pricingModel = PricingModel.FlatFee(0.0)
+
+  val parkingZoneId: Id[ParkingZoneId] =
+    ParkingZone.createId("cs_DefaultManager_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
 
   val parkingStall: ParkingStall =
     ParkingStall(
       taz2.tazId,
       taz2.tazId,
-      ParkingZone.DefaultParkingZoneId,
+      parkingZoneId,
       taz2.coord,
       0.0,
       Some(chargingPointType),

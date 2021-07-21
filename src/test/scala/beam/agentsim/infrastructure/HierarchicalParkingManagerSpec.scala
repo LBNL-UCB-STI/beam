@@ -193,7 +193,7 @@ class HierarchicalParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NoCharger_FlatFee"),
+            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -269,7 +269,7 @@ class HierarchicalParkingManagerSpec
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NoCharger_FlatFee"),
+            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
