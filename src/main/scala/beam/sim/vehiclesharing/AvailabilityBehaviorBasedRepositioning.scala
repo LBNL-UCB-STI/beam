@@ -84,8 +84,7 @@ case class AvailabilityBehaviorBasedRepositioning(
       var destTimeOpt: Option[(RepositioningRequest, Int)] = None
       topUndersuppliedTAZ.foreach { dst =>
         val vehicleTypeId =
-          Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
-            //change here
+          Id.create(
             beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
             classOf[BeamVehicleType]
           )
