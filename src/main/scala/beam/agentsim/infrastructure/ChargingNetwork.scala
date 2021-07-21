@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
@@ -47,29 +46,12 @@ class ChargingNetwork[GEO: GeoLevel](
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
 
   /**
-    * lookup a station from attributes
-    * @param tazId the taz id
-    * @param parkingType the parking type
-    * @param chargingPointType the charging type
+    * lookup a station from parking zone Id
+    * @param parkingZoneId parking zone Id
     * @return
     */
-  def lookupStation(
-    geoId: Id[_],
-    parkingType: ParkingType,
-    chargingPointType: Option[ChargingPointType],
-    pricingModel: Option[PricingModel]
-  ): Option[ChargingStation] =
-    chargingZoneKeyToChargingStationMap.get(
-      ParkingZone.constructParkingZoneKey(vehicleManagerId, geoId, parkingType, chargingPointType, pricingModel)
-    )
-
-  /**
-    * lookup
-    * @param stall Parking Stall
-    * @return
-    */
-  def lookupStation(stall: ParkingStall): Option[ChargingStation] =
-    lookupStation(stall.geoId, stall.parkingType, stall.chargingPointType, stall.pricingModel)
+  def lookupStation(parkingZoneId: Id[ParkingZoneId]): Option[ChargingStation] =
+    chargingZoneKeyToChargingStationMap.get(parkingZoneId)
 
   /**
     * lookup information about charging vehicle
@@ -98,7 +80,7 @@ class ChargingNetwork[GEO: GeoLevel](
     theSender: ActorRef,
     shiftStatus: ShiftStatus = NotApplicable
   ): Option[(ChargingVehicle, ConnectionStatus.Value)] = {
-    lookupStation(stall)
+    lookupStation(stall.parkingZoneId)
       .map { x =>
         vehicle.useParkingStall(stall)
         Some(x.connect(tick, vehicle, stall, theSender, shiftStatus))

@@ -84,9 +84,9 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
                 new Random(777934L),
                 defaultVehicleManagerId = VehicleManager.defaultManager
               )
-          parkingZones should have size 3648
+          parkingZones should have size 2990
           val zones205 = parkingZones.filter(_._2.geoId.toString == "205")
-          zones205 should have size 20
+          zones205 should have size 16
           val collapsed = HierarchicalParkingManager.collapse(parkingZones)
           val collapsedZones205 = collapsed.filter(_._2.geoId.toString == "205")
           collapsedZones205 should have size 11

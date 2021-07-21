@@ -7,6 +7,7 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.InfrastructureUtils.buildParkingZones
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -175,7 +176,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NoCharger_FlatFee"),
+            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -244,7 +245,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NoCharger_FlatFee"),
+            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -352,23 +353,27 @@ class ParallelParkingManagerSpec
         1.0,
         randomSeed
       )
-      val zpm =
-        ParallelParkingManager.init(
-          VehicleManager.defaultManager,
-          stalls,
-          beamConfig,
-          tazMap,
-          geo.distUTMInMeters,
-          boundingBox,
-          randomSeed,
-          8
-        )
+      val zpm = buildParkingZones[TAZ](stalls)
+        .filter(_._1 == VehicleManager.defaultManager)
+        .map { case (managerId, parkingZones) =>
+          ParallelParkingManager.init(
+            managerId,
+            parkingZones,
+            beamConfig,
+            tazMap,
+            geo.distUTMInMeters,
+            boundingBox,
+            randomSeed,
+            8
+          )
+        }
+        .head
 
       assertParkingResponse(
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_DefaultManager_4_Residential_NoCharger_FlatFee"),
+        ParkingZone.createId("cs_DefaultManager_4_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.defaultManager
@@ -378,7 +383,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_DefaultManager_1_Residential_NoCharger_FlatFee"),
+        ParkingZone.createId("cs_DefaultManager_1_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.defaultManager
@@ -388,7 +393,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("cs_DefaultManager_2_Residential_NoCharger_FlatFee"),
+        ParkingZone.createId("cs_DefaultManager_2_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.defaultManager

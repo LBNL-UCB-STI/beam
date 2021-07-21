@@ -82,7 +82,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
 
-  protected lazy val currentSkimInternal = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+  protected[core] lazy val currentSkimInternal = mutable.Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
 
   import readOnlySkim._
 
@@ -97,6 +97,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
+
+  protected[skim] def getCurrentSkim: scala.collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] =
+    currentSkimInternal.toMap
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     val skimFilePath = beamConfig.beam.warmStart.skimsFilePaths

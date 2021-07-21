@@ -201,7 +201,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType
   ): Option[ExcerptData] = {
     val individualSkims = timeBin.hours.flatMap { hour =>
-      currentSkimInternal
+      getCurrentSkim
         .get(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
     }

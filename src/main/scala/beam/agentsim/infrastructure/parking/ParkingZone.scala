@@ -149,7 +149,8 @@ object ParkingZone extends LazyLogging {
   ): ParkingZone[GEO] = {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
-      case _                   => constructParkingZoneKey(vehicleManagerId, geoId, parkingType, chargingPointType, pricingModel)
+      case _ =>
+        constructParkingZoneKey(vehicleManagerId, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
     }
     ParkingZone[GEO](
       parkingZoneId,
@@ -236,13 +237,16 @@ object ParkingZone extends LazyLogging {
     vehicleManagerId: Id[VehicleManager],
     geoId: Id[_],
     parkingType: ParkingType,
-    chargingPointType: Option[ChargingPointType],
-    pricingModel: Option[PricingModel]
+    chargingPointTypeMaybe: Option[ChargingPointType],
+    pricingModelMaybe: Option[PricingModel],
+    numStalls: Int
   ): Id[ParkingZoneId] = {
-    val zoneId =
-      s"cs_${vehicleManagerId}_${geoId}_${parkingType}_${chargingPointType
-        .getOrElse("NoCharger")}_${pricingModel.getOrElse("NoPricing")}"
-    createId(zoneId)
+    val chargingPointType = chargingPointTypeMaybe.getOrElse("NA")
+    val pricingModel = pricingModelMaybe.getOrElse("NA")
+    val costInCents = pricingModelMaybe.map(x => (x.costInDollars * 100).toInt).getOrElse(0)
+    createId(
+      s"cs_${vehicleManagerId}_${geoId}_${parkingType}_${chargingPointType}_${pricingModel}_${costInCents}_$numStalls"
+    )
   }
 
   /**

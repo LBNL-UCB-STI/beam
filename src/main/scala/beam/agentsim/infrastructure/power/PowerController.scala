@@ -3,10 +3,8 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
-import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.parking.ParkingZone.createId
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -71,12 +69,9 @@ class PowerController(
         // PUBLISH
         val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
           Map(
-            "vehicleManager"    -> station.zone.vehicleManagerId,
-            "taz"               -> station.zone.geoId.toString,
-            "parkingType"       -> station.zone.parkingType.toString,
-            "chargingPointType" -> station.zone.chargingPointType.toString,
-            "numChargers"       -> station.zone.maxStalls,
-            "estimatedLoad"     -> powerInKW
+            "vehicleManager" -> station.zone.vehicleManagerId,
+            "parkingZoneId"  -> station.zone.parkingZoneId,
+            "estimatedLoad"  -> powerInKW
           )
         }
         beamFederate.publishJSON(msgToPublish.toList)
@@ -98,12 +93,7 @@ class PowerController(
             case managerIdString                            => Id.create(managerIdString, classOf[VehicleManager])
           }
           val chargingNetwork = chargingNetworkMap(managerId)
-          chargingNetwork.lookupStation(
-            Id.create(x("taz").asInstanceOf[String], classOf[TAZ]),
-            ParkingType(x("parkingType").asInstanceOf[String]),
-            ChargingPointType(x("chargingPointType").asInstanceOf[String]),
-            PricingModel(x("pricingModel").asInstanceOf[String], x("feeInCents").asInstanceOf[String])
-          ) match {
+          chargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
             case Some(station) =>
               Some(
                 station -> PhysicalBounds(
