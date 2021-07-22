@@ -567,9 +567,9 @@ run {
 task execute(type: JavaExec) {
     jvmArgs = applicationDefaultJvmArgs
     if (project.hasProperty("mainClass")) {
-        main = mainClass
+        mainClass = project.property("mainClass")
     } else {
-        main = mainClassName
+        mainClass = mainClassName
     }
     classpath = sourceSets.main.runtimeClasspath
     if (project.hasProperty("appArgs")) {
