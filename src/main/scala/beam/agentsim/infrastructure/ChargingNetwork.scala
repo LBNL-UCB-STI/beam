@@ -59,7 +59,8 @@ class ChargingNetwork(vehicleManager: Option[Id[VehicleManager]], chargingStatio
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
-  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
+  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.values.view.flatMap(_.lookupVehicle(vehicleId)).headOption
 
   /**
     * clear charging vehicle map
@@ -129,7 +130,11 @@ object ChargingNetwork {
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
 
-    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehicles ++ waitingLineVehicles
+    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
+      waitingLineVehicles ++ connectedVehiclesInternal
+
+    def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+      connectedVehiclesInternal.get(vehicleId).orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
 
     /**
       * add vehicle to connected list and connect to charging point
