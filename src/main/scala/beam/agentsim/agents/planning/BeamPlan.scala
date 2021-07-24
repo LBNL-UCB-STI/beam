@@ -63,8 +63,8 @@ object BeamPlan {
                 case _ =>
               }
             case _: Leg
-                if elems.last.asInstanceOf[Activity].equals(destinationActivity) && elems.last
-                  .isInstanceOf[Activity] =>
+                if elems.last.isInstanceOf[Activity] &&
+                  elems.last.asInstanceOf[Activity].equals(destinationActivity) =>
               outputElems = List()
             case _ =>
           }
