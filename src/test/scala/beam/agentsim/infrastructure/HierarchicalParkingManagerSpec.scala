@@ -210,9 +210,8 @@ class HierarchicalParkingManagerSpec
         val secondInquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
-          case Some(res @ ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
+          case Some(ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
               if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
-            res
           case _ => assert(response2.isDefined, "no response")
         }
       }
@@ -370,7 +369,7 @@ class HierarchicalParkingManagerSpec
   describe("HierarchicalParkingManager with loaded common data") {
     it("should return the correct stall") {
       val scenario = loadScenario(beamConfig)
-      val (zones, searchTree) = ZonalParkingManager.loadParkingZones[Link](
+      val (zones, _) = ZonalParkingManager.loadParkingZones[Link](
         "test/input/beamville/parking/link-parking.csv",
         null, //it is required only in case of failures
         1.0,
@@ -393,26 +392,23 @@ class HierarchicalParkingManagerSpec
         beamConfig.beam.agentsim.chargingNetworkManager.chargingPoint
       )
 
-      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 4033, Block(0.0, 3600), ParkingType.Residential)
+      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4")
 
-      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
+      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1")
 
-      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
+      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1")
     }
   }
 
   private def assertParkingResponse(
     spm: ParkingNetwork[_],
     coord: Coord,
-    tazId: String,
-    parkingZoneId: Int,
-    pricingModel: PricingModel,
-    parkingType: ParkingType
+    tazId: String
   ): Any = {
     val inquiry = ParkingInquiry(SpaceTime(coord, 0), "init", triggerId = 27)
     val response = spm.processParkingInquiry(inquiry)
     response match {
-      case Some(rsp @ ParkingInquiryResponse(stall, _, inquiry.triggerId)) =>
+      case Some(rsp @ ParkingInquiryResponse(_, _, inquiry.triggerId)) =>
         rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
         val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
         dist should be <= 400.0

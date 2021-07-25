@@ -226,7 +226,7 @@ object SkimsUtils extends LazyLogging {
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     def getClosest(num: Double): Int = buckets.minBy(v => math.abs(v - num))
 
-    var dataset = new XYSeriesCollection()
+    val dataset = new XYSeriesCollection()
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
     series.foreach { case (count, simulatedTime, observedTime) =>
       val closestBucket = getClosest(count)

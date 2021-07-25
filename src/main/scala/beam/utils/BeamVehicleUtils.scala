@@ -1,13 +1,10 @@
 package beam.utils
 
-import beam.agentsim.agents.household.HouseholdFleetManager
-
 import java.util
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import org.matsim.api.core.v01.Id
-import org.matsim.households.Household
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -28,14 +25,6 @@ object BeamVehicleUtils {
 
       val vehicleTypeIdString = line.get("vehicleTypeId")
       val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
-
-      val householdIdString = line.get("householdId")
-
-      val householdId: Option[Id[Household]] = if (householdIdString == null) {
-        None
-      } else {
-        Some(Id.create(householdIdString, classOf[Household]))
-      }
 
       val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
@@ -62,7 +51,6 @@ object BeamVehicleUtils {
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
-        val vIdString = line.get("vehicleTypeId")
         val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
         val seatingCapacity = line.get("seatingCapacity").trim.toInt
         val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt

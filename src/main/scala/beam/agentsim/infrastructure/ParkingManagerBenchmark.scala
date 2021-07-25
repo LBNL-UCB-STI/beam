@@ -282,14 +282,6 @@ object ParkingManagerBenchmark extends StrictLogging {
       )
   }
 
-  private def groupedByTaz(parkingResponses: Seq[ParkingInquiryResponse]): Map[Id[TAZ], Seq[ParkingInquiryResponse]] = {
-    parkingResponses
-      .groupBy { x =>
-        x.stall.tazId
-      }
-      .map { case (tazId, xs) => (tazId, xs) }
-  }
-
   private def getNetworkBoundingBox(network: Network): Envelope = {
     val firstCoord = network.getLinks.values().iterator().next().getCoord
     val envelope = new Envelope(firstCoord.getX, firstCoord.getX, firstCoord.getY, firstCoord.getY)

@@ -17,11 +17,8 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
-    Range(0, numVehicles).map { i =>
-      if (vehicleCategory == VehicleCategory.Car) {
-        vehicleTypesByCategory
-      } else throw new NotImplementedError(vehicleCategory.toString)
-    }.toList
+    if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
+    List.fill(numVehicles)(vehicleTypesByCategory)
   }
 
   override def sampleVehicleTypesForHousehold(
@@ -33,10 +30,7 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
     householdLocation: Coord,
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
-    Range(0, numVehicles).map { i =>
-      if (vehicleCategory == VehicleCategory.Car) {
-        vehicleTypesByCategory
-      } else throw new NotImplementedError(vehicleCategory.toString)
-    }.toList
+    if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
+    List.fill(numVehicles)(vehicleTypesByCategory)
   }
 }

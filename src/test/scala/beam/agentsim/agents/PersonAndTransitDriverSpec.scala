@@ -112,7 +112,7 @@ class PersonAndTransitDriverSpec
               case pathTraversalEvent: PathTraversalEvent
                   if pathTraversalEvent.vehicleId.toString == "body-dummyAgent" =>
                 personEvents.ref ! event
-              case agencyRevenueEvent: AgencyRevenueEvent =>
+              case _: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
               case _: AbstractSkimmerEvent =>
                 skimEvents.ref ! event
@@ -236,58 +236,6 @@ class PersonAndTransitDriverSpec
           maxWindow = 31001, // As a kind of stress test, let everything happen simultaneously
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
-      )
-
-      val busDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
-          vehicle = bus,
-          Array(busLeg.beamLeg, busLeg2.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-      val tramDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
-          vehicle = tram,
-          Array(tramLeg.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-
-      val iteration = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(busDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(tramDriverProps, "TransitDriverAgent-" + tramId.toString)
-
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
-
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
       )
 
       val busDriver = Await.result(

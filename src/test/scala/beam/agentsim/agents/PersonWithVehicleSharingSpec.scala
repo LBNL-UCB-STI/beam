@@ -15,7 +15,6 @@ import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusResponse,
   ReleaseVehicle
 }
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
@@ -43,7 +42,6 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.matsim.vehicles._
 import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.{mutable, JavaConverters}
@@ -100,7 +98,7 @@ class PersonWithVehicleSharingSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId)
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"))
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -252,7 +250,7 @@ class PersonWithVehicleSharingSpec
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
       val person: Person =
-        createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false, returnTrip = true)
+        createTestPerson(Id.createPersonId("dummyAgent"), withRoute = false, returnTrip = true)
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -477,9 +475,9 @@ class PersonWithVehicleSharingSpec
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
-      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
+      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"))
       population.addPerson(person1)
-      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, 20)
+      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), 20)
       population.addPerson(person2)
 
       val modeChoiceEvents = TestProbe()
@@ -671,7 +669,6 @@ class PersonWithVehicleSharingSpec
 
   private def createTestPerson(
     personId: Id[Person],
-    vehicleId: Id[Vehicle],
     departureTimeOffset: Int = 0,
     withRoute: Boolean = true,
     returnTrip: Boolean = false

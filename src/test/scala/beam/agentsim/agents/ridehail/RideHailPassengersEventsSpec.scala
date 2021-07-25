@@ -24,7 +24,7 @@ class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with Be
 
   "Vehicle" must {
     "keep passengers right count" ignore {
-      val events = TrieMap[String, Tuple3[Int, Int, Int]]()
+      val events = TrieMap[String, (Int, Int, Int)]()
       val nErrors = new AtomicInteger(0)
 
       initialSetup(new BasicEventHandler {
@@ -58,7 +58,6 @@ class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with Be
             case _ =>
           }
         }
-        Unit
       })
 
       if (events.nonEmpty) {

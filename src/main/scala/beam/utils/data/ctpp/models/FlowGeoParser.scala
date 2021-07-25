@@ -41,7 +41,7 @@ object FlowGeoParser {
       val toGeoId = fromTo.substring("oooooooodddddddd".length)
       (fromGeoId, toGeoId)
     } else {
-      throw new IllegalStateException(s"Don't know how to handle GeoLevel'${fromTo}', input: '${input}'")
+      throw new IllegalStateException(s"Don't know how to handle GeoLevel'$fromTo', input: '$input'")
     }
   }
 

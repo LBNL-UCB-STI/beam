@@ -107,7 +107,7 @@ case class TNCIterationStats(
         DebugLib.emptyFunctionForSettingBreakPoint()
       }
 
-      var scoredTAZInRadius =
+      val scoredTAZInRadius =
         mutable.PriorityQueue[TazScore]()((vls1, vls2) => vls1.score.compare(vls2.score))
 
       // val scoredTAZInRadius = mutable.ListBuffer[TazScore]()
@@ -245,8 +245,7 @@ case class TNCIterationStats(
     maxNumberOfVehiclesToReposition: Double,
     tick: Double,
     timeHorizonToConsiderForIdleVehiclesInSec: Double,
-    thresholdForMinimumNumberOfIdlingVehicles: Int,
-    beamServices: BeamServices
+    thresholdForMinimumNumberOfIdlingVehicles: Int
   ): Vector[RideHailAgentLocation] = {
     var priorityQueue =
       mutable.PriorityQueue[VehicleLocationScores]()((vls1, vls2) => vls1.score.compare(vls2.score))
@@ -484,7 +483,7 @@ case class TNCIterationStats(
     val demandAll =
       getAggregatedRideHailStatsAllTAZ(startTime, endTime).getDemandEstimate
     val result =
-      if (demandAll > 0) demandInCircle.toDouble / demandAll.toDouble
+      if (demandAll > 0) demandInCircle / demandAll
       else Double.PositiveInfinity
     result
   }
@@ -547,7 +546,7 @@ case class TNCIterationStats(
     startTime: Double,
     endTime: Double
   ): ListBuffer[(Coord, RideHailStatsEntry)] = {
-    var result = collection.mutable.ListBuffer[(Coord, RideHailStatsEntry)]()
+    val result = collection.mutable.ListBuffer[(Coord, RideHailStatsEntry)]()
 
     for (tazIdString <- rideHailStats.keySet) {
       val rideHailStatsEntry =
@@ -557,18 +556,6 @@ case class TNCIterationStats(
     }
 
     result
-  }
-
-  // TODO: implement according to description
-  def getIdleTAZRankingForNextTimeSlots(
-    startTime: Double,
-    duration: Double
-  ): Vector[(TAZ, Double)] = {
-    // start at startTime and end at duration time bin
-
-    // add how many idle vehicles available
-    // sort according to score
-    null
   }
 
   def logMap(): Unit = {

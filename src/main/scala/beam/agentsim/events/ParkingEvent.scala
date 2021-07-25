@@ -47,7 +47,7 @@ case class ParkingEvent(
     val chargingPointString = chargingPointType.map { _.toString }.getOrElse("None")
 
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
-    attr.put(ATTRIBUTE_DRIVER_ID, driverId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
     attr.put(ATTRIBUTE_COST, costInDollars.toString)
     attr.put(ATTRIBUTE_LOCATION_X, locationWGS.getX.toString)
     attr.put(ATTRIBUTE_LOCATION_Y, locationWGS.getY.toString)

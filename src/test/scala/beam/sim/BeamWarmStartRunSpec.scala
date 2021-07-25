@@ -47,7 +47,7 @@ object BeamWarmStartRunSpec {
 
   def avgCarModeFromCsv(filePath: String): Double = {
     val (rdr, toClose) =
-      GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, x => true)
+      GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, _ => true)
     try {
       val travelTimes = rdr.toArray
       val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length

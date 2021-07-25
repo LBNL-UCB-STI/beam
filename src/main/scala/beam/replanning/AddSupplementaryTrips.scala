@@ -23,10 +23,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       val simplifiedPlan = mandatoryTour(person.getSelectedPlan)
 
       val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
-        addSecondaryActivities(
-          simplifiedPlan,
-          person.getSelectedPlan.getPerson
-        )
+        addSecondaryActivities(simplifiedPlan)
       )
 
       AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
@@ -75,7 +72,6 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
 
   private def definitelyAddSubtours(
     activity: Activity,
-    person: Person,
     nonWorker: Boolean = false
   ): List[Activity] = {
     val listOfActivities = activity.getType match {
@@ -129,10 +125,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
   }
 
-  private def addSecondaryActivities(
-    plan: Plan,
-    person: Person
-  ): Plan = {
+  private def addSecondaryActivities(plan: Plan): Plan = {
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
     newPlan.setType(plan.getType)
 
@@ -146,7 +139,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       }
       planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
       planElement.setStartTime(prevEndTime)
-      definitelyAddSubtours(planElement, person, nonWorker)
+      definitelyAddSubtours(planElement, nonWorker)
     }
     newActivitiesToAdd.flatten.foreach { x =>
       newPlan.addActivity(x)

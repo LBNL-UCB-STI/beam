@@ -92,11 +92,11 @@ object ExperimentGenerator extends ExperimentApp {
     /*
      * Optionally write the mode choice params file
      */
-    experimentDef.header.modeChoiceTemplate.toString match {
+    experimentDef.header.modeChoiceTemplate match {
       case "" =>
         // Do nothing since modeChoiceParams wasn't specified in experiment.yaml file
         ""
-      case uri =>
+      case _ =>
         if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
           runSandbox.modeChoiceParametersXmlPath.getParent.toFile.mkdirs()
         }

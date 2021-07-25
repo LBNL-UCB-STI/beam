@@ -5,7 +5,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
-import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.reflection.ReflectionUtils
 import com.typesafe.scalalogging.LazyLogging
 
@@ -102,7 +101,6 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
           if (!isStuck) {
-            val stat = actorToTriggerMessages.get(oldest.value.agent)
             // We have to add it back
             add(oldest.time, oldest.value, false)
             stuckAgents

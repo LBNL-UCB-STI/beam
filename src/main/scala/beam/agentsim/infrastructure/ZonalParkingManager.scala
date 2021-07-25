@@ -387,8 +387,8 @@ class ZonalParkingManagerFunctions[GEO: GeoLevel](
     // run ParkingZoneSearch for a ParkingStall
     ///////////////////////////////////////////
     val result @ ParkingZoneSearch.ParkingZoneSearchResult(
-      parkingStall,
-      parkingZone,
+      _,
+      _,
       parkingZonesSeen,
       parkingZonesSampled,
       iterations
@@ -681,9 +681,7 @@ object ZonalParkingManager extends LazyLogging {
   ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
-      random,
-      1.0,
-      1.0
+      random
     )
     new ZonalParkingManager(
       geoQuadTree,

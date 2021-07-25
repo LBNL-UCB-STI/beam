@@ -402,7 +402,7 @@ class PersonAgent(
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
+  def scaleTimeByValueOfTime(timeInSeconds: Double): Double = {
     attributes.unitConversionVOTT(
       timeInSeconds
     ) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
@@ -767,11 +767,11 @@ class PersonAgent(
   }
 
   when(TryingToBoardVehicle) {
-    case Event(Boarded(vehicle, _), basePersonData: BasePersonData) =>
+    case Event(Boarded(vehicle, _), _: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable(triggerId), basePersonData: BasePersonData) =>
+    case Event(NotAvailable(_), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
@@ -1155,7 +1155,7 @@ class PersonAgent(
 
   }
 
-  def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]): State = {
+  def handleBoardOrAlightOutOfPlace: State = {
     stash
     stay
   }
@@ -1187,79 +1187,23 @@ class PersonAgent(
         logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
       }
       stop
-    case Event(
-          TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
-          ChoosesModeData(
-            BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          )
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
-    case Event(
-          TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
-          ChoosesModeData(
-            BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          )
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+    case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: ChoosesModeData) =>
+      handleBoardOrAlightOutOfPlace
+    case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: ChoosesModeData) =>
+      handleBoardOrAlightOutOfPlace
     case Event(
           TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
           BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
-    case Event(
-          TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
-          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
-    case Event(
-          TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
-          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
-    case Event(NotifyVehicleIdle(_, _, _, _, _, _), _) =>
+    case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: BasePersonData) =>
+      handleBoardOrAlightOutOfPlace
+    case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: BasePersonData) =>
+      handleBoardOrAlightOutOfPlace
+    case Event(_: NotifyVehicleIdle, _) =>
       stay()
-    case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
+    case Event(TriggerWithId(_: RideHailResponseTrigger, triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case Event(
           TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),

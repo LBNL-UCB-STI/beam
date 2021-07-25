@@ -10,7 +10,7 @@ trait HasTickAndTrigger {
   def holdTickAndTriggerId(tick: Int, triggerId: Long): Unit = {
     if (_currentTriggerId.isDefined || _currentTick.isDefined)
       throw new IllegalStateException(
-        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively, while trying to hold ${tick} and ${triggerId}."
+        s"Expected both _currentTick and _currentTriggerId to be 'None' but found ${_currentTick} and ${_currentTriggerId} instead, respectively, while trying to hold $tick and $triggerId."
       )
     _currentTick = Some(tick)
     _currentTriggerId = Some(triggerId)

@@ -1,6 +1,5 @@
 package beam.utils.scenario
 
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
@@ -167,7 +166,7 @@ class UrbanSimScenarioLoader(
 
     val personId2Score: Map[PersonId, Double] =
       householdIdToPersons.flatMap { case (_, persons) =>
-        persons.map(x => x.personId -> getPersonScore(x, personIdToTravelStats(x.personId)))
+        persons.map(x => x.personId -> getPersonScore(personIdToTravelStats(x.personId)))
       }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
@@ -245,7 +244,7 @@ class UrbanSimScenarioLoader(
     )
   }
 
-  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
+  private def getPersonScore(personTravelStats: PersonTravelStats): Double = {
     val distanceExcludingLastTrip =
       personTravelStats.tripStats.dropRight(1).map(x => geo.distUTMInMeters(x.origin, x.destination)).sum
     val tripTimePenalty = personTravelStats.tripStats
