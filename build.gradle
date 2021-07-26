@@ -137,6 +137,7 @@ dependencies {
     implementation group: 'com.google.inject.extensions', name: 'guice-multibindings', version: '4.1.0'
     implementation group: 'org.apache.commons', name: 'commons-collections4', version: '4.4'
     implementation group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+    implementation group: 'org.apache.commons', name: 'commons-lang3', version: '3.12.0'
     implementation group: 'org.apache.httpcomponents', name: 'fluent-hc', version: '4.5.13'
 
     // Apache 2.0
@@ -314,6 +315,8 @@ dependencies {
 
     // AWS S3
     implementation group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
+    implementation group: 'software.amazon.awssdk', name: 'sts', version: '2.16.68'
+    implementation group: 'software.amazon.awssdk', name: 'lambda', version: '2.16.68'
     implementation group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
 
 }
