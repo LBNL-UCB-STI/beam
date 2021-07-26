@@ -45,10 +45,9 @@ class CsvSkimReader(
   }
 
   def readSkims(reader: BufferedReader): Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
-    tryReadSkims(reader).recover {
-      case ex: Throwable =>
-        logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
-        Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+    tryReadSkims(reader).recover { case ex: Throwable =>
+      logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
+      Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     }.get
   }
 

@@ -29,7 +29,7 @@ object GenerateBikeLanesScript extends App {
     filePath: Path = null,
     boundingBox: WgsBoundingBox = null,
     mode: String = null,
-    samplePercentage: Double = 100D,
+    samplePercentage: Double = 100d,
     outputFile: Path = null,
     geoUtils: GeoUtils = null
   )
@@ -42,10 +42,9 @@ object GenerateBikeLanesScript extends App {
       head("generate-bike-lanes", "0.1"),
       opt[File]("input")
         .required()
-        .validate(
-          file =>
-            if (file.isFile) success
-            else failure(s"$file does not exist")
+        .validate(file =>
+          if (file.isFile) success
+          else failure(s"$file does not exist")
         )
         .action((x, c) => c.copy(filePath = x.toPath))
         .text("input should be an input file"),
@@ -67,10 +66,9 @@ object GenerateBikeLanesScript extends App {
         .text("output should be the output file"),
       opt[Map[String, Double]]("boundBox")
         .required()
-        .validate(
-          map =>
-            if (Seq("x1", "y1", "x2", "y2").forall(map.contains)) success
-            else failure("missing at leas one parameter of the list: x1,y1,x2,y2")
+        .validate(map =>
+          if (Seq("x1", "y1", "x2", "y2").forall(map.contains)) success
+          else failure("missing at leas one parameter of the list: x1,y1,x2,y2")
         )
         .action((allPoints, c) => c.copy(boundingBox = toBoundBox(allPoints)))
         .text("--boundBox x1=10.1,y1=12.5,x2=17.91,y2=31.5"),

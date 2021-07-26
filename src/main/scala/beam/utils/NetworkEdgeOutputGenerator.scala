@@ -1,4 +1,5 @@
 package beam.utils
+
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.BeamConfig
 import com.conveyal.r5.streets.EdgeStore

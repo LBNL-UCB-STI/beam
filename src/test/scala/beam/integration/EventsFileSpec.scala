@@ -57,7 +57,7 @@ class EventsFileSpec
     )
     scenario = scenarioBuilt
     injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
 
     runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory, plansMerged)
     personHouseholds = scenario.getHouseholds.getHouseholds
@@ -86,10 +86,11 @@ class EventsFileSpec
     val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "trips.txt").map { stream =>
       Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
     }
-    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' ${gtfsZip}")
+    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' $gtfsZip")
 
-    val trips = for (line <- maybeLines.get)
-      yield line.split(",")(2)
+    val trips =
+      for (line <- maybeLines.get)
+        yield line.split(",")(2)
     trips.toSet
   }
 
@@ -108,10 +109,11 @@ class EventsFileSpec
     val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "stop_times.txt").map { stream =>
       Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
     }
-    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' ${gtfsZip}")
+    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' $gtfsZip")
 
-    val stopTimes = for (line <- maybeLines.get)
-      yield line.split(",")
+    val stopTimes =
+      for (line <- maybeLines.get)
+        yield line.split(",")
     val stopTimesByTrip = stopTimes.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
   }
@@ -204,7 +206,7 @@ class EventsFileSpec
     val xmlEvents = fromXmlFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "xml").getAbsolutePath)
     assert(xmlEvents.nonEmpty)
     val (csvEventsIter, toClose) =
-      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, x => true)
+      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, _ => true)
     try {
       assert(csvEventsIter.toArray.nonEmpty)
     } finally {

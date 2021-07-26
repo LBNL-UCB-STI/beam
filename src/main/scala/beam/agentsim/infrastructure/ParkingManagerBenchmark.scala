@@ -30,8 +30,8 @@ import scala.util.Random
 class ParkingManagerBenchmark(
   val possibleParkingLocations: Array[(Coord, String)],
   val parkingManagerActor: ParkingNetwork[_]
-)(
-  implicit val actorSystem: ActorSystem,
+)(implicit
+  val actorSystem: ActorSystem,
   val ec: ExecutionContext
 ) extends StrictLogging {
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
@@ -41,9 +41,8 @@ class ParkingManagerBenchmark(
   def benchmark(): List[ParkingInquiryResponse] = {
     val parkingResponses =
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
-        possibleParkingLocations.flatMap {
-          case (coord, actType) =>
-            parkingManagerActor.processParkingInquiry(ParkingInquiry(SpaceTime(coord, 0), actType, triggerId = -1L))
+        possibleParkingLocations.flatMap { case (coord, actType) =>
+          parkingManagerActor.processParkingInquiry(ParkingInquiry(SpaceTime(coord, 0), actType, triggerId = -1L))
         }.toList
       }
     logger.info(s"parkingResponses: ${parkingResponses.length}")
@@ -234,9 +233,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         parkingLocations: immutable.IndexedSeq[Array[(Coord, String)]]
       ): (String, immutable.IndexedSeq[List[ParkingInquiryResponse]]) = {
         val start = System.currentTimeMillis()
-        val responses = (1 to nTimes).zip(parkingLocations).map {
-          case (_, parkingLocation) =>
-            runBench(parkingLocation, managerType)
+        val responses = (1 to nTimes).zip(parkingLocations).map { case (_, parkingLocation) =>
+          runBench(parkingLocation, managerType)
         }
         val end = System.currentTimeMillis()
         val diff = end - start
@@ -254,8 +252,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         rnd.shuffle(allActivityLocations.toList).take(nToTake).toArray
       }
       CsvWriter("./parking_inquiries.csv.gz", "activity-type", "x", "y")
-        .writeAllAndClose(parkingLocations.flatten.map {
-          case (coord, actType) => List(actType, coord.getX, coord.getY)
+        .writeAllAndClose(parkingLocations.flatten.map { case (coord, actType) =>
+          List(actType, coord.getX, coord.getY)
         })
       logger.info("activities written")
 
@@ -282,14 +280,6 @@ object ParkingManagerBenchmark extends StrictLogging {
         zonalResponses
           .flatMap(_.map(resp => List(resp.stall.geoId, resp.stall.locationUTM.getX, resp.stall.locationUTM.getY)))
       )
-  }
-
-  private def groupedByTaz(parkingResponses: Seq[ParkingInquiryResponse]): Map[Id[TAZ], Seq[ParkingInquiryResponse]] = {
-    parkingResponses
-      .groupBy { x =>
-        x.stall.tazId
-      }
-      .map { case (tazId, xs) => (tazId, xs) }
   }
 
   private def getNetworkBoundingBox(network: Network): Envelope = {

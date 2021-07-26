@@ -36,7 +36,7 @@ class PumaLevelScenarioGenerator(
   val pathToOsmMap: String,
   val randomSeed: Int,
   val offPeakSpeedMetersPerSecond: Double = 20.5638, // https://inrix.com/scorecard-city/?city=Austin%2C%20TX&index=84
-  val defaultValueOfTime: Double = 8.0,
+  val defaultValueOfTime: Double = 8.0
 ) extends ScenarioGenerator
     with StrictLogging {
 
@@ -83,10 +83,13 @@ class PumaLevelScenarioGenerator(
 
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
     new RandomWorkDestinationGenerator(dbInfo)
+
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
+
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`
+
   private val sourceToTimeLeavingOD =
     new TimeLeavingHomeTableReader(dbInfo, residenceToWorkplaceFlowGeography).read().groupBy(x => x.source)
   private val pointsGenerator: PointGenerator = new RandomPointsInGridGenerator(1.1)
@@ -104,8 +107,10 @@ class PumaLevelScenarioGenerator(
       }
       .groupBy(x => x.id)
       .map { case (hhId, xs) => hhId -> xs.head }
+
   private val householdIdToPersons: Map[String, Seq[Models.Person]] =
     new PopulationReader(pathToPopulationFile).read().groupBy(x => x.householdId)
+
   private val householdWithPersons: Map[Models.Household, Seq[Models.Person]] = householdIdToPersons.map {
     case (hhId, persons) =>
       val household = households(hhId)
@@ -148,16 +153,14 @@ class PumaLevelScenarioGenerator(
     val allWorkingDestinations = blockGroupGeoIdToHouseholds.values.flatMap { x =>
       x.flatMap { case (_, xs) => xs.map(_.workDest) }
     }
-    val powPumaToOccurrences = allWorkingDestinations.foldLeft(Map[PowPumaGeoId, Int]()) {
-      case (acc, c) =>
-        val occur = acc.getOrElse(c, 0) + 1
-        acc.updated(c, occur)
+    val powPumaToOccurrences = allWorkingDestinations.foldLeft(Map[PowPumaGeoId, Int]()) { case (acc, c) =>
+      val occur = acc.getOrElse(c, 0) + 1
+      acc.updated(c, occur)
     }
     logger.info(s"allWorkingDestinations: ${allWorkingDestinations.size}")
     logger.info(s"powPumaToOccurrences: ${powPumaToOccurrences.size}")
-    powPumaToOccurrences.foreach {
-      case (powPumaGeoId, cnt) =>
-        logger.info(s"$powPumaGeoId => $cnt")
+    powPumaToOccurrences.foreach { case (powPumaGeoId, cnt) =>
+      logger.info(s"$powPumaGeoId => $cnt")
     }
     // Generate all work destinations which will be later assigned to people
     val powPumaGeoIdToWorkingLocations = powPumaToOccurrences.par.map {
@@ -166,11 +169,11 @@ class PumaLevelScenarioGenerator(
           case Some(geom) =>
             // FIXME
             val nLocations = nWorkingPlaces // if (nWorkingPlaces > 10000) 10000 else nWorkingPlaces
-            ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${powPumaGeoId}", x => logger.info(x)) {
+            ProfilingUtils.timed(s"Generate $nWorkingPlaces geo points in $powPumaGeoId", x => logger.info(x)) {
               pointsGenerator.generate(geom, nLocations)
             }
           case None =>
-            logger.warn(s"Can't find ${powPumaGeoId} in `powPumaGeoIdMap`")
+            logger.warn(s"Can't find $powPumaGeoId in `powPumaGeoIdMap`")
             Seq.empty
         }
         powPumaGeoId -> workingGeos
@@ -178,132 +181,129 @@ class PumaLevelScenarioGenerator(
 
     val blockGroupGeoIdToHouseholdsLocations =
       ProfilingUtils.timed(s"Generate ${households.size} locations", x => logger.info(x)) {
-        blockGroupGeoIdToHouseholds.par.map {
-          case (blockGroupGeoId, householdsWithPersonData) =>
-            val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
-            blockGroupGeoId -> pointsGenerator.generate(
-              blockGeomOfHousehold,
-              householdsWithPersonData.size
-            )
+        blockGroupGeoIdToHouseholds.par.map { case (blockGroupGeoId, householdsWithPersonData) =>
+          val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
+          blockGroupGeoId -> pointsGenerator.generate(
+            blockGeomOfHousehold,
+            householdsWithPersonData.size
+          )
         }.seq
       }
 
     val nextWorkLocation = mutable.HashMap[PowPumaGeoId, Int]()
-    val finalResult = blockGroupGeoIdToHouseholds.map {
-      case (blockGroupGeoId, householdsWithPersonData) =>
-        logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
-        val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
-        if (householdLocation.size != householdsWithPersonData.size) {
-          logger.warn(
-            s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
-          )
-        }
-        val res = householdsWithPersonData.zip(householdLocation).flatMap {
-          case ((household: Models.Household, personsWithData), wgsHouseholdLocation) =>
-            if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
-              val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
-              val createdHousehold = HouseholdInfo(
-                HouseholdId(household.id),
-                household.numOfVehicles,
-                household.income,
-                utmHouseholdCoord.getX,
-                utmHouseholdCoord.getY
-              )
+    val finalResult = blockGroupGeoIdToHouseholds.map { case (blockGroupGeoId, householdsWithPersonData) =>
+      logger.info(s"BlockGroupId $blockGroupGeoId contains ${householdsWithPersonData.size} households")
+      val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
+      if (householdLocation.size != householdsWithPersonData.size) {
+        logger.warn(
+          s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
+        )
+      }
+      val res = householdsWithPersonData.zip(householdLocation).flatMap {
+        case ((household: Models.Household, personsWithData), wgsHouseholdLocation) =>
+          if (mapBoundingBox.contains(wgsHouseholdLocation.getX, wgsHouseholdLocation.getY)) {
+            val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
+            val createdHousehold = HouseholdInfo(
+              HouseholdId(household.id),
+              household.numOfVehicles,
+              household.income,
+              utmHouseholdCoord.getX,
+              utmHouseholdCoord.getY
+            )
 
-              val (personsAndPlans, lastPersonId) =
-                personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
-                  case ((xs, nextPersonId), PersonWithExtraInfoPuma(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
-                    val workLocations = powPumaGeoIdToWorkingLocations(workDestPumaGeoId)
-                    val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
-                    nextWorkLocation.update(workDestPumaGeoId, offset + 1)
-                    workLocations.lift(offset) match {
-                      case Some(wgsWorkingLocation) =>
-                        if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
-                          val valueOfTime =
-                            PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
-                          val createdPerson = beam.utils.scenario.PersonInfo(
-                            personId = PersonId(nextPersonId.toString),
-                            householdId = createdHousehold.householdId,
-                            rank = 0,
-                            age = person.age,
-                            excludedModes = Seq.empty,
-                            isFemale = person.gender == Gender.Female,
-                            valueOfTime = valueOfTime
+            val (personsAndPlans, lastPersonId) =
+              personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
+                case ((xs, nextPersonId), PersonWithExtraInfoPuma(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
+                  val workLocations = powPumaGeoIdToWorkingLocations(workDestPumaGeoId)
+                  val offset = nextWorkLocation.getOrElse(workDestPumaGeoId, 0)
+                  nextWorkLocation.update(workDestPumaGeoId, offset + 1)
+                  workLocations.lift(offset) match {
+                    case Some(wgsWorkingLocation) =>
+                      if (mapBoundingBox.contains(wgsWorkingLocation.getX, wgsWorkingLocation.getY)) {
+                        val valueOfTime =
+                          PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
+                        val createdPerson = beam.utils.scenario.PersonInfo(
+                          personId = PersonId(nextPersonId.toString),
+                          householdId = createdHousehold.householdId,
+                          rank = 0,
+                          age = person.age,
+                          excludedModes = Seq.empty,
+                          isFemale = person.gender == Gender.Female,
+                          valueOfTime = valueOfTime
+                        )
+                        val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
+
+                        // Create Home Activity: end time is when a person leaves a home
+                        val leavingHomeActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 1,
+                          activityType = Some("Home"),
+                          activityLocationX = Some(utmHouseholdCoord.getX),
+                          activityLocationY = Some(utmHouseholdCoord.getY),
+                          activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
+                          geoId = Some(household.geoId.asUniqueKey)
+                        )
+                        // Create Leg
+                        val leavingHomeLeg = planElementTemplate
+                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+
+                        val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
+                        val margin = 1.3
+                        val travelTime =
+                          estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
+                        val workStartTime = timeLeavingHomeSeconds + travelTime
+                        val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
+                        val timeLeavingWorkSeconds = workStartTime + workingDuration
+
+                        val leavingWorkActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 3,
+                          activityType = Some("Work"),
+                          activityLocationX = Some(utmWorkingLocation.getX),
+                          activityLocationY = Some(utmWorkingLocation.getY),
+                          activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
+                        )
+                        val leavingWorkLeg = planElementTemplate
+                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+
+                        // Create Home Activity: end time not defined
+                        val homeActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 5,
+                          activityType = Some("Home"),
+                          activityLocationX = Some(utmWorkingLocation.getX),
+                          activityLocationY = Some(utmWorkingLocation.getY)
+                        )
+
+                        val personWithPlans = PersonWithPlans(
+                          createdPerson,
+                          List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
+                        )
+                        (personWithPlans :: xs, nextPersonId + 1)
+                      } else {
+                        logger
+                          .info(
+                            s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox"
                           )
-                          val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
-
-                          // Create Home Activity: end time is when a person leaves a home
-                          val leavingHomeActivity = planElementTemplate.copy(
-                            personId = createdPerson.personId,
-                            planElementType = "activity",
-                            planElementIndex = 1,
-                            activityType = Some("Home"),
-                            activityLocationX = Some(utmHouseholdCoord.getX),
-                            activityLocationY = Some(utmHouseholdCoord.getY),
-                            activityEndTime = Some(timeLeavingHomeSeconds / 3600.0),
-                            geoId = Some(household.geoId.asUniqueKey)
-                          )
-                          // Create Leg
-                          val leavingHomeLeg = planElementTemplate
-                            .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
-
-                          val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
-                          val margin = 1.3
-                          val distance = geoUtils.distUTMInMeters(utmHouseholdCoord, utmWorkingLocation) * margin
-                          val travelTime =
-                            estimateTravelTime(timeLeavingHomeSeconds, utmHouseholdCoord, utmWorkingLocation, margin)
-                          val workStartTime = timeLeavingHomeSeconds + travelTime
-                          val workingDuration = workedDurationGeneratorImpl.next(timeLeavingHomeRange)
-                          val timeLeavingWorkSeconds = workStartTime + workingDuration
-
-                          val leavingWorkActivity = planElementTemplate.copy(
-                            personId = createdPerson.personId,
-                            planElementType = "activity",
-                            planElementIndex = 3,
-                            activityType = Some("Work"),
-                            activityLocationX = Some(utmWorkingLocation.getX),
-                            activityLocationY = Some(utmWorkingLocation.getY),
-                            activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
-                          )
-                          val leavingWorkLeg = planElementTemplate
-                            .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
-
-                          // Create Home Activity: end time not defined
-                          val homeActivity = planElementTemplate.copy(
-                            personId = createdPerson.personId,
-                            planElementType = "activity",
-                            planElementIndex = 5,
-                            activityType = Some("Home"),
-                            activityLocationX = Some(utmWorkingLocation.getX),
-                            activityLocationY = Some(utmWorkingLocation.getY)
-                          )
-
-                          val personWithPlans = PersonWithPlans(
-                            createdPerson,
-                            List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
-                          )
-                          (personWithPlans :: xs, nextPersonId + 1)
-                        } else {
-                          logger
-                            .info(
-                              s"Working location $wgsWorkingLocation does not belong to bounding box $mapBoundingBox"
-                            )
-                          (xs, nextPersonId + 1)
-                        }
-                      case None =>
                         (xs, nextPersonId + 1)
-                    }
-                }
-              globalPersonId = lastPersonId
-              if (personsAndPlans.size == personsWithData.size) {
-                Some((createdHousehold, personsAndPlans))
-              } else None
-            } else {
-              logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
-              None
-            }
-        }
-        blockGroupGeoId -> res
+                      }
+                    case None =>
+                      (xs, nextPersonId + 1)
+                  }
+              }
+            globalPersonId = lastPersonId
+            if (personsAndPlans.size == personsWithData.size) {
+              Some((createdHousehold, personsAndPlans))
+            } else None
+          } else {
+            logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
+            None
+          }
+      }
+      blockGroupGeoId -> res
     }
 
     ScenarioResult(finalResult.values.flatten, Map.empty)
@@ -312,20 +312,17 @@ class PumaLevelScenarioGenerator(
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
     // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
     val blockGroupToPuma = geoSvc.blockGroupGeoIdToGeom
-      .flatMap {
-        case (blockGroupGeoId, blockGroupGeom) =>
-          // Intersect with all and get the best by the covered area
-          val allIntersections = pumaGeoIdToGeom.map {
-            case (pumaGeoId, pumaGeom) =>
-              val intersection = blockGroupGeom.intersection(pumaGeom)
-              (intersection, blockGroupGeoId, pumaGeoId)
-          }
-          val best = if (allIntersections.nonEmpty) Some(allIntersections.maxBy(x => x._1.getArea)) else None
-          best
+      .flatMap { case (blockGroupGeoId, blockGroupGeom) =>
+        // Intersect with all and get the best by the covered area
+        val allIntersections = pumaGeoIdToGeom.map { case (pumaGeoId, pumaGeom) =>
+          val intersection = blockGroupGeom.intersection(pumaGeom)
+          (intersection, blockGroupGeoId, pumaGeoId)
+        }
+        val best = if (allIntersections.nonEmpty) Some(allIntersections.maxBy(x => x._1.getArea)) else None
+        best
       }
-      .map {
-        case (_, blockGroupGeoId, pumaGeoId) =>
-          blockGroupGeoId -> pumaGeoId
+      .map { case (_, blockGroupGeoId, pumaGeoId) =>
+        blockGroupGeoId -> pumaGeoId
       }
       .toMap
     blockGroupToPuma
@@ -336,51 +333,50 @@ class PumaLevelScenarioGenerator(
     geoIdToHouseholds: Map[BlockGroupGeoId, Iterable[Models.Household]]
   ): Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfoPuma])]] = {
     val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfoPuma])]] =
-      geoIdToHouseholds.map {
-        case (blockGroupGeoId, households) =>
-          // TODO We need to bring building density in the future
-          val pumaGeoIdOfHousehold: PumaGeoId = blockGroupToPumaMap(blockGroupGeoId)
+      geoIdToHouseholds.map { case (blockGroupGeoId, households) =>
+        // TODO We need to bring building density in the future
+        val pumaGeoIdOfHousehold: PumaGeoId = blockGroupToPumaMap(blockGroupGeoId)
 
-          val timeLeavingODPairs = sourceToTimeLeavingOD(pumaGeoIdOfHousehold.asUniqueKey)
-          val peopleInHouseholds = households.flatMap(x => householdIdToPersons(x.id))
-          logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
+        val timeLeavingODPairs = sourceToTimeLeavingOD(pumaGeoIdOfHousehold.asUniqueKey)
+        val peopleInHouseholds = households.flatMap(x => householdIdToPersons(x.id))
+        logger.info(s"In ${households.size} there are ${peopleInHouseholds.size} people")
 
-          val householdsWithPersonData = households.map { household =>
-            val persons = householdWithPersons(household)
-            val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
-              rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold.asUniqueKey, household.income, rndGen).map {
-                powPumaWorkDestStr =>
-                  val powPumaWorkDest = PowPumaGeoId.fromString(powPumaWorkDestStr)
-                  val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)
-                  if (foundDests.isEmpty) {
-                    logger
-                      .info(
-                        s"Could not find work destination '${powPumaWorkDest}' in ${timeLeavingODPairs.mkString(" ")}"
-                      )
-                    PersonWithExtraInfoPuma(
-                      person = person,
-                      workDest = powPumaWorkDest,
-                      timeLeavingHomeRange = defaultTimeLeavingHomeRange
+        val householdsWithPersonData = households.map { household =>
+          val persons = householdWithPersons(household)
+          val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
+            rndWorkDestinationGenerator.next(pumaGeoIdOfHousehold.asUniqueKey, household.income, rndGen).map {
+              powPumaWorkDestStr =>
+                val powPumaWorkDest = PowPumaGeoId.fromString(powPumaWorkDestStr)
+                val foundDests = timeLeavingODPairs.filter(x => x.destination == powPumaWorkDest.asUniqueKey)
+                if (foundDests.isEmpty) {
+                  logger
+                    .info(
+                      s"Could not find work destination '$powPumaWorkDest' in ${timeLeavingODPairs.mkString(" ")}"
                     )
-                  } else {
-                    val timeLeavingHomeRange =
-                      ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
-                    PersonWithExtraInfoPuma(
-                      person = person,
-                      workDest = powPumaWorkDest,
-                      timeLeavingHomeRange = timeLeavingHomeRange
-                    )
-                  }
-              }
+                  PersonWithExtraInfoPuma(
+                    person = person,
+                    workDest = powPumaWorkDest,
+                    timeLeavingHomeRange = defaultTimeLeavingHomeRange
+                  )
+                } else {
+                  val timeLeavingHomeRange =
+                    ODSampler.sample(foundDests, rndGen).map(_.attribute).getOrElse(defaultTimeLeavingHomeRange)
+                  PersonWithExtraInfoPuma(
+                    person = person,
+                    workDest = powPumaWorkDest,
+                    timeLeavingHomeRange = timeLeavingHomeRange
+                  )
+                }
             }
-            if (personWithWorkDestAndTimeLeaving.size != persons.size) {
-              logger.warn(
-                s"Seems like the data for the persons not fully created. Original number of persons: ${persons.size}, but personWithWorkDestAndTimeLeaving size is ${personWithWorkDestAndTimeLeaving.size}"
-              )
-            }
-            (household, personWithWorkDestAndTimeLeaving)
           }
-          blockGroupGeoId -> householdsWithPersonData
+          if (personWithWorkDestAndTimeLeaving.size != persons.size) {
+            logger.warn(
+              s"Seems like the data for the persons not fully created. Original number of persons: ${persons.size}, but personWithWorkDestAndTimeLeaving size is ${personWithWorkDestAndTimeLeaving.size}"
+            )
+          }
+          (household, personWithWorkDestAndTimeLeaving)
+        }
+        blockGroupGeoId -> householdsWithPersonData
       }
     blockGroupGeoIdToHouseholds
   }

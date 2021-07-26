@@ -47,81 +47,78 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
     val vehicleEvents = mutable.Map[String, mutable.Set[PersonEntersVehicleEvent]]()
     val vehicleAbnormalities = mutable.Seq[RideHailAbnormality]()
 
-    rideHailEvents.foreach(
-      event =>
-        event.getEventType match {
+    rideHailEvents.foreach(event =>
+      event.getEventType match {
 
-          case PersonEntersVehicleEvent.EVENT_TYPE =>
-            val currentEvent = event.asInstanceOf[PersonEntersVehicleEvent]
-            val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
+        case PersonEntersVehicleEvent.EVENT_TYPE =>
+          val currentEvent = event.asInstanceOf[PersonEntersVehicleEvent]
+          val vehicle = event.getAttributes.get(PersonEntersVehicleEvent.ATTRIBUTE_VEHICLE)
 
-            val events = vehicleEvents.get(vehicle) match {
-              case Some(es) =>
-                es
-              case None => mutable.Set[PersonEntersVehicleEvent]()
-            }
-            // if person enters ride hail vehicle afterwards another person enters in the ride hail vehicle, even the first one doesn't leaves the vehicle
-            if (events.nonEmpty) {
+          val events = vehicleEvents.get(vehicle) match {
+            case Some(es) =>
+              es
+            case None => mutable.Set[PersonEntersVehicleEvent]()
+          }
+          // if person enters ride hail vehicle afterwards another person enters in the ride hail vehicle, even the first one doesn't leaves the vehicle
+          if (events.nonEmpty) {
+            vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
+            logger.debug(
+              ".RideHail: vehicle {} already has person and another enters - {}",
+              vehicle,
+              event
+            )
+          }
+
+          events += currentEvent
+          vehicleEvents.put(vehicle, events)
+
+        case PathTraversalEvent.EVENT_TYPE if vehicleEvents.nonEmpty =>
+          val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+          val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+          val departure =
+            event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+
+          vehicleEvents.get(vehicle) match {
+            // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
+            case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
+              vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
+              logger.debug("RideHail: vehicle {} with zero passenger - {}", vehicle, event)
+
+            // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
+            case None if numPassengers > 0 =>
               vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
               logger.debug(
-                ".RideHail: vehicle {} already has person and another enters - {}",
+                "RideHail: vehicle {} with {} passenger but no enterVehicle encountered - {}",
                 vehicle,
+                numPassengers,
                 event
               )
-            }
 
-            events += currentEvent
-            vehicleEvents.put(vehicle, events)
+            case _ =>
+          }
 
-          case PathTraversalEvent.EVENT_TYPE if vehicleEvents.nonEmpty =>
-            val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-            val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
-            val departure =
-              event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+        case PersonLeavesVehicleEvent.EVENT_TYPE =>
+          val person = event.getAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON)
+          val vehicle = event.getAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE)
 
-            vehicleEvents.get(vehicle) match {
-              // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
-              case Some(enterEvents) if numPassengers == 0 && enterEvents.count(_.getTime == departure) > 0 =>
-                vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
-                logger.debug("RideHail: vehicle {} with zero passenger - {}", vehicle, event)
+          vehicleEvents.get(vehicle) match {
 
-              // if person doesn't enters ride hail vehicle then number of passengers = 0 in ride hail vehicle
-              case None if numPassengers > 0 =>
-                vehicleAbnormalities :+ RideHailAbnormality(vehicle, event)
-                logger.debug(
-                  "RideHail: vehicle {} with {} passenger but no enterVehicle encountered - {}",
-                  vehicle,
-                  numPassengers,
-                  event
-                )
+            case Some(enterEvents) =>
+              enterEvents --= enterEvents.filter(e => e.getPersonId.toString.equals(person))
 
-              case _ =>
-            }
+              if (enterEvents.isEmpty)
+                vehicleEvents.remove(vehicle)
+              else
+                vehicleEvents.put(vehicle, enterEvents)
 
-          case PersonLeavesVehicleEvent.EVENT_TYPE =>
-            val person = event.getAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_PERSON)
-            val vehicle = event.getAttributes.get(PersonLeavesVehicleEvent.ATTRIBUTE_VEHICLE)
-
-            vehicleEvents.get(vehicle) match {
-
-              case Some(enterEvents) =>
-                enterEvents --= enterEvents.filter(e => e.getPersonId.toString.equals(person))
-
-                if (enterEvents.isEmpty)
-                  vehicleEvents.remove(vehicle)
-                else
-                  vehicleEvents.put(vehicle, enterEvents)
-
-              case None =>
-            }
-          case _ =>
+            case None =>
+          }
+        case _ =>
       }
     )
 
     vehicleEvents.foreach(
-      _._2.foreach(
-        event => logger.debug("RideHail: Person enters vehicle but no leaves event encountered. {}", event)
-      )
+      _._2.foreach(event => logger.debug("RideHail: Person enters vehicle but no leaves event encountered. {}", event))
     )
 
     rideHailEvents.clear()

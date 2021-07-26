@@ -1,4 +1,5 @@
 package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions
+
 import java.util.concurrent.ThreadLocalRandom
 import beam.sim.BeamConfigChangesObservable
 
@@ -21,9 +22,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends AnyFunSpec {
   private val javaRandom: ThreadLocalRandom = ThreadLocalRandom.current
   private val minRoadCapacity = javaRandom.nextDouble(1, 100)
   private val minSpeedMetersPerSecond = javaRandom.nextDouble(0, 200)
-  private val flowCapacityFactor = javaRandom.nextDouble(0, 200)
   private val iterationNumber = javaRandom.nextInt(0, 200)
-  private val writeInterval = javaRandom.nextInt(0, 20)
 
   private val config = ConfigFactory
     .parseMap(
@@ -65,7 +64,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends AnyFunSpec {
     val toNode: Node = NetworkUtils.createNode(Id.create(Random.alphanumeric.take(20).toString(), classOf[Node]))
 
     val linkId = Id.createLinkId(edgeIndex)
-    NetworkUtils.createLink(linkId, fromNode, toNode, mNetwork, length, freeSpeed, capacity, 10D)
+    NetworkUtils.createLink(linkId, fromNode, toNode, mNetwork, length, freeSpeed, capacity, 10d)
   }
 
   describe("Hao2018CaccRoadCapacityAdjustmentFunction") {

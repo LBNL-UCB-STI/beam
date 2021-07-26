@@ -119,7 +119,6 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
   def getParkingZoneLocationUtm(parkingZoneId: Int): Coord
 
   /**
-    *
     * @param inquiry
     * @param parallelizationCounterOption
     * @return
@@ -130,10 +129,9 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
   ): Option[ParkingInquiryResponse] = None
 
   /**
-    *
     * @param release
     */
-  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = Unit
+  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = ()
 
 }
 

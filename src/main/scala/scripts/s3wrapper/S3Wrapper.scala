@@ -208,19 +208,11 @@ object S3Wrapper extends StrictLogging {
   }
 
   def fromCredential(profile: String): S3Wrapper = {
-    fromCredential(profile, None)
-  }
-
-  def fromCredential(profile: String, region: String): S3Wrapper = {
-    fromCredential(profile, Some(region))
-  }
-
-  private def fromCredential(profile: String, region: Option[String]): S3Wrapper = {
     val filePath = FileUtils.getUserDirectory.toPath.resolve(".aws").resolve("credentials")
-    fromCredentialFile(filePath, profile, region)
+    fromCredentialFile(filePath, profile)
   }
 
-  def fromCredentialFile(filePath: Path, profile: String, region: Option[String] = None): S3Wrapper = {
+  private def fromCredentialFile(filePath: Path, profile: String): S3Wrapper = {
     logger.info(s"Loading profile [$profile] from information file [$filePath].")
     if (!Files.isRegularFile(filePath)) {
       throw new IllegalArgumentException(s"File [$filePath] is not a regular file")

@@ -4,7 +4,7 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
@@ -27,7 +27,6 @@ class TransitInitializer(
   beamConfig: BeamConfig,
   geo: GeoUtils,
   dates: DateUtils,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
   travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
@@ -92,11 +91,11 @@ class TransitInitializer(
         )
     }
 
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
+    def pathWithStreetRoute(streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
-      (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
+      (departureTime: Int, _: Int, _: Id[Vehicle]) =>
         val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
           edges.map(_.toInt).toIndexedSeq,
           departureTime,
@@ -137,23 +136,22 @@ class TransitInitializer(
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths: Seq[(Int, Int, Id[Vehicle]) => BeamPath] = tripPattern.stops.indices
         .sliding(2)
-        .map {
-          case IndexedSeq(fromStopIdx, toStopIdx) =>
-            val fromStop = tripPattern.stops(fromStopIdx)
-            val toStop = tripPattern.stops(toStopIdx)
-            if (beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
-              stopToStopStreetSegmentCache.getOrElseUpdate(
-                (fromStop, toStop),
-                routeTransitPathThroughStreets(fromStop, toStop)
-              ) match {
-                case Some(streetSeg) =>
-                  pathWithStreetRoute(fromStop, toStop, streetSeg)
-                case None =>
-                  pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
-              }
-            } else {
-              pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
+        .map { case IndexedSeq(fromStopIdx, toStopIdx) =>
+          val fromStop = tripPattern.stops(fromStopIdx)
+          val toStop = tripPattern.stops(toStopIdx)
+          if (beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
+            stopToStopStreetSegmentCache.getOrElseUpdate(
+              (fromStop, toStop),
+              routeTransitPathThroughStreets(fromStop, toStop)
+            ) match {
+              case Some(streetSeg) =>
+                pathWithStreetRoute(streetSeg)
+              case None =>
+                pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
             }
+          } else {
+            pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
+          }
         }
         .toSeq
 
@@ -165,15 +163,14 @@ class TransitInitializer(
           val legs =
             tripSchedule.departures.zipWithIndex
               .sliding(2)
-              .map {
-                case Array((departureTimeFrom, from), (_, to)) =>
-                  val duration = tripSchedule.arrivals(to) - departureTimeFrom
-                  BeamLeg(
-                    departureTimeFrom,
-                    mode,
-                    duration,
-                    transitPaths(from)(departureTimeFrom, duration, tripVehId)
-                  ).scaleToNewDuration(duration)
+              .map { case Array((departureTimeFrom, from), (_, to)) =>
+                val duration = tripSchedule.arrivals(to) - departureTimeFrom
+                BeamLeg(
+                  departureTimeFrom,
+                  mode,
+                  duration,
+                  transitPaths(from)(departureTimeFrom, duration, tripVehId)
+                ).scaleToNewDuration(duration)
               }
               .toArray
           (tripVehId, (route, legs))

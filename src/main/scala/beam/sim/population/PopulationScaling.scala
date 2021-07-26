@@ -25,9 +25,9 @@ class PopulationScaling extends LazyLogging {
     logger.info(s"""Before sampling:
                    |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
                    |Number of vehicles: ${getVehicleGroupingStringUsing(
-                     scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq,
-                     beamScenario
-                   )}
+      scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq,
+      beamScenario
+    )}
                    |Number of persons: ${scenario.getPopulation.getPersons.keySet.size}""".stripMargin)
     // check the total count of population required based on the config 'agentSampleSizeAsFractionOfPopulation'
     // required population = agentSampleSizeAsFractionOfPopulation * current population
@@ -45,74 +45,72 @@ class PopulationScaling extends LazyLogging {
       // generate new households
       existingHouseHolds.toStream
         .takeWhile(_ => populationCounter < totalPopulationRequired)
-        .map {
-          case (houseHoldId, houseHold) =>
-            // proceed only if the required population is not yet reached
-            // get the members in the current house hold and duplicate them with new ids
-            val members =
-              houseHold.getMemberIds.asScala
-                .flatMap(m => Option(scenario.getPopulation.getPersons.get(m)))
-                // proceed only if the required population is not yet reached
-                .take((totalPopulationRequired - populationCounter).toInt)
-                .map { person =>
-                  populationCounter += 1
-                  // clone the existing person to create a new person with different id
-                  val newPerson =
-                    scenario.getPopulation.getFactory.createPerson(Id.createPersonId(s"${person.getId.toString}_$i"))
+        .map { case (houseHoldId, houseHold) =>
+          // proceed only if the required population is not yet reached
+          // get the members in the current house hold and duplicate them with new ids
+          val members =
+            houseHold.getMemberIds.asScala
+              .flatMap(m => Option(scenario.getPopulation.getPersons.get(m)))
+              // proceed only if the required population is not yet reached
+              .take((totalPopulationRequired - populationCounter).toInt)
+              .map { person =>
+                populationCounter += 1
+                // clone the existing person to create a new person with different id
+                val newPerson =
+                  scenario.getPopulation.getFactory.createPerson(Id.createPersonId(s"${person.getId.toString}_$i"))
 
-                  PersonUtils.setSex(newPerson, PersonUtils.getSex(person))
-                  PersonUtils.setAge(newPerson, PersonUtils.getAge(person))
-                  PersonUtils.setCarAvail(newPerson, PersonUtils.getCarAvail(person))
-                  PersonUtils.setLicence(newPerson, PersonUtils.getLicense(person))
+                PersonUtils.setSex(newPerson, PersonUtils.getSex(person))
+                PersonUtils.setAge(newPerson, PersonUtils.getAge(person))
+                PersonUtils.setCarAvail(newPerson, PersonUtils.getCarAvail(person))
+                PersonUtils.setLicence(newPerson, PersonUtils.getLicense(person))
 
-                  person.getCustomAttributes
-                    .keySet()
-                    .forEach(a => {
-                      newPerson.getCustomAttributes.put(a, person.getCustomAttributes.get(a))
-                    })
-                  // copy the plans and attributes of the existing person to the new person
-                  person.getPlans.forEach(p => newPerson.addPlan(p))
-                  newPerson.setSelectedPlan(person.getSelectedPlan)
-                  // add the new person to the scenario
-                  scenario.getPopulation.addPerson(newPerson)
-                  newPerson.getId
-                }
-            val vehicles = houseHold.getVehicleIds.asScala
-              .flatMap(x => Option(scenario.getVehicles.getVehicles.get(x)))
-              .map { vehicle =>
-                // clone the current vehicle to form a new vehicle with different id
-                val newVehicle = scenario.getVehicles.getFactory
-                  .createVehicle(Id.createVehicleId(s"${vehicle.getId.toString}_$i"), vehicle.getType)
-                // add the new cloned vehicle to the scenario
-                scenario.getVehicles.addVehicle(newVehicle)
-                newVehicle.getId
+                person.getCustomAttributes
+                  .keySet()
+                  .forEach(a => {
+                    newPerson.getCustomAttributes.put(a, person.getCustomAttributes.get(a))
+                  })
+                // copy the plans and attributes of the existing person to the new person
+                person.getPlans.forEach(p => newPerson.addPlan(p))
+                newPerson.setSelectedPlan(person.getSelectedPlan)
+                // add the new person to the scenario
+                scenario.getPopulation.addPerson(newPerson)
+                newPerson.getId
               }
-            // generate a new household and add the above clone members and vehicles
-            val newHouseHold = scenario.getHouseholds.getFactory
-              .createHousehold(Id.create(s"${houseHoldId.toString}_$i", classOf[Household]))
-              .asInstanceOf[HouseholdImpl]
-            newHouseHold.setIncome(houseHold.getIncome)
-            if (members.nonEmpty) newHouseHold.setMemberIds(members.asJava)
-            if (vehicles.nonEmpty) newHouseHold.setVehicleIds(vehicles.asJava)
-            newHouseHold -> houseHold
+          val vehicles = houseHold.getVehicleIds.asScala
+            .flatMap(x => Option(scenario.getVehicles.getVehicles.get(x)))
+            .map { vehicle =>
+              // clone the current vehicle to form a new vehicle with different id
+              val newVehicle = scenario.getVehicles.getFactory
+                .createVehicle(Id.createVehicleId(s"${vehicle.getId.toString}_$i"), vehicle.getType)
+              // add the new cloned vehicle to the scenario
+              scenario.getVehicles.addVehicle(newVehicle)
+              newVehicle.getId
+            }
+          // generate a new household and add the above clone members and vehicles
+          val newHouseHold = scenario.getHouseholds.getFactory
+            .createHousehold(Id.create(s"${houseHoldId.toString}_$i", classOf[Household]))
+            .asInstanceOf[HouseholdImpl]
+          newHouseHold.setIncome(houseHold.getIncome)
+          if (members.nonEmpty) newHouseHold.setMemberIds(members.asJava)
+          if (vehicles.nonEmpty) newHouseHold.setVehicleIds(vehicles.asJava)
+          newHouseHold -> houseHold
         }
         .filter(!_._1.getMemberIds.isEmpty)
         // add the generated new households with attributes to the current scenario
-        .foreach {
-          case (newhh, oldhh) =>
-            scenario.getHouseholds.getHouseholds.put(newhh.getId, newhh)
-            Seq("homecoordx", "homecoordy", "housingtype").foreach { attr =>
-              val attrValue = scenario.getHouseholds.getHouseholdAttributes.getAttribute(oldhh.getId.toString, attr)
-              scenario.getHouseholds.getHouseholdAttributes.putAttribute(newhh.getId.toString, attr, attrValue)
-            }
+        .foreach { case (newhh, oldhh) =>
+          scenario.getHouseholds.getHouseholds.put(newhh.getId, newhh)
+          Seq("homecoordx", "homecoordy", "housingtype").foreach { attr =>
+            val attrValue = scenario.getHouseholds.getHouseholdAttributes.getAttribute(oldhh.getId.toString, attr)
+            scenario.getHouseholds.getHouseholdAttributes.putAttribute(newhh.getId.toString, attr, attrValue)
+          }
         }
     }
     logger.info(s"""After sampling:
                    |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
                    |Number of vehicles: ${getVehicleGroupingStringUsing(
-                     scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq,
-                     beamScenario
-                   )}
+      scenario.getVehicles.getVehicles.keySet.asScala.toIndexedSeq,
+      beamScenario
+    )}
                    |Number of persons: ${scenario.getPopulation.getPersons.keySet.size}""".stripMargin)
 
   }
@@ -146,9 +144,9 @@ class PopulationScaling extends LazyLogging {
     logger.info(s"""Before sampling:
                    |Number of households: ${notSelectedHouseholdIds.size}
                    |Number of vehicles: ${getVehicleGroupingStringUsing(
-                     notSelectedVehicleIds.toIndexedSeq,
-                     beamScenario
-                   )}
+      notSelectedVehicleIds.toIndexedSeq,
+      beamScenario
+    )}
                    |Number of persons: ${notSelectedPersonIds.size}""".stripMargin)
 
     val iterHouseholds = rand.shuffle(scenario.getHouseholds.getHouseholds.values().asScala).iterator
@@ -188,21 +186,24 @@ class PopulationScaling extends LazyLogging {
 
     logger.info(s"""After sampling:
                    |Number of households: $numOfHouseholds. Removed: ${notSelectedHouseholdIds.size}
-                   |Number of vehicles: ${getVehicleGroupingStringUsing(vehicles.toIndexedSeq, beamScenario)}. Removed: ${getVehicleGroupingStringUsing(
-                     notSelectedVehicleIds.toIndexedSeq,
-                     beamScenario
-                   )}
+                   |Number of vehicles: ${getVehicleGroupingStringUsing(
+      vehicles.toIndexedSeq,
+      beamScenario
+    )}. Removed: ${getVehicleGroupingStringUsing(
+      notSelectedVehicleIds.toIndexedSeq,
+      beamScenario
+    )}
                    |Number of persons: $numOfPersons. Removed: ${notSelectedPersonIds.size}""".stripMargin)
 
   }
 
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
     vehicleIds
-      .groupBy(
-        vehicleId => beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
+      .groupBy(vehicleId =>
+        beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
       )
-      .map {
-        case (vehicleType, ids) => s"$vehicleType (${ids.size})"
+      .map { case (vehicleType, ids) =>
+        s"$vehicleType (${ids.size})"
       }
       .mkString(" , ")
   }
@@ -218,9 +219,7 @@ class PopulationScaling extends LazyLogging {
         householdId.getVehicleIds.asScala.foreach { vehicle =>
           beamServices.privateVehicles
             .get(vehicle)
-            .map(
-              v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n"
-            )
+            .map(v => v.id.toString + "," + v.beamVehicleType.id.toString + "," + householdId.getId.toString + "\n")
             .foreach(csvWriter.write)
         }
       }
@@ -244,10 +243,18 @@ object PopulationScaling {
     outputDir: String
   ): Unit = {
     val populationScaling = new PopulationScaling()
-    if (isWarmstartDisabledOrSamplingEnabled(beamConfig) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
+    if (
+      isWarmstartDisabledOrSamplingEnabled(
+        beamConfig
+      ) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1
+    ) {
       populationScaling.downSample(beamServices, scenario, beamScenario, outputDir)
     }
-    if (isWarmstartDisabledOrSamplingEnabled(beamConfig) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1) {
+    if (
+      isWarmstartDisabledOrSamplingEnabled(
+        beamConfig
+      ) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1
+    ) {
       populationScaling.upSample(beamServices, scenario, beamScenario)
     }
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)

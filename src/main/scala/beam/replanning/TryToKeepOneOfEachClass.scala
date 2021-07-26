@@ -8,6 +8,7 @@ import scala.language.existentials
 import scala.collection.JavaConverters._
 
 class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
+
   override def selectPlan(member: HasPlansAndId[Plan, Person]): Plan = {
 
     val (someClassWithMoreThanOnePlan, thosePlans) = scala.util.Random
@@ -19,14 +20,13 @@ class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
       .head
 
     val worstPlanOfThatClassWithRespectToThatClass = thosePlans
-      .map(
-        plan =>
-          (
-            plan,
-            plan.getAttributes
-              .getAttribute("scores")
-              .asInstanceOf[MapStringDouble]
-              .data(someClassWithMoreThanOnePlan)
+      .map(plan =>
+        (
+          plan,
+          plan.getAttributes
+            .getAttribute("scores")
+            .asInstanceOf[MapStringDouble]
+            .data(someClassWithMoreThanOnePlan)
         )
       )
       .minBy(_._2)

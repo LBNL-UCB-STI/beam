@@ -56,8 +56,8 @@ class H3Clustering(val population: Population, val geoUtils: GeoUtils, val nZone
       .values()
       .asScala
       .flatMap { person =>
-        person.getSelectedPlan.getPlanElements.asScala.collect {
-          case act: Activity => act.getCoord
+        person.getSelectedPlan.getPlanElements.asScala.collect { case act: Activity =>
+          act.getCoord
         }
       }
   }
@@ -69,9 +69,8 @@ class H3Clustering(val population: Population, val geoUtils: GeoUtils, val nZone
       .toSeq
       .map { case (res, xs) => res -> xs.map(_._2).sum }
       .sortBy { case (_, size) => -size }
-    resolutionToPoints.foreach {
-      case (res, size) =>
-        logger.info(s"Resolution: $res, number of points: $size")
+    resolutionToPoints.foreach { case (res, size) =>
+      logger.info(s"Resolution: $res, number of points: $size")
     }
   }
 }

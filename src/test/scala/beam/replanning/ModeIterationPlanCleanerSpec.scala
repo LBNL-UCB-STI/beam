@@ -1,4 +1,5 @@
 package beam.replanning
+
 import beam.agentsim.agents.PersonTestUtil
 import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
@@ -47,8 +48,8 @@ class ModeIterationPlanCleanerSpec extends AnyFlatSpec with Matchers with BeamHe
       .values()
       .forEach { person =>
         {
-          person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg => setRandomMode(leg)
+          person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+            setRandomMode(leg)
           }
         }
       }

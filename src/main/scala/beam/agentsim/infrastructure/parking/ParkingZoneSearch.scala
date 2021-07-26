@@ -44,7 +44,7 @@ object ParkingZoneSearch {
     searchMaxRadius: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
-    searchExpansionFactor: Double = 2.0,
+    searchExpansionFactor: Double = 2.0
   )
 
   /**
@@ -106,7 +106,6 @@ object ParkingZoneSearch {
   /**
     * used within a search to track search data
     *
-    * @param isValidAlternative
     * @param parkingAlternative
     * @param utilityParameters
     */
@@ -131,7 +130,7 @@ object ParkingZoneSearch {
     parkingZoneFilterFunction: ParkingZone[GEO] => Boolean,
     parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord,
     parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double],
-    geoToTAZ: GEO => TAZ,
+    geoToTAZ: GEO => TAZ
   ): Option[ParkingZoneSearchResult[GEO]] = {
     import GeoLevel.ops._
 
@@ -215,7 +214,7 @@ object ParkingZoneSearch {
               geoToTAZ(taz).getId,
               parkingZone.parkingZoneId,
               coordinate,
-              costInDollars.toDouble,
+              costInDollars,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,

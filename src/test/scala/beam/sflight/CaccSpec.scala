@@ -12,7 +12,6 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigFactory
-import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.BeforeAndAfterAll
@@ -60,19 +59,17 @@ class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with Before
     scenario.setNetwork(beamScenario.network)
 
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
     controller.run()
 
-    val fileName = extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber)
+    val fileName = extractFileName(outputDir, iterationNumber)
     CaccSpec.avgCarModeFromCsv(fileName)
   }
 
   private def extractFileName(
-    matsimConfig: Config,
-    beamConfig: BeamConfig,
     outputDir: String,
     iterationNumber: Int
   ): String = {
@@ -107,7 +104,7 @@ object CaccSpec {
       .tail
       .map(_.toDouble)
 
-    val relevantTimes = allHourAvg.filterNot(_ == 0D)
+    val relevantTimes = allHourAvg.filterNot(_ == 0d)
     relevantTimes.sum / relevantTimes.length
   }
 

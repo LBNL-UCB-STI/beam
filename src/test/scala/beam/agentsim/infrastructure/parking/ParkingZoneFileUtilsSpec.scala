@@ -77,18 +77,18 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
             result.zones(0).timeRestrictions should be(
               Map(
                 MediumDutyPassenger -> (18600 until 27000),
-                LightDutyTruck      -> (63000 until 86400),
+                LightDutyTruck      -> (63000 until 86400)
               )
             )
             result.zones(1).timeRestrictions should be(
               Map(
-                LightDutyTruck -> (63000 until 86400),
+                LightDutyTruck -> (63000 until 86400)
               )
             )
             result.zones(5).timeRestrictions should be(
               Map(
                 LightDutyTruck -> (63000 until 86400),
-                Car            -> (0 until 63000),
+                Car            -> (0 until 63000)
               )
             )
             println(result.zones)
@@ -179,7 +179,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
           ParkingZoneFileUtils
             .fromFile[TAZ](
               "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
-              new Random(777934L),
+              new Random(777934L)
             )
         parkingZones should have length 3648
         val collapsed = HierarchicalParkingManager.collapse(parkingZones)

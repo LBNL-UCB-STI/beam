@@ -124,6 +124,7 @@ object PassengerSchedule {
     boarders: Set[PersonIdWithActorRef] = Set.empty,
     alighters: Set[PersonIdWithActorRef] = Set.empty
   ) {
+
     override def toString: String = {
       s"[${riders.size}riders;${boarders.size}boarders;${alighters.size}alighters]"
     }

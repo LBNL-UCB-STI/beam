@@ -5,8 +5,7 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.router.skim.Skims.SkimType
 import beam.router.skim.CsvSkimReader
-import beam.router.skim.core.TAZSkimmer.TAZSkimmerKey
-import beam.sim.{BeamServices, BeamWarmStart}
+import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -99,6 +98,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   import readOnlySkim._
 
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
+
   protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
@@ -114,9 +114,11 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       .getOrElse(List.empty)
       .find(_.skimType == skimType.toString)
     currentIterationInternal = event.getIteration
-    if (currentIterationInternal == 0
-        && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
-        && skimFilePath.isDefined) {
+    if (
+      currentIterationInternal == 0
+      && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
+      && skimFilePath.isDefined
+    ) {
       val filePath = skimFilePath.get.skimsFilePath
       val file = File(filePath)
       aggregatedFromPastSkimsInternal = if (file.isFile) {
@@ -170,6 +172,15 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     }
   }
 
+  def writeToDisk(filePath: String): Unit = {
+    ProfilingUtils.timed(
+      "beam.router.skim.writeSkims",
+      v => logger.info(v)
+    ) {
+      writeSkim(currentSkim, filePath)
+    }
+  }
+
   def writeToDisk(event: IterationEndsEvent): Unit = {
     if (skimCfg.writeSkimsInterval > 0 && currentIterationInternal % skimCfg.writeSkimsInterval == 0)
       ProfilingUtils.timed(
@@ -181,7 +192,9 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         writeSkim(currentSkim, filePath)
       }
 
-    if (skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0) {
+    if (
+      skimCfg.writeAggregatedSkimsInterval > 0 && currentIterationInternal % skimCfg.writeAggregatedSkimsInterval == 0
+    ) {
       ProfilingUtils.timed(
         s"beam.router.skim.writeAggregatedSkimsInterval on iteration $currentIterationInternal",
         v => logger.info(v)

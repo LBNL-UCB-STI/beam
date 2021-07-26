@@ -55,7 +55,6 @@ import scala.util.{Failure, Random, Success, Try}
   *
   * @param parkingFilePath
   * @param valueOfTime
-  * @param tazTreeMap
   * @param random
   * @param boundingBox
   * @param distFunction
@@ -148,19 +147,22 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     mutable.Map.empty[VehicleId, ParkingStall]
   private val vehiclesOnWayToDepot: mutable.Map[VehicleId, ParkingStall] = mutable.Map.empty[VehicleId, ParkingStall]
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
+
   private val vehiclesInQueueToParkingZoneId: mutable.Map[VehicleId, ParkingZoneId] =
     mutable.Map.empty[VehicleId, ParkingZoneId]
+
   private val vehicleIdToLastObservedTickAndAction: mutable.Map[VehicleId, mutable.ListBuffer[(Int, String)]] =
     mutable.Map.empty[VehicleId, mutable.ListBuffer[(Int, String)]]
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
+
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
    * accessible via a Map on the ParkingZoneId
    */
   private val parkingZoneIdToParkingZoneDepotData: mutable.Map[ParkingZoneId, ParkingZoneDepotData] =
     mutable.Map.empty[ParkingZoneId, ParkingZoneDepotData]
-  rideHailParkingZones.foreach(
-    parkingZone => parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
+  rideHailParkingZones.foreach(parkingZone =>
+    parkingZoneIdToParkingZoneDepotData.put(parkingZone.parkingZoneId, ParkingZoneDepotData.empty)
   )
 
   /*
@@ -169,13 +171,6 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   val tazIdToParkingZones: mutable.Map[Id[GEO], Array[ParkingZone[GEO]]] =
     mutable.Map.empty[Id[GEO], Array[ParkingZone[GEO]]]
   rideHailParkingZones.groupBy(_.geoId).foreach(tup => tazIdToParkingZones += tup)
-
-  // FIXME Unused value
-  private val stallAssignmentStrategy: Try[StallAssignmentStrategy] =
-    beamServices.beamCustomizationAPI.getStallAssignmentStrategyFactory.create(
-      this,
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.charging.vehicleChargingManager.depotManager.stallAssignmentStrategy.name
-    )
 
   def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]) = {
     vehicleIdToGeofenceMap.foreach {
@@ -251,12 +246,11 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           )
         val remainingRange = beamVehicle.getTotalRemainingRange
         val hasInsufficientRange =
-          (remainingRange < travelTimeAndDistanceToDepot.distance + beamServices.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters) match {
-            case true =>
-              1.0
-            case false =>
-              0.0
-          }
+          if (
+            remainingRange < travelTimeAndDistanceToDepot.distance + beamServices.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+          ) {
+            1.0
+          } else 0.0
         val queueTime = secondsToServiceQueueAndChargingVehicles(
           parkingAlternative.parkingZone,
           currentTick
@@ -281,15 +275,16 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       }
 
     for {
-      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <- ParkingZoneSearch
-        .incrementalParkingZoneSearch(
-          parkingZoneSearchConfiguration,
-          parkingZoneSearchParams,
-          parkingZoneFilterFunction,
-          parkingZoneLocSamplingFunction,
-          parkingZoneMNLParamsFunction,
-          geoToTAZ
-        )
+      ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, parkingZonesSeen, _, iterations) <-
+        ParkingZoneSearch
+          .incrementalParkingZoneSearch(
+            parkingZoneSearchConfiguration,
+            parkingZoneSearchParams,
+            parkingZoneFilterFunction,
+            parkingZoneLocSamplingFunction,
+            parkingZoneMNLParamsFunction,
+            geoToTAZ
+          )
     } yield {
 
       logger.debug(s"found ${parkingZonesSeen.length} parking zones over $iterations iterations")
@@ -329,9 +324,8 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     }
     val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
     val chargingQueue = parkingZoneDepotData.chargingQueue
-    val chargeDurationFromQueue = chargingQueue.map {
-      case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-        beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
+    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
+      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
     }.sum
     val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
     val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
@@ -339,9 +333,10 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       case numInQueue if numInQueue == 0 =>
         1.0
       case numInQueue =>
-        (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
+        1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble
     }
-    val adjustedQueueServiceTime = (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
+    val adjustedQueueServiceTime =
+      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
     val result = Math
       .round(
         (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
@@ -492,7 +487,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
       chargingVehicleToParkingStallMap += beamVehicle.id -> stall
       parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.add(beamVehicle.id)
       val (chargingSessionDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
-      putNewTickAndObservation(beamVehicle.id, (tick, s"Charging(${source})"))
+      putNewTickAndObservation(beamVehicle.id, (tick, s"Charging($source)"))
       vehicleIdToEndRefuelTick.put(beamVehicle.id, tick + chargingSessionDuration)
       true
     }
@@ -584,7 +579,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
         chargingQueue.size,
         parkingStall.parkingZoneId
       )
-      putNewTickAndObservation(vehicle.id, (vehicle.spaceTime.time, s"EnQueue(${source})"))
+      putNewTickAndObservation(vehicle.id, (vehicle.spaceTime.time, s"EnQueue($source)"))
       vehiclesInQueueToParkingZoneId.put(vehicle.id, parkingStall.parkingZoneId)
       chargingQueue.enqueue(chargingQueueEntry)
     }
@@ -596,12 +591,11 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @param newVehiclesHeadedToDepot
     */
   def notifyVehiclesOnWayToRefuelingDepot(newVehiclesHeadedToDepot: Vector[(VehicleId, ParkingStall)]): Unit = {
-    newVehiclesHeadedToDepot.foreach {
-      case (vehicleId, parkingStall) =>
-        logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
-        vehiclesOnWayToDepot.put(vehicleId, parkingStall)
-        val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
-        parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
+    newVehiclesHeadedToDepot.foreach { case (vehicleId, parkingStall) =>
+      logger.debug("Vehicle {} headed to depot depot {}", vehicleId, parkingStall.parkingZoneId)
+      vehiclesOnWayToDepot.put(vehicleId, parkingStall)
+      val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId)
+      parkingZoneDepotData.vehiclesOnWayToDepot.add(vehicleId)
     }
   }
 
@@ -620,7 +614,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     * @return
     */
   def isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(vehicleId: VehicleId): Boolean =
-    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(vehicleId) || vehiclesInQueueToParkingZoneId
+    vehiclesOnWayToDepot.contains(vehicleId) || chargingVehicleToParkingStallMap.contains(
+      vehicleId
+    ) || vehiclesInQueueToParkingZoneId
       .contains(vehicleId)
 
   /**

@@ -9,7 +9,6 @@ import scala.collection.immutable
 
 /**
   * These enumerations are defined to simplify extensibility of VehicleData.
-  *
   */
 //TODO: How do we get fuel-level consideration in here?
 //TODO: Consider later specifying via json using Circe
@@ -27,7 +26,6 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
   sealed abstract class Gasoline extends EnumEntry
 
   /**
-    *
     * @param joulesPerMeter joules per meter
     */
   class Powertrain(joulesPerMeter: Double) {
@@ -36,7 +34,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
       joulesPerMeter * distanceInMeters
     }
 
-    def getRateInJoulesPerMeter(fuelConsumption: FuelConsumptionData): Double = joulesPerMeter
+    def getRateInJoulesPerMeter: Double = joulesPerMeter
 
     def estimateConsumptionInJoules(fuelConsumption: IndexedSeq[FuelConsumptionData]): Double = {
       joulesPerMeter * fuelConsumption.map(_.linkLength.getOrElse(0.0)).sum
@@ -98,16 +96,16 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
       fuelType match {
         case "gasoline" =>
           // convert from L/m to J/m
-          ltm * 34.2E6 // 34.2 MJ/L, https://en.wikipedia.org/wiki/Energy_density
+          ltm * 34.2e6 // 34.2 MJ/L, https://en.wikipedia.org/wiki/Energy_density
         case "diesel" =>
           // convert from L/m to J/m
-          ltm * 35.8E6 // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_density
+          ltm * 35.8e6 // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_density
         case "electricity" =>
           // convert from kWh/m to J/m
-          ltm * 3.6E6 // 3.6 MJ/kWh
+          ltm * 3.6e6 // 3.6 MJ/kWh
         case "biodiesel" =>
           // convert from L/m to J/m
-          ltm * 34.5E6 // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_content_of_biofuel
+          ltm * 34.5e6 // 35.8 MJ/L, https://en.wikipedia.org/wiki/Energy_content_of_biofuel
         case fuelName =>
           throw new RuntimeException(s"Unrecognized fuel type in engine information: $fuelName")
       }

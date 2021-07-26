@@ -9,8 +9,6 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
@@ -46,7 +44,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           inquiry.pickUpLocationUTM,
           inquiry.destinationUTM,
           inquiry.departAt,
-          defaultBeamVehilceTypeId,
           rideHailManager.beamServices
         )
         SingleOccupantQuoteAndPoolingInfo(
@@ -92,7 +89,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
     beamServices: BeamServices,
-    triggerId: Long,
+    triggerId: Long
   ): AllocationResponse = {
     rideHailManager.log.debug("Alloc requests {}", vehicleAllocationRequest.requests.size)
     var toAllocate: Set[RideHailRequest] = Set()
@@ -110,7 +107,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
     toFinalize.foreach { request =>
       val routeResponses = vehicleAllocationRequest.requests(request)
-      val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
+      val indexedResponses = routeResponses.map(resp => resp.requestId -> resp).toMap
 
       // First check for broken route responses (failed routing attempt)
       if (routeResponses.exists(_.itineraries.isEmpty)) {
@@ -192,16 +189,17 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       }
 
       import scala.concurrent.duration._
-      val assignment = try {
-        Await.result(
-          createMatchingAlgorithm(matchingAlgorithm, availVehicles, spatialPoolCustomerReqs).matchAndAssign(tick),
-          atMost = 2.minutes
-        )
-      } catch {
-        case e: TimeoutException =>
-          rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")
-          List()
-      }
+      val assignment =
+        try {
+          Await.result(
+            createMatchingAlgorithm(matchingAlgorithm, availVehicles, spatialPoolCustomerReqs).matchAndAssign(tick),
+            atMost = 2.minutes
+          )
+        } catch {
+          case _: TimeoutException =>
+            rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")
+            List()
+        }
 
       assignment.foreach { theTrip =>
         val vehicleAndOldSchedule = theTrip.vehicle.get
@@ -213,9 +211,11 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             tick,
             theTrip
           )
-          if (rideHailManager.rideHailManagerHelper
-                .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
-                .latestTickExperienced > 0) {
+          if (
+            rideHailManager.rideHailManagerHelper
+              .getRideHailAgentLocation(vehicleAndOldSchedule.vehicle.id)
+              .latestTickExperienced > 0
+          ) {
             rideHailManager.log.debug(
               "\tlatest tick by vehicle {} is {}",
               vehicleAndOldSchedule.vehicle.id,
@@ -232,27 +232,36 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             .toList ++ theTrip.schedule.reverse.takeWhile(_.tag != EnRoute).reverse)
             .sliding(2)
             .flatMap { wayPoints =>
-              val orig = wayPoints(0)
+              val orig = wayPoints.head
               val dest = wayPoints(1)
               val origin = SpaceTime(orig.activity.getCoord, orig.serviceTime)
-              if (newRideHailRequest.isEmpty && orig.person.isDefined && customerIdToReqs.contains(
-                    orig.person.get.personId
-                  )) {
+              if (
+                newRideHailRequest.isEmpty && orig.person.isDefined && customerIdToReqs.contains(
+                  orig.person.get.personId
+                )
+              ) {
                 newRideHailRequest = Some(customerIdToReqs(orig.person.get.personId))
-              } else if (orig.person.isDefined &&
-                         newRideHailRequest.isDefined &&
-                         !newRideHailRequest.get.customer.equals(orig.person.get) &&
-                         !newRideHailRequest.get.groupedWithOtherRequests.exists(_.customer.equals(orig.person.get)) &&
-                         customerIdToReqs.contains(orig.person.get.personId)) {
+              } else if (
+                orig.person.isDefined &&
+                newRideHailRequest.isDefined &&
+                !newRideHailRequest.get.customer.equals(orig.person.get) &&
+                !newRideHailRequest.get.groupedWithOtherRequests.exists(_.customer.equals(orig.person.get)) &&
+                customerIdToReqs.contains(orig.person.get.personId)
+              ) {
                 newRideHailRequest =
                   Some(newRideHailRequest.get.addSubRequest(customerIdToReqs(orig.person.get.personId)))
                 removeRequestFromBuffer(customerIdToReqs(orig.person.get.personId))
               }
               // If passenger is different but location from previous to current action is the same, don't route it
-              if (!(orig.person.isDefined && dest.person.isDefined && orig.person.get.personId.equals(
-                    dest.person.get.personId
-                  )) &&
-                  rideHailManager.beamServices.geo.distUTMInMeters(orig.activity.getCoord, dest.activity.getCoord) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
+              if (
+                !(orig.person.isDefined && dest.person.isDefined && orig.person.get.personId.equals(
+                  dest.person.get.personId
+                )) &&
+                rideHailManager.beamServices.geo.distUTMInMeters(
+                  orig.activity.getCoord,
+                  dest.activity.getCoord
+                ) < rideHailManager.beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
+              ) {
                 scheduleToCache = scheduleToCache :+ orig
                 None
               } else {
@@ -292,7 +301,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val nonAllocated = toAllocate.filter(_.asPooled).filterNot(req => wereAllocated.contains(req.requestId))
       s = System.currentTimeMillis()
       nonAllocated.foreach { unsatisfiedReq =>
-        Pooling.serveOneRequest(unsatisfiedReq, tick, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
+        Pooling.serveOneRequest(
+          unsatisfiedReq,
+          tick,
+          alreadyAllocated,
+          rideHailManager,
+          beamServices,
+          maxWaitTimeInSec
+        ) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id

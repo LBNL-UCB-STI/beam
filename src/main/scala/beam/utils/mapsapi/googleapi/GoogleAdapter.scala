@@ -104,13 +104,13 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def toRoutes(jsObject: JsObject): Seq[Route] = {
-    (jsObject \ "status") match {
+    jsObject \ "status" match {
       case JsDefined(value) =>
         if (value != JsString("OK")) {
           val error = jsObject \ "error_message"
-          logger.error(s"Google route request failed. Status: ${value}, error: $error")
+          logger.error(s"Google route request failed. Status: $value, error: $error")
         }
-      case undefined: JsUndefined =>
+      case _: JsUndefined =>
     }
     parseRoutes((jsObject \ "routes").as[JsArray].value)
   }
@@ -159,15 +159,15 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       ref ! PoisonPill
     }
     Http().shutdownAllConnectionPools
-      .andThen {
-        case _ =>
-          if (actorSystem.isEmpty) system.terminate()
+      .andThen { case _ =>
+        if (actorSystem.isEmpty) system.terminate()
       }
   }
 
 }
 
 object GoogleAdapter {
+
   case class RouteRequest[T](
     userObject: T,
     origin: WgsCoordinate,
@@ -200,7 +200,7 @@ object GoogleAdapter {
       s"origin=$originStr",
       s"destination=$destinationStr",
       s"traffic_model=${trafficModel.apiString}",
-      s"departure_time=${dateAsEpochSecond(departureAt)}",
+      s"departure_time=${dateAsEpochSecond(departureAt)}"
     )
     val optionalParams = {
       if (constraints.isEmpty) Seq.empty
@@ -219,6 +219,7 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
+
   override def receive: Receive = {
     case jsObject: JsObject =>
       val out = FileUtils.openOutputStream(file)

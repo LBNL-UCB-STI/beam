@@ -1401,9 +1401,9 @@ object BeamConfig {
     object Aws {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Aws = {
         BeamConfig.Beam.Aws(
-          accessKeyId = if(c.hasPathOrNull("accessKeyId")) c.getString("accessKeyId") else "SET_ME_USING_ENVIRONMENT_VARIABLES",
+          accessKeyId = if(c.hasPathOrNull("accessKeyId")) c.getString("accessKeyId") else "SET_ME_VIA_ENV_VARIABLE ${?AWS_ACCESS_KEY_ID}",
           region      = if(c.hasPathOrNull("region")) c.getString("region") else "us-east-2",
-          secretKey   = if(c.hasPathOrNull("secretKey")) c.getString("secretKey") else ""
+          secretKey   = if(c.hasPathOrNull("secretKey")) c.getString("secretKey") else "SET_ME_VIA_ENV_VARIABLE ${?AWS_SECRET_KEY}"
         )
       }
     }
@@ -1675,9 +1675,34 @@ object BeamConfig {
     }
           
     case class Exchange(
+      output   : BeamConfig.Beam.Exchange.Output,
       scenario : BeamConfig.Beam.Exchange.Scenario
     )
     object Exchange {
+      case class Output(
+        activitySimSkimsEnabled : scala.Boolean,
+        geo                     : BeamConfig.Beam.Exchange.Output.Geo
+      )
+      object Output {
+        case class Geo(
+          filePath : scala.Option[java.lang.String]
+        )
+        object Geo {
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Geo = {
+            BeamConfig.Beam.Exchange.Output.Geo(
+              filePath = if(c.hasPathOrNull("filePath")) Some(c.getString("filePath")) else None
+            )
+          }
+        }
+              
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
+          BeamConfig.Beam.Exchange.Output(
+            activitySimSkimsEnabled = c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
+            geo                     = BeamConfig.Beam.Exchange.Output.Geo(if(c.hasPathOrNull("geo")) c.getConfig("geo") else com.typesafe.config.ConfigFactory.parseString("geo{}"))
+          )
+        }
+      }
+            
       case class Scenario(
         convertWgs2Utm : scala.Boolean,
         fileFormat     : java.lang.String,
@@ -1712,6 +1737,7 @@ object BeamConfig {
             
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange = {
         BeamConfig.Beam.Exchange(
+          output   = BeamConfig.Beam.Exchange.Output(if(c.hasPathOrNull("output")) c.getConfig("output") else com.typesafe.config.ConfigFactory.parseString("output{}")),
           scenario = BeamConfig.Beam.Exchange.Scenario(if(c.hasPathOrNull("scenario")) c.getConfig("scenario") else com.typesafe.config.ConfigFactory.parseString("scenario{}"))
         )
       }
@@ -1787,8 +1813,8 @@ object BeamConfig {
               
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Mep.Aws = {
           BeamConfig.Beam.Mep.Aws(
-            arn        = if(c.hasPathOrNull("arn")) c.getString("arn") else "",
-            externalId = if(c.hasPathOrNull("externalId")) c.getString("externalId") else "",
+            arn        = if(c.hasPathOrNull("arn")) c.getString("arn") else "SET_ME_VIA_ENV_VARIABLE ${?MEP_AWS_ARN}",
+            externalId = if(c.hasPathOrNull("externalId")) c.getString("externalId") else "SET_ME_VIA_ENV_VARIABLE ${?MEP_AWS_EXTERNAL_ID}",
             lambda     = BeamConfig.Beam.Mep.Aws.Lambda(if(c.hasPathOrNull("lambda")) c.getConfig("lambda") else com.typesafe.config.ConfigFactory.parseString("lambda{}")),
             region     = if(c.hasPathOrNull("region")) c.getString("region") else "us-west-2"
           )

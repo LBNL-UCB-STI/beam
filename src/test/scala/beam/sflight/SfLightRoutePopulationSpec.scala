@@ -87,13 +87,11 @@ class SfLightRoutePopulationSpec
                 .find(_.tripClassifier == WALK)
                 .get
                 .toBeamTrip
-              inside(walkTrip) {
-                case BeamTrip(legs) =>
-                  legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
-                  inside(legs.loneElement) {
-                    case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
-                      mode should be(WALK)
-                  }
+              inside(walkTrip) { case BeamTrip(legs) =>
+                legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
+                inside(legs.loneElement) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
+                  mode should be(WALK)
+                }
               }
 
               if (response.itineraries.exists(_.tripClassifier == CAR)) {
@@ -102,22 +100,18 @@ class SfLightRoutePopulationSpec
                   .get
                   .toBeamTrip
                 assertMakesSense(carTrip)
-                inside(carTrip) {
-                  case BeamTrip(legs) =>
-                    legs should have size 3
-                    inside(legs(0)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
-                        mode should be(WALK)
-                    }
-                    inside(legs(1)) {
-                      case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
-                        mode should be(CAR)
-                        links should not be 'empty
-                    }
-                    inside(legs(2)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
-                        mode should be(WALK)
-                    }
+                inside(carTrip) { case BeamTrip(legs) =>
+                  legs should have size 3
+                  inside(legs(0)) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
+                    mode should be(WALK)
+                  }
+                  inside(legs(1)) { case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
+                    mode should be(CAR)
+                    links should not be 'empty
+                  }
+                  inside(legs(2)) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
+                    mode should be(WALK)
+                  }
                 }
               } else {
                 numFailedCarRoutes = numFailedCarRoutes + 1

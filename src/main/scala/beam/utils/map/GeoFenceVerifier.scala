@@ -13,7 +13,7 @@ import org.matsim.api.core.v01.events.Event
 import scala.util.Try
 
 case class PointInfo(offset: Double, geofenceRadius: Double) {
-  val ratio: Double = if (geofenceRadius.equals(0D)) Double.NaN else offset / geofenceRadius
+  val ratio: Double = if (geofenceRadius.equals(0d)) Double.NaN else offset / geofenceRadius
 }
 
 object GeoFenceVerifier extends LazyLogging {
@@ -26,7 +26,7 @@ object GeoFenceVerifier extends LazyLogging {
     val attribs = event.getAttributes
     // We need only PathTraversal with mode `CAR` and ride hail
     val isNeededEvent = event.getEventType == "PathTraversal" && Option(attribs.get("mode")).contains("car") &&
-    Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
+      Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
     isNeededEvent
   }
 

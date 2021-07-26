@@ -24,6 +24,7 @@ class GenericFeatureBuilder[A <: Attributes](
 }
 
 object GenericFeatureBuilder {
+
   private val scalaPrimitiveToJava: Map[Class[_], Class[_]] = Map(
     classOf[Byte]   -> classOf[java.lang.Byte],
     classOf[Short]  -> classOf[java.lang.Short],
@@ -43,9 +44,9 @@ object GenericFeatureBuilder {
     }
   }
 
-  def create[T <: JtsGeometry, A <: Attributes](crs: CoordinateReferenceSystem, name: String)(
-    implicit evG: ClassTag[T],
-    evA: ClassTag[A],
+  def create[T <: JtsGeometry, A <: Attributes](crs: CoordinateReferenceSystem, name: String)(implicit
+    evG: ClassTag[T],
+    evA: ClassTag[A]
   ): GenericFeatureBuilder[A] = {
     val isNoAttributes = Objects.equals(evA.runtimeClass, Attributes.EmptyAttributes.getClass)
     val attribToClazz: Map[String, Class[_]] =
@@ -76,15 +77,14 @@ object GenericFeatureBuilder {
     crs: CoordinateReferenceSystem,
     name: String,
     attributes: Map[String, Class[_]],
-    attribToGetter: Map[String, Method],
+    attribToGetter: Map[String, Method]
   )(implicit evG: ClassTag[T]): GenericFeatureBuilder[A] = {
     val b = new SimpleFeatureTypeBuilder
     b.setName(name)
     b.setCRS(crs)
     b.add("the_geom", evG.runtimeClass)
-    attributes.foreach {
-      case (name, clazz) =>
-        b.add(name, clazz)
+    attributes.foreach { case (name, clazz) =>
+      b.add(name, clazz)
     }
     val featureType: SimpleFeatureType = b.buildFeatureType
     new GenericFeatureBuilder[A](attributes, attribToGetter, featureType)

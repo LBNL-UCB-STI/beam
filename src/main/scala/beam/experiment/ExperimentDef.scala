@@ -47,14 +47,11 @@ case class ExperimentDef(
   }
 
   /**
-    *
     * @return list of distinct (factor_title, param_name)
     */
   def getDynamicParamNamesPerFactor: List[(String, String)] = {
     factors.asScala
-      .flatMap(
-        f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname)))
-      )
+      .flatMap(f => f.levels.asScala.flatMap(l => l.params.keySet().asScala.map(pname => (f.title, pname))))
       .distinct
       .toList
   }
@@ -128,12 +125,13 @@ case class Header(
   @BeanProperty var processingConfPath: String,
   @BeanProperty var ownerEmail: String,
   @BeanProperty var customerFacingNotes: String,
-  @BeanProperty var internalNotes: String,
+  @BeanProperty var internalNotes: String
 ) {
   def this() = this("", "", "", "", "", "", "", new java.util.HashMap(), 0, "", "", "", "")
 
   val experimentOutputRoot: String = s"data/interim/scenario_experiments"
 }
+
 case class BaseScenario(
   @BeanProperty var title: String,
   @BeanProperty var params: java.util.Map[String, Object]

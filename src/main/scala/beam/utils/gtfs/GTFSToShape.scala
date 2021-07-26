@@ -32,8 +32,8 @@ object GTFSToShape extends LazyLogging {
   }
 
   def gtfsToShapefiles(zipFolderPath: String, outputPath: String): Unit = {
-    val gtfsFolder = new File(zipFolderPath);
-    val gtfsFiles = gtfsFolder.listFiles();
+    val gtfsFolder = new File(zipFolderPath)
+    val gtfsFiles = gtfsFolder.listFiles()
 
     val agencyToStops = mutable.HashMap.empty[Agency, mutable.Buffer[WgsCoordinate]]
     val sourceToStops = mutable.HashMap.empty[String, Int]
@@ -73,7 +73,7 @@ object GTFSToShape extends LazyLogging {
         }
 
         val agencyIdToAgency = agencies.map(a => a.id -> a).toMap
-        val routeIdToRoute = routes.map(r => r.id     -> r).toMap
+        val routeIdToRoute = routes.map(r => r.id -> r).toMap
         val tripIdToRoute = trips
           .map(t => {
             val route = routeIdToRoute.get(t.routeId)
@@ -115,18 +115,16 @@ object GTFSToShape extends LazyLogging {
       }
     }
 
-    agencyToStops.groupBy { case (agency, _) => agency.name }.foreach {
-      case (agencyName, grouped) =>
-        val coordinates = grouped.values.flatten
-        if (coordinates.nonEmpty) {
-          coordsToShapefile(coordinates, s"$outputPath/agency.$agencyName.stops.shp")
-        }
+    agencyToStops.groupBy { case (agency, _) => agency.name }.foreach { case (agencyName, grouped) =>
+      val coordinates = grouped.values.flatten
+      if (coordinates.nonEmpty) {
+        coordsToShapefile(coordinates, s"$outputPath/agency.$agencyName.stops.shp")
+      }
     }
 
-    sourceToOrphanStops.foreach {
-      case (source, coordinates) =>
-        logger.warn(s"There are ${coordinates.length} stops without route or agency from $source gtfs source.")
-        coordsToShapefile(coordinates, s"$outputPath/orphan.$source.stops.shp")
+    sourceToOrphanStops.foreach { case (source, coordinates) =>
+      logger.warn(s"There are ${coordinates.length} stops without route or agency from $source gtfs source.")
+      coordsToShapefile(coordinates, s"$outputPath/orphan.$source.stops.shp")
     }
 
     val agencyCswWriter = new CsvWriter(
@@ -134,16 +132,14 @@ object GTFSToShape extends LazyLogging {
       Vector("id", "name", "url", "# of stops", "source", "# of stops in source")
     )
 
-    agencyToStops.foreach {
-      case (agency, stops) =>
-        agencyCswWriter.writeRow(
-          IndexedSeq(agency.id, agency.name, agency.url, stops.length, agency.source, sourceToStops(agency.source))
-        )
+    agencyToStops.foreach { case (agency, stops) =>
+      agencyCswWriter.writeRow(
+        IndexedSeq(agency.id, agency.name, agency.url, stops.length, agency.source, sourceToStops(agency.source))
+      )
     }
 
-    sourceToOrphanStops.foreach {
-      case (source, stops) =>
-        agencyCswWriter.writeRow(IndexedSeq("", "", "", stops.length, source, ""))
+    sourceToOrphanStops.foreach { case (source, stops) =>
+      agencyCswWriter.writeRow(IndexedSeq("", "", "", stops.length, source, ""))
     }
 
     agencyCswWriter.close()
@@ -151,7 +147,8 @@ object GTFSToShape extends LazyLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    val srcDir = if (args.length > 0) args(0) else "" // "/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
+    val srcDir =
+      if (args.length > 0) args(0) else "" // "/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
     val outDir = if (args.length > 1) args(1) else "" // "/mnt/data/work/beam/gtfs-NY"
 
     logger.info(s"gtfs zip sources folder: '$srcDir'")
@@ -176,7 +173,7 @@ object GTFSToShape extends LazyLogging {
       }
     }
 
-    val f = new File(srcDir);
+    val f = new File(srcDir)
     val inputLooksFine = {
       if (f.exists) {
         if (f.isDirectory) {

@@ -61,7 +61,7 @@ object ModeIncentive {
       BeamMode.fromString(mode).get,
       Range(age),
       Range(income),
-      Try(amount.toDouble).getOrElse(0D)
+      Try(amount.toDouble).getOrElse(0d)
     )
   }
 }

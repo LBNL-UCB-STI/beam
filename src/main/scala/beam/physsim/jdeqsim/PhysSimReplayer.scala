@@ -88,59 +88,60 @@ object PhysSimReplayer extends StrictLogging {
   private def readBeamConfig(pathToBeamConfig: String, pathToWarmStartZip: String): Config = {
     val rootFile = new File(pathToBeamConfig).getParentFile
     val src = Source.fromFile(new File(pathToBeamConfig))
-    val fixedBeamCfg = try {
-      val str = src.mkString
-        .replace("""include "../../common/akka.conf"""", """include "akka.conf"""")
-        .replace("""include "../../common/metrics.conf"""", """include "metrics.conf"""")
-        .replace("""include "../../common/matsim.conf"""", """include "matsim.conf"""")
-      val tempPath = Files.createTempFile(rootFile.toPath, "beam_to_be_loaded", "conf")
-      // tempPath.toFile.deleteOnExit()
-      Files.write(tempPath, str.getBytes(StandardCharsets.UTF_8))
-      val pwd = System.getenv("PWD")
-      val overrideParams = ConfigFactory
-        .empty()
-        .withValue(
-          "beam.agentsim.agents.vehicles.vehicleTypesFilePath",
-          ConfigValueFactory.fromAnyRef(s"""$pwd/vehicletypes-baseline.csv""")
-        )
-        .withValue(
-          "beam.agentsim.agents.vehicles.fuelTypesFilePath",
-          ConfigValueFactory.fromAnyRef(s"""$pwd/fuelTypes.csv""")
-        )
-        .withValue(
-          "beam.physsim.inputNetworkFilePath",
-          ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/physsim-network.xml""")
-        )
-        .withValue("beam.routing.r5.directory", ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local"""))
-        .withValue(
-          "beam.routing.r5.osmFile",
-          ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/sf-bay.osm.pbf""")
-        )
-        .withValue(
-          "beam.routing.r5.osmMapdbFile",
-          ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/osm.mapdb""")
-        )
-        .withValue("beam.exchange.scenario.source", ConfigValueFactory.fromAnyRef("Beam"))
-        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
-        .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(pathToWarmStartZip))
-        .withValue("beam.agentsim.taz.filePath", ConfigValueFactory.fromAnyRef(s"""$pwd/taz-centers.csv"""))
-        .withValue(
-          "beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath",
-          ConfigValueFactory.fromAnyRef(s"""$pwd/calibration/san_francisco_censustracts.json""")
-        )
-        .withValue(
-          "beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath",
-          ConfigValueFactory
-            .fromAnyRef(s"""$pwd/calibration/san_francisco-censustracts-2018-3-OnlyWeekdays-HourlyAggregate.csv.gz""")
-        )
-      val cfg = overrideParams
-        .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory(tempPath.toFile))
-        .resolve(ConfigResolveOptions.defaults()) // (ConfigResolveOptions.defaults().setAllowUnresolved(true))
-      Files.deleteIfExists(tempPath)
-      cfg
-    } finally {
-      Try(src.close())
-    }
+    val fixedBeamCfg =
+      try {
+        val str = src.mkString
+          .replace("""include "../../common/akka.conf"""", """include "akka.conf"""")
+          .replace("""include "../../common/metrics.conf"""", """include "metrics.conf"""")
+          .replace("""include "../../common/matsim.conf"""", """include "matsim.conf"""")
+        val tempPath = Files.createTempFile(rootFile.toPath, "beam_to_be_loaded", "conf")
+        // tempPath.toFile.deleteOnExit()
+        Files.write(tempPath, str.getBytes(StandardCharsets.UTF_8))
+        val pwd = System.getenv("PWD")
+        val overrideParams = ConfigFactory
+          .empty()
+          .withValue(
+            "beam.agentsim.agents.vehicles.vehicleTypesFilePath",
+            ConfigValueFactory.fromAnyRef(s"""$pwd/vehicletypes-baseline.csv""")
+          )
+          .withValue(
+            "beam.agentsim.agents.vehicles.fuelTypesFilePath",
+            ConfigValueFactory.fromAnyRef(s"""$pwd/fuelTypes.csv""")
+          )
+          .withValue(
+            "beam.physsim.inputNetworkFilePath",
+            ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/physsim-network.xml""")
+          )
+          .withValue("beam.routing.r5.directory", ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local"""))
+          .withValue(
+            "beam.routing.r5.osmFile",
+            ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/sf-bay.osm.pbf""")
+          )
+          .withValue(
+            "beam.routing.r5.osmMapdbFile",
+            ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/osm.mapdb""")
+          )
+          .withValue("beam.exchange.scenario.source", ConfigValueFactory.fromAnyRef("Beam"))
+          .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
+          .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(pathToWarmStartZip))
+          .withValue("beam.agentsim.taz.filePath", ConfigValueFactory.fromAnyRef(s"""$pwd/taz-centers.csv"""))
+          .withValue(
+            "beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath",
+            ConfigValueFactory.fromAnyRef(s"""$pwd/calibration/san_francisco_censustracts.json""")
+          )
+          .withValue(
+            "beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath",
+            ConfigValueFactory
+              .fromAnyRef(s"""$pwd/calibration/san_francisco-censustracts-2018-3-OnlyWeekdays-HourlyAggregate.csv.gz""")
+          )
+        val cfg = overrideParams
+          .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory(tempPath.toFile))
+          .resolve(ConfigResolveOptions.defaults()) // (ConfigResolveOptions.defaults().setAllowUnresolved(true))
+        Files.deleteIfExists(tempPath)
+        cfg
+      } finally {
+        Try(src.close())
+      }
     fixedBeamCfg
   }
 }

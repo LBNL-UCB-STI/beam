@@ -41,22 +41,20 @@ class LinkInOutFeature(
     .toMap
     .seq
 
-  val linkIdToOutLinkHops: Map[Link, Array[Int]] = linkIdToOutLinks.par.map {
-    case (src, destinations) =>
-      val hops = destinations.map { dstId =>
-        val dst = links.get(Id.create(dstId, classOf[Link]))
-        numOfHops(src, dst, Direction.Out)
-      }
-      src -> hops
+  val linkIdToOutLinkHops: Map[Link, Array[Int]] = linkIdToOutLinks.par.map { case (src, destinations) =>
+    val hops = destinations.map { dstId =>
+      val dst = links.get(Id.create(dstId, classOf[Link]))
+      numOfHops(src, dst, Direction.Out)
+    }
+    src -> hops
   }.seq
 
-  val linkIdToInLinkHops: Map[Link, Array[Int]] = linkIdToInLinks.par.map {
-    case (src, destinations) =>
-      val hops = destinations.map { dstId =>
-        val dst = links.get(Id.create(dstId, classOf[Link]))
-        numOfHops(src, dst, Direction.In)
-      }
-      src -> hops
+  val linkIdToInLinkHops: Map[Link, Array[Int]] = linkIdToInLinks.par.map { case (src, destinations) =>
+    val hops = destinations.map { dstId =>
+      val dst = links.get(Id.create(dstId, classOf[Link]))
+      numOfHops(src, dst, Direction.In)
+    }
+    src -> hops
   }.seq
   val maxOutColumns: Int = linkIdToOutLinks.values.maxBy(_.length).length
   val maxInColumns: Int = linkIdToInLinks.values.maxBy(_.length).length

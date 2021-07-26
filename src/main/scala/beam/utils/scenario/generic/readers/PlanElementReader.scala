@@ -20,7 +20,7 @@ object CsvPlanElementReader extends PlanElementReader {
   import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
-    val (it, toClose) = readAs[PlanElement](path, toPlanElement, x => true)
+    val (it, toClose) = readAs[PlanElement](path, toPlanElement, _ => true)
     try {
       it.toArray
     } finally {
@@ -47,12 +47,12 @@ object CsvPlanElementReader extends PlanElementReader {
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
       activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
-      legMode = Option(rec.get("legMode")).map(_.toString),
-      legDepartureTime = Option(rec.get("legDepartureTime")).map(_.toString),
-      legTravelTime = Option(rec.get("legTravelTime")).map(_.toString),
-      legRouteType = Option(rec.get("legRouteType")).map(_.toString),
-      legRouteStartLink = Option(rec.get("legRouteStartLink")).map(_.toString),
-      legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
+      legMode = Option(rec.get("legMode")),
+      legDepartureTime = Option(rec.get("legDepartureTime")),
+      legTravelTime = Option(rec.get("legTravelTime")),
+      legRouteType = Option(rec.get("legRouteType")),
+      legRouteStartLink = Option(rec.get("legRouteStartLink")),
+      legRouteEndLink = Option(rec.get("legRouteEndLink")),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
       legRouteLinks = linkIds,
@@ -69,11 +69,10 @@ object XmlPlanElementReader extends PlanElementReader {
 
     scenario.getPopulation.getPersons.values.asScala
       .flatMap { person =>
-        person.getPlans.asScala.zipWithIndex.flatMap {
-          case (plan, planIdx) =>
-            plan.getPlanElements.asScala.zipWithIndex.map {
-              case (planElement, planElementIdx) => (person, plan, planIdx, planElement, planElementIdx)
-            }
+        person.getPlans.asScala.zipWithIndex.flatMap { case (plan, planIdx) =>
+          plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIdx) =>
+            (person, plan, planIdx, planElement, planElementIdx)
+          }
         }
       }
       .collect {

@@ -6,7 +6,7 @@ import org.matsim.core.router.util.TravelTime
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
 
-class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0D) {
+class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0d) {
   private val networkHelper = workerParams.networkHelper
   private val transportNetwork = workerParams.transportNetwork
 
@@ -15,7 +15,7 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
 
   private val noiseIdx: AtomicInteger = new AtomicInteger(0)
 
-  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction.equals(0D)) {
+  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction.equals(0d)) {
     Array.empty
   } else {
     Array.fill(1000000) {
@@ -47,7 +47,7 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
 
     val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
     val physSimTravelTimeWithNoise =
-      (if (travelTimeNoiseFraction.equals(0D) || !shouldAddNoise) {
+      (if (travelTimeNoiseFraction.equals(0d) || !shouldAddNoise) {
          physSimTravelTime
        } else {
          val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)

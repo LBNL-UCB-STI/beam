@@ -69,7 +69,6 @@ class SitePowerManager(chargingNetworkMap: Map[Option[Id[VehicleManager]], Charg
   }
 
   /**
-    *
     * @param chargingVehicle the vehicle being charging
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
@@ -140,14 +139,13 @@ object SitePowerManager {
     */
   def getUnlimitedPhysicalBounds(stations: Seq[ChargingStation]): Eval[Map[ChargingStation, PhysicalBounds]] = {
     Eval.later {
-      stations.map {
-        case station @ ChargingStation(zone) =>
-          station -> PhysicalBounds(
-            station,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
-            ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
-            0.0
-          )
+      stations.map { case station @ ChargingStation(zone) =>
+        station -> PhysicalBounds(
+          station,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType) * zone.numChargers,
+          0.0
+        )
       }.toMap
     }
   }

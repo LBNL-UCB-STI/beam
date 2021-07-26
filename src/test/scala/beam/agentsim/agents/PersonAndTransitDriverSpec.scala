@@ -112,7 +112,7 @@ class PersonAndTransitDriverSpec
               case pathTraversalEvent: PathTraversalEvent
                   if pathTraversalEvent.vehicleId.toString == "body-dummyAgent" =>
                 personEvents.ref ! event
-              case agencyRevenueEvent: AgencyRevenueEvent =>
+              case _: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
               case _: AbstractSkimmerEvent =>
                 skimEvents.ref ! event
@@ -238,58 +238,6 @@ class PersonAndTransitDriverSpec
         )
       )
 
-      val busDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
-          vehicle = bus,
-          Array(busLeg.beamLeg, busLeg2.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-      val tramDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
-          vehicle = tram,
-          Array(tramLeg.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-
-      val iteration = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(busDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(tramDriverProps, "TransitDriverAgent-" + tramId.toString)
-
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
-
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
-      )
-
       val busDriver = Await.result(
         system
           .actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(busId))
@@ -371,7 +319,7 @@ class PersonAndTransitDriverSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -393,7 +341,7 @@ class PersonAndTransitDriverSpec
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
-                    distanceInM = 1D
+                    distanceInM = 1d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
