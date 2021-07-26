@@ -466,14 +466,23 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
       scheduler ! CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
       vehicleArrivedAtTickAndStall foreach { case (tick, stall) =>
-        chargingNetworkManager ! ChargingPlugRequest(
-          tick,
-          currentBeamVehicle,
-          stall,
-          triggerId,
-          shiftStatus = if (isCurrentlyOnShift) { OnShift }
-          else { OffShift }
-        )
+        stall.chargingPointType match {
+          case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+            chargingNetworkManager ! ChargingPlugRequest(
+              tick,
+              currentBeamVehicle,
+              stall,
+              triggerId,
+              shiftStatus = if (isCurrentlyOnShift) { OnShift }
+              else { OffShift }
+            )
+          case _ =>
+            log.debug(
+              "This is not an EV {} that needs to charge at stall {}",
+              currentBeamVehicle.id,
+              stall.parkingZoneId
+            )
+        }
       }
       unstashAll() // needed in case StartShiftTrigger was stashed (see next block)
       stay()
@@ -812,15 +821,22 @@ class RideHailAgent(
           eventsManager.processEvent(
             ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
           )
-          if (currentBeamVehicle.isBEV || currentBeamVehicle.isPHEV) {
-            chargingNetworkManager ! ChargingPlugRequest(
-              tick,
-              currentBeamVehicle,
-              stall,
-              triggerId,
-              shiftStatus = if (isCurrentlyOnShift) { OnShift }
-              else { OffShift }
-            )
+          stall.chargingPointType match {
+            case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+              chargingNetworkManager ! ChargingPlugRequest(
+                tick,
+                currentBeamVehicle,
+                stall,
+                triggerId,
+                shiftStatus = if (isCurrentlyOnShift) { OnShift }
+                else { OffShift }
+              )
+            case _ =>
+              log.debug(
+                "This is not an EV {} that needs to charge at stall {}",
+                currentBeamVehicle.id,
+                stall.parkingZoneId
+              )
           }
           isOnWayToParkAtStall = None
           goto(Refueling) using data
@@ -1133,14 +1149,23 @@ class RideHailAgent(
     data: RideHailAgentData
   ): FSM.State[BeamAgentState, RideHailAgentData] = {
     ev.vehicleArrivedAtTickAndStall foreach { case (tick, stall) =>
-      chargingNetworkManager ! ChargingPlugRequest(
-        tick,
-        currentBeamVehicle,
-        stall,
-        ev.triggerId,
-        shiftStatus = if (isCurrentlyOnShift) { OnShift }
-        else { OffShift }
-      )
+      stall.chargingPointType match {
+        case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+          chargingNetworkManager ! ChargingPlugRequest(
+            tick,
+            currentBeamVehicle,
+            stall,
+            ev.triggerId,
+            shiftStatus = if (isCurrentlyOnShift) { OnShift }
+            else { OffShift }
+          )
+        case _ =>
+          log.debug(
+            "This is not an EV {} that needs to charge at stall {}",
+            currentBeamVehicle.id,
+            stall.parkingZoneId
+          )
+      }
     }
     handleVehicleResourceIdle(None, ev.newTriggers, ev.triggerId, data, None)
   }
