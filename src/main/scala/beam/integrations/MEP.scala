@@ -1,6 +1,8 @@
 package beam.integrations
 
 import beam.sim.config.BeamConfig
+import beam.utils.logging.ExponentialLazyLogging
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.nio.charset.StandardCharsets
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, AwsSessionCredentials, StaticCredentialsProvider}
@@ -12,25 +14,30 @@ import software.amazon.awssdk.services.lambda.model.{InvocationType, InvokeReque
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Failure
 
 case class MEPResponse(configParseResult: String, awsReadResult: String)
 
-class MEP(beamConfig: BeamConfig) {
-  //TODO: Add configs - should some be fed in other ways if need more security (so not checked into code by accident?)
-  val mepAwsArn: String = beamConfig.beam.mep.aws.arn //arn:aws:iam::991404956194:role/mep-cross-lab-access
-  val mepAwsRegion: String = beamConfig.beam.mep.aws.region //us-west-2
-  val mepAwsExternalId: String = beamConfig.beam.mep.aws.externalId //jafijk887fk88hj0n
-  val mepAwsLambdaFunctionName: String = beamConfig.beam.mep.aws.lambda.functionName //mep-dev-mep-validation
+class MEP(beamConfig: BeamConfig) extends ExponentialLazyLogging {
+  //TODO: Add README section on MEP setup - especially wrt configs
+  val mepAwsArn: String = beamConfig.beam.mep.aws.arn
+  val mepAwsRegion: String = beamConfig.beam.mep.aws.region
+  val mepAwsExternalId: String = beamConfig.beam.mep.aws.externalId
+  val mepAwsLambdaFunctionName: String = beamConfig.beam.mep.aws.lambda.functionName
   val beamAwsAccessKeyId: String = beamConfig.beam.aws.accessKeyId
   val beamAwsSecretKey: String = beamConfig.beam.aws.secretKey
-  val beamAwsRegion: String = beamConfig.beam.aws.region //us-east-2
+  val beamAwsRegion: String = beamConfig.beam.aws.region
 
   def submit(payload:String, sessionName: String = "BEAM_Submit"): Future[MEPResponse] = {
-    //TODO: Make sure the errors are not swallowed
-    for {
+    val mepResponseFuture = for {
       credentialsForLambda <- getAssumedCredentials(sessionName)
       mepResponse <- invokeLambdaUsing(credentialsForLambda, payload)
     } yield mepResponse
+    mepResponseFuture.onComplete{
+      case Failure(ex) => logger.error(s"Error submitting the MEP payload. Exception message: ${ex.getMessage}; Stack trace: ${ExceptionUtils.getStackTrace(ex)}")
+      case _ =>
+    }
+    mepResponseFuture
   }
 
   def convertToMEPResponse(usingResponsePayload: String): MEPResponse = {
