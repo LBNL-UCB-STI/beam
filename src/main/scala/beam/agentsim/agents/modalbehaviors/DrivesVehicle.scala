@@ -344,6 +344,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       if (!isLastLeg) {
         if (data.hasParkingBehaviors) {
           holdTickAndTriggerId(tick, triggerId)
+          log.error("Going to ready to Choose Parking with driver " + id)
           goto(ReadyToChooseParking) using data
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T]
@@ -353,11 +354,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
-            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
+            logger.error(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
             tick
           } else {
             nextLeg.startTime
           }
+          log.error("Going to waiting to drive and sending Completion for driver " + id)
           goto(WaitingToDrive) using stripLiterallyDrivingData(data)
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T] replying CompletionNotice(
@@ -383,7 +385,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
                 case Some(_) =>
-                  log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
+                  log.error("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
@@ -393,7 +395,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely
-                  log.debug(
+                  log.error(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
                     currentBeamVehicle.id,
                     if (currentBeamVehicle.isBEV) "BEV" else if (currentBeamVehicle.isPHEV) "PHEV" else "non-electric",
@@ -406,8 +408,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {
+          log.error("Going to connecting to charging for driver " + id)
           goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
+          log.error("Going to connecting to driving interrupted for driver " + id)
           self ! LastLegPassengerSchedule(triggerId)
           goto(DrivingInterrupted) using data.asInstanceOf[T]
         }
