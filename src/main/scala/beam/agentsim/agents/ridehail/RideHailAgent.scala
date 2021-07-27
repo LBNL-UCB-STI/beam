@@ -823,6 +823,7 @@ class RideHailAgent(
           )
           stall.chargingPointType match {
             case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+              log.error("sending Charging Plug Request for driver " + id)
               chargingNetworkManager ! ChargingPlugRequest(
                 tick,
                 currentBeamVehicle,
@@ -832,7 +833,7 @@ class RideHailAgent(
                 else { OffShift }
               )
             case _ =>
-              log.debug(
+              log.error(
                 "This is not an EV {} that needs to charge at stall {}",
                 currentBeamVehicle.id,
                 stall.parkingZoneId
@@ -851,7 +852,7 @@ class RideHailAgent(
               beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
             )
           ) {
-            log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
+            log.error("Empty human ridehail vehicle requesting parking stall: event = " + ev)
             rideHailManager ! NotifyVehicleOutOfService(vehicle.id, triggerId)
 
             val rideHailAgentLocation =
@@ -880,13 +881,14 @@ class RideHailAgent(
               triggerId = getCurrentTriggerIdOrGenerate
             )
             chargingNetworkManager ! inquiry
-
+            log.error("About to go Offline with driver " + id)
             goto(Offline) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
               .asInstanceOf[RideHailAgentData]
           } else {
             if (!vehicle.isCAV) log.debug("No refueling selected for {}", vehicle)
+            log.error("Going to idle in else with driver " + id)
             goto(Idle) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
