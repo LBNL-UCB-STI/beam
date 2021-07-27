@@ -229,7 +229,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
       updateLatestObservedTick(tick)
-      log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
+      log.error("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption
@@ -416,7 +416,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     //TODO Need explanation as to why we do nothing if we receive EndLeg but data is not type LiterallyDrivingData
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       updateLatestObservedTick(tick)
-      log.debug("state(DrivesVehicle.Driving): {}", ev)
+      log.error("state(DrivesVehicle.Driving): {}", ev)
 
       log.debug(
         "DrivesVehicle.IgnoreEndLegTrigger: vehicleId({}), tick({}), triggerId({}), data({})",
@@ -538,7 +538,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       goto(Driving)
     case ev @ Event(TriggerWithId(EndLegTrigger(_), _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
+      log.error("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
     case ev @ Event(Interrupt(_, _, _), _) =>
@@ -604,7 +604,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updateLatestObservedTick(tick)
-      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
+      log.error("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {
         stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
