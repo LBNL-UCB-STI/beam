@@ -547,7 +547,7 @@ class RideHailAgent(
     case ev @ Event(StartingRefuelSession(tick, _, _), _) =>
       // Due to parallelism window and dequeue process, tick could be unchronological
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailAgent.Offline.StartingRefuelSession): {}", ev)
+      log.error("state(RideHailAgent.Offline.StartingRefuelSession): {}", ev)
       if (debugEnabled) outgoingMessages += ev
       goto(Refueling)
     case ev @ Event(reply @ WaitingInLine(_, _, _), data) =>
@@ -809,7 +809,7 @@ class RideHailAgent(
 
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, triggerId, _), data) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
+      log.error("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
       if (this.vehicle.primaryFuelLevelInJoules < 0) {
         rideHailManager ! MarkVehicleBatteryDepleted(lastTime.time, this.vehicle.id)
       }
@@ -839,6 +839,7 @@ class RideHailAgent(
               )
           }
           isOnWayToParkAtStall = None
+          log.error("Going Refueling 1")
           goto(Refueling) using data
             .withPassengerSchedule(PassengerSchedule())
             .withCurrentLegPassengerScheduleIndex(0)
@@ -974,7 +975,7 @@ class RideHailAgent(
 
   when(Refueling) {
     case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
-      log.debug("state(RideHailingAgent.Refueling): {}", ev)
+      log.error("state(RideHailingAgent.Refueling): {}", ev)
       goto(RefuelingInterrupted) replying InterruptedWhileOffline(
         interruptId,
         vehicle.id,
@@ -982,10 +983,10 @@ class RideHailAgent(
         triggerId
       )
     case ev @ Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.Refueling): {}", ev)
+      log.error("state(RideHailingAgent.Refueling): {}", ev)
       stay
     case ev @ Event(UnhandledVehicle(_, vehicleId, _), _) =>
-      log.debug(s"state(RideHailingAgent.Refueling.UnhandledVehicle): $ev")
+      log.error(s"state(RideHailingAgent.Refueling.UnhandledVehicle): $ev")
       assert(currentBeamVehicle.id == vehicleId, "Agent receiving the wrong message")
       log.error(
         s"Something is broken. The current vehicle ${currentBeamVehicle.id} is still refueling, " +
@@ -998,7 +999,7 @@ class RideHailAgent(
       }
     case ev @ Event(EndingRefuelSession(tick, _, stall, triggerId), _) =>
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}", ev)
+      log.error("state(RideHailingAgent.Refueling.EndingRefuelSession): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
       lastLocationOfRefuel = Some(stall.locationUTM)
@@ -1041,7 +1042,7 @@ class RideHailAgent(
 
   when(RefuelingInterrupted) {
     case Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.Refueling.Resume)")
+      log.error("state(RideHailingAgent.Refueling.Resume)")
       goto(Refueling)
     case Event(EndingRefuelSession(_, _, _, _), _) =>
       stash()

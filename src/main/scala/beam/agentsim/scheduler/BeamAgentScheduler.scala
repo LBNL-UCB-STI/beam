@@ -259,6 +259,7 @@ class BeamAgentScheduler(
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
         logger.info(logStr)
+        println(logStr)
 
         // if RidehailManager at first position in queue, it is very likely, that we are stuck
         awaitingResponse.values().asScala.take(1).foreach { x =>
