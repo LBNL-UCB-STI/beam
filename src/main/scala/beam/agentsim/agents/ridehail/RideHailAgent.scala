@@ -462,9 +462,6 @@ class RideHailAgent(
       } else {
         Vector()
       }
-      if (debugEnabled) outgoingMessages += ev
-      if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
-      scheduler ! CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
       vehicleArrivedAtTickAndStall foreach { case (tick, stall) =>
         stall.chargingPointType match {
           case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
@@ -484,6 +481,9 @@ class RideHailAgent(
             )
         }
       }
+      if (debugEnabled) outgoingMessages += ev
+      if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
+      scheduler ! CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
       unstashAll() // needed in case StartShiftTrigger was stashed (see next block)
       stay()
     case ev @ Event(TriggerWithId(StartShiftTrigger(tick), triggerId), data) =>
