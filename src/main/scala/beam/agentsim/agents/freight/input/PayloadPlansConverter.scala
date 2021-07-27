@@ -7,7 +7,6 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
-import beam.utils.MathUtils
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population._
@@ -43,15 +42,11 @@ object PayloadPlansConverter {
       .mapValues(_.head)
   }
 
-  private def getDistributedTazLocation(location: Coord, tazTree: TAZTreeMap, rnd: Random): Coord = {
-    val taz = tazTree.getTAZ(location)
-    if (taz == null) {
-      location
-    } else {
-      val (dx, dy) = MathUtils.randomPointInCircle(taz.areaInSquareMeters / Math.PI, rnd)
-      new Coord(taz.coord.getX + dx, taz.coord.getY + dy)
+  private def getDistributedTazLocation(tazId: String, tazTree: TAZTreeMap, rnd: Random): Coord =
+    tazTree.getTAZ(tazId) match {
+      case Some(taz) => TAZTreeMap.randomLocationInTAZ(taz, rnd)
+      case None      => throw new IllegalArgumentException(s"Cannot find taz with id $tazId")
     }
-  }
 
   def readPayloadPlans(path: String, tazTree: TAZTreeMap, rnd: Random): Map[Id[PayloadPlan], PayloadPlan] = {
     GenericCsvReader
@@ -64,11 +59,7 @@ object PayloadPlansConverter {
           row.get("payloadType").createId[PayloadType],
           row.get("weightInKg").toDouble,
           FreightRequestType.withNameInsensitive(row.get("requestType")),
-          getDistributedTazLocation(
-            new Coord(row.get("locationX").toDouble, row.get("locationY").toDouble),
-            tazTree,
-            rnd
-          ),
+          getDistributedTazLocation(row.get("taz"), tazTree, rnd),
           row.get("estimatedTimeOfArrivalInSec").toInt,
           row.get("arrivalTimeWindowInSec").toInt,
           row.get("operationDurationInSec").toInt
@@ -92,7 +83,7 @@ object PayloadPlansConverter {
       tourId: Id[FreightTour],
       vehicleId: Id[BeamVehicle],
       vehicleTypeId: Id[BeamVehicleType],
-      depotLocation: Coord
+      depotTaz: String
     )
 
     def createCarrierVehicles(
@@ -121,7 +112,7 @@ object PayloadPlansConverter {
     }
 
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
-      val depotLocation: Coord = getDistributedTazLocation(carrierRows.head.depotLocation, tazTree, rnd)
+      val depotLocation: Coord = getDistributedTazLocation(carrierRows.head.depotTaz, tazTree, rnd)
       val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, depotLocation)
       val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
 
@@ -148,14 +139,13 @@ object PayloadPlansConverter {
     }
 
     val rows = GenericCsvReader.readAsSeq[FreightCarrierRow](path) { row =>
-      //carrierId,tourId,vehicleId,vehicleTypeId,warehouseLocationX,warehouseLocationY
+      //carrierId,tourId,vehicleId,vehicleTypeId,warehouseTAZ
       val carrierId: Id[FreightCarrier] = row.get("carrierId").createId
       val tourId: Id[FreightTour] = row.get("tourId").createId
       val vehicleId: Id[BeamVehicle] = Id.createVehicleId(row.get("vehicleId"))
       val vehicleTypeId: Id[BeamVehicleType] = row.get("vehicleTypeId").createId
-      val warehouseLocationX = row.get("warehouseLocationX").toDouble
-      val warehouseLocationY = row.get("warehouseLocationY").toDouble
-      FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, new Coord(warehouseLocationX, warehouseLocationY))
+      val warehouseTaz = row.get("warehouseTAZ")
+      FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, warehouseTaz)
     }
     rows
       .groupBy(_.carrierId)
