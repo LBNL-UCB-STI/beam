@@ -255,14 +255,14 @@ class RideHailAgent(
       stay() replying CompletionNotice(triggerId, Vector())
 
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
-      log.debug(
+      log.error(
         "myUnhandled state({}): ignoring EndLegTrigger probably because of a modifyPassSchedule: {}",
         stateName,
         ev
       )
       sender() ! CompletionNotice(triggerId)
       if (!beamLegsToIgnoreDueToNewPassengerSchedule.exists(_.endTime == tick)) {
-        log.debug(s"Received unrecognized EndLegTrigger $ev while in state $stateName")
+        log.error(s"Received unrecognized EndLegTrigger $ev while in state $stateName")
       }
       stay
 
