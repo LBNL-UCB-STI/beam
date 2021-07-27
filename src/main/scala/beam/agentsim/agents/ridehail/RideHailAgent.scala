@@ -838,6 +838,7 @@ class RideHailAgent(
                 currentBeamVehicle.id,
                 stall.parkingZoneId
               )
+              scheduler ! CompletionNotice(triggerId, Vector())
           }
           isOnWayToParkAtStall = None
           log.error("Going Refueling 1")
