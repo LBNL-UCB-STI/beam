@@ -46,8 +46,8 @@ class ParallelParkingManager(
 
   override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
 
-  protected val workers: Vector[Worker] = clusters.zipWithIndex.map { case (cluster, i) =>
-    createWorker(cluster, i.toString)
+  protected val workers: Vector[Worker] = clusters.zipWithIndex.map { case (cluster, _) =>
+    createWorker(cluster)
   }
 
   protected val emergencyWorker = createWorker(
