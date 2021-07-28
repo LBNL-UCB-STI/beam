@@ -200,34 +200,18 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     implicit val ec = actorSystem.dispatcher
 
     val backgroundODSkimsCreatorConfig = beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator
-    val skimsCreator = params.linkstatsPath match {
-      case Some(_) =>
-        new BackgroundSkimsCreator(
-          beamServices = beamServices,
-          beamScenario = beamServices.beamScenario,
-          ODs = ODs,
-          abstractSkimmer = skimmer,
-          travelTime = travelTime,
-          beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
-          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
-          buildDirectWalkRoute = false,
-          buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
-          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
-        )
-      case None =>
-        new BackgroundSkimsCreator(
-          beamServices = beamServices,
-          beamScenario = beamServices.beamScenario,
-          ODs = ODs,
-          abstractSkimmer = skimmer,
-          travelTime = travelTime,
-          beamModes = Seq(BeamMode.WALK),
-          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
-          buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
-          buildDirectCarRoute = false,
-          calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
-        )
-    }
+    val skimsCreator = new BackgroundSkimsCreator(
+      beamServices = beamServices,
+      beamScenario = beamServices.beamScenario,
+      ODs = ODs,
+      abstractSkimmer = skimmer,
+      travelTime = travelTime,
+      beamModes = Seq(BeamMode.CAR, BeamMode.WALK),
+      withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
+      buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
+      buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
+      calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
+    )
 
     logger.info("Parallelism " + params.parallelism)
     skimsCreator.start()
