@@ -12,7 +12,7 @@ class R5MnetBuilderSpec extends AnyFlatSpec {
 
   it should "do something" in {
     val config = testConfig("test/input/beamville/beam.conf").resolve()
-    var transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
+    val transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
     val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config), HighwaySetting.empty())
     builder.buildMNet()
     val network = builder.getNetwork

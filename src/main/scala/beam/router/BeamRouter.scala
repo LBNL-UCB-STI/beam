@@ -36,16 +36,15 @@ import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
-import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
@@ -61,8 +60,6 @@ class BeamRouter(
   network: Network,
   networkHelper: NetworkHelper,
   geo: GeoUtils,
-  scenario: Scenario,
-  transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   eventsManager: EventsManager
@@ -535,8 +532,6 @@ object BeamRouter {
     network: Network,
     networkHelper: NetworkHelper,
     geo: GeoUtils,
-    scenario: Scenario,
-    transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager
@@ -550,8 +545,6 @@ object BeamRouter {
         network,
         networkHelper,
         geo,
-        scenario,
-        transitVehicles,
         fareCalculator,
         tollCalculator,
         eventsManager
@@ -852,7 +845,7 @@ object BeamRouter {
       val secondsInArriveHour = arrivalTime - arriveHour * 3600
       Math
         .round(
-          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour).toDouble / (secondsInDepartHour + secondsInArriveHour).toDouble
+          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour) / (secondsInDepartHour + secondsInArriveHour).toDouble
         )
         .intValue()
     }
@@ -922,8 +915,6 @@ object BeamRouter {
     )
     Math.max(adjustedSkimTime, beamScenario.beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
   }
-
-  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 
   sealed trait WorkMessage
 

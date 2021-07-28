@@ -6,7 +6,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -77,12 +76,12 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
 
   val sortedTimeBinToActivitiesWeight: Vector[(Int, Double)] = timeBinToActivitiesWeight.toVector.sortBy {
-    case (timeBin, weight) => timeBin
+    case (timeBin, _) => timeBin
   }
-  logger.debug(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
+  logger.debug(s"timeBinToActivitiesWeight: $sortedTimeBinToActivitiesWeight")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
-  logger.info(s"horizon: ${horizon}")
+  logger.info(s"horizon: $horizon")
 
   val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
     createClusters
@@ -207,7 +206,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
               logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
               val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
               val coords: ArrayBuffer[Coord] = new ArrayBuffer(clu.size())
-              var iter: DBIDIter = clu.getIDs.iter()
+              val iter: DBIDIter = clu.getIDs.iter()
               while (iter.valid()) {
                 val o: DoubleVector = rel.get(iter)
                 val arr = o.toArray

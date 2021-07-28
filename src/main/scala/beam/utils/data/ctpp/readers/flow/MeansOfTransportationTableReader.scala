@@ -1,6 +1,5 @@
 package beam.utils.data.ctpp.readers.flow
 
-import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.models.{FlowGeoParser, MeansOfTransportation, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
@@ -43,7 +42,7 @@ object MeansOfTransportationTableReader {
     calcModes(ods)
 
     val interestedCounties = ods.filter(countyFilter)
-    println(s"Interested counties: ${counties}")
+    println(s"Interested counties: $counties")
     calcModes(interestedCounties)
 
     val interestedCountiesSum = interestedCounties.map(_.value).sum.toLong

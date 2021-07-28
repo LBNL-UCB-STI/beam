@@ -193,10 +193,9 @@ class ParallelParkingManagerSpec
         val secondInquiry = ParkingInquiry(centerSpaceTime, "work", triggerId = 237)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
-          case Some(res @ ParkingInquiryResponse(stall, responseId, triggerId))
+          case Some(ParkingInquiryResponse(stall, responseId, triggerId))
               if stall.geoId == TAZ.EmergencyTAZId
                 && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
-            res
           case _ => assert(response2.isDefined, "no response")
         }
       }

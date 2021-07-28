@@ -131,7 +131,7 @@ trait RideHailDepotParkingManager[GEO] extends ParkingNetwork[GEO] {
   /**
     * @param release
     */
-  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = Unit
+  override def processReleaseParkingStall(release: Resource.ReleaseParkingStall): Unit = ()
 
 }
 

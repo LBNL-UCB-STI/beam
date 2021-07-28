@@ -84,9 +84,9 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
       val s = Statistics(buf.map(_.toDouble))
       sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
     }
-    sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
+    sb.append(s"$nl Max number of trigger messages per actor type$nl")
     getMaxPerActorType.foreach { case (actorType, triggetTypeToMaxMsgs) =>
-      val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
+      val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t$key => $v$nl" }.mkString
       val str = s"""\t$actorType => ${triggetTypeToMaxMsgs.map { case (_, v) => v }.sum}
         |$s""".stripMargin
       sb.append(str)
@@ -108,12 +108,12 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     val groupedByActorType = actorTypeToTriggers.groupBy { case (actorType, _) => actorType }
 
     val maxPerActorType = groupedByActorType.map { case (actorType, seq) =>
-      val typeToCount = seq.flatMap { case (key, value) => value }.toSeq
+      val typeToCount = seq.values.flatten.toSeq
       val classToMaxMsgCount = typeToCount
         .groupBy { case (clazz, _) =>
           clazz
         }
-        .map { case (clazz, xs) => (clazz, xs.maxBy { case (k, v) => v }._2) }
+        .map { case (clazz, xs) => (clazz, xs.maxBy { case (_, v) => v }._2) }
       actorType -> classToMaxMsgCount
     }
     maxPerActorType
@@ -128,7 +128,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     val triggerType2MaxMessagesPerActorType = temp
       .groupBy { case (triggerType, _) => triggerType }
       .map { case (triggerType, seq) =>
-        val actorType2Count = seq.map { case (tp, (actorType, count)) => (actorType, count) }
+        val actorType2Count = seq.map { case (_, (actorType, count)) => (actorType, count) }
         triggerType -> actorType2Count
       }
     val thresholds = triggerType2MaxMessagesPerActorType.map { case (triggerType, seq) =>

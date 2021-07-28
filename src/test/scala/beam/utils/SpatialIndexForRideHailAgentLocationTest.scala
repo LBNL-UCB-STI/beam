@@ -3,7 +3,7 @@ package beam.utils
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
-import beam.sim.{CircularGeofence, Geofence}
+import beam.sim.CircularGeofence
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.funsuite.AnyFunSuite

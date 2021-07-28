@@ -69,9 +69,10 @@ class RideHailModifyPassengerScheduleManager(
         log.error(
           "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
           reply.interruptId,
-          if (reply.isInstanceOf[InterruptedWhileDriving]) {
-            reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule
-          } else { "NA" },
+          reply match {
+            case driving: InterruptedWhileDriving => driving.passengerSchedule
+            case _                                => "NA"
+          },
           reply.vehicleId,
           reply.tick
         )
@@ -116,7 +117,7 @@ class RideHailModifyPassengerScheduleManager(
   def checkIfRoundOfRepositioningIsDone(triggerId: Long): Unit = {
     if (waitingToReposition.isEmpty) {
       log.debug("Cleaning up from checkIfRoundOfRepositioningIsDone")
-      sendCompletionAndScheduleNewTimeout(Reposition, 0)
+      sendCompletionAndScheduleNewTimeout(Reposition)
       rideHailManager.cleanUp(triggerId)
     }
   }
@@ -124,7 +125,6 @@ class RideHailModifyPassengerScheduleManager(
   def modifyPassengerScheduleAckReceived(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger],
-    tick: Int,
     triggerId: Long
   ): Unit = {
     clearModifyStatusFromCacheWithVehicleId(vehicleId)
@@ -134,7 +134,7 @@ class RideHailModifyPassengerScheduleManager(
     repositioningFinished(vehicleId, triggerId)
   }
 
-  def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
+  def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType): Unit = {
     val (currentTick, triggerId) = releaseTickAndTriggerId()
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
@@ -280,9 +280,10 @@ class RideHailModifyPassengerScheduleManager(
             log.error(
               "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
               reply.interruptId,
-              if (reply.isInstanceOf[InterruptedWhileDriving]) {
-                reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule
-              } else { "NA" },
+              reply match {
+                case driving: InterruptedWhileDriving => driving.passengerSchedule
+                case _                                => "NA"
+              },
               reply.vehicleId,
               reply.tick
             )
@@ -416,7 +417,7 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    // FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
+    // TODO: FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
     // !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
     true
   }

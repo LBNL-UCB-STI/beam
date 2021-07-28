@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.Coord
 object R5NetworkPlayground extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
-    val (arg, cfg) = prepareConfig(Array("--config", "production/sfbay/smart/smart-c-hightech.conf"), true)
+    val (_, cfg) = prepareConfig(Array("--config", "production/sfbay/smart/smart-c-hightech.conf"), true)
     val beamConfig = BeamConfig(cfg)
 
     val nc = DefaultNetworkCoordinator(beamConfig)

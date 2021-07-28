@@ -209,8 +209,6 @@ class BeamSim @Inject() (
         scenario.getNetwork,
         networkHelper,
         beamServices.geo,
-        scenario,
-        scenario.getTransitVehicles,
         beamServices.fareCalculator,
         tollCalculator,
         eventsManager
@@ -557,8 +555,7 @@ class BeamSim @Inject() (
           listener.notifyShutdown(event)
           dumpHouseholdAttributes
 
-        case x =>
-          logger.warn("dumper is not `ShutdownListener`")
+        case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
       }
     }
   }
@@ -663,7 +660,7 @@ class BeamSim @Inject() (
         Files.delete(filePath)
         Right(filePath)
       } catch {
-        case e: Throwable => Left(filePath)
+        case _: Throwable => Left(filePath)
       }
     }
   }
@@ -755,7 +752,7 @@ class BeamSim @Inject() (
 
     val dataset = new DefaultCategoryDataset
 
-    var data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
+    val data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
     data += (iteration      -> value)
     summaryData += fileName -> data
 

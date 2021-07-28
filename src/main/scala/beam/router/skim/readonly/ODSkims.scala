@@ -20,10 +20,9 @@ import beam.router.Modes.BeamMode.{
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
-import beam.sim.config.{BeamConfig, BeamExecutionConfig}
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.scenario.MutableScenario
 
 import scala.collection.immutable
 
@@ -33,11 +32,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     mode: BeamMode,
     originUTM: Location,
     destinationUTM: Location,
-    departureTime: Int,
-    vehicleTypeId: Id[BeamVehicleType],
     beamVehicleType: BeamVehicleType,
-    fuelPrice: Double,
-    beamScenario: BeamScenario
+    fuelPrice: Double
   ): Skim = {
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val votMultiplier: Double = mode match {
@@ -66,8 +62,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       travelDistance,
       travelCost,
       0,
-      0.0, // TODO get default energy information
-      1.0
+      0.0 // TODO get default energy information
     )
   }
 
@@ -75,7 +70,6 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     origin: Location,
     destination: Location,
     departureTime: Int,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
     beamServices: BeamServices
   ): (Double, Double) = {
     val tazTreeMap = beamServices.beamScenario.tazTreeMap
@@ -162,11 +156,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           mode,
           originUTM,
           new Coord(destinationUTM.getX, destinationUTM.getY),
-          departureTime,
-          vehicleTypeId,
           vehicleType,
-          fuelPrice,
-          beamScenario
+          fuelPrice
         )
     }
   }
@@ -200,11 +191,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
             mode,
             origin.coord,
             adjustedDestCoord,
-            timeBin * 3600,
-            dummyId,
             vehicleType,
-            fuelPrice,
-            beamScenario
+            fuelPrice
           )
         }
     }
@@ -259,10 +247,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
 object ODSkims extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
-    val (parsedArgs, config) = prepareConfig(args, true)
+    val (_, config) = prepareConfig(args, true)
     val (
-      beamExecutionConfig: BeamExecutionConfig,
-      scenario: MutableScenario,
+      _,
+      _,
       beamScenario: BeamScenario,
       services: BeamServices,
       _
@@ -299,6 +287,6 @@ object ODSkims extends BeamHelper {
     }
     val e = System.currentTimeMillis()
     val diff = e - s
-    println(s"Took: ${diff} ms for $count, AVG per call: ${diff.toDouble / count}")
+    println(s"Took: $diff ms for $count, AVG per call: ${diff.toDouble / count}")
   }
 }

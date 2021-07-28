@@ -7,7 +7,6 @@ import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.math.NumberUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -86,12 +85,12 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
       activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
-      legMode = Option(rec.get("legMode")).map(_.toString),
-      legDepartureTime = Option(rec.get("legDepartureTime")).map(_.toString),
-      legTravelTime = Option(rec.get("legTravelTime")).map(_.toString),
-      legRouteType = Option(rec.get("legRouteType")).map(_.toString),
-      legRouteStartLink = Option(rec.get("legRouteStartLink")).map(_.toString),
-      legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
+      legMode = Option(rec.get("legMode")),
+      legDepartureTime = Option(rec.get("legDepartureTime")),
+      legTravelTime = Option(rec.get("legTravelTime")),
+      legRouteType = Option(rec.get("legRouteType")),
+      legRouteStartLink = Option(rec.get("legRouteStartLink")),
+      legRouteEndLink = Option(rec.get("legRouteEndLink")),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
       legRouteLinks = linkIds,

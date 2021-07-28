@@ -22,9 +22,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends AnyFunSpec {
   private val javaRandom: ThreadLocalRandom = ThreadLocalRandom.current
   private val minRoadCapacity = javaRandom.nextDouble(1, 100)
   private val minSpeedMetersPerSecond = javaRandom.nextDouble(0, 200)
-  private val flowCapacityFactor = javaRandom.nextDouble(0, 200)
   private val iterationNumber = javaRandom.nextInt(0, 200)
-  private val writeInterval = javaRandom.nextInt(0, 20)
 
   private val config = ConfigFactory
     .parseMap(

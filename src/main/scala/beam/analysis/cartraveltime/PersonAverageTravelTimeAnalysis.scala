@@ -100,7 +100,7 @@ class PersonAverageTravelTimeAnalysis @Inject() (
       // Person started to walk towards his car
       personWalksTowardsCar.put(personId, pev)
     } else {
-      personWalksTowardsCar.get(personId.toString) match {
+      personWalksTowardsCar.get(personId) match {
         case Some(walkEvent: PersonEntersVehicleEvent) =>
           // Person previously walked towards his car
           personWalksTowardsCar.remove(personId)

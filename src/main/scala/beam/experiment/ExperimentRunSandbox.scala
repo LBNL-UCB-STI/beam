@@ -50,7 +50,7 @@ case class ExperimentRunSandbox(
 
   def getPathStringForConfig(path: Path): String = {
     // We need triple quotes because quotes cannot be escaped in string interpolation
-    s"""$${BEAM_REPO_PATH}"/${path}""""
+    s"""$${BEAM_REPO_PATH}"/$path""""
   }
 
   def buildRunConfig: Config = {

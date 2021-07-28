@@ -39,7 +39,7 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
 
   def add(geom: G, id: String, attribute: A): Unit = {
     if (featureIds.contains(id)) {
-      logger.warn(s"Already saw feature with id ${id}. It won't be written into the shape file!")
+      logger.warn(s"Already saw feature with id $id. It won't be written into the shape file!")
     } else {
       featureIds.add(id)
       // Check for special case when no attribute
