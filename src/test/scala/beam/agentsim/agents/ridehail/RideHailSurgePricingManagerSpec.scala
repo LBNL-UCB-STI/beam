@@ -25,7 +25,7 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
   lazy val beamScenario: BeamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario: MutableScenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
   lazy val injector: Injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
-  lazy val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  lazy val beamServices: BeamServices = buildBeamServices(injector)
 
   override def afterAll(): Unit = {
     injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats]).close()

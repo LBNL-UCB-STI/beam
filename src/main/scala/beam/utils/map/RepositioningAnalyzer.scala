@@ -5,14 +5,12 @@ import java.util.concurrent.TimeUnit
 
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.PathTraversalEvent
-import beam.sim.common.GeoUtils
-import beam.utils.scenario.{PersonId, PlanElement}
+import beam.utils.scenario.PlanElement
 import beam.utils.{EventReader, FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.utils.io.IOUtils
-import org.matsim.vehicles.Vehicle
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -35,15 +33,15 @@ object RepositioningAnalyzer extends LazyLogging {
   }
 
   def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
-    // Somehow Plan file has columns in camelCase, not snake_case
-    val personId = getIfNotNull(rec, "personId")
-    val planElement = getIfNotNull(rec, "planElementType")
-    val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
-    val activityType = Option(rec.get("activityType"))
-    val x = Option(rec.get("activityLocationX")).map(_.toDouble)
-    val y = Option(rec.get("activityLocationY")).map(_.toDouble)
-    val endTime = Option(rec.get("activityEndTime")).map(_.toDouble)
-    val mode = Option(rec.get("legMode")).map(_.toString)
+//    // Somehow Plan file has columns in camelCase, not snake_case
+//    val personId = getIfNotNull(rec, "personId")
+//    val planElement = getIfNotNull(rec, "planElementType")
+//    val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
+//    val activityType = Option(rec.get("activityType"))
+//    val x = Option(rec.get("activityLocationX")).map(_.toDouble)
+//    val y = Option(rec.get("activityLocationY")).map(_.toDouble)
+//    val endTime = Option(rec.get("activityEndTime")).map(_.toDouble)
+//    val mode = Option(rec.get("legMode")).map(_.toString)
 //    PlanElement(
 //      personId = PersonId(personId),
 //      planElementType = planElement,
@@ -82,8 +80,8 @@ object RepositioningAnalyzer extends LazyLogging {
     }
 
     val basePath = "C:/temp/Repos/RANDOM_REPOSITIONING_ALGO_7"
-    val eventsFilePath = s"${basePath}/1.events.csv.gz"
-    val initFleetLocationPath = s"${basePath}/1.rideHailFleet.csv"
+    val eventsFilePath = s"$basePath/1.events.csv.gz"
+    val initFleetLocationPath = s"$basePath/1.rideHailFleet.csv"
     val activityPath = "C:/temp/Repos/0.plans.csv"
 
     val shouldWriteActivitiesLocation = false
@@ -107,7 +105,7 @@ object RepositioningAnalyzer extends LazyLogging {
           .map { case (hour, xs) =>
             hour -> xs.map(_._2)
           }
-      writeActivities(s"${basePath}/act_hour_location.csvh", activitiesPerHour)
+      writeActivities(s"$basePath/act_hour_location.csvh", activitiesPerHour)
     }
 
     val initLoc = FileUtils
@@ -196,7 +194,7 @@ object RepositioningAnalyzer extends LazyLogging {
       val accInPath = if (shouldAccumulate) "_acc" else "_noacc"
       implicit val writer: BufferedWriter =
         IOUtils.getBufferedWriter(
-          s"${basePath}/per_hour_location_${accInPath}.csvh"
+          s"$basePath/per_hour_location_$accInPath.csvh"
         )
       writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
       writer.write("\n")
@@ -233,24 +231,10 @@ object RepositioningAnalyzer extends LazyLogging {
     isNeededEvent
   }
 
-  private def writeCoord(writer: BufferedWriter, wgsCoord: Coord): Unit = {
-    writer.write(wgsCoord.getY.toString)
-    writer.write(',')
-
-    writer.write(wgsCoord.getX.toString)
-    writer.write(',')
-  }
-
-  private def wgsToUtm(geoUtils: GeoUtils, x: Double, y: Double): Coord = {
-    val startWgsCoord = new Coord(x, y)
-    val startUtmCoord = geoUtils.wgs2Utm(startWgsCoord)
-    startUtmCoord
-  }
-
   def writeVehicleLocation(basePath: String, withHour: Array[(Int, VehicleLocation)]): Unit = {
     implicit val writer: BufferedWriter =
       IOUtils.getBufferedWriter(
-        s"${basePath}/vehicle_location.csvh"
+        s"$basePath/vehicle_location.csvh"
       )
     writer.write("hour,vehicle_id,x,y,time,num_of_passengers")
     writer.write("\n")

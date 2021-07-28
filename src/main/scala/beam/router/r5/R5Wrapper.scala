@@ -51,7 +51,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     ptFares,
     geo,
     dates,
-    networkHelper,
+    _,
     fareCalculator,
     tollCalculator
   ) = workerParams
@@ -882,7 +882,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       segment.geometry.getEndPoint.getY
     )
 
-    var activeLinkIds = ArrayBuffer[Int]()
+    val activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
     }

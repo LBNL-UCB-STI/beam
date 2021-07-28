@@ -46,7 +46,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
   )
   val scenario: MutableScenario = scenarioBuilt
   val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-  val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  val beamServices: BeamServices = buildBeamServices(injector)
 
   def createBackgroundSkimsCreator(
     modes: Seq[BeamMode],

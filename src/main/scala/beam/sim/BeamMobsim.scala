@@ -75,7 +75,7 @@ class BeamMobsim @Inject() (
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
-    startMeasuringIteration(matsimServices.getIterationNumber)
+    startMeasuringIteration()
     logger.info("Preparing new Iteration (Start)")
     startMeasuring("iteration-preparation:mobsim")
 
@@ -239,46 +239,46 @@ class BeamMobsim @Inject() (
     if (experimentType == "experiment_2.0") {
       if (physsimConfig.relaxation.experiment2_0.clearRoutesEveryIteration) {
         clearRoutes()
-        logger.info(s"Experiment_2.0: Clear all routes at iteration ${iteration}")
+        logger.info(s"Experiment_2.0: Clear all routes at iteration $iteration")
       }
       if (physsimConfig.relaxation.experiment2_0.clearModesEveryIteration) {
         clearModes()
-        logger.info(s"Experiment_2.0: Clear all modes at iteration ${iteration}")
+        logger.info(s"Experiment_2.0: Clear all modes at iteration $iteration")
       }
     } else if (experimentType == "experiment_2.1") {
       if (physsimConfig.relaxation.experiment2_1.clearRoutesEveryIteration) {
         clearRoutes()
-        logger.info(s"Experiment_2.1: Clear all routes at iteration ${iteration}")
+        logger.info(s"Experiment_2.1: Clear all routes at iteration $iteration")
       }
       if (physsimConfig.relaxation.experiment2_1.clearModesEveryIteration) {
         clearModes()
-        logger.info(s"Experiment_2.1: Clear all modes at iteration ${iteration}")
+        logger.info(s"Experiment_2.1: Clear all modes at iteration $iteration")
       }
     } else if (experimentType == "experiment_3.0" && iteration <= 1) {
       clearRoutes()
-      logger.info(s"Experiment_3.0: Clear all routes at iteration ${iteration}")
+      logger.info(s"Experiment_3.0: Clear all routes at iteration $iteration")
       clearModes()
-      logger.info(s"Experiment_3.0: Clear all modes at iteration ${iteration}")
+      logger.info(s"Experiment_3.0: Clear all modes at iteration $iteration")
     } else if (experimentType == "experiment_4.0" && iteration <= 1) {
       clearRoutes()
-      logger.info(s"Experiment_4.0: Clear all routes at iteration ${iteration}")
+      logger.info(s"Experiment_4.0: Clear all routes at iteration $iteration")
       clearModes()
-      logger.info(s"Experiment_4.0: Clear all modes at iteration ${iteration}")
+      logger.info(s"Experiment_4.0: Clear all modes at iteration $iteration")
     } else if (experimentType == "experiment_5.0" && iteration <= 1) {
       clearRoutes()
-      logger.info(s"Experiment_5.0: Clear all routes at iteration ${iteration}")
+      logger.info(s"Experiment_5.0: Clear all routes at iteration $iteration")
       clearModes()
-      logger.info(s"Experiment_5.0: Clear all modes at iteration ${iteration}")
+      logger.info(s"Experiment_5.0: Clear all modes at iteration $iteration")
     } else if (experimentType == "experiment_5.1" && iteration <= 1) {
       clearRoutes()
-      logger.info(s"Experiment_5.1: Clear all routes at iteration ${iteration}")
+      logger.info(s"Experiment_5.1: Clear all routes at iteration $iteration")
       clearModes()
-      logger.info(s"Experiment_5.1: Clear all modes at iteration ${iteration}")
+      logger.info(s"Experiment_5.1: Clear all modes at iteration $iteration}")
     } else if (experimentType == "experiment_5.2" && iteration <= 1) {
       clearRoutes()
-      logger.info(s"Experiment_5.2: Clear all routes at iteration ${iteration}")
+      logger.info(s"Experiment_5.2: Clear all routes at iteration $iteration")
       clearModes()
-      logger.info(s"Experiment_5.2: Clear all modes at iteration ${iteration}")
+      logger.info(s"Experiment_5.2: Clear all modes at iteration $iteration")
     }
   }
 

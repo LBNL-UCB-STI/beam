@@ -55,6 +55,7 @@ object GenerateTripTable {
     )
     val csvWriter = new CsvWriter(s"$outputPath$outputFile", headers)
     writeCSVRows(filterEvent, csvWriter)
+    closable.close()
   }
 
   def writeCSVRows(filterRows: Iterator[Event], csvWriter: CsvWriter): Unit = {

@@ -57,7 +57,6 @@ object NetworkXmlToCSV {
       mergeWriter.write(linkHeader + delimiter + mergeHeader.mkString(delimiter) + "\n")
 
       (physimElement \ "links" \ "link").foreach { link =>
-        val id = (link \ "@id").text
         val from = (link \ "@from").text
         val to = (link \ "@to").text
         val fromCoord = nodeMap(from)

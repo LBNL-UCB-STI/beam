@@ -106,7 +106,6 @@ object ParkingZoneSearch {
   /**
     * used within a search to track search data
     *
-    * @param isValidAlternative
     * @param parkingAlternative
     * @param utilityParameters
     */
@@ -215,7 +214,7 @@ object ParkingZoneSearch {
               geoToTAZ(taz).getId,
               parkingZone.parkingZoneId,
               coordinate,
-              costInDollars.toDouble,
+              costInDollars,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,

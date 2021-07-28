@@ -244,7 +244,7 @@ class ModeChoiceLCCM(
           walkTime,
           waitTime,
           bikeTime,
-          totalCost.toDouble,
+          totalCost,
           altAndIdx._2
         )
       }

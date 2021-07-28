@@ -34,7 +34,7 @@ object ShapefileReader {
         it.filter(filter).map(mapper(mt, _)).toArray
       } catch {
         case NonFatal(ex) =>
-          throw new ShapefileException(s"Error during reading shape file '${path}'", ex)
+          throw new ShapefileException(s"Error during reading shape file '$path'", ex)
       } finally {
         Try(fe.close())
       }

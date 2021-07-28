@@ -65,7 +65,7 @@ class ChargingNetworkManager(
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
   implicit val debug: Debug = beamConfig.beam.debug
 
-  private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds).toInt
+  private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
   var timeSpentToPlanEnergyDispatchTrigger: Long = 0
@@ -80,7 +80,7 @@ class ChargingNetworkManager(
   override def postStop: Unit = {
     maybeDebugReport.foreach(_.cancel())
     log.info(
-      s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
+      s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger ms, nHandledPlanEnergyDispatchTrigger: $nHandledPlanEnergyDispatchTrigger, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
     )
     super.postStop()
   }
@@ -88,7 +88,7 @@ class ChargingNetworkManager(
   override def loggedReceive: Receive = {
     case DebugReport =>
       log.info(
-        s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
+        s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger ms, nHandledPlanEnergyDispatchTrigger: $nHandledPlanEnergyDispatchTrigger, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
       )
 
     case inquiry: ParkingInquiry =>

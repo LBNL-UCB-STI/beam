@@ -44,7 +44,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           inquiry.pickUpLocationUTM,
           inquiry.destinationUTM,
           inquiry.departAt,
-          defaultBeamVehilceTypeId,
           rideHailManager.beamServices
         )
         SingleOccupantQuoteAndPoolingInfo(
@@ -108,7 +107,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     }
     toFinalize.foreach { request =>
       val routeResponses = vehicleAllocationRequest.requests(request)
-      val indexedResponses = routeResponses.map(resp => (resp.requestId -> resp)).toMap
+      val indexedResponses = routeResponses.map(resp => resp.requestId -> resp).toMap
 
       // First check for broken route responses (failed routing attempt)
       if (routeResponses.exists(_.itineraries.isEmpty)) {
@@ -197,7 +196,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             atMost = 2.minutes
           )
         } catch {
-          case e: TimeoutException =>
+          case _: TimeoutException =>
             rideHailManager.log.error("timeout of Matching Algorithm with no allocations made")
             List()
         }
@@ -233,7 +232,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
             .toList ++ theTrip.schedule.reverse.takeWhile(_.tag != EnRoute).reverse)
             .sliding(2)
             .flatMap { wayPoints =>
-              val orig = wayPoints(0)
+              val orig = wayPoints.head
               val dest = wayPoints(1)
               val origin = SpaceTime(orig.activity.getCoord, orig.serviceTime)
               if (

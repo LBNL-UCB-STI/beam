@@ -60,7 +60,6 @@ object BeamConfigUtils {
       val allIncludedPaths = getIncludedPathsRecursively(confFileLocationNormalized)
 
       val confNameToPaths = (allIncludedPaths - confFileLocationNormalized)
-        .map(_.toString)
         .foldLeft(Map("beam.conf" -> confFileLocationNormalized)) { case (fileNameToPath, confFilePath) =>
           val confFileName = getName(confFilePath)
           val newConfFileName = confFileNames.get(confFileName) match {

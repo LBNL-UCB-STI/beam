@@ -57,14 +57,13 @@ class ParallelParkingManager(
       new PreparedGeometryFactory()
         .create(geometryFactory.createPoint(new Coordinate(Double.PositiveInfinity, Double.PositiveInfinity))),
       "emergencyCluster"
-    ),
-    "emergency-worker"
+    )
   )
 
   protected val tazToWorker: Map[Id[_], Worker] =
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
-  protected def createWorker(cluster: ParkingCluster, workerId: String): Worker = {
+  protected def createWorker(cluster: ParkingCluster): Worker = {
     val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
     val parkingNetwork = ZonalParkingManager[TAZ](
       vehicleManagerId,

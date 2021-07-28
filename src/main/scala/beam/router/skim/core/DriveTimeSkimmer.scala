@@ -48,9 +48,9 @@ class DriveTimeSkimmer @Inject() (
     buildObservedODTravelTime(beamConfig, geo, beamScenario, maxDistanceFromBeamTaz)
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    var series = new mutable.ListBuffer[(Int, Double, Double)]()
+    val series = new mutable.ListBuffer[(Int, Double, Double)]()
     val categoryDataset = new HistogramDataset()
-    var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
+    val deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
     if (observedTravelTimes.nonEmpty) {
       beamScenario.tazTreeMap.getTAZs
         .foreach { origin =>

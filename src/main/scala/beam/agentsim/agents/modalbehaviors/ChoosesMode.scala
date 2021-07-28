@@ -224,7 +224,7 @@ trait ChoosesMode {
       .map(listOfResponses =>
         MobilityStatusResponse(
           listOfResponses
-            .collect { case MobilityStatusResponse(vehicles, triggerId) =>
+            .collect { case MobilityStatusResponse(vehicles, _) =>
               vehicles
             }
             .flatten

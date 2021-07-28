@@ -2,8 +2,6 @@ package beam.utils
 
 import java.io.File
 
-import beam.utils.ConfigConsistencyComparator.buildTopicWithKeysAndValues
-
 import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
@@ -147,7 +145,7 @@ object ConfigConsistencyComparator extends LazyLogging {
 
   def findNotFoundFiles(userConf: TypesafeConfig): Seq[(String, String)] = {
 
-    def resolve(key: String, value: ConfigValue): String = {
+    def resolve(value: ConfigValue): String = {
       try {
         value.unwrapped().toString
       } catch {
@@ -159,7 +157,7 @@ object ConfigConsistencyComparator extends LazyLogging {
     userConf
       .entrySet()
       .asScala
-      .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
+      .map(entry => (entry.getKey, resolve(entry.getValue)))
       .filter { case (key, value) =>
         val shouldCheck = !ignorePaths.contains(key)
         shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile

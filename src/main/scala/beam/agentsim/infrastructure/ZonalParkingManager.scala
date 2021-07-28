@@ -131,9 +131,7 @@ object ZonalParkingManager extends LazyLogging {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
       vehicleManagerId,
-      new Random(seed),
-      1.0,
-      1.0
+      new Random(seed)
     )
     ZonalParkingManager[GEO](
       vehicleManagerId,

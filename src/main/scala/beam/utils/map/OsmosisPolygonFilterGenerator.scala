@@ -25,9 +25,9 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     val geoIds = if (args(1) == "") Set.empty[String] else args(1).split(",").map(_.trim.toLowerCase).toSet
     val pathToOutputFolder = args(2)
 
-    logger.info(s"pathToCountyShapeFile: ${pathToCountyShapeFile}")
-    logger.info(s"geoIds to take: ${geoIds}")
-    logger.info(s"pathToOutputFolder: ${pathToOutputFolder}")
+    logger.info(s"pathToCountyShapeFile: $pathToCountyShapeFile")
+    logger.info(s"geoIds to take: $geoIds")
+    logger.info(s"pathToOutputFolder: $pathToOutputFolder")
 
     val countyWithGeom: Array[(String, Geometry)] = readShape(pathToCountyShapeFile, geoIds)
     logger.info(s"countyWithGeom: ${countyWithGeom.length}")

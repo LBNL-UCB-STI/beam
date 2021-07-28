@@ -21,7 +21,6 @@ import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io.FilenameUtils.getName
 import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
 
@@ -182,7 +181,6 @@ object BeamWarmStart extends LazyLogging {
     )
   }
 
-  private val singletonTraveltimeCalculator = new TravelTimeCalculatorConfigGroup()
   val fileNameSubstringToDetectIfReadSkimsInParallelMode = "_part"
 
   def apply(

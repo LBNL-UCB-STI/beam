@@ -269,7 +269,7 @@ class ZonalParkingManagerSpec
       val middleOfWorld = new Coord(50, 50)
 
       for {
-        trial <- 1 to trials
+        _ <- 1 to trials
         numStalls = math.max(4, random.nextInt(maxParkingStalls))
         tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
@@ -528,7 +528,7 @@ class ZonalParkingManagerSpec
     )
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }

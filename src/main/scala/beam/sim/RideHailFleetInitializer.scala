@@ -150,7 +150,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     */
   def readFleetFromCSV(filePath: String): List[RideHailAgentInputData] = {
     // This is lazy, to make it to read the data we need to call `.toList`
-    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, x => true)
+    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, _ => true)
     try {
       // Read the data
       val fleetData = iter.toList

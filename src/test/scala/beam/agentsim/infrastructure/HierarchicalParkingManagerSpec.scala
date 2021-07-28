@@ -214,9 +214,8 @@ class HierarchicalParkingManagerSpec
           ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
-          case Some(res @ ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
+          case Some(ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
               if stall.geoId == LinkLevelOperations.EmergencyLinkId && responseId == secondInquiry.requestId =>
-            res
           case _ => assert(response2.isDefined, "no response")
         }
       }
@@ -376,6 +375,7 @@ class HierarchicalParkingManagerSpec
   describe("HierarchicalParkingManager with loaded common data") {
     it("should return the correct stall") {
       val scenario = loadScenario(beamConfig)
+
       val stalls = InfrastructureUtils
         .loadStalls[Link](
           "test/input/beamville/parking/link-parking.csv",
@@ -386,6 +386,7 @@ class HierarchicalParkingManagerSpec
           randomSeed
         )
         .filter(_._2.chargingPointType.isEmpty)
+
       val zpm = HierarchicalParkingManager.init(
         VehicleManager.defaultManager,
         stalls,
@@ -444,7 +445,7 @@ class HierarchicalParkingManagerSpec
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 27)
     val response = spm.processParkingInquiry(inquiry)
     response match {
-      case Some(rsp @ ParkingInquiryResponse(stall, _, inquiry.triggerId)) =>
+      case Some(rsp @ ParkingInquiryResponse(_, _, inquiry.triggerId)) =>
         rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
         val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
         dist should be <= 400.0

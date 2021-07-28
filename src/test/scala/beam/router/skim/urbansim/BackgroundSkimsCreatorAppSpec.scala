@@ -48,7 +48,7 @@ class BackgroundSkimsCreatorAppSpec
   val scenario: MutableScenario = scenarioBuilt
   val injector: Injector = buildInjector(config, beamConfig, scenario, beamScenario)
   implicit val actorSystem: ActorSystem = injector.getInstance(classOf[ActorSystem])
-  val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  val beamServices: BeamServices = buildBeamServices(injector)
 
   "BackgroundSkimsCreatorApp" should {
 

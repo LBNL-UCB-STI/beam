@@ -31,8 +31,6 @@ class LinkCoordinateTest extends AnyFlatSpecLike with Matchers {
         </links>
       </network>
 
-    val errors = mutable.MutableList.empty[String]
-
     val map = LinkCoordinate.parseNetwork(xml)
     map shouldBe Map(
       91712 -> LinkCoordinate(

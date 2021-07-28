@@ -90,12 +90,12 @@ trait ChoosesParking extends {
       stay using data
     case Event(EndingRefuelSession(tick, vehicleId, _, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(tick, data, triggerId)
+      handleReleasingParkingSpot(tick, triggerId)
       goto(WaitingToDrive) using data
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is not handled by the CNM at tick $tick")
       goto(ReleasingParkingSpot) using data
-      handleReleasingParkingSpot(tick, data, triggerId)
+      handleReleasingParkingSpot(tick, triggerId)
       goto(WaitingToDrive) using data
   }
 
@@ -110,7 +110,7 @@ trait ChoosesParking extends {
         chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
         goto(ReleasingChargingPoint) using data
       } else {
-        handleReleasingParkingSpot(tick, data, triggerId)
+        handleReleasingParkingSpot(tick, triggerId)
         goto(WaitingToDrive) using data
       }
 
@@ -256,14 +256,14 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == vehicleMode || currentBeamVehicle.id == body.id) {
-        (data.currentVehicle, currentBeamVehicle)
+      val newVehicle = if (leg1.beamLeg.mode == vehicleMode || currentBeamVehicle.id == body.id) {
+        data.currentVehicle
       } else {
         currentBeamVehicle.unsetDriver()
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
-        (data.currentVehicle.drop(1), body)
+        data.currentVehicle.drop(1)
       }
 
       scheduler ! CompletionNotice(
@@ -286,13 +286,11 @@ trait ChoosesParking extends {
   }
 
   def calculateScore(
-    walkingDistance: Double,
     cost: Double,
-    energyCharge: Double,
-    valueOfTime: Double
+    energyCharge: Double
   ): Double = -cost - energyCharge
 
-  private def handleReleasingParkingSpot(tick: Int, data: PersonData, triggerId: Long): Unit = {
+  private def handleReleasingParkingSpot(tick: Int, triggerId: Long): Unit = {
     val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall, triggerId)
@@ -302,12 +300,8 @@ trait ChoosesParking extends {
         // This can now happen if a vehicle was charging and released the stall already
         currentBeamVehicle.lastUsedStall.get
     }
-    val nextLeg = data.passengerSchedule.schedule.head._1
-    val distance =
-      beamServices.geo.distUTMInMeters(stallForLeavingParkingEvent.locationUTM, nextLeg.travelPath.endPoint.loc)
     val energyCharge: Double = 0.0 //TODO
-    val timeCost: Double = 0.0 //scaleTimeByValueOfTime(0.0)
-    val score = calculateScore(distance, stallForLeavingParkingEvent.costInDollars, energyCharge, timeCost)
+    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
     eventsManager.processEvent(
       LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.id)
     )

@@ -3,7 +3,6 @@ package beam.scoring
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.replanning.ReplanningUtil
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
@@ -85,7 +84,6 @@ class BeamScoringFunctionFactory @Inject() (
       private var finalScore = 0.0
       private val trips = mutable.ListBuffer[EmbodiedBeamTrip]()
       private var leavingParkingEventScore = 0.0
-      var rideHailDepart = 0
 
       override def handleEvent(event: Event): Unit = {
         event match {
@@ -159,8 +157,9 @@ class BeamScoringFunctionFactory @Inject() (
 
         //write generalized link stats to file
 
-        if (modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]) {
-          registerLinkCosts(this.trips, attributes, modeChoiceCalculator.asInstanceOf[ModeChoiceMultinomialLogit])
+        modeChoiceCalculator match {
+          case logit: ModeChoiceMultinomialLogit => registerLinkCosts(this.trips, attributes, logit)
+          case _                                 =>
         }
       }
 
@@ -169,16 +168,6 @@ class BeamScoringFunctionFactory @Inject() (
         attributes: AttributesOfIndividual
       ): Double = {
         beamServices.beamScenario.destinationChoiceModel.getActivityUtility(activity, attributes)
-      }
-
-      private def getRealStartEndTime(
-        activity: Activity
-      ): (Double, Double) = {
-        val start = if (activity.getStartTime > 0) { activity.getStartTime }
-        else { 0 }
-        val end = if (activity.getEndTime > 0) { activity.getEndTime }
-        else { 3600 * 24 }
-        (start, end)
       }
 
       override def handleActivity(activity: Activity): Unit = {}

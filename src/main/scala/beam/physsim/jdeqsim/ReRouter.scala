@@ -14,14 +14,14 @@ import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.StrictLogging
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 
 class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
 
-  private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
+  private val (_, carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
     .maxBy(_._2.sampleProbabilityWithinCategory)
 
