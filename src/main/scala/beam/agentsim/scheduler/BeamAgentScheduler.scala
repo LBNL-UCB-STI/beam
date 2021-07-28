@@ -8,7 +8,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
 import beam.utils.StuckFinder
-import beam.utils.logging.{ExponentialLazyLogging, LogActorState, LoggingMessageActor}
+import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import com.google.common.collect.TreeMultimap
 
 import java.util.Comparator
@@ -123,8 +123,7 @@ class BeamAgentScheduler(
   val maxWindow: Int,
   val stuckFinder: StuckFinder
 ) extends LoggingMessageActor
-    with ActorLogging
-    with ExponentialLazyLogging {
+    with ActorLogging {
   // Used to set a limit on the total time to process messages (we want this to be quite large).
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
@@ -258,8 +257,6 @@ class BeamAgentScheduler(
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
         log.info(logStr)
-        logger.info(logStr)
-        println(logStr)
 
         // if RidehailManager at first position in queue, it is very likely, that we are stuck
         awaitingResponse.values().asScala.take(1).foreach { x =>

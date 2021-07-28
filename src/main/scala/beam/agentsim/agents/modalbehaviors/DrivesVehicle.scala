@@ -229,7 +229,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           LiterallyDrivingData(data, legEndingAt, _)
         ) if tick == legEndingAt =>
       updateLatestObservedTick(tick)
-      log.error("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
+      log.debug("state(DrivesVehicle.Driving): EndLegTrigger({}) for driver {}", tick, id)
       val currentLeg = data.passengerSchedule.schedule.keys.view
         .drop(data.currentLegPassengerScheduleIndex)
         .headOption
@@ -344,7 +344,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       if (!isLastLeg) {
         if (data.hasParkingBehaviors) {
           holdTickAndTriggerId(tick, triggerId)
-          log.error("Going to ready to Choose Parking with driver " + id)
           goto(ReadyToChooseParking) using data
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T]
@@ -354,12 +353,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               .drop(data.currentLegPassengerScheduleIndex + 1)
               .head
           val startLegTriggerTick = if (nextLeg.startTime < tick) {
-            logger.error(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
+            logger.warn(s"Start time of next leg ${nextLeg.startTime} was less than current tick $tick.")
             tick
           } else {
             nextLeg.startTime
           }
-          log.error("Going to waiting to drive and sending Completion for driver " + id)
           goto(WaitingToDrive) using stripLiterallyDrivingData(data)
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T] replying CompletionNotice(
@@ -385,7 +383,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
               stall.chargingPointType match {
                 case Some(_) =>
-                  log.error("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
+                  log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
@@ -395,7 +393,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely
-                  log.error(
+                  log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
                     currentBeamVehicle.id,
                     if (currentBeamVehicle.isBEV) "BEV" else if (currentBeamVehicle.isPHEV) "PHEV" else "non-electric",
@@ -408,10 +406,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {
-          log.error("Going to connecting to charging for driver " + id)
           goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
-          log.error("Going to connecting to driving interrupted for driver " + id)
           self ! LastLegPassengerSchedule(triggerId)
           goto(DrivingInterrupted) using data.asInstanceOf[T]
         }
@@ -420,7 +416,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     //TODO Need explanation as to why we do nothing if we receive EndLeg but data is not type LiterallyDrivingData
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), data) =>
       updateLatestObservedTick(tick)
-      log.error("state(DrivesVehicle.Driving): {}", ev)
+      log.debug("state(DrivesVehicle.Driving): {}", ev)
 
       log.debug(
         "DrivesVehicle.IgnoreEndLegTrigger: vehicleId({}), tick({}), triggerId({}), data({})",
@@ -542,7 +538,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       goto(Driving)
     case ev @ Event(TriggerWithId(EndLegTrigger(_), _), _) =>
-      log.error("state(DrivesVehicle.DrivingInterrupted): {}", ev)
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
     case ev @ Event(Interrupt(_, _, _), _) =>
@@ -608,7 +604,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updateLatestObservedTick(tick)
-      log.error("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
+      log.debug("state(DrivesVehicle.WaitingToDrive): StartLegTrigger({},{}) for driver {}", tick, newLeg, id)
 
       if (data.currentVehicle.isEmpty) {
         stop(Failure("person received StartLegTrigger for leg {} but has an empty data.currentVehicle", newLeg))
