@@ -545,7 +545,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
-    case _ @ Event(LastLegPassengerSchedule(triggerId), data) =>
+    case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
       self ! PassengerScheduleEmptyMessage(
         geo.wgs2Utm(
           data.passengerSchedule.schedule

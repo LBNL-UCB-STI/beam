@@ -572,7 +572,7 @@ class RideHailAgent(
     case _ @Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
       stash()
       stay()
-    case _ @ Event(ParkingInquiryResponse(_, _, _), _) =>
+    case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
       stash()
       stay()
     case _ @Event(RoutingResponse(_, _, _, _, _), _) =>
