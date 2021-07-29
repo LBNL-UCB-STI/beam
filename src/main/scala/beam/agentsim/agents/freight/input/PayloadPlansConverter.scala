@@ -83,13 +83,13 @@ object PayloadPlansConverter {
       tourId: Id[FreightTour],
       vehicleId: Id[BeamVehicle],
       vehicleTypeId: Id[BeamVehicleType],
-      depotTaz: String
+      warehouseTaz: String
     )
 
     def createCarrierVehicles(
       carrierId: Id[FreightCarrier],
       carrierRows: IndexedSeq[FreightCarrierRow],
-      depotLocation: Coord
+      warehouseLocation: Coord
     ): IndexedSeq[BeamVehicle] = {
       val vehicles: IndexedSeq[BeamVehicle] = carrierRows
         .groupBy(_.vehicleId)
@@ -105,15 +105,15 @@ object PayloadPlansConverter {
             throw new IllegalArgumentException(
               s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
             )
-          createFreightVehicle(vehicleId, vehicleType, carrierId, depotLocation, rnd.nextInt())
+          createFreightVehicle(vehicleId, vehicleType, carrierId, warehouseLocation, rnd.nextInt())
         }
         .toIndexedSeq
       vehicles
     }
 
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
-      val depotLocation: Coord = getDistributedTazLocation(carrierRows.head.depotTaz, tazTree, rnd)
-      val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, depotLocation)
+      val warehouseLocation: Coord = getDistributedTazLocation(carrierRows.head.warehouseTaz, tazTree, rnd)
+      val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocation)
       val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
@@ -123,7 +123,7 @@ object PayloadPlansConverter {
             .map(row =>
               tours(row.tourId)
                 //setting the tour warehouse location to be the carrier depot location
-                .copy(warehouseLocation = depotLocation)
+                .copy(warehouseLocation = warehouseLocation)
             )
             .sortBy(_.departureTimeInSec)
         }
