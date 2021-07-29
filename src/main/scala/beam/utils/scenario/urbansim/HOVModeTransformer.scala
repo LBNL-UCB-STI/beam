@@ -62,9 +62,6 @@ object HOVModeTransformer extends LazyLogging {
     persons: Iterable[PersonInfo],
     households: Iterable[HouseholdInfo]
   ): Iterable[PlanElement] = {
-    val personsMap = persons.map(p => p.personId -> p).toMap
-    val householdsCarCount = households.map(hh => hh.householdId -> hh.cars).toMap
-
     val allHOVUsers: Set[PersonId] = plansProbablyWithHOV
       .filter(planElement => {
         val legMode = planElement.legMode.map(_.toLowerCase)
@@ -73,55 +70,14 @@ object HOVModeTransformer extends LazyLogging {
       .map(_.personId)
       .toSet
 
-    val allExpectedCarUsers: Set[PersonId] = plansProbablyWithHOV
-      .filter(planElement => planElement.legMode.exists(mode => allCarModesWithHOV.contains(mode.toLowerCase)))
-      .map(_.personId)
-      .toSet
-
-    // simplified car availability calculation
-    val didNotGetACar = allExpectedCarUsers
-      .groupBy { personId =>
-        personsMap.get(personId).map(_.householdId)
-      }
-      .collect {
-        case (Some(householdId), persons)
-            if persons.size > householdsCarCount(householdId) * 3 // in case they use HOV3 mode
-            =>
-          persons
-      }
-      .flatten
-      .toSet
-
     var forcedHOV2Teleports = 0
     var forcedHOV3Teleports = 0
-
-    val plansWithAccessToCar = if (didNotGetACar.nonEmpty) {
-      plansProbablyWithHOV.map { planElement =>
-        val personDidNotGetACar = didNotGetACar.contains(planElement.personId)
-
-        planElement.legMode match {
-          case Some(legMode) if personDidNotGetACar && isHOV2(legMode) =>
-            forcedHOV2Teleports += 1
-            planElement.copy(legMode = Some(HOV2_TELEPORTATION.value))
-
-          case Some(legMode) if personDidNotGetACar && isHOV3(legMode) =>
-            forcedHOV3Teleports += 1
-            planElement.copy(legMode = Some(HOV3_TELEPORTATION.value))
-
-          case _ => planElement
-        }
-      }
-    } else {
-      plansProbablyWithHOV
-    }
 
     if (forcedHOV2Teleports > 0 || forcedHOV3Teleports > 0) {
       logger.info(
         s"There were $forcedHOV2Teleports hov2 and $forcedHOV3Teleports hov3 forced teleports because actors did not get access to a car."
       )
     }
-
-    val withCarAccessHOVUsers = allHOVUsers -- didNotGetACar
 
     var forcedCarHOV2Count = 0
     var forcedCarHOV3Count = 0
@@ -161,8 +117,8 @@ object HOVModeTransformer extends LazyLogging {
       }
     }
 
-    splitToTrips(plansWithAccessToCar).flatMap { trip =>
-      if (withCarAccessHOVUsers.contains(trip.head.personId)) {
+    splitToTrips(plansProbablyWithHOV).flatMap { trip =>
+      if (allHOVUsers.contains(trip.head.personId)) {
         if (isForcedHOVTeleportationTrip(trip)) {
           val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedHOVTeleportation(trip)
           forcedHOV2Teleports += forcedHOV2

@@ -86,27 +86,6 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     }
   }
 
-  test("'HOV2' or 'HOV3' legs should be transformed into teleportation if 0 car available") {
-    val plansBefore = getNumberOfHOVTrips(50, Some(1))
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 0))
-
-    val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
-    val modesAfter = plansAfter.filter(plan => plan.legMode.nonEmpty).map(_.legMode.get.toLowerCase).toSet
-
-    Seq("hov2", "hov3", CAR_HOV2.value, CAR_HOV3.value)
-      .map(_.toLowerCase)
-      .foreach { mode =>
-        modesAfter shouldNot contain(mode)
-      }
-
-    Seq(HOV2_TELEPORTATION, HOV3_TELEPORTATION)
-      .map(_.value.toLowerCase)
-      .foreach { mode =>
-        modesAfter should contain(mode)
-      }
-  }
-
   test("hov2 / hov3 legs if car available should be transformed into car_hov / hov_teleportation") {
     val plansBefore = getNumberOfHOVTrips(302)
     val persons = Seq(newPerson(1, 1))
