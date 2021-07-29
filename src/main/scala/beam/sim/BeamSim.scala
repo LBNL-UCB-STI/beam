@@ -660,7 +660,9 @@ class BeamSim @Inject() (
         Files.delete(filePath)
         Right(filePath)
       } catch {
-        case _: Throwable => Left(filePath)
+        case ex: Throwable =>
+          logger.error(s"Could not delete $filePath", ex)
+          Left(filePath)
       }
     }
   }
