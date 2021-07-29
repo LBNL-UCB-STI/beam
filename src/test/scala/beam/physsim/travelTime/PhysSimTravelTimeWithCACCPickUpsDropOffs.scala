@@ -2,11 +2,8 @@ package beam.physsim.travelTime
 
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
-import beam.physsim.jdeqsim.{cacc, JDEQSimRunner}
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
+import beam.physsim.jdeqsim.{JDEQSimRunner, cacc}
 import beam.physsim.{LinkPickUpsDropOffs, PickUpDropOffHolder, TimeToValueCollection}
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -26,12 +23,16 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
-class PhysSimTravelTimeWithCACCPickUpsDropOffs extends WordSpecLike with Matchers with LazyLogging {
+class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers with LazyLogging {
   import beam.physsim.travelTime.PhysSimTravelTimeWithCACCPickUpsDropOffs._
 
   val simulationConfigPath = "test/input/beamville/beam.conf"

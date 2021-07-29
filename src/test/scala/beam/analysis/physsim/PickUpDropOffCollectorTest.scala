@@ -2,11 +2,12 @@ package beam.analysis.physsim
 
 import beam.physsim.{LinkPickUpsDropOffs, PickUpDropOffCollector, TimeToValueCollection}
 import beam.utils.{BeamVehicleUtils, EventReader}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 
-class PickUpDropOffCollectorTest extends FunSuite with Matchers {
+class PickUpDropOffCollectorTest extends AnyFunSuite with Matchers {
 
   test("TimeToLinkCollection should work as expected") {
     val ttcc = new TimeToValueCollection()
@@ -59,12 +60,11 @@ class PickUpDropOffCollectorTest extends FunSuite with Matchers {
 
     linkToPickUpDropOff shouldNot be(null)
 
-    val (pickUps, dropOffs) = linkToPickUpDropOff.foldLeft((0, 0)) {
-      case ((pickUps, dropOffs), (_, pickUpDropOff)) =>
-        val linkPickUps: Int = pickUpDropOff.timeToPickUps.values.sum
-        val linkDropOffs: Int = pickUpDropOff.timeToDropOffs.values.sum
+    val (pickUps, dropOffs) = linkToPickUpDropOff.foldLeft((0, 0)) { case ((pickUps, dropOffs), (_, pickUpDropOff)) =>
+      val linkPickUps: Int = pickUpDropOff.timeToPickUps.values.sum
+      val linkDropOffs: Int = pickUpDropOff.timeToDropOffs.values.sum
 
-        (pickUps + linkPickUps, dropOffs + linkDropOffs)
+      (pickUps + linkPickUps, dropOffs + linkDropOffs)
     }
 
     pickUps shouldBe (19 + 20)
@@ -180,50 +180,41 @@ class PickUpDropOffCollectorTest extends FunSuite with Matchers {
      * */
 
     val linkToPickUpDropOffFromPython = Map(
-      (132, (Set(22032.0, 22820.0, 32672.0, 41432.0), Set())),
+      (132, (Set(22032.0, 22820.0, 32672.0, 41432.0), Set.empty)),
       (244, (Set(26201.0, 44201.0), Set(22249.0, 23037.0, 32889.0, 41649.0))),
       (
         228,
         (
-          Set(23671.0, 24300.0, 24300.0, 24300.0, 24300.0, 24300.0, 24300.0, 24300.0, 24300.0, 24300.0, 24300.0,
-            24471.0, 24767.0, 37071.0),
-          Set()
+          Set(23671.0, 24300.0, 24471.0, 24767.0, 37071.0),
+          Set.empty
         )
       ),
-      (176, (Set(), Set(23746.0))),
-      (108, (Set(), Set(24516.0, 24516.0, 24516.0, 24516.0, 24516.0, 24516.0, 24516.0, 24516.0, 24516.0, 24516.0))),
-      (34, (Set(72417.0, 72417.0), Set(24688.0, 24984.0))),
-      (57, (Set(), Set(26490.0, 44490.0, 71350.0))),
-      (177, (Set(36688.0), Set())),
-      (
-        229,
-        (
-          Set(),
-          Set(36834.0, 39163.0, 72217.0, 72217.0, 72217.0, 72217.0, 72217.0, 72217.0, 72217.0, 72217.0, 72217.0,
-            72217.0, 72709.0, 72709.0)
-        )
-      ),
+      (176, (Set.empty, Set(23746.0))),
+      (108, (Set.empty, Set(24516.0))),
+      (34, (Set(72417.0), Set(24688.0, 24984.0))),
+      (57, (Set.empty, Set(26490.0, 44490.0, 71350.0))),
+      (177, (Set(36688.0), Set.empty)),
+      (229, (Set.empty, Set(36834.0, 39163.0, 72217.0, 72709.0))),
       (20, (Set(38801.0), Set(37362.0))),
       (195, (Set(46160.0), Set(54910.0))),
-      (11, (Set(), Set(46522.0))),
+      (11, (Set.empty, Set(46522.0))),
       (133, (Set(49815.0), Set())),
-      (144, (Set(), Set(50032.0))),
-      (10, (Set(54548.0), Set())),
-      (56, (Set(67105.0), Set())),
+      (144, (Set.empty, Set(50032.0))),
+      (10, (Set(54548.0), Set.empty)),
+      (56, (Set(67105.0), Set.empty)),
       (208, (Set(71201.0), Set(67250.0))),
-      (109, (Set(71998.0, 71998.0, 71998.0, 71998.0, 71998.0, 71998.0, 71998.0, 71998.0, 71998.0, 71998.0), Set()))
+      (109, (Set(71998.0), Set.empty))
     )
 
-    linkToPickUpDropOffFromPython.foreach {
-      case (link, (pickUps, dropOffs)) =>
-        val pickUpDropOff = linkToPickUpDropOff(link)
-        pickUpDropOff.linkId shouldBe link
-        withClue(s"Comparison of pickUps for link $link: (from python $pickUps)") {
-          pickUpDropOff.timeToPickUps.times.toSet shouldBe pickUps
-        }
-        withClue(s"Comparison of dropOffs for link $link: (from python $dropOffs)") {
-          pickUpDropOff.timeToDropOffs.times.toSet shouldBe dropOffs
-        }
+    linkToPickUpDropOffFromPython.foreach { case (link, (pickUps, dropOffs)) =>
+      val pickUpDropOff = linkToPickUpDropOff(link)
+      pickUpDropOff.linkId shouldBe link
+      withClue(s"Comparison of pickUps for link $link: (from python $pickUps)") {
+        pickUpDropOff.timeToPickUps.times.toSet shouldBe pickUps
+      }
+      withClue(s"Comparison of dropOffs for link $link: (from python $dropOffs)") {
+        pickUpDropOff.timeToDropOffs.times.toSet shouldBe dropOffs
+      }
     }
 
     linkToPickUpDropOffFromPython.keySet -- linkToPickUpDropOff.keySet shouldBe Set.empty[Int]
