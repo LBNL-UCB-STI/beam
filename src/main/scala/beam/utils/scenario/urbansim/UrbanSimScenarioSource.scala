@@ -85,10 +85,12 @@ class UrbanSimScenarioSource(
     val householdInfo = rdr.readHouseholdsFile(householdFilePath)
     val householdIdToCoord = getHouseholdIdToCoord(householdInfo)
     householdInfo.map { householdInfo =>
-      val coord = householdIdToCoord.getOrElse(householdInfo.householdId, {
-        logger.warn("Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
-        new Coord(0, 0)
-      })
+      val coord = householdIdToCoord.getOrElse(
+        householdInfo.householdId, {
+          logger.warn("Could not find coordinate for `householdId` '{}'", householdInfo.householdId)
+          new Coord(0, 0)
+        }
+      )
       HouseholdInfo(
         householdId = HouseholdId(householdInfo.householdId),
         cars = householdInfo.cars,
@@ -108,10 +110,12 @@ class UrbanSimScenarioSource(
     }
     householdsWithMembers.map { hh =>
       // Coordinates already converted, so we should not use `wgs2Utm` again
-      val coord = unitIdToCoord.getOrElse(hh.unitId, {
-        logger.warn(s"Could not find coordinate for `household` ${hh.householdId} and `unitId`'${hh.unitId}'")
-        new Coord(0, 0)
-      })
+      val coord = unitIdToCoord.getOrElse(
+        hh.unitId, {
+          logger.warn(s"Could not find coordinate for `household` ${hh.householdId} and `unitId`'${hh.unitId}'")
+          new Coord(0, 0)
+        }
+      )
       hh.householdId -> coord
     }.toMap
   }
@@ -121,46 +125,45 @@ class UrbanSimScenarioSource(
     parcelAttrs: Array[ParcelAttribute],
     buildings: Array[BuildingInfo]
   ): Map[String, Coord] = {
-    val parcelIdToCoord: ParMap[String, Coord] = parcelAttrs.par.groupBy(_.primaryId).map {
-      case (k, v) =>
-        val pa = v.head
-        val coord = if (shouldConvertWgs2Utm) {
-          geoUtils.wgs2Utm(new Coord(pa.x, pa.y))
-        } else {
-          new Coord(pa.x, pa.y)
-        }
-        k -> coord
+    val parcelIdToCoord: ParMap[String, Coord] = parcelAttrs.par.groupBy(_.primaryId).map { case (k, v) =>
+      val pa = v.head
+      val coord = if (shouldConvertWgs2Utm) {
+        geoUtils.wgs2Utm(new Coord(pa.x, pa.y))
+      } else {
+        new Coord(pa.x, pa.y)
+      }
+      k -> coord
     }
     val buildingId2ToParcelId: ParMap[String, String] =
       buildings.par.groupBy(x => x.buildingId).map { case (k, v) => k -> v.head.parcelId }
     val unitIdToBuildingId: ParMap[String, String] =
       units.par.groupBy(_.unitId).map { case (k, v) => k -> v.head.buildingId }
 
-    unitIdToBuildingId.map {
-      case (unitId, buildingId) =>
-        val coord = buildingId2ToParcelId.get(buildingId) match {
-          case Some(parcelId) =>
-            parcelIdToCoord.getOrElse(parcelId, {
+    unitIdToBuildingId.map { case (unitId, buildingId) =>
+      val coord = buildingId2ToParcelId.get(buildingId) match {
+        case Some(parcelId) =>
+          parcelIdToCoord.getOrElse(
+            parcelId, {
               logger.warn(s"Could not find coordinate for `parcelId` '$parcelId'")
               new Coord(0, 0)
-            })
-          case None =>
-            logger.warn(s"Could not find `parcelId` for `building_id` '$buildingId'")
-            new Coord(0, 0)
-        }
-        unitId -> coord
+            }
+          )
+        case None =>
+          logger.warn(s"Could not find `parcelId` for `building_id` '$buildingId'")
+          new Coord(0, 0)
+      }
+      unitId -> coord
     }.seq
   }
 
   private def dropCorruptedPlanElements(rawPlans: Array[DataExchange.PlanElement]): Array[DataExchange.PlanElement] = {
     val correctPlanElements = rawPlans
       .groupBy(x => x.personId)
-      .filter {
-        case (k, v) =>
-          val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
-          !isCorrupted
+      .filter { case (_, v) =>
+        val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
+        !isCorrupted
       }
-      .flatMap { case (k, v) => v.sortBy(x => x.planElementIndex) }
+      .flatMap { case (_, v) => v.sortBy(x => x.planElementIndex) }
       .toArray
     correctPlanElements
   }

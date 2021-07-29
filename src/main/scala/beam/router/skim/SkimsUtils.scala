@@ -9,6 +9,7 @@ import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   BIKE,
+  BIKE_TRANSIT,
   CAR,
   CAV,
   DRIVE_TRANSIT,
@@ -68,6 +69,7 @@ object SkimsUtils extends LazyLogging {
     RIDE_HAIL         -> carSpeedMeterPerSec,
     RIDE_HAIL_POOLED  -> carSpeedMeterPerSec,
     RIDE_HAIL_TRANSIT -> transitSpeedMeterPerSec,
+    BIKE_TRANSIT      -> transitSpeedMeterPerSec,
     TRANSIT           -> transitSpeedMeterPerSec
   )
 
@@ -81,11 +83,11 @@ object SkimsUtils extends LazyLogging {
 
   def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location): (Int, Int) = {
     val speed = mode match {
-      case CAR | CAV | RIDE_HAIL                                      => carSpeedMeterPerSec
-      case RIDE_HAIL_POOLED                                           => carSpeedMeterPerSec / 1.1
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT => transitSpeedMeterPerSec
-      case BIKE                                                       => bicycleSpeedMeterPerSec
-      case _                                                          => walkSpeedMeterPerSec
+      case CAR | CAV | RIDE_HAIL                                                     => carSpeedMeterPerSec
+      case RIDE_HAIL_POOLED                                                          => carSpeedMeterPerSec / 1.1
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => transitSpeedMeterPerSec
+      case BIKE                                                                      => bicycleSpeedMeterPerSec
+      case _                                                                         => walkSpeedMeterPerSec
     }
     val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(originUTM, destinationUTM)).toInt
     val travelTime: Int = Math
@@ -162,10 +164,9 @@ object SkimsUtils extends LazyLogging {
       val filterByMaxDistance = xs.filter { case (_, _, distance) => distance <= maxDistanceFromBeamTaz }
       val tazId2MovIdByMinDistance = filterByMaxDistance
         .groupBy { case (taz, _, _) => taz }
-        .map {
-          case (taz, arr) =>
-            val (_, movId, _) = arr.minBy { case (_, _, distance) => distance }
-            (taz, movId)
+        .map { case (taz, arr) =>
+          val (_, movId, _) = arr.minBy { case (_, _, distance) => distance }
+          (taz, movId)
         }
       val numOfUniqueMovId = tazId2MovIdByMinDistance.values.toSet.size
       logger.info(
@@ -218,25 +219,25 @@ object SkimsUtils extends LazyLogging {
       )
     }
 
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val maxSkimCount = series.map(_._1).max
     val bucketsNum = Math.min(maxSkimCount, 4)
     val buckets = (1 to bucketsNum).map(_ * maxSkimCount / bucketsNum)
-    def getClosest(num: Double) = buckets.minBy(v => math.abs(v - num))
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    def getClosest(num: Double): Int = buckets.minBy(v => math.abs(v - num))
 
-    var dataset = new XYSeriesCollection()
+    val dataset = new XYSeriesCollection()
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
-    series.foreach {
-      case (count, simulatedTime, observedTime) =>
-        val closestBucket = getClosest(count)
+    series.foreach { case (count, simulatedTime, observedTime) =>
+      val closestBucket = getClosest(count)
 
-        if (!seriesPerCount.contains(closestBucket))
-          seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
+      if (!seriesPerCount.contains(closestBucket))
+        seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
 
-        seriesPerCount(closestBucket).add(simulatedTime, observedTime)
+      seriesPerCount(closestBucket).add(simulatedTime, observedTime)
     }
-    seriesPerCount.toSeq.sortBy(_._1).foreach {
-      case (_, seriesToAdd) =>
-        dataset.addSeries(seriesToAdd)
+    seriesPerCount.toSeq.sortBy(_._1).foreach { case (_, seriesToAdd) =>
+      dataset.addSeries(seriesToAdd)
     }
 
     val chart = ChartFactory.createScatterPlot(
@@ -302,15 +303,14 @@ object SkimsUtils extends LazyLogging {
       (-36, Color.BLUE, 500.0)
     )
 
-    percents.foreach {
-      case (percent: Int, color: Color, value: Double) =>
-        drawLineHelper(
-          color,
-          percent,
-          xyplot,
-          max,
-          value
-        )
+    percents.foreach { case (percent: Int, color: Color, value: Double) =>
+      drawLineHelper(
+        color,
+        percent,
+        xyplot,
+        max,
+        value
+      )
     }
 
     GraphUtils.saveJFreeChartAsPNG(

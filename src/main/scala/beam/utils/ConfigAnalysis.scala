@@ -24,7 +24,8 @@ object ConfigAnalysis extends App with StrictLogging {
   val skipKeys = Seq(
     "akka",
     "beam-agent-scheduler-pinned-dispatcher",
-    "zonal-parking-manager-pinned-dispatcher",
+    "parking-network-manager-pinned-dispatcher",
+    "charging-network-manager-pinned-dispatcher",
     "parallel-parking-manager-dispatcher",
     "ride-hail-manager-pinned-dispatcher",
     "my-custom-mailbox"
@@ -57,7 +58,7 @@ object ConfigAnalysis extends App with StrictLogging {
       }
 
       if (mode == 2 || mode == 3) {
-        logger.info(s"----------------Keys in beam template but not in beam config ${path}-----------------")
+        logger.info(s"----------------Keys in beam template but not in beam config $path-----------------")
         compareTemplateKeysPath(existingConfig, templateConfig)
       }
       logger.info(s"End analysis on $path")

@@ -14,9 +14,11 @@ import com.google.inject
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
-class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 
@@ -47,7 +49,8 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
       .parseString(
         s"""
             |beam.actorSystemName = "BeamIncentiveSpec"
-            |beam.agentsim.lastIteration = $iterationNumber
+            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
+                      |beam.agentsim.lastIteration = $iterationNumber
             |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
          """.stripMargin
       )
@@ -66,7 +69,7 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
     scenario.setNetwork(beamScenario.network)
 
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
@@ -104,7 +107,7 @@ object BeamIncentiveSpec {
       .tail
       .map(_.toDouble)
 
-    val relevantTimes = allHourAvg.filterNot(_ == 0D)
+    val relevantTimes = allHourAvg.filterNot(_ == 0d)
     relevantTimes.sum / relevantTimes.length
   }
 

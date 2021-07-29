@@ -10,21 +10,22 @@ import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
-import beam.sim.{BeamHelper, BeamMobsim}
+import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
 class SingleModeSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest
@@ -48,9 +49,8 @@ class SingleModeSpec
         .values()
         .forEach { person =>
           {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("walk")
+            person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+              leg.setMode("walk")
             }
           }
         }
@@ -79,18 +79,18 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
       assert(events.nonEmpty)
       var seenEvent = false
-      events.foreach {
-        case event: PersonDepartureEvent =>
-          assert(
-            event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-          )
-          seenEvent = true
+      events.foreach { case event: PersonDepartureEvent =>
+        assert(
+          event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+        )
+        seenEvent = true
       }
       assert(seenEvent, "Have not seend `PersonDepartureEvent`")
     }
@@ -101,9 +101,8 @@ class SingleModeSpec
       scenario.getPopulation.getPersons
         .values()
         .forEach { person =>
-          person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg =>
-              leg.setMode("walk_transit")
+          person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+            leg.setMode("walk_transit")
           }
         }
       val events = mutable.ListBuffer[Event]()
@@ -131,18 +130,18 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
       assert(events.nonEmpty)
       var seenEvent = false
-      events.foreach {
-        case event: PersonDepartureEvent =>
-          assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-          )
-          seenEvent = true
+      events.foreach { case event: PersonDepartureEvent =>
+        assert(
+          event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+        )
+        seenEvent = true
       }
       assert(seenEvent, "Have not seend `PersonDepartureEvent`")
     }
@@ -160,10 +159,8 @@ class SingleModeSpec
             val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
               case activity: Activity if activity.getType == "Home" =>
                 Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity =>
-                Seq(activity)
-              case leg: Leg =>
-                Nil
+              case activity: Activity => Seq(activity)
+              case _: Leg             => Nil
             }.flatten
             if (newPlanElements.last.isInstanceOf[Leg]) {
               newPlanElements.remove(newPlanElements.size - 1)
@@ -202,31 +199,24 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
       assert(events.nonEmpty)
       var seenEvent = false
-      events.collect {
-        case event: PersonDepartureEvent =>
-          // drive_transit can fail -- maybe I don't have a car
-          assert(
-            event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-          )
-          seenEvent = true
+      events.collect { case event: PersonDepartureEvent =>
+        // drive_transit can fail -- maybe I don't have a car
+        assert(
+          event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+        )
+        seenEvent = true
       }
       assert(seenEvent, "Have not seen `PersonDepartureEvent`")
 
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
-      val filteredEventsByPerson = eventsByPerson.filter {
-        _._2
-          .filter(_.isInstanceOf[ActivityEndEvent])
-          .sliding(2)
-          .exists(
-            pair => pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home")
-          )
-      }
+
       eventsByPerson.map {
         _._2.span {
           case event: ActivityEndEvent if event.getActType == "Home" =>
@@ -246,9 +236,8 @@ class SingleModeSpec
         .values()
         .forEach { person =>
           {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("car")
+            person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+              leg.setMode("car")
             }
           }
         }
@@ -279,21 +268,21 @@ class SingleModeSpec
         new RouteHistory(services.beamConfig),
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
-        services.networkHelper
+        services.networkHelper,
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
       assert(events.nonEmpty)
       var seenEvent = false
-      events.collect {
-        case event: PersonDepartureEvent =>
-          // Wr still get some failing car routes.
-          // TODO: Find root cause, fix, and remove "walk" here.
-          // See SfLightRouterSpec.
-          assert(
-            event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-          )
-          seenEvent = true
+      events.collect { case event: PersonDepartureEvent =>
+        // Wr still get some failing car routes.
+        // TODO: Find root cause, fix, and remove "walk" here.
+        // See SfLightRouterSpec.
+        assert(
+          event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+        )
+        seenEvent = true
       }
       assert(seenEvent, "Have not seen `PersonDepartureEvent`")
     }

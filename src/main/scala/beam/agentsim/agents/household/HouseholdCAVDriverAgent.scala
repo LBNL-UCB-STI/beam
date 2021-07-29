@@ -1,12 +1,10 @@
 package beam.agentsim.agents.household
 
 import akka.actor.FSM.Failure
-import akka.actor.Status.Success
 import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
-import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicleAndReply
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent.HouseholdCAVDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
@@ -14,10 +12,9 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{Idle, ModifyPassengerSchedul
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.sim.common.GeoUtils
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -33,10 +30,12 @@ class HouseholdCAVDriverAgent(
   val beamScenario: BeamScenario,
   val eventsManager: EventsManager,
   val parkingManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val vehicle: BeamVehicle,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator
 ) extends DrivesVehicle[HouseholdCAVDriverData] {
+  override val eventBuilderActor: ActorRef = beamServices.eventBuilderActor
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 
@@ -45,64 +44,62 @@ class HouseholdCAVDriverAgent(
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
-    case Event(ModifyPassengerSchedule(_, _, _), _) =>
+    case Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       stay()
     case Event(Finish, _) =>
       stop
   }
-  onTransition {
-    case _ -> _ =>
-      unstashAll()
+  onTransition { case _ -> _ =>
+    unstashAll()
   }
 
   override def logDepth: Int = beamServices.beamConfig.beam.debug.actor.logDepth
 
   startWith(Uninitialized, HouseholdCAVDriverData(null))
 
-  when(Uninitialized) {
-    case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
-      logDebug(s" $id has been initialized, going to Waiting state")
-      beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
-      eventsManager.processEvent(
-        new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
-      )
-      goto(Idle) using data
-        .copy(currentVehicle = Vector(vehicle.id))
-        .asInstanceOf[HouseholdCAVDriverData] replying
-      CompletionNotice(
-        triggerId,
-        Vector()
-      )
+  when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(tick), triggerId), data) =>
+    logDebug(s" $id has been initialized, going to Waiting state")
+    beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
+    eventsManager.processEvent(
+      new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
+    )
+    goto(Idle) using data
+      .copy(currentVehicle = Vector(vehicle.id))
+      .asInstanceOf[HouseholdCAVDriverData] replying
+    CompletionNotice(
+      triggerId,
+      Vector()
+    )
   }
-  when(Idle) {
-    case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, requestId), data) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
-      // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
-      // i.e. for what time it is. For now, we just believe it that time is not running backwards.
-      log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
-      val triggerToSchedule = Vector(
-        ScheduleTrigger(
-          StartLegTrigger(
-            updatedPassengerSchedule.schedule.firstKey.startTime,
-            updatedPassengerSchedule.schedule.firstKey
-          ),
-          self
-        )
+  when(Idle) { case ev @ Event(ModifyPassengerSchedule(updatedPassengerSchedule, tick, triggerId, requestId), data) =>
+    log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
+    // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
+    // i.e. for what time it is. For now, we just believe it that time is not running backwards.
+    log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
+    val triggerToSchedule = Vector(
+      ScheduleTrigger(
+        StartLegTrigger(
+          updatedPassengerSchedule.schedule.firstKey.startTime,
+          updatedPassengerSchedule.schedule.firstKey
+        ),
+        self
       )
-      goto(WaitingToDrive) using data
-        .withPassengerSchedule(updatedPassengerSchedule)
-        .withCurrentLegPassengerScheduleIndex(0)
-        .asInstanceOf[HouseholdCAVDriverData] replying ModifyPassengerScheduleAck(
-        requestId,
-        triggerToSchedule,
-        vehicle.id,
-        tick
-      )
+    )
+    goto(WaitingToDrive) using data
+      .withPassengerSchedule(updatedPassengerSchedule)
+      .withCurrentLegPassengerScheduleIndex(0)
+      .asInstanceOf[HouseholdCAVDriverData] replying ModifyPassengerScheduleAck(
+      requestId,
+      triggerToSchedule,
+      vehicle.id,
+      tick,
+      triggerId
+    )
   }
 
   when(PassengerScheduleEmpty) {
-    case Event(PassengerScheduleEmptyMessage(_, _, _), _) =>
+    case Event(PassengerScheduleEmptyMessage(_, _, _, _), _) =>
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       goto(Idle)
@@ -126,8 +123,8 @@ object HouseholdCAVDriverAgent {
     beamScenario: BeamScenario,
     eventsManager: EventsManager,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     vehicle: BeamVehicle,
-    legs: Seq[BeamLeg],
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator
   ): Props = {
@@ -139,6 +136,7 @@ object HouseholdCAVDriverAgent {
         beamScenario,
         eventsManager,
         parkingManager,
+        chargingNetworkManager,
         vehicle,
         transportNetwork,
         tollCalculator
@@ -146,8 +144,8 @@ object HouseholdCAVDriverAgent {
     )
   }
 
-  def selectByVehicleId(householdId: Id[Household], transitVehicle: Id[Vehicle])(
-    implicit context: ActorContext
+  def selectByVehicleId(householdId: Id[Household], transitVehicle: Id[Vehicle])(implicit
+    context: ActorContext
   ): ActorSelection = {
     context.actorSelection("/user/population/" + householdId.toString + "/" + idFromVehicleId(transitVehicle))
   }
@@ -161,6 +159,7 @@ object HouseholdCAVDriverAgent {
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0
   ) extends DrivingData {
+
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
 

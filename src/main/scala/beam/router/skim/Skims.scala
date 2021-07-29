@@ -2,18 +2,30 @@ package beam.router.skim
 
 import beam.router
 import beam.router.skim
+import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
+import beam.router.skim.core.{
+  AbstractSkimmer,
+  AbstractSkimmerReadOnly,
+  DriveTimeSkimmer,
+  ODSkimmer,
+  TAZSkimmer,
+  TransitCrowdingSkimmer
+}
+import beam.router.skim.readonly.{DriveTimeSkims, ODSkims, TAZSkims, TransitCrowdingSkims}
+import beam.sim.config.BeamConfig.Beam.Router
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.MatsimServices
 
 import scala.collection.mutable
 
-class Skims @Inject()(
+class Skims @Inject() (
   matsimServices: MatsimServices,
   odSkimmer: ODSkimmer,
   tazSkimmer: TAZSkimmer,
   driveTimeSkimmer: DriveTimeSkimmer,
   transitCrowdingSkimmer: TransitCrowdingSkimmer,
+  asSkimmer: ActivitySimSkimmer
 ) extends LazyLogging {
 
   import Skims.SkimType
@@ -27,6 +39,7 @@ class Skims @Inject()(
   skims.put(SkimType.TAZ_SKIMMER, addEvent(tazSkimmer))
   skims.put(SkimType.DT_SKIMMER, addEvent(driveTimeSkimmer))
   skims.put(SkimType.TC_SKIMMER, addEvent(transitCrowdingSkimmer))
+  skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
 
   private def addEvent(skimmer: AbstractSkimmer): AbstractSkimmer = {
     matsimServices.addControlerListener(skimmer)
@@ -46,6 +59,17 @@ object Skims {
     val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
+    val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
   }
 
+  def skimFileNames(skimCfg: Router.Skim) = IndexedSeq(
+    SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
+    SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
+    SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
+    SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
+  )
+
+  def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =
+    skimFileNames(skimCfg)
+      .map { case (skimType, fileName) => skimType -> (fileName + AGG_SUFFIX) }
 }

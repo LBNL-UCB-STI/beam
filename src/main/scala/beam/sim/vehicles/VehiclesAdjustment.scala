@@ -1,4 +1,5 @@
 package beam.sim.vehicles
+
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
@@ -20,7 +21,7 @@ trait VehiclesAdjustment extends ExponentialLazyLogging {
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType]
 
-  def sampleRideHailVehicleTypes(
+  def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution

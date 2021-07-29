@@ -16,7 +16,6 @@ import scala.reflect.ClassTag
 trait ReflectionUtils {
 
   /**
-    *
     * @return package name to scan in
     */
   def packageName: String
@@ -85,7 +84,7 @@ object ReflectionUtils {
           }
 
         } catch {
-          case e: Exception =>
+          case _: Exception =>
         }
 
         if (level > 0) {

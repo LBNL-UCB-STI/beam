@@ -1,9 +1,11 @@
 package beam.utils.matsim_conversion
 
+import org.matsim.api.core.v01.Id
+
 import java.io.{FileOutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPOutputStream
-
+import scala.reflect.ClassTag
 import scala.xml._
 import scala.xml.dtd.{DocType, SystemID}
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -36,7 +38,7 @@ object MatsimPlanConversion {
     }
 
     val houseHolds =
-      generateHouseholds(persons, vehiclesWithTypeId.map(_.head), conversionConfig.income)
+      generateHouseholds(persons, vehiclesWithTypeId.flatMap(_.headOption), conversionConfig.income)
 
     val populationAttrs = generatePopulationAttributes(persons)
 
@@ -80,9 +82,8 @@ object MatsimPlanConversion {
   }
 
   def generatePopulationAttributes(persons: NodeSeq): Elem = {
-    val popAttrs = persons.zipWithIndex map {
-      case (person, _) =>
-        <object id={s"${person.attribute("id").get.toString()}"}>
+    val popAttrs = persons.zipWithIndex map { case (person, _) =>
+      <object id={s"${person.attribute("id").get.toString()}"}>
           <attribute name="excluded-modes" class="java.lang.String"></attribute>
         <attribute name="rank" class="java.lang.Integer">1</attribute>
       </object>
@@ -94,24 +95,21 @@ object MatsimPlanConversion {
   }
 
   def generateHouseholdAttributes(persons: NodeSeq): Elem = {
-    val popAttrs = persons.zipWithIndex map {
-      case (person, index) =>
-        val homeActivities = (person \\ "activity").filter(
-          _.attributes.exists(
-            a => "type".equalsIgnoreCase(a.key.toString) && "home".equalsIgnoreCase(a.value.toString)
-          )
-        )
-        for {
-          node   <- homeActivities.headOption
-          xValue <- node.attribute("x").map(_.toString)
-          yValue <- node.attribute("y").map(_.toString)
-        } yield {
-          <object id={s"${index + 1}"}>
+    val popAttrs = persons.zipWithIndex map { case (person, index) =>
+      val homeActivities = (person \\ "activity").filter(
+        _.attributes.exists(a => "type".equalsIgnoreCase(a.key) && "home".equalsIgnoreCase(a.value.toString))
+      )
+      for {
+        node   <- homeActivities.headOption
+        xValue <- node.attribute("x").map(_.toString)
+        yValue <- node.attribute("y").map(_.toString)
+      } yield {
+        <object id={s"${index + 1}"}>
           <attribute name="homecoordx" class="java.lang.Double">{xValue}</attribute>
           <attribute name="homecoordy" class="java.lang.Double">{yValue}</attribute>
           <attribute name="housingtype" class="java.lang.String">House</attribute>
         </object>
-        }
+      }
     }
     <objectattributes>
       {popAttrs.map(_.getOrElse(NodeSeq.Empty))}
@@ -125,27 +123,26 @@ object MatsimPlanConversion {
 
     val mPersonsWithVehicles = mPersons.zipAll(mVehicles, None, None)
 
-    val houseHoldChildren = mPersonsWithVehicles.zipWithIndex map {
-      case ((mPerson, mVeh), index) =>
-        <household id={s"${index + 1}"}>
+    val houseHoldChildren = mPersonsWithVehicles.zipWithIndex map { case ((mPerson, mVeh), index) =>
+      <household id={s"${index + 1}"}>
         <members>
           {
-          (for{
-            n <- mPerson
-            personId <- n.attribute("id").map(_.toString)
-          } yield {
-              <personId refId={s"$personId"} />
-          }).getOrElse(NodeSeq.Empty)
-          }
+        (for {
+          n        <- mPerson
+          personId <- n.attribute("id").map(_.toString)
+        } yield {
+          <personId refId={s"$personId"} />
+        }).getOrElse(NodeSeq.Empty)
+      }
         </members>
         <vehicles>
           {
-          (for{
-            vehId <- mVeh
-          } yield {
-              <vehicleDefinitionId refId={s"$vehId"} />
-          }).getOrElse(NodeSeq.Empty)
-          }
+        (for {
+          vehId <- mVeh
+        } yield {
+          <vehicleDefinitionId refId={s"$vehId"} />
+        }).getOrElse(NodeSeq.Empty)
+      }
         </vehicles>
         <income currency={s"${income.currency}"} period={s"${income.period}"}>{income.value}</income>
       </household>
@@ -213,5 +210,10 @@ object MatsimPlanConversion {
 
   def mapMetaData(m: MetaData)(f: GenAttr => GenAttr): MetaData =
     chainMetaData(unchainMetaData(m).map(f))
+
+  implicit class IdOps(val id: String) extends AnyVal {
+    import scala.reflect.classTag
+    def createId[T: ClassTag]: Id[T] = Id.create(id, classTag[T].runtimeClass.asInstanceOf[Class[T]])
+  }
 
 }

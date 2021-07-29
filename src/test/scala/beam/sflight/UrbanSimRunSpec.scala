@@ -8,14 +8,15 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
+import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 /**
   * Created by colinsheppard
   */
 
-class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
@@ -48,9 +49,9 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, beamScenario) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, plansMerged) = buildBeamServicesAndScenario(
         beamConfig,
-        matsimConfig,
+        matsimConfig
       )
 
       val listOfVehicleTypes = beamScenario.vehicleTypes.values.filter(_.vehicleCategory == Car).map(_.id.toString)
@@ -61,7 +62,7 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
         .map(_.id.toString)
       listOfVehicleTypes should contain("Car-rh-only")
       listOfVehicleTypes should have size 5
-      listOfPrivateVehicleTypes should not contain ("Car-rh-only")
+      listOfPrivateVehicleTypes should not contain "Car-rh-only"
       listOfPrivateVehicleTypes should have size 4
 
       val injector = buildInjector(conf, beamConfig, scenario, beamScenario)
@@ -73,7 +74,8 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
         services,
         scenario,
         beamScenario,
-        output
+        output,
+        plansMerged
       )
 
       //val (_, output) = runBeamWithConfig(conf)
@@ -88,9 +90,7 @@ class UrbanSimRunSpec extends WordSpecLike with Matchers with BeamHelper with Be
       itrDir.list should have length totalIterations
       itrDir
         .listFiles()
-        .foreach(
-          itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz"))
-        )
+        .foreach(itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz")))
       val travelDistanceStats = injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats])
       if (travelDistanceStats != null)
         travelDistanceStats.close()

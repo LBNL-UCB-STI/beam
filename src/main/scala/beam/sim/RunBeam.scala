@@ -1,7 +1,9 @@
 package beam.sim
 
 import beam.utils.MathUtils
+import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
 import ch.qos.logback.classic.util.ContextInitializer
+import org.matsim.core.controler.AbstractModule
 
 import scala.collection.JavaConverters._
 
@@ -22,9 +24,19 @@ object RunBeam extends BeamHelper {
     println(s"Heap max memory: ${MathUtils.formatBytes(Runtime.getRuntime.maxMemory())}")
     println(s"Heap free memory: ${MathUtils.formatBytes(Runtime.getRuntime.freeMemory())}")
 
-    runBeamUsing(args)
+    runBeamUsing(args, None)
     logger.info("Exiting BEAM")
     System.exit(0)
+  }
+
+  def configureDefaultAPI: AbstractModule = {
+    val defaultAPIImplementation: BeamCustomizationAPI = new DefaultAPIImplementation()
+    val abstractModule = new AbstractModule() {
+      override def install(): Unit = {
+        bind(classOf[BeamCustomizationAPI]).toInstance(defaultAPIImplementation)
+      }
+    }
+    abstractModule
   }
 
 }

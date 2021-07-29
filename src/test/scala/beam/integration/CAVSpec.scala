@@ -1,6 +1,5 @@
 package beam.integration
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.ModeChoiceEvent
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -10,16 +9,14 @@ import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CAVSpec extends FlatSpec with Matchers with BeamHelper {
-
-  private val sharedCarTypeId = Id.create("sharedCar", classOf[BeamVehicleType])
+class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
     val config = ConfigFactory

@@ -25,7 +25,7 @@ sealed abstract class RelaxationExperiment(
   val javaRnd: java.util.Random,
   val maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) {
-  def run(prevTravelTime: TravelTime): TravelTime
+  def run(prevTravelTime: TravelTime): SimulationResult
 }
 
 object RelaxationExperiment extends LazyLogging {
@@ -206,7 +206,8 @@ class Normal(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -250,7 +251,8 @@ class Experiment_2_0(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -296,7 +298,8 @@ class Experiment_2_1(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -342,7 +345,8 @@ class Experiment_3_0(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new PhysSim(
       beamConfig,
       agentSimScenario,
@@ -391,7 +395,8 @@ class Experiment_4_0(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     val sim = new ApproxPhysSim(
       beamConfig,
       agentSimScenario,
@@ -440,7 +445,8 @@ class Experiment_5_0(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     if (iterationNumber == 0) {
       val sim = new ApproxPhysSim(
         beamConfig,
@@ -507,7 +513,8 @@ class Experiment_5_1(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     if (iterationNumber == 0) {
       val sim = new ApproxPhysSim(
         beamConfig,
@@ -574,7 +581,8 @@ class Experiment_5_2(
       javaRnd,
       maybePickUpDropOffCollector
     ) {
-  override def run(prevTravelTime: TravelTime): TravelTime = {
+
+  override def run(prevTravelTime: TravelTime): SimulationResult = {
     if (iterationNumber == 0) {
       val sim = new ApproxPhysSim(
         beamConfig,

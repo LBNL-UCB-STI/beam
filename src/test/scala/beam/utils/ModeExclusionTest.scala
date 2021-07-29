@@ -8,15 +8,17 @@ import beam.utils.csv.readers.BeamCsvScenarioReader
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.{BeamScenarioLoader, ScenarioSource}
 import org.matsim.core.scenario.ScenarioBuilder
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.mock
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class ModeExclusionTest extends WordSpecLike with Matchers with MockitoSugar with BeforeAndAfterEach with BeamHelper {
+class ModeExclusionTest extends AnyWordSpecLike with Matchers with BeforeAndAfterEach with BeamHelper {
 
   private val config = testConfig("test/input/beamville/beam.conf").resolve()
   private val beamConfigBase = BeamConfig(config)
 
-  private val scenarioSource = mock[ScenarioSource]
+  private val scenarioSource = mock(classOf[ScenarioSource])
 
   private val geoUtils = new GeoUtilsImpl(beamConfigBase)
 

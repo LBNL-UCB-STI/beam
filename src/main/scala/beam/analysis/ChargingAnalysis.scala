@@ -31,10 +31,12 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
         val vehicleType = refuelSessionEvent.vehicleType
         val eventEnergyInkWh = refuelSessionEvent.energyInJoules / 3600000
         val generalizedVehicleTypeOption: Option[GeneralizedVehicleType] =
-          if (refuelSessionEvent.getAttributes
-                .get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
-                .toLowerCase
-                .contains("ridehail")) {
+          if (
+            refuelSessionEvent.getAttributes
+              .get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
+              .toLowerCase
+              .contains("ridehail")
+          ) {
             if (vehicleType.isCaccEnabled) Some(CAV_Ridehail) else Some(Human_Ridehail)
           } else None
         generalizedVehicleTypeOption
@@ -47,7 +49,8 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
               chargingStatsPerDriver.get(driverId) match {
                 case Some(chargingStats) => {
                   val incrementedCount = chargingStats.count + 1
-                  val newAveragekWh = ((chargingStats.averageKWh * chargingStats.count) + eventEnergyInkWh) / incrementedCount
+                  val newAveragekWh =
+                    ((chargingStats.averageKWh * chargingStats.count) + eventEnergyInkWh) / incrementedCount
                   chargingStatsPerDriver.put(driverId, DriverChargingStats(incrementedCount, newAveragekWh))
                 }
                 case None => chargingStatsPerDriver.put(driverId, DriverChargingStats(1, eventEnergyInkWh))

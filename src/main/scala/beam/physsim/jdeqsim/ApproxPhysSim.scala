@@ -84,7 +84,7 @@ class ApproxPhysSim(
     tollCalculator = beamServices.tollCalculator
   )
 
-  def run(travelTime: TravelTime): TravelTime = {
+  def run(travelTime: TravelTime): SimulationResult = {
     val carTravelTimeWriter: CsvWriter = {
       val fileName = controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
       new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
@@ -100,11 +100,11 @@ class ApproxPhysSim(
         1,
         numberOfPeopleToSimulateEveryIter.length,
         numberOfPeopleToSimulateEveryIter.head,
-        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
-        SimulationResult(-1, travelTime, Seq.empty, Statistics(Seq.empty)),
+        SimulationResult(-1, travelTime, None, Seq.empty, Statistics(Seq.empty)),
+        SimulationResult(-1, travelTime, None, Seq.empty, Statistics(Seq.empty)),
         carTravelTimeWriter,
         reroutedTravelTimeWriter
-      ).travelTime
+      )
     } finally {
       Try(carTravelTimeWriter.close())
       Try(reroutedTravelTimeWriter.close())
@@ -119,7 +119,7 @@ class ApproxPhysSim(
     firstResult: SimulationResult,
     lastResult: SimulationResult,
     carTravelTimeWriter: CsvWriter,
-    reroutedTravelTimeWriter: CsvWriter,
+    reroutedTravelTimeWriter: CsvWriter
   ): SimulationResult = {
     if (currentIter > nIterations) {
       logger.info("Last iteration compared with first")
@@ -227,12 +227,11 @@ class ApproxPhysSim(
     val diff =
       (currentResult.eventTypeToNumberOfMessages.map(_._1) ++ prevResult.eventTypeToNumberOfMessages.map(_._1)).toSet
     val diffMap = diff
-      .foldLeft(Map.empty[String, Long]) {
-        case (acc, key) =>
-          val currVal = currentResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
-          val prevVal = prevResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
-          val absDiff = Math.abs(currVal - prevVal)
-          acc + (key -> absDiff)
+      .foldLeft(Map.empty[String, Long]) { case (acc, key) =>
+        val currVal = currentResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
+        val prevVal = prevResult.eventTypeToNumberOfMessages.toMap.getOrElse(key, 0L)
+        val absDiff = Math.abs(currVal - prevVal)
+        acc + (key -> absDiff)
       }
       .toList
       .sortBy { case (k, _) => k }

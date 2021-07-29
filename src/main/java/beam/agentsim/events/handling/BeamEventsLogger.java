@@ -6,6 +6,7 @@ import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.MatsimServices;
+import scala.Option;
 
 import java.util.*;
 
@@ -172,9 +173,21 @@ public class BeamEventsLogger implements BeamEventsLoggingSettings {
                     case "AgencyRevenueEvent":
                         eventClass = AgencyRevenueEvent.class;
                         break;
+                    case "RideHailReservationConfirmationEvent":
+                        eventClass = RideHailReservationConfirmationEvent.class;
+                        break;
+                    case "ShiftEvent":
+                        eventClass = ShiftEvent.class;
+                        break;
                     default:
-                        DebugLib.stopSystemAndReportInconsistency(
-                                "Logging class name: Unidentified event type class " + className);
+                        Option<Class<Event>> classEventOption=beamServices.beamCustomizationAPI().customEventsLogging(className);
+
+                        if (classEventOption.isEmpty()){
+                            DebugLib.stopSystemAndReportInconsistency("Logging class name: Unidentified event type class " + className);
+                        }
+
+                        eventClass = classEventOption.get();
+                        break;
                 }
                 //add the matched event class to the list of events to log
                 eventsToLog.add(eventClass);

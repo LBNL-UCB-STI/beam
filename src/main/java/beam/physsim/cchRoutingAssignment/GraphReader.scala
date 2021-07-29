@@ -1,4 +1,5 @@
 package beam.physsim.cchRoutingAssignment
+
 import java.io.File
 import java.nio.{ByteBuffer, ByteOrder}
 
@@ -45,9 +46,9 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
       val numOfVertices = readInt()
       val numOfEdges = readInt()
 
-      val outEdgesFirst = (0 until numOfVertices).map(_ => readInt())
+      (0 until numOfVertices).foreach(_ => readInt()) //outEdgesFirst
 
-      val outEdgesEnd = (0 until numOfEdges).map(_ => readInt())
+      (0 until numOfEdges).foreach(_ => readInt()) //outEdgesEnd
 
       val numOfAttributes = readInt()
 
@@ -60,10 +61,9 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
           if (attributeName == "lat_lng") {
             readInt() // skip list size
             (0 until numOfVertices)
-              .foreach(
-                i =>
-                  vertexId2Coordinate
-                    .put(i, new Coordinate(readInt() / coordinatePrecision, readInt() / coordinatePrecision))
+              .foreach(i =>
+                vertexId2Coordinate
+                  .put(i, new Coordinate(readInt() / coordinatePrecision, readInt() / coordinatePrecision))
               )
           } else {
             source.skip(size)

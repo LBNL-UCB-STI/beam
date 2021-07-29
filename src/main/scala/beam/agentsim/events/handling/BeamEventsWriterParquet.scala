@@ -120,8 +120,10 @@ class BeamEventsWriterParquet(
       cla.getDeclaredMethods.foreach { method =>
         val name = method.getName
         def nameStartsWith(p: String): Boolean = name.startsWith(p)
-        if ((nameStartsWith("ATTRIBUTE_") && (eventTypeToLog == null || !nameStartsWith("ATTRIBUTE_TYPE"))) ||
-            (nameStartsWith("VERBOSE_") && (eventTypeToLog == null || !nameStartsWith("VERBOSE_"))))
+        if (
+          (nameStartsWith("ATTRIBUTE_") && (eventTypeToLog == null || !nameStartsWith("ATTRIBUTE_TYPE"))) ||
+          (nameStartsWith("VERBOSE_") && (eventTypeToLog == null || !nameStartsWith("VERBOSE_")))
+        )
           try {
             attributes += method.invoke(null).asInstanceOf[String]
           } catch {
@@ -131,8 +133,10 @@ class BeamEventsWriterParquet(
 
     cla.getFields.foreach { field =>
       def nameStartsWith(p: String): Boolean = field.getName.startsWith(p)
-      if ((nameStartsWith("ATTRIBUTE_") && (eventTypeToLog == null || !nameStartsWith("ATTRIBUTE_TYPE"))) ||
-          (nameStartsWith("VERBOSE_") && (eventTypeToLog == null || !nameStartsWith("VERBOSE_"))))
+      if (
+        (nameStartsWith("ATTRIBUTE_") && (eventTypeToLog == null || !nameStartsWith("ATTRIBUTE_TYPE"))) ||
+        (nameStartsWith("VERBOSE_") && (eventTypeToLog == null || !nameStartsWith("VERBOSE_")))
+      )
         try {
           attributes += field.get(null).toString
         } catch {
@@ -164,7 +168,7 @@ class BeamEventsWriterParquet(
     "locationX"                -> PDouble, //-122.44119629999999, -122.4327195, -122.39781000000197
     "seatingCapacity"          -> PInteger, //168, 19, 29
     "location"                 -> PInteger, //91618, 19450, 31138
-    "cost"                     -> PInteger, //0
+    "cost"                     -> PDouble, //0
     "arrivalTime"              -> PInteger, //14700, 14880, 14853
     "departTime"               -> PInteger, //36062, 36746, 40772
     "departureTime"            -> PInteger, //14400, 14520, 14760
@@ -195,6 +199,6 @@ class BeamEventsWriterParquet(
    with array type:
      "links" array of Int
      "linkTravelTime" array of Double
-   */
+     */
   )
 }

@@ -36,12 +36,11 @@ object NetworkUtil {
           case Direction.Out =>
             link.getFromNode.getInLinks.asScala
         }
-        links.foreach {
-          case (id, lnk) =>
-            if (!visited.contains(lnk)) {
-              queue.enqueue(lnk)
-              visited.add(lnk)
-            }
+        links.foreach { case (_, lnk) =>
+          if (!visited.contains(lnk)) {
+            queue.enqueue(lnk)
+            visited.add(lnk)
+          }
         }
       }
     }

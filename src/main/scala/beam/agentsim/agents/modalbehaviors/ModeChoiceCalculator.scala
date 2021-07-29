@@ -6,7 +6,7 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.TransitCrowdingSkims
+import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
@@ -22,6 +22,7 @@ import scala.util.Random
 trait ModeChoiceCalculator {
 
   val beamConfig: BeamConfig
+
   lazy val random: Random = new Random(
     beamConfig.matsim.modules.global.randomSeed
   )
@@ -74,7 +75,7 @@ trait ModeChoiceCalculator {
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {
 
     val totalCost = embodiedBeamTrip.tripClassifier match {
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT =>
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | BIKE_TRANSIT =>
         val transitFareDefault =
           TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
         (embodiedBeamTrip.costEstimate + transitFareDefault) * beamConfig.beam.agentsim.tuning.transitPrice
@@ -145,17 +146,13 @@ object ModeChoiceCalculator {
               throw new RuntimeException("LCCM needs people to have modality styles")
           }
       case "ModeChoiceTransitIfAvailable" =>
-        _ =>
-          new ModeChoiceTransitIfAvailable(beamServices)
+        _ => new ModeChoiceTransitIfAvailable(beamServices)
       case "ModeChoiceDriveIfAvailable" =>
-        _ =>
-          new ModeChoiceDriveIfAvailable(beamServices)
+        _ => new ModeChoiceDriveIfAvailable(beamServices)
       case "ModeChoiceRideHailIfAvailable" =>
-        _ =>
-          new ModeChoiceRideHailIfAvailable(beamServices)
+        _ => new ModeChoiceRideHailIfAvailable(beamServices)
       case "ModeChoiceUniformRandom" =>
-        _ =>
-          new ModeChoiceUniformRandom(beamServices.beamConfig)
+        _ => new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
         val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
         _ =>

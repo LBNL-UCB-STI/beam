@@ -12,6 +12,7 @@ import org.matsim.vehicles.Vehicle
 
 class FakeTravelTimeCalculator(network: Network, ttconfigGroup: TravelTimeCalculatorConfigGroup)
     extends TravelTimeCalculator(network, ttconfigGroup) {
+
   override def getLinkToLinkTravelTime(
     fromLinkId: Id[Link],
     toLinkId: Id[Link],

@@ -1,25 +1,22 @@
 package beam.router.r5
 
 import java.nio.file.Path
-
 import scala.util.Random
-
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.{Body, Car, HeavyDutyTruck, LightDutyTruck, MediumDutyPassenger}
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.{FixtureUtils, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.mockito.Mockito.when
-import org.scalatest.FlatSpec
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.flatspec.AnyFlatSpec
 
-class BikeLaneAdjustmentSpec extends FlatSpec {
+class BikeLaneAdjustmentSpec extends AnyFlatSpec {
 
   import beam.router.r5.BikeLaneAdjustmentSpec._
 
   "BikeLanesAdjustment scaleFactor" should "calculate scalaFactor accordingly to linkId" in {
-    val scaleFactor = 10D
+    val scaleFactor = 10d
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
@@ -33,7 +30,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
   }
 
   it should "calculate scalaFactor accordingly to beamMode/isEnabled" in {
-    val scaleFactor = 10D
+    val scaleFactor = 10d
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
@@ -51,7 +48,7 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
   }
 
   it should "calculate scalaFactor accordingly to BeamVehicleType and linkId" in {
-    val scaleFactor = 10D
+    val scaleFactor = 10d
     val identityScalaFactor = 1
     val linkIds = Set(1, 2, 3)
 
@@ -97,23 +94,23 @@ class BikeLaneAdjustmentSpec extends FlatSpec {
 
 }
 
-private object BikeLaneAdjustmentSpec extends MockitoSugar {
+private object BikeLaneAdjustmentSpec {
 
   def minimumBikeLaneConfig(filePathLinkIds: Path, scaleFactor: Double): Config = {
     val bikeLanesConfig =
       s"""beam.routing.r5.bikeLaneScaleFactor = $scaleFactor
-         |beam.routing.r5.bikeLaneLinkIdsFilePath = "$filePathLinkIds"""".stripMargin
+         |beam.routing.r5.bikeLaneLinkIdsFilePath = "${filePathLinkIds.toString.replace('\\', '/')}"""".stripMargin
     ConfigFactory.parseString(bikeLanesConfig).withFallback(TestConfigUtils.minimumValidBeamConfig)
   }
 
   def mockBikeVehicleType: BeamVehicleType = {
-    val result = mock[BeamVehicleType]
+    val result = mock(classOf[BeamVehicleType])
     when(result.vehicleCategory).thenReturn(VehicleCategory.Bike)
     result
   }
 
   def mockNonBikeVehicleType: BeamVehicleType = {
-    val result = mock[BeamVehicleType]
+    val result = mock(classOf[BeamVehicleType])
     when(result.vehicleCategory).thenReturn(Random.shuffle(nonBikeVehicleTypeOptions).head)
     result
   }

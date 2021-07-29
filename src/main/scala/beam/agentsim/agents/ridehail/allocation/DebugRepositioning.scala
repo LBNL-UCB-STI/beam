@@ -12,13 +12,13 @@ class DebugRepositioning {}
 object DebugRepositioning {
 
   def produceRepositioningDebugImages(tick: Int, rideHailManager: RideHailManager): Unit = {
-    if (tick > 0 && tick.toInt % 3600 == 0 && tick < 24 * 3600) {
+    if (tick > 0 && tick % 3600 == 0 && tick < 24 * 3600) {
       val spatialPlot = new SpatialPlot(1100, 1100, 50)
 
       for (veh <- rideHailManager.resources.values) {
         spatialPlot.addPoint(
           PointToPlot(
-            rideHailManager.vehicleManager.getRideHailAgentLocation(veh.id).currentLocationUTM.loc,
+            rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(veh.id).latestUpdatedLocationUTM.loc,
             Color.BLACK,
             5
           )
@@ -45,7 +45,7 @@ object DebugRepositioning {
         rideHailManager.beamServices.matsimServices.getControlerIO
           .getIterationFilename(
             rideHailManager.beamServices.matsimServices.getIterationNumber,
-            tick.toInt / 3600 + "locationOfAgentsInitally.png"
+            tick / 3600 + "locationOfAgentsInitally.png"
           )
           .replace(iteration, iteration + "/rideHailDebugging")
       )

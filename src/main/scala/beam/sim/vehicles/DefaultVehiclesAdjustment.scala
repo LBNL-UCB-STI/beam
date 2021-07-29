@@ -1,4 +1,5 @@
 package beam.sim.vehicles
+
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
@@ -11,16 +12,13 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
   val carId: Id[BeamVehicleType] = Id.create("Car", classOf[BeamVehicleType])
   val vehicleTypesByCategory: BeamVehicleType = beamScenario.vehicleTypes.values.find(vt => vt.id == carId).get
 
-  override def sampleRideHailVehicleTypes(
+  override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
-    Range(0, numVehicles).map { i =>
-      if (vehicleCategory == VehicleCategory.Car) {
-        vehicleTypesByCategory
-      } else throw new NotImplementedError(vehicleCategory.toString)
-    }.toList
+    if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
+    List.fill(numVehicles)(vehicleTypesByCategory)
   }
 
   override def sampleVehicleTypesForHousehold(
@@ -32,10 +30,7 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
     householdLocation: Coord,
     realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
-    Range(0, numVehicles).map { i =>
-      if (vehicleCategory == VehicleCategory.Car) {
-        vehicleTypesByCategory
-      } else throw new NotImplementedError(vehicleCategory.toString)
-    }.toList
+    if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
+    List.fill(numVehicles)(vehicleTypesByCategory)
   }
 }

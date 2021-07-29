@@ -14,7 +14,7 @@ object ResidenceGeoParser {
       val geoId = input.substring("C1300US".length)
       Success(geoId)
     } else {
-      Failure(new IllegalStateException(s"Don't know how to handle GeoLevel input: '${input}'"))
+      Failure(new IllegalStateException(s"Don't know how to handle GeoLevel input: '$input'"))
     }
   }
 }

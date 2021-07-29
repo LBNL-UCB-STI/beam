@@ -7,16 +7,19 @@ import beam.router.model.{BeamLeg, BeamPath}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Calibration.StudyArea
 import org.matsim.api.core.v01.Id
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class StudyAreaTripFilterTest extends FunSuite with Matchers {
+class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
   // Texas capitol as center of study area: https://g.page/TexasCapitol?share
   // The bounding box looks like the following: https://imgur.com/a/GLKgRyl
   private val studyArea = StudyArea(enabled = true, lat = 30.2746698, lon = -97.7425392, radius = 10000)
+
   private val geoUtils: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
   }
   private val studyAreaTripFilter = new StudyAreaTripFilter(studyArea, geoUtils)
+
   private val vehicleType = BeamVehicleType(
     id = Id.create("car", classOf[BeamVehicleType]),
     seatingCapacity = 1,
@@ -27,6 +30,7 @@ class StudyAreaTripFilterTest extends FunSuite with Matchers {
     primaryFuelCapacityInJoule = 0.1,
     vehicleCategory = VehicleCategory.Car
   )
+
   private val beamLeg = BeamLeg(
     startTime = 0,
     mode = BeamMode.CAR,
@@ -40,6 +44,7 @@ class StudyAreaTripFilterTest extends FunSuite with Matchers {
       distanceInM = 10.0
     )
   )
+
   private val defaultPte = PathTraversalEvent(
     time = 0,
     vehicleId = Id.createVehicleId(1),
@@ -51,7 +56,8 @@ class StudyAreaTripFilterTest extends FunSuite with Matchers {
     secondaryFuelConsumed = 0.0,
     endLegPrimaryFuelLevel = 1.0,
     endLegSecondaryFuelLevel = 0.0,
-    amountPaid = 0
+    amountPaid = 0,
+    Vector.empty
   )
 
   test("Should recognize that PTE is inside study area if both start and end are inside of study area") {
