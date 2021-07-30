@@ -337,70 +337,38 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     )
   }
 
-  test(
-    "'HOV2' or 'HOV3' legs should be transformed into teleportation if not enough cars are available in a household"
-  ) {
-    // pending until we have a better car availability algorithm
-    pendingUntilFixed {
-      val activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
-      val plans =
-        newTrip(1, 1, modes = Seq("HOV2", "WALK", "HOV2"), activities = activities) ++
-        newTrip(2, 1, modes = Seq("HOV2", "CAR", "HOV2"), activities = activities) ++
-        newTrip(3, 1, modes = Seq("CAR", "CAR", "CAR"), activities = activities)
-
-      val persons = Seq(newPerson(1, 1), newPerson(2, 1), newPerson(3, 1))
-      val households = Seq(newHousehold(1, 1))
-      val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
-      processedPlans.flatMap(_.legMode).toList shouldBe List(
-        "hov2_teleportation",
-        "WALK",
-        "hov2_teleportation",
-        "car_hov2",
-        "CAR",
-        "car_hov2",
-        "hov2_teleportation",
-        "WALK",
-        "hov2_teleportation"
-      )
-    }
-  }
-
   test("balance teleportation and car modes") {
     val plans = newTrip(
       1,
       1,
-      modes = Seq("HOV2", "WALK", "HOV2"),
-      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+      modes = Seq("HOV3", "HOV3", "WALK"),
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
     ) ++ newTrip(
       2,
       1,
-      modes = Seq("HOV2", "CAR", "HOV2"),
-      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+      modes = Seq("HOV3", "HOV3", "WALK"),
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
     ) ++ newTrip(
       3,
       1,
-      modes = Seq("HOV3", "HOV3", "WALK"),
-      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
-    ) ++ newTrip(
-      4,
-      1,
       modes = Seq("HOV3", "HOV3", "CAR"),
-      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
-    ) ++ newTrip(
-      5,
-      1,
-      modes = Seq("HOV3", "HOV3", "WALK"),
-      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
     )
 
-    val persons = Seq(newPerson(1, 1), newPerson(2, 1), newPerson(3, 2), newPerson(4, 2), newPerson(5, 2))
-    val households = Seq(newHousehold(1, 1), newHousehold(2, 1))
+    val persons = Seq(newPerson(1, 1), newPerson(2, 1), newPerson(3, 1))
+    val households = Seq(newHousehold(1, 1))
     val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
-    println(processedPlans.flatMap(_.legMode))
-    val teleportationModes = processedPlans.flatMap(_.legMode).count(_ == "hov3_teleportation")
-    val carModes = processedPlans.flatMap(_.legMode).count(_ == "car_hov3")
-    carModes shouldEqual 2
-    teleportationModes shouldEqual 4
+    processedPlans.flatMap(_.legMode).toList shouldBe List(
+      "hov3_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "hov3_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "car_hov3",
+      "car_hov3",
+      "CAR"
+    )
   }
 }
 

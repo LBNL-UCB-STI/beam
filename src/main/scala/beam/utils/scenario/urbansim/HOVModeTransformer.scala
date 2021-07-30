@@ -249,7 +249,7 @@ object HOVModeTransformer extends LazyLogging {
             // if this is an activity and car was driven, then move the car to the new location
             case (tripCarInfo, planElement)
                 if planElement.planElementType == PlanElement.Activity && tripCarInfo.carWasUsed =>
-              tripCarInfo.withNewActivityLocation(planElement).copy(carWasUsed = false)
+              tripCarInfo.withNewActivityLocation(planElement)
 
             // if this is an activity and car was not driven, check if car is nearby right now
             case (tripCarInfo, planElement) if planElement.planElementType == PlanElement.Activity =>
@@ -267,7 +267,7 @@ object HOVModeTransformer extends LazyLogging {
               }
           }
 
-          collectedTripCarInfo.carWasLost
+          collectedTripCarInfo.carWasLost || !collectedTripCarInfo.carWasUsed
       }
     }
 
