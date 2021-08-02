@@ -23,7 +23,7 @@ class PowerController(
   private val helicsConfig = chargingNetworkManagerConfig.helics
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] = if (helicsConfig.connectionEnabled) {
-    logger.info("ChargingNetworkManager should be connected to a grid model...")
+    logger.warn("ChargingNetworkManager should be connected to a grid via Helics...")
     Try {
       logger.debug("Init PowerController resources...")
       getFederate(

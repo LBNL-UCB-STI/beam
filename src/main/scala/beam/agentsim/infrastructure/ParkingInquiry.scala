@@ -69,7 +69,7 @@ object ParkingInquiry extends LazyLogging {
       case "charge"    => ParkingActivityType.Charge
       case "wherever"  => ParkingActivityType.Wherever
       case otherType =>
-        logger.warn(s"This Parking Activity Type ($otherType) has not been defined")
+        logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever
     }
   }

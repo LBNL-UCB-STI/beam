@@ -417,10 +417,10 @@ class RideHailManager(
 
   override def loggedReceive: Receive = BeamLoggingReceive {
     case DebugReport =>
-      log.info(
+      log.debug(
         s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs ms, nHandleRideHailInquiry: $nHandleRideHailInquiry, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"
       )
-      log.info(
+      log.debug(
         s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs ms, nFindAllocationsAndProcess: $nFindAllocationsAndProcess, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
       )
 

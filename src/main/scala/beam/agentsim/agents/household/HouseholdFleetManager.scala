@@ -119,7 +119,6 @@ class HouseholdFleetManager(
 
     case Success =>
     case pir: ParkingInquiryResponse =>
-      println(s"$sender")
       logger.error(s"STUCK with ParkingInquiryResponse: $pir")
 
     case x =>

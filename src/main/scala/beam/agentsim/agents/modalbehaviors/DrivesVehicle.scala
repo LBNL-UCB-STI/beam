@@ -839,7 +839,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         )
       )
     case _ @Event(EndingRefuelSession(tick, vehicleId, stall, _), _) =>
-      log.info(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId, stall: $stall")
+      log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId, stall: $stall")
       stay()
   }
 

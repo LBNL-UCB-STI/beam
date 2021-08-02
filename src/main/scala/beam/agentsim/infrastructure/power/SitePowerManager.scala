@@ -38,7 +38,7 @@ class SitePowerManager(
       .seq
       .toMap
     temporaryLoadEstimate.clear()
-    if (plans.isEmpty) logger.error(s"Charging Replan did not produce allocations")
+    if (plans.isEmpty) logger.debug(s"Charging Replan did not produce allocations")
     plans
   }
 
@@ -60,11 +60,17 @@ class SitePowerManager(
     val chargingPointLoad =
       ChargingPointType.getChargingPointInstalledPowerInKw(station.zone.chargingPointType.get)
     val chargingPowerLimit = maxZoneLoad * chargingPointLoad / maxUnlimitedZoneLoad
-    vehicle.refuelingSessionDurationAndEnergyInJoules(
+    val (chargingDuration, energyToCharge) = vehicle.refuelingSessionDurationAndEnergyInJoules(
       sessionDurationLimit = Some(timeInterval),
       stateOfChargeLimit = None,
       chargingPowerLimit = Some(chargingPowerLimit)
     )
+    if ((chargingDuration > 0 && energyToCharge == 0) || chargingDuration == 0 && energyToCharge > 0) {
+      logger.debug(
+        s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
+      )
+    }
+    (chargingDuration, energyToCharge)
   }
 
   /**
