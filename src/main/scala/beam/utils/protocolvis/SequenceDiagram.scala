@@ -15,35 +15,34 @@ object SequenceDiagram {
   }
 
   def processMessages(messages: Iterator[RowData]): IndexedSeq[PumlEntry] = {
-    messages.foldLeft((IndexedSeq.empty[PumlEntry], -1)) {
-      case ((acc, prevTick), row) =>
-        val (entry, currentTick) = row match {
-          case Event(sender, receiver, payload, _, tick, _) =>
-            (
-              Interaction(
-                userFriendlyActorName(sender),
-                userFriendlyActorName(receiver),
-                userFriendlyPayload(payload)
-              ),
-              tick
-            )
-          case Message(sender, receiver, payload, tick, _) =>
-            (
-              Interaction(
-                userFriendlyActorName(sender),
-                userFriendlyActorName(receiver),
-                userFriendlyPayload(payload)
-              ),
-              tick
-            )
-          case Transition(_, receiver, _, state, tick, _) =>
-            (Note(userFriendlyActorName(receiver), state), tick)
-        }
-        if (currentTick >= 0 && currentTick != prevTick) {
-          (acc :+ Delay(s"tick = $currentTick") :+ entry, currentTick)
-        } else {
-          (acc :+ entry, prevTick)
-        }
+    messages.foldLeft((IndexedSeq.empty[PumlEntry], -1)) { case ((acc, prevTick), row) =>
+      val (entry, currentTick) = row match {
+        case Event(sender, receiver, payload, _, tick, _) =>
+          (
+            Interaction(
+              userFriendlyActorName(sender),
+              userFriendlyActorName(receiver),
+              userFriendlyPayload(payload)
+            ),
+            tick
+          )
+        case Message(sender, receiver, payload, tick, _) =>
+          (
+            Interaction(
+              userFriendlyActorName(sender),
+              userFriendlyActorName(receiver),
+              userFriendlyPayload(payload)
+            ),
+            tick
+          )
+        case Transition(_, receiver, _, state, tick, _) =>
+          (Note(userFriendlyActorName(receiver), state), tick)
+      }
+      if (currentTick >= 0 && currentTick != prevTick) {
+        (acc :+ Delay(s"tick = $currentTick") :+ entry, currentTick)
+      } else {
+        (acc :+ entry, prevTick)
+      }
     }
   }._1
 

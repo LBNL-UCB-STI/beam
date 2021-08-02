@@ -10,7 +10,6 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.collection.JavaConverters._
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class FileUtilsSpec extends AnyWordSpecLike with Matchers {
@@ -37,7 +36,7 @@ class FileUtilsSpec extends AnyWordSpecLike with Matchers {
 
     "read files in parallel into a flat iterable" in {
       val result = FileUtils
-        .flatParRead(skimPath, "od_for_test_part*.csv.gz") { (path, reader) =>
+        .flatParRead(skimPath, "od_for_test_part*.csv.gz") { (_, reader) =>
           val records: scala.List[_root_.com.univocity.parsers.common.record.Record] = parseCSV(reader)
           records
         }
@@ -67,7 +66,7 @@ class FileUtilsSpec extends AnyWordSpecLike with Matchers {
           }
         }
         val records = FileUtils
-          .flatParRead(tmpDir, "part*.csv.gz") { (path, reader) =>
+          .flatParRead(tmpDir, "part*.csv.gz") { (_, reader) =>
             parseCSV(reader)
           }
           .toList

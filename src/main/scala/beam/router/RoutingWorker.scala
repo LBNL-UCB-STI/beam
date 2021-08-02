@@ -59,6 +59,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private val numOfThreads: Int =
     if (Runtime.getRuntime.availableProcessors() <= 2) 1
     else Runtime.getRuntime.availableProcessors() - 2
+
   private val execSvc: ExecutorService = Executors.newFixedThreadPool(
     numOfThreads,
     new ThreadFactoryBuilder().setDaemon(true).setNameFormat("r5-routing-worker-%d").build()
@@ -192,10 +193,9 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           }
         }
       }
-      eventualResponse.recover {
-        case e =>
-          log.error(e, "calcRoute failed")
-          RoutingFailure(e, request.requestId)
+      eventualResponse.recover { case e =>
+        log.error(e, "calcRoute failed")
+        RoutingFailure(e, request.requestId)
       } pipeTo sender
       askForMoreWork()
 
@@ -232,11 +232,11 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       askForMoreWork()
 
     case EmbodyWithCurrentTravelTime(
-        leg: BeamLeg,
-        vehicleId: Id[Vehicle],
-        vehicleTypeId: Id[BeamVehicleType],
-        embodyRequestId: Int,
-        triggerId
+          leg: BeamLeg,
+          vehicleId: Id[Vehicle],
+          vehicleTypeId: Id[BeamVehicleType],
+          embodyRequestId: Int,
+          triggerId
         ) =>
       val response: RoutingResponse =
         r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId, triggerId)
@@ -270,13 +270,12 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         val ghDir = Paths.get(carGraphHopperDir, i.toString).toString
 
         val wayId2TravelTime = workerParams.networkHelper.allLinks.toSeq
-          .map(
-            l =>
-              l.getId.toString.toLong ->
-              carWeightCalculator.calcTravelTime(
-                l.getId.toString.toInt,
-                travelTime,
-                i * workerParams.beamConfig.beam.agentsim.timeBinSize
+          .map(l =>
+            l.getId.toString.toLong ->
+            carWeightCalculator.calcTravelTime(
+              l.getId.toString.toInt,
+              travelTime,
+              i * workerParams.beamConfig.beam.agentsim.timeBinSize
             )
           )
           .toMap
@@ -389,7 +388,8 @@ object RoutingWorker {
     endUTM: Location,
     geo: GeoUtils
   ): BeamLeg = {
-    val distanceInMeters = GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
+    val distanceInMeters =
+      GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
       Vector(),

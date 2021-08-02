@@ -14,9 +14,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
   test("only 'HOV' legs should be affected") {
     val modes = BeamMode.allModes ++ Seq(HOV2_TELEPORTATION, HOV3_TELEPORTATION, CAR_HOV2, CAR_HOV3)
-    val plansBefore = modes.zipWithIndex.flatMap {
-      case (mode, idx) =>
-        newTrip(personId = idx, 1, mode.value)
+    val plansBefore = modes.zipWithIndex.flatMap { case (mode, idx) =>
+      newTrip(personId = 1, idx, mode.value)
     }
     val persons = Seq(newPerson(1, 1))
     val households = Seq(newHousehold(1, 1))
@@ -87,27 +86,6 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     }
   }
 
-  test("'HOV2' or 'HOV3' legs should be transformed into teleportation if 0 car available") {
-    val plansBefore = getNumberOfHOVTrips(50, Some(1))
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 0))
-
-    val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
-    val modesAfter = plansAfter.filter(plan => plan.legMode.nonEmpty).map(_.legMode.get.toLowerCase).toSet
-
-    Seq("hov2", "hov3", CAR_HOV2.value, CAR_HOV3.value)
-      .map(_.toLowerCase)
-      .foreach { mode =>
-        modesAfter shouldNot contain(mode)
-      }
-
-    Seq(HOV2_TELEPORTATION, HOV3_TELEPORTATION)
-      .map(_.value.toLowerCase)
-      .foreach { mode =>
-        modesAfter should contain(mode)
-      }
-  }
-
   test("hov2 / hov3 legs if car available should be transformed into car_hov / hov_teleportation") {
     val plansBefore = getNumberOfHOVTrips(302)
     val persons = Seq(newPerson(1, 1))
@@ -168,6 +146,24 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
     val trips = HOVModeTransformer.splitToTrips(inputPlans)
     trips.size shouldBe 4
+  }
+
+  test("separation into trips should work for trips going home several times") {
+    val inputPlans = newTrip(
+      1,
+      1,
+      modes = Seq("HOV2", "HOV2", "HOV2", "WALK"),
+      activities = Seq(
+        Act("Home", 1.1, 1.1),
+        Act("Shopping"),
+        Act("Home", 1.1, 1.1),
+        Act("Work"),
+        Act("Home", 1.1, 1.1)
+      )
+    )
+
+    val trips = HOVModeTransformer.splitToTrips(inputPlans)
+    trips.size shouldBe 2
   }
 
   test("if plans do not start and end with home it should not be split to trips") {
@@ -321,6 +317,59 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       "CAR"
     )
   }
+
+  test("must correctly handle two persons from one household with driver being a second one") {
+    val activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+    val plans =
+      newTrip(1, 1, modes = Seq("HOV2", "WALK", "HOV2"), activities = activities) ++
+      newTrip(2, 1, modes = Seq("HOV2", "CAR", "HOV2"), activities = activities)
+
+    val persons = Seq(newPerson(1, 1), newPerson(2, 1))
+    val households = Seq(newHousehold(1, 1))
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    processedPlans.flatMap(_.legMode).toList shouldBe List(
+      "hov2_teleportation",
+      "WALK",
+      "hov2_teleportation",
+      "car_hov2",
+      "CAR",
+      "car_hov2"
+    )
+  }
+
+  test("balance teleportation and car modes") {
+    val plans = newTrip(
+      1,
+      1,
+      modes = Seq("HOV3", "HOV3", "WALK"),
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+    ) ++ newTrip(
+      2,
+      1,
+      modes = Seq("HOV3", "HOV3", "WALK"),
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+    ) ++ newTrip(
+      3,
+      1,
+      modes = Seq("HOV3", "HOV3", "CAR"),
+      activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
+    )
+
+    val persons = Seq(newPerson(1, 1), newPerson(2, 1), newPerson(3, 1))
+    val households = Seq(newHousehold(1, 1))
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    processedPlans.flatMap(_.legMode).toList shouldBe List(
+      "hov3_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "hov3_teleportation",
+      "hov3_teleportation",
+      "WALK",
+      "car_hov3",
+      "car_hov3",
+      "CAR"
+    )
+  }
 }
 
 object HOVModeTransformerTest {
@@ -356,8 +405,8 @@ object HOVModeTransformerTest {
     val firstActivity: PlanElement = newActivity(personId, startIndex, activities.head)
     val theRest = modes
       .zip(activities.tail)
-      .flatMap {
-        case (mode, act) => Seq(newLeg(personId, startIndex + 1, mode), newActivity(personId, startIndex + 2, act))
+      .flatMap { case (mode, act) =>
+        Seq(newLeg(personId, startIndex + 1, mode), newActivity(personId, startIndex + 2, act))
       }
       .toSeq
 

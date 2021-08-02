@@ -14,7 +14,6 @@ import org.matsim.api.core.v01.Id
 
 /**
   * @author sid.feygin
-  *
   */
 class ErrorListener() extends Actor with ActorLogging {
   private var nextCounter = 1
@@ -46,7 +45,7 @@ class ErrorListener() extends Actor with ActorLogging {
           d.sender ! CompletionNotice(triggerId)
         // Allow RHM to continue
         case interrupt: Interrupt =>
-          log.error(s"Received ${interrupt} from ${d.sender}")
+          log.error(s"Received $interrupt from ${d.sender}")
           d.sender ! InterruptedWhileOffline
         case m: RoutingRequest =>
           log.debug(
@@ -73,20 +72,18 @@ class ErrorListener() extends Actor with ActorLogging {
       event.tick.map(tick => Math.round(tick / 3600.0).toInt).getOrElse(-1)
 
     val msgCounts = terminatedPrematurelyEvents
-      .groupBy(event => "ALL")
-      .mapValues(
-        eventsPerReason =>
-          eventsPerReason
-            .groupBy(event => hourOrMinus1(event))
-            .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
+      .groupBy(_ => "ALL")
+      .mapValues(eventsPerReason =>
+        eventsPerReason
+          .groupBy(event => hourOrMinus1(event))
+          .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
       )
     msgCounts
-      .map {
-        case (msg, cntByHour) =>
-          val sortedCounts = cntByHour.toSeq.sortBy { case (hr, cnt) => hr }
-          s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
-            .map { case (_, cnt)                             => cnt.toString }
-            .mkString("\t")}"
+      .map { case (msg, cntByHour) =>
+        val sortedCounts = cntByHour.toSeq.sortBy { case (hr, _) => hr }
+        s"$msg:\n\tHour\t${sortedCounts.map { case (hr, _) => hr.toString }.mkString("\t")}\n\tCnt \t${sortedCounts
+          .map { case (_, cnt) => cnt.toString }
+          .mkString("\t")}"
       }
       .mkString("\n")
   }

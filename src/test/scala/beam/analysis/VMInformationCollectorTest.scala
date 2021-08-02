@@ -19,11 +19,10 @@ class VMInformationCollectorTest extends AnyFlatSpec with Matchers {
       new VMClassInfo("[I", 22648216, 204633)
     )
 
-    parts.zip(expectedInfos).foreach {
-      case (ci1: VMClassInfo, ci2: VMClassInfo) =>
-        ci1.className shouldBe ci2.className
-        ci1.numberOfBytes shouldBe ci2.numberOfBytes
-        ci1.countOfInstances shouldBe ci2.countOfInstances
+    parts.zip(expectedInfos).foreach { case (ci1: VMClassInfo, ci2: VMClassInfo) =>
+      ci1.className shouldBe ci2.className
+      ci1.numberOfBytes shouldBe ci2.numberOfBytes
+      ci1.countOfInstances shouldBe ci2.countOfInstances
     }
   }
 

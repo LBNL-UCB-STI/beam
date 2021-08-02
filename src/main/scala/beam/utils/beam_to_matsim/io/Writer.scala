@@ -66,11 +66,10 @@ object Writer {
 
     new File(outputBasePath).mkdir()
 
-    typeToIdSeq.foreach {
-      case (group, ids) =>
-        FileUtils.using(new PrintWriter(new File(outputBasePath + "/" + group + ".txt"))) { pw =>
-          ids.toSeq.sorted.foreach(pw.println)
-        }
+    typeToIdSeq.foreach { case (group, ids) =>
+      FileUtils.using(new PrintWriter(new File(outputBasePath + "/" + group + ".txt"))) { pw =>
+        ids.toSeq.sorted.foreach(pw.println)
+      }
     }
 
     Console.println("all via IDs written into " + outputBasePath)
@@ -99,11 +98,10 @@ object Writer {
     if (!directory.deleteRecursively()) Console.println("Can not delete directory for vehicle ids")
     directory.createDirectory()
 
-    typeToIdSeq.foreach {
-      case (vehicleType, ids) =>
-        FileUtils.using(new PrintWriter(new File(outputPath + "\\" + "group." + vehicleType + ".txt"))) { pw =>
-          ids.foreach(pw.println)
-        }
+    typeToIdSeq.foreach { case (vehicleType, ids) =>
+      FileUtils.using(new PrintWriter(new File(outputPath + "\\" + "group." + vehicleType + ".txt"))) { pw =>
+        ids.foreach(pw.println)
+      }
     }
   }
 }

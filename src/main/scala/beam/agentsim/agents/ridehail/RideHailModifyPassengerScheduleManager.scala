@@ -27,6 +27,7 @@ class RideHailModifyPassengerScheduleManager(
 
   private val interruptIdToModifyPassengerScheduleStatus =
     mutable.Map[Int, RideHailModifyPassengerScheduleStatus]()
+
   private val vehicleIdToModifyPassengerScheduleStatus =
     mutable.Map[Id[BeamVehicle], RideHailModifyPassengerScheduleStatus]()
   private val interruptedVehicleIds = mutable.Set[Id[Vehicle]]() // For debug only
@@ -68,9 +69,10 @@ class RideHailModifyPassengerScheduleManager(
         log.error(
           "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
           reply.interruptId,
-          if (reply.isInstanceOf[InterruptedWhileDriving]) {
-            reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule
-          } else { "NA" },
+          reply match {
+            case driving: InterruptedWhileDriving => driving.passengerSchedule
+            case _                                => "NA"
+          },
           reply.vehicleId,
           reply.tick
         )
@@ -115,7 +117,7 @@ class RideHailModifyPassengerScheduleManager(
   def checkIfRoundOfRepositioningIsDone(triggerId: Long): Unit = {
     if (waitingToReposition.isEmpty) {
       log.debug("Cleaning up from checkIfRoundOfRepositioningIsDone")
-      sendCompletionAndScheduleNewTimeout(Reposition, 0)
+      sendCompletionAndScheduleNewTimeout(Reposition)
       rideHailManager.cleanUp(triggerId)
     }
   }
@@ -123,7 +125,6 @@ class RideHailModifyPassengerScheduleManager(
   def modifyPassengerScheduleAckReceived(
     vehicleId: Id[Vehicle],
     triggersToSchedule: Vector[BeamAgentScheduler.ScheduleTrigger],
-    tick: Int,
     triggerId: Long
   ): Unit = {
     clearModifyStatusFromCacheWithVehicleId(vehicleId)
@@ -133,7 +134,7 @@ class RideHailModifyPassengerScheduleManager(
     repositioningFinished(vehicleId, triggerId)
   }
 
-  def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType, tick: Int): Unit = {
+  def sendCompletionAndScheduleNewTimeout(batchDispatchType: BatchDispatchType): Unit = {
     val (currentTick, triggerId) = releaseTickAndTriggerId()
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
@@ -190,7 +191,7 @@ class RideHailModifyPassengerScheduleManager(
     rideHailAgentRef: ActorRef,
     tick: Int,
     triggerId: Long,
-    reservationRequestIdOpt: Option[Int] = None,
+    reservationRequestIdOpt: Option[Int] = None
   ): Unit = {
     vehicleIdToModifyPassengerScheduleStatus.get(rideHailVehicleId) match {
       case Some(status) =>
@@ -199,16 +200,16 @@ class RideHailModifyPassengerScheduleManager(
         val isNotRefueling = rideHailManager.rideHailManagerHelper.getServiceStatusOf(rideHailVehicleId) != Refueling
         interruptIdToModifyPassengerScheduleStatus.get(reply.interruptId) match {
           case Some(
-              RideHailModifyPassengerScheduleStatus(
-                _,
-                _,
-                _,
-                _,
-                _,
-                _,
-                rideHailAgentRef,
-                InterruptSent
-              )
+                RideHailModifyPassengerScheduleStatus(
+                  _,
+                  _,
+                  _,
+                  _,
+                  _,
+                  _,
+                  rideHailAgentRef,
+                  InterruptSent
+                )
               ) =>
             reply match {
               case InterruptedWhileOffline(_, _, _, triggerId) if isRepositioning && isNotRefueling =>
@@ -232,7 +233,9 @@ class RideHailModifyPassengerScheduleManager(
                   reply.tick,
                   reply.getClass.getCanonicalName
                 )
-                val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(reply.interruptId).modifyPassengerSchedule.reservationRequestId
+                val requestIdOpt = interruptIdToModifyPassengerScheduleStatus(
+                  reply.interruptId
+                ).modifyPassengerSchedule.reservationRequestId
                 val requestId = requestIdOpt match {
                   case Some(_) => requestIdOpt
                   case None    => reservationRequestIdOpt
@@ -277,9 +280,10 @@ class RideHailModifyPassengerScheduleManager(
             log.error(
               "RideHailModifyPassengerScheduleManager- interruptId not found: interruptId {},interruptedPassengerSchedule {}, vehicle {}, tick {}",
               reply.interruptId,
-              if (reply.isInstanceOf[InterruptedWhileDriving]) {
-                reply.asInstanceOf[InterruptedWhileDriving].passengerSchedule
-              } else { "NA" },
+              reply match {
+                case driving: InterruptedWhileDriving => driving.passengerSchedule
+                case _                                => "NA"
+              },
               reply.vehicleId,
               reply.tick
             )
@@ -378,6 +382,7 @@ class RideHailModifyPassengerScheduleManager(
       log.debug("remove interrupt from clearModifyStatusFromCacheWithVehicleId {}", status.interruptId)
     }
   }
+
   private def clearModifyStatusFromCacheWithInterruptId(
     interruptId: Int
   ): Unit = {
@@ -406,14 +411,13 @@ class RideHailModifyPassengerScheduleManager(
   ): Boolean = {
     vehicleIdToModifyPassengerScheduleStatus
       .get(vehicleId)
-      .exists(
-        stat =>
-          stat.interruptOrigin == SingleReservation && stat.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
+      .exists(stat =>
+        stat.interruptOrigin == SingleReservation && stat.modifyPassengerSchedule.updatedPassengerSchedule == passengerSchedule
       )
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    // FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
+    // TODO: FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
     // !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
     true
   }

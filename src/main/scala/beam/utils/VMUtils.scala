@@ -54,60 +54,79 @@ sealed trait JFRCommandWithoutArguments {
 }
 
 object JFRCommandWithoutArguments {
+
   case object GcClassHistogram extends JFRCommandWithoutArguments {
     def asStr: String = "gcClassHistogram"
   }
+
   case object GcClassStats extends JFRCommandWithoutArguments {
     def asStr: String = "gcClassStats"
   }
+
   case object GcRotateLog extends JFRCommandWithoutArguments {
     def asStr: String = "gcRotateLog"
   }
+
   case object GcRun extends JFRCommandWithoutArguments {
     def asStr: String = "gcRun"
   }
+
   case object GcRunFinalization extends JFRCommandWithoutArguments {
     def asStr: String = "gcRunFinalization"
   }
+
   case object Help extends JFRCommandWithoutArguments {
     def asStr: String = "help"
   }
+
   case object FrCheck extends JFRCommandWithoutArguments {
     def asStr: String = "frCheck"
   }
+
   case object JfrDump extends JFRCommandWithoutArguments {
     def asStr: String = "jfrDump"
   }
+
   case object JfrStart extends JFRCommandWithoutArguments {
     def asStr: String = "jfrStart"
   }
+
   case object JfrStop extends JFRCommandWithoutArguments {
     def asStr: String = "jfrStop"
   }
+
   case object ThreadPrint extends JFRCommandWithoutArguments {
     def asStr: String = "threadPrint"
   }
+
   case object VmCheckCommercialFeatures extends JFRCommandWithoutArguments {
     def asStr: String = "vmCheckCommercialFeatures"
   }
+
   case object VmCommandLine extends JFRCommandWithoutArguments {
     def asStr: String = "vmCommandLine"
   }
+
   case object VmFlags extends JFRCommandWithoutArguments {
     def asStr: String = "vmFlags"
   }
+
   case object VmNativeMemory extends JFRCommandWithoutArguments {
     def asStr: String = "vmNativeMemory"
   }
+
   case object VmSystemProperties extends JFRCommandWithoutArguments {
     def asStr: String = "vmSystemProperties"
   }
+
   case object VmUnlockCommercialFeatures extends JFRCommandWithoutArguments {
     def asStr: String = "vmUnlockCommercialFeatures"
   }
+
   case object VmUptime extends JFRCommandWithoutArguments {
     def asStr: String = "vmUptime"
   }
+
   case object VmVersion extends JFRCommandWithoutArguments {
     def asStr: String = "vmVersion"
   }

@@ -41,15 +41,14 @@ class RoutingHandler(val workerRouter: ActorRef) extends FailFastCirceSupport {
 
 object CustomExceptionHandling extends LazyLogging {
 
-  def handler: ExceptionHandler = ExceptionHandler {
-    case t: Throwable =>
-      extractClientIP { remoteAddress =>
-        extractRequest { request =>
-          val msg = s"Exception during processing $request from $remoteAddress: ${t.getMessage}"
-          logger.error(msg, t)
-          complete(HttpResponse(StatusCodes.InternalServerError, entity = msg))
-        }
+  def handler: ExceptionHandler = ExceptionHandler { case t: Throwable =>
+    extractClientIP { remoteAddress =>
+      extractRequest { request =>
+        val msg = s"Exception during processing $request from $remoteAddress: ${t.getMessage}"
+        logger.error(msg, t)
+        complete(HttpResponse(StatusCodes.InternalServerError, entity = msg))
       }
+    }
   }
 }
 
@@ -58,7 +57,7 @@ object R5RoutingApp extends BeamHelper {
   implicit val timeout: Timeout = new Timeout(600, TimeUnit.SECONDS)
 
   def main(args: Array[String]): Unit = {
-    val (arg, cfg) = prepareConfig(args, isConfigArgRequired = true)
+    val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val beamCfg = BeamConfig(cfg)
     val outputDirectory = FileUtils.getConfigOutputFile(
       beamCfg.beam.outputs.baseOutputDirectory,
@@ -70,7 +69,7 @@ object R5RoutingApp extends BeamHelper {
     implicit val actorSystem: ActorSystem = ActorSystem("R5RoutingApp", cfg)
 
     val workerRouter: ActorRef = actorSystem.actorOf(Props(classOf[RoutingWorker], cfg), name = "workerRouter")
-    val f = Await.result(workerRouter ? Identify(0), Duration.Inf)
+    Await.ready(workerRouter ? Identify(0), Duration.Inf)
     logger.info("R5RoutingWorker is initialized!")
 
     val isWarmMode = BeamWarmStart.isLinkStatsEnabled(beamCfg.beam.warmStart)

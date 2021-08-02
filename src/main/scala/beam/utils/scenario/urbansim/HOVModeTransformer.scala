@@ -16,7 +16,8 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.collection.mutable
 import scala.util.Random
 
-/** ActivitySim HOV modes transformer to their Beam representation.
+/**
+  * ActivitySim HOV modes transformer to their Beam representation.
   *
   * ActivitySim provide modes wider than beam modes, like `HOV2` and `HOV3`. <br>
   * `HOV2` - Ride a car with 2 persons in it. <br>
@@ -52,6 +53,7 @@ object HOVModeTransformer extends LazyLogging {
 
   private val allCarModes = Seq(CAR, CAV, CAR_HOV2, CAR_HOV3).map(_.value.toLowerCase)
   private val allHOVModes = Set(hov2, hov3)
+
   private val allCarModesWithHOV: Set[String] =
     (allCarModes ++ allHOVModes).toSet
 
@@ -60,9 +62,6 @@ object HOVModeTransformer extends LazyLogging {
     persons: Iterable[PersonInfo],
     households: Iterable[HouseholdInfo]
   ): Iterable[PlanElement] = {
-    val householdsCarCount: mutable.HashMap[HouseholdId, Int] =
-      mutable.HashMap(households.map(hh => hh.householdId -> hh.cars).toSeq: _*)
-
     val allHOVUsers: Set[PersonId] = plansProbablyWithHOV
       .filter(planElement => {
         val legMode = planElement.legMode.map(_.toLowerCase)
@@ -71,48 +70,8 @@ object HOVModeTransformer extends LazyLogging {
       .map(_.personId)
       .toSet
 
-    val allExpectedCarUsers: Set[PersonId] = plansProbablyWithHOV
-      .filter(
-        planElement => planElement.legMode.exists(mode => allCarModesWithHOV.contains(mode.toLowerCase))
-      )
-      .map(_.personId)
-      .toSet
-
-    val didNotGetACar = mutable.Set.empty[PersonId]
-    val didGetACar = mutable.Set.empty[PersonId]
-    persons.foreach { person =>
-      if (!didGetACar.contains(person.personId) && allExpectedCarUsers.contains(person.personId)) {
-        householdsCarCount.get(person.householdId) match {
-          case Some(value) if value > 0 =>
-            didGetACar.add(person.personId)
-            householdsCarCount(person.householdId) = value - 1
-          case _ => didNotGetACar.add(person.personId)
-        }
-      }
-    }
-
     var forcedHOV2Teleports = 0
     var forcedHOV3Teleports = 0
-
-    val plansWithAccessToCar = if (didNotGetACar.nonEmpty) {
-      plansProbablyWithHOV.map { planElement =>
-        val personDidNotGetACar = didNotGetACar.contains(planElement.personId)
-
-        planElement.legMode match {
-          case Some(legMode) if personDidNotGetACar && isHOV2(legMode) =>
-            forcedHOV2Teleports += 1
-            planElement.copy(legMode = Some(HOV2_TELEPORTATION.value))
-
-          case Some(legMode) if personDidNotGetACar && isHOV3(legMode) =>
-            forcedHOV3Teleports += 1
-            planElement.copy(legMode = Some(HOV3_TELEPORTATION.value))
-
-          case _ => planElement
-        }
-      }
-    } else {
-      plansProbablyWithHOV
-    }
 
     if (forcedHOV2Teleports > 0 || forcedHOV3Teleports > 0) {
       logger.info(
@@ -120,19 +79,17 @@ object HOVModeTransformer extends LazyLogging {
       )
     }
 
-    val withCarAccessHOVUsers = allHOVUsers -- didNotGetACar
-
     var forcedCarHOV2Count = 0
     var forcedCarHOV3Count = 0
 
     def thereAreMoreHOVTeleportations: Boolean = {
-      val forcedTeleportsCount = forcedHOV2Teleports + forcedHOV3Teleports
-      forcedTeleportsCount > 0 && forcedTeleportsCount > forcedCarHOV2Count + forcedCarHOV3Count
+      forcedHOV2Teleports > forcedCarHOV2Count ||
+      forcedHOV3Teleports > forcedCarHOV3Count * 2
     }
 
     def thereAreMoreHOVCars: Boolean = {
-      val forcedCarHOVCount = forcedCarHOV2Count + forcedCarHOV3Count
-      forcedCarHOVCount > 0 && forcedCarHOVCount > forcedHOV2Teleports + forcedHOV3Teleports
+      forcedCarHOV2Count > forcedHOV2Teleports ||
+      forcedCarHOV3Count * 2 > forcedHOV3Teleports
     }
 
     def replaceHOVwithCar(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
@@ -160,8 +117,8 @@ object HOVModeTransformer extends LazyLogging {
       }
     }
 
-    splitToTrips(plansWithAccessToCar).flatMap { trip =>
-      if (withCarAccessHOVUsers.contains(trip.head.personId)) {
+    splitToTrips(plansProbablyWithHOV).flatMap { trip =>
+      if (allHOVUsers.contains(trip.head.personId)) {
         if (isForcedHOVTeleportationTrip(trip)) {
           val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedHOVTeleportation(trip)
           forcedHOV2Teleports += forcedHOV2
@@ -206,7 +163,7 @@ object HOVModeTransformer extends LazyLogging {
     }
 
     def canBeSplitToTrips(plans: Iterable[PlanElement]): Boolean = {
-      isHomeActivity(plans.head) && isHomeActivity(plans.last) && plans.count(isHomeActivity) % 2 == 0
+      isHomeActivity(plans.head) && isHomeActivity(plans.last)
     }
 
     def addLeg(leg: PlanElement): Unit = personToTrip.get(leg.personId) match {
@@ -219,9 +176,15 @@ object HOVModeTransformer extends LazyLogging {
     }
 
     def addActivity(activity: PlanElement): Unit = personToTrip.get(activity.personId) match {
-      case Some(trip) if isHomeActivity(activity) =>
+      case Some(trip) if isHomeActivity(activity) && trip.size > 1 =>
         trips.append(trip :+ activity)
         personToTrip.remove(activity.personId)
+        // we should start a new trip in case a person will continue, if not we will drop this orphaned home activity later
+        personToTrip(activity.personId) = mutable.ListBuffer(activity)
+
+      case Some(trip) if isHomeActivity(activity) && trip.size == 1 =>
+        // replace home activity
+        personToTrip(activity.personId) = mutable.ListBuffer(activity)
 
       case Some(trip) => trip.append(activity)
 
@@ -243,6 +206,8 @@ object HOVModeTransformer extends LazyLogging {
     }
 
     if (personToTrip.nonEmpty) {
+      // remove orphaned home locations
+      personToTrip.retain((_, trip) => trip.size > 1)
       val cnt = personToTrip.size
       val persons = personToTrip.keySet.mkString(",")
       logger.warn(
@@ -284,7 +249,7 @@ object HOVModeTransformer extends LazyLogging {
             // if this is an activity and car was driven, then move the car to the new location
             case (tripCarInfo, planElement)
                 if planElement.planElementType == PlanElement.Activity && tripCarInfo.carWasUsed =>
-              tripCarInfo.withNewActivityLocation(planElement).copy(carWasUsed = false)
+              tripCarInfo.withNewActivityLocation(planElement)
 
             // if this is an activity and car was not driven, check if car is nearby right now
             case (tripCarInfo, planElement) if planElement.planElementType == PlanElement.Activity =>
@@ -302,7 +267,7 @@ object HOVModeTransformer extends LazyLogging {
               }
           }
 
-          collectedTripCarInfo.carWasLost
+          collectedTripCarInfo.carWasLost || !collectedTripCarInfo.carWasUsed
       }
     }
 

@@ -200,8 +200,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
 
 object MatchingAlgorithmsForRideHailSpec {
 
-  def scenario1()(
-    implicit
+  def scenario1()(implicit
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -267,8 +266,7 @@ object MatchingAlgorithmsForRideHailSpec {
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
   }
 
-  def scenarioGeoFence()(
-    implicit
+  def scenarioGeoFence()(implicit
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -362,8 +360,7 @@ object MatchingAlgorithmsForRideHailSpec {
     new Envelope(minx, maxx, miny, maxy)
   }
 
-  def beamvilleScenario(vehicleType: BeamVehicleType, remainingRangeInM: Int = 10000)(
-    implicit
+  def beamvilleScenario(vehicleType: BeamVehicleType, remainingRangeInM: Int = 10000)(implicit
     services: BeamServices,
     beamScenario: BeamScenario,
     mockActorRef: ActorRef
@@ -402,7 +399,7 @@ object MatchingAlgorithmsForRideHailSpec {
       RideHailMatching.createPersonRequest(
         makeVehPersonId("p4"),
         taz2Loc,
-        (5.minutes.toSeconds).toInt,
+        5.minutes.toSeconds.toInt,
         taz1Loc,
         services,
         0
@@ -411,7 +408,7 @@ object MatchingAlgorithmsForRideHailSpec {
       RideHailMatching.createPersonRequest(
         makeVehPersonId("p2"),
         taz1Loc,
-        (1.minutes.toSeconds).toInt,
+        1.minutes.toSeconds.toInt,
         taz4Loc,
         services,
         0
@@ -420,7 +417,7 @@ object MatchingAlgorithmsForRideHailSpec {
       RideHailMatching.createPersonRequest(
         makeVehPersonId("p3"),
         taz2Loc,
-        (2.minutes.toSeconds).toInt,
+        2.minutes.toSeconds.toInt,
         taz1Loc,
         services,
         0

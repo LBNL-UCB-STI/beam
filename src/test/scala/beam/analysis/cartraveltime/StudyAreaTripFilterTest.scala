@@ -14,10 +14,12 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
   // Texas capitol as center of study area: https://g.page/TexasCapitol?share
   // The bounding box looks like the following: https://imgur.com/a/GLKgRyl
   private val studyArea = StudyArea(enabled = true, lat = 30.2746698, lon = -97.7425392, radius = 10000)
+
   private val geoUtils: GeoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
   }
   private val studyAreaTripFilter = new StudyAreaTripFilter(studyArea, geoUtils)
+
   private val vehicleType = BeamVehicleType(
     id = Id.create("car", classOf[BeamVehicleType]),
     seatingCapacity = 1,
@@ -28,6 +30,7 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     primaryFuelCapacityInJoule = 0.1,
     vehicleCategory = VehicleCategory.Car
   )
+
   private val beamLeg = BeamLeg(
     startTime = 0,
     mode = BeamMode.CAR,
@@ -41,6 +44,7 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
       distanceInM = 10.0
     )
   )
+
   private val defaultPte = PathTraversalEvent(
     time = 0,
     vehicleId = Id.createVehicleId(1),

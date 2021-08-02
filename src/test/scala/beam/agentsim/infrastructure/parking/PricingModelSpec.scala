@@ -1,4 +1,5 @@
 package beam.agentsim.infrastructure.parking
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -49,9 +50,12 @@ class PricingModelSpec extends AnyWordSpec with Matchers {
               cost should equal(inputCost)
               intervalInSeconds should equal(blockIntervalInSeconds)
 
-              val expectedTicketPrice
-                : Double = inputCost.toDouble * (parkingDuration.toDouble / blockIntervalInSeconds.toDouble)
-              PricingModel.evaluateParkingTicket(PricingModel.Block(cost, intervalInSeconds), parkingDuration) should equal(
+              val expectedTicketPrice: Double =
+                inputCost.toDouble * (parkingDuration.toDouble / blockIntervalInSeconds.toDouble)
+              PricingModel.evaluateParkingTicket(
+                PricingModel.Block(cost, intervalInSeconds),
+                parkingDuration
+              ) should equal(
                 expectedTicketPrice
               )
             case _ => fail()

@@ -14,7 +14,7 @@ import beam.utils.FileUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.jheaps.annotations.VisibleForTesting
 
-class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
+class BikeLanesAdjustment @Inject() (bikeLanesData: BikeLanesData) {
   private val scaleFactorFromConfig = bikeLanesData.scaleFactorFromConfig
   private val bikeLanesLinkIds = bikeLanesData.bikeLanesLinkIds
 
@@ -22,7 +22,7 @@ class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
     if (beamMode == BIKE && isScaleFactorEnabled) {
       scaleFactorFromConfig
     } else {
-      1D
+      1d
     }
   }
 
@@ -30,7 +30,7 @@ class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
     if (vehicleType.vehicleCategory == VehicleCategory.Bike) {
       scaleFactor(linkId)
     } else {
-      1D
+      1d
     }
   }
 
@@ -39,7 +39,7 @@ class BikeLanesAdjustment @Inject()(bikeLanesData: BikeLanesData) {
     if (bikeLanesLinkIds.contains(linkId)) {
       scaleFactorFromConfig
     } else {
-      1D
+      1d
     }
   }
 

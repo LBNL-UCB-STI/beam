@@ -7,6 +7,7 @@ import beam.router.skim.SkimsUtils
 import beam.router.skim.core.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.BeamServices
+import org.matsim.api.core.v01.Coord
 
 case class ODSkimmerEvent(
   origin: String,
@@ -43,7 +44,8 @@ case class ODSkimmerEvent(
         travelTimeInS = correctedTrip.totalTravelTimeInSecs.toDouble,
         generalizedTimeInS = generalizedTimeInHours * 3600,
         generalizedCost = generalizedCost,
-        distanceInM = if (dist > 0.0) { dist } else { 1.0 },
+        distanceInM = if (dist > 0.0) { dist }
+        else { 1.0 },
         cost = correctedTrip.costEstimate,
         energy = energyConsumption,
         level4CavTravelTimeScalingFactor = level4CavTravelTimeScalingFactor
@@ -72,7 +74,7 @@ object ODSkimmerEvent {
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double
-  ): ODSkimmerEvent = {
+  ): (ODSkimmerEvent, Coord, Coord) = {
     import beamServices._
     val beamLegs = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier).beamLegs
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
@@ -87,15 +89,19 @@ object ODSkimmerEvent {
     val destTaz = beamScenario.tazTreeMap
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
-    ODSkimmerEvent(
-      origin = origTaz.toString,
-      destination = destTaz.toString,
-      eventTime = eventTime,
-      trip = trip,
-      generalizedTimeInHours = generalizedTimeInHours,
-      generalizedCost = generalizedCost,
-      energyConsumption = energyConsumption,
-      skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
+    (
+      ODSkimmerEvent(
+        origin = origTaz.toString,
+        destination = destTaz.toString,
+        eventTime = eventTime,
+        trip = trip,
+        generalizedTimeInHours = generalizedTimeInHours,
+        generalizedCost = generalizedCost,
+        energyConsumption = energyConsumption,
+        skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
+      ),
+      origCoord,
+      destCoord
     )
   }
 }

@@ -23,6 +23,7 @@ object visualization_33_34 extends App {
   val vehiclesInCircle = HashSetReader.fromFile(vehiclesInCircleFilePath)
 
   object Selector extends MutableVehiclesFilter.SelectNewVehicle {
+
     override def select(vehicleMode: String, vehicleType: String, vehicleId: String): Boolean = {
       if (!vehiclesInCircle.contains(vehicleId)) false
       else {

@@ -9,6 +9,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 object RideHailWaitingAnalysisObject extends OutputDataDescriptor {
 
   private val fileName = RideHailWaitingAnalysis.fileName
+
   private val rideHailIndividualWaitingTimesFileBaseName =
     RideHailWaitingAnalysis.rideHailIndividualWaitingTimesFileBaseName
 

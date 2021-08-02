@@ -32,7 +32,7 @@ class StudyAreaTripFilter(val studyArea: StudyArea, val geoUtils: GeoUtils) exte
   // latitude is Y
   // longitude is X
   private val wgsCoord = new Coord(studyArea.lon, studyArea.lat)
-  require(!GeoUtils.isInvalidWgsCoordinate(wgsCoord), s"Provided WGS coordinate ${wgsCoord} is not valid")
+  require(!GeoUtils.isInvalidWgsCoordinate(wgsCoord), s"Provided WGS coordinate $wgsCoord is not valid")
   private val utmCoord = geoUtils.wgs2Utm(new Coord(studyArea.lon, studyArea.lat))
   private val geoFence: Geofence = CircularGeofence(utmCoord.getX, utmCoord.getY, studyArea.radius)
 

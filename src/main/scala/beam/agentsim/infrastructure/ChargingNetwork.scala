@@ -28,14 +28,12 @@ class ChargingNetwork(vehicleManager: Option[Id[VehicleManager]], chargingStatio
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
   /**
-    *
     * @return all vehicles still connected to a charging point
     */
   def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
     chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
   /**
-    *
     * @return all vehicles, connected, and the ones waiting in line
     */
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
@@ -61,7 +59,8 @@ class ChargingNetwork(vehicleManager: Option[Id[VehicleManager]], chargingStatio
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
-  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] = vehicles.get(vehicleId)
+  def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.values.view.flatMap(_.lookupVehicle(vehicleId)).headOption
 
   /**
     * clear charging vehicle map
@@ -121,6 +120,7 @@ object ChargingNetwork {
   final case class ChargingStation(zone: ChargingZone) {
     import ConnectionStatus._
     private val connectedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
+
     private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
@@ -130,7 +130,11 @@ object ChargingNetwork {
     def waitingLineVehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
 
-    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] = connectedVehicles ++ waitingLineVehicles
+    def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
+      waitingLineVehicles ++ connectedVehiclesInternal
+
+    def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
+      connectedVehiclesInternal.get(vehicleId).orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
 
     /**
       * add vehicle to connected list and connect to charging point
@@ -199,6 +203,7 @@ object ChargingNetwork {
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
+
     private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
       connectionStatus.append(status)
       this

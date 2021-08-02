@@ -49,9 +49,8 @@ class ChargingNetworkManager(
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
   private val chargingNetworkMap: Map[Option[Id[VehicleManager]], ChargingNetwork] =
-    chargingInfrastructure.chargingNetwork.map {
-      case (vehicleManagerId, zones) =>
-        vehicleManagerId -> new ChargingNetwork(vehicleManagerId, zones)
+    chargingInfrastructure.chargingNetwork.map { case (vehicleManagerId, zones) =>
+      vehicleManagerId -> new ChargingNetwork(vehicleManagerId, zones)
     }
 
   private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
@@ -66,7 +65,7 @@ class ChargingNetworkManager(
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
   implicit val debug: Debug = beamConfig.beam.debug
 
-  private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds).toInt
+  private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
   var timeSpentToPlanEnergyDispatchTrigger: Long = 0
@@ -81,7 +80,7 @@ class ChargingNetworkManager(
   override def postStop: Unit = {
     maybeDebugReport.foreach(_.cancel())
     log.info(
-      s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
+      s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger ms, nHandledPlanEnergyDispatchTrigger: $nHandledPlanEnergyDispatchTrigger, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
     )
     super.postStop()
   }
@@ -89,7 +88,7 @@ class ChargingNetworkManager(
   override def loggedReceive: Receive = {
     case DebugReport =>
       log.info(
-        s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger} ms, nHandledPlanEnergyDispatchTrigger: ${nHandledPlanEnergyDispatchTrigger}, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
+        s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger ms, nHandledPlanEnergyDispatchTrigger: $nHandledPlanEnergyDispatchTrigger, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
       )
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -256,13 +255,12 @@ class ChargingNetworkManager(
   ): Vector[ScheduleTrigger] = {
     chargingNetworkMap
       .flatMap(_._2.vehicles)
-      .map {
-        case (_, chargingVehicle @ ChargingVehicle(vehicle, stall, _, _, _, _, status, _)) =>
-          if (status.last == Connected) {
-            val (duration, energy) = dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
-            chargingVehicle.processChargingCycle(tick, energy, duration)
-          }
-          ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
+      .map { case (_, chargingVehicle @ ChargingVehicle(vehicle, _, _, _, _, _, status, _)) =>
+        if (status.last == Connected) {
+          val (duration, energy) = dispatchEnergy(Int.MaxValue, chargingVehicle, physicalBounds)
+          chargingVehicle.processChargingCycle(tick, energy, duration)
+        }
+        ScheduleTrigger(ChargingTimeOutTrigger(nextTimeBin(tick) - 1, vehicle), self)
       }
       .toVector
   }
@@ -273,7 +271,7 @@ class ChargingNetworkManager(
     * @param chargingVehicle charging vehicle information
     */
   private def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle, triggerId: Long): Unit = {
-    val ChargingVehicle(vehicle, stall, _, _, _, theSender, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, _, _, _, theSender, _, _) = chargingVehicle
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.connectToChargingPoint(tick)
@@ -409,6 +407,7 @@ object ChargingNetworkManager {
     vehicleManager: Option[Id[VehicleManager]]
   ) {
     val id: String = constructChargingZoneKey(vehicleManager, geoId, parkingType, chargingPointType)
+
     override def equals(that: Any): Boolean =
       that match {
         case that: ChargingZone =>

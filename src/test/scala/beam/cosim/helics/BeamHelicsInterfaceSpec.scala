@@ -68,7 +68,7 @@ class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper 
     val (time2, response) = (beamFederate.sync(2), beamFederate.collectJSON())
     time2 should be(2.0)
     response.size should be(1)
-    response.head should contain("key"   -> "foo")
+    response.head should contain("key" -> "foo")
     response.head should contain("value" -> 123456)
 
     beamFederate.close()

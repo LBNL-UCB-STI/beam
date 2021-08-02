@@ -43,6 +43,7 @@ object SfGovTazConverter extends App with LazyLogging {
 
   //Reads
   implicit val propertiesReads: Reads[Properties] = Json.reads[Properties]
+
   implicit val featuresReads: Reads[Seq[Features]] = (json: JsValue) => {
     try {
       val featuresArray = (json \ "features").as[JsArray]
@@ -91,8 +92,9 @@ object SfGovTazConverter extends App with LazyLogging {
 
   val mContent = inputFilePath.map { p =>
     val source = scala.io.Source.fromFile(p, "UTF-8")
-    val lines = try source.mkString
-    finally source.close()
+    val lines =
+      try source.mkString
+      finally source.close()
     lines
   }
 
@@ -123,7 +125,7 @@ object SfGovTazConverter extends App with LazyLogging {
       TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
 
-    val tazVizJson = Json.toJson(tazVizArray.filter(i => i.taz > 0l))
+    val tazVizJson = Json.toJson(tazVizArray.filter(i => i.taz > 0L))
 
     new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close() }
 

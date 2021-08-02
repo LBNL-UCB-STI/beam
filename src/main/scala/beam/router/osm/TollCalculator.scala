@@ -21,15 +21,14 @@ import com.typesafe.scalalogging.LazyLogging
 import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.commons.collections4.MapUtils
 
-class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
+class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
   import beam.utils.FileUtils._
 
   private val tollsByLinkId: TIntObjectHashMap[Array[Toll]] = {
     val map: util.Map[Int, Array[Toll]] = readTollPrices(config.beam.agentsim.toll.filePath)
     val intHashMap = new TIntObjectHashMap[Array[Toll]]()
-    map.asScala.foreach {
-      case (k, v) =>
-        intHashMap.put(k, v)
+    map.asScala.foreach { case (k, v) =>
+      intHashMap.put(k, v)
     }
     intHashMap
   }
@@ -65,6 +64,7 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       applyTimeDependentTollAtTime(tolls, time) * config.beam.agentsim.tuning.tollPrice
     }
   }
+
   private def applyTimeDependentTollAtTime(tolls: Array[Toll], time: Int): Double = {
     tolls.filter(toll => toll.timeRange.has(time)).map(toll => toll.amount).sum
   }
@@ -77,10 +77,9 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
         .toArray
         .map(_.split(","))
         .groupBy(t => t(0).toInt)
-        .map {
-          case (linkId, lines) =>
-            val tollWithRange = lines.map(t => Toll(t(1).toDouble, Range(t(2))))
-            Maps.immutableEntry[Int, Array[Toll]](linkId, tollWithRange)
+        .map { case (linkId, lines) =>
+          val tollWithRange = lines.map(t => Toll(t(1).toDouble, Range(t(2))))
+          Maps.immutableEntry[Int, Array[Toll]](linkId, tollWithRange)
         }
         .toArray
       MapUtils.putAll(new util.HashMap[Int, Array[Toll]](), rowList.asInstanceOf[Array[AnyRef]])
@@ -156,7 +155,10 @@ class TollCalculator @Inject()(val config: BeamConfig) extends LazyLogging {
       .flatMap(c => {
         c.split(" ")
           .headOption
-          .flatMap(token => try { Some(token.toDouble) } catch { case _: Throwable => None })
+          .flatMap(token =>
+            try { Some(token.toDouble) }
+            catch { case _: Throwable => None }
+          )
           .flatMap(token => Some(Toll(token, Range("[:]"))))
       })
   }

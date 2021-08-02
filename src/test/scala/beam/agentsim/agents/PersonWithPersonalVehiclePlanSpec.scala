@@ -67,6 +67,9 @@ class PersonWithPersonalVehiclePlanSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
+  val homeLocation = new Coord(170308.4, 2964.6474)
+  val workLocation = new Coord(169346.4, 876.7536)
+
   describe("A PersonAgent") {
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
@@ -149,7 +152,7 @@ class PersonWithPersonalVehiclePlanSpec
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
                     .copy(
-                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(_ => 50.0),
                       endPoint = embodyRequest.leg.travelPath.endPoint
                         .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
@@ -215,7 +218,7 @@ class PersonWithPersonalVehiclePlanSpec
                     ),
                     endPoint =
                       SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 200),
-                    distanceInM = 1000D
+                    distanceInM = 1000d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
@@ -257,7 +260,7 @@ class PersonWithPersonalVehiclePlanSpec
                       services.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM),
                       walkFromParkingRoutingRequest.departureTime + 200
                     ),
-                    distanceInM = 1000D
+                    distanceInM = 1000d
                   )
                 ),
                 beamVehicleId = walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.id,
@@ -286,7 +289,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      val parkEvent = expectMsgType[ParkingEvent]
+      expectMsgType[ParkingEvent]
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -380,7 +383,7 @@ class PersonWithPersonalVehiclePlanSpec
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
                     .copy(
-                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(_ => 50.0),
                       endPoint = embodyRequest.leg.travelPath.endPoint
                         .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
@@ -508,30 +511,29 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
-      for (i <- 0 to 1) {
-        expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
-            val embodiedLeg = EmbodiedBeamLeg(
-              beamLeg = leg.copy(
-                duration = 500,
-                travelPath = leg.travelPath.copy(
-                  linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
-                  endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
-                )
-              ),
-              beamVehicleId = vehicleId,
-              Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-              asDriver = true,
-              cost = 0.0,
-              unbecomeDriverOnCompletion = true
-            )
-            lastSender ! RoutingResponse(
-              itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = 1,
-              request = None,
-              isEmbodyWithCurrentTravelTime = false,
-              triggerId
-            )
+      for (_ <- 0 to 1) {
+        expectMsgPF() { case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
+          val embodiedLeg = EmbodiedBeamLeg(
+            beamLeg = leg.copy(
+              duration = 500,
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
+            ),
+            beamVehicleId = vehicleId,
+            Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            asDriver = true,
+            cost = 0.0,
+            unbecomeDriverOnCompletion = true
+          )
+          lastSender ! RoutingResponse(
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false,
+            triggerId
+          )
         }
       }
 
@@ -622,7 +624,7 @@ class PersonWithPersonalVehiclePlanSpec
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(0.01, 0.0, 28850),
-                    distanceInM = 1000D
+                    distanceInM = 1000d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -642,7 +644,7 @@ class PersonWithPersonalVehiclePlanSpec
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.0, 28950),
                     endPoint = SpaceTime(0.01, 0.01, 29000),
-                    distanceInM = 1000D
+                    distanceInM = 1000d
                   )
                 ),
                 beamVehicleId = Id.createVehicleId("car-1"),
@@ -697,9 +699,6 @@ class PersonWithPersonalVehiclePlanSpec
 
   }
 
-  val homeLocation = new Coord(170308.4, 2964.6474)
-  val workLocation = new Coord(169346.4, 876.7536)
-
   private def createTestPerson(
     personId: Id[Person],
     vehicleId: Id[Vehicle],
@@ -740,8 +739,7 @@ class PersonWithPersonalVehiclePlanSpec
     import scala.concurrent.duration._
     import scala.language.postfixOps
     //we need to prevent getting this CompletionNotice from the Scheduler in the next test
-    receiveWhile(1500 millis) {
-      case _: CompletionNotice =>
+    receiveWhile(1500 millis) { case _: CompletionNotice =>
     }
   }
 

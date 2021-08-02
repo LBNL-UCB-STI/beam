@@ -7,7 +7,6 @@ import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.math.NumberUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -21,18 +20,20 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
   override def readPersonsFile(path: String): Array[PersonInfo] = {
     readAs[PersonInfo](path, "readPersonsFile", toPersonInfo)
   }
+
   override def readPlansFile(path: String): Array[PlanElement] = {
     readAs[PlanElement](path, "readPlansFile", toPlanInfo)
   }
+
   override def readHouseholdsFile(householdsPath: String, vehicles: Iterable[VehicleInfo]): Array[HouseholdInfo] = {
-    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map {
-      case (householdId, listOfCars) => (householdId, listOfCars.size)
+    val householdToNumberOfCars = vehicles.groupBy(_.householdId).map { case (householdId, listOfCars) =>
+      (householdId, listOfCars.size)
     }
     readAs[HouseholdInfo](householdsPath, "readHouseholdsFile", toHouseholdInfo(householdToNumberOfCars))
   }
 
-  private[readers] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(
-    implicit ct: ClassTag[T]
+  private[readers] def readAs[T](path: String, what: String, mapper: JavaMap[String, String] => T)(implicit
+    ct: ClassTag[T]
   ): Array[T] = {
     ProfilingUtils.timed(what, x => logger.info(x)) {
       FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)) { csvRdr =>
@@ -84,12 +85,12 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
       activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
-      legMode = Option(rec.get("legMode")).map(_.toString),
-      legDepartureTime = Option(rec.get("legDepartureTime")).map(_.toString),
-      legTravelTime = Option(rec.get("legTravelTime")).map(_.toString),
-      legRouteType = Option(rec.get("legRouteType")).map(_.toString),
-      legRouteStartLink = Option(rec.get("legRouteStartLink")).map(_.toString),
-      legRouteEndLink = Option(rec.get("legRouteEndLink")).map(_.toString),
+      legMode = Option(rec.get("legMode")),
+      legDepartureTime = Option(rec.get("legDepartureTime")),
+      legTravelTime = Option(rec.get("legTravelTime")),
+      legRouteType = Option(rec.get("legRouteType")),
+      legRouteStartLink = Option(rec.get("legRouteStartLink")),
+      legRouteEndLink = Option(rec.get("legRouteEndLink")),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
       legRouteLinks = linkIds,
@@ -104,7 +105,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
-    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0D)
+    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0d)
     PersonInfo(
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),

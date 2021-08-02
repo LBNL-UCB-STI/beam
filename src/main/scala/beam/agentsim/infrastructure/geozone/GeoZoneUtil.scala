@@ -70,13 +70,12 @@ object GeoZoneUtil extends LazyLogging {
         .addAttribute("Size", classOf[java.lang.Integer])
         .addAttribute("Resolution", classOf[java.lang.Integer])
         .create()
-      val shpPolygons = hexagons.map {
-        case (polygon, indexValue, indexSize, resolution) =>
-          pf.createPolygon(
-            polygon.getCoordinates,
-            Array[Object](indexValue, Integer.valueOf(indexSize), Integer.valueOf(resolution)),
-            null
-          )
+      val shpPolygons = hexagons.map { case (polygon, indexValue, indexSize, resolution) =>
+        pf.createPolygon(
+          polygon.getCoordinates,
+          Array[Object](indexValue, Integer.valueOf(indexSize), Integer.valueOf(resolution)),
+          null
+        )
       }
       ShapeFileWriter.writeGeometries(shpPolygons.asJavaCollection, filename)
     }

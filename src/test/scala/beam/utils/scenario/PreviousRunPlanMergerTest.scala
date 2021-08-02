@@ -113,7 +113,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("3", 1, 49506),
           createPlanElement("3", 2, 49507),
           createPlanElement("4", 2, 49508),
-          createPlanElement("6", 2, 49508),
+          createPlanElement("6", 2, 49508)
         )
       )
 
@@ -145,7 +145,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       createPlanElement("3", 1, 49506),
       createPlanElement("3", 2, 49507),
       createPlanElement("4", 2, 49508),
-      createPlanElement("6", 2, 49508),
+      createPlanElement("6", 2, 49508)
     )
   }
 
@@ -160,7 +160,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       createPlanElement("4", 0, 49515),
       createPlanElement("4", 1, 49516),
       createPlanElement("4", 2, 49517),
-      createPlanElement("5", 0, 49518),
+      createPlanElement("5", 0, 49518)
     )
   }
 

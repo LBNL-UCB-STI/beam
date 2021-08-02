@@ -1,4 +1,5 @@
 package beam.agentsim.agents.ridehail
+
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
@@ -24,7 +25,7 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
   lazy val beamScenario: BeamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario: MutableScenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
   lazy val injector: Injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
-  lazy val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  lazy val beamServices: BeamServices = buildBeamServices(injector)
 
   override def afterAll(): Unit = {
     injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats]).close()
@@ -50,24 +51,26 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
       }
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
-      var expectedValue = rhspm.surgePriceBins.map({ f =>
+      var expectedValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel + rhspm.surgeLevelAdaptionStep))
-      })
+      }
 
       rhspm.updateSurgePriceLevels()
-      var finalValue = rhspm.surgePriceBins.map({ f =>
+      var finalValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel))
-      })
+      }
 
       expectedValue shouldBe finalValue
 
       //Next iteration when true
-      var expectedValue2 = rhspm.surgePriceBins.map {
-        case (tazId, binsArray) =>
-          (tazId, binsArray.map { binElem =>
+      var expectedValue2 = rhspm.surgePriceBins.map { case (tazId, binsArray) =>
+        (
+          tazId,
+          binsArray.map { binElem =>
             val updatedPreviousSurgePriceLevel =
               binElem.currentIterationSurgePriceLevel
-            val updatedSurgeLevel = binElem.currentIterationSurgePriceLevel //+ (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
+            val updatedSurgeLevel =
+              binElem.currentIterationSurgePriceLevel //+ (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
             val updatedCurrentSurgePriceLevel =
               Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
             val updatedPrevIterRevenue = binElem.currentIterationRevenue
@@ -78,7 +81,8 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
               updatedPreviousSurgePriceLevel,
               updatedCurrentSurgePriceLevel
             )
-          })
+          }
+        )
       }
       rhspm.updateSurgePriceLevels()
       expectedValue2 shouldBe rhspm.surgePriceBins
@@ -93,24 +97,26 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
       }
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
-      expectedValue = rhspm.surgePriceBins.map({ f =>
+      expectedValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel - rhspm.surgeLevelAdaptionStep))
-      })
+      }
 
       rhspm.updateSurgePriceLevels()
-      finalValue = rhspm.surgePriceBins.map({ f =>
+      finalValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel))
-      })
+      }
 
       expectedValue shouldBe finalValue
 
       //Next iteration when false
-      expectedValue2 = rhspm.surgePriceBins.map {
-        case (tazId, binsArray) =>
-          (tazId, binsArray.map { binElem =>
+      expectedValue2 = rhspm.surgePriceBins.map { case (tazId, binsArray) =>
+        (
+          tazId,
+          binsArray.map { binElem =>
             val updatedPreviousSurgePriceLevel =
               binElem.currentIterationSurgePriceLevel
-            val updatedSurgeLevel = binElem.currentIterationSurgePriceLevel //- (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
+            val updatedSurgeLevel =
+              binElem.currentIterationSurgePriceLevel //- (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
             val updatedCurrentSurgePriceLevel =
               Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
             val updatedPrevIterRevenue = binElem.currentIterationRevenue
@@ -121,7 +127,8 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
               updatedPreviousSurgePriceLevel,
               updatedCurrentSurgePriceLevel
             )
-          })
+          }
+        )
       }
       rhspm.updateSurgePriceLevels()
       expectedValue2 shouldBe rhspm.surgePriceBins

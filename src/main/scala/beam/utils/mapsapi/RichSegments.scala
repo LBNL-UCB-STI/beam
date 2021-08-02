@@ -27,9 +27,8 @@ class RichSegments(segments: Seq[Segment]) {
     segments
   }
 
-  def saveToShapeFile(outputFile: Path): Seq[Segment] = {
+  def saveToShapeFile(outputFile: Path = Paths.get("outputShapeFile.shx")): Seq[Segment] = {
     val allCoordinates = segments.flatMap(_.coordinates).toSet
-    val outputFile: Path = Paths.get("outputShapeFile.shx")
     GeoZoneUtil.writeToShapeFile(outputFile, allCoordinates, resolution = 12)
     segments
   }

@@ -46,7 +46,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
   )
   val scenario: MutableScenario = scenarioBuilt
   val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-  val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  val beamServices: BeamServices = buildBeamServices(injector)
 
   def createBackgroundSkimsCreator(
     modes: Seq[BeamMode],
@@ -186,14 +186,14 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     pathTypeToSkimsCount(ActivitySimPathType.SOV) shouldBe 144
     pathTypeToSkimsCount(ActivitySimPathType.WALK) shouldBe 22 // because max walk trip length is 1000 meters
 
-    val walkKeys = skims.keys.filter {
-      case k: ActivitySimSkimmerKey => k.pathType == ActivitySimPathType.WALK
+    val walkKeys = skims.keys.filter { case k: ActivitySimSkimmerKey =>
+      k.pathType == ActivitySimPathType.WALK
     }
     val walkSkims = walkKeys.map(key => key -> skims.get(key)).toMap
     walkSkims.size shouldBe 22
 
-    val walkTransitKeys = skims.keys.filter {
-      case k: ActivitySimSkimmerKey => k.pathType == ActivitySimPathType.WLK_LOC_WLK
+    val walkTransitKeys = skims.keys.filter { case k: ActivitySimSkimmerKey =>
+      k.pathType == ActivitySimPathType.WLK_LOC_WLK
     }
     val walkTransitSkims = walkTransitKeys.map(key => key -> skims.get(key)).toMap
     walkTransitSkims.size shouldBe 86
