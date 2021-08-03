@@ -1,8 +1,7 @@
 package beam.sim
 
 import java.io.IOException
-import java.nio.file.{Files, Path, Paths}
-
+import java.nio.file.{Files, Path, Paths, StandardCopyOption}
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -360,7 +359,7 @@ object BeamWarmStartSpec {
   def copyPlans(toDir: Path, asName: String): Option[String] = {
     val plansSrc = Paths.get("test/input/beamville/test-data/beamville.plans.xml.gz")
     val plansDest = Paths.get(toDir.toString, s"$asName.xml.gz")
-    Files.copy(plansSrc, plansDest)
+    Files.copy(plansSrc, plansDest, StandardCopyOption.REPLACE_EXISTING)
 
     Some(plansDest.toString)
   }
@@ -368,7 +367,7 @@ object BeamWarmStartSpec {
   def copyLinkStats(toDir: Path, asName: String): Option[String] = {
     val plansSrc = Paths.get("test/input/beamville/test-data/beamville.linkstats.csv.gz")
     val statsDest = Paths.get(toDir.toString, s"$asName.csv.gz")
-    Files.copy(plansSrc, statsDest)
+    Files.copy(plansSrc, statsDest, StandardCopyOption.REPLACE_EXISTING)
 
     Some(statsDest.toString)
   }
