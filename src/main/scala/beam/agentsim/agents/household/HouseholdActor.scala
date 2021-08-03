@@ -225,13 +225,13 @@ object HouseholdActor {
               ),
               s"cavDriver-${cav.id.toString}"
             )
+            log.warning(
+              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
+            )
             context.watch(cavDriverRef)
             cav.spaceTime = SpaceTime(homeCoord, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
             cav.setManager(Some(self))
-            log.info(
-              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
-            )
             cav.becomeDriver(cavDriverRef)
           }
           household.members.foreach { person =>
