@@ -625,17 +625,23 @@ class BeamSim @Inject() (
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {
-    val rootFiles = for {
-      fileName <- beamServices.beamConfig.beam.outputs.matsim.deleteRootFolderFiles.split(",")
-    } yield Paths.get(beamServices.matsimServices.getControlerIO.getOutputFilename(fileName))
+    val rootFilesName = beamServices.beamConfig.beam.outputs.matsim.deleteRootFolderFiles.trim
+    val iterationFilesName = beamServices.beamConfig.beam.outputs.matsim.deleteITERSFolderFiles.trim
 
-    val iterationFiles = for {
-      fileName        <- beamServices.beamConfig.beam.outputs.matsim.deleteITERSFolderFiles.split(",")
-      iterationNumber <- 0 to lastIterationNumber
-    } yield Paths.get(beamServices.matsimServices.getControlerIO.getIterationFilename(iterationNumber, fileName))
+    if (rootFilesName.nonEmpty) {
+      val rootFiles = for {
+        fileName <- rootFilesName.split(",")
+      } yield Paths.get(beamServices.matsimServices.getControlerIO.getOutputFilename(fileName))
+      tryDelete("root files: ", rootFiles)
+    }
 
-    tryDelete("root files: ", rootFiles)
-    tryDelete("iteration files: ", iterationFiles)
+    if (iterationFilesName.nonEmpty) {
+      val iterationFiles = for {
+        fileName        <- iterationFilesName.split(",")
+        iterationNumber <- 0 to lastIterationNumber
+      } yield Paths.get(beamServices.matsimServices.getControlerIO.getIterationFilename(iterationNumber, fileName))
+      tryDelete("iteration files: ", iterationFiles)
+    }
   }
 
   def tryDelete(kindOfFiles: String, filesToDelete: Seq[Path]): Unit = {
