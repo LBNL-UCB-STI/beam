@@ -1,7 +1,7 @@
 package beam.sim
 
 import java.io.IOException
-import java.nio.file.{Files, Path, Paths, StandardCopyOption}
+import java.nio.file.{Files, Path, Paths}
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -348,18 +348,14 @@ object BeamWarmStartSpec {
     }
   }
 
-  def deleteDir(directoryToBeDeleted: Path): Boolean = {
-    val allContents = directoryToBeDeleted.toFile.listFiles
-    if (allContents != null) for (file <- allContents) {
-      deleteDir(file.toPath)
-    }
-    directoryToBeDeleted.toFile.delete
+  def deleteDir(directoryToBeDeleted: Path): Unit = {
+    org.apache.commons.io.FileUtils.deleteDirectory(directoryToBeDeleted.toFile)
   }
 
   def copyPlans(toDir: Path, asName: String): Option[String] = {
     val plansSrc = Paths.get("test/input/beamville/test-data/beamville.plans.xml.gz")
     val plansDest = Paths.get(toDir.toString, s"$asName.xml.gz")
-    Files.copy(plansSrc, plansDest, StandardCopyOption.REPLACE_EXISTING)
+    Files.copy(plansSrc, plansDest)
 
     Some(plansDest.toString)
   }
@@ -367,7 +363,7 @@ object BeamWarmStartSpec {
   def copyLinkStats(toDir: Path, asName: String): Option[String] = {
     val plansSrc = Paths.get("test/input/beamville/test-data/beamville.linkstats.csv.gz")
     val statsDest = Paths.get(toDir.toString, s"$asName.csv.gz")
-    Files.copy(plansSrc, statsDest, StandardCopyOption.REPLACE_EXISTING)
+    Files.copy(plansSrc, statsDest)
 
     Some(statsDest.toString)
   }
