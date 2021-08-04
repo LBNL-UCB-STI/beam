@@ -41,6 +41,13 @@ class ChargingNetwork[GEO: GeoLevel](
     chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
   /**
+    * all vehicles waiting in line at a charging point
+    * @return
+    */
+  def waitingLineVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.flatMap(_._2.waitingLineVehicles)
+
+  /**
     * @return all vehicles, connected, and the ones waiting in line
     */
   def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
@@ -310,7 +317,11 @@ object ChargingNetwork {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, energy: Double, duration: Int)
+  final case class ChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int) {
+    def didChargingAlreadyComplete: Boolean = (endTime - startTime) == 0
+    def willChargingCompleteDuringThisCycle: Boolean = (endTime - startTime) < maxDuration
+    def isChargingNotGoingToCompleteDuringThisCycle: Boolean = (endTime - startTime) >= maxDuration
+  }
 
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
@@ -334,34 +345,51 @@ object ChargingNetwork {
       * adding a new charging cycle to the charging session
       * @param startTime start time of the charging cycle
       * @param energy energy delivered
-      * @param duration duration of charging
+      * @param endTime endTime of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processChargingCycle(startTime: Int, energy: Double, duration: Int): Option[ChargingCycle] =
-      chargingSessions.lastOption match {
-        case Some(cycle: ChargingCycle) if startTime == cycle.startTime && duration < cycle.duration =>
-          // this means that charging cycle was abruptly interrupted
-          val cycle = ChargingCycle(startTime, energy, duration)
+    def processChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
+      val addNewChargingCycle = chargingSessions.lastOption match {
+        // first charging cycle
+        case None => true
+        // either a new cycle or an unplug cycle arriving in the middle of the current cycle
+        case Some(latestCycle) if startTime >= latestCycle.endTime && connectionStatus.last == Connected => true
+        // an unplug request arrived right before the new cycle started
+        // or vehicle finished charging right before unplug requests arrived
+        case Some(latestCycle) if endTime < latestCycle.endTime =>
           chargingSessions.remove(chargingSessions.length - 1)
-          chargingSessions.append(cycle)
-          Some(cycle)
-        case Some(cycle: ChargingCycle) if startTime == cycle.startTime =>
-          // keep existing charging cycle
-          logger.info(s"the new charging cycle of vehicle $vehicle ends after the end of the last cycle")
-          None
-        case Some(cycle: ChargingCycle) if startTime < cycle.startTime =>
-          // This should never happen
-          logger.error(s"the new charging cycle of vehicle $vehicle starts before the start of the last cycle")
-          None
+          true
+        // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged
         case _ =>
-          val cycle = ChargingCycle(startTime, energy, duration)
-          chargingSessions.append(cycle)
-          Some(cycle)
+          logger.debug(
+            "Either Vehicle {} at Stall: {} had been disconnected before the charging cycle." +
+            "last charging cycle end time was {} while the current charging cycle end time is {}",
+            vehicle.id,
+            stall,
+            latestChargingCycle.map(_.endTime).getOrElse(-1),
+            endTime
+          )
+          logger.debug(
+            "Or the unplug request event for Vehicle {} arrived after it finished charging at time {}",
+            vehicle.id,
+            endTime
+          )
+          false
       }
+      if (addNewChargingCycle) {
+        val newCycle = ChargingCycle(startTime, endTime, energy, maxDuration)
+        chargingSessions.append(newCycle)
+        Some(newCycle)
+      } else None
+    }
 
     def latestChargingCycle: Option[ChargingCycle] = chargingSessions.lastOption
     def computeSessionEnergy: Double = chargingSessions.map(_.energy).sum
-    def computeSessionDuration: Long = chargingSessions.map(_.duration).sum
+
+    def computeSessionDuration: Long =
+      chargingSessions
+        .map(x => x.endTime - x.startTime)
+        .sum // Some sessions starts after the bin or ends before the bin
 
     def computeSessionEndTime: Int =
       if (sessionStartTime >= 0) {
@@ -369,5 +397,14 @@ object ChargingNetwork {
       } else {
         throw new RuntimeException("Can't compute session end time, if the sessions did not start yet")
       }
+
+    def isFullyCharged: Boolean = {
+      val (dur, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+        sessionDurationLimit = None,
+        stateOfChargeLimit = None,
+        chargingPowerLimit = None
+      )
+      dur == 0
+    }
   }
 }
