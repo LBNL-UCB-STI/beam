@@ -31,6 +31,7 @@ import beam.router.r5.RouteDumper
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessagePublisher
@@ -729,7 +730,6 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
     skimmer: ODSkims,
     origTazId: Option[Id[TAZ]],
     destTazId: Option[Id[TAZ]]
@@ -744,7 +744,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -806,7 +805,7 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
     val arrivalTime = departureTime + departHourTravelTime
@@ -821,7 +820,6 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
         maybeOrigTazForPerformanceImprovement = origTazId,
         maybeDestTazForPerformanceImprovement = destTazId
       )
@@ -838,7 +836,7 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
       val secondsInDepartHour = arriveHour * 3600 - departureTime
@@ -876,7 +874,7 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
+    beamConfig: BeamConfig,
     skimmer: ODSkims
   ): Int = {
     val skimTime =
@@ -889,7 +887,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -902,7 +899,6 @@ object BeamRouter {
         vehicleTypeId,
         vehicleType,
         fuelPrice,
-        beamScenario,
         skimmer,
         origTazId,
         destTazId
@@ -911,9 +907,9 @@ object BeamRouter {
       skimTime,
       minTime,
       maxTime,
-      beamScenario.beamConfig.beam.routing.skimTravelTimesScalingFactor
+      beamConfig.beam.routing.skimTravelTimesScalingFactor
     )
-    Math.max(adjustedSkimTime, beamScenario.beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
+    Math.max(adjustedSkimTime, beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
   }
 
   sealed trait WorkMessage

@@ -1,8 +1,5 @@
 package beam.calibration
 
-import java.nio.file.Paths
-
-import beam.calibration.BeamSigoptTuner._
 import beam.calibration.Bounded._
 import beam.experiment._
 import beam.utils.OptionalUtils.JavaOptionals._
@@ -10,11 +7,8 @@ import com.google.common.collect.Lists
 import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
-import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters
-import scala.util.Try
 
 object BeamSigoptTuner {
 
@@ -34,7 +28,6 @@ object BeamSigoptTuner {
     experimentId: String,
     development: Boolean = false
   ): Option[Experiment] = {
-
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
       .filter((experiment: Experiment) =>

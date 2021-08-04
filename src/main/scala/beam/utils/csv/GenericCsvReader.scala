@@ -22,6 +22,10 @@ trait GenericCsvReader {
     read[T](csvRdr, mapper, filterPredicate)
   }
 
+  /**
+    * This method should not be used on larger files as it loads the entire contents into memory.
+    * Use readAs or another view-like method for larger files.
+    */
   def readAsSeq[T](
     path: String,
     filterPredicate: T => Boolean = (_: T) => true,

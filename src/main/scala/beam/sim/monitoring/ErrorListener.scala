@@ -2,15 +2,13 @@ package beam.sim.monitoring
 
 import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
 import beam.agentsim.agents.BeamAgent
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.EndRefuelSessionTrigger
 import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, InterruptedWhileOffline}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse}
+import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, WorkAvailable}
-import org.matsim.api.core.v01.Id
 
 /**
   * @author sid.feygin
@@ -37,9 +35,6 @@ class ErrorListener() extends Actor with ActorLogging {
           d.sender ! ReservationResponse(Left(DriverNotFoundError), m.triggerId)
         case _: RemovePassengerFromTrip =>
         // Can be safely skipped
-        case TriggerWithId(EndRefuelSessionTrigger(_, _, _, _), triggerId) =>
-          // Can be safely skipped, happens when a person ends the day before the charging session is over
-          d.sender ! CompletionNotice(triggerId)
         case TriggerWithId(trigger, triggerId) =>
           log.warning("Trigger id {} sent to dead letters: {}", triggerId, trigger)
           d.sender ! CompletionNotice(triggerId)

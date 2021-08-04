@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -10,7 +10,8 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
+import beam.agentsim.infrastructure.parking.ParkingNetwork
+import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -67,13 +68,8 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private lazy val parkingManager = system.actorOf(
-    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
-    "ParkingManager"
-  )
-
-  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
+  private var parkingNetworks: Map[Id[VehicleManager], ParkingNetwork[_]] = _
+  private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -124,8 +120,18 @@ class PersonAndTransitDriverSpec
       )
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val bus = new BeamVehicle(id = busId, powerTrain = new Powertrain(0.0), beamVehicleType = vehicleType)
-      val tram = new BeamVehicle(id = tramId, powerTrain = new Powertrain(0.0), beamVehicleType = vehicleType)
+      val bus = new BeamVehicle(
+        id = busId,
+        powerTrain = new Powertrain(0.0),
+        beamVehicleType = vehicleType,
+        vehicleManagerId = VehicleManager.noManager
+      )
+      val tram = new BeamVehicle(
+        id = tramId,
+        powerTrain = new Powertrain(0.0),
+        beamVehicleType = vehicleType,
+        vehicleManagerId = VehicleManager.noManager
+      )
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -406,9 +412,15 @@ class PersonAndTransitDriverSpec
 
   }
 
-  override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  override protected def beforeAll(): Unit = {
+    parkingNetworks = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)._1
+    parkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
+    super.beforeAll()
   }
 
 }

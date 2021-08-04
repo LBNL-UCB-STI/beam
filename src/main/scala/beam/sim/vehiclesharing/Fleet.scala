@@ -15,13 +15,14 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 trait FleetType {
-  val vehicleManager: Id[VehicleManager]
+  val vehicleManagerId: Id[VehicleManager]
   val parkingFilePath: String
 
   def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef
+    parkingManager: ActorRef,
+    chargingManager: ActorRef
   ): Props
 }
 
@@ -58,7 +59,7 @@ object FleetType {
 }
 
 case class FixedNonReservingFleetByTAZ(
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.FixedNonReservingFleetByTaz,
   repConfig: Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition]
@@ -71,7 +72,8 @@ case class FixedNonReservingFleetByTAZ(
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef
+    parkingManager: ActorRef,
+    chargingManager: ActorRef
   ): Props = {
     val rand = {
       val seed = beamServices.beamConfig.matsim.modules.global.randomSeed
@@ -109,8 +111,9 @@ case class FixedNonReservingFleetByTAZ(
     )
     Props(
       new FixedNonReservingFleetManager(
-        id = vehicleManager,
-        parkingManager = parkingManager,
+        vehicleManagerId = vehicleManagerId,
+        parkingNetworkManager = parkingManager,
+        chargingNetworkManager = chargingManager,
         locations = initialLocation,
         vehicleType = vehicleType,
         mainScheduler = beamScheduler,
@@ -123,7 +126,7 @@ case class FixedNonReservingFleetByTAZ(
 }
 
 case class FixedNonReservingFleet(
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.FixedNonReserving
 ) extends FleetType {
@@ -131,7 +134,8 @@ case class FixedNonReservingFleet(
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef
+    parkingManager: ActorRef,
+    chargingManager: ActorRef
   ): Props = {
     val initialSharedVehicleLocations =
       beamServices.matsimServices.getScenario.getPopulation.getPersons
@@ -146,8 +150,9 @@ case class FixedNonReservingFleet(
     )
     Props(
       new FixedNonReservingFleetManager(
-        vehicleManager,
+        vehicleManagerId,
         parkingManager,
+        chargingNetworkManager = chargingManager,
         initialSharedVehicleLocations,
         vehicleType,
         beamScheduler,
@@ -159,7 +164,7 @@ case class FixedNonReservingFleet(
 }
 
 case class InexhaustibleReservingFleet(
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   parkingFilePath: String,
   config: SharedFleets$Elm.InexhaustibleReserving
 ) extends FleetType {
@@ -167,7 +172,8 @@ case class InexhaustibleReservingFleet(
   override def props(
     beamServices: BeamServices,
     beamScheduler: ActorRef,
-    parkingManager: ActorRef
+    parkingManager: ActorRef,
+    chargingManager: ActorRef
   ): Props = {
     val vehicleType = FleetType.getAndValidateSharedTypeId(
       config.vehicleTypeId,
@@ -176,7 +182,7 @@ case class InexhaustibleReservingFleet(
     )
     Props(
       new InexhaustibleReservingFleetManager(
-        vehicleManager,
+        vehicleManagerId,
         parkingManager,
         vehicleType,
         beamServices.beamConfig.matsim.modules.global.randomSeed,
