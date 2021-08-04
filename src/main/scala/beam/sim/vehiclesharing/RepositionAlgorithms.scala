@@ -24,7 +24,7 @@ object RepositionAlgorithms {
 trait RepositionAlgorithmType {
 
   def getInstance(
-    vehicleManager: Id[VehicleManager],
+    vehicleManagerId: Id[VehicleManager],
     beamServices: BeamServices
   ): RepositionAlgorithm
   def getRepositionTimeBin: Int
@@ -56,14 +56,14 @@ case class AvailabilityBasedRepositioningType(
 ) extends RepositionAlgorithmType {
 
   override def getInstance(
-    vehicleManager: Id[VehicleManager],
+    vehicleManagerId: Id[VehicleManager],
     beamServices: BeamServices
   ): RepositionAlgorithm = {
     AvailabilityBasedRepositioning(
       params.repositionTimeBin,
       params.statTimeBin,
       params.min_availability_undersupply_algorithm.get.matchLimit,
-      vehicleManager,
+      vehicleManagerId,
       beamServices
     )
   }

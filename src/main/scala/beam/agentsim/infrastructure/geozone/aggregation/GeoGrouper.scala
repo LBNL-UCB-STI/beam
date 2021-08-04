@@ -30,7 +30,7 @@ class GeoGrouper(
   def exportToCsv(file: Path): GeoGrouper = {
     val csvWriter: CsvWriter = {
       val headers =
-        Array("geoIndex", "parkingType", "pricingModel", "chargingType", "reservedFor", "numStalls", "feeInCents")
+        Array("geoIndex", "parkingType", "pricingModel", "chargingPointType", "reservedFor", "numStalls", "feeInCents")
       new CsvWriter(file.toString, headers)
     }
     val rows = parkingGroupEntries.flatMap { case (group, values) =>
@@ -39,7 +39,7 @@ class GeoGrouper(
           group.h3Index.value,
           group.parkingType,
           group.pricingModel,
-          group.chargingType,
+          group.chargingPointType,
           group.reservedFor,
           entryValue.numStalls,
           entryValue.feeInCents

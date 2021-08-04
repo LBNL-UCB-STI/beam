@@ -120,11 +120,8 @@ object PayloadPlansConverter {
         .groupBy(_.vehicleId)
         .mapValues { rows =>
           rows
-            .map(row =>
-              tours(row.tourId)
-                //setting the tour warehouse location to be the carrier depot location
-                .copy(warehouseLocation = warehouseLocation)
-            )
+            //setting the tour warehouse location to be the carrier warehouse location
+            .map(row => tours(row.tourId).copy(warehouseLocation = warehouseLocation))
             .sortBy(_.departureTimeInSec)
         }
 
@@ -170,7 +167,7 @@ object PayloadPlansConverter {
       beamVehicleId,
       powertrain,
       vehicleType,
-      vehicleManager = Some(carrierId.toString.createId[VehicleManager]),
+      vehicleManagerId = VehicleManager.createIdUsingUnique(carrierId.toString, VehicleManager.BEAMFreight),
       randomSeed
     )
     vehicle.spaceTime = SpaceTime(initialLocation, 0)

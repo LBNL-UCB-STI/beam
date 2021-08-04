@@ -358,7 +358,8 @@ trait BeamHelper extends LazyLogging {
         readVehiclesFile(
           beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
           vehicleTypes,
-          beamConfig.matsim.modules.global.randomSeed
+          beamConfig.matsim.modules.global.randomSeed,
+          VehicleManager.defaultManager
         ).toSeq: _*
       )
     }

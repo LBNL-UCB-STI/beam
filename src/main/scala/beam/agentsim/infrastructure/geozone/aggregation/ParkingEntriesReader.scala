@@ -40,7 +40,7 @@ object ParkingEntriesReader {
       taz = TazCoordinate(rec.get("taz")),
       parkingType = rec.get("parkingType"),
       pricingModel = rec.get("pricingModel"),
-      chargingType = rec.get("chargingType"),
+      chargingPointType = rec.get("chargingPointType"),
       reservedFor = rec.get("reservedFor"),
       numStalls = rec.get("numStalls").toLong,
       feeInCents = rec.get("feeInCents").toDouble
@@ -52,7 +52,7 @@ object ParkingEntriesReader {
       geoIndex = H3Index(rec.get("geoIndex")),
       parkingType = rec.get("parkingType"),
       pricingModel = rec.get("pricingModel"),
-      chargingType = rec.get("chargingType"),
+      chargingPointType = rec.get("chargingPointType"),
       reservedFor = rec.get("reservedFor"),
       numStalls = rec.get("numStalls").toLong,
       feeInCents = rec.get("feeInCents").toDouble

@@ -721,13 +721,15 @@ trait ChoosesMode {
           val vehicleOnTrip = VehicleOnTrip(leg.beamVehicleId, tripIdentifier)
           if (requested.contains(vehicleOnTrip)) {
             (requested, seq)
-          } else
+          } else {
+            val veh = beamVehicles(leg.beamVehicleId).vehicle
             (
               requested + vehicleOnTrip,
-              seq :+ (vehicleOnTrip -> ParkingInquiry(
+              seq :+ (vehicleOnTrip -> ParkingInquiry.init(
                 SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
-                Some(beamVehicles(leg.beamVehicleId).vehicle),
+                veh.vehicleManagerId,
+                Some(veh),
                 None,
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
@@ -735,9 +737,13 @@ trait ChoosesMode {
                 triggerId = getCurrentTriggerIdOrGenerate
               ))
             )
+          }
       }
 
-    parkingInquiries.foreach { case (_, inquiry) => parkingManager ! inquiry }
+    parkingInquiries.foreach { case (_, inquiry) =>
+      if (inquiry.isChargingRequestOrEV) chargingNetworkManager ! inquiry
+      else parkingManager ! inquiry
+    }
     parkingInquiries.map { case (vehicleOnTrip, inquiry) =>
       inquiry.requestId -> vehicleOnTrip
     }
