@@ -48,7 +48,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId = Id.create(rideHailManagerId, classOf[VehicleManager]),
+      rideHailManagerId = VehicleManager.createIdUsingUnique(rideHailManagerId, VehicleManager.BEAMRideHail),
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -319,7 +319,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManager = Some(rideHailManagerId),
+        vehicleManagerId = rideHailManagerId,
         randomSeed
       )
 
@@ -560,8 +560,7 @@ class ProceduralRideHailFleetInitializer(
             .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
         }
       }
-      .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-      .size / fleet
+      .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
 
     math.round(
       initialNumHouseholdVehicles *

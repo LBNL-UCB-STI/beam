@@ -72,7 +72,7 @@ object RefuelSessionEvent {
   val ATTRIBUTE_LOCATION_Y: String = "locationY"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
   val ATTRIBUTE_SHIFT_STATUS: String = "shiftStatus"

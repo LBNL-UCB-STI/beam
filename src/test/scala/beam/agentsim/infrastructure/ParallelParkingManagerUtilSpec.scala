@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.infrastructure.parking.ParkingZone
+import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -39,7 +40,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
       val numZones = List(1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 11, 12, 13, 14, 15, 16)
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
-      val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones)
+      val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones, VehicleManager.defaultManager)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 4, 42)
       clusters.size should (be(3) or be(4)) //sometimes we got only 3 clusters
@@ -57,7 +58,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
       val parkingZones = ZonalParkingManagerSpec
-        .makeParkingZones(treeMap, numZones)
+        .makeParkingZones(treeMap, numZones, VehicleManager.defaultManager)
         .drop(1)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 42)
@@ -70,7 +71,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
     "Handle empty tazTreeMap" in {
       val treeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
-      val parkingZones = Array.empty[ParkingZone[TAZ]]
+      val parkingZones = Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]]
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 2)
 

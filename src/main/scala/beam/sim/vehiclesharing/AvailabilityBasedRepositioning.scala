@@ -15,7 +15,7 @@ case class AvailabilityBasedRepositioning(
   repositionTimeBin: Int,
   statTimeBin: Int,
   matchLimit: Int,
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   beamServices: BeamServices
 ) extends RepositionAlgorithm {
 
@@ -49,7 +49,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => beamServices.skims.taz_skimmer.getLatestSkim(i, idTAZ, vehicleManager.toString, label))
+      .map(i => beamServices.skims.taz_skimmer.getLatestSkim(i, idTAZ, vehicleManagerId.toString, label))
       .toVector
       .flatten
   }

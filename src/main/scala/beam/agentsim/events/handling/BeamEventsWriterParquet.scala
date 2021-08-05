@@ -181,7 +181,7 @@ class BeamEventsWriterParquet(
     /*
    with String type:
      "pricingModel" ,List(Block, FlatFee, Block))
-     "chargingType",List(None, ultrafast(250.0|DC), None))
+     "chargingPointType",List(None, ultrafast(250.0|DC), None))
      "driver,List(TransitDriverAgent-BA:01R11, TransitDriverAgent-BA:01SFO10, TransitDriverAgent-SF:7596499))"
      "type,List(PersonEntersVehicle, PathTraversal, ModeChoice))"
      "secondaryFuelType,List(None, Gasoline, None))"

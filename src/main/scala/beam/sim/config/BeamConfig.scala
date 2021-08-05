@@ -821,7 +821,7 @@ object BeamConfig {
           repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager,
           rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager,
           surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
-          vehicleManager: java.lang.String
+          vehicleManagerId: java.lang.String
         )
 
         object RideHail {
@@ -970,7 +970,6 @@ object BeamConfig {
 
             case class VehicleChargingManager(
               defaultVehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager,
-              depotManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager,
               name: java.lang.String
             )
 
@@ -1059,42 +1058,6 @@ object BeamConfig {
                 }
               }
 
-              case class DepotManager(
-                stallAssignmentStrategy: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager.StallAssignmentStrategy
-              )
-
-              object DepotManager {
-
-                case class StallAssignmentStrategy(
-                  name: java.lang.String
-                )
-
-                object StallAssignmentStrategy {
-
-                  def apply(
-                    c: com.typesafe.config.Config
-                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager.StallAssignmentStrategy = {
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager
-                      .StallAssignmentStrategy(
-                        name = if (c.hasPathOrNull("name")) c.getString("name") else "SeparateParkingZoneStrategy"
-                      )
-                  }
-                }
-
-                def apply(
-                  c: com.typesafe.config.Config
-                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager = {
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager(
-                    stallAssignmentStrategy =
-                      BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager
-                        .StallAssignmentStrategy(
-                          if (c.hasPathOrNull("stallAssignmentStrategy")) c.getConfig("stallAssignmentStrategy")
-                          else com.typesafe.config.ConfigFactory.parseString("stallAssignmentStrategy{}")
-                        )
-                  )
-                }
-              }
-
               def apply(
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager = {
@@ -1106,10 +1069,6 @@ object BeamConfig {
                           c.getConfig("defaultVehicleChargingManager")
                         else com.typesafe.config.ConfigFactory.parseString("defaultVehicleChargingManager{}")
                       ),
-                  depotManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager(
-                    if (c.hasPathOrNull("depotManager")) c.getConfig("depotManager")
-                    else com.typesafe.config.ConfigFactory.parseString("depotManager{}")
-                  ),
                   name = if (c.hasPathOrNull("name")) c.getString("name") else "DefaultVehicleChargingManager"
                 )
               }
@@ -1441,7 +1400,8 @@ object BeamConfig {
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
               ),
-              vehicleManager = if (c.hasPathOrNull("vehicleManager")) c.getString("vehicleManager") else "GlobalRHM"
+              vehicleManagerId =
+                if (c.hasPathOrNull("vehicleManagerId")) c.getString("vehicleManagerId") else "GlobalRHM"
             )
           }
         }
@@ -1835,27 +1795,11 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        chargingPoint: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
-
-        case class ChargingPoint(
-          thresholdDCFCinKW: scala.Int,
-          thresholdXFCinKW: scala.Int
-        )
-
-        object ChargingPoint {
-
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint = {
-            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              thresholdDCFCinKW = if (c.hasPathOrNull("thresholdDCFCinKW")) c.getInt("thresholdDCFCinKW") else 50,
-              thresholdXFCinKW = if (c.hasPathOrNull("thresholdXFCinKW")) c.getInt("thresholdXFCinKW") else 250
-            )
-          }
-        }
 
         case class Helics(
           bufferSize: scala.Int,
@@ -1893,10 +1837,6 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            chargingPoint = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              if (c.hasPathOrNull("chargingPoint")) c.getConfig("chargingPoint")
-              else com.typesafe.config.ConfigFactory.parseString("chargingPoint{}")
-            ),
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")

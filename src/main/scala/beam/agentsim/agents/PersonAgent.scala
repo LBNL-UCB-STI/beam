@@ -21,6 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
+import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingInLine}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -278,7 +279,8 @@ class PersonAgent(
   val body: BeamVehicle = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    vehicleManagerId = VehicleManager.noManager
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -375,8 +377,7 @@ class PersonAgent(
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
                       currentBeamVehicle.beamVehicleType,
-                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType),
-                      beamServices.beamScenario
+                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType)
                     )
                     .distance
                 )
@@ -1205,19 +1206,19 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(_: RideHailResponseTrigger, triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case Event(
-          TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
-          _
-        ) =>
-      log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
-      if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule, triggerId)
-      }
-      stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
+    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
+      log.debug("myUnhandled.StartingRefuelSession: {}", ev)
+      stay()
+    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+      log.debug("myUnhandled.UnhandledVehicle: {}", ev)
+      stay()
+    case ev @ Event(WaitingInLine(_, _, _), _) =>
+      log.debug("myUnhandled.WaitingInLine: {}", ev)
+      stay()
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
       stay()
@@ -1226,5 +1227,4 @@ class PersonAgent(
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   override def logPrefix(): String = s"PersonAgent:$id "
-
 }

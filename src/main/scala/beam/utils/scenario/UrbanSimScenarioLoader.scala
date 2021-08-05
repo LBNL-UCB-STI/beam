@@ -6,6 +6,7 @@ import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
@@ -15,6 +16,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
@@ -22,8 +24,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
 import scala.util.Random
-
-import beam.utils.SequenceUtils
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -228,6 +228,7 @@ class UrbanSimScenarioLoader(
           bvId,
           powerTrain,
           beamVehicleType,
+          VehicleManager.defaultManager,
           randomSeed = rand.nextInt
         )
         beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)

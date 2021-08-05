@@ -295,7 +295,7 @@
 //    // the TAZs have a slightly different number of stalls but are otherwise the same
 //
 //    val sourceData: Iterator[String] =
-//      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+//      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
 //        |A,Public,FlatFee,none,7,1000,
 //        |B,Public,Block,none,18,100,
 //        |

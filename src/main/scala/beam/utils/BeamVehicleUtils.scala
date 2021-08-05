@@ -1,13 +1,14 @@
 package beam.utils
 
-import java.util
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import java.util
 import scala.util.Random
 
 object BeamVehicleUtils {
@@ -15,7 +16,8 @@ object BeamVehicleUtils {
   def readVehiclesFile(
     filePath: String,
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
-    randomSeed: Long
+    randomSeed: Long,
+    vehicleManagerId: Id[VehicleManager]
   ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
     val rand: Random = new Random(randomSeed)
 
@@ -33,6 +35,7 @@ object BeamVehicleUtils {
           vehicleId,
           powerTrain,
           vehicleType,
+          vehicleManagerId,
           randomSeed = rand.nextInt
         )
       acc += ((vehicleId, beamVehicle))
@@ -77,7 +80,7 @@ object BeamVehicleUtils {
         val sampleProbabilityWithinCategory =
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
-        val chargingCapability = Option(line.get("chargingCapability")).map(ChargingCapability.fromString)
+        val chargingCapability = Option(line.get("chargingCapability")).flatMap(ChargingPointType(_))
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
 
         val bvt = BeamVehicleType(
