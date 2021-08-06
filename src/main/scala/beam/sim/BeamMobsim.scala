@@ -16,7 +16,7 @@ import beam.agentsim.agents.ridehail.{
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
-import beam.agentsim.infrastructure.{ChargingNetworkManager, ParkingAndChargingInfrastructure, ParkingNetworkManager}
+import beam.agentsim.infrastructure.{ChargingNetworkManager, InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
 import beam.replanning.{AddSupplementaryTrips, ModeIterationPlanCleaner, SupplementaryTripGenerator}
@@ -383,12 +383,13 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
-  private val parkingAndChargingInfrastructure = ParkingAndChargingInfrastructure(beamServices, envelopeInUTM)
+  private val (parkingNetwork, chargingNetwork) =
+    InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
   // Parking Network Manager
   private val parkingNetworkManager = context.actorOf(
     ParkingNetworkManager
-      .props(beamServices, parkingAndChargingInfrastructure)
+      .props(beamServices, parkingNetwork)
       .withDispatcher("parking-network-manager-pinned-dispatcher"),
     "ParkingNetworkManager"
   )
@@ -397,19 +398,24 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, parkingAndChargingInfrastructure, parkingNetworkManager, scheduler)
+      .props(beamServices, chargingNetwork, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
   context.watch(chargingNetworkManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
+  private val rideHailManagerId =
+    VehicleManager.createIdUsingUnique(
+      beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
+      VehicleManager.BEAMRideHail
+    )
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
 
   private val rideHailManager = context.actorOf(
     Props(
       new RideHailManager(
-        VehicleManager.createId(beamConfig.beam.agentsim.agents.rideHail.vehicleManager),
+        rideHailManagerId,
         beamServices,
         beamScenario,
         beamScenario.transportNetwork,
@@ -426,7 +432,7 @@ class BeamMobsimIteration(
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
         rideHailFleetInitializer,
-        parkingAndChargingInfrastructure.rideHailParkingNetworkMap.asInstanceOf[RideHailDepotParkingManager[_]]
+        chargingNetwork(rideHailManagerId).asInstanceOf[RideHailDepotParkingManager[_]]
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
@@ -451,7 +457,7 @@ class BeamMobsimIteration(
 
   private val sharedVehicleFleets = config.agents.vehicles.sharedFleets.map { fleetConfig =>
     context.actorOf(
-      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingNetworkManager),
+      Fleets.lookup(fleetConfig).props(beamServices, scheduler, parkingNetworkManager, chargingNetworkManager),
       fleetConfig.name
     )
   }

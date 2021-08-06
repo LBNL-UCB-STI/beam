@@ -297,18 +297,8 @@ object SkimmerSpec extends LazyLogging {
 
   private def getCountSkimPair(row: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
-      TAZSkimmerKey(
-        row("time").toInt,
-        Id.create(row("taz"), classOf[TAZ]),
-        row("hex"),
-        row("actor"),
-        row("key")
-      ),
-      TAZSkimmerInternal(
-        row("value").toDouble,
-        row("observations").toInt,
-        row("iterations").toInt
-      )
+      TAZSkimmerKey(row("time").toInt, row("geoId"), row("actor"), row("key")),
+      TAZSkimmerInternal(row("value").toDouble, row("observations").toInt, row("iterations").toInt)
     )
   }
 }

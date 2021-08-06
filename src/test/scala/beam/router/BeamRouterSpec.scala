@@ -178,7 +178,6 @@ class BeamRouterSpec extends AnyFlatSpec {
         any[Id[BeamVehicleType]],
         any[BeamVehicleType],
         any[Double],
-        any[BeamScenario],
         any[Option[Id[TAZ]]],
         any[Option[Id[TAZ]]]
       )

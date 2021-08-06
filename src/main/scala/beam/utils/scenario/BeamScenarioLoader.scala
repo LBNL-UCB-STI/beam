@@ -83,7 +83,7 @@ class BeamScenarioLoader(
 
     beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
+      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt, VehicleManager.defaultManager))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
@@ -338,7 +338,8 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
   def buildBeamVehicle(
     map: Map[Id[BeamVehicleType], BeamVehicleType],
     info: VehicleInfo,
-    randomSeed: Int
+    randomSeed: Int,
+    vehicleManagerId: Id[VehicleManager]
   ): BeamVehicle = {
     val matsimVehicleType: VehicleType =
       VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
@@ -355,6 +356,7 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
       beamVehicleId,
       powerTrain,
       beamVehicleType,
+      vehicleManagerId,
       randomSeed = randomSeed
     )
   }
