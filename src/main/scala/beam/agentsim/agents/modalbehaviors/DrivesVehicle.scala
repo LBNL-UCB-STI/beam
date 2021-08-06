@@ -381,6 +381,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
             // charge vehicle
             if (currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV) {
+
+              if (data.isInstanceOf[BasePersonData] && data.asInstanceOf[BasePersonData].enrouteCharging.isDefined) {
+                System.currentTimeMillis()
+              }
               stall.chargingPointType match {
                 case Some(_) =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
