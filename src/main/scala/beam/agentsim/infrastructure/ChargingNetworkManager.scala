@@ -24,6 +24,7 @@ import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
@@ -155,13 +156,13 @@ class ChargingNetworkManager(
       }
       sender ! CompletionNotice(triggerId)
 
-    case ChargingPlugRequest(tick, vehicle, stall, triggerId, shiftStatus) =>
+    case ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, shiftStatus) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
         val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
         // connecting the current vehicle
-        chargingNetwork.attemptToConnectVehicle(tick, vehicle, stall, sender(), shiftStatus) match {
-          case Some((ChargingVehicle(vehicle, _, station, _, _, _, _, _, _), status)) if status == WaitingToCharge =>
+        chargingNetwork.attemptToConnectVehicle(tick, vehicle, stall, sender(), personId, shiftStatus) match {
+          case Some((ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _), status)) if status == WaitingToCharge =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station $station, with {}/{} vehicles connected and {} in waiting line",
               station.connectedVehicles.size,
@@ -171,7 +172,7 @@ class ChargingNetworkManager(
             sender() ! WaitingInLine(tick, vehicle.id, triggerId)
           case Some((chargingVehicle, status)) if status == Connected =>
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
-          case Some((ChargingVehicle(_, _, station, _, _, _, _, _, _), status)) if status == AlreadyAtStation =>
+          case Some((ChargingVehicle(_, _, station, _, _, _, _, _, _, _), status)) if status == AlreadyAtStation =>
             log.debug(s"Vehicle ${vehicle.id} already at the charging station $station!")
           case _ =>
             log.debug(s"Attempt to connect vehicle ${vehicle.id} to charger failed!")
@@ -286,7 +287,7 @@ class ChargingNetworkManager(
     triggerId: Long
   ): Unit = {
     val nextTick = nextTimeBin(tick)
-    val ChargingVehicle(vehicle, _, _, _, _, theSender, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, _, _, _, theSender, _, _, _, _) = chargingVehicle
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.connectToChargingPoint(tick)
@@ -309,7 +310,7 @@ class ChargingNetworkManager(
     triggerId: Long,
     currentSenderMaybe: Option[ActorRef] = None
   ): Unit = {
-    val ChargingVehicle(vehicle, stall, _, _, _, _, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, stall, _, _, _, _, _, _, _, _) = chargingVehicle
     val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
     chargingNetwork.disconnectVehicle(chargingVehicle) match {
       case Some(cv) =>
@@ -370,6 +371,7 @@ object ChargingNetworkManager extends LazyLogging {
     tick: Int,
     vehicle: BeamVehicle,
     stall: ParkingStall,
+    personId: Id[Person],
     triggerId: Long,
     shiftStatus: ShiftStatus = NotApplicable
   ) extends HasTriggerId
@@ -436,12 +438,16 @@ object ChargingNetworkManager extends LazyLogging {
     // Refuel Session
     val refuelSessionEvent = new RefuelSessionEvent(
       currentTick,
-      stall.copy(locationUTM = beamServices.geo.utm2Wgs(stall.locationUTM)),
+      stall.copy(
+        locationUTM = beamServices.geo.utm2Wgs(stall.locationUTM),
+        activityLocation = beamServices.geo.utm2Wgs(stall.activityLocation)
+      ),
       totEnergy,
       vehicle.primaryFuelLevelInJoules - totEnergy,
       totDuration,
       vehicle.id,
       vehicle.beamVehicleType,
+      chargingVehicle.personId,
       chargingVehicle.shiftStatus
     )
     logger.debug(s"RefuelSessionEvent: $refuelSessionEvent")

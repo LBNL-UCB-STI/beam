@@ -22,7 +22,8 @@ case class ParkingStall(
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
   reservedFor: Seq[VehicleCategory],
-  vehicleManagerId: Id[VehicleManager]
+  vehicleManagerId: Id[VehicleManager],
+  activityLocation: Location
 )
 
 object ParkingStall {
@@ -33,7 +34,8 @@ object ParkingStall {
     parkingZone: ParkingZone[GEO],
     tazId: Id[TAZ],
     location: Location,
-    costInDollars: Double
+    costInDollars: Double,
+    activityLocation: Location
   ): ParkingStall = {
     ParkingStall(
       parkingZone.geoId,
@@ -45,7 +47,8 @@ object ParkingStall {
       parkingZone.pricingModel,
       parkingZone.parkingType,
       Seq.empty,
-      parkingZone.vehicleManagerId
+      parkingZone.vehicleManagerId,
+      activityLocation
     )
   }
 
@@ -54,7 +57,7 @@ object ParkingStall {
     * @param coord the location for the stall
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
-  def defaultStall(coord: Coord): ParkingStall = ParkingStall(
+  def defaultStall(coord: Coord, activityLocation: Location): ParkingStall = ParkingStall(
     geoId = TAZ.DefaultTAZId,
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
@@ -64,7 +67,8 @@ object ParkingStall {
     pricingModel = None,
     parkingType = ParkingType.Public,
     reservedFor = Seq.empty,
-    vehicleManagerId = VehicleManager.defaultManager
+    vehicleManagerId = VehicleManager.defaultManager,
+    activityLocation = activityLocation
   )
 
   /**
@@ -80,7 +84,8 @@ object ParkingStall {
     random: Random = Random,
     costInDollars: Double = CostOfEmergencyStallInDollars,
     tazId: Id[TAZ] = TAZ.EmergencyTAZId,
-    geoId: Id[_]
+    geoId: Id[_],
+    activityLocation: Location
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -95,7 +100,8 @@ object ParkingStall {
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
       reservedFor = Seq.empty,
-      vehicleManagerId = VehicleManager.defaultManager
+      vehicleManagerId = VehicleManager.defaultManager,
+      activityLocation = activityLocation
     )
   }
 
@@ -122,7 +128,8 @@ object ParkingStall {
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
     reservedFor = Seq.empty,
-    vehicleManagerId = VehicleManager.defaultManager
+    vehicleManagerId = VehicleManager.defaultManager,
+    activityLocation = locationUTM
   )
 
   /**
@@ -145,7 +152,8 @@ object ParkingStall {
       None,
       parkingAlternative.parkingType,
       parkingAlternative.parkingZone.reservedFor,
-      parkingAlternative.parkingZone.vehicleManagerId
+      parkingAlternative.parkingZone.vehicleManagerId,
+      parkingAlternative.activityLocation
     )
   }
 

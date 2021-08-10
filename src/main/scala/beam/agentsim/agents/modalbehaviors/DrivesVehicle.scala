@@ -388,6 +388,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     tick,
                     currentBeamVehicle,
                     stall,
+                    Id.createPersonId(id),
                     triggerId,
                     shiftStatus = NotApplicable
                   )

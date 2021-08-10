@@ -136,7 +136,8 @@ class ParkingFunctions[GEO: GeoLevel](
               boxAroundRequest,
               new Random(seed),
               tazId = TAZ.EmergencyTAZId,
-              geoId = GeoLevel[GEO].emergencyGeoId
+              geoId = GeoLevel[GEO].emergencyGeoId,
+              activityLocation = inquiry.destinationUtm.loc
             )
           ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
         }

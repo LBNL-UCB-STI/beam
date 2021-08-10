@@ -9,15 +9,15 @@ library(sjmisc)
 library(ggmap)
 library(sf)
 
-workDir <- "/Users/haitamlaarabi/Data/GEMINI/"
+workDir <- "~/Data/GEMINI/"
 
-source("/Users/haitamlaarabi/Documents/Workspace/scripts/common/keys.R")
+source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
 oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
 shpFile <- pp(workDir, "shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Zones.shp")
 oaklandCbg <- st_read(shpFile)
 
-charging_sessions <- readCsv("/Users/haitamlaarabi/Data/GEMINI/2021Jul30-Oakland/BASE0/2021-08-01.refuelSession.csv")
+charging_sessions <- readCsv("~/Data/GEMINI/2021Jul30-Oakland/BASE0/2021-08-01.refuelSession.csv")
 chargingEventsSf <- st_as_sf(charging_sessions, coords = c("locationX", "locationY"), crs = 4326, agr = "constant")
 
 ggmap(oaklandMap) +
@@ -54,7 +54,7 @@ chargingEventsSf <- st_as_sf(chargingEvents, coords = c("locationX", "locationY"
 
 out <- st_intersection(chargingEventsSf, oaklandCbg)
 
-source("/Users/haitamlaarabi/Documents/Workspace/scripts/common/keys.R")
+source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
 oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
 
@@ -88,8 +88,8 @@ ggplot() +
 
 
 ## *******************************
-activitySimDir <- "/Users/haitamlaarabi/Data/ACTIVITYSIM/activitysim-plans-base-2010-cut-718k-by-shapefile"
-#activitySimDir <- "/Users/haitamlaarabi/Data/ACTIVITYSIM/plans-base-2010"
+activitySimDir <- "~/Data/ACTIVITYSIM/activitysim-plans-base-2010-cut-718k-by-shapefile"
+#activitySimDir <- "~/Data/ACTIVITYSIM/plans-base-2010"
 plans <- readCsv(pp(activitySimDir, "/plans.csv.gz"))
 trips <- readCsv(pp(activitySimDir, "/trips.csv.gz"))
 persons <- readCsv(pp(activitySimDir, "/persons.csv.gz"))
@@ -125,3 +125,13 @@ write.csv(data.table::data.table(outChargingSession)[,-c("V1")],
 
 
 outChargingSession
+
+
+
+######################### TEST 
+events_test <- readCsv(pp(workDir, "/2021Jul30-Oakland/BASE0/events/0.events.BASE0.csv.gz"))
+activitySimDir <- "/Users/haitamlaarabi/Data/ACTIVITYSIM/activitysim-plans-base-2010-cut-718k-by-shapefile"
+plans <- readCsv(pp(activitySimDir, "/plans.csv.gz"))
+
+
+
