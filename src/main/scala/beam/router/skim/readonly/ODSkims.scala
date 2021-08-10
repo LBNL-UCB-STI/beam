@@ -131,7 +131,6 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
     maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] =
       None, //If multiple times the same origin/destination is used, it
     maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] =

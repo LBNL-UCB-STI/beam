@@ -4,7 +4,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
@@ -129,6 +129,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
           beamVehicleId,
           powertrain,
           vehicleType,
+          VehicleManager.noManager,
           randomSeed = randomSeed
         ) // TODO: implement fuel level later as needed
         Some(vehicle)

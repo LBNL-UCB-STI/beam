@@ -146,7 +146,8 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
     val car = new BeamVehicle(
       BeamVehicle.createId(person.getId, Some("car")),
       new Powertrain(carVehType.primaryFuelConsumptionInJoulePerMeter),
-      carVehType
+      carVehType,
+      VehicleManager.defaultManager
     )
 
     val idxToResponse = elemIdxToRoute.map { case ElementIndexToLeg(idx, leg) =>

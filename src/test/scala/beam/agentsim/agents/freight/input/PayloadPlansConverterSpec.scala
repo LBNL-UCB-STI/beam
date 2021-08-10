@@ -1,17 +1,17 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan, PayloadType}
+import beam.agentsim.agents.freight._
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.utils.BeamVehicleUtils
-import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.wordspec.AnyWordSpecLike
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.util
 import scala.collection.mutable
@@ -97,6 +97,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
         }
         person
       }
+
       val householdFactory: HouseholdsFactory = Mockito.mock(classOf[HouseholdsFactory])
       when(householdFactory.createHousehold(any())).thenAnswer { invocation =>
         val id = invocation.getArgument[Id[Household]](0)
