@@ -3633,6 +3633,7 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
+          geoHierarchy: java.lang.String,
           name: java.lang.String
         )
 
@@ -3641,6 +3642,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
+              geoHierarchy = if (c.hasPathOrNull("geoHierarchy")) c.getString("geoHierarchy") else "TAZ",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
             )
           }
