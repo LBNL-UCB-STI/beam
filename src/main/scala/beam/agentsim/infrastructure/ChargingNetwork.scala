@@ -317,11 +317,7 @@ object ChargingNetwork {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int) {
-    def didChargingAlreadyComplete: Boolean = (endTime - startTime) == 0
-    def willChargingCompleteDuringThisCycle: Boolean = (endTime - startTime) < maxDuration
-    def isChargingNotGoingToCompleteDuringThisCycle: Boolean = (endTime - startTime) >= maxDuration
-  }
+  final case class ChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int)
 
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
@@ -336,6 +332,10 @@ object ChargingNetwork {
   ) extends LazyLogging {
     import ConnectionStatus._
 
+    /**
+      * @param status the new connection status
+      * @return
+      */
     private[ChargingNetwork] def updateStatus(status: ConnectionStatus): ChargingVehicle = {
       connectionStatus.append(status)
       this
@@ -348,7 +348,7 @@ object ChargingNetwork {
       * @param endTime endTime of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
+    def processCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
         // first charging cycle
         case None => true
@@ -366,7 +366,7 @@ object ChargingNetwork {
             "last charging cycle end time was {} while the current charging cycle end time is {}",
             vehicle.id,
             stall,
-            latestChargingCycle.map(_.endTime).getOrElse(-1),
+            latestCycle.map(_.endTime).getOrElse(-1),
             endTime
           )
           logger.debug(
@@ -383,28 +383,16 @@ object ChargingNetwork {
       } else None
     }
 
-    def latestChargingCycle: Option[ChargingCycle] = chargingSessions.lastOption
-    def computeSessionEnergy: Double = chargingSessions.map(_.energy).sum
+    /**
+      * @return
+      */
+    def latestCycle: Option[ChargingCycle] = chargingSessions.lastOption
 
-    def computeSessionDuration: Long =
-      chargingSessions
-        .map(x => x.endTime - x.startTime)
-        .sum // Some sessions starts after the bin or ends before the bin
-
-    def computeSessionEndTime: Int =
-      if (sessionStartTime >= 0) {
-        (sessionStartTime + computeSessionDuration).toInt
-      } else {
-        throw new RuntimeException("Can't compute session end time, if the sessions did not start yet")
-      }
-
-    def isFullyCharged: Boolean = {
-      val (dur, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
-        sessionDurationLimit = None,
-        stateOfChargeLimit = None,
-        chargingPowerLimit = None
-      )
-      dur == 0
+    /**
+      * @return
+      */
+    def calculateChargingSessionLengthAndEnergyInJoule: (Long, Double) = chargingSessions.foldLeft((0L, 0.0)) {
+      case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energy)
     }
   }
 }
