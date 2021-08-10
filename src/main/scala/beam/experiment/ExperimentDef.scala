@@ -46,7 +46,8 @@ case class ExperimentDef(
     }
   }
 
-  /** @return list of distinct (factor_title, param_name)
+  /**
+    * @return list of distinct (factor_title, param_name)
     */
   def getDynamicParamNamesPerFactor: List[(String, String)] = {
     factors.asScala

@@ -86,7 +86,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   }
   def isBufferEmpty: Boolean = bufferedRideHailRequests.isEmpty
 
-  /** Take all requests in the buffer that are not part of the current product type (i.e. SOLO or POOLED) and move
+  /**
+    * Take all requests in the buffer that are not part of the current product type (i.e. SOLO or POOLED) and move
     * them into the secondary request buffer which effectively delays when they are processed to a future allocation.
     *
     * @param dispatchProductType Enum specifying which product type is being processed.
@@ -353,17 +354,18 @@ case class VehicleMatchedToCustomers(
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 
 object AllocationRequests {
-  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map((_ -> List())).toMap)
+  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map(_ -> List()).toMap)
 
-  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map((request -> List())))
+  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map(request -> List()))
 
   def apply(request: RideHailRequest, routeResponses: List[RoutingResponse]): AllocationRequests =
-    AllocationRequests(Map((request -> routeResponses)))
+    AllocationRequests(Map(request -> routeResponses))
 }
 
 sealed trait DispatchProductType extends EnumEntry
 
-/** Flags what product is being dispatched, either SOLO, POOLED, or both SOLO_AND_POOLED.
+/**
+  * Flags what product is being dispatched, either SOLO, POOLED, or both SOLO_AND_POOLED.
   */
 object DispatchProductType extends Enum[DispatchProductType] {
   val values = findValues

@@ -6,7 +6,8 @@ import beam.utils.protocolvis.SequenceDiagram.userFriendlyActorName
 
 import java.nio.file.Path
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 object AgentStateDiagram {
 

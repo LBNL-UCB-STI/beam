@@ -12,7 +12,8 @@ import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
-/** Created by colinsheppard
+/**
+  * Created by colinsheppard
   */
 
 class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {

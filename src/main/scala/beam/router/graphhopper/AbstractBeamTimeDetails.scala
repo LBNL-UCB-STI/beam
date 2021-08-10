@@ -6,7 +6,8 @@ import com.graphhopper.util.{EdgeIteratorState, GHUtility}
 
 import scala.util.Try
 
-/** It's custom implementation of TimeDetails
+/**
+  * It's custom implementation of TimeDetails
   */
 abstract class AbstractBeamTimeDetails(val weighting: Weighting, name: String, val reverse: Boolean)
     extends AbstractPathDetailsBuilder(name) {

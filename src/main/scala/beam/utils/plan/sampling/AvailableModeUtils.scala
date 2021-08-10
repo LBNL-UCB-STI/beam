@@ -13,7 +13,8 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
 import org.matsim.households.Household
 
-/** Several utility/convenience methods for mode availability. Note that the MATSim convention
+/**
+  * Several utility/convenience methods for mode availability. Note that the MATSim convention
   * is to call these permissible modes. BEAM uses available modes. The semantics are identical.
   */
 object AvailableModeUtils extends LazyLogging {
@@ -29,7 +30,8 @@ object AvailableModeUtils extends LazyLogging {
     availableModes.split(",").toSeq map BeamMode.withValue
   }
 
-  /** Gets the excluded modes set for the given person in the population
+  /**
+    * Gets the excluded modes set for the given person in the population
     *
     * @param population population from the scenario
     * @param personId the respective person's id
@@ -48,7 +50,8 @@ object AvailableModeUtils extends LazyLogging {
     }
   }
 
-  /** Gets the excluded modes set for the given person
+  /**
+    * Gets the excluded modes set for the given person
     *
     * @param person the respective person
     * @return
@@ -57,7 +60,8 @@ object AvailableModeUtils extends LazyLogging {
     getPersonCustomAttributes(person).map(_.availableModes).getOrElse(Seq.empty)
   }
 
-  /** Sets the available modes for the given person in the population
+  /**
+    * Sets the available modes for the given person in the population
     *
     * @param population population from the scenario
     * @param person the respective person
@@ -129,7 +133,8 @@ object AvailableModeUtils extends LazyLogging {
     Option(attributes.asInstanceOf[AttributesOfIndividual])
   }
 
-  /** Replaces the available modes given with the existing available modes for the given person
+  /**
+    * Replaces the available modes given with the existing available modes for the given person
     *
     * @param person the respective person
     * @param newAvailableModes List of new available modes to replace

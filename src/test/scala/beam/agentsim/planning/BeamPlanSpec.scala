@@ -12,7 +12,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.JavaConverters._
 
-/** BeamPlanSpec
+/**
+  * BeamPlanSpec
   */
 class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 

@@ -13,7 +13,8 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable
 import scala.util.{Failure, Success, Try}
 
-/** Skims csv reader.
+/**
+  * Skims csv reader.
   *
   * @param aggregatedSkimsFilePath path to skims file
   * @param fromCsv                 column mapping function (depends on skimmer type)

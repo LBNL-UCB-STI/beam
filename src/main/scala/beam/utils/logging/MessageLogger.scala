@@ -10,7 +10,8 @@ import beam.utils.csv.CsvWriter
 import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, BeamStateTransition, NUM_MESSAGES_PER_FILE}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy) extends Actor with ActorLogging {
 

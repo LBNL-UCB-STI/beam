@@ -8,7 +8,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable.ArrayBuffer
 
-/** BEAM
+/**
+  * BEAM
   */
 object RoutingModel {
 

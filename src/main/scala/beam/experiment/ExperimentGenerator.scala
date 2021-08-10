@@ -13,7 +13,8 @@ import org.apache.commons.lang.SystemUtils
 import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-/** Generate beam.conf and run script for individual run.
+/**
+  * Generate beam.conf and run script for individual run.
   * Couple notes:
   *  1. paths n config and templates should be relative to project root
   *  2. --experiments is used to pass location of experiments.yml
@@ -91,11 +92,11 @@ object ExperimentGenerator extends ExperimentApp {
     /*
      * Optionally write the mode choice params file
      */
-    experimentDef.header.modeChoiceTemplate.toString match {
+    experimentDef.header.modeChoiceTemplate match {
       case "" =>
         // Do nothing since modeChoiceParams wasn't specified in experiment.yaml file
         ""
-      case uri =>
+      case _ =>
         if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
           runSandbox.modeChoiceParametersXmlPath.getParent.toFile.mkdirs()
         }

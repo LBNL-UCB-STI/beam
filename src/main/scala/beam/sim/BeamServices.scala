@@ -14,7 +14,8 @@ import beam.utils.NetworkHelper
 import com.google.inject.{ImplementedBy, Inject, Injector}
 import org.matsim.core.controler._
 
-/** MATSim heavily uses Guice-based dependency injection (DI),
+/**
+  * MATSim heavily uses Guice-based dependency injection (DI),
   * and BEAM somewhat uses it, too.
   *
   * This class is a device used by BEAM classes that can't passively use DI,

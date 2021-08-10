@@ -6,7 +6,8 @@ import beam.utils.logging.LoggingMessageActor.messageLoggingEnabled
 import beam.utils.logging.MessageLogger.BeamMessage
 import com.typesafe.config.{Config, ConfigFactory}
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 trait LoggingMessageActor extends Actor {
   def loggedReceive: Receive

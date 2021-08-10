@@ -12,7 +12,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.language.implicitConversions
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 abstract class SimEvent(
   val time: Double,

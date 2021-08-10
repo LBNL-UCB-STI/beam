@@ -15,7 +15,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.mutable
 
-/** API providing hooks for extending the RideHailManager.
+/**
+  * API providing hooks for extending the RideHailManager.
   */
 trait RidehailManagerCustomizationAPI {
 
@@ -25,22 +26,26 @@ trait RidehailManagerCustomizationAPI {
     this.rideHailManager = rideHailManager
   }
 
-  /** This method is called when a messages is not handled by the receive block in the [[RideHailManager]].
+  /**
+    * This method is called when a messages is not handled by the receive block in the [[RideHailManager]].
     * @param msg
     * @param sender
     */
   def receiveMessageHook(msg: Any, sender: ActorRef)
 
-  /** This method is called when a [[Finish]] message is received by the [[RideHailManager]].
+  /**
+    * This method is called when a [[Finish]] message is received by the [[RideHailManager]].
     */
   def receiveFinishMessageHook()
 
-  /** This method is called immediately at the start of continueRepositioning(tick: Int) in the [[RideHailManager]].
+  /**
+    * This method is called immediately at the start of continueRepositioning(tick: Int) in the [[RideHailManager]].
     * @param tick
     */
   def beforeContinueRepositioningHook(tick: Int)
 
-  /** This method is called in continueRepositioning(tick: Int) and is part of the [[RideHailManager]] and allows the
+  /**
+    * This method is called in continueRepositioning(tick: Int) and is part of the [[RideHailManager]] and allows the
     * implementer to specify additional vehicles for refueling and assign a depot to them.
     * @param idleVehicles
     * @param tick
@@ -51,7 +56,8 @@ trait RidehailManagerCustomizationAPI {
     tick: Int
   ): Vector[(Id[BeamVehicle], ParkingStall)]
 
-  /** This method allows to set an additional overhead to a beamLeg during continueRepositioning(tick: Int).
+  /**
+    * This method allows to set an additional overhead to a beamLeg during continueRepositioning(tick: Int).
     * @param vehicleId
     * @return
     */
@@ -59,7 +65,8 @@ trait RidehailManagerCustomizationAPI {
     vehicleId: RideHailManager.VehicleId
   ): Int
 
-  /** This method is called at the end of continueRepositioning(tick: Int) and allows to perform location updates.
+  /**
+    * This method is called at the end of continueRepositioning(tick: Int) and allows to perform location updates.
     * @param vehicleId
     * @param destination
     */
@@ -68,7 +75,8 @@ trait RidehailManagerCustomizationAPI {
     destination: Coord
   )
 
-  /** This method is called during initializeRideHailFleet() and as such can be used to extend operations related to
+  /**
+    * This method is called during initializeRideHailFleet() and as such can be used to extend operations related to
     * ride hail fleet initialization.
     * @param beamServices
     * @param rideHailAgentInitializers
@@ -80,32 +88,37 @@ trait RidehailManagerCustomizationAPI {
     maxTime: Int
   )
 
-  /** This method is called as part of createTravelProposal(alloc: VehicleMatchedToCustomers) and can be used to update the [[PassengerSchedule]].
+  /**
+    * This method is called as part of createTravelProposal(alloc: VehicleMatchedToCustomers) and can be used to update the [[PassengerSchedule]].
     * @param passengerSchedule
     * @return
     */
   def updatePassengerScheduleDuringCreateTravelProposalHook(passengerSchedule: PassengerSchedule): PassengerSchedule
 
-  /** This method is called when a TAZSkimsCollectionTrigger(tick) message is received and can be used to collect relevant
+  /**
+    * This method is called when a TAZSkimsCollectionTrigger(tick) message is received and can be used to collect relevant
     * data from the [[RidehailManager]] to use in the current or future iteration.
     * @param tick
     */
   def recordCollectionData(tick: Int): Unit
 
-  /** This method is called in [[RideHailModifyPassengerScheduleManager]], when the method sendNewPassengerScheduleToVehicle reaches the success case.
+  /**
+    * This method is called in [[RideHailModifyPassengerScheduleManager]], when the method sendNewPassengerScheduleToVehicle reaches the success case.
     * @param vehicleId
     * @param passengerSchedule
     */
   def sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(vehicleId: Id[Vehicle], passengerSchedule: PassengerSchedule)
 
-  /** This method gives back the KPI registry, from which all known KPIs can be accessed.
+  /**
+    * This method gives back the KPI registry, from which all known KPIs can be accessed.
     * @return
     */
   def getKpiRegistry: Registry[Kpi]
 
 }
 
-/** This is the default implementation of [[RidehailManagerCustomizationAPI]].
+/**
+  * This is the default implementation of [[RidehailManagerCustomizationAPI]].
   */
 class DefaultRidehailManagerCustomization extends RidehailManagerCustomizationAPI {
   override def receiveMessageHook(msg: Any, sender: ActorRef): Unit = {}

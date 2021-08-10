@@ -230,7 +230,8 @@ object PlansBuilder {
     out.close()
   }
 
-  /** This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
+  /**
+    * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
     * command-line args]:
     *
     * [0] Raw plans input filename

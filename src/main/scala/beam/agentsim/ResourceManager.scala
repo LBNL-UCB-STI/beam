@@ -14,7 +14,8 @@ import akka.actor.Actor
  * does it become available to other users.
  */
 
-/** Responsible for maintaining a grouping of resources and their current locations.
+/**
+  * Responsible for maintaining a grouping of resources and their current locations.
   */
 trait ResourceManager {
 

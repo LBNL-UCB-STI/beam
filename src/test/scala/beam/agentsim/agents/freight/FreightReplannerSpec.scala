@@ -13,7 +13,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.util.Random
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
 

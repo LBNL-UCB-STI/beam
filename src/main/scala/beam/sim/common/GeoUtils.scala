@@ -17,7 +17,8 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 
 case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
-/** Created by sfeygin on 4/2/17.
+/**
+  * Created by sfeygin on 4/2/17.
   */
 
 @ImplementedBy(classOf[GeoUtilsImpl])
@@ -68,7 +69,7 @@ trait GeoUtils extends ExponentialLazyLogging {
         .timed("getEdgesCloseToBoundingBox", x => logger.info(x)) {
           getEdgesCloseToBoundingBox(streetLayer)
         }
-        .map { case (edgeWithCoord, gpxPoint) => edgeWithCoord }
+        .map { case (edgeWithCoord, _) => edgeWithCoord }
       val closest = closestEdgesToTheCorners.minBy { edge =>
         val matsimUtmCoord = wgs2Utm(new v01.Coord(edge.wgsCoord.x, edge.wgsCoord.y))
         distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))
@@ -219,7 +220,8 @@ object GeoUtils {
     Math.sqrt(Math.pow(x1 - x2, 2.0) + Math.pow(y1 - y2, 2.0))
   }
 
-  /** Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
+  /**
+    * Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
     *
     * Source: Shahid, Rizwan, u. a. „Comparison of Distance Measures in Spatial Analytical Modeling for Health Service Planning“. BMC Health Services Research, Bd. 9, Nr. 1, Dezember 2009. Crossref, doi:10.1186/1472-6963-9-200.
     *
@@ -234,7 +236,8 @@ object GeoUtils {
     Math.pow(a + b, 1 / exponent)
   }
 
-  /** Calculate the Manhattan distance (i.e., L_1-norm) between two coordinates. The provided
+  /**
+    * Calculate the Manhattan distance (i.e., L_1-norm) between two coordinates. The provided
     * coordinates must be in UTM.
     *
     * Source: https://en.wikipedia.org/wiki/Taxicab_geometry
@@ -256,7 +259,8 @@ object GeoUtils {
   case object Right extends TurningDirection
   case object HardRight extends TurningDirection
 
-  /** Get the desired direction to be taken , based on the angle between the coordinates
+  /**
+    * Get the desired direction to be taken , based on the angle between the coordinates
     *
     * @param source source coordinates
     * @param destination destination coordinates
@@ -276,7 +280,8 @@ object GeoUtils {
     }
   }
 
-  /** Generate the vector coordinates from the link nodes
+  /**
+    * Generate the vector coordinates from the link nodes
     *
     * @param link link in the network
     * @return vector coordinates
@@ -288,7 +293,8 @@ object GeoUtils {
     )
   }
 
-  /** Generate the vector coordinates from the link nodes
+  /**
+    * Generate the vector coordinates from the link nodes
     *
     * @param link link in the network
     * @return vector coordinates
@@ -300,7 +306,8 @@ object GeoUtils {
     )
   }
 
-  /** Computes the angle between two coordinates
+  /**
+    * Computes the angle between two coordinates
     *
     * @param source source coordinates
     * @param destination destination coordinates
@@ -327,7 +334,8 @@ object GeoUtils {
     new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
   }
 
-  /** Returns the WGS coordinates of a link's end.
+  /**
+    * Returns the WGS coordinates of a link's end.
     *
     * Note: by convention, a BeamPath starts at the **end** of the first link and ends at the end of the last link.
     *

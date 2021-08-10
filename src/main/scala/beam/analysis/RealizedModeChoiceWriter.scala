@@ -15,7 +15,8 @@ import org.matsim.core.events.handler.BasicEventHandler
 
 import scala.collection.mutable
 
-/** Listens for [[ModeChoiceEvent]] and [[ReplanningEvent]] to calculate
+/**
+  * Listens for [[ModeChoiceEvent]] and [[ReplanningEvent]] to calculate
   * realized mode choices.
   * Writes realizedModeChoice.csv.gz to iteration directory.
   */

@@ -5,7 +5,8 @@ import java.time.{LocalDate, LocalDateTime, ZonedDateTime}
 
 import beam.sim.BeamScenario
 
-/** BEAM
+/**
+  * BEAM
   */
 case class DateUtils(localBaseDateTime: LocalDateTime, zonedBaseDateTime: ZonedDateTime) {
   val localBaseDate: LocalDate = localBaseDateTime.toLocalDate

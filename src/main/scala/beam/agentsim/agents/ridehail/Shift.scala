@@ -3,7 +3,8 @@ package beam.agentsim.agents.ridehail
 import beam.sim.common.Range
 import org.matsim.api.core.v01.Coord
 
-/** Holds the data that defines a driver shift.
+/**
+  * Holds the data that defines a driver shift.
   *
   * @param range a Range defining the start and end tick of the shift
   * @param startLocation an optional coordinate for the starting location of the shift

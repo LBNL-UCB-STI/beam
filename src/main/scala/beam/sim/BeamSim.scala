@@ -209,8 +209,6 @@ class BeamSim @Inject() (
         scenario.getNetwork,
         networkHelper,
         beamServices.geo,
-        scenario,
-        scenario.getTransitVehicles,
         beamServices.fareCalculator,
         tollCalculator,
         eventsManager
@@ -557,8 +555,7 @@ class BeamSim @Inject() (
           listener.notifyShutdown(event)
           dumpHouseholdAttributes
 
-        case x =>
-          logger.warn("dumper is not `ShutdownListener`")
+        case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
       }
     }
   }
@@ -628,17 +625,23 @@ class BeamSim @Inject() (
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {
-    val rootFiles = for {
-      fileName <- beamServices.beamConfig.beam.outputs.matsim.deleteRootFolderFiles.split(",")
-    } yield Paths.get(beamServices.matsimServices.getControlerIO.getOutputFilename(fileName))
+    val rootFilesName = beamServices.beamConfig.beam.outputs.matsim.deleteRootFolderFiles.trim
+    val iterationFilesName = beamServices.beamConfig.beam.outputs.matsim.deleteITERSFolderFiles.trim
 
-    val iterationFiles = for {
-      fileName        <- beamServices.beamConfig.beam.outputs.matsim.deleteITERSFolderFiles.split(",")
-      iterationNumber <- 0 to lastIterationNumber
-    } yield Paths.get(beamServices.matsimServices.getControlerIO.getIterationFilename(iterationNumber, fileName))
+    if (rootFilesName.nonEmpty) {
+      val rootFiles = for {
+        fileName <- rootFilesName.split(",")
+      } yield Paths.get(beamServices.matsimServices.getControlerIO.getOutputFilename(fileName))
+      tryDelete("root files: ", rootFiles)
+    }
 
-    tryDelete("root files: ", rootFiles)
-    tryDelete("iteration files: ", iterationFiles)
+    if (iterationFilesName.nonEmpty) {
+      val iterationFiles = for {
+        fileName        <- iterationFilesName.split(",")
+        iterationNumber <- 0 to lastIterationNumber
+      } yield Paths.get(beamServices.matsimServices.getControlerIO.getIterationFilename(iterationNumber, fileName))
+      tryDelete("iteration files: ", iterationFiles)
+    }
   }
 
   def tryDelete(kindOfFiles: String, filesToDelete: Seq[Path]): Unit = {
@@ -663,7 +666,9 @@ class BeamSim @Inject() (
         Files.delete(filePath)
         Right(filePath)
       } catch {
-        case e: Throwable => Left(filePath)
+        case ex: Throwable =>
+          logger.error(s"Could not delete $filePath", ex)
+          Left(filePath)
       }
     }
   }
@@ -755,7 +760,7 @@ class BeamSim @Inject() (
 
     val dataset = new DefaultCategoryDataset
 
-    var data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
+    val data = summaryData.getOrElse(fileName, new mutable.TreeMap[Int, Double])
     data += (iteration      -> value)
     summaryData += fileName -> data
 

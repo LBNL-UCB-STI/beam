@@ -34,7 +34,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import beam.agentsim.infrastructure.parking.GeoLevel
 import beam.router.{Modes, RoutingWorker}
 
-/** BEAM
+/**
+  * BEAM
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
@@ -223,7 +224,7 @@ trait ChoosesMode {
       .map(listOfResponses =>
         MobilityStatusResponse(
           listOfResponses
-            .collect { case MobilityStatusResponse(vehicles, triggerId) =>
+            .collect { case MobilityStatusResponse(vehicles, _) =>
               vehicles
             }
             .flatten
@@ -720,23 +721,29 @@ trait ChoosesMode {
           val vehicleOnTrip = VehicleOnTrip(leg.beamVehicleId, tripIdentifier)
           if (requested.contains(vehicleOnTrip)) {
             (requested, seq)
-          } else
+          } else {
+            val veh = beamVehicles(leg.beamVehicleId).vehicle
             (
               requested + vehicleOnTrip,
-              seq :+ (vehicleOnTrip -> ParkingInquiry(
+              seq :+ (vehicleOnTrip -> ParkingInquiry.init(
                 SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
-                Math.max(60.0, getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime),
-                Some(beamVehicles(leg.beamVehicleId).vehicle),
+                veh.vehicleManagerId,
+                Some(veh),
                 None,
                 attributes.valueOfTime,
+                getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
                 reserveStall = false,
                 triggerId = getCurrentTriggerIdOrGenerate
               ))
             )
+          }
       }
 
-    parkingInquiries.foreach { case (_, inquiry) => parkingManager ! inquiry }
+    parkingInquiries.foreach { case (_, inquiry) =>
+      if (inquiry.isChargingRequestOrEV) chargingNetworkManager ! inquiry
+      else parkingManager ! inquiry
+    }
     parkingInquiries.map { case (vehicleOnTrip, inquiry) =>
       inquiry.requestId -> vehicleOnTrip
     }

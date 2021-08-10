@@ -23,7 +23,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 
-/** BEAM
+/**
+  * BEAM
   */
 class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
@@ -77,14 +78,14 @@ class ModeChoiceMultinomialLogit(
         val personId = person.map(_.getId)
         val msgToLog =
           s"""|@@@[$personId]-----------------------------------------
-              |@@@[$personId]Alternatives:${alternatives}
-              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
-              |@@@[$personId]DestinationActivity:${destinationActivity}
+              |@@@[$personId]Alternatives:$alternatives
+              |@@@[$personId]AttributesOfIndividual:$attributesOfIndividual
+              |@@@[$personId]DestinationActivity:$destinationActivity
               |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
               |@@@[$personId]bestInGroup:$bestInGroup
               |@@@[$personId]inputData:$inputData
-              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-              |@@@[$personId]expectedMaximumUtility:${expectedMaximumUtility}
+              |@@@[$personId]chosenModeOpt:$chosenModeOpt
+              |@@@[$personId]expectedMaximumUtility:$expectedMaximumUtility
               |@@@[$personId]-----------------------------------------
               |""".stripMargin
         logger.debug(msgToLog)
@@ -254,7 +255,7 @@ class ModeChoiceMultinomialLogit(
       val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
-      val incentivizedCost = Math.max(0, totalCost.toDouble - incentive)
+      val incentivizedCost = Math.max(0, totalCost - incentive)
 
       if (totalCost < incentive)
         logger.warn(

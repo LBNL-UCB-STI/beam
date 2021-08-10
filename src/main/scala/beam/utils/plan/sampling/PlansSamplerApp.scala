@@ -63,7 +63,8 @@ class SynthHouseholdParser(geoConverter: GeoConverter) {
 
   import SynthHouseholdParser._
 
-  /** Parses the synthetic households file.
+  /**
+    * Parses the synthetic households file.
     *
     * @param synthFileName : synthetic households filename
     * @return the [[Vector]] of [[SynthHousehold]]s
@@ -264,7 +265,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     sourceCRS: CoordinateReferenceSystem,
     pop: Vector[Person]
   ): QuadTree[T] = {
-    val ev = implicitly[HasXY[T]]
+    val _ = implicitly[HasXY[T]]
 
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
     val qt: QuadTree[T] =
@@ -623,7 +624,8 @@ object PlansSampler {
   }
 }
 
-/** This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
+/**
+  * This script is designed to create input data for BEAM. It expects the following inputs [provided in order of
   * command-line args]:
   *
   * [0] Raw plans input filename

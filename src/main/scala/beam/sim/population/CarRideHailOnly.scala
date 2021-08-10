@@ -4,7 +4,8 @@ import beam.sim.{BeamScenario, BeamServices}
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Population
 
-/** A PopulationAdjustment implementation that removes all available modes from persons except for car, ride hail, and walk.
+/**
+  * A PopulationAdjustment implementation that removes all available modes from persons except for car, ride hail, and walk.
   *
   * @param beamServices required to access the Population data.
   */

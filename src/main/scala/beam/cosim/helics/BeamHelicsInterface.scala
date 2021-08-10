@@ -18,7 +18,8 @@ object BeamHelicsInterface {
     helics.helicsCloseLibrary()
   }
 
-  /** Create a Federate Instance
+  /**
+    * Create a Federate Instance
     * @param fedName FEDERATE_NAME
     * @param bufferSize BUFFER_SIZE
     * @param dataOutStreamPointMaybe "PUBLICATION_NAME"
@@ -48,7 +49,8 @@ object BeamHelicsInterface {
     )
   }
 
-  /** Create a Broker instance and a Federate Instance
+  /**
+    * Create a Broker instance and a Federate Instance
     * @param brokerName BROKER_NAME
     * @param numFederates number of federates to consider
     * @param fedName FEDERATE_NAME
@@ -102,7 +104,7 @@ object BeamHelicsInterface {
       case JsNumber(n)                        => n.doubleValue()
       case JsTrue                             => true
       case JsFalse                            => false
-      case JsString(s)                        => s.asInstanceOf[String]
+      case JsString(s)                        => s
       case _                                  => deserializationError("JsNumber (Double or Int), JsTrue, JsFalse or JsString are expected")
     }
   }
@@ -167,7 +169,8 @@ object BeamHelicsInterface {
     logger.debug(s"Federate successfully entered the Executing Mode")
     // **************************
 
-    /** Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
+    /**
+      * Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
       * @param labeledData List of Key -> Value
       */
     def publishJSON(labeledData: List[Map[String, Any]]): Unit = {
@@ -177,7 +180,8 @@ object BeamHelicsInterface {
       logger.debug("Data published via HELICS")
     }
 
-    /** Convert a list of values into a string of element separated with a comma, then publishes it via HELICS
+    /**
+      * Convert a list of values into a string of element separated with a comma, then publishes it via HELICS
       * @param unlabeledData list of values or strings in form of "key:value"
       */
     def publish(unlabeledData: List[Any]): Unit = {
@@ -185,7 +189,8 @@ object BeamHelicsInterface {
       logger.debug("Data published via HELICS: " + unlabeledData)
     }
 
-    /** Requests a co-simulation time and wait until it is awarded. The HELICS broker doesn't aware the requested time
+    /**
+      * Requests a co-simulation time and wait until it is awarded. The HELICS broker doesn't aware the requested time
       * until all the federates in co-simulation are synchronized
       * @param time the requested time
       * @return the awarded time
@@ -198,14 +203,14 @@ object BeamHelicsInterface {
       currentTime
     }
 
-    /** Collect message that has been published by other federates
+    /**
+      * Collect message that has been published by other federates
       * @param time the requested time
       * @return raw message in string format
       */
-    private def syncThenCollectRaw(time: Int): String = {
+    private def collectRaw(): String = {
       dataInStreamHandle
         .map { handle =>
-          sync(time)
           val buffer = new Array[Byte](bufferSize)
           val bufferInt = new Array[Int](1)
           helics.helicsInputGetString(handle, buffer, bufferInt)
@@ -214,13 +219,14 @@ object BeamHelicsInterface {
         .getOrElse("")
     }
 
-    /** Collect JSON messages that has been published by other federates
+    /**
+      * Collect JSON messages that has been published by other federates
       * The message is expected to be JSON, if not this method will fail
       * @param time the requested time
       * @return Message in List of Maps format
       */
-    def syncThenCollectJSON(time: Int): List[Map[String, Any]] = {
-      val message = syncThenCollectRaw(time)
+    def collectJSON(): List[Map[String, Any]] = {
+      val message = collectRaw()
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         try {
@@ -231,20 +237,22 @@ object BeamHelicsInterface {
       } else List.empty[Map[String, Any]]
     }
 
-    /** Collect list of String messages that has been published by other federates
+    /**
+      * Collect list of String messages that has been published by other federates
       * The message is expected to be list of string, if not this method will fail
       * @param time the requested time
       * @return message in list of Strings format
       */
-    def syncThenCollectAny(time: Int): List[Any] = {
-      val message = syncThenCollectRaw(time)
+    def collectAny(): List[Any] = {
+      val message = collectRaw()
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         message.split(",").toList
       } else List.empty[Any]
     }
 
-    /** Register a publication channel
+    /**
+      * Register a publication channel
       * @param pubName the publication id which **is not expected** to be prefixed by a federate name, such as
       *                "PUBLICATION_NAME"
       */
@@ -255,7 +263,8 @@ object BeamHelicsInterface {
       logger.debug(s"registering $pubName to CombinationFederate")
     }
 
-    /** Register a subscription channel
+    /**
+      * Register a subscription channel
       * @param subName the subscription id which **is expected** to be prefixed by a federate name, such as
       *                "FEDERATE_NAME/SUBSCRIPTION_NAME"
       */
@@ -264,7 +273,8 @@ object BeamHelicsInterface {
       logger.debug(s"registering $subName to CombinationFederate")
     }
 
-    /** close HELICS library
+    /**
+      * close HELICS library
       */
     def close(): Unit = {
       logger.debug(s"closing BeamFederate")

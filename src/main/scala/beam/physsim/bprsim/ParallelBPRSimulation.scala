@@ -21,7 +21,8 @@ import org.matsim.core.mobsim.framework.Mobsim
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager, seed: Long)
     extends Mobsim

@@ -7,14 +7,15 @@ import com.google.inject._
 import com.typesafe.config.Config
 import net.codingwell.scalaguice.ScalaModule
 
-/** Wires in BeamAgent Types
+/**
+  * Wires in BeamAgent Types
   *
   * Created by sfeygin on 2/6/17.
   */
 class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with ScalaModule {
 
   @Provides @Singleton
-  def provideActorSystem(injector: Injector, config: Config): ActorSystem = {
+  def provideActorSystem(config: Config): ActorSystem = {
     ActorSystem(beamConfig.beam.actorSystemName, config)
   }
 

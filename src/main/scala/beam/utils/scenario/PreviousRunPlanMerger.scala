@@ -9,7 +9,8 @@ import java.util.stream.Collectors
 import scala.collection.mutable
 import scala.util.{Random, Try}
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class PreviousRunPlanMerger(
   fraction: Double,

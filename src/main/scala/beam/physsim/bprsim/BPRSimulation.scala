@@ -14,7 +14,8 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class BPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager)
     extends Mobsim

@@ -14,7 +14,8 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-/** Created by colinsheppard 2018-05-14
+/**
+  * Created by colinsheppard 2018-05-14
   */
 class DriveTransitSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 

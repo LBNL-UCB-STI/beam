@@ -2,7 +2,8 @@ package beam.utils.protocolvis
 
 import beam.utils.protocolvis.MessageReader.RowData
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 object Extractors {
 

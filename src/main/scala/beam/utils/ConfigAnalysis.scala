@@ -58,7 +58,7 @@ object ConfigAnalysis extends App with StrictLogging {
       }
 
       if (mode == 2 || mode == 3) {
-        logger.info(s"----------------Keys in beam template but not in beam config ${path}-----------------")
+        logger.info(s"----------------Keys in beam template but not in beam config $path-----------------")
         compareTemplateKeysPath(existingConfig, templateConfig)
       }
       logger.info(s"End analysis on $path")

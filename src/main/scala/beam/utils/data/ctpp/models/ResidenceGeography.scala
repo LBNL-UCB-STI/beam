@@ -3,7 +3,8 @@ package beam.utils.data.ctpp.models
 sealed trait ResidenceGeography {
   def name: String
 
-  /** CTPP Summary Level
+  /**
+    * CTPP Summary Level
     */
   def level: String
 }

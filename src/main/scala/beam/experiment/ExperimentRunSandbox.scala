@@ -4,7 +4,8 @@ import java.nio.file.{Files, Path, Paths}
 
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 
-/** Created by dserdiuk on 11/25/17.
+/**
+  * Created by dserdiuk on 11/25/17.
   */
 case class ExperimentRunSandbox(
   experimentDef: ExperimentDef,
@@ -40,7 +41,8 @@ case class ExperimentRunSandbox(
     experimentDef.projectRoot.relativize(Paths.get(scenariosDirectory.toAbsolutePath.toString, "beam.conf"))
   }
 
-  /** @return path to an output folder relatively to project root
+  /**
+    * @return path to an output folder relatively to project root
     */
   def beamOutputDir: Path = {
     experimentDef.projectRoot.relativize(Paths.get(runsDirectory.toAbsolutePath.toString, "output_"))
@@ -48,7 +50,7 @@ case class ExperimentRunSandbox(
 
   def getPathStringForConfig(path: Path): String = {
     // We need triple quotes because quotes cannot be escaped in string interpolation
-    s"""$${BEAM_REPO_PATH}"/${path}""""
+    s"""$${BEAM_REPO_PATH}"/$path""""
   }
 
   def buildRunConfig: Config = {

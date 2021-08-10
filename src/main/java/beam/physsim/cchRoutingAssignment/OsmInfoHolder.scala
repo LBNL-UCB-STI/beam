@@ -6,7 +6,8 @@ import com.vividsolutions.jts.geom.Coordinate
 
 import scala.collection.JavaConverters._
 
-/** Cache for OSM nodes and ways
+/**
+  * Cache for OSM nodes and ways
   */
 class OsmInfoHolder(beamServices: BeamServices) {
   private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFile)

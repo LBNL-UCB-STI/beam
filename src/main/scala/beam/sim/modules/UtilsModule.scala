@@ -4,7 +4,8 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import com.google.inject.AbstractModule
 import net.codingwell.scalaguice.ScalaModule
 
-/** BEAM
+/**
+  * BEAM
   */
 class UtilsModule extends AbstractModule with ScalaModule {
 

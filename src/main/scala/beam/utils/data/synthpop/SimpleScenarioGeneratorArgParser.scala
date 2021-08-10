@@ -15,9 +15,9 @@ object SimpleScenarioGeneratorArgParser {
     } else {
       val folder = new File(path)
       if (!folder.isDirectory) {
-        Left(s"`$param` with value ${path} is not folder")
+        Left(s"`$param` with value $path is not folder")
       } else if (!folder.canRead) {
-        Left(s"`$param` with value ${path} is not readable, check permissions")
+        Left(s"`$param` with value $path is not readable, check permissions")
       } else Right(())
     }
   }
@@ -28,9 +28,9 @@ object SimpleScenarioGeneratorArgParser {
     } else {
       val file = new File(path)
       if (!file.isFile) {
-        Left(s"`$param` with value ${path} is not file")
+        Left(s"`$param` with value $path is not file")
       } else if (!file.canRead) {
-        Left(s"`$param` with value ${path} is not readable, check permissions")
+        Left(s"`$param` with value $path is not readable, check permissions")
       } else Right(())
     }
   }

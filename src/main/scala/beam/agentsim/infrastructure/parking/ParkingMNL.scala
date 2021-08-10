@@ -14,7 +14,8 @@ object ParkingMNL {
     Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
   )
 
-  /** used to determine charging choice, range anxiety
+  /**
+    * used to determine charging choice, range anxiety
     *
     * @param primaryFuelLevelInJoules range of vehicle in meters
     * @param primaryFuelConsumptionInJoulePerMeter fuel consumption rate
@@ -28,7 +29,8 @@ object ParkingMNL {
     rangeAnxietyBuffer: Double = 20000.0
   ) {
 
-    /** models range anxiety with a piecewise function.
+    /**
+      * models range anxiety with a piecewise function.
       *
       * from 0 (no anxiety) to 1 (anxiety) when we still have enough fuel to complete our tour
       * jumps to 2 when we don't have enough fuel to complete our tour

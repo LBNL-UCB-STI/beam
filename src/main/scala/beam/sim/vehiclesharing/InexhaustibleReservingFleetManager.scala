@@ -8,7 +8,6 @@ import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -22,7 +21,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
 private[vehiclesharing] class InexhaustibleReservingFleetManager(
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   val parkingManager: ActorRef,
   vehicleType: BeamVehicleType,
   randomSeed: Long,
@@ -48,7 +47,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(vehicleManager),
+        vehicleManagerId = vehicleManagerId,
         rand.nextInt()
       )
       nextVehicleIndex += 1
@@ -57,7 +56,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       vehicle.becomeDriver(sender)
 
       // Park it and forward it to the customer
-      (parkingManager ? parkingInquiry(whenWhere, triggerId))
+      (parkingManager ? ParkingInquiry.init(whenWhere, "wherever", vehicleManagerId, triggerId = triggerId))
         .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
           vehicle.useParkingStall(stall)
           MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
@@ -67,7 +66,4 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
     // That's fine, nothing to do.
 
   }
-
-  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
-    ParkingInquiry(whenWhere, "wherever", triggerId = triggerId)
 }

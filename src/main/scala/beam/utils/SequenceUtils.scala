@@ -1,6 +1,7 @@
 package beam.utils
 
-/** This class contains methods equivalent to those available in scala 2.13
+/**
+  * This class contains methods equivalent to those available in scala 2.13
   * and should be removed once scala version is upgraded
   */
 @SuppressWarnings(Array("UnsafeTraversableMethods"))

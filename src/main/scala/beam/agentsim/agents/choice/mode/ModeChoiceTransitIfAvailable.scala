@@ -11,7 +11,8 @@ import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable.ListBuffer
 
-/** BEAM
+/**
+  * BEAM
   */
 class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeChoiceCalculator {
 

@@ -14,7 +14,8 @@ import java.util.Random
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-/** An interface that handles setting/updating attributes for the population.
+/**
+  * An interface that handles setting/updating attributes for the population.
   */
 trait PopulationAdjustment extends LazyLogging {
   import PopulationAdjustment._
@@ -22,7 +23,8 @@ trait PopulationAdjustment extends LazyLogging {
   val scenario: Scenario
   val beamScenario: BeamScenario
 
-  /** Collects the individual person attributes as [[beam.sim.population.AttributesOfIndividual]] and stores them as a custom attribute "beam-attributes" under the person.
+  /**
+    * Collects the individual person attributes as [[beam.sim.population.AttributesOfIndividual]] and stores them as a custom attribute "beam-attributes" under the person.
     *
     * @param population The population in the scenario
     * @return updated population
@@ -42,7 +44,8 @@ trait PopulationAdjustment extends LazyLogging {
     population
   }
 
-  /** Updates the population , all individual's attributes and logs the modes
+  /**
+    * Updates the population , all individual's attributes and logs the modes
     *
     * @param scenario selected scenario
     * @return updated population
@@ -53,7 +56,8 @@ trait PopulationAdjustment extends LazyLogging {
     logModes(populationWithAttributes)
   }
 
-  /** Verified if all individuals have the excluded modes attribute and logs the count of each excluded mode.
+  /**
+    * Verified if all individuals have the excluded modes attribute and logs the count of each excluded mode.
     *
     * @param population population from the scenario
     */
@@ -89,7 +93,8 @@ trait PopulationAdjustment extends LazyLogging {
 
   protected def updatePopulation(scenario: Scenario): MPopulation
 
-  /** Adds the given mode to the list of available modes for the person
+  /**
+    * Adds the given mode to the list of available modes for the person
     *
     * @param population population from the scenario
     * @param personId the person to whom the above mode needs to be added
@@ -105,7 +110,8 @@ trait PopulationAdjustment extends LazyLogging {
     population
   }
 
-  /** Checks if the the given mode is available for the person
+  /**
+    * Checks if the the given mode is available for the person
     *
     * @param population population from the scenario
     * @param personId the person to whom the above mode availability needs to be verified
@@ -120,7 +126,8 @@ trait PopulationAdjustment extends LazyLogging {
       .exists(_.value.equalsIgnoreCase(modeToCheck))
   }
 
-  /** Removes the given mode from the list of available modes for the person
+  /**
+    * Removes the given mode from the list of available modes for the person
     *
     * @param population population from the scenario
     * @param personId the person to whom the above mode needs to be removed
@@ -133,7 +140,8 @@ trait PopulationAdjustment extends LazyLogging {
     AvailableModeUtils.replaceAvailableModesForPerson(person, newModes.map(_.value))
   }
 
-  /** Remove the given mode from the list of available modes for all the individuals in the population
+  /**
+    * Remove the given mode from the list of available modes for all the individuals in the population
     *
     * @param population population from the scenario
     * @param modeToRemove mode to be removed
@@ -154,7 +162,8 @@ trait PopulationAdjustment extends LazyLogging {
   }
 }
 
-/** A companion object for the PopulationAdjustment Interface
+/**
+  * A companion object for the PopulationAdjustment Interface
   */
 object PopulationAdjustment extends LazyLogging {
   val DEFAULT_ADJUSTMENT = "DEFAULT_ADJUSTMENT"
@@ -166,7 +175,8 @@ object PopulationAdjustment extends LazyLogging {
   val BEAM_ATTRIBUTES = "beam-attributes"
   val CAR_RIDE_HAIL_ONLY = "CAR_RIDE_HAIL_ONLY"
 
-  /** Generates the population adjustment interface based on the configuration set
+  /**
+    * Generates the population adjustment interface based on the configuration set
     *
     * @param beamServices beam services
     * @return An instance of [[beam.sim.population.PopulationAdjustment]]
@@ -184,7 +194,7 @@ object PopulationAdjustment extends LazyLogging {
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
       case CAR_RIDE_HAIL_ONLY =>
-        new CarRideHailOnly(beamServices)
+        CarRideHailOnly(beamServices)
       case adjClass =>
         try {
           Class
@@ -199,7 +209,8 @@ object PopulationAdjustment extends LazyLogging {
     }
   }
 
-  /** Gets the beam attributes for the given person in the population
+  /**
+    * Gets the beam attributes for the given person in the population
     *
     * @param population population from the scenario
     * @param personId the respective person's id
@@ -222,20 +233,14 @@ object PopulationAdjustment extends LazyLogging {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-    val initialAvailableModes = person.getCustomAttributes.isEmpty match {
-      case true =>
-        BeamMode.allModes
-      case false =>
-        person.getCustomAttributes.containsKey("beam-attributes") match {
-          case true =>
-            person.getCustomAttributes
-              .get("beam-attributes")
-              .asInstanceOf[sim.population.AttributesOfIndividual]
-              .availableModes
-          case false =>
-            BeamMode.allModes
-        }
-    }
+    val initialAvailableModes: Seq[BeamMode] =
+      if (person.getCustomAttributes.isEmpty) BeamMode.allModes
+      else if (person.getCustomAttributes.containsKey("beam-attributes")) {
+        person.getCustomAttributes
+          .get("beam-attributes")
+          .asInstanceOf[sim.population.AttributesOfIndividual]
+          .availableModes
+      } else BeamMode.allModes
     val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }

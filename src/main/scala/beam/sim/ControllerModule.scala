@@ -15,7 +15,8 @@ import org.matsim.counts.CountsModule
 import org.matsim.pt.counts.PtCountsModule
 import org.matsim.vis.snapshotwriters.SnapshotWritersModule
 
-/** A custom controller module for matsim modules.
+/**
+  * A custom controller module for matsim modules.
   */
 class ControllerModule extends AbstractModule {
 

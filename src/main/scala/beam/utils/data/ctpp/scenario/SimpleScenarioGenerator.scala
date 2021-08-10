@@ -6,7 +6,6 @@ import beam.utils.data.ctpp.models._
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.residence.MeanHouseholdIncomeTableReader.MeanHouseholdIncome
 import beam.utils.data.ctpp.readers.residence.MedianHouseholdIncomeTableReader.MedianHouseholdIncome
-import beam.utils.data.ctpp.readers.residence.TotalHouseholdsTableReader.TotalHouseholds
 import beam.utils.data.ctpp.readers.residence.TotalPopulationTableReader.TotalPopulation
 import beam.utils.data.ctpp.readers.residence.{
   AgeTableReader,
@@ -87,7 +86,6 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
       householdSizeMap           <- householdSizeMapF
       usualHoursWorkedPerWeekMap <- usualHoursWorkedPerWeekMapF
     } yield generate(
-      totalHouseholds,
       totalPopulationMap,
       ageMap,
       vehiclesAvailableMap,
@@ -100,7 +98,6 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
   }
 
   private def generate(
-    totalHouseholds: TotalHouseholds,
     totalPopulation: TotalPopulation,
     ageMap: Map[String, Map[AgeRange, Double]],
     vehiclesAvailableMap: Map[String, Map[Vehicles, Double]],
@@ -114,16 +111,7 @@ class SimpleScenarioGenerator(val pathToDoc: String, val dbInfo: CTPPDatabaseInf
     val allGeoIds =
       ageMap.keySet ++ totalPopulation.keySet ++ vehiclesAvailableMap.keySet ++ sexMap.keySet ++ medianHouseholdIncome.keySet ++ meanHouseholdIncome.keySet ++
       householdSizeMap.keySet ++ usualHoursWorkedPerWeekMap.keySet
-    allGeoIds.foreach { geoId =>
-      val households = totalHouseholds.get(geoId)
-      val population = totalPopulation.get(geoId)
-      val ages = ageMap.get(geoId)
-      val vehiclesAvailable = vehiclesAvailableMap.get(geoId)
-      val gender = sexMap.get(geoId)
-      val medianIncome = medianHouseholdIncome.get(geoId)
-      val meanIncome = meanHouseholdIncome.get(geoId)
-      val householdSize = meanHouseholdIncome.get(geoId)
-      val usualHoursWorkedPerWeek = usualHoursWorkedPerWeekMap.get(geoId)
+    allGeoIds.foreach { _ =>
       println()
     }
     (null, null)
@@ -215,6 +203,6 @@ object SimpleScenarioGenerator {
       new SimpleScenarioGenerator("D:/Work/beam/Austin/2012-2016 CTPP documentation", databaseInfo, new Random(42))
     val f = scenarioGenerator.generate
     val result = Await.result(f, 5.minutes)
-    println(s"result: ${result}")
+    println(s"result: $result")
   }
 }

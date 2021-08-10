@@ -16,7 +16,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
-/** BEAM
+/**
+  * BEAM
   */
 trait ModeChoiceCalculator {
 

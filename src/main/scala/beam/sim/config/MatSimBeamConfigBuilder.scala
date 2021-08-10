@@ -10,7 +10,8 @@ import org.matsim.core.config.{ConfigGroup, ConfigUtils}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-/** Util builder to create MATSim config from TypeSafe config.
+/**
+  * Util builder to create MATSim config from TypeSafe config.
   * It uses reflect to find available modules/parameter sets in classpath.
   * The builder follows MATSim naming convention. Thus it expects typesafe conf like this:
   *
@@ -119,7 +120,8 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
 
 object MatSimBeamConfigBuilder extends ReflectionUtils {
 
-  /** @return package name to scan in
+  /**
+    * @return package name to scan in
     */
   override def packageName: String = "org.matsim"
 }

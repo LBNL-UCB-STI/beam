@@ -32,7 +32,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
 

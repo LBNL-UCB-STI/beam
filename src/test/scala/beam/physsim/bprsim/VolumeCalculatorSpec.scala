@@ -6,7 +6,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.math.BigDecimal.RoundingMode
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class VolumeCalculatorSpec extends AnyWordSpecLike with Matchers {
   "Volume Calculator" must {

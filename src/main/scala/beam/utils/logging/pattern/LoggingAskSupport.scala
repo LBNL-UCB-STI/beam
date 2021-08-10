@@ -8,7 +8,8 @@ import beam.utils.logging.MessageLogger.BeamMessage
 import scala.concurrent.Future
 import scala.util.Success
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 trait LoggingAskSupport {
   import scala.language.implicitConversions

@@ -1,16 +1,7 @@
 package beam.utils
 
-import java.io._
-import java.net.URL
-import java.nio.charset.StandardCharsets
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
-import java.text.SimpleDateFormat
-import java.util.stream
-import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
-
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.typesafe.scalalogging.LazyLogging
@@ -20,15 +11,22 @@ import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
+import java.io._
+import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.text.SimpleDateFormat
+import java.util.stream
+import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 import scala.util.{Failure, Random, Success, Try}
 
-/** Created by sfeygin on 1/30/17.
+/**
+  * Created by sfeygin on 1/30/17.
   */
 object FileUtils extends LazyLogging {
 
@@ -115,7 +113,8 @@ object FileUtils extends LazyLogging {
     }
   }
 
-  /** Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
+  /**
+    * Read file with a given path or creates one if file is missing. It also creates a lock file at the same dir
     * that indicates that file is being created.
     * @param path the file path
     * @param atMost wait at most this time before starting reading the file
@@ -265,7 +264,8 @@ object FileUtils extends LazyLogging {
     concatString.hashCode
   }
 
-  /** Writes data to the output file at specified path.
+  /**
+    * Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
     * @param fileHeader an optional header to be appended (if any)
     * @param data data to be written to the file
@@ -299,7 +299,8 @@ object FileUtils extends LazyLogging {
     }
   }
 
-  /** Writes data to the output file at specified path.
+  /**
+    * Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
     * @param fileHeader an optional header to be appended (if any)
     * @param data data to be written to the file
@@ -378,7 +379,8 @@ object FileUtils extends LazyLogging {
     sourceFilePath.startsWith(remoteIfStartsWith)
   }
 
-  /** Reads files in parallel and returns all the loaded records as Iterable
+  /**
+    * Reads files in parallel and returns all the loaded records as Iterable
     * @param dir the directory where the files reside
     * @param fileNamePattern glob file pattern
     * @param atMost the expected time interval for file reading
@@ -394,7 +396,8 @@ object FileUtils extends LazyLogging {
       (path, loader(path, reader))
     }.values.flatten
 
-  /** Reads files in parallel and returns loaded data as a map containing each loaded file data as values
+  /**
+    * Reads files in parallel and returns loaded data as a map containing each loaded file data as values
     * @param dir the directory where the files reside
     * @param fileNamePattern glob file pattern
     * @param atMost the expected time interval for file reading
@@ -424,7 +427,8 @@ object FileUtils extends LazyLogging {
     Await.result(Future.sequence(futures), atMost).toMap
   }
 
-  /** Writes data to separate files in parallel
+  /**
+    * Writes data to separate files in parallel
     * @param outputDir the ouput dir
     * @param fileNamePattern the file name pattern. It must contains $i which is substituted with the part number
     * @param numberOfParts the number of parts
@@ -469,7 +473,8 @@ object FileUtils extends LazyLogging {
     }
   }
 
-  /** Not recursive (accepts only files)
+  /**
+    * Not recursive (accepts only files)
     * @param out the output file path
     * @param files a sequence of pairs zip entry name -> file path
     */

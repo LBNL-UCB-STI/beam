@@ -80,7 +80,8 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
     }
   }
 
-  /** Retrieve current rolling log in oldest-first order. The log is filled with
+  /**
+    * Retrieve current rolling log in oldest-first order. The log is filled with
     * each incoming event before processing by the user supplied state handler.
     * The log entries are lost when this actor is restarted.
     */

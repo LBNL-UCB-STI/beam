@@ -3,7 +3,8 @@ package beam.agentsim.agents.choice.mode
 import beam.router.Modes.BeamMode.{CAR, RIDE_HAIL, RIDE_HAIL_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
 
-/** RideHailDefaults
+/**
+  * RideHailDefaults
   *
   * If no fare is found, these defaults can be use.
   */

@@ -13,7 +13,8 @@ import scala.runtime.BoxedUnit
 
 object BeamLoggingReceive {
 
-  /** Wrap a Receive partial function in a logging enclosure, which sends a
+  /**
+    * Wrap a Receive partial function in a logging enclosure, which sends a
     * debug message to the event bus each time before a message is matched.
     * This includes messages which are not handled.
     *
@@ -28,18 +29,21 @@ object BeamLoggingReceive {
     */
   def apply(r: Receive)(implicit context: ActorContext): Receive = withLabel(null)(r)
 
-  /** Wrap a Receive partial function in a logging enclosure, which sends a
+  /**
+    * Wrap a Receive partial function in a logging enclosure, which sends a
     * message with given log level to the event bus each time before a message is matched.
     * This includes messages which are not handled.
     */
   def apply(logLevel: LogLevel)(r: Receive)(implicit context: ActorContext): Receive = withLabel(null, logLevel)(r)
 
-  /** Java API: compatible with lambda expressions
+  /**
+    * Java API: compatible with lambda expressions
     */
   @deprecated("Use the create method with `AbstractActor.Receive` parameter instead.", since = "2.5.0")
   def create(r: Receive, context: ActorContext): Receive = apply(r)(context)
 
-  /** Java API: compatible with lambda expressions
+  /**
+    * Java API: compatible with lambda expressions
     */
   def create(r: AbstractActor.Receive, context: AbstractActor.ActorContext): AbstractActor.Receive =
     new AbstractActor.Receive(
@@ -47,7 +51,8 @@ object BeamLoggingReceive {
         .asInstanceOf[PartialFunction[Any, BoxedUnit]]
     )
 
-  /** Create a decorated logger which will append `" in state " + label` to each message it logs.
+  /**
+    * Create a decorated logger which will append `" in state " + label` to each message it logs.
     */
   def withLabel(label: String, logLevel: LogLevel)(r: Receive)(implicit context: ActorContext): Receive = r match {
     case _: BeamLoggingReceive => r
@@ -55,7 +60,8 @@ object BeamLoggingReceive {
       if (context.system.settings.AddLoggingReceive) new BeamLoggingReceive(None, r, Option(label), logLevel) else r
   }
 
-  /** Create a decorated logger which will append `" in state " + label` to each message it logs.
+  /**
+    * Create a decorated logger which will append `" in state " + label` to each message it logs.
     */
   def withLabel(label: String)(r: Receive)(implicit context: ActorContext): Receive =
     withLabel(label, Logging.DebugLevel)(r)

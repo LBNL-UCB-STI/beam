@@ -4,7 +4,8 @@ import java.io.{BufferedReader, InputStreamReader}
 
 object BashUtils {
 
-  /** Method returns the git commit hash or HEAD if git not present
+  /**
+    * Method returns the git commit hash or HEAD if git not present
     * git rev-parse --abbrev-ref HEAD
     *
     * @return returns the git commit hash or HEAD if git not present
@@ -16,7 +17,8 @@ object BashUtils {
 
   }
 
-  /** Method returns the git branch or master if git not present
+  /**
+    * Method returns the git branch or master if git not present
     *
     * @return returns the current git branch
     */

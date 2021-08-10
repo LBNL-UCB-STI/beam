@@ -1,8 +1,5 @@
 package beam.calibration
 
-import java.nio.file.Paths
-
-import beam.calibration.BeamSigoptTuner._
 import beam.calibration.Bounded._
 import beam.experiment._
 import beam.utils.OptionalUtils.JavaOptionals._
@@ -10,11 +7,8 @@ import com.google.common.collect.Lists
 import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
-import com.typesafe.config.{Config, ConfigFactory}
-import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters
-import scala.util.Try
 
 object BeamSigoptTuner {
 
@@ -22,7 +16,8 @@ object BeamSigoptTuner {
 
   // Fields //
 
-  /** Creates a new Sigopt [[Experiment]] based on the [[ExperimentDef]] model or else
+  /**
+    * Creates a new Sigopt [[Experiment]] based on the [[ExperimentDef]] model or else
     * fetches it from the online database.
     *
     * @return The fully instantiated [[Experiment]].
@@ -33,7 +28,6 @@ object BeamSigoptTuner {
     experimentId: String,
     development: Boolean = false
   ): Option[Experiment] = {
-
     val experimentList = Experiment.list().call().getData
     val optExperiment = experimentList.stream
       .filter((experiment: Experiment) =>
@@ -55,7 +49,8 @@ object BeamSigoptTuner {
     expCall.call()
   }
 
-  /** Converts a [[Factor factor]] to a [[List]] of SigOpt [[Parameter parameters]]
+  /**
+    * Converts a [[Factor factor]] to a [[List]] of SigOpt [[Parameter parameters]]
     * assuming that there are [[Level levels]] with High and Low names.
     *
     * The type of the parameter values is equivalent to the first key of the `High`

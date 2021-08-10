@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -10,7 +10,8 @@ import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
+import beam.agentsim.infrastructure.parking.ParkingNetwork
+import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -67,13 +68,8 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private lazy val parkingManager = system.actorOf(
-    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
-    "ParkingManager"
-  )
-
-  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
+  private var parkingNetworks: Map[Id[VehicleManager], ParkingNetwork[_]] = _
+  private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -112,7 +108,7 @@ class PersonAndTransitDriverSpec
               case pathTraversalEvent: PathTraversalEvent
                   if pathTraversalEvent.vehicleId.toString == "body-dummyAgent" =>
                 personEvents.ref ! event
-              case agencyRevenueEvent: AgencyRevenueEvent =>
+              case _: AgencyRevenueEvent =>
                 agencyEvents.ref ! event
               case _: AbstractSkimmerEvent =>
                 skimEvents.ref ! event
@@ -124,8 +120,18 @@ class PersonAndTransitDriverSpec
       )
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val bus = new BeamVehicle(id = busId, powerTrain = new Powertrain(0.0), beamVehicleType = vehicleType)
-      val tram = new BeamVehicle(id = tramId, powerTrain = new Powertrain(0.0), beamVehicleType = vehicleType)
+      val bus = new BeamVehicle(
+        id = busId,
+        powerTrain = new Powertrain(0.0),
+        beamVehicleType = vehicleType,
+        vehicleManagerId = VehicleManager.noManager
+      )
+      val tram = new BeamVehicle(
+        id = tramId,
+        powerTrain = new Powertrain(0.0),
+        beamVehicleType = vehicleType,
+        vehicleManagerId = VehicleManager.noManager
+      )
 
       val busLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -236,58 +242,6 @@ class PersonAndTransitDriverSpec
           maxWindow = 31001, // As a kind of stress test, let everything happen simultaneously
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
-      )
-
-      val busDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(busId.toString, classOf[TransitDriverAgent]),
-          vehicle = bus,
-          Array(busLeg.beamLeg, busLeg2.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-      val tramDriverProps = Props(
-        new TransitDriverAgent(
-          scheduler = scheduler,
-          services,
-          beamScenario,
-          transportNetwork = beamScenario.transportNetwork,
-          tollCalculator = services.tollCalculator,
-          eventsManager = eventsManager,
-          parkingManager = parkingManager,
-          chargingNetworkManager = self,
-          transitDriverId = Id.create(tramId.toString, classOf[TransitDriverAgent]),
-          vehicle = tram,
-          Array(tramLeg.beamLeg),
-          new GeoUtilsImpl(beamConfig),
-          services.networkHelper
-        )
-      )
-
-      val iteration = TestActorRef(
-        Props(new Actor() {
-          context.actorOf(
-            Props(new Actor() {
-              context.actorOf(busDriverProps, "TransitDriverAgent-" + busId.toString)
-              context.actorOf(tramDriverProps, "TransitDriverAgent-" + tramId.toString)
-
-              override def receive: Receive = Actor.emptyBehavior
-            }),
-            "transit-system"
-          )
-
-          override def receive: Receive = Actor.emptyBehavior
-        }),
-        "BeamMobsim.iteration"
       )
 
       val busDriver = Await.result(
@@ -458,9 +412,15 @@ class PersonAndTransitDriverSpec
 
   }
 
-  override def afterAll(): Unit = {
+  override protected def afterAll(): Unit = {
     shutdown()
     super.afterAll()
+  }
+
+  override protected def beforeAll(): Unit = {
+    parkingNetworks = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)._1
+    parkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
+    super.beforeAll()
   }
 
 }

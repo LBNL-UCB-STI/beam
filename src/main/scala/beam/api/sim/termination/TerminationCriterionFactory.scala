@@ -1,6 +1,5 @@
 package beam.api.sim.termination
 
-import beam.api.agentsim.agents.ridehail.charging.StallAssignmentStrategyFactory
 import beam.sim.config.BeamConfigHolder
 import beam.sim.termination.{
   CustomTerminateAtFixedIterationNumber,
@@ -13,7 +12,8 @@ import org.matsim.core.controler.TerminationCriterion
 
 import scala.util.Try
 
-/** API defining [[TerminationCriterionFactory]] and its default implementation ([[DefaultTerminationCriterionFactory]]), which
+/**
+  * API defining [[TerminationCriterionFactory]] and its default implementation ([[DefaultTerminationCriterionFactory]]), which
   * allows to instantiate from a variety of termination criteria ([[TerminationCriterion]]) currently available in BEAM. In order to
   * add new custom termination criterion, a new [[TerminationCriterionFactory]] can be implemented similar to [[DefaultTerminationCriterionFactory]] and
   * [[DefaultTerminationCriterionFactory]] can be used as a delegate to access the existing termination criteria.
@@ -29,7 +29,8 @@ trait TerminationCriterionFactory {
 
 }
 
-/** Default implementation of [[TerminationCriterionFactory]].
+/**
+  * Default implementation of [[TerminationCriterionFactory]].
   */
 class DefaultTerminationCriterionFactory extends TerminationCriterionFactory {
 

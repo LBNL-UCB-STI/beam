@@ -6,7 +6,8 @@ import beam.router.Modes.BeamMode.{BUS, FERRY, RAIL, SUBWAY}
 import beam.router.model.EmbodiedBeamTrip
 import org.matsim.api.core.v01.Id
 
-/** TransitFareDefaults
+/**
+  * TransitFareDefaults
   *
   * If no fare is found, these defaults can be use.
   */

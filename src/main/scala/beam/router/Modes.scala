@@ -24,7 +24,8 @@ import org.matsim.api.core.v01.TransportMode
 import scala.collection.immutable
 import scala.language.implicitConversions
 
-/** [[ValueEnum]] containing all of the translations b/w BEAM <==> R5[[LegMode]] MATSim [[TransportMode]].
+/**
+  * [[ValueEnum]] containing all of the translations b/w BEAM <==> R5[[LegMode]] MATSim [[TransportMode]].
   *
   * Note: There is an implicit conversion
   *

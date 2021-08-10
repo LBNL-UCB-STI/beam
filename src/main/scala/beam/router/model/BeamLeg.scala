@@ -7,7 +7,8 @@ import beam.router.Modes.BeamMode.WALK
 import beam.sim.common.GeoUtils
 import beam.utils.{NetworkHelper, TravelTimeUtils}
 
-/** @param startTime  time in seconds from base midnight
+/**
+  * @param startTime  time in seconds from base midnight
   * @param mode       BeamMode
   * @param duration   period in seconds
   * @param travelPath BeamPath
@@ -47,7 +48,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
 
   }
 
-  /** This will append nextLeg to the current leg and update the times in the merged leg to be consistent.
+  /**
+    * This will append nextLeg to the current leg and update the times in the merged leg to be consistent.
     * The mode of the resulting leg will be based on this leg. Transit stops are not merged, they take the base leg value.
     */
   def appendLeg(nextLeg: BeamLeg): BeamLeg = {
@@ -62,7 +64,8 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
     this.copy(travelPath = newTravelPath).updateStartTime(startTime)
   }
 
-  /** SubLegThrough
+  /**
+    * SubLegThrough
     * Returns a new BeamLeg composed as if one traversed the original BeamLeg until throughTime, the link travel times
     * are scaled to ensure overall leg duration is equivalent to throughTime - leg.startTime
     */

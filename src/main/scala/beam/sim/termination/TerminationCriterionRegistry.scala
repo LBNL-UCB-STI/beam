@@ -9,7 +9,8 @@ object TerminationCriterionRegistry {
 
 }
 
-/** List of default termination criteria.
+/**
+  * List of default termination criteria.
   */
 object DefaultTerminationCriterionRegistry extends Registry[TerminationCriterionName] {
 

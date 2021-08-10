@@ -6,7 +6,8 @@ import org.matsim.core.utils.io.IOUtils
 
 import scala.xml.XML
 
-/** [[Encoder]]s, implicit encoders, and output serialization utilities
+/**
+  * [[Encoder]]s, implicit encoders, and output serialization utilities
   * Created by sfeygin on 3/28/17.
   */
 object JsonUtils {

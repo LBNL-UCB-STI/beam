@@ -5,7 +5,8 @@ import org.matsim.api.core.v01.network.Link
 
 import scala.collection.mutable
 
-/** Not thread-safe
+/**
+  * Not thread-safe
   * @param timeWindow the time interval in seconds during which the number of events is counted
   * @author Dmitry Openkov
   */
@@ -18,7 +19,8 @@ class VolumeCalculator(val timeWindow: Int) {
     eventHolder.addEvent(time, isCACC)
   }
 
-  /** @param linkId the link id
+  /**
+    * @param linkId the link id
     * @param time the simulation time
     * @return inFlow volume (current number of in flow vehicles per hour) and CACC share
     */
@@ -33,14 +35,16 @@ class VolumeCalculator(val timeWindow: Int) {
   }
 }
 
-/** It holds number of events for a particular time interval
+/**
+  * It holds number of events for a particular time interval
   * @param length number of time intervals that holds number of entered vehicles
   * @param countIntervalLength the length of time interval in seconds
   * @param arrayOfZeros just shared array of zeros of length equals length for quick backend reset
   */
 class EventHolder(length: Int, countIntervalLength: Int, arrayOfZeros: Array[Long]) {
 
-  /** This contains Int's: the high integer is the number of CACC enabled vehicles, the low integer is the number of regular
+  /**
+    * This contains Int's: the high integer is the number of CACC enabled vehicles, the low integer is the number of regular
     * vehicles at that time interval which is corresponds to the index of the element.
     * This complicated structure is done for performance reasons.
     * We could replace this array of Int's with a Map: time interval -> Pair of numbers of vehicles,
@@ -48,11 +52,13 @@ class EventHolder(length: Int, countIntervalLength: Int, arrayOfZeros: Array[Lon
     */
   private val backend = new Array[Long](length)
 
-  /** index of interval where the newest event is counted
+  /**
+    * index of interval where the newest event is counted
     */
   private var index = 0
 
-  /** Interval number that is at backend(0)
+  /**
+    * Interval number that is at backend(0)
     */
   private var zeroIndexInterval = 0
   private def currentInterval = zeroIndexInterval + index
@@ -79,7 +85,8 @@ class EventHolder(length: Int, countIntervalLength: Int, arrayOfZeros: Array[Lon
     }
   }
 
-  /** @param time the sim time
+  /**
+    * @param time the sim time
     * @return number of events (low integer is number of regular vehicles, high integer is number of CACC vehicles)
     *         and time interval in seconds during which this happens
     */
@@ -114,7 +121,8 @@ class EventHolder(length: Int, countIntervalLength: Int, arrayOfZeros: Array[Lon
     }
   }
 
-  /** Empties the backend and set the new zero interval
+  /**
+    * Empties the backend and set the new zero interval
     * @param zeroInterval the new zero interval
     */
   private def initWith(zeroInterval: Int): Unit = {

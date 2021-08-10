@@ -9,7 +9,8 @@ import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 
-/** This spec tests that CsvSkimReader reads skims correctly.
+/**
+  * This spec tests that CsvSkimReader reads skims correctly.
   */
 class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
 

@@ -62,7 +62,7 @@ object ActivitySegment {
         val binIdx = (act.getEndTime / binSize).toInt
         binIdx -> act
       }
-      .groupBy { case (binIdx, act) => binIdx }
+      .groupBy { case (binIdx, _) => binIdx }
       .map { case (binIdx, xs) => binIdx -> xs.map(_._2) }
     binToActivities.foreach { case (bin, acts) =>
       arr.update(bin, acts)

@@ -9,7 +9,8 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.immutable
 
-/** @author dserdiuk
+/**
+  * @author dserdiuk
   */
 
 trait AccessInfo {

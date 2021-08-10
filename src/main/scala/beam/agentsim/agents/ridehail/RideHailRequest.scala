@@ -56,7 +56,8 @@ object RideHailRequest {
     triggerId = -1
   )
 
-  /** Converts the request's pickup and drop coordinates from WGS to UTM
+  /**
+    * Converts the request's pickup and drop coordinates from WGS to UTM
     * @param request ridehail request
     * @param beamServices an instance of beam services
     */

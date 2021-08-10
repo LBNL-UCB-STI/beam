@@ -5,13 +5,15 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import org.matsim.api.core.v01.Coord
 
-/** sampling methods for randomly generating stall locations from aggregate information
+/**
+  * sampling methods for randomly generating stall locations from aggregate information
   */
 object ParkingStallSampling {
 
   type GeoSampling[GEO] = (Random, Location, GEO, Double) => Location
 
-  /** generates stall locations per a sampling technique which induces noise as a function of stall attribute availability
+  /**
+    * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability
     * @param rand random generator used to create stall locations
     * @param agent position of agent
     * @param taz position of TAZ centroid
@@ -53,7 +55,8 @@ object ParkingStallSampling {
     new Coord(sampleX, sampleY)
   }
 
-  /** samples a random location near a TAZ's centroid in order to create a stall in that TAZ.
+  /**
+    * samples a random location near a TAZ's centroid in order to create a stall in that TAZ.
     * previous dev's note: make these distributions more custom to the TAZ and stall type
     * @param rand random generator
     * @param center location we are sampling from

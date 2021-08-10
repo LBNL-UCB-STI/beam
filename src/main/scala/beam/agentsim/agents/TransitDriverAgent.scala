@@ -21,7 +21,8 @@ import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicle
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
-/** BEAM
+/**
+  * BEAM
   */
 object TransitDriverAgent {
 

@@ -52,7 +52,8 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
   }
 }
 
-/** BEAM
+/**
+  * BEAM
   */
 class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envelope) extends LazyLogging {
 
@@ -100,7 +101,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   private[ridehail] val inServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
   private val refuelingRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
   private val vehicleOutOfCharge = mutable.Set[Id[BeamVehicle]]()
-  private val mobileVehicleChargingTimes = PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
+  private val mobileVehicleChargingTimes = mutable.PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
   private[this] var latestSpatialIndexUpdateTick = 0
 
   def addVehicleOutOfCharge(vehicleId: Id[BeamVehicle]): Boolean = {
@@ -113,8 +114,8 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
 
   def getMobileChargedVehiclesForProcessing(time: Int): mutable.Set[Id[BeamVehicle]] = {
     val result = mutable.Set[Id[BeamVehicle]]()
-    while (!mobileVehicleChargingTimes.isEmpty && time > mobileVehicleChargingTimes.head._1) {
-      val (endChargingTime, vehicleId) = mobileVehicleChargingTimes.dequeue()
+    while (mobileVehicleChargingTimes.nonEmpty && time > mobileVehicleChargingTimes.head._1) {
+      val (_, vehicleId) = mobileVehicleChargingTimes.dequeue()
       vehicleOutOfCharge.remove(vehicleId)
       result.add(vehicleId)
     }
@@ -317,7 +318,8 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       }
   }
 
-  /** Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
+  /**
+    * Returns a map of ride hail vehicles that are either idle or in-service but repositioning and then filters out
     * any that should be excluded according to the doNotUseInAllocation map.
     * @return HashMap from Id[BeamVehicle] to RideHailAgentLocation
     */
@@ -404,7 +406,8 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     }
   }
 
-  /** This will go through all in-motion vehicles (i.e. all vehicles in inService and refueling spatial indices)
+  /**
+    * This will go through all in-motion vehicles (i.e. all vehicles in inService and refueling spatial indices)
     * and update the location of the agent in that spatial index based on where they are in the current beamLeg at
     * time tick.
     *
@@ -751,7 +754,8 @@ object RideHailManagerHelper {
     )
   }
 
-  /** Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
+  /**
+    * Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
     */
   case class RideHailAgentLocation(
     rideHailAgent: ActorRef,
@@ -766,7 +770,8 @@ object RideHailManagerHelper {
     serviceStatus: Option[RideHailServiceStatus] = None
   ) {
 
-    /** Returns the current location of the RideHailAgent based on the currentTick parameter. This accounts for where the
+    /**
+      * Returns the current location of the RideHailAgent based on the currentTick parameter. This accounts for where the
       * agent would be along the route if the currentTick is between the start and end times of the BeamLeg currently underway.
       *
       * @param currentTick

@@ -1,6 +1,7 @@
 package beam.utils
 
-/** Generic Registery to map names to class
+/**
+  * Generic Registery to map names to class
   * @tparam T
   */
 trait Registry[T] {

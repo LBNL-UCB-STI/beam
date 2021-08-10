@@ -18,7 +18,8 @@ import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 
-/** Generates traveltime for links by hours
+/**
+  * Generates traveltime for links by hours
   */
 class RoutingFrameworkTravelTimeCalculator(
   private val beamServices: BeamServices,

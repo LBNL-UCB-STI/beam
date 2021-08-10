@@ -11,7 +11,8 @@ import scala.util.control.NonFatal
 
 trait WorkedDurationGenerator {
 
-  /** Gives back the next worked duration
+  /**
+    * Gives back the next worked duration
     * @param   rangeWhenLeftHome   The range in seconds, in 24 hours, when a person left a home
     * @return Worked duration in seconds
     */
@@ -32,7 +33,8 @@ class WorkedDurationGeneratorImpl(val pathToCsv: String, val rndGen: RandomGener
     )
   )
 
-  /** Gives back the next worked duration
+  /**
+    * Gives back the next worked duration
     *
     * @param   rangeWhenLeftHome The range in seconds, in 24 hours, when a person left a home
     * @return Worked duration in seconds
@@ -73,6 +75,6 @@ object WorkedDurationGeneratorImpl {
       }
     }
 
-    println(s"Duration stats: ${Statistics(allDurations.map(_.toDouble))}")
+    println(s"Duration stats: ${Statistics(allDurations)}")
   }
 }

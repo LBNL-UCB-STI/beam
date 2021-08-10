@@ -8,7 +8,8 @@ import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-/** A repositioning manager that ensures all idle vehicles keep moving at every opportunity. Useful for testing and
+/**
+  * A repositioning manager that ensures all idle vehicles keep moving at every opportunity. Useful for testing and
   * debugging.
   *
   * @param beamServices

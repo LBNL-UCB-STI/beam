@@ -97,7 +97,8 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
     -res
   }
 
-  /** Computes MPE between run data and benchmark data on a mode-to-mode basis.
+  /**
+    * Computes MPE between run data and benchmark data on a mode-to-mode basis.
     *
     * @param benchmarkData target values of mode shares
     * @param runData       output values of mode shares given current suggestion.

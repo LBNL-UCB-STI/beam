@@ -83,8 +83,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
           maxNumberOfVehiclesToReposition,
           tick,
           timeWindowSizeInSecForDecidingAboutRepositioning,
-          minimumNumberOfIdlingVehiclesThresholdForRepositioning,
-          rideHailManager.beamServices
+          minimumNumberOfIdlingVehiclesThresholdForRepositioning
         )
 
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(
@@ -206,7 +205,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
                 rideHailManager.beamServices.matsimServices.getControlerIO
                   .getIterationFilename(
                     rideHailManager.beamServices.matsimServices.getIterationNumber,
-                    (tick / 3600 * 100).toInt / 100.0 + "locationOfAgentsInitally.png"
+                    (tick / 3600 * 100) / 100.0 + "locationOfAgentsInitally.png"
                   )
                   .replace(iteration, iteration + "/rideHailDebugging")
               )

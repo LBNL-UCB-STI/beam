@@ -5,7 +5,8 @@ import beam.utils.MathUtils
 import scala.util.Random
 import com.typesafe.scalalogging.LazyLogging
 
-/** a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
+/**
+  * a generic Multinomial Logit Function for modeling utility functions over discrete alternatives
   *
   * @param utilityFunctions mappings from alternatives to the attributes which can be evaluated against them
   * @param common common attributes of all alternatives
@@ -21,7 +22,8 @@ class MultinomialLogit[A, T](
 
   import MultinomialLogit._
 
-  /** Sample over a set of types A by calculating the probabilities of each alternative
+  /**
+    * Sample over a set of types A by calculating the probabilities of each alternative
     * and then draw one randomly.
     *
     * For details see page 103, formula 5.8 in
@@ -114,7 +116,8 @@ class MultinomialLogit[A, T](
     }
   }
 
-  /** Get the expected maximum utility over a set of types A
+  /**
+    * Get the expected maximum utility over a set of types A
     *
     * @param alternatives the alternatives that should be evaluated
     * @return
@@ -134,7 +137,8 @@ class MultinomialLogit[A, T](
     else Some { MathUtils.logSumExp(scaledUtilityOfAlternatives) / scale_factor }
   }
 
-  /** Calculate the utility of the provided alternative based on the utility functions provided during the initialization of
+  /**
+    * Calculate the utility of the provided alternative based on the utility functions provided during the initialization of
     * the MultinomialLogit model. If the provided utility functions are not able to evaluate the provided alternative
     * (e.g. there is no function for the provided alternative) the provided utility is -1E100
     *

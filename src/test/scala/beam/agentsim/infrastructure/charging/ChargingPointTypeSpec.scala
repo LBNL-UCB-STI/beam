@@ -114,7 +114,8 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
 
 object ChargingPointTypeSpec extends org.scalatest.Assertions {
 
-  /** helper test function which handles the common parsing failures
+  /**
+    * helper test function which handles the common parsing failures
     * @param input a string representation of a CustomChargingPoint
     * @param pos required for calling "fail" here, an implicit that tracks the call point of an error
     * @return either an error string, or a CustomChargingPoint

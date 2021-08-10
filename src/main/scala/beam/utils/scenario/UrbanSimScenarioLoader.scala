@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -99,9 +99,9 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val inputPlans = Await.result(plansF, 5000.seconds)
-    val persons = Await.result(personsF, 5000.seconds)
-    val households = Await.result(householdsF, 5000.seconds)
+    val inputPlans = Await.result(plansF, 500.seconds)
+    val persons = Await.result(personsF, 500.seconds)
+    val households = Await.result(householdsF, 500.seconds)
 
     val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
@@ -166,7 +166,7 @@ class UrbanSimScenarioLoader(
 
     val personId2Score: Map[PersonId, Double] =
       householdIdToPersons.flatMap { case (_, persons) =>
-        persons.map(x => x.personId -> getPersonScore(x, personIdToTravelStats(x.personId)))
+        persons.map(x => x.personId -> getPersonScore(personIdToTravelStats(x.personId)))
       }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
@@ -228,6 +228,7 @@ class UrbanSimScenarioLoader(
           bvId,
           powerTrain,
           beamVehicleType,
+          VehicleManager.defaultManager,
           randomSeed = rand.nextInt
         )
         beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
@@ -244,7 +245,7 @@ class UrbanSimScenarioLoader(
     )
   }
 
-  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
+  private def getPersonScore(personTravelStats: PersonTravelStats): Double = {
     val distanceExcludingLastTrip =
       personTravelStats.tripStats.dropRight(1).map(x => geo.distUTMInMeters(x.origin, x.destination)).sum
     val tripTimePenalty = personTravelStats.tripStats
@@ -294,7 +295,8 @@ class UrbanSimScenarioLoader(
     PersonTravelStats(homeCoord, planTripStats)
   }
 
-  /** @param households list of household ids
+  /**
+    * @param households list of household ids
     * @param householdIdToPersons map of household id into list of person info
     * @param personId2Score map personId -> commute distance
     * @return sequence of household info -> new number of vehicles to assign

@@ -3,7 +3,8 @@ package beam.router.model
 import beam.agentsim.events.SpaceTime
 import beam.router.model.RoutingModel.TransitStopsInfo
 
-/** @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
+/**
+  * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
   * @param transitStops start and end stop if this path is transit (partial) route
   *
   * IMPORTANT NOTE: Convention is that a BeamPath starts at the **end** of the first link and ends at the end of the last link.

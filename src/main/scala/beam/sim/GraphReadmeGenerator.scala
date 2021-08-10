@@ -4,7 +4,8 @@ import java.io.{BufferedWriter, FileWriter, IOException}
 
 import com.typesafe.scalalogging.LazyLogging
 
-/** Generates a readme for .png files in root folder.
+/**
+  * Generates a readme for .png files in root folder.
   */
 
 object GraphReadmeGenerator extends LazyLogging {

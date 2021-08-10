@@ -18,7 +18,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 }
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -60,10 +60,13 @@ class HouseholdFleetManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val HasEnoughFuelToBeParked: Boolean = true
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
-        (parkingManager ? ParkingInquiry(SpaceTime(homeCoord, 0), "init", triggerId = triggerId))
-          .mapTo[ParkingInquiryResponse]
+        (parkingManager ? ParkingInquiry.init(
+          SpaceTime(homeCoord, 0),
+          "init",
+          VehicleManager.defaultManager,
+          triggerId = triggerId
+        )).mapTo[ParkingInquiryResponse]
           .map { r =>
             (id, r)
           }
@@ -115,8 +118,11 @@ class HouseholdFleetManager(
       context.stop(self)
 
     case Success =>
+    case pir: ParkingInquiryResponse =>
+      logger.error(s"STUCK with ParkingInquiryResponse: $pir")
+
     case x =>
-      logger.warn(s"No handler for ${x}")
+      logger.warn(s"No handler for $x")
   }
 }
 

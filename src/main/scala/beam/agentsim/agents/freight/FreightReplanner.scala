@@ -17,7 +17,8 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 import scala.util.Random
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class FreightReplanner(
   beamServices: BeamServices,
@@ -52,7 +53,7 @@ class FreightReplanner(
     val oldPlans = person.getPlans.asScala.toIndexedSeq
     person.addPlan(newPlan)
     person.setSelectedPlan(newPlan)
-    oldPlans.foreach(plan => person.removePlan(plan))
+    oldPlans.foreach(person.removePlan)
   }
 
   private[freight] def convertToPlans(
@@ -155,8 +156,7 @@ class FreightReplanner(
         BeamMode.CAR,
         beamVehicleType.id,
         beamVehicleType,
-        fuelPrice,
-        beamServices.beamScenario
+        fuelPrice
       )
       TimeDistanceCost(skim.time, skim.distance, skim.cost)
     }
@@ -237,6 +237,7 @@ class FreightReplanner(
 
     if (solution.unassigned.nonEmpty) {
       logger.warn(s"Some plans are unassigned for freight carrier ${freightCarrier.carrierId}")
+      solution.unassigned.foreach(x => logger.debug(s"unassigned payload $x"))
     }
     solution.routes
   }

@@ -36,7 +36,8 @@ object RideHailReservationConfirmationEvent {
   case object Pooled extends RideHailReservationType
 }
 
-/** Event capturing the details of a ride hail reservation confirmation
+/**
+  * Event capturing the details of a ride hail reservation confirmation
   */
 class RideHailReservationConfirmationEvent(
   val time: Double,

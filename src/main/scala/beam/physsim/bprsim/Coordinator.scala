@@ -13,7 +13,8 @@ import org.matsim.core.api.experimental.events.EventsManager
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class Coordinator(
   clusters: Vector[Set[Id[Link]]],

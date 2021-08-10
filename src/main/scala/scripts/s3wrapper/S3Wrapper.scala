@@ -30,7 +30,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
 
   private lazy val cachedBuckets = new AtomicReference[Set[S3Bucket]](listBucketNamesInternal)
 
-  /** Retrieve all available buckets and its region. It is equivalent of the following command
+  /**
+    * Retrieve all available buckets and its region. It is equivalent of the following command
     * `aws s3 ls` or `aws s3api list-buckets --query "Buckets[].Name"`
     * combined with the following
     * `aws s3api get-bucket-location --bucket my-bucket` per each bucket
@@ -59,7 +60,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
       .seq
   }
 
-  /** Get recursively all keys belongs to some bucket. Since AWS API limits to 1000
+  /**
+    * Get recursively all keys belongs to some bucket. Since AWS API limits to 1000
     * the maximum amount of keys per request, it might be needed to apply multiple requests
     * The CLI equivalent command is as following:
     * `aws s3 ls --summarize --recursive s3://beam-admin-reports/ --profile beam`
@@ -94,7 +96,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
     }
   }
 
-  /** Download the full bucket and save into the destination path
+  /**
+    * Download the full bucket and save into the destination path
     * @param bucketName the bucket name
     * @param destinationPath the destination path
     */
@@ -102,7 +105,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
     download(bucketName, wholeDirectory, destinationPath)
   }
 
-  /** Download all files, directories and subdirectories accordingly to the parameters
+  /**
+    * Download all files, directories and subdirectories accordingly to the parameters
     * @param bucketName the bucket name
     * @param keysStartingWith the object key is composed its full path
     * @param destinationPath the directory which downloaded data will be saved
@@ -148,7 +152,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
     s3Client.deleteObject(bucketName, objectKey)
   }
 
-  /** Create a bucket in a specific region
+  /**
+    * Create a bucket in a specific region
     * @param bucketName the value of bucketName
     * @param region the region which bucket must be created
     */
@@ -157,21 +162,24 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
     s3Client.createBucket(request)
   }
 
-  /** Create the specified bucket accordingly to the param @bucket
+  /**
+    * Create the specified bucket accordingly to the param @bucket
     * @param bucket the wrapper object containing name and region
     */
   def createBucket(bucket: S3Bucket): Unit = {
     createBucket(bucket.name, bucket.region)
   }
 
-  /** Delete the @bucketName if and only if the bucket is empty
+  /**
+    * Delete the @bucketName if and only if the bucket is empty
     * @param bucketName the name of the bucket
     */
   def removeBucket(bucketName: String): Unit = {
     s3Client.deleteBucket(bucketName)
   }
 
-  /** Checks if the specified bucket exists (Amazon S3 buckets are named in a global namespace)
+  /**
+    * Checks if the specified bucket exists (Amazon S3 buckets are named in a global namespace)
     * Is just a wrapper around doesBucketExistV2 sdk library
     * @param bucketName the name of the bucket
     * @return the value true if the @bucketName exists in S3; the value false if @bucketName does not exists in S3
@@ -180,7 +188,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
     s3Client.doesBucketExistV2(bucketName)
   }
 
-  /** Call aws shutdown method.
+  /**
+    * Call aws shutdown method.
     * shutdown method states "shuts down this client object, releasing any resources that might be held open."
     */
   override def close(): Unit = {
@@ -190,7 +199,8 @@ class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with
 
 object S3Wrapper extends StrictLogging {
 
-  /**  Search for credentials in the section [default] of  ~/.aws/credentials file
+  /**
+    *  Search for credentials in the section [default] of  ~/.aws/credentials file
     * @return an instance of S3Wrapper
     */
   def fromCredentialDefault(): S3Wrapper = {
@@ -198,19 +208,11 @@ object S3Wrapper extends StrictLogging {
   }
 
   def fromCredential(profile: String): S3Wrapper = {
-    fromCredential(profile, None)
-  }
-
-  def fromCredential(profile: String, region: String): S3Wrapper = {
-    fromCredential(profile, Some(region))
-  }
-
-  private def fromCredential(profile: String, region: Option[String]): S3Wrapper = {
     val filePath = FileUtils.getUserDirectory.toPath.resolve(".aws").resolve("credentials")
-    fromCredentialFile(filePath, profile, region)
+    fromCredentialFile(filePath, profile)
   }
 
-  def fromCredentialFile(filePath: Path, profile: String, region: Option[String] = None): S3Wrapper = {
+  private def fromCredentialFile(filePath: Path, profile: String): S3Wrapper = {
     logger.info(s"Loading profile [$profile] from information file [$filePath].")
     if (!Files.isRegularFile(filePath)) {
       throw new IllegalArgumentException(s"File [$filePath] is not a regular file")

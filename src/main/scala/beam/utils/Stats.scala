@@ -1,6 +1,7 @@
 package beam.utils
 
-/** Created by sfeygin on 2/6/17.
+/**
+  * Created by sfeygin on 2/6/17.
   */
 
 object Stats {

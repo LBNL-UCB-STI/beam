@@ -7,7 +7,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 case class PayloadType(value: String)
 

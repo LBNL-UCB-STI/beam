@@ -39,7 +39,7 @@ dir.create(plotsDir, showWarnings = FALSE)
 scenarioNames <- c('Baseline0')
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 loadTypes <- data.table::data.table(
-  chargingType = c("evipublicdcfast(150.0|DC)", "evipublicdcfast(250.0|DC)", "evipublicdcfast(50.0|DC)", "fcsfast(50.0|DC)", "fcsfast(150.0|DC)", "fcsfast(250.0|DC)", "evipubliclevel2(7.2|AC)", "eviworklevel2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
+  chargingPointType = c("evipublicdcfast(150.0|DC)", "evipublicdcfast(250.0|DC)", "evipublicdcfast(50.0|DC)", "fcsfast(50.0|DC)", "fcsfast(150.0|DC)", "fcsfast(250.0|DC)", "evipubliclevel2(7.2|AC)", "eviworklevel2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
   loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2")
 )
 

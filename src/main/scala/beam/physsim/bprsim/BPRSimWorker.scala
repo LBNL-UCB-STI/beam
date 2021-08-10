@@ -9,7 +9,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
   private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)

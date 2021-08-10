@@ -85,7 +85,6 @@ object ChargingPointType {
       case CustomChargingPointRegex(id, installedCapacity, currentType) =>
         Some(CustomChargingPoint(id, installedCapacity, currentType))
       case _ =>
-        None
         throw new IllegalArgumentException("invalid argument for ChargingPointType: " + s.trim.toLowerCase)
     }
   }
@@ -179,7 +178,8 @@ object ChargingPointType {
   // used to identify fast chargers
   val FastChargingThreshold: Double = 20.0
 
-  /** recognizes fast charger ChargingPointTypes
+  /**
+    * recognizes fast charger ChargingPointTypes
     * @param chargingPointType a chargingPointType
     * @return if it is "fast"
     */

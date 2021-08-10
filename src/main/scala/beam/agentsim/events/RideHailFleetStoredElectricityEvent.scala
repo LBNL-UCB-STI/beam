@@ -10,7 +10,8 @@ object RideHailFleetStoredElectricityEvent {
   val ATTRIBUTE_STORAGE_CAPACITY_IN_JOULES: String = "storageCapacityInJoules"
 }
 
-/** Event capturing the electricity stored in the batteries of the ride hail fleet.
+/**
+  * Event capturing the electricity stored in the batteries of the ride hail fleet.
   *
   * @param tick Time at which the event is thrown
   * @param storedElectricityInJoules Electrical energy stored in the ride hail fleet.

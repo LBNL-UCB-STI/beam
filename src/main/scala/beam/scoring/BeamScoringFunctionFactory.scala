@@ -3,7 +3,6 @@ package beam.scoring
 import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.replanning.ReplanningUtil
 import beam.router.model.EmbodiedBeamTrip
 import beam.sim.config.BeamConfig
@@ -42,7 +41,8 @@ class BeamScoringFunctionFactory @Inject() (
 
   private var beamConfig = beamServices.beamConfig
 
-  /** A map that stores personId and his calculated trip scores (based on the corresponding beam scoring function).
+  /**
+    * A map that stores personId and his calculated trip scores (based on the corresponding beam scoring function).
     * The above trip score is calculated for all individuals in the scenario and is written to an output file at the end of the iteration.
     */
   private val personTripScores = mutable.HashMap.empty[String, String]
@@ -52,7 +52,8 @@ class BeamScoringFunctionFactory @Inject() (
   private val linkAverageGeneralizedCosts = mutable.HashMap.empty[Int, (Double, Int)]
   private val linkAverageGeneralizedTimes = mutable.HashMap.empty[Int, (Double, Int)]
 
-  /** Stores the person and his respective score in a in memory map till the end of the iteration
+  /**
+    * Stores the person and his respective score in a in memory map till the end of the iteration
     * @param personId id of the person
     * @param score score calculated for the person
     * @return
@@ -65,7 +66,8 @@ class BeamScoringFunctionFactory @Inject() (
     generalizedLinkStats.put(linkId, stats)
   }
 
-  /** Returns the stored person scores
+  /**
+    * Returns the stored person scores
     * @return
     */
   def getPersonScores: mutable.HashMap[String, String] = {
@@ -82,7 +84,6 @@ class BeamScoringFunctionFactory @Inject() (
       private var finalScore = 0.0
       private val trips = mutable.ListBuffer[EmbodiedBeamTrip]()
       private var leavingParkingEventScore = 0.0
-      var rideHailDepart = 0
 
       override def handleEvent(event: Event): Unit = {
         event match {
@@ -156,8 +157,9 @@ class BeamScoringFunctionFactory @Inject() (
 
         //write generalized link stats to file
 
-        if (modeChoiceCalculator.isInstanceOf[ModeChoiceMultinomialLogit]) {
-          registerLinkCosts(this.trips, attributes, modeChoiceCalculator.asInstanceOf[ModeChoiceMultinomialLogit])
+        modeChoiceCalculator match {
+          case logit: ModeChoiceMultinomialLogit => registerLinkCosts(this.trips, attributes, logit)
+          case _                                 =>
         }
       }
 
@@ -168,21 +170,12 @@ class BeamScoringFunctionFactory @Inject() (
         beamServices.beamScenario.destinationChoiceModel.getActivityUtility(activity, attributes)
       }
 
-      private def getRealStartEndTime(
-        activity: Activity
-      ): (Double, Double) = {
-        val start = if (activity.getStartTime > 0) { activity.getStartTime }
-        else { 0 }
-        val end = if (activity.getEndTime > 0) { activity.getEndTime }
-        else { 3600 * 24 }
-        (start, end)
-      }
-
       override def handleActivity(activity: Activity): Unit = {}
 
       override def getScore: Double = finalScore
 
-      /** Writes each individual's trip score to a csv file
+      /**
+        * Writes each individual's trip score to a csv file
         */
       private def writeTripScoresToCSV(): Unit = {
         val attributes =
@@ -208,7 +201,8 @@ class BeamScoringFunctionFactory @Inject() (
         setPersonScore(person.getId.toString, tripScoreData)
       }
 
-      /** Writes generalized link stats to csv file.
+      /**
+        * Writes generalized link stats to csv file.
         */
       private def registerLinkCosts(
         trips: Seq[EmbodiedBeamTrip],
@@ -291,7 +285,8 @@ class BeamScoringFunctionFactory @Inject() (
     reset()
   }
 
-  /** Resets the scores
+  /**
+    * Resets the scores
     */
   def reset(): Unit = {
     personTripScores.clear()
@@ -347,14 +342,16 @@ class BeamScoringFunctionFactory @Inject() (
   }
 }
 
-/** A companion object for the BeamScoringFunctionFactory class
+/**
+  * A companion object for the BeamScoringFunctionFactory class
   */
 object BeamScoringFunctionFactory extends OutputDataDescriptor {
 
   final val agentTripScoreFileBaseName = "agentTripScores"
   final val linkStatsFileBaseName = "generalizedLinkStats"
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

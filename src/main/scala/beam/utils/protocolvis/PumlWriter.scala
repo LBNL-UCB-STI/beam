@@ -4,7 +4,8 @@ import beam.utils.FileUtils
 
 import java.nio.file.Path
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 object PumlWriter {
 

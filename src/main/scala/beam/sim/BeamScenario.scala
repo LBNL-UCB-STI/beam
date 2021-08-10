@@ -16,7 +16,8 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.concurrent.TrieMap
 
-/** This holds together a couple of containers of simulation data, all of which are immutable.
+/**
+  * This holds together a couple of containers of simulation data, all of which are immutable.
   * The only semi-exception is privateVehicles: The set of its members is effectively immutable
   * after the scenario-loading phase ("what private vehicles exists"), but the BeamVehicles themselves
   * are mutable during the simulation run (fuel levels and such) -- though they are
@@ -40,6 +41,7 @@ case class BeamScenario(
   transportNetwork: TransportNetwork,
   network: Network,
   tazTreeMap: TAZTreeMap,
+  exchangeGeoMap: Option[TAZTreeMap],
   linkQuadTree: QuadTree[Link],
   linkIdMapping: Map[Id[Link], Link],
   linkToTAZMapping: Map[Link, TAZ],

@@ -31,21 +31,21 @@ import beam.router.r5.RouteDumper
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
-import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
@@ -61,8 +61,6 @@ class BeamRouter(
   network: Network,
   networkHelper: NetworkHelper,
   geo: GeoUtils,
-  scenario: Scenario,
-  transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   eventsManager: EventsManager
@@ -468,7 +466,8 @@ object BeamRouter {
 
   case class UpdateTravelTimeRemote(linkIdToTravelTimePerHour: java.util.Map[String, Array[Double]])
 
-  /** It is use to represent a request object
+  /**
+    * It is use to represent a request object
     *
     * @param originUTM                      start/from location of the route
     * @param destinationUTM                 end/to location of the route
@@ -506,7 +505,8 @@ object BeamRouter {
 
   case object AccessAndEgress extends IntermodalUse
 
-  /** Message to respond a plan against a particular router request
+  /**
+    * Message to respond a plan against a particular router request
     *
     * @param itineraries a vector of planned routes
     */
@@ -533,8 +533,6 @@ object BeamRouter {
     network: Network,
     networkHelper: NetworkHelper,
     geo: GeoUtils,
-    scenario: Scenario,
-    transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager
@@ -548,8 +546,6 @@ object BeamRouter {
         network,
         networkHelper,
         geo,
-        scenario,
-        transitVehicles,
         fareCalculator,
         tollCalculator,
         eventsManager
@@ -665,7 +661,8 @@ object BeamRouter {
 
   }
 
-  /** This method overwrites travel times in routingReponse with those provided in skimmer.
+  /**
+    * This method overwrites travel times in routingReponse with those provided in skimmer.
     */
   private[router] def replaceTravelTimeForCarModeWithODSkims(
     routingResponse: RoutingResponse,
@@ -715,7 +712,8 @@ object BeamRouter {
     routingResponse.copy(itineraries = updatedItineraries)
   }
 
-  /** For an OD, cycle through all hours in the day and find the maximum and minimum travel times, return as a tuple.
+  /**
+    * For an OD, cycle through all hours in the day and find the maximum and minimum travel times, return as a tuple.
     *
     * @param originUTM
     * @param destinationUTM
@@ -732,7 +730,6 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
     skimmer: ODSkims,
     origTazId: Option[Id[TAZ]],
     destTazId: Option[Id[TAZ]]
@@ -747,7 +744,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -756,7 +752,8 @@ object BeamRouter {
     (travelTimesOverDay.min, travelTimesOverDay.max)
   }
 
-  /** Computes a new travel time using the following formula: when scaling down (skimTravelTimesScalingFactor value [-1,0]) it’s a linear interp from current hour travel time to MIN.
+  /**
+    * Computes a new travel time using the following formula: when scaling down (skimTravelTimesScalingFactor value [-1,0]) it’s a linear interp from current hour travel time to MIN.
     * When scaling up, the most congested value is allowed to go to 50% longer TT than maxTime and it is a non-linear curve between MIN and MAX in the final TT that is defined, making more congested hours have a higher impact.
     */
   def interpolateTravelTime(
@@ -808,7 +805,7 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
     val arrivalTime = departureTime + departHourTravelTime
@@ -823,7 +820,6 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
         maybeOrigTazForPerformanceImprovement = origTazId,
         maybeDestTazForPerformanceImprovement = destTazId
       )
@@ -840,21 +836,22 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
       val secondsInDepartHour = arriveHour * 3600 - departureTime
       val secondsInArriveHour = arrivalTime - arriveHour * 3600
       Math
         .round(
-          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour).toDouble / (secondsInDepartHour + secondsInArriveHour).toDouble
+          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour) / (secondsInDepartHour + secondsInArriveHour).toDouble
         )
         .intValue()
     }
     ODSkimmer.Skim(time = travelTimeInS, distance = skimResult.distance, cost = skimResult.cost)
   }
 
-  /** Computes the travel time for a trip using skims but also scaling according to the skimTravelTimesScalingFactor factor.
+  /**
+    * Computes the travel time for a trip using skims but also scaling according to the skimTravelTimesScalingFactor factor.
     * This doesn’t simply scale all travel times proportionally but instead varies travel time between MAX and MIN observer for each OD over a full day.
     * See method interpolateTravelTime for details of the scaling formula.
     *
@@ -877,7 +874,7 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
+    beamConfig: BeamConfig,
     skimmer: ODSkims
   ): Int = {
     val skimTime =
@@ -890,7 +887,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -903,7 +899,6 @@ object BeamRouter {
         vehicleTypeId,
         vehicleType,
         fuelPrice,
-        beamScenario,
         skimmer,
         origTazId,
         destTazId
@@ -912,12 +907,10 @@ object BeamRouter {
       skimTime,
       minTime,
       maxTime,
-      beamScenario.beamConfig.beam.routing.skimTravelTimesScalingFactor
+      beamConfig.beam.routing.skimTravelTimesScalingFactor
     )
-    Math.max(adjustedSkimTime, beamScenario.beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
+    Math.max(adjustedSkimTime, beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
   }
-
-  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 
   sealed trait WorkMessage
 

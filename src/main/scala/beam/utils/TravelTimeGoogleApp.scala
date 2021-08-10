@@ -24,7 +24,8 @@ import org.matsim.core.router.util.{LeastCostPathCalculatorFactory, TravelDisuti
 import org.matsim.core.router.TripRouter
 import org.matsim.core.scoring.ScoringFunctionFactory
 
-/** Run it using gradle:<br>
+/**
+  * Run it using gradle:<br>
   * `./gradlew :execute -PmaxRAM=20 -PmainClass=beam.agentsim.events.handling.TravelTimeGoogleApp -PappArgs=["'--config', 'test/input/sf-light/sf-light-0.5k.conf', 'path/to/0.events.csv'"] -PlogbackCfg=logback.xml`
   */
 object TravelTimeGoogleApp extends App with StrictLogging {

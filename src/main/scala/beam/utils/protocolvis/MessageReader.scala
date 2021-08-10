@@ -8,7 +8,8 @@ import java.nio.file.{Files, Path}
 import java.util
 import scala.util.Try
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 object MessageReader extends LazyLogging {
 

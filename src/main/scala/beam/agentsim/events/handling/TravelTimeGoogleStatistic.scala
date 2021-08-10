@@ -30,7 +30,8 @@ import scala.concurrent.ExecutionContext.Implicits._
 import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class TravelTimeGoogleStatistic(
   cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,

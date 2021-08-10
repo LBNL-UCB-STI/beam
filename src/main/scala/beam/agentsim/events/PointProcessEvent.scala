@@ -15,7 +15,8 @@ import org.matsim.core.api.internal.HasPersonId
 
 import scala.collection.immutable
 
-/** Events that encode vizualization data for beam-viz that take the form of points that display for a specified period of time
+/**
+  * Events that encode vizualization data for beam-viz that take the form of points that display for a specified period of time
   */
 class PointProcessEvent(
   time: Double,

@@ -67,6 +67,9 @@ class PersonWithPersonalVehiclePlanSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
+  val homeLocation = new Coord(170308.4, 2964.6474)
+  val workLocation = new Coord(169346.4, 876.7536)
+
   describe("A PersonAgent") {
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
@@ -85,7 +88,8 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val vehicleId = Id.createVehicleId("car-dummyAgent")
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
+      val beamVehicle =
+        new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType, vehicleManagerId = VehicleManager.defaultManager)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -149,7 +153,7 @@ class PersonWithPersonalVehiclePlanSpec
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
                     .copy(
-                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(_ => 50.0),
                       endPoint = embodyRequest.leg.travelPath.endPoint
                         .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
@@ -286,7 +290,7 @@ class PersonWithPersonalVehiclePlanSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
-      val parkEvent = expectMsgType[ParkingEvent]
+      expectMsgType[ParkingEvent]
       expectMsgType[PersonCostEvent]
       expectMsgType[PersonLeavesVehicleEvent]
 
@@ -317,7 +321,8 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val vehicleId = Id.createVehicleId("bicycle-dummyAgent")
       val vehicleType = beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
+      val beamVehicle =
+        new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType, vehicleManagerId = VehicleManager.noManager)
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -380,7 +385,7 @@ class PersonWithPersonalVehiclePlanSpec
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath
                     .copy(
-                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(linkId => 50.0),
+                      linkTravelTime = embodyRequest.leg.travelPath.linkIds.map(_ => 50.0),
                       endPoint = embodyRequest.leg.travelPath.endPoint
                         .copy(time = embodyRequest.leg.startTime + (embodyRequest.leg.travelPath.linkIds.size - 1) * 50)
                     )
@@ -457,8 +462,18 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val car1 = new BeamVehicle(Id.createVehicleId("car-1"), new Powertrain(0.0), vehicleType)
-      val car2 = new BeamVehicle(Id.createVehicleId("car-2"), new Powertrain(0.0), vehicleType)
+      val car1 = new BeamVehicle(
+        Id.createVehicleId("car-1"),
+        new Powertrain(0.0),
+        vehicleType,
+        vehicleManagerId = VehicleManager.defaultManager
+      )
+      val car2 = new BeamVehicle(
+        Id.createVehicleId("car-2"),
+        new Powertrain(0.0),
+        vehicleType,
+        vehicleManagerId = VehicleManager.defaultManager
+      )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -508,7 +523,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
-      for (i <- 0 to 1) {
+      for (_ <- 0 to 1) {
         expectMsgPF() { case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
           val embodiedLeg = EmbodiedBeamLeg(
             beamLeg = leg.copy(
@@ -559,7 +574,8 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val vehicleId = Id.createVehicleId("car-1")
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
+      val beamVehicle =
+        new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType, vehicleManagerId = VehicleManager.defaultManager)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
@@ -695,9 +711,6 @@ class PersonWithPersonalVehiclePlanSpec
     }
 
   }
-
-  val homeLocation = new Coord(170308.4, 2964.6474)
-  val workLocation = new Coord(169346.4, 876.7536)
 
   private def createTestPerson(
     personId: Id[Person],

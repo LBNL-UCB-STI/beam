@@ -5,30 +5,22 @@ import java.io.{BufferedWriter, FileWriter, IOException}
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
 import beam.utils.OutputDataDescriptor
-import com.conveyal.r5.transit.TransportNetwork
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Scenario
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.ControlerEvent
 
 import scala.collection.JavaConverters._
 
-/** Generate data descriptions table for all output file generating classes.
+/**
+  * Generate data descriptions table for all output file generating classes.
   */
-class BeamOutputDataDescriptionGenerator @Inject() (
-  private val transportNetwork: TransportNetwork,
-  private val beamServices: BeamServices,
-  private val eventsManager: EventsManager,
-  private val scenario: Scenario
-) extends LazyLogging {
+class BeamOutputDataDescriptionGenerator() extends LazyLogging {
 
   private final val outputFileName = "dataDescriptors.csv"
   private final val outputFileHeader = "ClassName,OutputFile,Field,Description\n"
-  private final val writeGraphs = beamServices.beamConfig.beam.outputs.writeGraphs
 
-  /** Generates the data descriptors and writes them to the output file.
+  /**
+    * Generates the data descriptors and writes them to the output file.
     * @param event a controller event
     */
   def generateDescriptors(event: ControlerEvent): Unit = {
@@ -46,7 +38,8 @@ class BeamOutputDataDescriptionGenerator @Inject() (
     writeToFile(filePath, Some(outputFileHeader), descriptionsAsCSV, None)
   }
 
-  /** Writes data to the output file at specified path.
+  /**
+    * Writes data to the output file at specified path.
     * @param filePath path of the output file to write data to
     * @param fileHeader an optional header to be appended (if any)
     * @param data data to be written to the file
@@ -76,7 +69,8 @@ class BeamOutputDataDescriptionGenerator @Inject() (
 
 object BeamOutputDataDescriptionGenerator {
 
-  /** creates and collects instances of all output file generating classes
+  /**
+    * creates and collects instances of all output file generating classes
     * @return collected class instances
     */
   def getClassesGeneratingOutputs: Seq[OutputDataDescriptor] = List(
@@ -108,7 +102,8 @@ object BeamOutputDataDescriptionGenerator {
 
 object ScoreStatsOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -160,7 +155,8 @@ object ScoreStatsOutputs extends OutputDataDescriptor {
 
 object StopWatchOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -332,7 +328,8 @@ object StopWatchOutputs extends OutputDataDescriptor {
 
 object SummaryStatsOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -616,7 +613,8 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
 
 object CountsCompareOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -685,7 +683,8 @@ object CountsCompareOutputs extends OutputDataDescriptor {
 
 object EventOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -970,7 +969,8 @@ object EventOutputs extends OutputDataDescriptor {
 
 object LegHistogramOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -1184,7 +1184,8 @@ object LegHistogramOutputs extends OutputDataDescriptor {
 
 object RideHailTripDistanceOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -1218,7 +1219,8 @@ object RideHailTripDistanceOutputs extends OutputDataDescriptor {
 
 object TripDurationOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -1237,7 +1239,8 @@ object TripDurationOutputs extends OutputDataDescriptor {
 
 object BiasErrorGraphDataOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */
@@ -1266,7 +1269,8 @@ object BiasErrorGraphDataOutputs extends OutputDataDescriptor {
 
 object BiasNormalizedErrorGraphDataOutputs extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

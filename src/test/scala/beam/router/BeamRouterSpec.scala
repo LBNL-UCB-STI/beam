@@ -26,7 +26,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
 
-/** Specs for BeamRouter
+/**
+  * Specs for BeamRouter
   */
 class BeamRouterSpec extends AnyFlatSpec {
   it should "use odSkim travel times for car" in {
@@ -121,6 +122,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       transportNetwork = mock(classOf[TransportNetwork]),
       network = mock(classOf[Network]),
       tazTreeMap = tazMap,
+      None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,
@@ -176,7 +178,6 @@ class BeamRouterSpec extends AnyFlatSpec {
         any[Id[BeamVehicleType]],
         any[BeamVehicleType],
         any[Double],
-        any[BeamScenario],
         any[Option[Id[TAZ]]],
         any[Option[Id[TAZ]]]
       )

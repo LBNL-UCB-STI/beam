@@ -2,15 +2,18 @@ package beam.utils.data.ctpp.models
 
 sealed trait ResidenceToWorkplaceFlowGeography {
 
-  /** From Residence Geography
+  /**
+    * From Residence Geography
     */
   def from: String
 
-  /** To Residence Geography
+  /**
+    * To Residence Geography
     */
   def to: String
 
-  /** CTPP Summary Level
+  /**
+    * CTPP Summary Level
     */
   def level: String
 }

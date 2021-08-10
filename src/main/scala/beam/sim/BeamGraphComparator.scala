@@ -11,13 +11,15 @@ import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.xml.{Elem, NodeBuffer}
 
-/** @author Bhavya Latha Bandaru.
+/**
+  * @author Bhavya Latha Bandaru.
   * Generates a HTML page to compare the graphs across all iterations.
   */
 
 object BeamGraphComparator extends LazyLogging {
 
-  /** Generates the html page for graph comparison
+  /**
+    * Generates the html page for graph comparison
     * @param files Map that maps file name to the absolute file path across all iterations.
     * @param iterationsCount Total number of iterations.
     * @return Graph html as scala elem
@@ -41,7 +43,8 @@ object BeamGraphComparator extends LazyLogging {
          }
       """.stripMargin
 
-    /** On click listener for graph links
+    /**
+      * On click listener for graph links
       * @param imageObjects A json object containing required details of the image file
       * @return
       */
@@ -123,7 +126,8 @@ object BeamGraphComparator extends LazyLogging {
     </html>
   }
 
-  /** @param event A matsim controller event
+  /**
+    * @param event A matsim controller event
     * @param firstIteration value of first iteration
     * @param lastIteration value of last iteration
     */

@@ -88,7 +88,6 @@ class UrbansimReaderV2(
       .iterator()
       .map(b => b.blockId -> b)
       .toMap
-    logger.info(s"Read ${blocks.size} blocks")
     val merger = new HouseholdMerger(blocks)
 
     logger.debug("Merging blocks into households...")

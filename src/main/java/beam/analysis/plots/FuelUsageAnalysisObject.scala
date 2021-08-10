@@ -10,7 +10,8 @@ object FuelUsageAnalysisObject extends OutputDataDescriptor {
 
   private val fileBaseName = FuelUsageAnalysis.fileBaseName
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

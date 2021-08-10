@@ -4,7 +4,8 @@ sealed trait UtilityFunctionOperation {
   def apply(value: Double): Double
 }
 
-/** Operation one can execute on a utility function.
+/**
+  * Operation one can execute on a utility function.
   */
 
 object UtilityFunctionOperation {

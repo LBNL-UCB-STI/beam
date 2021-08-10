@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingType, ParkingZone, ParkingZoneId, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
@@ -15,21 +15,42 @@ import scala.util.Random
 case class ParkingStall(
   geoId: Id[_],
   tazId: Id[TAZ],
-  parkingZoneId: Int,
+  parkingZoneId: Id[ParkingZoneId],
   locationUTM: Location,
   costInDollars: Double,
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
   reservedFor: Seq[VehicleCategory],
-  vehicleManager: Option[Id[VehicleManager]] = None
+  vehicleManagerId: Id[VehicleManager]
 )
 
 object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
 
-  /** for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available
+  def init[GEO: GeoLevel](
+    parkingZone: ParkingZone[GEO],
+    tazId: Id[TAZ],
+    location: Location,
+    costInDollars: Double
+  ): ParkingStall = {
+    ParkingStall(
+      parkingZone.geoId,
+      tazId,
+      parkingZone.parkingZoneId,
+      location,
+      costInDollars,
+      parkingZone.chargingPointType,
+      parkingZone.pricingModel,
+      parkingZone.parkingType,
+      Seq.empty,
+      parkingZone.vehicleManagerId
+    )
+  }
+
+  /**
+    * for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available
     * @param coord the location for the stall
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
@@ -42,10 +63,12 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = Seq.empty
+    reservedFor = Seq.empty,
+    vehicleManagerId = VehicleManager.defaultManager
   )
 
-  /** take a stall from the infinite parking zone, with a random location by default from planet-wide UTM values
+  /**
+    * take a stall from the infinite parking zone, with a random location by default from planet-wide UTM values
     * @param random random number generator
     * @param boundingBox bounding box
     * @param costInDollars the cost of this stall
@@ -71,12 +94,14 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = Seq.empty
+      reservedFor = Seq.empty,
+      vehicleManagerId = VehicleManager.defaultManager
     )
   }
 
   //#Art
-  /** take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
+  /**
+    * take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
     * This should only kick in when all other (potentially non-free, non-colocated) stalls in the search area are
     * exhausted
     *
@@ -96,12 +121,14 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = Seq.empty
+    reservedFor = Seq.empty,
+    vehicleManagerId = VehicleManager.defaultManager
   )
 
-  /** Convenience method to convert a [[ParkingAlternative]] to a [[ParkingStall]]
+  /**
+    * Convenience method to convert a [[ParkingAlternative]] to a [[ParkingStall]]
     *
-    * @param parkingAlternative
+    * @param parkingAlternative Parking Alternative
     * @return
     */
   def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(implicit
@@ -117,7 +144,8 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      parkingAlternative.parkingZone.reservedFor
+      parkingAlternative.parkingZone.reservedFor,
+      parkingAlternative.parkingZone.vehicleManagerId
     )
   }
 

@@ -14,21 +14,25 @@ import org.supercsv.prefs.CsvPreference
 import scala.collection.mutable
 import scala.sys.process.Process
 
-/** Wrapper around routing framework
+/**
+  * Wrapper around routing framework
   */
 trait RoutingFrameworkWrapper {
 
-  /** Generates a graph in binary format in tempDir
+  /**
+    * Generates a graph in binary format in tempDir
     *
     * @return generated graph
     */
   def generateGraph(): RoutingFrameworkGraph
 
-  /** Generates random ods based on binary graph
+  /**
+    * Generates random ods based on binary graph
     */
   def generateOd(): Unit
 
-  /** Generate odpairs.csv in tempDir based on incoming stream of ods
+  /**
+    * Generate odpairs.csv in tempDir based on incoming stream of ods
     *
     * @param iteration iteration number
     * @param hour hour
@@ -36,7 +40,8 @@ trait RoutingFrameworkWrapper {
     */
   def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit
 
-  /** Assign traffic and get results of last iteration
+  /**
+    * Assign traffic and get results of last iteration
     *
     * @param iteration iteration number
     * @param hour hour

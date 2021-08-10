@@ -46,7 +46,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
   )
   val scenario: MutableScenario = scenarioBuilt
   val injector: Injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-  val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  val beamServices: BeamServices = buildBeamServices(injector)
 
   def createBackgroundSkimsCreator(
     modes: Seq[BeamMode],
@@ -84,7 +84,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     val finalSkimmer = Await.result(skimsCreator.getResult, 10.minutes).abstractSkimmer
     skimsCreator.stop()
 
-    val skims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.readOnlySkim.currentSkim
+    val skims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.getCurrentSkim
     val keys = skims.keys.map(_.asInstanceOf[ActivitySimSkimmerKey]).toSeq
 
     keys.count(_.pathType != ActivitySimPathType.WALK) shouldBe 0
@@ -105,7 +105,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     val finalSkimmer = Await.result(skimsCreator.getResult, 10.minutes).abstractSkimmer
     skimsCreator.stop()
 
-    val skims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.readOnlySkim.currentSkim
+    val skims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.getCurrentSkim
     val keys = skims.keys.map(_.asInstanceOf[ActivitySimSkimmerKey]).toSeq
 
     keys.count(_.pathType != ActivitySimPathType.SOV) shouldBe 0
@@ -126,7 +126,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     val finalSkimmer = Await.result(skimsCreator.getResult, 10.minutes).abstractSkimmer
     skimsCreator.stop()
 
-    val skims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.readOnlySkim.currentSkim
+    val skims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.getCurrentSkim
 
     val pathTypeToSkimsCount = skims.keys
       .map(_.asInstanceOf[ActivitySimSkimmerKey])
@@ -163,7 +163,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     val finalSkimmer = Await.result(skimsCreator.getResult, 10.minutes).abstractSkimmer
     skimsCreator.stop()
 
-    val skims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.readOnlySkim.currentSkim
+    val skims: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal] = finalSkimmer.getCurrentSkim
 
     val pathTypeToSkimsCount = skims.keys
       .map(_.asInstanceOf[ActivitySimSkimmerKey])

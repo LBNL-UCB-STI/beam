@@ -14,7 +14,8 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
   private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
 
-  /** agencies is a Map of FareRule by agencyId
+  /**
+    * agencies is a Map of FareRule by agencyId
     */
   val agencies: Map[String, Vector[BeamFareRule]] = loadBeamFares
 
@@ -32,7 +33,8 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
     }
   }
 
-  /** Use to initialize the calculator by loading GTFS feeds and populates agencies map.
+  /**
+    * Use to initialize the calculator by loading GTFS feeds and populates agencies map.
     *
     * @param directory Path of the directory that contains gtfs files to load
     */
@@ -40,7 +42,8 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
 
     var agencies: Map[String, Vector[BeamFareRule]] = Map()
 
-    /** Checks whether its a valid gtfs feed and has fares data.
+    /**
+      * Checks whether its a valid gtfs feed and has fares data.
       */
     val hasFares: FileFilter = file => {
       var isFareExist = false
@@ -56,7 +59,8 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
       isFareExist
     }
 
-    /** Takes GTFSFeed and loads agencies map with fare and its rules.
+    /**
+      * Takes GTFSFeed and loads agencies map with fare and its rules.
       *
       * @param feed GTFSFeed
       */
@@ -157,7 +161,8 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
 
 object FareCalculator {
 
-  /** A FareAttribute (defined in fare_attributes.txt) defines a fare class. A FareAttribute has a price,
+  /**
+    * A FareAttribute (defined in fare_attributes.txt) defines a fare class. A FareAttribute has a price,
     * currency and whether it must be purchased on board the service or before boarding.
     * It also defines the number of transfers it can be used for, and the duration it is valid.
     *
@@ -183,7 +188,8 @@ object FareCalculator {
     transferDuration: Int
   )
 
-  /** The FareRule lets you specify how fares in fare_attributes.txt apply to an itinerary.
+  /**
+    * The FareRule lets you specify how fares in fare_attributes.txt apply to an itinerary.
     * Most fare structures use some combination of the following rules:
     * Fare depends on origin or destination stations.
     * Fare depends on which zones the itinerary passes through.
@@ -206,7 +212,8 @@ object FareCalculator {
     containsId: String
   )
 
-  /** @param fare            Contains a fare object from fare_attributes.
+  /**
+    * @param fare            Contains a fare object from fare_attributes.
     * @param agencyId        Defines an agency for the specified route. This value is referenced from the agency.txt file.
     * @param patternIndex    Represents the pattern index from TransitJournyID to locate SegmentPattern from a specific TransitSegment
     * @param segmentDuration Defines the leg duration from start of itinerary to end of segment leg
@@ -257,7 +264,8 @@ object FareCalculator {
     t._2.view.map(_.routeId).distinct.forall(id => id == routeId || id == null) &&
     t._2.view.map(_.containsId).toSet.equals(containsIds)
 
-  /** Take an itinerary specific collection of @BeamFareSegment and apply transfer rules
+  /**
+    * Take an itinerary specific collection of @BeamFareSegment and apply transfer rules
     * across segment fares based of GTFS specs (https://developers.google.com/transit/gtfs/reference/#fare_attributestxt)
     *
     * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
@@ -267,7 +275,8 @@ object FareCalculator {
     fareSegments: IndexedSeq[BeamFareSegment]
   ): IndexedSeq[BeamFareSegment] = {
 
-    /** Apply filter on fare segments, agency by agency in order
+    /**
+      * Apply filter on fare segments, agency by agency in order
       *
       * @param fareSegments collection of all @BeamFareSegment for a specific itinerary
       * @return a resultant collection of @BeamFareSegment
@@ -285,7 +294,8 @@ object FareCalculator {
       }
     }
 
-    /** A helper method to iterate different parts of fare segment collection
+    /**
+      * A helper method to iterate different parts of fare segment collection
       *
       * @param fareSegments collection of @BeamFareSegment to apply transfer rule/filter
       * @param trans transfer number under processing
@@ -296,7 +306,8 @@ object FareCalculator {
       trans: Int = 0
     ): IndexedSeq[BeamFareSegment] = {
 
-      /** Generate a next transfer number /option
+      /**
+        * Generate a next transfer number /option
         *
         * 0 - No transfers permitted on this fare.
         * 1 - Passenger may transfer once.
@@ -315,7 +326,8 @@ object FareCalculator {
             case _     => 0
           }
 
-      /** Apply transfer rules on fare segments
+      /**
+        * Apply transfer rules on fare segments
         * @param lhs takes fare segments
         * @return
         */

@@ -6,7 +6,8 @@ import java.nio.file.{Files, Path, Paths}
 import beam.experiment.ExperimentApp.loadExperimentDefs
 import org.yaml.snakeyaml.constructor.Constructor
 
-/** Prov
+/**
+  * Prov
   */
 class ExperimentApp extends App {
   val EXPERIMENTS_TAG = "experiments"

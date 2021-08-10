@@ -7,7 +7,8 @@ import org.matsim.vehicles.EngineInformation
 
 import scala.collection.immutable
 
-/** These enumerations are defined to simplify extensibility of VehicleData.
+/**
+  * These enumerations are defined to simplify extensibility of VehicleData.
   */
 //TODO: How do we get fuel-level consideration in here?
 //TODO: Consider later specifying via json using Circe
@@ -19,11 +20,13 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
   sealed abstract class Electric extends EnumEntry
 
-  /** Attribute names related to gasoline fuel energy consumption
+  /**
+    * Attribute names related to gasoline fuel energy consumption
     */
   sealed abstract class Gasoline extends EnumEntry
 
-  /** @param joulesPerMeter joules per meter
+  /**
+    * @param joulesPerMeter joules per meter
     */
   class Powertrain(joulesPerMeter: Double) {
 
@@ -31,7 +34,7 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
       joulesPerMeter * distanceInMeters
     }
 
-    def getRateInJoulesPerMeter(fuelConsumption: FuelConsumptionData): Double = joulesPerMeter
+    def getRateInJoulesPerMeter: Double = joulesPerMeter
 
     def estimateConsumptionInJoules(fuelConsumption: IndexedSeq[FuelConsumptionData]): Double = {
       joulesPerMeter * fuelConsumption.map(_.linkLength.getOrElse(0.0)).sum
@@ -41,7 +44,8 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
 
   case object Capacity extends EnergyEconomyAttributes with LowerCamelcase
 
-  /** Attribute names related to power consumption properties of EVs
+  /**
+    * Attribute names related to power consumption properties of EVs
     */
   case object Electric extends Enum[Electric] {
 

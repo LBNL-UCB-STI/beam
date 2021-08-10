@@ -5,7 +5,8 @@ import beam.utils.protocolvis.MessageReader._
 import java.nio.file.Path
 import scala.util.matching.Regex
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 object SequenceDiagram {
 

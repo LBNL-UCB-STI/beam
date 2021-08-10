@@ -13,7 +13,8 @@ object RideHailWaitingAnalysisObject extends OutputDataDescriptor {
   private val rideHailIndividualWaitingTimesFileBaseName =
     RideHailWaitingAnalysis.rideHailIndividualWaitingTimesFileBaseName
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

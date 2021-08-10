@@ -10,7 +10,8 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
 
-/** represents a Traffic Analysis Zone
+/**
+  * represents a Traffic Analysis Zone
   * @param tazId unique identifier of this TAZ
   * @param coord location of the centroid of this TAZ
   * @param areaInSquareMeters area of TAZ
@@ -28,7 +29,8 @@ object TAZ {
 
   val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
 
-  /** performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius
+  /**
+    * performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius
     * @param tazQuadTree tree to search
     * @param searchCenter central location from which concentric discs will be built with an expanding radius
     * @param startRadius the beginning search radius
@@ -61,7 +63,8 @@ object TAZ {
     }
   }
 
-  /** performs a concentric ring search from the present location to find TAZs up to the SearchMaxRadius
+  /**
+    * performs a concentric ring search from the present location to find TAZs up to the SearchMaxRadius
     * @param tazQuadTree tree to search
     * @param searchCenter central location from which concentric discs will be built with an expanding radius
     * @param startRadius the beginning search radius

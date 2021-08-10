@@ -6,7 +6,8 @@ import beam.utils.protocolvis.SequenceDiagram.{userFriendlyActorName, userFriend
 import java.nio.file.Path
 import scala.collection.immutable
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 object ActorAsState {
 

@@ -7,7 +7,8 @@ object RideHailVehicleId {
   private val VEHICLE_ID_PREFIX = f"rideHailVehicle-"
   private val FLEET_SEPARATOR = "@"
 
-  /** Create a [[RideHailVehicleId]] from an [[Id[BeamVehicle]]].
+  /**
+    * Create a [[RideHailVehicleId]] from an [[Id[BeamVehicle]]].
     *
     * @param vehicleId Ride-hail vehicle ID.
     * @return Corresponding [[RideHailVehicleId]]
@@ -32,7 +33,8 @@ object RideHailVehicleId {
   }
 }
 
-/** RideHailVehicleId is a wrapper around [[Id[BeamVehicle]]] to better identify ride-hail vehicles.
+/**
+  * RideHailVehicleId is a wrapper around [[Id[BeamVehicle]]] to better identify ride-hail vehicles.
   *
   * The beamVehicleId (e.g., rideHailVehicle-1@myFleet) is comprised of three parts:
   * 1. Prefix: "rideHailVehicle-" which indicates that this is a ride-hail vehicle.
@@ -52,7 +54,7 @@ object RideHailVehicleId {
 case class RideHailVehicleId(id: String, fleetId: String) extends Ordered[RideHailVehicleId] {
 
   val beamVehicleId: Id[BeamVehicle] = Id.create(
-    f"${RideHailVehicleId.VEHICLE_ID_PREFIX}${id}${RideHailVehicleId.FLEET_SEPARATOR}${fleetId}",
+    f"${RideHailVehicleId.VEHICLE_ID_PREFIX}$id${RideHailVehicleId.FLEET_SEPARATOR}$fleetId",
     classOf[BeamVehicle]
   )
 

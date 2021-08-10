@@ -19,7 +19,8 @@ import org.matsim.api.core.v01.population.Person
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 
-/** ModeChoiceLCCM
+/**
+  * ModeChoiceLCCM
   *
   * Data used by mode choice model:
   * --vehicleTime
@@ -243,7 +244,7 @@ class ModeChoiceLCCM(
           walkTime,
           waitTime,
           bikeTime,
-          totalCost.toDouble,
+          totalCost,
           altAndIdx._2
         )
       }

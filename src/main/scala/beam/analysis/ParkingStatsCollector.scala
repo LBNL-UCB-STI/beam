@@ -2,11 +2,9 @@ package beam.analysis
 
 import java.util
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events._
-import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
+import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
-import beam.sim.metrics.MetricsSupport
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
@@ -21,7 +19,8 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
-/** Collects the inbound and outbound parking overhead times and cost stats.
+/**
+  * Collects the inbound and outbound parking overhead times and cost stats.
   *
   * @param beamServices an instance of beam services
   */
@@ -44,7 +43,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
   // Base name of the file that stores the output of the parking stats
   private val fileBaseName = "parkingStats"
 
-  /** Creates the required output analysis files at the end of an iteration.
+  /**
+    * Creates the required output analysis files at the end of an iteration.
     *
     * @param event an iteration end event.
     */
@@ -53,7 +53,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     writeToCsv(event.getIteration, parkingStatsByBinAndTaz, event.getServices.getControlerIO)
   }
 
-  /** Processes the collected stats on occurrence of the required events.
+  /**
+    * Processes the collected stats on occurrence of the required events.
     *
     * @param event A beam event
     */
@@ -150,7 +151,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           if (personOutboundParkingStats.departureTime.isDefined) {
             //process the collected inbound stats for the person
             processOutboundParkingStats(
-              leavingParkingEvent.driverId,
               personOutboundParkingStats
                 .copy(leaveParkingTime = Some(leavingParkingEvent.getTime), parkingTAZ = parkingTaz)
             )
@@ -167,7 +167,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         beamServices.simMetricCollector.writeIteration(
           "parking",
           SimulationTime(parkEvent.time.toInt),
-          1,
           tags = Map("parking-type" -> parkEvent.parkingType.toString)
         )
 
@@ -201,7 +200,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
             // Calculate the inbound parking overhead time
             val arrivalTime: Option[Double] = Some(pathTraversalEvent.arrivalTime)
             //process the collected inbound stats for the person
-            processInboundParkingStats(driverId, personInboundParkingStats.copy(arrivalTime = arrivalTime))
+            processInboundParkingStats(personInboundParkingStats.copy(arrivalTime = arrivalTime))
             //stop tracking the person for inbound stats
             personInboundParkingStatsTracker.remove(driverId)
           }
@@ -215,12 +214,12 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     List("bus", "train", "subway", "tram", "rail", "cable_car", "ferry")
       .exists(beamVehicleId.toString.toLowerCase.startsWith)
 
-  /** Processes the collected outbound parking stats of a person
+  /**
+    * Processes the collected outbound parking stats of a person
     *
     * @param personOutboundParkingStats The outbound parking related stats of a person
     */
   private def processOutboundParkingStats(
-    personId: String,
     personOutboundParkingStats: ParkingStatsCollector.PersonOutboundParkingStats
   ): Unit = {
 
@@ -254,12 +253,12 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     }
   }
 
-  /** Processes the collected outbound parking stats of a person
+  /**
+    * Processes the collected outbound parking stats of a person
     *
     * @param personInboundParkingStats The outbound parking related stats of a person
     */
   private def processInboundParkingStats(
-    personId: String,
     personInboundParkingStats: ParkingStatsCollector.PersonInboundParkingStats
   ): Unit = {
 
@@ -297,7 +296,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     }
   }
 
-  /** Write the collected parking stats data to a csv file.
+  /**
+    * Write the collected parking stats data to a csv file.
     *
     * @param iterationNumber the current iteration
     * @param parkingStatsByBinAndTaz parking overhead times grouped by the time bin and parking taz
@@ -339,7 +339,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     }
   }
 
-  /** Handles the post processing steps and resets the state.
+  /**
+    * Handles the post processing steps and resets the state.
     */
   override def resetStats(): Unit = {
     personOutboundParkingStatsTracker.clear()
@@ -380,7 +381,8 @@ object ParkingStatsCollector extends OutputDataDescriptor {
   )
   final val EMPTY_PERSON_INBOUND_STATS = PersonInboundParkingStats(None, None, None, None)
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

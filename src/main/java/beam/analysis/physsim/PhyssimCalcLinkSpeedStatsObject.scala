@@ -10,7 +10,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object PhyssimCalcLinkSpeedStatsObject extends OutputDataDescriptor {
 
-  /** Get description of fields written to the output files.
+  /**
+    * Get description of fields written to the output files.
     *
     * @return list of data description objects
     */

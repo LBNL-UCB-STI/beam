@@ -13,6 +13,8 @@ object RepositionAlgorithms {
     config.name match {
       case "min-availability-undersupply-algorithm" =>
         AvailabilityBasedRepositioningType(config)
+      case "min-availability-observed-algorithm" =>
+        AvailabilityBehaviorBasedRepositioningType(config)
       case _ =>
         throw new RuntimeException("Unknown reposition algorithm type")
     }
@@ -22,14 +24,14 @@ object RepositionAlgorithms {
 trait RepositionAlgorithmType {
 
   def getInstance(
-    vehicleManager: Id[VehicleManager],
+    vehicleManagerId: Id[VehicleManager],
     beamServices: BeamServices
   ): RepositionAlgorithm
   def getRepositionTimeBin: Int
   def getStatTimeBin: Int
 }
 
-case class AvailabilityBasedRepositioningType(
+case class AvailabilityBehaviorBasedRepositioningType(
   params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
 ) extends RepositionAlgorithmType {
 
@@ -37,11 +39,31 @@ case class AvailabilityBasedRepositioningType(
     vehicleManager: Id[VehicleManager],
     beamServices: BeamServices
   ): RepositionAlgorithm = {
-    AvailabilityBasedRepositioning(
+    AvailabilityBehaviorBasedRepositioning(
       params.repositionTimeBin,
       params.statTimeBin,
       params.min_availability_undersupply_algorithm.get.matchLimit,
       vehicleManager,
+      beamServices
+    )
+  }
+  def getRepositionTimeBin: Int = params.repositionTimeBin
+  def getStatTimeBin: Int = params.statTimeBin
+}
+
+case class AvailabilityBasedRepositioningType(
+  params: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition
+) extends RepositionAlgorithmType {
+
+  override def getInstance(
+    vehicleManagerId: Id[VehicleManager],
+    beamServices: BeamServices
+  ): RepositionAlgorithm = {
+    AvailabilityBasedRepositioning(
+      params.repositionTimeBin,
+      params.statTimeBin,
+      params.min_availability_undersupply_algorithm.get.matchLimit,
+      vehicleManagerId,
       beamServices
     )
   }

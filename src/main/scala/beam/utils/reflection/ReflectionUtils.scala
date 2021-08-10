@@ -10,11 +10,13 @@ import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-/** Created by dserdiuk on 5/19/17.
+/**
+  * Created by dserdiuk on 5/19/17.
   */
 trait ReflectionUtils {
 
-  /** @return package name to scan in
+  /**
+    * @return package name to scan in
     */
   def packageName: String
 
@@ -82,7 +84,7 @@ object ReflectionUtils {
           }
 
         } catch {
-          case e: Exception =>
+          case _: Exception =>
         }
 
         if (level > 0) {

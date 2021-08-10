@@ -11,7 +11,8 @@ import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) extends AbstractSkimmerReadOnly {
 

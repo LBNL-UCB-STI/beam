@@ -13,7 +13,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
 
-/** @author Dmitry Openkov
+/**
+  * @author Dmitry Openkov
   */
 class TransitCrowdingSkimmer @Inject() (
   matsimServices: MatsimServices,

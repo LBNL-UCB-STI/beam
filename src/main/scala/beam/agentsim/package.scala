@@ -9,7 +9,8 @@ import org.matsim.vehicles.Vehicle
 
 import scala.language.implicitConversions
 
-/** Created by sfeygin on 1/27/17.
+/**
+  * Created by sfeygin on 1/27/17.
   */
 package object agentsim {
 

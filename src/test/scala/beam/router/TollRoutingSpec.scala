@@ -70,8 +70,6 @@ class TollRoutingSpec
         networkCoordinator.network,
         networkHelper,
         new GeoUtilsImpl(beamConfig),
-        scenario,
-        scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator,
         eventsManager = mock(classOf[EventsManager])
@@ -138,8 +136,6 @@ class TollRoutingSpec
           networkCoordinator.network,
           new NetworkHelperImpl(networkCoordinator.network),
           new GeoUtilsImpl(beamScenario.beamConfig),
-          scenario,
-          scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator,
           eventsManager = mock(classOf[EventsManager])
