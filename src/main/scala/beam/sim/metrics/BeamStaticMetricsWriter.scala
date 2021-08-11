@@ -94,7 +94,16 @@ object BeamStaticMetricsWriter {
         val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
         val (chargingDepots, _) =
           ParkingZoneFileUtils
-            .fromFile[TAZ](chargingDepotsFilePath, rand, VehicleManager.defaultManager, parkingStallCountScalingFactor)
+            .fromFile[TAZ](
+              chargingDepotsFilePath,
+              rand,
+              VehicleManager
+                .createIdUsingUnique(
+                  beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
+                  VehicleManager.BEAMRideHail
+                ),
+              parkingStallCountScalingFactor
+            )
 
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
