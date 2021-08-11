@@ -466,6 +466,7 @@ class RideHailAgent(
               tick,
               currentBeamVehicle,
               stall,
+              Id.createPersonId(id),
               triggerId,
               shiftStatus = if (isCurrentlyOnShift) { OnShift }
               else { OffShift }
@@ -823,6 +824,7 @@ class RideHailAgent(
                 tick,
                 currentBeamVehicle,
                 stall,
+                Id.createPersonId(id),
                 triggerId,
                 shiftStatus = if (isCurrentlyOnShift) { OnShift }
                 else { OffShift }
@@ -1151,6 +1153,7 @@ class RideHailAgent(
             tick,
             currentBeamVehicle,
             stall,
+            Id.createPersonId(id),
             ev.triggerId,
             shiftStatus = if (isCurrentlyOnShift) { OnShift }
             else { OffShift }

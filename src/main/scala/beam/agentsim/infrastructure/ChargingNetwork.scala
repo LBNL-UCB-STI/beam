@@ -10,6 +10,7 @@ import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
@@ -85,12 +86,13 @@ class ChargingNetwork[GEO: GeoLevel](
     vehicle: BeamVehicle,
     stall: ParkingStall,
     theSender: ActorRef,
+    personId: Id[Person],
     shiftStatus: ShiftStatus = NotApplicable
   ): Option[(ChargingVehicle, ConnectionStatus.Value)] = {
     lookupStation(stall.parkingZoneId)
       .map { x =>
         vehicle.useParkingStall(stall)
-        Some(x.connect(tick, vehicle, stall, theSender, shiftStatus))
+        Some(x.connect(tick, vehicle, stall, theSender, personId, shiftStatus))
       }
       .getOrElse {
         logger.error(
@@ -270,6 +272,7 @@ object ChargingNetwork {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       theSender: ActorRef,
+      personId: Id[Person],
       shiftStatus: ShiftStatus = NotApplicable
     ): (ChargingVehicle, ConnectionStatus.Value) =
       vehicles.get(vehicle.id) match {
@@ -278,7 +281,17 @@ object ChargingNetwork {
           val (sessionTime, status) = if (numAvailableChargers > 0) (tick, Connected) else (-1, WaitingToCharge)
           val listStatus = ListBuffer(status)
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, sessionTime, theSender, listStatus, shiftStatus = shiftStatus)
+            ChargingVehicle(
+              vehicle,
+              stall,
+              this,
+              tick,
+              sessionTime,
+              theSender,
+              personId,
+              listStatus,
+              shiftStatus = shiftStatus
+            )
           status match {
             case Connected => connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
             case _         => waitingLineInternal.enqueue(chargingVehicle)
@@ -326,6 +339,7 @@ object ChargingNetwork {
     arrivalTime: Int,
     sessionStartTime: Int,
     theSender: ActorRef,
+    personId: Id[Person],
     connectionStatus: ListBuffer[ConnectionStatus.ConnectionStatus],
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle],
     shiftStatus: ShiftStatus = NotApplicable
