@@ -182,7 +182,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
             .fromFile[Link](
               "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
               new Random(777934L),
-              defaultVehicleManagerId = VehicleManager.defaultManager
+              defaultReservedFor = VehicleManager.defaultManager
             )
         parkingZones should have size 2990
         val collapsed = HierarchicalParkingManager.collapse(parkingZones)

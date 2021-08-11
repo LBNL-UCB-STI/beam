@@ -14,7 +14,6 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 class ParkingFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -26,7 +25,6 @@ class ParkingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends InfrastructureFunctions[GEO](
-      vehicleManagerId,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,
@@ -175,10 +173,6 @@ class ParkingFunctions[GEO: GeoLevel](
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
-    val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
-      zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
-    )
-
     val isValidTime = inquiry.beamVehicle.forall(vehicle =>
       zone.timeRestrictions
         .get(vehicle.beamVehicleType.vehicleCategory)
@@ -186,10 +180,10 @@ class ParkingFunctions[GEO: GeoLevel](
     )
 
     val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-      zone.vehicleManagerId == VehicleManager.defaultManager || zone.vehicleManagerId == vehicle.vehicleManagerId
+      zone.reservedFor == VehicleManager.defaultManager || zone.reservedFor == vehicle.vehicleManagerId
     }
 
-    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager
+    hasAvailability & validParkingType & isValidTime & isValidVehicleManager
   }
 
   /**

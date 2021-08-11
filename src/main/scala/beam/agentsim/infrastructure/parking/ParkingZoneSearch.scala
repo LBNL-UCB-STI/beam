@@ -228,7 +228,6 @@ object ParkingZoneSearch {
               parkingZone.pricingModel,
               parkingType,
               parkingZone.reservedFor,
-              parkingZone.vehicleManagerId,
               activityLocationUTM
             )
 

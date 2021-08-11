@@ -361,7 +361,6 @@ object DefaultRideHailDepotParkingManager {
     ) {
       override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
         new DefaultRidehailFunctions(
-          vehicleManagerId,
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,

@@ -22,7 +22,6 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 abstract class InfrastructureFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -84,7 +83,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZone.defaultInit(
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
-      vehicleManagerId,
+      VehicleManager.defaultManager,
       UbiqiutousParkingAvailability
     )
 

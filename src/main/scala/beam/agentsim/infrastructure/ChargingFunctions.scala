@@ -11,7 +11,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -23,7 +22,6 @@ class ChargingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends ParkingFunctions[GEO](
-      vehicleManagerId,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,

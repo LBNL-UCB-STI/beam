@@ -69,9 +69,9 @@ class PowerController(
         // PUBLISH
         val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
           Map(
-            "vehicleManager" -> station.zone.vehicleManagerId,
-            "parkingZoneId"  -> station.zone.parkingZoneId,
-            "estimatedLoad"  -> powerInKW
+            "reservedFor"   -> station.zone.reservedFor,
+            "parkingZoneId" -> station.zone.parkingZoneId,
+            "estimatedLoad" -> powerInKW
           )
         }
         beamFederate.publishJSON(msgToPublish.toList)
@@ -88,11 +88,11 @@ class PowerController(
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
-          val managerId = x("vehicleManager").asInstanceOf[String] match {
+          val reservedFor = x("reservedFor").asInstanceOf[String] match {
             case managerIdString if managerIdString.isEmpty => VehicleManager.defaultManager
             case managerIdString                            => Id.create(managerIdString, classOf[VehicleManager])
           }
-          val chargingNetwork = chargingNetworkMap(managerId)
+          val chargingNetwork = chargingNetworkMap(reservedFor)
           chargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
             case Some(station) =>
               Some(

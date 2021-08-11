@@ -14,10 +14,8 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
-class ZonalParkingManager[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-) extends ParkingNetwork[GEO](vehicleManagerId, parkingZones) {
+class ZonalParkingManager[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+    extends ParkingNetwork[GEO](parkingZones) {
 
   protected val parkingZoneTree: ZoneSearchTree[GEO] =
     ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
@@ -40,7 +38,6 @@ object ZonalParkingManager extends LazyLogging {
     * @return an instance of the ZonalParkingManager class
     */
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -52,7 +49,7 @@ object ZonalParkingManager extends LazyLogging {
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
   ): ZonalParkingManager[GEO] = {
-    new ZonalParkingManager(vehicleManagerId, parkingZones) {
+    new ZonalParkingManager(parkingZones) {
       if (maxSearchRadius < minSearchRadius) {
         logger.warn(
           s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of $minSearchRadius; no searches will occur with these settings."
@@ -60,7 +57,6 @@ object ZonalParkingManager extends LazyLogging {
       }
       override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
         new ParkingFunctions(
-          vehicleManagerId,
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,
@@ -82,7 +78,6 @@ object ZonalParkingManager extends LazyLogging {
     * @return an instance of the ZonalParkingManager class
     */
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -92,7 +87,6 @@ object ZonalParkingManager extends LazyLogging {
     distanceFunction: (Coord, Coord) => Double
   ): ZonalParkingManager[GEO] = {
     ZonalParkingManager[GEO](
-      vehicleManagerId,
       parkingZones,
       geoQuadTree,
       idToGeoMapping,
@@ -115,7 +109,6 @@ object ZonalParkingManager extends LazyLogging {
     * @return
     */
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     parkingDescription: Iterator[String],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -130,11 +123,10 @@ object ZonalParkingManager extends LazyLogging {
   ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
-      vehicleManagerId,
+      VehicleManager.defaultManager,
       new Random(seed)
     )
     ZonalParkingManager[GEO](
-      vehicleManagerId,
       parking.zones.filter(_._2.chargingPointType.isEmpty).toMap,
       geoQuadTree,
       idToGeoMapping,
@@ -154,13 +146,11 @@ object ZonalParkingManager extends LazyLogging {
     * @return an instance of the ZonalParkingManager class
     */
   def init(
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     envelopeInUTM: Envelope,
     beamServices: BeamServices
   ): ZonalParkingManager[TAZ] = {
     ZonalParkingManager[TAZ](
-      vehicleManagerId,
       parkingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
@@ -177,7 +167,6 @@ object ZonalParkingManager extends LazyLogging {
     * @return an instance of the ZonalParkingManager class
     */
   def init(
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
     geoQuadTree: QuadTree[Link],
     idToGeoMapping: scala.collection.Map[Id[Link], Link],
@@ -186,7 +175,6 @@ object ZonalParkingManager extends LazyLogging {
     beamServices: BeamServices
   ): ZonalParkingManager[Link] = {
     ZonalParkingManager[Link](
-      vehicleManagerId,
       parkingZones,
       geoQuadTree,
       idToGeoMapping,

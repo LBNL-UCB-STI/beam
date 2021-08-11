@@ -25,8 +25,7 @@ class ParkingZone[GEO](
   val parkingType: ParkingType,
   var stallsAvailable: Int,
   val maxStalls: Int,
-  val reservedFor: Seq[VehicleCategory],
-  val vehicleManagerId: Id[VehicleManager],
+  val reservedFor: Id[VehicleManager],
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
@@ -61,7 +60,6 @@ class ParkingZone[GEO](
       this.stallsAvailable,
       if (maxStalls == -1) this.maxStalls else maxStalls,
       this.reservedFor,
-      this.vehicleManagerId,
       this.chargingPointType,
       this.pricingModel,
       this.timeRestrictions,
@@ -100,10 +98,9 @@ object ParkingZone extends LazyLogging {
     parkingZoneId: Id[ParkingZoneId],
     geoId: Id[GEO],
     parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager],
+    reservedFor: Id[VehicleManager],
     stallsAvailable: Int = 0,
     maxStalls: Int = 0,
-    reservedFor: Seq[VehicleCategory] = Seq.empty[VehicleCategory],
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
@@ -117,7 +114,6 @@ object ParkingZone extends LazyLogging {
       stallsAvailable,
       maxStalls,
       reservedFor,
-      vehicleManagerId,
       chargingPointType,
       pricingModel,
       timeRestrictions,
@@ -138,9 +134,8 @@ object ParkingZone extends LazyLogging {
     parkingZoneIdMaybe: Option[Id[ParkingZoneId]],
     geoId: Id[GEO],
     parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager],
+    reservedFor: Id[VehicleManager],
     maxStalls: Int = 0,
-    reservedFor: Seq[VehicleCategory] = Seq.empty[VehicleCategory],
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
@@ -150,16 +145,15 @@ object ParkingZone extends LazyLogging {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
       case _ =>
-        constructParkingZoneKey(vehicleManagerId, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
+        constructParkingZoneKey(reservedFor, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
     }
     ParkingZone[GEO](
       parkingZoneId,
       geoId,
       parkingType,
-      vehicleManagerId,
-      maxStalls,
-      maxStalls,
       reservedFor,
+      maxStalls,
+      maxStalls,
       chargingPointType,
       pricingModel,
       timeRestrictions,
