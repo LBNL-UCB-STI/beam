@@ -132,7 +132,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           ParkingInquiry.init(
             SpaceTime(locationUtm, tick),
             "wherever",
-            vehicleManagerId = vehicleManagerId,
+            vehicleManagerId,
             Some(beamVehicle),
             valueOfTime = rideHailConfig.cav.valueOfTime,
             triggerId = 0
@@ -361,7 +361,6 @@ object DefaultRideHailDepotParkingManager {
     ) {
       override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
         new DefaultRidehailFunctions(
-          vehicleManagerId,
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,

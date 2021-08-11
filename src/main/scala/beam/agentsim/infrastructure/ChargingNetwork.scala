@@ -24,7 +24,7 @@ import scala.util.Random
 class ChargingNetwork[GEO: GeoLevel](
   vehicleManagerId: Id[VehicleManager],
   chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-) extends ParkingNetwork[GEO](vehicleManagerId, chargingZones) {
+) extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._
 
@@ -146,7 +146,6 @@ object ChargingNetwork {
     ) {
       override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
         new ChargingFunctions[GEO](
-          vehicleManagerId,
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,
@@ -177,7 +176,7 @@ object ChargingNetwork {
   ): ChargingNetwork[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
-      vehicleManagerId,
+      Some(beamConfig),
       new Random(beamConfig.matsim.modules.global.randomSeed),
       1.0,
       1.0

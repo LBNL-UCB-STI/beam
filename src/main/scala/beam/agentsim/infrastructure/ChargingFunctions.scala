@@ -11,7 +11,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -23,7 +22,6 @@ class ChargingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends ParkingFunctions[GEO](
-      vehicleManagerId,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,
@@ -43,7 +41,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @return
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    VehicleManager.getType(inquiry.vehicleManagerId) match {
+    VehicleManager.getType(inquiry.reservedFor) match {
       case VehicleManager.BEAMRideHail if inquiry.parkingDuration <= 3600 =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
       case _ =>

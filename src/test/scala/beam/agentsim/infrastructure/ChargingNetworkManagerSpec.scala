@@ -124,7 +124,7 @@ class ChargingNetworkManagerSpec
   val personId: Id[Person] = Id.createPersonId("dummyPerson")
 
   val parkingZoneId: Id[ParkingZoneId] =
-    ParkingZone.createId("cs_DefaultManager_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
+    ParkingZone.createId("cs_Global_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
 
   val parkingStall: ParkingStall =
     ParkingStall(
@@ -136,8 +136,7 @@ class ChargingNetworkManagerSpec
       Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
-      reservedFor = Seq.empty,
-      VehicleManager.defaultManager
+      reservedFor = ParkingZone.GlobalReservedFor
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _

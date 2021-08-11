@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
-import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
@@ -27,7 +27,7 @@ import scala.collection.immutable
 case class ParkingInquiry(
   destinationUtm: SpaceTime,
   activityType: ParkingActivityType,
-  vehicleManagerId: Id[VehicleManager],
+  reservedFor: Id[VehicleManager] = ParkingZone.GlobalReservedFor,
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,
@@ -77,7 +77,7 @@ object ParkingInquiry extends LazyLogging {
   def init(
     destinationUtm: SpaceTime,
     activityType: String,
-    vehicleManagerId: Id[VehicleManager],
+    reservedFor: Id[VehicleManager] = ParkingZone.GlobalReservedFor,
     beamVehicle: Option[BeamVehicle] = None,
     remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
     valueOfTime: Double = 0.0,
@@ -89,7 +89,7 @@ object ParkingInquiry extends LazyLogging {
     ParkingInquiry(
       destinationUtm,
       activityTypeStringToEnum(activityType),
-      vehicleManagerId,
+      reservedFor,
       beamVehicle,
       remainingTripData,
       valueOfTime,

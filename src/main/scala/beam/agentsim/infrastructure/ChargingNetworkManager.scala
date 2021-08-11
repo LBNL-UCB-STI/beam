@@ -94,7 +94,7 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkMap(inquiry.vehicleManagerId).processParkingInquiry(inquiry) match {
+      chargingNetworkMap(inquiry.reservedFor).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
         case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
@@ -145,7 +145,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       vehicle.stall match {
         case Some(stall) =>
-          val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
+          val chargingNetwork = chargingNetworkMap(stall.reservedFor)
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) =>
               handleEndCharging(tick, chargingVehicle, triggerId)
@@ -159,7 +159,7 @@ class ChargingNetworkManager(
     case ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, shiftStatus) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
-        val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
+        val chargingNetwork = chargingNetworkMap(stall.reservedFor)
         // connecting the current vehicle
         chargingNetwork.attemptToConnectVehicle(tick, vehicle, stall, sender(), personId, shiftStatus) match {
           case Some((ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _), status)) if status == WaitingToCharge =>
@@ -188,7 +188,7 @@ class ChargingNetworkManager(
       val physicalBounds = obtainPowerPhysicalBounds(tick, None)
       vehicle.stall match {
         case Some(stall) =>
-          val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
+          val chargingNetwork = chargingNetworkMap(stall.reservedFor)
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) if chargingVehicle.chargingSessions.nonEmpty =>
               val unplugTimeBin = currentTimeBin(tick)
@@ -311,7 +311,7 @@ class ChargingNetworkManager(
     currentSenderMaybe: Option[ActorRef] = None
   ): Unit = {
     val ChargingVehicle(vehicle, stall, _, _, _, _, _, _, _, _) = chargingVehicle
-    val chargingNetwork = chargingNetworkMap(stall.vehicleManagerId)
+    val chargingNetwork = chargingNetworkMap(stall.reservedFor)
     chargingNetwork.disconnectVehicle(chargingVehicle) match {
       case Some(cv) =>
         log.debug(s"Vehicle ${chargingVehicle.vehicle} has been disconnected from the charging station")

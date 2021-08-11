@@ -21,13 +21,13 @@ library(RColorBrewer)
 library(ggmap)
 
 
-scaleup <- TRUE
+scaleup <- FALSE
 expFactor <- (7.75/0.315) * 27.0 / 21.3
 loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- "/Users/haitamlaarabi/Data/GEMINI/2021March22/370k-warmstart"
+dataDir <- "~/Data/GEMINI/2021Jul30-Oakland/BASE0"
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -36,10 +36,10 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Baseline')
+scenarioNames <- c('Baseline0')
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 loadTypes <- data.table::data.table(
-  chargingPointType = c("evi_public_dcfast(150.0|DC)", "evi_public_dcfast(250.0|DC)", "evi_public_dcfast(50.0|DC)", "fcs_fast(50.0|DC)", "fcs_fast(150.0|DC)", "fcs_fast(250.0|DC)", "evi_public_level2(7.2|AC)", "evi_work_level2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
+  chargingPointType = c("evipublicdcfast(150.0|DC)", "evipublicdcfast(250.0|DC)", "evipublicdcfast(50.0|DC)", "fcsfast(50.0|DC)", "fcsfast(150.0|DC)", "fcsfast(250.0|DC)", "evipubliclevel2(7.2|AC)", "eviworklevel2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
   loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2")
 )
 
@@ -68,7 +68,7 @@ all.loads <- all.loads[scens, on="code", mult="all"]
 ##########################################
 
 ## Baseline XFC hours per site per day
-toplot <- all.loads[name=='Baseline']
+toplot <- all.loads[name=='Baseline0']
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(severity, levels=severity_order)))+
@@ -94,28 +94,61 @@ ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in
 
 
 ## Baseline ev charging loads by space time
-toplot <- all.loads[name=='Baseline'&hour.bin2 %in% c(6, 9, 18, 0)]
+toplot <- all.loads[name=='Baseline0'&hour.bin2%in%c(0, 6, 12, 18)]
+toplot$mw <- toplot$kw/1000
 toplot$hour.bin2.label <- "12am"
 toplot[hour.bin2==6]$hour.bin2.label <- "6am"
-toplot[hour.bin2==9]$hour.bin2.label <- "9am"
+toplot[hour.bin2==12]$hour.bin2.label <- "12pm"
 toplot[hour.bin2==18]$hour.bin2.label <- "6pm"
+hour.bin2.label_order <- c("12am", "6am", "12pm", "6pm")
 counties <- data.table(urbnmapr::counties)[county_name%in%countyNames]
 setkey(toplot,xfc)
 p <- ggplot() +
   theme_marain() +
-  geom_polygon(data = counties, mapping = aes(x = long, y = lat, group = group), fill="white", size=.2) +
-  coord_map(projection = 'albers', lat0 = 39, lat1 = 45,xlim=c(-122.78,-121.86),ylim=c(37.37,38.17))+
-  geom_point(dat=toplot[hour.bin2 %in% c(6, 9, 18, 0)],aes(x=x2,y=y2,size=kw,stroke=0.5,group=grp,colour=factor(extreme.lab, levels=extreme_lab_order)),alpha=.3)+
-  scale_colour_manual(values=c('darkgrey','orange','red'))+
-  scale_size_continuous(range=c(0.5,35),breaks=c(500,1000,2000,4000))+
-  labs(title="EV Charging Loads",colour='Load Severity',size='Charging Site Power (kW)')+
-  theme(panel.background = element_rect(fill = "#d4e6f2")) +
-  facet_wrap(~hour.bin2.label)
+  geom_polygon(data=counties, mapping=aes(x=long,y=lat,group=group), fill="white", size=.2) +
+  coord_map(projection = 'albers', lat0=39, lat1=45,xlim=c(-122.78,-121.86),ylim=c(37.37,38.17))+
+  geom_point(dat=toplot,aes(x=x2,y=y2,size=mw,stroke=0.5,group=grp,color=mw),alpha=.3)+
+  scale_color_gradientn(colours=c("darkgrey", "gold", "salmon", "orange", "red"), breaks=c(0.5,1,2,5)) +
+  scale_size_continuous(range=c(0.5,35), breaks=c(0.5,1,2,5))+
+  #scale_colour_continuous(breaks=c(999,5000,5001), values=c('darkgrey','orange','red'))+
+  #scale_size_continuous(range=c(0.5,35), breaks=c(999,5000,5001))+
+  labs(title="EV Charging Loads",colour='Load (MW)',size='Load (MW)',x="",y="")+
+  theme(panel.background = element_rect(fill = "#d4e6f2"),
+        legend.title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank()) +
+  facet_wrap(~factor(hour.bin2.label, levels=hour.bin2.label_order), ) +
+  guides(color= guide_legend(), size=guide_legend())
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time.png'),p,width=16,height=8,units='in')
 
 
+# toplot <- all.loads[name=='Baseline'&hour.bin2%in%c(0, 6, 12, 18)]
+# toplot[hour.bin2==0]$hour.bin2.label <- "12am"
+# toplot[hour.bin2==6]$hour.bin2.label <- "6am"
+# toplot[hour.bin2==12]$hour.bin2.label <- "12pm"
+# toplot[hour.bin2==18]$hour.bin2.label <- "6pm"
+# counties <- data.table(urbnmapr::counties)[county_name%in%countyNames]
+# setkey(toplot,xfc)
+# p <- ggplot() +
+#   theme_marain() +
+#   geom_polygon(data=counties, mapping=aes(x=long,y=lat,group=group), fill="white", size=.2) +
+#   coord_map(projection = 'albers', lat0=39, lat1=45,xlim=c(-122.78,-121.86),ylim=c(37.37,38.17))+
+#   geom_point(dat=toplot,aes(x=x2,y=y2,size=kw,stroke=0.5,group=grp,colour=factor(extreme.lab, levels=extreme_lab_order)),alpha=.3)+
+#   scale_colour_manual(values=c('darkgrey','orange','red'))+
+#   scale_size_continuous(range=c(0.5,35), breaks=c(1000,5000,10000))+
+#   labs(title="EV Charging Loads",colour='Load Intensity (MW)',size='Charging Site Power (kW)')+
+#   theme(panel.background = element_rect(fill = "#d4e6f2"),
+#         legend.title = element_text(size = 20),
+#         legend.text = element_text(size = 20)) +
+#   facet_wrap(~hour.bin2.label)
+# ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time.png'),p,width=16,height=8,units='in')
+
+
 ## temp
-source("/Users/haitamlaarabi/Documents/Workspace/scripts/common/keys.R")
+source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
 oakland_map <- ggmap::get_googlemap("oakland california", zoom = 14, maptype = "roadmap")
 
