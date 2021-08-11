@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -83,7 +83,6 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZone.defaultInit(
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
-      VehicleManager.defaultManager,
       UbiqiutousParkingAvailability
     )
 

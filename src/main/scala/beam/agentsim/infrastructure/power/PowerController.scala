@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.agentsim.infrastructure.parking.ParkingZone.createId
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
@@ -89,7 +90,7 @@ class PowerController(
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
           val reservedFor = x("reservedFor").asInstanceOf[String] match {
-            case managerIdString if managerIdString.isEmpty => VehicleManager.defaultManager
+            case managerIdString if managerIdString.isEmpty => ParkingZone.GlobalReservedFor
             case managerIdString                            => Id.create(managerIdString, classOf[VehicleManager])
           }
           val chargingNetwork = chargingNetworkMap(reservedFor)

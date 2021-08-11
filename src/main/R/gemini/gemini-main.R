@@ -116,8 +116,8 @@ p <- ggplot() +
   theme(panel.background = element_rect(fill = "#d4e6f2"),
         legend.title = element_text(size = 20),
         legend.text = element_text(size = 20),
-        axis.text.x = element_blank(), 
-        axis.text.y = element_blank(), 
+        axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
         axis.ticks.x = element_blank(),
         axis.ticks.y = element_blank()) +
   facet_wrap(~factor(hour.bin2.label, levels=hour.bin2.label_order), ) +

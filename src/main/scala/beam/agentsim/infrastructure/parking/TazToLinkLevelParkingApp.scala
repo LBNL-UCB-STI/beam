@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.sim.BeamServices
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
@@ -52,7 +53,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   }
 
   val (parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]], zoneSearchTree: ZoneSearchTree[TAZ]) =
-    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random(), VehicleManager.defaultManager)
+    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random(), None)
 
   val linkToTaz = LinkLevelOperations.getLinkToTazMapping(network, tazMap)
 

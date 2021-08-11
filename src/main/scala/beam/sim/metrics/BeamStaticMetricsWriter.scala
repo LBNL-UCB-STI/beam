@@ -97,11 +97,7 @@ object BeamStaticMetricsWriter {
             .fromFile[TAZ](
               chargingDepotsFilePath,
               rand,
-              VehicleManager
-                .createIdUsingUnique(
-                  beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
-                  VehicleManager.BEAMRideHail
-                ),
+              Some(beamScenario.beamConfig),
               parkingStallCountScalingFactor
             )
 
@@ -124,7 +120,7 @@ object BeamStaticMetricsWriter {
               .fromFile[TAZ](
                 publicFastChargerFilePath,
                 rand,
-                VehicleManager.defaultManager,
+                Some(beamConfig),
                 parkingStallCountScalingFactor
               )
 

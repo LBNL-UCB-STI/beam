@@ -99,7 +99,7 @@ class SitePowerManagerSpec
     None,
     taz.tazId,
     ParkingType.Workplace,
-    VehicleManager.defaultManager,
+    ParkingZone.GlobalReservedFor,
     maxStalls = 2,
     chargingPointType = Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
     pricingModel = Some(PricingModel.FlatFee(0.0))
@@ -110,15 +110,13 @@ class SitePowerManagerSpec
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
-      VehicleManager.defaultManager
+      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType]))
     )
     val person1: Id[Person] = Id.createPersonId("dummyPerson1")
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
-      VehicleManager.defaultManager
+      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
     )
     val person2: Id[Person] = Id.createPersonId("dummyPerson2")
     v1.useParkingStall(parkingStall1)
@@ -127,7 +125,7 @@ class SitePowerManagerSpec
   }
 
   val chargingNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
-    VehicleManager.defaultManager,
+    ParkingZone.GlobalReservedFor,
     Map(dummyChargingZone.parkingZoneId -> dummyChargingZone),
     envelopeInUTM,
     beamServices
@@ -136,7 +134,7 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val sitePowerManager = new SitePowerManager(Map(VehicleManager.defaultManager -> chargingNetwork), beamServices)
+    val sitePowerManager = new SitePowerManager(Map(ParkingZone.GlobalReservedFor -> chargingNetwork), beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(

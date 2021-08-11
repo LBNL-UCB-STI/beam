@@ -29,7 +29,7 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
   override def loggedReceive: Receive = {
-    case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.name == "PARALLEL" =>
+    case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.method == "PARALLEL" =>
       parkingNetworkMap.processParkingInquiry(inquiry, Some(counter)).map(sender() ! _)
     case inquiry: ParkingInquiry =>
       parkingNetworkMap.processParkingInquiry(inquiry).map(sender() ! _)

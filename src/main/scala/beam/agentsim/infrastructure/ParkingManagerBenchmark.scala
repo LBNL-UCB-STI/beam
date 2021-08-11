@@ -47,7 +47,6 @@ class ParkingManagerBenchmark(
             ParkingInquiry.init(
               SpaceTime(coord, 0),
               actType,
-              vehicleManagerId = VehicleManager.defaultManager,
               triggerId = -1L
             )
           )
@@ -118,7 +117,8 @@ object ParkingManagerBenchmark extends StrictLogging {
 
     def loadZones[GEO: GeoLevel](
       quadTree: QuadTree[GEO],
-      pathToParking: String
+      pathToParking: String,
+      beamConfig: BeamConfig
     ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
       logger.info("Start loading parking zones from {}", pathToParking)
       val zones = InfrastructureUtils.loadStalls[GEO](
@@ -127,7 +127,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         quadTree,
         parkingStallCountScalingFactor,
         parkingCostScalingFactor,
-        seed
+        seed,
+        beamConfig
       )
       val searchTree = ParkingZoneFileUtils.createZoneSearchTree(zones.values.toSeq)
       logger.info(s"Number of zones: ${zones.size}")
@@ -166,7 +167,7 @@ object ParkingManagerBenchmark extends StrictLogging {
           val linkQuadTree: QuadTree[Link] = LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
           val linkIdMapping: collection.Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(network)
           val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
-          val (zones, _) = loadZones(linkQuadTree, pathToLinkParking)
+          val (zones, _) = loadZones(linkQuadTree, pathToLinkParking, beamConfig)
           logger.info(s"linkQuadTree size = ${linkQuadTree.size()}")
           val parkingNetwork = ZonalParkingManager[Link](
             zones,
@@ -179,7 +180,7 @@ object ParkingManagerBenchmark extends StrictLogging {
           )
           parkingNetwork
         } else {
-          val (zones, _) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
+          val (zones, _) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking, beamConfig)
           val parkingNetwork = ZonalParkingManager[TAZ](
             zones,
             tazTreeMap.tazQuadTree,
@@ -197,7 +198,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         // This is important! because `ParkingZone` is mutable class
         val parkingNetwork = managerType match {
           case "parallel" =>
-            val (zones, searchTree: ZoneSearchTree[TAZ]) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking)
+            val (zones, _) = loadZones(tazTreeMap.tazQuadTree, pathToTazParking, beamConfig)
             val parkingNetwork =
               ParallelParkingManager.init(
                 zones,
@@ -215,7 +216,7 @@ object ParkingManagerBenchmark extends StrictLogging {
             val linkQuadTree: QuadTree[Link] =
               LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
             val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
-            val (zones, _) = loadZones(linkQuadTree, pathToLinkParking)
+            val (zones, _) = loadZones(linkQuadTree, pathToLinkParking, beamConfig)
             val parkingNetwork = HierarchicalParkingManager.init(
               zones,
               tazTreeMap,

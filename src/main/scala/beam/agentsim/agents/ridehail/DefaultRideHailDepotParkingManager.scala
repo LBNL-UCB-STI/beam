@@ -132,7 +132,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           ParkingInquiry.init(
             SpaceTime(locationUtm, tick),
             "wherever",
-            vehicleManagerId = vehicleManagerId,
+            vehicleManagerId,
             Some(beamVehicle),
             valueOfTime = rideHailConfig.cav.valueOfTime,
             triggerId = 0

@@ -408,8 +408,8 @@ class BeamMobsimIteration(
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
   private val rideHailManagerId =
-    VehicleManager.createIdUsingUnique(
-      beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
+    VehicleManager.createOrGetIdUsingUnique(
+      beamConfig.beam.agentsim.agents.rideHail.name,
       VehicleManager.BEAMRideHail
     )
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()

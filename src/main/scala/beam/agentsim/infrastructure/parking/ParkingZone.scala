@@ -80,6 +80,9 @@ object ParkingZone extends LazyLogging {
 
   val DefaultParkingZoneId: Id[ParkingZoneId] = Id.create("default", classOf[ParkingZoneId])
 
+  val GlobalReservedFor: Id[VehicleManager] =
+    VehicleManager.createOrGetIdUsingUnique("Global", VehicleManager.BEAMCore)
+
   // used in place of Int.MaxValue to avoid possible buffer overrun due to async failures
   // in other words, while stallsAvailable of a ParkingZone should never exceed the numStalls
   // it started with, it could be possible in the system to happen due to scheduler issues. if
@@ -124,10 +127,9 @@ object ParkingZone extends LazyLogging {
   def defaultInit[GEO](
     geoId: Id[GEO],
     parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager],
     numStalls: Int
   ): ParkingZone[GEO] = {
-    init[GEO](Some(DefaultParkingZoneId), geoId, parkingType, vehicleManagerId, numStalls)
+    init[GEO](Some(DefaultParkingZoneId), geoId, parkingType, GlobalReservedFor, numStalls)
   }
 
   def init[GEO](

@@ -176,7 +176,7 @@ object ChargingNetwork {
   ): ChargingNetwork[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
-      vehicleManagerId,
+      Some(beamConfig),
       new Random(beamConfig.matsim.modules.global.randomSeed),
       1.0,
       1.0

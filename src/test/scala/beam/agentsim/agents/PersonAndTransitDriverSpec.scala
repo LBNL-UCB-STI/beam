@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
 import akka.util.Timeout
 import beam.agentsim.agents.PersonTestUtil._
@@ -8,7 +8,7 @@ import beam.agentsim.agents.TransitDriverAgent.createAgentIdFromVehicleId
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, _}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.parking.ParkingNetwork
 import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager}
@@ -19,9 +19,8 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK_TRANSIT
 import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
-import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
-import beam.sim.common.GeoUtilsImpl
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -68,7 +67,7 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private var parkingNetworks: Map[Id[VehicleManager], ParkingNetwork[_]] = _
+  private var parkingNetwork: ParkingNetwork[_] = _
   private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -418,8 +417,8 @@ class PersonAndTransitDriverSpec
   }
 
   override protected def beforeAll(): Unit = {
-    parkingNetworks = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)._1
-    parkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
+    parkingNetwork = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)._1
+    parkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetwork), "ParkingManager")
     super.beforeAll()
   }
 

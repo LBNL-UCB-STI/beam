@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -119,11 +118,12 @@ object ZonalParkingManager extends LazyLogging {
     maxSearchRadius: Double,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    beamConfig: BeamConfig,
     includesHeader: Boolean = true
   ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
-      VehicleManager.defaultManager,
+      Some(beamConfig),
       new Random(seed)
     )
     ZonalParkingManager[GEO](

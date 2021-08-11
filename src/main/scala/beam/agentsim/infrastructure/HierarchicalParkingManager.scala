@@ -59,7 +59,6 @@ class HierarchicalParkingManager(
     ParkingZone.defaultInit(
       LinkLevelOperations.DefaultLinkId,
       ParkingType.Public,
-      VehicleManager.defaultManager,
       UbiqiutousParkingAvailability
     )
 

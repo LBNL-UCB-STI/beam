@@ -63,7 +63,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = VehicleManager.defaultManager,
+    reservedFor = ParkingZone.GlobalReservedFor,
     activityLocation = activityLocation
   )
 
@@ -95,7 +95,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = VehicleManager.defaultManager,
+      reservedFor = ParkingZone.GlobalReservedFor,
       activityLocation = activityLocation
     )
   }
@@ -122,7 +122,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = VehicleManager.defaultManager,
+    reservedFor = ParkingZone.GlobalReservedFor,
     activityLocation = locationUTM
   )
 

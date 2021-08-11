@@ -94,7 +94,7 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkMap(inquiry.vehicleManagerId).processParkingInquiry(inquiry) match {
+      chargingNetworkMap(inquiry.reservedFor).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
         case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }

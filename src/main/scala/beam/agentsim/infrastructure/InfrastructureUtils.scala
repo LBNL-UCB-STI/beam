@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingA
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.Fleets
 import beam.sim.{BeamScenario, BeamServices}
 import com.typesafe.scalalogging.LazyLogging
@@ -49,7 +50,8 @@ object InfrastructureUtils extends LazyLogging {
       val freightParkingFile = List(
         (
           beamConfig.beam.agentsim.agents.freight.carrierParkingFilePath.getOrElse(""),
-          VehicleManager.createIdUsingUnique("FreightManager", VehicleManager.BEAMFreight),
+          VehicleManager
+            .createOrGetIdUsingUnique(beamConfig.beam.agentsim.agents.freight.name, VehicleManager.BEAMFreight),
           Seq(ParkingType.Workplace)
         )
       )
@@ -58,10 +60,7 @@ object InfrastructureUtils extends LazyLogging {
         (
           beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
           VehicleManager
-            .createIdUsingUnique(
-              beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
-              VehicleManager.BEAMRideHail
-            ),
+            .createOrGetIdUsingUnique(beamConfig.beam.agentsim.agents.rideHail.name, VehicleManager.BEAMRideHail),
           Seq(ParkingType.Workplace).toList
         )
       )
@@ -78,7 +77,8 @@ object InfrastructureUtils extends LazyLogging {
           beamScenario.tazTreeMap.tazQuadTree,
           beamScenario.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamScenario.beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
-          beamScenario.beamConfig.matsim.modules.global.randomSeed
+          beamScenario.beamConfig.matsim.modules.global.randomSeed,
+          beamScenario.beamConfig
         )
       case "link" =>
         loadStalls[Link](
@@ -87,7 +87,8 @@ object InfrastructureUtils extends LazyLogging {
           beamScenario.linkQuadTree,
           beamScenario.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamScenario.beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
-          beamScenario.beamConfig.matsim.modules.global.randomSeed
+          beamScenario.beamConfig.matsim.modules.global.randomSeed,
+          beamScenario.beamConfig
         )
       case _ =>
         throw new IllegalArgumentException(
@@ -142,7 +143,7 @@ object InfrastructureUtils extends LazyLogging {
 
     // PARKING ZONES ARE BUILT HERE
     logger.info(s"building parking networks...")
-    val parkingNetworks = beamConfig.beam.agentsim.taz.parkingManager.name match {
+    val parkingNetworks = beamConfig.beam.agentsim.taz.parkingManager.method match {
       case "DEFAULT" =>
         beamConfig.beam.agentsim.taz.parkingManager.level.toLowerCase match {
           case "taz" =>
@@ -207,21 +208,22 @@ object InfrastructureUtils extends LazyLogging {
     geoQuadTree: QuadTree[GEO],
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
-    seed: Long
+    seed: Long,
+    beamConfig: BeamConfig
   ): Map[Id[ParkingZoneId], ParkingZone[GEO]] = {
     val random = new Random(seed)
     val initialAccumulator: ParkingLoadingAccumulator[GEO] = if (parkingFilePath.isEmpty) {
       ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
         geoQuadTree.values().asScala,
         random,
-        VehicleManager.defaultManager
+        Some(beamConfig)
       )
     } else {
       Try {
         ParkingZoneFileUtils.fromFileToAccumulator(
           parkingFilePath,
           random,
-          VehicleManager.defaultManager,
+          Some(beamConfig),
           parkingStallCountScalingFactor,
           parkingCostScalingFactor
         )
@@ -232,7 +234,7 @@ object InfrastructureUtils extends LazyLogging {
           ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
             geoQuadTree.values().asScala,
             random,
-            VehicleManager.defaultManager
+            Some(beamConfig)
           )
       }
     }
@@ -243,7 +245,7 @@ object InfrastructureUtils extends LazyLogging {
             ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
               geoQuadTree.values().asScala,
               random,
-              defaultVehicleManager,
+              Some(beamConfig),
               defaultParkingTypes,
               acc
             )
@@ -252,7 +254,7 @@ object InfrastructureUtils extends LazyLogging {
               ParkingZoneFileUtils.fromFileToAccumulator(
                 depotParkingFilePath,
                 random,
-                defaultVehicleManager,
+                Some(beamConfig),
                 parkingStallCountScalingFactor,
                 parkingCostScalingFactor,
                 acc

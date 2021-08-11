@@ -180,7 +180,9 @@ class ParkingFunctions[GEO: GeoLevel](
     )
 
     val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-      zone.reservedFor == VehicleManager.defaultManager || zone.reservedFor == vehicle.vehicleManagerId
+      VehicleManager.getType(
+        zone.reservedFor
+      ) == VehicleManager.BEAMCore || zone.reservedFor == vehicle.vehicleManagerId
     }
 
     hasAvailability & validParkingType & isValidTime & isValidVehicleManager
