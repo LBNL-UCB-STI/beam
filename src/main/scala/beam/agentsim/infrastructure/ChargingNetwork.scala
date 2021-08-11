@@ -178,6 +178,7 @@ object ChargingNetwork {
       parkingDescription,
       Some(beamConfig),
       new Random(beamConfig.matsim.modules.global.randomSeed),
+      None,
       1.0,
       1.0
     )

@@ -246,9 +246,9 @@ object ParkingZoneFileUtilsSpec {
       """.stripMargin.split("\n").toIterator
 
     val timeRestrictionData: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions,vehicleManager,parkingZoneId
-        |4,Public,FlatFee,NoCharger,10,0,,MediumDutyPassenger|5:10-7:30;LightDutyTruck|17:30-24;Car|0-17:30,,parkingZone1
-        |4,Public,Block,NoCharger,20,0,,LightDutyTruck|17:30-24;Car|0-17:30,,parkingZone2""".stripMargin
+      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions,parkingZoneId
+        |4,Public,FlatFee,NoCharger,10,0,,MediumDutyPassenger|5:10-7:30;LightDutyTruck|17:30-24;Car|0-17:30,parkingZone1
+        |4,Public,Block,NoCharger,20,0,,LightDutyTruck|17:30-24;Car|0-17:30,parkingZone2""".stripMargin
         .split("\n")
         .toIterator
   }
