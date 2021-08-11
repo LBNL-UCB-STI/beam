@@ -1,6 +1,6 @@
 
 
-headerfile = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
+headerfile = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
 
 with open('gemini_taz_unlimited_parking_plugs_power_150kw.csv', mode='w') as csv_writer:
     csv_writer.write(headerfile+"\n")

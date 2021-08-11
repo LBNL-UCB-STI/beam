@@ -216,7 +216,7 @@ object InfrastructureUtils extends LazyLogging {
       ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
         geoQuadTree.values().asScala,
         random,
-        Some(beamConfig)
+        ParkingZone.GlobalReservedFor
       )
     } else {
       Try {
@@ -234,21 +234,23 @@ object InfrastructureUtils extends LazyLogging {
           ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
             geoQuadTree.values().asScala,
             random,
-            Some(beamConfig)
+            ParkingZone.GlobalReservedFor
           )
       }
     }
     val parkingLoadingAccumulator = depotFilePaths.foldLeft(initialAccumulator) {
       case (acc, (filePath, defaultVehicleManager, defaultParkingTypes)) =>
         filePath.trim match {
-          case "" =>
+          case "" if VehicleManager.getType(defaultVehicleManager) == VehicleManager.BEAMRideHail =>
             ParkingZoneFileUtils.generateDefaultParkingAccumulatorFromGeoObjects(
               geoQuadTree.values().asScala,
               random,
-              Some(beamConfig),
+              defaultVehicleManager,
               defaultParkingTypes,
               acc
             )
+          case "" =>
+            acc
           case depotParkingFilePath =>
             Try {
               ParkingZoneFileUtils.fromFileToAccumulator(
