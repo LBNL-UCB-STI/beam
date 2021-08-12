@@ -174,6 +174,13 @@ class ParkingFunctions[GEO: GeoLevel](
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
+    // todo rrp
+    // if charging point types are not specified then consider that the station is valid,
+    // otherwise check if station contains one of the preferred charging point types.
+    val validChargingType: Boolean = inquiry.chargingPointTypes.fold(true) { preferredPointTypes =>
+      zone.chargingPointType.exists(preferredPointTypes.contains(_))
+    }
+
     val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
       zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
     )
@@ -188,7 +195,7 @@ class ParkingFunctions[GEO: GeoLevel](
       zone.vehicleManagerId == VehicleManager.defaultManager || zone.vehicleManagerId == vehicle.vehicleManagerId
     }
 
-    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager
+    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager & validChargingType
   }
 
   /**

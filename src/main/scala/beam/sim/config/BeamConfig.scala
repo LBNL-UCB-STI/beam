@@ -1490,7 +1490,9 @@ object BeamConfig {
           transitVehicleTypesByRouteFile: java.lang.String,
           vehicleAdjustmentMethod: java.lang.String,
           vehicleTypesFilePath: java.lang.String,
-          vehiclesFilePath: java.lang.String
+          vehiclesFilePath: java.lang.String,
+          rechargeRequiredThresholdInMeters: scala.Double,
+          noRechargeThresholdInMeters: scala.Double
         )
 
         object Vehicles {
@@ -1722,7 +1724,13 @@ object BeamConfig {
                 else "/test/input/beamville/vehicleTypes.csv",
               vehiclesFilePath =
                 if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath")
-                else "/test/input/beamville/vehicles.csv"
+                else "/test/input/beamville/vehicles.csv",
+              rechargeRequiredThresholdInMeters =
+                if (c.hasPathOrNull("rechargeRequiredThresholdInMeters")) c.getDouble("rechargeRequiredThresholdInMeters")
+                else 10000.0,
+              noRechargeThresholdInMeters =
+                if (c.hasPathOrNull("noRechargeThresholdInMeters")) c.getDouble("noRechargeThresholdInMeters")
+                else 50000.0,
             )
           }
 

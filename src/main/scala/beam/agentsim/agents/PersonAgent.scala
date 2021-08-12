@@ -22,8 +22,10 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
 import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingInLine}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
@@ -212,6 +214,8 @@ object PersonAgent {
   case object Driving extends Traveling
 
   case object DrivingInterrupted extends Traveling
+
+  case object PlanningEnRouteCharging extends Traveling
 
   def correctTripEndTime(
     trip: EmbodiedBeamTrip,
@@ -763,8 +767,30 @@ class PersonAgent(
       )
   }
 
-  onTransition { case _ -> _ =>
-    unstashAll()
+  onTransition {
+    // todo rrp
+    case _ -> PlanningEnRouteCharging =>
+      nextStateData match {
+        case data: BasePersonData =>
+          data.currentVehicle.headOption
+            .map(beamVehicleId => beamVehicles(beamVehicleId).vehicle)
+            .fold(log.error("PlanningEnRouteCharging: vehicle not found.")) { vehicle =>
+              chargingNetworkManager ! ParkingInquiry(
+                destinationUtm = vehicle.spaceTime,
+                activityType = ParkingActivityType.Charge,
+                vehicleManagerId = vehicle.vehicleManagerId,
+                beamVehicle = Some(vehicle),
+                valueOfTime = attributes.valueOfTime,
+                triggerId = getCurrentTriggerIdOrGenerate,
+                chargingPointTypes =
+                  Some(List(ChargingPointType.ChargingStationCcsComboType2, ChargingPointType.TeslaSuperCharger))
+              )
+            }
+        case _ =>
+          log.debug("PlanningEnRouteCharging: no need to handle.")
+      }
+    case _ -> _ =>
+      unstashAll()
   }
 
   when(TryingToBoardVehicle) {
@@ -833,6 +859,18 @@ class PersonAgent(
           } else {
             currentVehicle
           }
+        // todo rrp
+        currentVehicleForNextState.headOption.foreach { beamVehicleId =>
+          val vehicle = beamVehicles(beamVehicleId).vehicle
+          if (
+            (vehicle.isBEV || vehicle.isPHEV) && vehicle.isRefuelNeeded(
+              beamScenario.beamConfig.beam.agentsim.agents.vehicles.rechargeRequiredThresholdInMeters,
+              beamScenario.beamConfig.beam.agentsim.agents.vehicles.noRechargeThresholdInMeters
+            )
+          ) {
+            return goto(PlanningEnRouteCharging)
+          }
+        }
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
 
@@ -1117,6 +1155,16 @@ class PersonAgent(
           scheduler ! CompletionNotice(triggerId)
           stop
       }
+  }
+
+  when(PlanningEnRouteCharging) {
+    case Event(
+          ParkingInquiryResponse(stall, _, _),
+          BasePersonData(_, _, leg :: _, currentVehicle, _, _, _, _, _, _, _, _)
+        ) =>
+      // todo rrp
+      // once we get the destination stall, send the router a request to re-route our trip.
+      ???
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {

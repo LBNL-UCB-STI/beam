@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
@@ -23,6 +24,7 @@ import scala.collection.immutable
   * @param parkingDuration the duration an agent is parking for
   * @param reserveStall    whether or not we reserve a stall when we send this inquiry. used when simply requesting a cost estimate for parking.
   * @param requestId       a unique ID generated for this inquiry
+  * @param chargingPointTypes list preferred charging point types
   */
 case class ParkingInquiry(
   destinationUtm: SpaceTime,
@@ -35,7 +37,8 @@ case class ParkingInquiry(
   reserveStall: Boolean = true,
   requestId: Int =
     ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-  triggerId: Long
+  triggerId: Long,
+  chargingPointTypes: Option[List[ChargingPointType]] = None
 ) extends HasTriggerId {
 
   def isChargingRequestOrEV: Boolean = {
