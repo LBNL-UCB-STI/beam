@@ -217,8 +217,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     uniqueTimeBins
       .foreach { timeBin =>
         val theSkim: ODSkimmer.Skim =
-          getCurrentSkim
-            .get(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
+          getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
             .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
             .getOrElse {
               val destCoord =
@@ -254,7 +253,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     uniqueTimeBins: Seq[Int],
     filePath: String
   ): Unit = {
-    val uniqueModes = getCurrentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
+    val uniqueModes = currentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
     require(uniqueModes.nonEmpty, s"Expected to get ODSkimmerKey which contains modes")
 
     var writer: BufferedWriter = null
@@ -288,8 +287,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   ): ExcerptData = {
     import scala.language.implicitConversions
     val individualSkims = hoursIncluded.map { timeBin =>
-      getCurrentSkim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
+      getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
         .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {

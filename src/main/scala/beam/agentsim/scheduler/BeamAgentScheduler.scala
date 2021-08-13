@@ -252,7 +252,7 @@ class BeamAgentScheduler(
         val logStr =
           s"""
              |\tnowInSeconds=$nowInSeconds
-             |\tawaitingResponse.size=${awaitingResponse.size()}
+             |\tawaitingResponse.size=${awaitingResponse.size()}map = {TreeMap@14872}  size = 1
              |\ttriggerQueue.size=${triggerQueue.size}
              |\ttriggerQueue.head=${Option(triggerQueue.peek())}
              |\tawaitingResponse.head=$awaitingToString""".stripMargin
