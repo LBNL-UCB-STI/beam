@@ -29,6 +29,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, Par
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
@@ -772,9 +773,10 @@ class PersonAgent(
     case _ -> PlanningEnRouteCharging =>
       nextStateData match {
         case data: BasePersonData =>
-          data.currentVehicle.headOption
-            .map(beamVehicleId => beamVehicles(beamVehicleId).vehicle)
-            .fold(log.error("PlanningEnRouteCharging: vehicle not found.")) { vehicle =>
+          val vehicleOpt = data.currentVehicle.headOption.map(beamVehicles(_).vehicle)
+          vehicleOpt match {
+            case None => log.error("PlanningEnRouteCharging: vehicle not found.")
+            case Some(vehicle) =>
               chargingNetworkManager ! ParkingInquiry(
                 destinationUtm = vehicle.spaceTime,
                 activityType = ParkingActivityType.Charge,
@@ -785,7 +787,7 @@ class PersonAgent(
                 chargingPointTypes =
                   Some(List(ChargingPointType.ChargingStationCcsComboType2, ChargingPointType.TeslaSuperCharger))
               )
-            }
+          }
         case _ =>
           log.debug("PlanningEnRouteCharging: no need to handle.")
       }
@@ -862,14 +864,12 @@ class PersonAgent(
         // todo rrp
         currentVehicleForNextState.headOption.foreach { beamVehicleId =>
           val vehicle = beamVehicles(beamVehicleId).vehicle
-          if (
-            (vehicle.isBEV || vehicle.isPHEV) && vehicle.isRefuelNeeded(
-              beamScenario.beamConfig.beam.agentsim.agents.vehicles.rechargeRequiredThresholdInMeters,
-              beamScenario.beamConfig.beam.agentsim.agents.vehicles.noRechargeThresholdInMeters
-            )
-          ) {
+          val refuelNeeded = vehicle.isRefuelNeeded(
+            beamScenario.beamConfig.beam.agentsim.agents.vehicles.rechargeRequiredThresholdInMeters,
+            beamScenario.beamConfig.beam.agentsim.agents.vehicles.noRechargeThresholdInMeters
+          )
+          if ((vehicle.isBEV || vehicle.isPHEV) && refuelNeeded)
             return goto(PlanningEnRouteCharging)
-          }
         }
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
@@ -1159,11 +1159,29 @@ class PersonAgent(
 
   when(PlanningEnRouteCharging) {
     case Event(
-          ParkingInquiryResponse(stall, _, _),
-          BasePersonData(_, _, leg :: _, currentVehicle, _, _, _, _, _, _, _, _)
+          ParkingInquiryResponse(stall, _, triggerId),
+          BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _)
+        ) =>
+      val myLocation = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)
+      val vehicle = beamVehicles(nextLeg.beamVehicleId)
+      router ! RoutingRequest(
+        originUTM = myLocation.loc,
+        destinationUTM = stall.locationUTM,
+        departureTime = myLocation.time,
+        withTransit = false,
+        personId = Some(id),
+        streetVehicles = IndexedSeq(vehicle.streetVehicle),
+        attributesOfIndividual = Some(attributes),
+        triggerId = triggerId
+      )
+      vehicle.vehicle.setReservedParkingStall(Some(stall))
+      stay()
+    case Event(
+          RoutingResponse(_, _, _, _, _),
+          BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       // todo rrp
-      // once we get the destination stall, send the router a request to re-route our trip.
+      log.debug("PlanningEnRouteCharging: routing response has arrived.")
       ???
   }
 
