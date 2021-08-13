@@ -250,10 +250,9 @@ class ChargingNetworkManager(
     triggerId: Long,
     actorInterruptingCharging: Option[ActorRef] = None
   ): Option[ScheduleTrigger] = {
-    val maxCycleDuration = endTime - startTime
+    val maxCycleDuration = nextTimeBin(startTime) - startTime
     // Calculate the energy to charge each vehicle connected to the a charging station
-    val (chargingDuration, energyToCharge) =
-      dispatchEnergy(maxCycleDuration, chargingVehicle, physicalBounds)
+    val (chargingDuration, energyToCharge) = dispatchEnergy(maxCycleDuration, chargingVehicle, physicalBounds)
     // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
     chargingVehicle
       .processCycle(startTime, startTime + chargingDuration, energyToCharge, maxCycleDuration)
@@ -357,8 +356,7 @@ class ChargingNetworkManager(
     * @param cycle the latest charging cycle
     * @return
     */
-  private def chargingNotCompleteUsing(cycle: ChargingCycle) =
-    (cycle.endTime - cycle.startTime) >= cnmConfig.timeStepInSeconds
+  private def chargingNotCompleteUsing(cycle: ChargingCycle) = (cycle.endTime - cycle.startTime) >= cycle.maxDuration
 }
 
 object ChargingNetworkManager extends LazyLogging {

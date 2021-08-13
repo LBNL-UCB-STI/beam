@@ -1,6 +1,6 @@
 
 
-headerfile = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
+headerfile = "taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,parkingZoneName,landCostInUSDPerSqft,reservedFor"
 
 with open('gemini_taz_unlimited_parking_plugs_power_150kw.csv', mode='w') as csv_writer:
     csv_writer.write(headerfile+"\n")
@@ -22,5 +22,6 @@ with open('gemini_depot_unlimited_parking_power_150kw.csv', mode='w') as csv_wri
     csv_writer.write(headerfile+"\n")
 
     for x in range(1, 1455):
-        csv_writer.write(f"{x},Public,FlatFee,FCSFast(150.0|DC),9999999,0,,,RideHail" + "\n")
+        csv_writer.write(f"{x},Public,FlatFee,FCSFast(150.0|DC),9999999,0,,,GlobalRHM" + "\n")
+
 
