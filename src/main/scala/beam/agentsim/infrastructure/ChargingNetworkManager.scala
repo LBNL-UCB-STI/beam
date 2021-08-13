@@ -138,7 +138,6 @@ class ChargingNetworkManager(
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
       log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
-      println(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
 
       sender ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
 
@@ -193,8 +192,9 @@ class ChargingNetworkManager(
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) if chargingVehicle.chargingSessions.nonEmpty =>
               val unplugTimeBin = currentTimeBin(tick)
-              val previousStartTime = chargingVehicle.chargingSessions.last.startTime
-              val (startTime, endTime) = if (tick >= unplugTimeBin) (unplugTimeBin, tick) else (previousStartTime, tick)
+              val index = chargingVehicle.chargingSessions.indexWhere(_.startTime >= unplugTimeBin)
+              val (startTime, endTime) =
+                if (index == -1) (unplugTimeBin, tick) else (chargingVehicle.chargingSessions(index).startTime, tick)
               dispatchEnergyAndProcessChargingCycle(
                 chargingVehicle,
                 startTime,
@@ -251,10 +251,11 @@ class ChargingNetworkManager(
     triggerId: Long,
     actorInterruptingCharging: Option[ActorRef] = None
   ): Option[ScheduleTrigger] = {
-    val maxCycleDuration = nextTimeBin(startTime) - startTime
     // Calculate the energy to charge each vehicle connected to the a charging station
-    val (chargingDuration, energyToCharge) = dispatchEnergy(maxCycleDuration, chargingVehicle, physicalBounds)
+    val duration = endTime - startTime
+    val (chargingDuration, energyToCharge) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
     // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
+    val maxCycleDuration = nextTimeBin(startTime) - startTime
     chargingVehicle
       .processCycle(startTime, startTime + chargingDuration, energyToCharge, maxCycleDuration)
       .flatMap {
@@ -266,7 +267,7 @@ class ChargingNetworkManager(
             s"Ending current refuel cycle at time ${cycle.endTime} of vehicle {}. Stall: {}. Provided energy: {} J. Remaining: {} J",
             chargingVehicle.vehicle.id,
             chargingVehicle.stall,
-            cycle.energy,
+            cycle.energyToCharge,
             energyToCharge
           )
           None
@@ -335,13 +336,8 @@ class ChargingNetworkManager(
     * @param chargingVehicle vehicle charging information
     */
   private def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
-    chargingVehicle.latestCycle.foreach { case ChargingCycle(startTime, endTime, energy, _) =>
+    chargingVehicle.refuel.foreach { case ChargingCycle(startTime, endTime, _, _) =>
       collectObservedLoadInKW(startTime, endTime - startTime, chargingVehicle.vehicle, chargingVehicle.chargingStation)
-      chargingVehicle.vehicle.addFuel(energy)
-      log.debug(
-        s"Charging vehicle ${chargingVehicle.vehicle}. " +
-        s"Stall ${chargingVehicle.vehicle.stall}. Provided energy of = $energy J"
-      )
     }
   }
 

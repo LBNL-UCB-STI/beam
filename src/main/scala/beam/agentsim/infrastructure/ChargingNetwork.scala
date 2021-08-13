@@ -330,7 +330,9 @@ object ChargingNetwork {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int)
+  final case class ChargingCycle(startTime: Int, endTime: Int, energyToCharge: Double, maxDuration: Int) {
+    var refueled: Boolean = false
+  }
 
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
@@ -356,6 +358,19 @@ object ChargingNetwork {
     }
 
     /**
+      * @return
+      */
+    def refuel: Option[ChargingCycle] = {
+      chargingSessions.lastOption.map {
+        case cycle @ ChargingCycle(_, _, energy, _) if !cycle.refueled =>
+          vehicle.addFuel(energy)
+          cycle.refueled = true
+          logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
+          cycle
+      }
+    }
+
+    /**
       * adding a new charging cycle to the charging session
       * @param startTime start time of the charging cycle
       * @param energy energy delivered
@@ -364,14 +379,23 @@ object ChargingNetwork {
       */
     def processCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
-        // first charging cycle
-        case None => true
-        // either a new cycle or an unplug cycle arriving in the middle of the current cycle
-        case Some(latestCycle) if startTime >= latestCycle.endTime && connectionStatus.last == Connected => true
-        // an unplug request arrived right before the new cycle started
-        // or vehicle finished charging right before unplug requests arrived
-        case Some(latestCycle) if endTime < latestCycle.endTime =>
-          chargingSessions.remove(chargingSessions.length - 1)
+        case None =>
+          // first charging cycle
+          true
+        case Some(cycle) if startTime >= cycle.endTime && connectionStatus.last == Connected =>
+          // either a new cycle or an unplug cycle arriving in the middle of the current cycle
+          true
+        case Some(cycle) if endTime <= cycle.endTime =>
+          // an unplug request arrived right before the new cycle started
+          // or vehicle finished charging right before unplug requests arrived
+          while (chargingSessions.lastOption.exists(_.endTime >= endTime)) {
+            val cycle = chargingSessions.last
+            if (cycle.refueled) {
+              vehicle.addFuel(-1 * cycle.energyToCharge)
+              logger.debug(s"Deleting cycle $cycle for vehicle $vehicle due to an interruption!")
+            }
+            chargingSessions.remove(chargingSessions.length - 1)
+          }
           true
         // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged
         case _ =>
@@ -380,7 +404,7 @@ object ChargingNetwork {
             "last charging cycle end time was {} while the current charging cycle end time is {}",
             vehicle.id,
             stall,
-            latestCycle.map(_.endTime).getOrElse(-1),
+            chargingSessions.lastOption.map(_.endTime).getOrElse(-1),
             endTime
           )
           logger.debug(
@@ -400,13 +424,8 @@ object ChargingNetwork {
     /**
       * @return
       */
-    def latestCycle: Option[ChargingCycle] = chargingSessions.lastOption
-
-    /**
-      * @return
-      */
     def calculateChargingSessionLengthAndEnergyInJoule: (Long, Double) = chargingSessions.foldLeft((0L, 0.0)) {
-      case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energy)
+      case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energyToCharge)
     }
   }
 }
