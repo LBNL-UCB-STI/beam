@@ -2,14 +2,17 @@ package beam.cosim.helics
 
 import beam.sim.BeamHelper
 import com.java.helics.helics
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
 import beam.cosim.helics.BeamHelicsInterface._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
-class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
   override def beforeAll(): Unit = loadHelicsIfNotAlreadyLoaded
 
   override def afterAll(): Unit = {
@@ -62,10 +65,10 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
     val time1 = beamFederate.sync(1)
     time1 should be(1.0)
 
-    val (time2, response) = (beamFederate.sync(2), beamFederate.syncThenCollectJSON(10))
+    val (time2, response) = (beamFederate.sync(2), beamFederate.collectJSON())
     time2 should be(2.0)
     response.size should be(1)
-    response.head should contain("key"   -> "foo")
+    response.head should contain("key" -> "foo")
     response.head should contain("value" -> 123456)
 
     beamFederate.close()
@@ -75,7 +78,7 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
     beamBroker.getBrokersFederate.isDefined should be(true)
     val beamFederate = beamBroker.getBrokersFederate.get
 
-    val (time1, message) = (beamFederate.sync(1), beamFederate.syncThenCollectAny(10))
+    val (time1, message) = (beamFederate.sync(1), beamFederate.collectAny())
     time1 should be(1.0)
     message.mkString(",").trim should be("foo,123456")
 

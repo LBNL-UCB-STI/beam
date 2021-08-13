@@ -21,6 +21,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.gtfs.FareCalculator
@@ -30,20 +31,21 @@ import beam.router.r5.RouteDumper
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
-import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
@@ -59,14 +61,13 @@ class BeamRouter(
   network: Network,
   networkHelper: NetworkHelper,
   geo: GeoUtils,
-  scenario: Scenario,
-  transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   eventsManager: EventsManager
 ) extends Actor
     with Stash
-    with ActorLogging {
+    with ActorLogging
+    with LoggingMessagePublisher {
   type Worker = ActorRef
   type OriginalSender = ActorRef
   type WorkWithOriginalSender = (Any, OriginalSender)
@@ -216,7 +217,9 @@ class BeamRouter(
     case GimmeWork =>
       val worker = context.sender
       if (!isWorkAvailable)
-        availableWorkers.add(worker) //Request must have been delayed since no work, but will send when something comes in
+        availableWorkers.add(
+          worker
+        ) //Request must have been delayed since no work, but will send when something comes in
       else {
         val (work, originalSender) = availableWorkWithOriginalSender.dequeue()
         sendWorkTo(worker, work, originalSender, receivePath = "GimmeWork")
@@ -243,6 +246,7 @@ class BeamRouter(
 
     case work =>
       processByEventsManagerIfNeeded(work)
+      publishMessage(work)
       val originalSender = context.sender
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
@@ -253,14 +257,15 @@ class BeamRouter(
           sendWorkTo(worker, work, originalSender, "Receive CatchAll")
         }
       } else { //Use existing work first
-        if (!isWorkerAvailable) notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
+        if (!isWorkerAvailable)
+          notifyWorkersOfAvailableWork() //Shouldn't need this but it should be relatively idempotent
         availableWorkWithOriginalSender.enqueue((work, originalSender))
       }
   }
 
   private def processByEventsManagerIfNeeded(work: Any): Unit = {
     work match {
-      case e: EmbodyWithCurrentTravelTime if (shouldWriteR5Routes(currentIteration)) =>
+      case e: EmbodyWithCurrentTravelTime if shouldWriteR5Routes(currentIteration) =>
         eventsManager.processEvent(RouteDumper.EmbodyWithCurrentTravelTimeEvent(e))
       case req: RoutingRequest =>
         eventsManager.processEvent(RouteDumper.RoutingRequestEvent(req))
@@ -287,25 +292,24 @@ class BeamRouter(
 
   private def logExcessiveOutstandingWorkAndClearIfEnabledAndOver = Future {
     val currentTime = getCurrentTime
-    outstandingWorkIdToTimeSent.collect {
-      case (workId: WorkId, timeSent: TimeSent) =>
-        val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
-        if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
-          //TODO: Can the logs be combined?
-          log.warning(
-            "Haven't heard back from work ID '{}' for {} seconds. " +
-            "This is over the configured threshold {}, so submitting to be cleared.",
-            workId,
-            secondsSinceSent,
-            secondsToWaitToClearRoutedOutstandingWork
-          )
-          self ! ClearRoutedWorkerTracker(workIdToClear = workId)
-        } else if (secondsSinceSent > 120)
-          log.warning(
-            "Haven't heard back from work ID '{}' for {} seconds.",
-            workId,
-            secondsSinceSent
-          )
+    outstandingWorkIdToTimeSent.collect { case (workId: WorkId, timeSent: TimeSent) =>
+      val secondsSinceSent = timeSent.until(currentTime, java.time.temporal.ChronoUnit.SECONDS)
+      if (clearRoutedOutstandingWorkEnabled && secondsSinceSent > secondsToWaitToClearRoutedOutstandingWork) {
+        //TODO: Can the logs be combined?
+        log.warning(
+          "Haven't heard back from work ID '{}' for {} seconds. " +
+          "This is over the configured threshold {}, so submitting to be cleared.",
+          workId,
+          secondsSinceSent,
+          secondsToWaitToClearRoutedOutstandingWork
+        )
+        self ! ClearRoutedWorkerTracker(workIdToClear = workId)
+      } else if (secondsSinceSent > 120)
+        log.warning(
+          "Haven't heard back from work ID '{}' for {} seconds.",
+          workId,
+          secondsSinceSent
+        )
     }
   }
 
@@ -343,7 +347,10 @@ class BeamRouter(
   ): Unit = {
     work match {
       case routingRequest: RoutingRequest =>
-        outstandingWorkIdToOriginalSenderMap.put(routingRequest.requestId, originalSender) //TODO: Add a central Id trait so can just match on that and combine logic
+        outstandingWorkIdToOriginalSenderMap.put(
+          routingRequest.requestId,
+          originalSender
+        ) //TODO: Add a central Id trait so can just match on that and combine logic
         outstandingWorkIdToTimeSent.put(routingRequest.requestId, getCurrentTime)
         worker ! work
       case embodyWithCurrentTravelTime: EmbodyWithCurrentTravelTime =>
@@ -420,10 +427,9 @@ class BeamRouter(
       .map { r =>
         Option(r)
       }
-      .recover {
-        case t: Throwable =>
-          log.error(t, "Can't resolve '{}': {}", addr, t.getMessage)
-          None
+      .recover { case t: Throwable =>
+        log.error(t, "Can't resolve '{}': {}", addr, t.getMessage)
+        None
       }
   }
 
@@ -442,8 +448,9 @@ object BeamRouter {
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    requestId: Int = IdGeneratorImpl.nextId
-  )
+    requestId: Int = IdGeneratorImpl.nextId,
+    triggerId: Long
+  ) extends HasTriggerId
 
   case class UpdateTravelTimeLocal(travelTime: TravelTime)
 
@@ -479,9 +486,13 @@ object BeamRouter {
     streetVehiclesUseIntermodalUse: IntermodalUse = Access,
     requestId: Int = IdGeneratorImpl.nextId,
     possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
-  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line) {
-    lazy val timeValueOfMoney
-      : Double = attributesOfIndividual.fold(360.0)(3600.0 / _.valueOfTime) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
+    triggerId: Long
+  )(implicit fileName: sourcecode.FileName, fullName: sourcecode.FullName, line: sourcecode.Line)
+      extends HasTriggerId {
+
+    lazy val timeValueOfMoney: Double = attributesOfIndividual.fold(360.0)(
+      3600.0 / _.valueOfTime
+    ) // 360 seconds per Dollar, i.e. 10$/h value of travel time savings
 
     val initiatedFrom: String = s"${fileName.value}:${line.value} ${fullName.value}"
   }
@@ -503,15 +514,16 @@ object BeamRouter {
     itineraries: Seq[EmbodiedBeamTrip],
     requestId: Int,
     request: Option[RoutingRequest],
-    isEmbodyWithCurrentTravelTime: Boolean
-  )
+    isEmbodyWithCurrentTravelTime: Boolean,
+    triggerId: Long
+  ) extends HasTriggerId
 
   case class RoutingFailure(cause: Throwable, requestId: Int)
 
   object RoutingResponse {
 
     val dummyRoutingResponse: Some[RoutingResponse] = Some(
-      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(Vector(), IdGeneratorImpl.nextId, None, isEmbodyWithCurrentTravelTime = false, -1)
     )
   }
 
@@ -521,8 +533,6 @@ object BeamRouter {
     network: Network,
     networkHelper: NetworkHelper,
     geo: GeoUtils,
-    scenario: Scenario,
-    transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager
@@ -536,8 +546,6 @@ object BeamRouter {
         network,
         networkHelper,
         geo,
-        scenario,
-        transitVehicles,
         fareCalculator,
         tollCalculator,
         eventsManager
@@ -553,7 +561,8 @@ object BeamRouter {
     beamServices: BeamServices,
     originUTM: Coord,
     destinationUTM: Coord,
-    requestIdOpt: Option[Int] = None
+    requestIdOpt: Option[Int] = None,
+    triggerId: Long
   ): EmbodyWithCurrentTravelTime = {
     val leg = BeamLeg(
       departTime,
@@ -574,13 +583,15 @@ object BeamRouter {
           leg,
           vehicle.id,
           vehicle.vehicleTypeId,
-          reqId
+          reqId,
+          triggerId = triggerId
         )
       case None =>
         EmbodyWithCurrentTravelTime(
           leg,
           vehicle.id,
-          vehicle.vehicleTypeId
+          vehicle.vehicleTypeId,
+          triggerId = triggerId
         )
     }
   }
@@ -592,7 +603,8 @@ object BeamRouter {
     mode: BeamMode,
     beamServices: BeamServices,
     origin: Coord,
-    destination: Coord
+    destination: Coord,
+    triggerId: Long
   ): EmbodyWithCurrentTravelTime = {
     val linkIds = new ArrayBuffer[Int](2 + route.getLinkIds.size())
     linkIds += route.getStartLinkId.toString.toInt
@@ -617,14 +629,17 @@ object BeamRouter {
     EmbodyWithCurrentTravelTime(
       leg,
       vehicle.id,
-      vehicle.vehicleTypeId
+      vehicle.vehicleTypeId,
+      triggerId = triggerId
     )
   }
 
   def checkForConsistentTimeZoneOffsets(dates: DateUtils, transportNetwork: TransportNetwork): Unit = {
-    if (dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
-          dates.localBaseDateTime
-        )) {
+    if (
+      dates.zonedBaseDateTime.getOffset != transportNetwork.getTimeZone.getRules.getOffset(
+        dates.localBaseDateTime
+      )
+    ) {
       throw new RuntimeException(
         "Time Zone Mismatch\n\n" +
         s"\tZone offset inferred by R5: ${transportNetwork.getTimeZone.getRules.getOffset(dates.localBaseDateTime)}\n" +
@@ -685,9 +700,8 @@ object BeamRouter {
         val updatedBeamLegs = BeamLeg.makeLegsConsistent(updatedLegs.map(x => Some(x.beamLeg)).toList)
         val finalUpdatedBeamLegs = updatedBeamLegs
           .zip(updatedLegs)
-          .map {
-            case (updatedBeamLeg, embodiedBeamLeg) =>
-              embodiedBeamLeg.copy(beamLeg = updatedBeamLeg.get)
+          .map { case (updatedBeamLeg, embodiedBeamLeg) =>
+            embodiedBeamLeg.copy(beamLeg = updatedBeamLeg.get)
           }
           .toVector
         itin.copy(legs = finalUpdatedBeamLegs)
@@ -716,27 +730,24 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
     skimmer: ODSkims,
     origTazId: Option[Id[TAZ]],
-    destTazId: Option[Id[TAZ]],
+    destTazId: Option[Id[TAZ]]
   ): (Int, Int) = {
-    val travelTimesOverDay = (0 to 23).map(
-      hour =>
-        skimmer
-          .getTimeDistanceAndCost(
-            originUTM,
-            destinationUTM,
-            hour * 3600,
-            mode,
-            vehicleTypeId,
-            vehicleType,
-            fuelPrice,
-            beamScenario,
-            origTazId,
-            destTazId
-          )
-          .time
+    val travelTimesOverDay = (0 to 23).map(hour =>
+      skimmer
+        .getTimeDistanceAndCost(
+          originUTM,
+          destinationUTM,
+          hour * 3600,
+          mode,
+          vehicleTypeId,
+          vehicleType,
+          fuelPrice,
+          origTazId,
+          destTazId
+        )
+        .time
     )
     (travelTimesOverDay.min, travelTimesOverDay.max)
   }
@@ -776,7 +787,7 @@ object BeamRouter {
     beamScenario: BeamScenario,
     skimmer: ODSkims,
     maybeOrigTazId: Option[Id[TAZ]] = None,
-    maybeDestTazId: Option[Id[TAZ]] = None,
+    maybeDestTazId: Option[Id[TAZ]] = None
   ): ODSkimmer.Skim = {
     val origTazId = Some(maybeOrigTazId.getOrElse(beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId))
     val destTazId = Some(
@@ -794,7 +805,7 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
     val arrivalTime = departureTime + departHourTravelTime
@@ -809,7 +820,6 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
         maybeOrigTazForPerformanceImprovement = origTazId,
         maybeDestTazForPerformanceImprovement = destTazId
       )
@@ -826,14 +836,14 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
-        skimmer = skimmer,
+        beamConfig = beamScenario.beamConfig,
+        skimmer = skimmer
       )
       val secondsInDepartHour = arriveHour * 3600 - departureTime
       val secondsInArriveHour = arrivalTime - arriveHour * 3600
       Math
         .round(
-          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour).toDouble / (secondsInDepartHour + secondsInArriveHour).toDouble
+          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour) / (secondsInDepartHour + secondsInArriveHour).toDouble
         )
         .intValue()
     }
@@ -864,7 +874,7 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
+    beamConfig: BeamConfig,
     skimmer: ODSkims
   ): Int = {
     val skimTime =
@@ -877,7 +887,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -890,7 +899,6 @@ object BeamRouter {
         vehicleTypeId,
         vehicleType,
         fuelPrice,
-        beamScenario,
         skimmer,
         origTazId,
         destTazId
@@ -899,12 +907,10 @@ object BeamRouter {
       skimTime,
       minTime,
       maxTime,
-      beamScenario.beamConfig.beam.routing.skimTravelTimesScalingFactor
+      beamConfig.beam.routing.skimTravelTimesScalingFactor
     )
-    Math.max(adjustedSkimTime, beamScenario.beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
+    Math.max(adjustedSkimTime, beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
   }
-
-  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 
   sealed trait WorkMessage
 

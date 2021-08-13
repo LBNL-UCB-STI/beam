@@ -9,9 +9,8 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   Resume
 }
 import beam.agentsim.agents.vehicles.PassengerSchedule
-import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
-import beam.utils.DebugLib
+import beam.agentsim.scheduler.HasTriggerId
 import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
@@ -31,7 +30,8 @@ class OutOfServiceVehicleManager(
   def initiateMovementToParkingDepot(
     vehicleId: Id[Vehicle],
     passengerSchedule: PassengerSchedule,
-    tick: Int
+    tick: Int,
+    triggerId: Long
   ): Unit = {
     log.debug("initiateMovementToParkingDepot - vehicle: " + vehicleId)
 
@@ -41,7 +41,7 @@ class OutOfServiceVehicleManager(
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
       .tell(
-        Interrupt(RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId, tick),
+        Interrupt(RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId, tick, triggerId),
         rideHailManagerActor
       )
   }
@@ -52,7 +52,8 @@ class OutOfServiceVehicleManager(
 
   def handleInterruptReply(
     vehicleId: Id[Vehicle],
-    tick: Int
+    tick: Int,
+    triggerId: Long
   ): Unit = {
 
     val rideHailAgent = rideHailManager.rideHailManagerHelper
@@ -60,10 +61,10 @@ class OutOfServiceVehicleManager(
       .rideHailAgent
 
     rideHailAgent.tell(
-      ModifyPassengerSchedule(passengerSchedules(vehicleId), tick),
+      ModifyPassengerSchedule(passengerSchedules(vehicleId), tick, triggerId),
       rideHailManagerActor
     )
-    rideHailAgent.tell(Resume, rideHailManagerActor)
+    rideHailAgent.tell(Resume(triggerId), rideHailManagerActor)
   }
 
   def releaseTrigger(
@@ -75,7 +76,7 @@ class OutOfServiceVehicleManager(
       .rideHailAgent
 
     rideHailAgent ! NotifyVehicleResourceIdleReply(
-      triggerIds(vehicleId),
+      triggerIds(vehicleId).get,
       triggersToSchedule
     )
   }
@@ -87,5 +88,6 @@ case class ReleaseAgentTrigger(vehicleId: Id[Vehicle])
 case class MoveOutOfServiceVehicleToDepotParking(
   passengerSchedule: PassengerSchedule,
   tick: Int,
-  vehicleId: Id[Vehicle]
-)
+  vehicleId: Id[Vehicle],
+  triggerId: Long
+) extends HasTriggerId

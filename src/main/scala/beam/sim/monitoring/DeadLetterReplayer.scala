@@ -1,8 +1,10 @@
 package beam.sim.monitoring
+
 import akka.actor.{Actor, ActorLogging, DeadLetter, Props}
 import beam.router.BeamRouter.RoutingResponse
 
 class DeadLetterReplayer extends Actor with ActorLogging {
+
   override def receive: Receive = {
     case d: DeadLetter =>
       d.message match {

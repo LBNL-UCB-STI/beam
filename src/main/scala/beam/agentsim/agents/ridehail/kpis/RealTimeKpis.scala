@@ -44,7 +44,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     * @param time time in seconds
     */
   def storeObservation(value: Double, kpi: Kpi, time: Int): Unit = {
-    storeObservation(value, kpi, time, None, None)
+    storeObservation(value, kpi, time, None)
   }
 
   /**
@@ -55,9 +55,9 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     * @param time time in seconds
     * @param location location as a Coord
     */
-//  def storeObservation(value: Double, kpi: Kpi, time: Int, location: Coord): Unit = {
-//    storeObservation(value, kpi, time, Some(location))
-//  }
+  def storeObservation(value: Double, kpi: Kpi, time: Int, location: Coord): Unit = {
+    storeObservation(value, kpi, time, Some(location))
+  }
 
   /**
     * Convenience function that converts a TAZSkimmerEvent to storage of the appropriate KPI and value internally. There is
@@ -69,7 +69,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
   def storeObservation(event: TAZSkimmerEvent): Unit = {
     val kpi = beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI.getKpiRegistry
       .withName(event.key)
-    storeObservation(event.value, kpi, event.time, event.getTazIndex, event.getHexIndex)
+    storeObservation(event.value, kpi, event.time, event.coord)
   }
 
   /**
@@ -80,15 +80,17 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     * @param time
     * @param locationOpt
     */
-  private def storeObservation(
-    value: Double,
-    kpi: Kpi,
-    time: Int,
-    idTazMaybe: Option[Id[TAZ]],
-    hexIndexMaybe: Option[String]
-  ) = {
+  private def storeObservation(value: Double, kpi: Kpi, time: Int, locationOpt: Option[Coord]) = {
     val (quarterHour, halfHour, hour) = timeInSecondsToBins(time)
-    putObservation(IndexedSpatioTemporalKpi(kpi, time, quarterHour, halfHour, hour, hexIndexMaybe, idTazMaybe), value)
+    val (hexIndex, tazId) = locationOpt match {
+      case Some(location) =>
+        val hexIndex = beamServices.beamScenario.h3taz.getIndex(location)
+        val idTaz = beamServices.beamScenario.tazTreeMap.getTAZ(location.getX, location.getY).tazId
+        (Some(hexIndex), Some(idTaz))
+      case None =>
+        (None, None)
+    }
+    putObservation(IndexedSpatioTemporalKpi(kpi, time, quarterHour, halfHour, hour, hexIndex, tazId), value)
   }
 
   /**
@@ -109,13 +111,8 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     location: Coord,
     temporalAggregation: Option[TemporalAggregation] = None
   ) = {
-    getObservations(
-      kpi,
-      time,
-      temporalAggregation,
-      Some(beamServices.beamScenario.h3taz.getIndex(location)),
-      Some(beamServices.beamScenario.tazTreeMap.getTAZ(location).tazId)
-    )
+    val hexIndex = beamServices.beamScenario.h3taz.getIndex(location)
+    getObservations(kpi, time, temporalAggregation, None, Some(beamServices.beamScenario.h3taz.getTAZ(hexIndex)))
   }
 
   /**
@@ -136,13 +133,7 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     location: Coord,
     temporalAggregation: Option[TemporalAggregation] = None
   ) = {
-    getObservations(
-      kpi,
-      time,
-      temporalAggregation,
-      Some(beamServices.beamScenario.h3taz.getIndex(location)),
-      Some(beamServices.beamScenario.tazTreeMap.getTAZ(location).tazId)
-    )
+    getObservations(kpi, time, temporalAggregation, Some(beamServices.beamScenario.h3taz.getIndex(location)), None)
   }
 
   /**
@@ -206,7 +197,8 @@ class RealTimeKpis(beamServices: BeamServices, observationSampleRateInSeconds: I
     hexKey: Option[HexIndex] = None,
     tazKey: Option[Id[TAZ]] = None
   ) = {
-    val latestTimeOnASampleRate = (time.toDouble / observationSampleRateInSeconds.toDouble).toInt * observationSampleRateInSeconds
+    val latestTimeOnASampleRate =
+      (time.toDouble / observationSampleRateInSeconds.toDouble).toInt * observationSampleRateInSeconds
     Iterator
       .iterate((toTimeOrBin(latestTimeOnASampleRate, temporalAggregation), Vector[Double]())) {
         case (currentTimeOrBin, _) =>
@@ -328,6 +320,7 @@ object RideHailKpisObject {
   type HalfHourBin = Int
   type HourBin = Int
   case class SpatialKeys(hexIndex: HexIndex, taz: Id[TAZ])
+
   case class SpatioTemporalKey(
     kpi: Kpi,
     time: Option[Int],

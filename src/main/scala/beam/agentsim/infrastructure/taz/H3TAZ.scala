@@ -9,8 +9,8 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.StrictLogging
 import com.uber.h3core.util.GeoCoord
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
-import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
@@ -19,16 +19,21 @@ import scala.collection.JavaConverters._
 import scala.collection._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
-  private def cfg = beamConfig.beam.agentsim.h3taz
-  if (cfg.lowerBoundResolution > cfg.upperBoundResolution) logger.error("lowerBoundResolution > upperBoundResolution")
+
+  private def cfgH3Taz: BeamConfig.Beam.Agentsim.H3taz = beamConfig.beam.agentsim.h3taz
+  if (cfgH3Taz.lowerBoundResolution > cfgH3Taz.upperBoundResolution)
+    logger.error("lowerBoundResolution > upperBoundResolution")
+
   private val toH3CoordSystem =
     new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
+
   private val toScenarioCoordSystem =
     new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
 
   private val boundingBox: QuadTreeBounds = H3TAZ.quadTreeExtentFromShapeFile(
     network.getNodes.values().asScala.map(n => toH3CoordSystem.transform(n.getCoord))
   )
+
   private val fillBoxResult: Iterable[String] =
     ProfilingUtils.timed(
       s"fillBox for boundingBox $boundingBox with resolution $getResolution",
@@ -40,12 +45,25 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elemets"
   )
 
-  def getAll: Iterable[HexIndex] = fillBoxResult
+  private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
+    ProfilingUtils.timed("Constructed tazToH3TAZMapping", str => logger.info(str)) {
+      fillBoxResult.par
+        .map { hex =>
+          val centroid = getCentroid(hex)
+          val tazId = tazTreeMap.getTAZ(centroid.getX, centroid.getY).tazId
+          (hex, tazId)
+        }
+        .toMap
+        .seq
+    }
+
+  def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
+  def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
 
   def getSubIndex(c: Coord): Option[HexIndex] = {
-    if (getResolution + 1 <= cfg.upperBoundResolution) {
+    if (getResolution + 1 <= cfgH3Taz.upperBoundResolution) {
       val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
       Some(H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution + 1))
     } else None
@@ -55,21 +73,19 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution)
   }
-  def getResolution: Int = cfg.lowerBoundResolution
+  def getResolution: Int = cfgH3Taz.lowerBoundResolution
 }
 
 object H3TAZ {
   type HexIndex = String
   private val H3 = com.uber.h3core.H3Core.newInstance
   val H3Projection = "EPSG:4326"
-  val emptyH3 = "None"
 
   def writeToShp(filename: String, h3Tazs: Iterable[(HexIndex, String, Double)]): Unit = {
     val gf = new GeometryFactory()
-    val hexagons = h3Tazs.map {
-      case (h, taz, v) =>
-        val boundary = H3.h3ToGeoBoundary(h).asScala
-        (h, taz, v, gf.createPolygon(boundary.map(toJtsCoordinate).toArray :+ toJtsCoordinate(boundary.head)))
+    val hexagons = h3Tazs.map { case (h, taz, v) =>
+      val boundary = H3.h3ToGeoBoundary(h).asScala
+      (h, taz, v, gf.createPolygon(boundary.map(toJtsCoordinate).toArray :+ toJtsCoordinate(boundary.head)))
     }
     val pf: PolygonFeatureFactory = new PolygonFeatureFactory.Builder()
       .setCrs(MGC.getCRS("EPSG:4326"))
@@ -78,9 +94,8 @@ object H3TAZ {
       .addAttribute("TAZ", classOf[String])
       .addAttribute("VALUE", classOf[java.lang.Double])
       .create()
-    val shpPolygons = hexagons.map {
-      case (hex, taz, value, hexagon) =>
-        pf.createPolygon(hexagon.getCoordinates, Array[Object](hex, taz, value.toString), null)
+    val shpPolygons = hexagons.map { case (hex, taz, value, hexagon) =>
+      pf.createPolygon(hexagon.getCoordinates, Array[Object](hex, taz, value.toString), null)
     }
     ShapeFileWriter.writeGeometries(shpPolygons.asJavaCollection, filename)
   }
@@ -89,9 +104,11 @@ object H3TAZ {
   private def toJtsCoordinate(in: GeoCoord): com.vividsolutions.jts.geom.Coordinate = {
     new com.vividsolutions.jts.geom.Coordinate(in.lng, in.lat)
   }
+
   private def toGeoCoord(in: Coord): GeoCoord = {
     new GeoCoord(in.getY, in.getX)
   }
+
   private def toCoord(in: GeoCoord): Coord = {
     new Coord(in.lng, in.lat)
   }

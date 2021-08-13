@@ -8,12 +8,7 @@ class HouseholdMerger(blocks: Map[Long, Block]) extends Merger[InputHousehold, H
   override def merge(iter: Iterator[InputHousehold]): Iterator[HouseholdInfo] = iter.map(inputToOutput)
 
   private def inputToOutput(inputHousehold: InputHousehold): HouseholdInfo = {
-    val hhBlockId = inputHousehold.blockId.toLong
-    val block = blocks.get(hhBlockId) match {
-      case Some(value) => value
-      case None =>
-        throw new NoSuchElementException(s"There are no block with blockId $hhBlockId.")
-    }
+    val block = blocks(inputHousehold.blockId)
     val income = PopulationAdjustment.incomeToValueOfTime(inputHousehold.income).getOrElse(0d)
 
     HouseholdInfo(

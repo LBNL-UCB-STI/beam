@@ -14,6 +14,7 @@ object JsonUtils {
 
   // Put global implicit encoders here. Can import wholesale in implementing code.
   object syntax {
+
     implicit val encodeCoord: Encoder[Coord] = (a: Coord) => {
       Json.fromValues(
         Seq(

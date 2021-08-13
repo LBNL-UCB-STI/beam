@@ -5,11 +5,7 @@ import java.io.{BufferedWriter, FileWriter, IOException}
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
 import beam.utils.OutputDataDescriptor
-import com.conveyal.r5.transit.TransportNetwork
-import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Scenario
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.ControlerEvent
 
@@ -18,16 +14,10 @@ import scala.collection.JavaConverters._
 /**
   * Generate data descriptions table for all output file generating classes.
   */
-class BeamOutputDataDescriptionGenerator @Inject()(
-  private val transportNetwork: TransportNetwork,
-  private val beamServices: BeamServices,
-  private val eventsManager: EventsManager,
-  private val scenario: Scenario
-) extends LazyLogging {
+class BeamOutputDataDescriptionGenerator() extends LazyLogging {
 
   private final val outputFileName = "dataDescriptors.csv"
   private final val outputFileHeader = "ClassName,OutputFile,Field,Description\n"
-  private final val writeGraphs = beamServices.beamConfig.beam.outputs.writeGraphs
 
   /**
     * Generates the data descriptors and writes them to the output file.
@@ -35,11 +25,10 @@ class BeamOutputDataDescriptionGenerator @Inject()(
     */
   def generateDescriptors(event: ControlerEvent): Unit = {
     //get all the required class file instances
-    val descriptors
-      : Seq[OutputDataDescription] = BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap {
-      classRef =>
+    val descriptors: Seq[OutputDataDescription] =
+      BeamOutputDataDescriptionGenerator.getClassesGeneratingOutputs flatMap { classRef =>
         classRef.getOutputDataDescriptions(event.getServices().getControlerIO()).asScala.toList
-    }
+      }
     //generate csv from the data objects
     val descriptionsAsCSV = descriptors map { d =>
       d.asInstanceOf[Product].productIterator mkString ","

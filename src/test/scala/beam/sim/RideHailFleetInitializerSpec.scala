@@ -3,13 +3,15 @@ package beam.sim
 import java.io.File
 import java.nio.file.Files
 
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.Try
 import scala.collection.JavaConverters._
 
 //#Test needs to be updated/fixed on LBNL side
-class RideHailFleetInitializerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class RideHailFleetInitializerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll {
   val filePath: String = File.createTempFile("0.rideHailFleet", ".csv.gz").getAbsolutePath
 
   override def afterAll(): Unit = {

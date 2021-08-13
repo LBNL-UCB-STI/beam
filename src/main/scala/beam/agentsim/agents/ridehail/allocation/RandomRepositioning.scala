@@ -73,7 +73,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   var repositionPerTick: Double = vehicleAllowedToReposition.size.toDouble / numberOfRepos
   repositionPerTick = if (repositionPerTick < 1) 1 else repositionPerTick
   logger.info(s"""
-       |algorithm: ${algorithm}
+       |algorithm: $algorithm
        |vehicleAllowedToReposition: ${vehicleAllowedToReposition.size}
        |lastTickWithRepos: $lastTickWithRepos
        |step: $step
@@ -115,9 +115,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         .asScala
         .toList
         .flatMap(person => person.getSelectedPlan.getPlanElements.asScala)
-        .foreach { planElement =>
-          if (planElement.isInstanceOf[Activity]) {
-            val act = planElement.asInstanceOf[Activity]
+        .foreach {
+          case act: Activity =>
             if (act.getEndTime > currentTime + 20 * 60 && act.getEndTime < currentTime + 3600) {
               minX = Math.min(minX, act.getCoord.getX)
               minY = Math.min(minY, act.getCoord.getY)
@@ -125,8 +124,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
               maxY = Math.max(maxY, act.getCoord.getY)
               selectedActivities += act
             }
-
-          }
+          case _ =>
 
         }
 
@@ -264,9 +262,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         // Make sure we exclude `srcLocations`
         val dstLocations = dst.take(newNumVehiclesToReposition)
 
-        val result = srcLocations.zip(dstLocations).map {
-          case (s, d) =>
-            (s.vehicleId, d.latestUpdatedLocationUTM.loc)
+        val result = srcLocations.zip(dstLocations).map { case (s, d) =>
+          (s.vehicleId, d.latestUpdatedLocationUTM.loc)
         }
         result.toVector
 
@@ -314,18 +311,17 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val percent = (if (nonRepositioningIdleVehicles.isEmpty) 0
                          else result.size.toDouble / nonRepositioningIdleVehicles.size) * 100
           logger.info(
-            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning ${percent} % of idle vehicle"
+            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning $percent % of idle vehicle"
           )
           logger.info(s"tick is $tick. Activities in [tick + 20*60, tick + 3600]: ${activitiesCoordinates.size}")
           showDistanceStats(result)
 
           logger.whenDebugEnabled {
-            result.foreach {
-              case (id, coord) =>
-                val vehLoc =
-                  rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
-                val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
-                logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
+            result.foreach { case (id, coord) =>
+              val vehLoc =
+                rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
+              val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
+              logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
             }
           }
 
@@ -375,18 +371,17 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           val percent = (if (nonRepositioningIdleVehicles.isEmpty) 0
                          else result.size.toDouble / nonRepositioningIdleVehicles.size) * 100
           logger.info(
-            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning ${percent} % of idle vehicle"
+            s"Will reposition ${result.size} which are randomly picked from ${vehiclesToReposition.size}. Number of nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, repositioning $percent % of idle vehicle"
           )
           logger.info(s"tick is $tick. Activities in [tick + 20*60, tick + 3600]: ${activitiesCoordinates.size}")
           showDistanceStats(result)
 
           logger.whenDebugEnabled {
-            result.foreach {
-              case (id, coord) =>
-                val vehLoc =
-                  rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
-                val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
-                logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
+            result.foreach { case (id, coord) =>
+              val vehLoc =
+                rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
+              val distance = rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
+              logger.debug(s"$tick: Going to reposition $id to $coord which is $distance m away")
             }
           }
 
@@ -423,7 +418,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
                   }
                 }
                 .toVector
-                .sortBy { case (vehLocation, distance) => -distance }
+                .sortBy { case (_, distance) => -distance }
                 .map(_._1)
                 .splitAt(2 * newNumVehiclesToReposition)
                 ._1
@@ -459,7 +454,7 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
                     (act, distance)
                   }
-                  .sortBy { case (act, distance) => -distance }
+                  .sortBy { case (_, distance) => -distance }
                   .map { _._1 }
                   .headOption
 
@@ -481,7 +476,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
 
       case 6 =>
         if (tick == 0) {
-          val okToReposition = rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
+          val okToReposition =
+            rhs.getRideHailUtilization.notMovedAtAll ++ rhs.getRideHailUtilization.movedWithoutPassenger
           val neverMovedVehiclesBatched = rand
             .shuffle(okToReposition)
             .toVector
@@ -511,10 +507,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
           }
         }
         val vehicleSet = rideHailManager.rideHailManagerHelper.getIdleVehiclesAndFilterOutExluded
-        tickToLocation.getOrElse(tick, Vector.empty).filter {
-          case (vehicleId, _) =>
-            rideHailManager.modifyPassengerScheduleManager
-              .isVehicleNeitherRepositioningNorProcessingReservation(vehicleId) &&
+        tickToLocation.getOrElse(tick, Vector.empty).filter { case (vehicleId, _) =>
+          rideHailManager.modifyPassengerScheduleManager
+            .isVehicleNeitherRepositioningNorProcessingReservation(vehicleId) &&
             vehicleSet.contains(vehicleId)
         }
       // The same as 6 algo, but we will reposition
@@ -558,10 +553,9 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
   }
 
   def showDistanceStats(result: Vector[(Id[BeamVehicle], Location)]): Unit = {
-    val distances = result.map {
-      case (id, coord) =>
-        val vehLoc = rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
-        rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
+    val distances = result.map { case (id, coord) =>
+      val vehLoc = rideHailManager.rideHailManagerHelper.getRideHailAgentLocation(id).latestUpdatedLocationUTM.loc
+      rideHailManager.beamServices.geo.distUTMInMeters(coord, vehLoc)
     }
     val stats = Statistics.apply(distances)
     logger.info(s"Repositining distance stat: $stats")

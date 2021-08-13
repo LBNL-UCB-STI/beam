@@ -56,16 +56,14 @@ object LinkIdsToGpx {
             .flatMap(x => Option(x.getAttribute("origid")).map(_.toString))
           osmId -> (link.getId.toString, link.getLength)
         }
-        .groupBy { case (k, v) => k }
-        .map {
-          case (k, v) =>
-            k -> v.map(_._2).toList
+        .groupBy { case (k, _) => k }
+        .map { case (k, v) =>
+          k -> v.map(_._2).toList
         }
 
-      osmIds.foreach {
-        case (k, v) =>
-          val length = v.map(_._2).sum
-          println(s"$k => ${v.map(_._1).mkString(" ")}. Length: $length}")
+      osmIds.foreach { case (k, v) =>
+        val length = v.map(_._2).sum
+        println(s"$k => ${v.map(_._1).mkString(" ")}. Length: $length}")
       }
       println(s"OsmIds: $osmIds}")
     } finally {

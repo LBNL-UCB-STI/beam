@@ -1,7 +1,8 @@
 package beam.agentsim.agents.household
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{ActorLogging, Props}
 import akka.pattern.pipe
+import beam.utils.logging.LoggingMessageActor
 import optimus.optimization._
 import optimus.optimization.enums.SolverLib
 import optimus.optimization.enums.{PreSolve, SolutionStatus, SolverLib}
@@ -19,16 +20,16 @@ object HouseholdSolverActor {
   }
 }
 
-class HouseholdSolverActor extends Actor with ActorLogging {
+class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
   import context._
 
-  override def receive: Receive = {
+  override def loggedReceive: Receive = {
     case BeginSolving =>
       //println(self + ": Starting Solving")
       val ongoingSolver: Future[Unit] = Future { solve }
       ongoingSolver.map(_ => SolutionComplete) pipeTo self
       //ongoingSolver.onComplete(println)
-      context become solving
+      contextBecome(solving)
     case _ =>
   }
 

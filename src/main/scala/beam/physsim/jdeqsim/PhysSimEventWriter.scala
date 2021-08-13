@@ -24,6 +24,7 @@ class PhysSimEventWriter(writers: Array[CommonEventWriter], itNum: Int)
     with ShutdownListener
     with EventWriter
     with LazyLogging {
+
   private val writerExecutor: ExecutorService =
     Executors.newFixedThreadPool(
       1,

@@ -15,7 +15,7 @@ import scala.collection.mutable
   * Analyzes the average travel time by car mode for every iteration (including walk)
   * @param beamConfig Beam config instance
   */
-class PersonAverageTravelTimeAnalysis @Inject()(
+class PersonAverageTravelTimeAnalysis @Inject() (
   beamConfig: BeamConfig
 ) extends GraphAnalysis {
 
@@ -100,7 +100,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
       // Person started to walk towards his car
       personWalksTowardsCar.put(personId, pev)
     } else {
-      personWalksTowardsCar.get(personId.toString) match {
+      personWalksTowardsCar.get(personId) match {
         case Some(walkEvent: PersonEntersVehicleEvent) =>
           // Person previously walked towards his car
           personWalksTowardsCar.remove(personId)
@@ -181,7 +181,10 @@ class PersonAverageTravelTimeAnalysis @Inject()(
         // Stop tracking the departure of this person
         personCarDepartures.remove(personId)
         // add including walk cumulative time of the current depature - arrival to total list
-        val updatedTime = personTotalTravelTimesIncludingWalk.getOrElse(personId, List.empty[Double]) :+ personTravelTimeIncludingWalkForCurrentDeparture
+        val updatedTime = personTotalTravelTimesIncludingWalk.getOrElse(
+          personId,
+          List.empty[Double]
+        ) :+ personTravelTimeIncludingWalkForCurrentDeparture
           .getOrElse(personId, 0.0)
         personTotalTravelTimesIncludingWalk.put(personId, updatedTime)
         // clear state
@@ -196,7 +199,8 @@ class PersonAverageTravelTimeAnalysis @Inject()(
     */
   override def createGraph(event: IterationEndsEvent): Unit = {
     // Total travel times of all people (car mode only) including walk to/from the car before/after travel
-    val totalTravelTimesIncludingWalk = personTotalCarTravelTimes.values.toList.flatten ++ personTotalTravelTimesIncludingWalk.values.flatten
+    val totalTravelTimesIncludingWalk =
+      personTotalCarTravelTimes.values.toList.flatten ++ personTotalTravelTimesIncludingWalk.values.flatten
     // Tracks the average travel time (including walk) for each iteration
     averageCarTravelTimesIncludingWalkForAllIterations.put(
       event.getIteration,
@@ -244,7 +248,7 @@ class PersonAverageTravelTimeAnalysis @Inject()(
       val averageTravelTime = totalTravelTimes.sum / totalTravelTimes.length
       java.util.concurrent.TimeUnit.SECONDS.toMinutes(Math.ceil(averageTravelTime).toLong).toDouble
     } catch {
-      case _: Exception => 0D
+      case _: Exception => 0d
     }
   }
 

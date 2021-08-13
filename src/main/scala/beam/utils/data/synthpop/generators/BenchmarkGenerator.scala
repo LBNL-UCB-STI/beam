@@ -8,7 +8,6 @@ import beam.utils.data.ctpp.readers.flow.MeansOfTransportationTableReader
 import beam.utils.data.synthpop.GeoService
 import beam.utils.data.synthpop.models.Models.TazGeoId
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
-import de.vandermeer.asciitable.AsciiTable
 
 class BenchmarkGenerator(
   val odList: Iterable[OD[MeansOfTransportation]],
@@ -53,15 +52,17 @@ object BenchmarkGenerator {
       new MeansOfTransportationTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`)
         .read()
     val tazGeoIdToGeom: Map[TazGeoId, Geometry] = pathToTazShapeFiles.flatMap { pathToTazShapeFile =>
-      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, x => true, GeoService.defaultTazMapper)
+      GeoService.getTazMap("EPSG:4326", pathToTazShapeFile, _ => true, GeoService.defaultTazMapper)
     }.toMap
     val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(pathToOsmMap)
     new BenchmarkGenerator(od, tazGeoIdToGeom, mapBoundingBox)
   }
 
   private val pathToCTPP: String = "d:/Work/beam/CTPP/"
+
   private val newYorkCountiesShapeFile: String =
     "D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_36_taz10/tl_2011_36_taz10.shp"
+
   private val newJerseyCountiesShapeFile: String =
     "D:/Work/beam/NewYork/input/Shape/TAZ/tl_2011_34_taz10/tl_2011_34_taz10.shp"
   private val pathToOSMFile: String = "D:/Work/beam/NewYork/input/OSM/newyork-14-counties-incomplete.osm.pbf"
@@ -113,10 +114,9 @@ object BenchmarkGenerator {
     val totalCount = modes.map(_._2).sum
     val csvWriter = new CsvWriter(path, Array("mode", "count", "percent"))
     try {
-      modes.foreach {
-        case (mode, count) =>
-          val pct = 100 * count / totalCount
-          csvWriter.write(mode, count, pct)
+      modes.foreach { case (mode, count) =>
+        val pct = 100 * count / totalCount
+        csvWriter.write(mode, count, pct)
       }
     } finally {
       csvWriter.close()

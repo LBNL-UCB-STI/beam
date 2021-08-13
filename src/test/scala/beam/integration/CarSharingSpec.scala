@@ -1,4 +1,5 @@
 package beam.integration
+
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, PersonCostEvent}
 import beam.agentsim.infrastructure.taz.TAZ
@@ -18,9 +19,10 @@ import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.controler.listener.IterationStartsListener
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 
-class CarSharingSpec extends FlatSpec with Matchers with BeamHelper {
+class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   private val sharedCarTypeId = org.matsim.api.core.v01.Id.create("sharedCar", classOf[BeamVehicleType])
 

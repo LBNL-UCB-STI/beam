@@ -20,7 +20,6 @@ import scala.collection.immutable
   *  2. --experiments is used to pass location of experiments.yml
   *
   * This generator will create sub-directories relatively to experiments.yml
-  *
   */
 object ExperimentGenerator extends ExperimentApp {
   import beam.experiment.ExperimentApp
@@ -47,9 +46,8 @@ object ExperimentGenerator extends ExperimentApp {
   val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.header.beamTemplateConfPath).toFile)
   val experimentVariations: immutable.Seq[(ExperimentRun, Int)] = experimentDef.combinationsOfLevels().zipWithIndex
 
-  val experimentRuns = experimentVariations.map {
-    case (run, runIdx) =>
-      ExperimentRunSandbox(experimentDef, run, runIdx, baseConfig)
+  val experimentRuns = experimentVariations.map { case (run, runIdx) =>
+    ExperimentRunSandbox(experimentDef, run, runIdx, baseConfig)
   }
 
   val modeChoiceTemplate = Resources.toString(
@@ -94,11 +92,11 @@ object ExperimentGenerator extends ExperimentApp {
     /*
      * Optionally write the mode choice params file
      */
-    experimentDef.header.modeChoiceTemplate.toString match {
+    experimentDef.header.modeChoiceTemplate match {
       case "" =>
         // Do nothing since modeChoiceParams wasn't specified in experiment.yaml file
         ""
-      case uri =>
+      case _ =>
         if (!Files.exists(runSandbox.modeChoiceParametersXmlPath.getParent)) {
           runSandbox.modeChoiceParametersXmlPath.getParent.toFile.mkdirs()
         }

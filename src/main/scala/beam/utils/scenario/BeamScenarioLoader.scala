@@ -3,10 +3,10 @@ package beam.utils.scenario
 import beam.agentsim.agents.household.HouseholdFleetManager
 
 import java.util
-
 import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -54,12 +54,10 @@ class BeamScenarioLoader(
   ): Unit = {
     val attributes = households.getHouseholdAttributes
     attributes.clear()
-    loadedAttributes.foreach {
-      case (id, listOfAttributes) =>
-        listOfAttributes.foreach {
-          case (name, value) =>
-            attributes.putAttribute(id, name, value)
-        }
+    loadedAttributes.foreach { case (id, listOfAttributes) =>
+      listOfAttributes.foreach { case (name, value) =>
+        attributes.putAttribute(id, name, value)
+      }
     }
   }
 
@@ -85,7 +83,7 @@ class BeamScenarioLoader(
 
     beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
+      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt, ParkingZone.GlobalReservedFor))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
@@ -193,31 +191,30 @@ class BeamScenarioLoader(
   ): Population = {
     logger.info("Applying plans...")
 
-    plansElements.groupBy(_.personId).foreach {
-      case (personId: PersonId, listOfElementsGroupedByPerson) =>
-        listOfElementsGroupedByPerson.groupBy(_.planIndex).foreach {
-          case (_, listOfElementsGroupedByPlan) if listOfElementsGroupedByPlan.nonEmpty =>
-            val person = population.getPersons.get(Id.createPersonId(personId.id))
+    plansElements.groupBy(_.personId).foreach { case (personId: PersonId, listOfElementsGroupedByPerson) =>
+      listOfElementsGroupedByPerson.groupBy(_.planIndex).foreach {
+        case (_, listOfElementsGroupedByPlan) if listOfElementsGroupedByPlan.nonEmpty =>
+          val person = population.getPersons.get(Id.createPersonId(personId.id))
 
-            val currentPlan = PopulationUtils.createPlan(person)
-            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
-            person.addPlan(currentPlan)
+          val currentPlan = PopulationUtils.createPlan(person)
+          currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+          person.addPlan(currentPlan)
 
-            val personWithoutSelectedPlan = person.getSelectedPlan == null
-            val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
-            val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
-            if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
-              person.setSelectedPlan(currentPlan)
+          val personWithoutSelectedPlan = person.getSelectedPlan == null
+          val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
+          val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
+          if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
+            person.setSelectedPlan(currentPlan)
+          }
+
+          listOfElementsGroupedByPlan.foreach { planElement =>
+            if (planElement.planElementType.equalsIgnoreCase("leg")) {
+              buildAndAddLegToPlan(currentPlan, planElement)
+            } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
+              buildAndAddActivityToPlan(currentPlan, planElement)
             }
-
-            listOfElementsGroupedByPlan.foreach { planElement =>
-              if (planElement.planElementType.equalsIgnoreCase("leg")) {
-                buildAndAddLegToPlan(currentPlan, planElement)
-              } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
-                buildAndAddActivityToPlan(currentPlan, planElement)
-              }
-            }
-        }
+          }
+      }
     }
     population
   }
@@ -286,8 +283,8 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
   ): Iterable[Household] = {
     val householdIdToVehicles = vehicles
       .groupBy(_.householdId)
-      .map {
-        case (id, vehicleInfo) => HouseholdId(id) -> vehicleInfo
+      .map { case (id, vehicleInfo) =>
+        HouseholdId(id) -> vehicleInfo
       }
 
     val householdIdToPersons = people.groupBy(_.householdId)
@@ -341,7 +338,8 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
   def buildBeamVehicle(
     map: Map[Id[BeamVehicleType], BeamVehicleType],
     info: VehicleInfo,
-    randomSeed: Int
+    randomSeed: Int,
+    vehicleManagerId: Id[VehicleManager]
   ): BeamVehicle = {
     val matsimVehicleType: VehicleType =
       VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
@@ -358,8 +356,8 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
       beamVehicleId,
       powerTrain,
       beamVehicleType,
-      managerId = VehicleManager.privateVehicleManager.managerId,
-      randomSeed
+      vehicleManagerId,
+      randomSeed = randomSeed
     )
   }
 

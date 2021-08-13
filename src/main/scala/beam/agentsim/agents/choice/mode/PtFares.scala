@@ -63,7 +63,7 @@ object PtFares {
       agencyId,
       routeId,
       Range(age),
-      Try(amount.toDouble).getOrElse(0D)
+      Try(amount.toDouble).getOrElse(0d)
     )
   }
 

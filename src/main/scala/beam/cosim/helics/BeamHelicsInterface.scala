@@ -104,10 +104,11 @@ object BeamHelicsInterface {
       case JsNumber(n)                        => n.doubleValue()
       case JsTrue                             => true
       case JsFalse                            => false
-      case JsString(s)                        => s.asInstanceOf[String]
+      case JsString(s)                        => s
       case _                                  => deserializationError("JsNumber (Double or Int), JsTrue, JsFalse or JsString are expected")
     }
   }
+
   implicit object MapAnyJsonFormat extends JsonFormat[Map[String, Any]] {
 
     def write(c: Map[String, Any]): JsValue = {
@@ -119,6 +120,7 @@ object BeamHelicsInterface {
       case _           => deserializationError("JsObject expected")
     }
   }
+
   implicit object ListMapAnyJsonFormat extends JsonFormat[List[Map[String, Any]]] {
 
     def write(c: List[Map[String, Any]]): JsValue = {
@@ -206,10 +208,9 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return raw message in string format
       */
-    private def syncThenCollectRaw(time: Int): String = {
+    private def collectRaw(): String = {
       dataInStreamHandle
         .map { handle =>
-          sync(time)
           val buffer = new Array[Byte](bufferSize)
           val bufferInt = new Array[Int](1)
           helics.helicsInputGetString(handle, buffer, bufferInt)
@@ -224,8 +225,8 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return Message in List of Maps format
       */
-    def syncThenCollectJSON(time: Int): List[Map[String, Any]] = {
-      val message = syncThenCollectRaw(time)
+    def collectJSON(): List[Map[String, Any]] = {
+      val message = collectRaw()
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         try {
@@ -242,8 +243,8 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return message in list of Strings format
       */
-    def syncThenCollectAny(time: Int): List[Any] = {
-      val message = syncThenCollectRaw(time)
+    def collectAny(): List[Any] = {
+      val message = collectRaw()
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         message.split(",").toList
@@ -302,6 +303,7 @@ object BeamHelicsInterface {
   ) extends StrictLogging {
     private val broker = helics.helicsCreateBroker(coreType, "", s"-f $numFederates --name=$brokerName")
     lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
+
     private val federate: Option[BeamFederate] = if (isConnected) {
       Some(
         getFederate(

@@ -21,8 +21,8 @@ class GeoGrouper(
   }
 
   def aggregate(entryAggregator: ValueAggregator): GeoGrouper = {
-    val newMap = parkingGroupEntries.map {
-      case (group, values) => group -> entryAggregator.aggregate(values)
+    val newMap = parkingGroupEntries.map { case (group, values) =>
+      group -> entryAggregator.aggregate(values)
     }
     new GeoGrouper(newMap)
   }
@@ -30,22 +30,21 @@ class GeoGrouper(
   def exportToCsv(file: Path): GeoGrouper = {
     val csvWriter: CsvWriter = {
       val headers =
-        Array("geoIndex", "parkingType", "pricingModel", "chargingType", "reservedFor", "numStalls", "feeInCents")
+        Array("geoIndex", "parkingType", "pricingModel", "chargingPointType", "reservedFor", "numStalls", "feeInCents")
       new CsvWriter(file.toString, headers)
     }
-    val rows = parkingGroupEntries.flatMap {
-      case (group, values) =>
-        values.map { entryValue: ParkingEntryValues =>
-          IndexedSeq(
-            group.h3Index.value,
-            group.parkingType,
-            group.pricingModel,
-            group.chargingType,
-            group.reservedFor,
-            entryValue.numStalls,
-            entryValue.feeInCents
-          )
-        }
+    val rows = parkingGroupEntries.flatMap { case (group, values) =>
+      values.map { entryValue: ParkingEntryValues =>
+        IndexedSeq(
+          group.h3Index.value,
+          group.parkingType,
+          group.pricingModel,
+          group.chargingPointType,
+          group.reservedFor,
+          entryValue.numStalls,
+          entryValue.feeInCents
+        )
+      }
     }
     rows.foreach(csvWriter.writeRow)
     csvWriter.flush()
@@ -55,6 +54,7 @@ class GeoGrouper(
 }
 
 object GeoGrouper {
+
   private def generateMap(
     parkingEntries: Seq[H3IndexParkingEntry]
   ): Map[H3IndexParkingEntryGroup, Seq[ParkingEntryValues]] = {

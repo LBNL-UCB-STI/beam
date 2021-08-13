@@ -1,7 +1,6 @@
 package beam.integration
 
 import java.nio.charset.StandardCharsets
-
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
@@ -19,13 +18,20 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.util.Try
 
-class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
+class EventsFileSpec
+    extends AnyFlatSpec
+    with BeforeAndAfterAll
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon {
 
   private lazy val config: Config = baseConfig
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
@@ -45,15 +51,15 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
   override protected def beforeAll(): Unit = {
     val beamExecutionConfig: BeamExecutionConfig = setupBeamWithConfig(config)
 
-    val (scenarioBuilt, beamScenario) = buildBeamServicesAndScenario(
+    val (scenarioBuilt, beamScenario, plansMerged) = buildBeamServicesAndScenario(
       beamExecutionConfig.beamConfig,
       beamExecutionConfig.matsimConfig
     )
     scenario = scenarioBuilt
     injector = buildInjector(config, beamExecutionConfig.beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
 
-    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory)
+    runBeam(services, scenario, beamScenario, scenario.getConfig.controler().getOutputDirectory, plansMerged)
     personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -80,10 +86,11 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "trips.txt").map { stream =>
       Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
     }
-    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' ${gtfsZip}")
+    require(maybeLines.nonEmpty, s"Couldn't read 'trips.txt' $gtfsZip")
 
-    val trips = for (line <- maybeLines.get)
-      yield line.split(",")(2)
+    val trips =
+      for (line <- maybeLines.get)
+        yield line.split(",")(2)
     trips.toSet
   }
 
@@ -102,10 +109,11 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val maybeLines = FileUtils.getStreamFromZipFolder(gtfsZip, "stop_times.txt").map { stream =>
       Source.fromInputStream(stream, StandardCharsets.UTF_8.name()).getLines().drop(1).toList
     }
-    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' ${gtfsZip}")
+    require(maybeLines.nonEmpty, s"Couldn't read 'stop_times.txt' $gtfsZip")
 
-    val stopTimes = for (line <- maybeLines.get)
-      yield line.split(",")
+    val stopTimes =
+      for (line <- maybeLines.get)
+        yield line.split(",")
     val stopTimesByTrip = stopTimes.groupBy(_(0))
     stopTimesByTrip.map { case (k, v) => (k, v.size - 1) }
   }
@@ -198,7 +206,7 @@ class EventsFileSpec extends FlatSpec with BeforeAndAfterAll with Matchers with 
     val xmlEvents = fromXmlFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "xml").getAbsolutePath)
     assert(xmlEvents.nonEmpty)
     val (csvEventsIter, toClose) =
-      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, x => true)
+      fromCsvFile(getEventsFilePath(scenario.getConfig, "physSimEvents", "csv").getAbsolutePath, _ => true)
     try {
       assert(csvEventsIter.toArray.nonEmpty)
     } finally {

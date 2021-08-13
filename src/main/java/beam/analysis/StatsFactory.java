@@ -162,7 +162,7 @@ public class StatsFactory {
             case RideHailSummary:
                 return new RideHailSummary();
             case LoadOverTimeAnalysis:
-                return new LoadOverTimeAnalysis(beamServices.geo(), beamServices.simMetricCollector());
+                return new LoadOverTimeAnalysis(beamServices.simMetricCollector());
             case ChargingAnalysis:
                 return new ChargingAnalysis();
             case EVFleetAnalysis:

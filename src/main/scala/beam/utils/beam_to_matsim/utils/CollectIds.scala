@@ -93,10 +93,14 @@ object CollectIds extends App {
   }
 
   val accumulator = BeamEventsReader
-    .fromFileFoldLeft[Accumulator](sourcePath, new Accumulator(), (acc, event) => {
-      acc.process(event)
-      acc
-    })
+    .fromFileFoldLeft[Accumulator](
+      sourcePath,
+      new Accumulator(),
+      (acc, event) => {
+        acc.process(event)
+        acc
+      }
+    )
     .getOrElse(new Accumulator())
 
   Writer.writeSeqOfString(

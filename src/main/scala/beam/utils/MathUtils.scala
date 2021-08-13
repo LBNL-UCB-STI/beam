@@ -1,4 +1,5 @@
 package beam.utils
+
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -82,6 +83,14 @@ object MathUtils {
     max + math.log(accum)
   }
 
+  def randomPointInCircle(rSquared: Double, rnd: Random): (Double, Double) = {
+    val xSquared = rnd.nextDouble() * rSquared
+    val ySquared = rnd.nextDouble() * (rSquared - xSquared)
+    val xSign = Math.signum(rnd.nextDouble() - 0.5)
+    val ySign = Math.signum(rnd.nextDouble() - 0.5)
+    (xSign * Math.sqrt(xSquared), ySign * Math.sqrt(ySquared))
+  }
+
   /**
     * Sums together things in log space.
     * @return log(\sum exp(a_i))
@@ -127,5 +136,6 @@ object MathUtils {
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
 
-  def nanToZero(x: Double) = if (x.isNaN) { 0.0 } else { x }
+  def nanToZero(x: Double) = if (x.isNaN) { 0.0 }
+  else { x }
 }

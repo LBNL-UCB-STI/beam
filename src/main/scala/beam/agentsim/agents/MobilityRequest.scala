@@ -1,8 +1,9 @@
 package beam.agentsim.agents
+
 import beam.agentsim.agents.planning.{Tour, Trip}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.Modes.BeamMode
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
+import beam.router.model.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.population.PopulationUtils
@@ -27,7 +28,8 @@ case class MobilityRequest(
   pickupRequest: Option[MobilityRequest] = None,
   routingRequestId: Option[Int] = None,
   vehicleOccupancy: Option[Int] = None,
-  beamLegAfterTag: Option[EmbodiedBeamLeg] = None // In other words, this leg is traversed **after** the action described in "tag" so if tag is a dropoff, we do the dropoff first then complete the beamLeg
+  beamLegAfterTag: Option[EmbodiedBeamLeg] =
+    None // In other words, this leg is traversed **after** the action described in "tag" so if tag is a dropoff, we do the dropoff first then complete the beamLeg
 ) {
   val nextActivity: Some[Activity] = Some(trip.activity)
 
@@ -37,13 +39,15 @@ case class MobilityRequest(
   def formatTime(secs: Int): String = {
     s"${secs / 3600}:${(secs % 3600) / 60}:${secs % 60}"
   }
+
   override def toString: String = {
     val personid = person match {
       case Some(p) => p.personId.toString
       case None    => "None"
     }
-    s"${baselineNonPooledTime}|$tag|${personid}|${activity.getCoord}| => ${serviceTime}"
+    s"$baselineNonPooledTime|$tag|$personid|${activity.getCoord}| => $serviceTime"
   }
+
   override def equals(that: Any): Boolean = {
     that match {
       case _: MobilityRequest =>

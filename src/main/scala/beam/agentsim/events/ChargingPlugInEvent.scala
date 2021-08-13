@@ -1,8 +1,8 @@
 package beam.agentsim.events
 
 import java.util
+
 import beam.agentsim.infrastructure.ParkingStall
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -15,11 +15,10 @@ case class ChargingPlugInEvent(
   locationWGS: Coord,
   vehId: Id[Vehicle],
   primaryFuelLevel: Double,
-  secondaryFuelLevel: Option[Double],
+  secondaryFuelLevel: Option[Double]
 ) extends Event(tick)
     with HasPersonId
-    with ScalaEvent
-    with LazyLogging {
+    with ScalaEvent {
 
   import ChargingPlugInEvent._
 
@@ -27,15 +26,7 @@ case class ChargingPlugInEvent(
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
 
   val pricingModelString: String = stall.pricingModel.map { _.toString }.getOrElse("None")
-
-  val chargingPointString: String = {
-    stall.chargingPointType.map { _.toString } match {
-      case Some(value) => value
-      case None =>
-        logger.error(s"There is no charging point for stall ${stall.toString}")
-        "None"
-    }
-  }
+  val chargingPointString: String = stall.chargingPointType.map { _.toString }.getOrElse("None")
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
@@ -64,6 +55,6 @@ object ChargingPlugInEvent {
   val ATTRIBUTE_LOCATION_Y: String = "locationY"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
 }

@@ -10,8 +10,10 @@ trait PersonInfoWriter {
 }
 
 object CsvPersonInfoWriter extends PersonInfoWriter {
+
   private val headers: Array[String] =
     Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime")
+
   override def write(path: String, xs: Iterable[PersonInfo]): Unit = {
     val csvWriter = new CsvWriter(path, headers)
     try {

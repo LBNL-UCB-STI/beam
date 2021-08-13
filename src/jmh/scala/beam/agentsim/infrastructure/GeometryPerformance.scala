@@ -1,7 +1,5 @@
 package beam.agentsim.infrastructure
 
-import java.nio.file.Paths
-
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -11,6 +9,7 @@ import org.openjdk.jmh.infra.Blackhole
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
 
+import java.nio.file.Paths
 import scala.util.Random
 
 /**
@@ -70,16 +69,17 @@ object GeometryPerformance {
     val beamHome = System.getProperty("beam.home", ".")
     println("beamHome = " + Paths.get(beamHome).toAbsolutePath)
     val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
-    val (zones, _) = ZonalParkingManager.loadParkingZones[TAZ](
+    val stalls = InfrastructureUtils.loadStalls[TAZ](
       s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
-      tazMap.tazQuadTree,
+      IndexedSeq(),
+      tazMap.tazQuadTree, //it is required only in case of failures
       1.0,
       1.0,
-      new Random(18389),
+      18389
     )
 
     val clusters: Vector[ParallelParkingManager.ParkingCluster] =
-      ParallelParkingManager.createClusters(tazMap, zones, 16, 42L)
+      ParallelParkingManager.createClusters(tazMap, stalls, 16, 42L)
 
     val bounds: QuadTreeBounds = ShapeUtils.quadTreeBounds(tazMap.getTAZs.map(_.coord))
 

@@ -21,7 +21,7 @@ import scala.collection.JavaConverters._
 
 case class DelayInLength(delay: Double, length: Int)
 
-class DelayMetricAnalysis @Inject()(
+class DelayMetricAnalysis @Inject() (
   eventsManager: EventsManager,
   controlerIO: OutputDirectoryHierarchy,
   networkHelper: NetworkHelper
@@ -34,7 +34,7 @@ class DelayMetricAnalysis @Inject()(
 
   private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
+  private val linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
 
   private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
 
@@ -133,13 +133,12 @@ class DelayMetricAnalysis @Inject()(
   }
 
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
-    cumulativeDelay.zipWithIndex.foreach {
-      case (delay, index) =>
-        val link = networkHelper.getLinkUnsafe(index)
-        val capacity = link.getCapacity
-        val bin = largeset(capacity)
-        val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
-        capacitiesDelay(bin) = delay + capacityDelay
+    cumulativeDelay.zipWithIndex.foreach { case (delay, index) =>
+      val link = networkHelper.getLinkUnsafe(index)
+      val capacity = link.getCapacity
+      val bin = largeset(capacity)
+      val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
+      capacitiesDelay(bin) = delay + capacityDelay
     }
 
     for (index <- bins.indices) {

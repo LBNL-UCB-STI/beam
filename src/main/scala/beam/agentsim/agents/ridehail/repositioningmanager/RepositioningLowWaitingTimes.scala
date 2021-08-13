@@ -83,8 +83,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
           maxNumberOfVehiclesToReposition,
           tick,
           timeWindowSizeInSecForDecidingAboutRepositioning,
-          minimumNumberOfIdlingVehiclesThresholdForRepositioning,
-          rideHailManager.beamServices
+          minimumNumberOfIdlingVehiclesThresholdForRepositioning
         )
 
         repositionCircleRadiusInMeters = tncIterStats.getUpdatedCircleSize(
@@ -145,8 +144,10 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
             val tazEntries = tncIterStats getCoordinatesWithRideHailStatsEntry (tick, tick + 3600)
 
             for (tazEntry <- tazEntries.filter(x => x._2.getDemandEstimate > 0)) {
-              if (firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
-                    .distUTMInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)) {
+              if (
+                firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
+                  .distUTMInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)
+              ) {
                 spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
                   StringToPlot(
@@ -204,7 +205,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
                 rideHailManager.beamServices.matsimServices.getControlerIO
                   .getIterationFilename(
                     rideHailManager.beamServices.matsimServices.getIterationNumber,
-                    (tick / 3600 * 100).toInt / 100.0 + "locationOfAgentsInitally.png"
+                    (tick / 3600 * 100) / 100.0 + "locationOfAgentsInitally.png"
                   )
                   .replace(iteration, iteration + "/rideHailDebugging")
               )
@@ -267,10 +268,9 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],
     newMaxNumberOfVehiclesToReposition: Int
   ): Vector[RideHailAgentLocation] = {
-    val (idle, repositioning) = idleVehicles.values.toVector.partition(
-      rideHailAgentLocation =>
-        rideHailManager.modifyPassengerScheduleManager
-          .isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId)
+    val (idle, repositioning) = idleVehicles.values.toVector.partition(rideHailAgentLocation =>
+      rideHailManager.modifyPassengerScheduleManager
+        .isVehicleNeitherRepositioningNorProcessingReservation(rideHailAgentLocation.vehicleId)
     )
     val result = if (idle.size < newMaxNumberOfVehiclesToReposition) {
       idle ++ repositioning.take(newMaxNumberOfVehiclesToReposition - idle.size)
