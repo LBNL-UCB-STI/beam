@@ -192,7 +192,8 @@ class ChargingNetworkManager(
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) if chargingVehicle.chargingSessions.nonEmpty =>
               val unplugTimeBin = currentTimeBin(tick)
-              val index = chargingVehicle.chargingSessions.indexWhere(_.startTime >= unplugTimeBin)
+              //val index = chargingVehicle.chargingSessions.indexWhere(_.startTime >= unplugTimeBin)
+              val index = chargingVehicle.chargingSessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTimeBin)
               val (startTime, endTime) =
                 if (index == -1) (unplugTimeBin, tick) else (chargingVehicle.chargingSessions(index).startTime, tick)
               dispatchEnergyAndProcessChargingCycle(
