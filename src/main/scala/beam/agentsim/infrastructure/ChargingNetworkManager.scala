@@ -162,14 +162,15 @@ class ChargingNetworkManager(
         val chargingNetwork = chargingNetworkMap(stall.reservedFor)
         // connecting the current vehicle
         chargingNetwork.attemptToConnectVehicle(tick, vehicle, stall, sender(), personId, shiftStatus) match {
-          case Some((ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _), status)) if status == WaitingToCharge =>
+          case Some((ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _), status))
+              if status == WaitingAtStation =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station $station, with {}/{} vehicles connected and {} in waiting line",
               station.connectedVehicles.size,
               station.zone.maxStalls,
               station.waitingLineVehicles.size
             )
-            sender() ! WaitingInLine(tick, vehicle.id, triggerId)
+            sender() ! WaitingToCharge(tick, vehicle.id, stall, triggerId)
           case Some((chargingVehicle, status)) if status == Connected =>
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
           case Some((ChargingVehicle(_, _, station, _, _, _, _, _, _, _), status)) if status == AlreadyAtStation =>
@@ -320,8 +321,10 @@ class ChargingNetworkManager(
         handleRefueling(chargingVehicle)
         handleEndChargingHelper(tick, chargingVehicle, beamServices)
         vehicle.disconnectFromChargingPoint()
-        parkingNetworkManager ! ReleaseParkingStall(vehicle.stall.get, triggerId)
-        vehicle.unsetParkingStall()
+        if (!vehicle.isCAV) {
+          parkingNetworkManager ! ReleaseParkingStall(vehicle.stall.get, triggerId)
+          vehicle.unsetParkingStall()
+        }
         currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id, stall, triggerId))
         chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _, triggerId))
       case None =>
@@ -381,7 +384,9 @@ object ChargingNetworkManager extends LazyLogging {
 
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
       extends HasTriggerId
-  case class WaitingInLine(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
+
+  case class WaitingToCharge(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
+      extends HasTriggerId
   case class UnhandledVehicle(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
   def props(

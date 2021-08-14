@@ -78,7 +78,7 @@ trait ChoosesParking extends {
       log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingInLine(tick, vehicleId, triggerId), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, _, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data

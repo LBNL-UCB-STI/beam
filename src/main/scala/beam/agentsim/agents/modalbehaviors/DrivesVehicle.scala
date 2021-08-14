@@ -14,13 +14,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingPlugRequest,
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  WaitingInLine
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -443,10 +437,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
+      log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
       stay()
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.Driving.WaitingInLine): {}", ev)
+    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
+      log.error("state(DrivesVehicle.Driving.WaitingInLine): {}. This probably should not happen", ev)
       stay()
 
   }
@@ -546,6 +540,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
+    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
+      stay
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
       self ! PassengerScheduleEmptyMessage(
         geo.wgs2Utm(
@@ -565,21 +562,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       goto(PassengerScheduleEmpty) using stripLiterallyDrivingData(data)
         .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
         .asInstanceOf[T]
-
-    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted.StartingRefuelSession): {}", ev)
-      stash()
-      stay()
-
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted.UnhandledVehicle): {}", ev)
-      stash()
-      stay()
-
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted.WaitingInLine): {}", ev)
-      stash()
-      stay()
 
   }
 
