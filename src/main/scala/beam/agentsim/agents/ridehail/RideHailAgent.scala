@@ -1015,7 +1015,8 @@ class RideHailAgent(
           Id.createPersonId(id),
           triggerId,
           shiftStatus = if (isCurrentlyOnShift) { OnShift }
-          else { OffShift }
+          else { OffShift },
+          Some(data.remainingShifts.head.range.lowerBound)
         )
       case _ =>
         log.debug(

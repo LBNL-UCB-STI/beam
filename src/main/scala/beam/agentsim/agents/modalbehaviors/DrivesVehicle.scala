@@ -383,8 +383,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     currentBeamVehicle,
                     stall,
                     Id.createPersonId(id),
-                    triggerId,
-                    shiftStatus = NotApplicable
+                    triggerId
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely
