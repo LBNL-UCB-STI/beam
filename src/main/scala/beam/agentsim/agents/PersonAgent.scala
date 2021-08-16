@@ -773,7 +773,7 @@ class PersonAgent(
     case _ -> PlanningEnRouteCharging =>
       nextStateData match {
         case data: BasePersonData =>
-          val vehicleOpt = data.currentVehicle.headOption.map(beamVehicles(_).vehicle)
+          val vehicleOpt = data.restOfCurrentTrip.headOption.map(leg => beamVehicles(leg.beamVehicleId).vehicle)
           vehicleOpt match {
             case None => log.error("PlanningEnRouteCharging: vehicle not found.")
             case Some(vehicle) =>
