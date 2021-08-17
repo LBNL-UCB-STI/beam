@@ -823,7 +823,7 @@ class PersonAgent(
           data @ BasePersonData(
             _,
             _,
-            nextLeg :: restOfCurrentTrip,
+            trip @ nextLeg :: restOfCurrentTrip,
             currentVehicle,
             _,
             _,
@@ -861,13 +861,26 @@ class PersonAgent(
           }
         // todo rrp
         currentVehicleForNextState.headOption.foreach { beamVehicleId =>
+          import beamScenario.beamConfig.beam.agentsim.agents.vehicles.{
+            noRechargeThresholdInMeters,
+            rechargeRequiredThresholdInMeters
+          }
+
           val vehicle = beamVehicles(beamVehicleId).vehicle
-          val refuelNeeded = vehicle.isRefuelNeeded(
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.rechargeRequiredThresholdInMeters,
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.noRechargeThresholdInMeters
-          )
-          if ((vehicle.isBEV || vehicle.isPHEV) && refuelNeeded)
-            return goto(PlanningEnRouteCharging)
+          if (vehicle.isBEV || vehicle.isPHEV) {
+            val distanceToDestinationInMeters = trip.foldLeft(0.0)(_ + _.beamLeg.travelPath.distanceInM)
+            val newRechargeRequiredThresholdInMeters = {
+              rechargeRequiredThresholdInMeters +
+              (1 - rechargeRequiredThresholdInMeters / distanceToDestinationInMeters) *
+              distanceToDestinationInMeters
+            }
+            // todo: compute new noRechargeThresholdInMeters using distanceToDestinationInMeters value.
+            val newNoRechargeThresholdInMeters = noRechargeThresholdInMeters
+            val refuelNeeded =
+              vehicle.isRefuelNeeded(newRechargeRequiredThresholdInMeters, newNoRechargeThresholdInMeters)
+
+            if (refuelNeeded) return goto(PlanningEnRouteCharging)
+          }
         }
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
