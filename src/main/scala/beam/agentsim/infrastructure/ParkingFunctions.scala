@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -170,15 +171,19 @@ class ParkingFunctions[GEO: GeoLevel](
     preferredParkingTypes: Set[ParkingType]
   ): Boolean = {
 
+    val fiftyPowerInKw: Double = 50.0
+
     val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
     // todo rrp
-    // if charging point types are not specified then consider that the station is valid,
-    // otherwise check if station contains one of the preferred charging point types.
-    val validChargingType: Boolean = inquiry.chargingPointTypes.fold(true) { preferredPointTypes =>
-      zone.chargingPointType.exists(preferredPointTypes.contains(_))
+    val validChargingPointPowerInKw: Boolean = inquiry.activityType match {
+      case ParkingActivityType.FastCharge => // look for stations where power is >= 50Kw
+        zone.chargingPointType.exists(ChargingPointType.getChargingPointInstalledPowerInKw(_) >= fiftyPowerInKw)
+      case ParkingActivityType.Charge => // any will do as long as we have charging point
+        zone.chargingPointType.nonEmpty
+      case _ => false
     }
 
     val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
@@ -195,7 +200,7 @@ class ParkingFunctions[GEO: GeoLevel](
       zone.vehicleManagerId == VehicleManager.defaultManager || zone.vehicleManagerId == vehicle.vehicleManagerId
     }
 
-    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager & validChargingType
+    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager & validChargingPointPowerInKw
   }
 
   /**
@@ -206,11 +211,12 @@ class ParkingFunctions[GEO: GeoLevel](
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
     inquiry.activityType match {
-      case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
-      case ParkingActivityType.Init   => Set(ParkingType.Residential, ParkingType.Public)
-      case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
-      case ParkingActivityType.Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-      case _                          => Set(ParkingType.Public)
+      case ParkingActivityType.Home => Set(ParkingType.Residential, ParkingType.Public)
+      case ParkingActivityType.Init => Set(ParkingType.Residential, ParkingType.Public)
+      case ParkingActivityType.Work => Set(ParkingType.Workplace, ParkingType.Public)
+      case ParkingActivityType.Charge | ParkingActivityType.FastCharge =>
+        Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+      case _ => Set(ParkingType.Public)
     }
   }
 

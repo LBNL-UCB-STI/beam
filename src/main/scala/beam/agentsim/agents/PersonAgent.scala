@@ -779,13 +779,11 @@ class PersonAgent(
             case Some(vehicle) =>
               chargingNetworkManager ! ParkingInquiry(
                 destinationUtm = vehicle.spaceTime,
-                activityType = ParkingActivityType.Charge,
+                activityType = ParkingActivityType.FastCharge,
                 vehicleManagerId = vehicle.vehicleManagerId,
                 beamVehicle = Some(vehicle),
                 valueOfTime = attributes.valueOfTime,
-                triggerId = getCurrentTriggerIdOrGenerate,
-                chargingPointTypes =
-                  Some(List(ChargingPointType.ChargingStationCcsComboType2, ChargingPointType.TeslaSuperCharger))
+                triggerId = getCurrentTriggerIdOrGenerate
               )
           }
         case _ =>

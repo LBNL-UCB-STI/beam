@@ -37,14 +37,13 @@ case class ParkingInquiry(
   reserveStall: Boolean = true,
   requestId: Int =
     ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
-  triggerId: Long,
-  chargingPointTypes: Option[List[ChargingPointType]] = None
+  triggerId: Long
 ) extends HasTriggerId {
 
   def isChargingRequestOrEV: Boolean = {
     beamVehicle match {
       case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
-      case _             => activityType == ParkingActivityType.Charge
+      case _             => activityType == ParkingActivityType.Charge || activityType == ParkingActivityType.FastCharge
     }
   }
 }
@@ -61,16 +60,18 @@ object ParkingInquiry extends LazyLogging {
     case object Home extends ParkingActivityType
     case object Work extends ParkingActivityType
     case object Secondary extends ParkingActivityType
+    case object FastCharge extends ParkingActivityType
   }
 
   private def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
     activityType.toLowerCase match {
-      case "home"      => ParkingActivityType.Home
-      case "init"      => ParkingActivityType.Init
-      case "work"      => ParkingActivityType.Work
-      case "secondary" => ParkingActivityType.Secondary
-      case "charge"    => ParkingActivityType.Charge
-      case "wherever"  => ParkingActivityType.Wherever
+      case "home"       => ParkingActivityType.Home
+      case "init"       => ParkingActivityType.Init
+      case "work"       => ParkingActivityType.Work
+      case "secondary"  => ParkingActivityType.Secondary
+      case "charge"     => ParkingActivityType.Charge
+      case "wherever"   => ParkingActivityType.Wherever
+      case "fastcharge" => ParkingActivityType.FastCharge
       case otherType =>
         logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever
