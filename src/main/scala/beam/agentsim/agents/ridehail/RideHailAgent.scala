@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource.{NotifyVehicleDoneRefuelingAndOutOfService, NotifyVehicleIdle, NotifyVehicleOutOfService}
-import beam.agentsim.agents.BeamAgent._
+import beam.agentsim.agents.BeamAgent.{BeamAgentState, _}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
@@ -15,13 +15,13 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.RefuelSessionEvent.{OffShift, OnShift}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
-import beam.agentsim.events.{ShiftEvent, _}
+import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.agentsim.scheduler.{HasTriggerId, Trigger}
+import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, HasTriggerId, Trigger}
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -252,19 +252,19 @@ class RideHailAgent(
       stay() replying CompletionNotice(triggerId, Vector())
 
     case ev @ Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
-      log.debug(
+      log.info(
         "myUnhandled state({}): ignoring EndLegTrigger probably because of a modifyPassSchedule: {}",
         stateName,
         ev
       )
       sender() ! CompletionNotice(triggerId)
       if (!beamLegsToIgnoreDueToNewPassengerSchedule.exists(_.endTime == tick)) {
-        log.debug(s"Received unrecognized EndLegTrigger $ev while in state $stateName")
+        log.info(s"Received unrecognized EndLegTrigger $ev while in state $stateName")
       }
       stay
 
     case ev @ Event(TriggerWithId(StartLegTrigger(_, leg), triggerId), _) =>
-      log.debug(
+      log.info(
         "myUnhandled state({}): stashing StartLegTrigger probably because interrupt was received while in WaitingToDrive before getting this trigger: {}",
         stateName,
         ev
@@ -292,14 +292,14 @@ class RideHailAgent(
       )
 
     case ev @ Event(IllegalTriggerGoToError(reason), _) =>
-      log.debug("myUnhandled state({}): {}", stateName, ev)
+      log.info("myUnhandled state({}): {}", stateName, ev)
       stop(Failure(reason))
 
     case Event(Status.Failure(reason), _) =>
       stop(Failure(reason))
 
     case ev @ Event(Finish, _) =>
-      log.debug("myUnhandled state({}): {}", stateName, ev)
+      log.info("myUnhandled state({}): {}", stateName, ev)
       if (isCurrentlyOnShift) {
         val actualLastTick = Time.parseTime(beamScenario.beamConfig.beam.agentsim.endTime).toInt - 1
         eventsManager.processEvent(new ShiftEvent(actualLastTick, EndShift, id.toString, vehicle))
@@ -310,7 +310,7 @@ class RideHailAgent(
     // and meanwhile dispatches this RHA who has now moved on to other things. This is how we complete the trigger
     // that made this RHA available in the first place
     case ev @ Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
-      log.debug("myUnhandled state({}): releaseTickAndTrigger if needed {}", stateName, ev)
+      log.info("myUnhandled state({}): releaseTickAndTrigger if needed {}", stateName, ev)
       _currentTriggerId match {
         case Some(_) =>
           val (_, triggerId) = releaseTickAndTriggerId()
@@ -318,18 +318,6 @@ class RideHailAgent(
         case None =>
       }
       stay
-
-    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.debug("myUnhandled state({}): {}", stateName, ev)
-      stay()
-
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug("myUnhandled state({}): {}", stateName, ev)
-      stay()
-
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("myUnhandled state({}): {}", stateName, ev)
-      stay()
 
     case Event(LogActorState, _) =>
       ReflectionUtils.logFields(log, this, 0)
@@ -391,7 +379,7 @@ class RideHailAgent(
 
   when(Offline) {
     case ev @ Event(ParkingInquiryResponse(stall, _, triggerId), _) =>
-      log.debug("state(RideHailAgent.Offline.ParkingInquiryResponse): {}", ev)
+      log.info("state(RideHailAgent.Offline.ParkingInquiryResponse): {}", ev)
       val currentLocationUTM = beamServices.geo.wgs2Utm(currentBeamVehicle.spaceTime.loc)
       vehicle.useParkingStall(stall)
       val carStreetVeh =
@@ -417,7 +405,7 @@ class RideHailAgent(
       beamServices.beamRouter ! veh2StallRequest
       stay
     case Event(RoutingResponse(itineraries, _, _, _, _), data) =>
-      log.debug("Received routing response, initiating trip to parking stall")
+      log.info("Received routing response, initiating trip to parking stall")
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
       val (tick, triggerId) = releaseTickAndTriggerId()
@@ -459,29 +447,12 @@ class RideHailAgent(
       } else {
         Vector()
       }
-      vehicleArrivedAtTickAndStall foreach { case (tick, stall) =>
-        stall.chargingPointType match {
-          case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
-            chargingNetworkManager ! ChargingPlugRequest(
-              tick,
-              currentBeamVehicle,
-              stall,
-              Id.createPersonId(id),
-              triggerId,
-              shiftStatus = if (isCurrentlyOnShift) { OnShift }
-              else { OffShift }
-            )
-          case _ =>
-            log.debug(
-              "This is not an EV {} that needs to charge at stall {}",
-              currentBeamVehicle.id,
-              stall.parkingZoneId
-            )
-        }
-      }
       if (debugEnabled) outgoingMessages += ev
       if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
-      scheduler ! CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
+      vehicleArrivedAtTickAndStall match {
+        case Some((_, stall)) => parkAndStartRefueling(stall, data, newTriggers ++ newShiftToSchedule)
+        case _                => scheduler ! CompletionNotice(triggerId, newTriggers ++ newShiftToSchedule)
+      }
       unstashAll() // needed in case StartShiftTrigger was stashed (see next block)
       stay()
     case ev @ Event(TriggerWithId(StartShiftTrigger(tick), triggerId), data) =>
@@ -496,7 +467,7 @@ class RideHailAgent(
         }
         updateLatestObservedTick(tick)
         eventsManager.processEvent(new ShiftEvent(tick, StartShift, id.toString, vehicle))
-        log.debug("state(RideHailingAgent.Offline): starting shift {}", id)
+        log.info("state(RideHailingAgent.Offline): starting shift {}", id)
         holdTickAndTriggerId(tick, triggerId)
         isStartingNewShift = true
         val newLocation = data.remainingShifts.headOption match {
@@ -527,39 +498,46 @@ class RideHailAgent(
         goto(Idle)
       }
     case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
-      log.debug("state(RideHailingAgent.Offline): {}", ev)
+      log.info("state(RideHailingAgent.Offline): {}", ev)
       goto(OfflineInterrupted) replying InterruptedWhileOffline(interruptId, vehicle.id, latestObservedTick, triggerId)
     case ev @ Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.Offline): {}", ev)
+      log.info("state(RideHailingAgent.Offline): {}", ev)
       stay
+    case ev @ Event(reply @ NotifyVehicleResourceIdleReply(_, _, _), data) =>
+      log.info("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      if (debugEnabled) outgoingMessages += ev
+      handleNotifyVehicleResourceIdleReply(reply, data)
+    case ev @ Event(StartingRefuelSession(tick, _, triggerId), data) =>
+      // Due to parallelism window and dequeue process, tick could be unchronological
+      val tickToUse = Math.max(tick, latestObservedTick)
+      updateLatestObservedTick(tick)
+      log.info("state(RideHailAgent.Offline.StartingRefuelSession): {}", ev)
+      if (vehicle.isCAV) {
+        if (debugEnabled) outgoingMessages += ev
+        startRefueling(tickToUse, triggerId, data, Vector())
+        goto(Refueling)
+      } else {
+        holdTickAndTriggerId(tickToUse, triggerId)
+        requestParkingStall()
+        stay
+      }
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
         "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
         ev
       )
       stay replying CompletionNotice(triggerId)
-    case ev @ Event(reply @ NotifyVehicleResourceIdleReply(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
-      handleNotifyVehicleResourceIdleReply(reply, data)
-
-    case ev @ Event(StartingRefuelSession(tick, _, _), _) =>
-      // Due to parallelism window and dequeue process, tick could be unchronological
-      updateLatestObservedTick(tick)
-      log.debug("state(RideHailAgent.Offline.StartingRefuelSession): {}", ev)
+    case ev @ Event(reply @ WaitingToCharge(tick, _, _, triggerId), data) =>
+      log.info("state(RideHailingAgent.Offline.WaitingToCharge): {}", ev)
       if (debugEnabled) outgoingMessages += ev
-      goto(Refueling)
-    case ev @ Event(reply @ WaitingInLine(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.Offline.WaitingInLine): {}", ev)
-      if (debugEnabled) outgoingMessages += ev
-      handleWaitingInLine(reply, data)
+      handleWaitingLineReply(reply, data)
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.Offline.UnhandledVehicle): $ev")
-      stay()
+      log.info(s"state(RideHailingAgent.Offline.UnhandledVehicle): $ev")
+      stay
   }
-
   when(OfflineInterrupted) {
     case Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.Offline.Resume)")
+      log.info("state(RideHailingAgent.Offline.Resume)")
       goto(Offline)
     case Event(TriggerWithId(StartShiftTrigger(_), _), _) =>
       stash()
@@ -573,6 +551,12 @@ class RideHailAgent(
     case _ @Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
       stash()
       stay()
+    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
+      stash()
+      stay()
+    case ev @ Event(EndingRefuelSession(_, _, _, _), _) =>
+      stash()
+      stay()
     case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
       stash()
       stay()
@@ -582,16 +566,10 @@ class RideHailAgent(
     case _ @Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       goto(IdleInterrupted)
-    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.OfflineInterrupted.StartingRefuelSession): $ev")
-      stash()
-      stay()
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.OfflineInterrupted.WaitingInLine): $ev")
+    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
       stash()
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.OfflineInterrupted.UnhandledVehicle): $ev")
       stash()
       stay()
   }
@@ -616,31 +594,27 @@ class RideHailAgent(
       rideHailManager ! NotifyVehicleOutOfService(vehicle.id, triggerId)
       if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newShiftToSchedule)
       goto(Offline) replying CompletionNotice(triggerId, newShiftToSchedule)
-
     case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
-      log.debug("state(RideHailingAgent.Idle): {}", ev)
+      log.info("state(RideHailingAgent.Idle): {}", ev)
       goto(IdleInterrupted) replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick, triggerId)
-
     case ev @ Event(reply @ NotifyVehicleResourceIdleReply(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
+      log.info("state(RideHailingAgent.Idle.NotifyVehicleResourceIdleReply): {}", ev)
       if (debugEnabled) outgoingMessages += ev
       handleNotifyVehicleResourceIdleReply(reply, data)
-
-    // Handling messages from the Charging Network Manager
-    case ev @ Event(reply @ StartingRefuelSession(tick, _, _), data) =>
-      log.debug(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev")
-      if (debugEnabled) outgoingMessages += ev
+    case ev @ Event(StartingRefuelSession(tick, _, triggerId), data) =>
+      // Due to parallelism window and dequeue process, tick could be unchronological
+      val tickToUse = Math.max(tick, latestObservedTick)
       updateLatestObservedTick(tick)
-      handleStartingRefuelSession(reply, data)
-
-    case ev @ Event(reply @ WaitingInLine(tick, _, _), data) =>
-      log.debug("state(RideHailingAgent.Idle.WaitingInLine): {}", ev)
+      log.info(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev")
       if (debugEnabled) outgoingMessages += ev
-      updateLatestObservedTick(tick)
-      handleWaitingInLine(reply, data)
-
+      startRefueling(tickToUse, triggerId, data, Vector())
+      goto(Refueling)
+    case ev @ Event(reply @ WaitingToCharge(tick, _, _, triggerId), data) =>
+      log.info("state(RideHailingAgent.Idle.WaitingToCharge): {}", ev)
+      if (debugEnabled) outgoingMessages += ev
+      handleWaitingLineReply(reply, data)
     case ev @ Event(_ @UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.Idle.UnhandledVehicle): $ev")
+      log.info(s"state(RideHailingAgent.Idle.UnhandledVehicle): $ev")
       stay
   }
 
@@ -671,11 +645,11 @@ class RideHailAgent(
           lastLocationOfRefuel = None
         case None =>
       }
-      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.IdleInterrupted): {}", ev)
       // This is a message from another agent, the ride-hailing manager. It is responsible for "keeping the trigger",
       // i.e. for what time it is.
       if (data.passengerSchedule.schedule.isEmpty) {
-        log.debug("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
+        log.info("updating Passenger schedule - vehicleId({}): {}", id, updatedPassengerSchedule)
         val triggerToSchedule =
           scheduleStartLegIfFeasible(updatedPassengerSchedule, updatedPassengerSchedule.schedule.firstKey)
         goto(WaitingToDriveInterrupted) using data
@@ -699,7 +673,7 @@ class RideHailAgent(
           beamServices.networkHelper,
           beamServices.geo
         )
-        log.debug(
+        log.info(
           s"merged existing passenger schedule with updated - vehicleId({}) @ $tick, existing: {}, updated: {}, resolved: {}",
           id,
           data.passengerSchedule,
@@ -726,87 +700,82 @@ class RideHailAgent(
         )
       }
     case ev @ Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.IdleInterrupted): {}", ev)
       goto(Idle)
     case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.IdleInterrupted): {}", ev)
       stay() replying InterruptedWhileIdle(interruptId, vehicle.id, latestObservedTick, triggerId)
+    case ev @ Event(reply @ NotifyVehicleResourceIdleReply(_, _, _), data) =>
+      log.info("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
+      if (debugEnabled) outgoingMessages += ev
+      handleNotifyVehicleResourceIdleReply(reply, data)
+    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
+      log.info(s"state(RideHailingAgent.IdleInterrupted.StartingRefuelSession): $ev")
+      stash()
+      stay
     case Event(TriggerWithId(EndShiftTrigger(_), _), _) =>
       stash()
       stay()
-    case ev @ Event(reply @ NotifyVehicleResourceIdleReply(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted.NotifyVehicleResourceIdleReply): {}", ev)
+    case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
+      log.info("state(RideHailingAgent.IdleInterrupted.WaitingToCharge): {}", ev)
       if (debugEnabled) outgoingMessages += ev
-      handleNotifyVehicleResourceIdleReply(reply, data)
-
-    case ev @ Event(reply @ StartingRefuelSession(tick, _, _), data) =>
-      log.debug(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev")
-      if (debugEnabled) outgoingMessages += ev
-      updateLatestObservedTick(tick)
-      handleStartingRefuelSession(reply, data)
-
-    case ev @ Event(reply @ WaitingInLine(tick, _, _), data) =>
-      log.debug("state(RideHailingAgent.IdleInterrupted.WaitingInLine): {}", ev)
-      if (debugEnabled) outgoingMessages += ev
-      updateLatestObservedTick(tick)
-      handleWaitingInLine(reply, data)
-
+      handleWaitingLineReply(reply, data)
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.IdleInterrupted.UnhandledVehicle): $ev")
+      log.info(s"state(RideHailingAgent.IdleInterrupted.UnhandledVehicle): $ev")
       stash()
       stay()
-
   }
 
   when(WaitingToDriveInterrupted) {
     case ev @ Event(ModifyPassengerSchedule(_, _, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.WaitingToDriveInterrupted.ModifyPassengerSchedule): $ev")
+      log.info(s"state(RideHailingAgent.WaitingToDriveInterrupted.ModifyPassengerSchedule): $ev")
       stash()
       goto(IdleInterrupted)
     case ev @ Event(StartingRefuelSession(_, _, _), data) =>
-      log.debug(s"state(RideHailingAgent.WaitingToDriveInterrupted.StartingRefuelSession): $ev")
+      log.info(s"state(RideHailingAgent.WaitingToDriveInterrupted.StartingRefuelSession): $ev")
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
       }
       stash()
       goto(OfflineInterrupted)
-    case ev @ Event(WaitingInLine(_, _, _), data) =>
-      log.debug(s"state(RideHailingAgent.WaitingToDriveInterrupted.WaitingInLine): $ev")
+    case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
+      log.info(s"state(RideHailingAgent.WaitingToDriveInterrupted.WaitingToCharge): $ev")
+      if (debugEnabled) outgoingMessages += ev
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
       }
       stash()
       goto(OfflineInterrupted)
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.WaitingToDriveInterrupted.UnhandledVehicle): $ev")
+      log.info(s"state(RideHailingAgent.WaitingToDriveInterrupted.UnhandledVehicle): $ev")
       stash()
-      stay()
+      goto(IdleInterrupted)
   }
-
   when(WaitingToDrive) {
     case ev @ Event(StartingRefuelSession(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}", ev)
+      log.info("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}", ev)
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
       }
       stash()
       goto(Offline)
-    case ev @ Event(WaitingInLine(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}", ev)
+    case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
+      log.info("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}", ev)
+      if (debugEnabled) outgoingMessages += ev
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
       }
       stash()
       goto(Offline)
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.WaitingToDrive.UnhandledVehicle): $ev")
+      log.info(s"state(RideHailingAgent.WaitingToDrive.UnhandledVehicle): $ev")
       stash()
       stay()
   }
 
   when(PassengerScheduleEmpty) {
     case ev @ Event(PassengerScheduleEmptyMessage(lastTime, _, triggerId, _), data) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
+      log.info("state(RideHailingAgent.PassengerScheduleEmpty): {} Remaining Shifts: {}", ev, data.remainingShifts)
       if (this.vehicle.primaryFuelLevelInJoules < 0) {
         rideHailManager ! MarkVehicleBatteryDepleted(lastTime.time, this.vehicle.id)
       }
@@ -814,29 +783,7 @@ class RideHailAgent(
         case Some(stall) =>
           currentBeamVehicle.useParkingStall(stall)
           if (debugEnabled) outgoingMessages += ev
-          val (tick, triggerId) = releaseTickAndTriggerId()
-          eventsManager.processEvent(
-            ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
-          )
-          stall.chargingPointType match {
-            case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
-              chargingNetworkManager ! ChargingPlugRequest(
-                tick,
-                currentBeamVehicle,
-                stall,
-                Id.createPersonId(id),
-                triggerId,
-                shiftStatus = if (isCurrentlyOnShift) { OnShift }
-                else { OffShift }
-              )
-            case _ =>
-              log.debug(
-                "This is not an EV {} that needs to charge at stall {}",
-                currentBeamVehicle.id,
-                stall.parkingZoneId
-              )
-          }
-          scheduler ! CompletionNotice(triggerId, Vector())
+          parkAndStartRefueling(stall, data, Vector())
           isOnWayToParkAtStall = None
           goto(Refueling) using data
             .withPassengerSchedule(PassengerSchedule())
@@ -849,41 +796,17 @@ class RideHailAgent(
               beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
             )
           ) {
-            log.debug("Empty human ridehail vehicle requesting parking stall: event = " + ev)
+            log.info("Empty human ridehail vehicle requesting parking stall: event = " + ev)
             rideHailManager ! NotifyVehicleOutOfService(vehicle.id, triggerId)
 
-            val rideHailAgentLocation =
-              RideHailAgentLocation(
-                vehicle.getDriver.get,
-                vehicle.id,
-                vehicle.beamVehicleType,
-                vehicle.spaceTime,
-                geofence
-              )
-            val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
-            val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
-            val parkingDuration =
-              if (shifts.isEmpty || isCurrentlyOnShift) 0
-              else {
-                val latestShift = shifts.get.filter(_.range.upperBound >= time).head
-                val nextLatestShift = shifts.get.filter(_.range.lowerBound < time).last
-                nextLatestShift.range.lowerBound - latestShift.range.upperBound
-              }
-            val inquiry = ParkingInquiry.init(
-              SpaceTime(destinationUtm, time),
-              "charge",
-              vehicle.vehicleManagerId,
-              beamVehicle = Some(vehicle),
-              parkingDuration = parkingDuration,
-              triggerId = getCurrentTriggerIdOrGenerate
-            )
-            chargingNetworkManager ! inquiry
+            requestParkingStall()
+
             goto(Offline) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
               .asInstanceOf[RideHailAgentData]
           } else {
-            if (!vehicle.isCAV) log.debug("No refueling selected for {}", vehicle)
+            if (!vehicle.isCAV) log.info("No refueling selected for {}", vehicle)
             goto(Idle) using data
               .withPassengerSchedule(PassengerSchedule())
               .withCurrentLegPassengerScheduleIndex(0)
@@ -891,30 +814,31 @@ class RideHailAgent(
           }
       }
     case ev @ Event(Interrupt(_, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmpty): {}", ev)
       stash()
       stay()
     case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmpty.StartingRefuelSession): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmpty.StartingRefuelSession): {}", ev)
       stash()
       stay
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmpty.WaitingInLine): {}", ev)
+    case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
+      log.info("state(RideHailingAgent.PassengerScheduleEmpty.WaitingToCharge): {}", ev)
+      if (debugEnabled) outgoingMessages += ev
       stash()
       stay
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmpty.UnhandledVehicle): $ev")
+      log.info(s"state(RideHailingAgent.PassengerScheduleEmpty.UnhandledVehicle): $ev")
       stash()
       stay
     case ev @ Event(ParkingInquiryResponse(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmpty.ParkingInquiryResponse): $ev")
+      log.info(s"state(RideHailingAgent.PassengerScheduleEmpty.ParkingInquiryResponse): $ev")
       stash()
       stay
   }
 
   when(PassengerScheduleEmptyInterrupted) {
     case ev @ Event(PassengerScheduleEmptyMessage(_, _, _, _), data) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
       }
@@ -923,31 +847,32 @@ class RideHailAgent(
         .withCurrentLegPassengerScheduleIndex(0)
         .asInstanceOf[RideHailAgentData]
     case ev @ Event(ModifyPassengerSchedule(_, _, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
     case ev @ Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
     case ev @ Event(Interrupt(_, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmptyInterrupted): {}", ev)
       stash()
       stay()
     case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted.StartingRefuelSession): {}", ev)
+      log.info("state(RideHailingAgent.PassengerScheduleEmptyInterrupted.StartingRefuelSession): {}", ev)
       stash()
       stay
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("state(RideHailingAgent.PassengerScheduleEmptyInterrupted.WaitingInLine): {}", ev)
+    case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
+      log.info("state(RideHailingAgent.PassengerScheduleEmptyInterrupted.WaitingToCharge): {}", ev)
+      if (debugEnabled) outgoingMessages += ev
       stash()
       stay
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted.UnhandledVehicle): $ev")
+      log.info(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted.UnhandledVehicle): $ev")
       stash()
       stay
     case ev @ Event(ParkingInquiryResponse(_, _, _), _) =>
-      log.debug(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted.ParkingInquiryResponse): $ev")
+      log.info(s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted.ParkingInquiryResponse): $ev")
       stash()
       stay
   }
@@ -961,7 +886,6 @@ class RideHailAgent(
     case ev @ Event(_, _) =>
       myUnhandled(ev)
   }
-
   when(InQueueInterrupted) {
     case _ @Event(Resume(_), _) =>
       goto(InQueue)
@@ -969,10 +893,9 @@ class RideHailAgent(
       stash
       stay
   }
-
   when(Refueling) {
     case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
-      log.debug("state(RideHailingAgent.Refueling): {}", ev)
+      log.info("state(RideHailingAgent.Refueling): {}", ev)
       goto(RefuelingInterrupted) replying InterruptedWhileOffline(
         interruptId,
         vehicle.id,
@@ -980,74 +903,39 @@ class RideHailAgent(
         triggerId
       )
     case ev @ Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.Refueling): {}", ev)
+      log.info("state(RideHailingAgent.Refueling): {}", ev)
       stay
-    case ev @ Event(UnhandledVehicle(_, vehicleId, _), _) =>
-      log.debug(s"state(RideHailingAgent.Refueling.UnhandledVehicle): $ev")
-      assert(currentBeamVehicle.id == vehicleId, "Agent receiving the wrong message")
-      log.error(
-        s"Something is broken. The current vehicle ${currentBeamVehicle.id} is still refueling, " +
-        s"while the vehicle is not handled by the CNM"
-      )
+    case ev @ Event(_ @StartingRefuelSession(_, _, _), _) =>
+      log.info("state(RideHailingAgent.Refueling.StartingRefuelSession): {}", ev)
+      stay
+    case ev @ Event(EndingRefuelSession(tick, _, _, triggerId), _) =>
+      updateLatestObservedTick(tick)
+      log.info("state(RideHailingAgent.Refueling.EndingRefuelSession): {}", ev)
+      holdTickAndTriggerId(tick, triggerId)
+      if (debugEnabled) outgoingMessages += ev
+      handleEndRefuel(tick, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
         goto(Idle)
       } else {
         goto(Offline)
       }
-    case ev @ Event(EndingRefuelSession(tick, _, stall, triggerId), _) =>
+    case ev @ Event(UnhandledVehicle(tick, vehicleId, triggerId), _) =>
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}", ev)
+      log.info("state(RideHailingAgent.Refueling.UnhandledVehicle): {}", ev)
       holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
-      lastLocationOfRefuel = Some(stall.locationUTM)
-      vehicle.spaceTime = SpaceTime(stall.locationUTM, tick)
-      if (isCurrentlyOnShift && !needsToEndShift) {
-        nextNotifyVehicleResourceIdle = Some(
-          NotifyVehicleIdle(
-            vehicle.id,
-            vehicle.spaceTime,
-            PassengerSchedule(),
-            vehicle.getState,
-            geofence,
-            getCurrentTriggerIdOrGenerate
-          )
-        )
-      } else {
-        waitingForDoneRefuelingAndOutOfServiceReply = true
-        if (debugEnabled)
-          outgoingMessages += NotifyVehicleDoneRefuelingAndOutOfService(
-            vehicle.id,
-            vehicle.spaceTime,
-            _currentTriggerId.get,
-            _currentTick.get,
-            vehicle.getState
-          )
-        vehicle.getManager.get ! NotifyVehicleDoneRefuelingAndOutOfService(
-          vehicle.id,
-          vehicle.spaceTime,
-          _currentTriggerId.get,
-          _currentTick.get,
-          vehicle.getState
-        )
-      }
+      handleEndRefuel(tick, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
         goto(Idle)
       } else {
         goto(Offline)
       }
   }
-
   when(RefuelingInterrupted) {
     case Event(Resume(_), _) =>
-      log.debug("state(RideHailingAgent.Refueling.Resume)")
+      log.info("state(RideHailingAgent.Refueling.Resume)")
       goto(Refueling)
-    case Event(EndingRefuelSession(_, _, _, _), _) =>
-      stash()
-      stay
-    case Event(UnhandledVehicle(_, _, _), _) =>
-      stash()
-      stay
-    case Event(_, _) =>
+    case _ @Event(_, _) =>
       stash
       stay
   }
@@ -1073,36 +961,122 @@ class RideHailAgent(
     }
   }
 
-  private def handleVehicleResourceIdle(
-    zoneIdWhereWaiting: Option[Id[ParkingZoneId]],
-    newTriggers: Seq[ScheduleTrigger],
-    triggerId: Long,
-    data: RideHailAgentData,
-    goToThisStateMaybe: Option[BeamAgentState]
-  ): FSM.State[BeamAgentState, RideHailAgentData] = {
-    val nextState = zoneIdWhereWaiting match {
-      case Some(zoneId) =>
-        isInQueueParkingZoneId = Some(zoneId)
-        stateName match {
-          case Offline | Idle =>
-            InQueue
-          case IdleInterrupted =>
-            InQueueInterrupted
-          case _ =>
-            logError(
-              s"Unexpected state $stateName for handling a NotifyVehicleResourceIdleReply assuming non-interrupted"
-            )
-            InQueue
-        }
+  def handleEndRefuel(tick: Int, triggerId: Long): Unit = {
+    lastLocationOfRefuel = Some(vehicle.stall.get.locationUTM)
+    val newLocation = vehicle.stall match {
       case None =>
-        goToThisStateMaybe.getOrElse(stateName) // i.e. "stay"
+        log.warning(s"ended refueling but vehicle ${vehicle.id} has no stall")
+        vehicle.spaceTime.loc
+      case Some(parkingStall) =>
+        val currentLocation = parkingStall.locationUTM
+        currentLocation
     }
+    vehicle.spaceTime = SpaceTime(newLocation, tick)
+    if (isCurrentlyOnShift && !needsToEndShift) {
+      nextNotifyVehicleResourceIdle = Some(
+        NotifyVehicleIdle(
+          vehicle.id,
+          vehicle.spaceTime,
+          PassengerSchedule(),
+          vehicle.getState,
+          geofence,
+          getCurrentTriggerIdOrGenerate
+        )
+      )
+    } else {
+      waitingForDoneRefuelingAndOutOfServiceReply = true
+      if (debugEnabled)
+        outgoingMessages += NotifyVehicleDoneRefuelingAndOutOfService(
+          vehicle.id,
+          vehicle.spaceTime,
+          _currentTriggerId.get,
+          _currentTick.get,
+          vehicle.getState
+        )
+      vehicle.getManager.get ! NotifyVehicleDoneRefuelingAndOutOfService(
+        vehicle.id,
+        vehicle.spaceTime,
+        _currentTriggerId.get,
+        _currentTick.get,
+        vehicle.getState
+      )
+    }
+  }
+
+  def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
+    val (tick, triggerId) = releaseTickAndTriggerId()
+    eventsManager.processEvent(
+      ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
+    )
+    log.info("Refuel started at {}, triggerId: {}", tick, triggerId)
+    stall.chargingPointType match {
+      case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+        chargingNetworkManager ! ChargingPlugRequest(
+          tick,
+          currentBeamVehicle,
+          stall,
+          Id.createPersonId(id),
+          triggerId,
+          shiftStatus = if (isCurrentlyOnShift) { OnShift }
+          else { OffShift },
+          data.remainingShifts.headOption.map(_.range.lowerBound)
+        )
+      case _ =>
+        log.info(
+          "This is not an EV {} that needs to charge at stall {}",
+          currentBeamVehicle.id,
+          stall.parkingZoneId
+        )
+    }
+    startRefueling(tick, triggerId, data, triggers)
+  }
+
+  def startRefueling(tick: Int, triggerId: Long, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
+    handleStartRefuel(tick, triggerId, data, triggers)
+  }
+
+  def requestParkingStall(): Unit = {
+    val rideHailAgentLocation =
+      RideHailAgentLocation(vehicle.getDriver.get, vehicle.id, vehicle.beamVehicleType, vehicle.spaceTime, geofence)
+    val destinationUtm = rideHailAgentLocation.getCurrentLocationUTM(vehicle.spaceTime.time, beamServices)
+    val time = Math.max(vehicle.spaceTime.time, rideHailAgentLocation.latestUpdatedLocationUTM.time)
+    val parkingDuration =
+      if (shifts.isEmpty || isCurrentlyOnShift) 0
+      else {
+        val latestShift = shifts.get.filter(_.range.upperBound >= time).head
+        val nextLatestShift = shifts.get.filter(_.range.lowerBound < time).last
+        nextLatestShift.range.lowerBound - latestShift.range.upperBound
+      }
+    val inquiry = ParkingInquiry.init(
+      SpaceTime(destinationUtm, time),
+      "charge",
+      vehicle.vehicleManagerId,
+      beamVehicle = Some(vehicle),
+      parkingDuration = parkingDuration,
+      triggerId = getCurrentTriggerIdOrGenerate
+    )
+    chargingNetworkManager ! inquiry
+  }
+
+  def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
+    if (triggers.nonEmpty) {
+      if (debugEnabled)
+        outgoingMessages += CompletionNotice(triggerId, triggers)
+      scheduler ! CompletionNotice(triggerId, triggers)
+    }
+  }
+
+  def handleNotifyVehicleResourceIdleReply(
+    ev: NotifyVehicleResourceIdleReply,
+    data: RideHailAgentData
+  ): FSM.State[BeamAgentState, RideHailAgentData] = {
+    val nextState = stateName // i.e. "stay"
     data.remainingShifts.size match {
       case nShifts if nShifts > 0 & isStartingNewShift =>
         val tickToSchedule = Math.min(data.remainingShifts.head.range.upperBound, lastTickOfSimulation)
         completeHandleNotifyVehicleResourceIdleReply(
-          Some(triggerId),
-          newTriggers :+ ScheduleTrigger(
+          Some(ev.triggerId),
+          ev.newTriggers :+ ScheduleTrigger(
             EndShiftTrigger(Math.max(tickToSchedule, _currentTick.get)),
             self
           )
@@ -1111,62 +1085,9 @@ class RideHailAgent(
         isStartingNewShift = false
         goto(nextState) using data.copy(remainingShifts = data.remainingShifts.tail)
       case _ =>
-        completeHandleNotifyVehicleResourceIdleReply(Some(triggerId), newTriggers)
+        completeHandleNotifyVehicleResourceIdleReply(Some(ev.triggerId), ev.newTriggers)
         goto(nextState)
     }
-  }
-
-  def handleStartingRefuelSession(
-    ev: StartingRefuelSession,
-    data: RideHailAgentData
-  ): FSM.State[BeamAgentState, RideHailAgentData] = {
-    if (vehicle.id == ev.vehicleId) {
-      throw new RuntimeException(
-        s"Agent with vehicle id ${vehicle.id} is different from vehicle waiting in line ${ev.vehicleId}"
-      )
-    }
-    log.debug(s"Vehicle ${ev.vehicleId} started charging and it is now handled by the CNM at ${ev.tick}")
-    handleVehicleResourceIdle(None, Seq.empty, ev.triggerId, data, Some(Refueling))
-  }
-
-  def handleWaitingInLine(
-    ev: WaitingInLine,
-    data: RideHailAgentData
-  ): FSM.State[BeamAgentState, RideHailAgentData] = {
-    if (vehicle.id == ev.vehicleId) {
-      throw new RuntimeException(
-        s"Agent with vehicle id ${vehicle.id} is different from vehicle waiting in line ${ev.vehicleId}"
-      )
-    }
-    log.debug(s"Vehicle ${ev.vehicleId} is waiting in line for charging and it is now handled by the CNM at ${ev.tick}")
-    handleVehicleResourceIdle(vehicle.stall.map(_.parkingZoneId), Seq.empty, ev.triggerId, data, None)
-  }
-
-  def handleNotifyVehicleResourceIdleReply(
-    ev: NotifyVehicleResourceIdleReply,
-    data: RideHailAgentData
-  ): FSM.State[BeamAgentState, RideHailAgentData] = {
-    ev.vehicleArrivedAtTickAndStall foreach { case (tick, stall) =>
-      stall.chargingPointType match {
-        case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
-          chargingNetworkManager ! ChargingPlugRequest(
-            tick,
-            currentBeamVehicle,
-            stall,
-            Id.createPersonId(id),
-            ev.triggerId,
-            shiftStatus = if (isCurrentlyOnShift) { OnShift }
-            else { OffShift }
-          )
-        case _ =>
-          log.debug(
-            "This is not an EV {} that needs to charge at stall {}",
-            currentBeamVehicle.id,
-            stall.parkingZoneId
-          )
-      }
-    }
-    handleVehicleResourceIdle(None, ev.newTriggers, ev.triggerId, data, None)
   }
 
   def completeHandleNotifyVehicleResourceIdleReply(
@@ -1184,11 +1105,50 @@ class RideHailAgent(
             receivedtriggerId
           )
         }
-        log.debug("RHA {}: completing trigger @ {} and scheduling {}", id, tick, newTriggers)
+        log.info("RHA {}: completing trigger @ {} and scheduling {}", id, tick, newTriggers)
         if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers)
         scheduler ! CompletionNotice(triggerId, newTriggers)
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
+    }
+  }
+
+  def handleWaitingLineReply(
+    ev: WaitingToCharge,
+    data: RideHailAgentData
+  ): FSM.State[BeamAgentState, RideHailAgentData] = {
+    isInQueueParkingZoneId = Some(ev.stall.parkingZoneId)
+    val nextState = stateName match {
+      case Offline | Idle =>
+        InQueue
+      case IdleInterrupted =>
+        InQueueInterrupted
+      case _ =>
+        logError(
+          s"Unexpected state $stateName for handling a NotifyVehicleResourceIdleReply assuming non-interrupted"
+        )
+        InQueue
+    }
+    data.remainingShifts.size match {
+      case nShifts if nShifts > 0 & isStartingNewShift =>
+        val tickToSchedule = Math.min(data.remainingShifts.head.range.upperBound, lastTickOfSimulation)
+        _currentTriggerId match {
+          case Some(_) => releaseTickAndTriggerId()
+          case _       => log.info("RHA {}: completing handleWaitingLineReply", id)
+        }
+        completeHandleNotifyVehicleResourceIdleReply(
+          Some(ev.triggerId),
+          Vector(ScheduleTrigger(EndShiftTrigger(Math.max(tickToSchedule, _currentTick.get)), self))
+        )
+        isCurrentlyOnShift = true
+        isStartingNewShift = false
+        goto(nextState) using data.copy(remainingShifts = data.remainingShifts.tail)
+      case _ =>
+        _currentTriggerId match {
+          case Some(_) => releaseTickAndTriggerId()
+          case _       => log.info("RHA {}: completing handleWaitingLineReply", id)
+        }
+        goto(nextState)
     }
   }
 
@@ -1200,7 +1160,7 @@ class RideHailAgent(
       nextNotifyVehicleResourceIdle match {
         case Some(nextIdle) =>
           _currentTriggerId.foreach(
-            log.debug(
+            log.info(
               "RHA {}: state(transitioning to Idle NotifyVehicleResourceIdleReply) - ev: {}, triggerId: {}",
               id,
               nextIdle,
