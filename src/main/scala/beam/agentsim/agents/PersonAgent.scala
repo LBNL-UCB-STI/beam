@@ -895,11 +895,8 @@ class PersonAgent(
 
           val vehicle = beamVehicles(beamVehicleId).vehicle
           if (vehicle.isBEV || vehicle.isPHEV) {
-            val distanceToDestinationInMeters = {
-              trip.view
-                .takeWhile(_.beamVehicleId == vehicle.id)
-                .foldLeft(0.0)(_ + _.beamLeg.travelPath.distanceInM)
-            }
+            val vehicleTrip = trip.view.takeWhile(_.beamVehicleId == vehicle.id)
+            val distanceToDestinationInMeters = vehicleTrip.foldLeft(0.0)(_ + _.beamLeg.travelPath.distanceInM)
             val newRechargeRequiredThresholdInMeters = {
               rechargeRequiredThresholdInMeters +
               (1 - rechargeRequiredThresholdInMeters / distanceToDestinationInMeters) *
@@ -912,7 +909,7 @@ class PersonAgent(
 
             if (refuelNeeded) {
               val enrouteCharging = EnrouteCharging(
-                destinationUTM = beamServices.geo.wgs2Utm(trip.last.beamLeg.travelPath.endPoint.loc)
+                destinationUTM = beamServices.geo.wgs2Utm(vehicleTrip.last.beamLeg.travelPath.endPoint.loc)
               )
               return goto(PlanningEnRouteCharging) using data.copy(enrouteCharging = Some(enrouteCharging))
             }
