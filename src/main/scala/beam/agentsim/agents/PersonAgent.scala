@@ -20,23 +20,22 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
+import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingInLine}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
-import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.skim.ActivitySimSkimmerEvent
 import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
-import beam.router.skim.{ActivitySimSkimmerEvent, Skims}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
@@ -152,6 +151,29 @@ object PersonAgent {
     override def geofence: Option[Geofence] = delegate.geofence
   }
 
+  /**
+    * holds information related to PlanningEnRouteCharging state
+    * @param destinationUTM original location vehicle was heading before taking detour for recharging
+    */
+  final case class EnrouteCharging(destinationUTM: Location)
+
+  /**
+    * TODO if you are reading this, please add short explanations of each field
+    *
+    * @param currentActivityIndex
+    * @param currentTrip
+    * @param restOfCurrentTrip
+    * @param currentVehicle
+    * @param currentTourMode
+    * @param currentTourPersonalVehicle
+    * @param passengerSchedule
+    * @param currentLegPassengerScheduleIndex
+    * @param hasDeparted
+    * @param currentTripCosts
+    * @param numberOfReplanningAttempts
+    * @param lastUsedParkingStall
+    * @param enrouteCharging a flag to denote whether an (electric) vehicle is taking detour for recharging
+    */
   case class BasePersonData(
     currentActivityIndex: Int = 0,
     currentTrip: Option[EmbodiedBeamTrip] = None,
@@ -164,7 +186,8 @@ object PersonAgent {
     hasDeparted: Boolean = false,
     currentTripCosts: Double = 0.0,
     numberOfReplanningAttempts: Int = 0,
-    lastUsedParkingStall: Option[ParkingStall] = None
+    lastUsedParkingStall: Option[ParkingStall] = None,
+    enrouteCharging: Option[EnrouteCharging] = None
   ) extends PersonData {
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
@@ -216,6 +239,9 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
+  /**
+    * TODO explain enroute charging related state transitions in brief
+    */
   case object PlanningEnRouteCharging extends Traveling
 
   def correctTripEndTime(
@@ -504,7 +530,7 @@ class PersonAgent(
       */
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _, _)
         ) =>
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
@@ -531,7 +557,7 @@ class PersonAgent(
 
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _)
+          BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _, _)
         ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
       logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
@@ -592,7 +618,7 @@ class PersonAgent(
     // TRANSIT FAILURE
     case Event(
           ReservationResponse(Left(firstErrorResponse), _),
-          data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
 
@@ -649,7 +675,7 @@ class PersonAgent(
     // RIDE HAIL FAILURE
     case Event(
           response @ RideHailResponse(_, _, Some(error), _, _),
-          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
   }
@@ -660,7 +686,7 @@ class PersonAgent(
      */
     case Event(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
-          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
@@ -693,7 +719,7 @@ class PersonAgent(
      */
     case Event(
           TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, energyConsumedOption), triggerId),
-          data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
@@ -759,7 +785,7 @@ class PersonAgent(
   when(ReadyToChooseParking, stateTimeout = Duration.Zero) {
     case Event(
           StateTimeout,
-          data @ BasePersonData(_, _, completedLeg :: theRestOfCurrentTrip, _, _, _, _, _, _, _, currentCost, _)
+          data @ BasePersonData(_, _, completedLeg :: theRestOfCurrentTrip, _, _, _, _, _, _, _, currentCost, _, _)
         ) =>
       log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
@@ -772,7 +798,7 @@ class PersonAgent(
     // todo rrp
     case _ -> PlanningEnRouteCharging =>
       nextStateData match {
-        case data: BasePersonData =>
+        case data: BasePersonData if data.enrouteCharging.nonEmpty =>
           val vehicleOpt = data.restOfCurrentTrip.headOption.map(leg => beamVehicles(leg.beamVehicleId).vehicle)
           vehicleOpt match {
             case None => log.error("PlanningEnRouteCharging: vehicle not found.")
@@ -832,6 +858,7 @@ class PersonAgent(
             _,
             _,
             _,
+            _,
             _
           )
         ) if nextLeg.asDriver =>
@@ -868,7 +895,11 @@ class PersonAgent(
 
           val vehicle = beamVehicles(beamVehicleId).vehicle
           if (vehicle.isBEV || vehicle.isPHEV) {
-            val distanceToDestinationInMeters = trip.foldLeft(0.0)(_ + _.beamLeg.travelPath.distanceInM)
+            val distanceToDestinationInMeters = {
+              trip.view
+                .takeWhile(_.beamVehicleId == vehicle.id)
+                .foldLeft(0.0)(_ + _.beamLeg.travelPath.distanceInM)
+            }
             val newRechargeRequiredThresholdInMeters = {
               rechargeRequiredThresholdInMeters +
               (1 - rechargeRequiredThresholdInMeters / distanceToDestinationInMeters) *
@@ -879,7 +910,12 @@ class PersonAgent(
             val refuelNeeded =
               vehicle.isRefuelNeeded(newRechargeRequiredThresholdInMeters, newNoRechargeThresholdInMeters)
 
-            if (refuelNeeded) return goto(PlanningEnRouteCharging)
+            if (refuelNeeded) {
+              val enrouteCharging = EnrouteCharging(
+                destinationUTM = beamServices.geo.wgs2Utm(trip.last.beamLeg.travelPath.endPoint.loc)
+              )
+              return goto(PlanningEnRouteCharging) using data.copy(enrouteCharging = Some(enrouteCharging))
+            }
           }
         }
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
@@ -925,7 +961,7 @@ class PersonAgent(
       nextState
 
     // TRANSIT but too late
-    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit && nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
@@ -944,7 +980,7 @@ class PersonAgent(
         isWithinTripReplanning = true
       )
     // TRANSIT
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit =>
       val resRequest = TransitReservationRequest(
         nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
@@ -955,7 +991,7 @@ class PersonAgent(
       TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.isRideHail =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
 
@@ -983,7 +1019,7 @@ class PersonAgent(
       goto(WaitingForReservationConfirmation)
     // CAV but too late
     // TODO: Refactor so it uses literally the same code block as transit
-    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the CAV. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
@@ -1003,7 +1039,7 @@ class PersonAgent(
       )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _)) =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
@@ -1025,6 +1061,7 @@ class PersonAgent(
             _,
             currentTourMode,
             currentTourPersonalVehicle,
+            _,
             _,
             _,
             _,
@@ -1171,7 +1208,7 @@ class PersonAgent(
   when(PlanningEnRouteCharging) {
     case Event(
           ParkingInquiryResponse(stall, _, triggerId),
-          BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _)
+          BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, Some(enrouteCharging))
         ) =>
       val myLocation = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)
       val vehicle = beamVehicles(nextLeg.beamVehicleId)
@@ -1189,7 +1226,7 @@ class PersonAgent(
       stay()
     case Event(
           RoutingResponse(_, _, _, _, _),
-          BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _)
+          BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, Some(enrouteCharging))
         ) =>
       // todo rrp
       log.debug("PlanningEnRouteCharging: routing response has arrived.")
@@ -1271,7 +1308,7 @@ class PersonAgent(
       handleBoardOrAlightOutOfPlace
     case Event(
           TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
-          BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _)
+          BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())

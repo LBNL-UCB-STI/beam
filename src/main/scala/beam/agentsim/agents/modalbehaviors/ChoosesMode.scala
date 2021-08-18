@@ -132,7 +132,7 @@ trait ChoosesMode {
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _, _),
             _,
             _,
             _,
@@ -157,12 +157,13 @@ trait ChoosesMode {
         self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
       case ChoosesModeData(
-            BasePersonData(
+      BasePersonData(
               currentActivityIndex,
               _,
               _,
               _,
               None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
+              _,
               _,
               _,
               _,
