@@ -51,7 +51,7 @@ public class GraphUtils {
     public static final Map<Integer, RideHailDistanceRowModel> RIDE_HAIL_REVENUE_MAP = new HashMap<>();
 
     static {
-        colors.add(VERY_LIGHT_GREEN);
+        colors.add(OLIVE);
         colors.add(Color.BLUE);
         colors.add(Color.GRAY);
         colors.add(Color.PINK);
@@ -179,7 +179,7 @@ public class GraphUtils {
             if (colorMap.containsKey(legendName)) {
                 color = colorMap.get(legendName);
             } else {
-                log.error(String.format("There is no color configured for [%s]", legendItemNames.get(i)));
+                log.warn(String.format("There is no color configured for [%s]", legendItemNames.get(i)));
                 color = getBarAndLegendColor(i);
             }
             legendItems.add(new LegendItem(legendName, color));
