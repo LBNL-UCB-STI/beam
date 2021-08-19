@@ -152,7 +152,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys.map { carType =>
       carType -> calcRideStats(event.getIteration, carType)
-    }.toMap
+    }.toSeq.sortBy(_._1).toMap
 
     type2RideStats.foreach { case (carType, stats) =>
       writeCarTripStats(event.getIteration, stats, carType)
