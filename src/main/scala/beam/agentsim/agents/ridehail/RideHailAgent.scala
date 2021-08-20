@@ -795,6 +795,7 @@ class RideHailAgent(
           if (debugEnabled) outgoingMessages += ev
           parkAndStartRefueling(stall, data, Vector())
           isOnWayToParkAtStall = None
+          log.info(s"state(RideHailingAgent.PassengerScheduleEmpty): PassengerScheduleEmptyMessage going to Refueling - trigger not sent - Vehicle ID: ${vehicle.id}")
           goto(Refueling) using data
             .withPassengerSchedule(PassengerSchedule())
             .withCurrentLegPassengerScheduleIndex(0)
@@ -1018,9 +1019,10 @@ class RideHailAgent(
     eventsManager.processEvent(
       ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
     )
-    log.info("Refuel started at {}, triggerId: {}, vehicle id: {}", tick, triggerId, vehicle.id)
+    log.info("Refuel started at {}, triggerId: {}, vehicle id: {}, triggers: {}", tick, triggerId, vehicle.id, triggers)
     stall.chargingPointType match {
       case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+        log.info(s"Refueling sending ChargingPlugRequest for ${vehicle.id} and $triggerId")
         chargingNetworkManager ! ChargingPlugRequest(
           tick,
           currentBeamVehicle,
@@ -1072,6 +1074,7 @@ class RideHailAgent(
     if (triggers.nonEmpty) {
       if (debugEnabled)
         outgoingMessages += CompletionNotice(triggerId, triggers)
+      log.info(s"Sending Completion for ${vehicle.id} and trigger $triggerId")
       scheduler ! CompletionNotice(triggerId, triggers)
     }
   }
