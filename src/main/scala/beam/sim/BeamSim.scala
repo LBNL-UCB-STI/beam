@@ -314,7 +314,7 @@ class BeamSim @Inject() (
         abstractSkimmer,
         new FreeFlowTravelTime,
         Array(BeamMode.WALK),
-        withTransit = backgroundODSkimsCreatorConfig.modesToBuild.walk_transit,
+        withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
         buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
         buildDirectCarRoute = false,
         calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours
@@ -809,7 +809,7 @@ class BeamSim @Inject() (
           abstractSkimmer,
           currentTravelTime,
           Array(BeamMode.CAR, BeamMode.WALK),
-          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.drive_transit,
+          withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
           buildDirectWalkRoute = false,
           buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,
           calculationTimeoutHours = backgroundODSkimsCreatorConfig.calculationTimeoutHours

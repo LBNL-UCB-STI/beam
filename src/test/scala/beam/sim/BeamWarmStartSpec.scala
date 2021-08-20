@@ -2,7 +2,6 @@ package beam.sim
 
 import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
-
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -349,12 +348,8 @@ object BeamWarmStartSpec {
     }
   }
 
-  def deleteDir(directoryToBeDeleted: Path): Boolean = {
-    val allContents = directoryToBeDeleted.toFile.listFiles
-    if (allContents != null) for (file <- allContents) {
-      deleteDir(file.toPath)
-    }
-    directoryToBeDeleted.toFile.delete
+  def deleteDir(directoryToBeDeleted: Path): Unit = {
+    org.apache.commons.io.FileUtils.deleteDirectory(directoryToBeDeleted.toFile)
   }
 
   def copyPlans(toDir: Path, asName: String): Option[String] = {
