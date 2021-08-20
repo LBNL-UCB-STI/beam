@@ -32,11 +32,11 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 class CarTripStatsFromPathTraversalEventHandler(
- val networkHelper: NetworkHelper,
- val controllerIO: OutputDirectoryHierarchy,
- val tripFilter: TripFilter,
- val filePrefix: String,
- val treatMismatchAsWarning: Boolean
+  val networkHelper: NetworkHelper,
+  val controllerIO: OutputDirectoryHierarchy,
+  val tripFilter: TripFilter,
+  val filePrefix: String,
+  val treatMismatchAsWarning: Boolean
 ) extends LazyLogging
     with IterationEndsListener
     with BasicEventHandler
@@ -150,9 +150,13 @@ class CarTripStatsFromPathTraversalEventHandler(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys.map { carType =>
-      carType -> calcRideStats(event.getIteration, carType)
-    }.toSeq.sortBy(_._1).toMap
+    val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys
+      .map { carType =>
+        carType -> calcRideStats(event.getIteration, carType)
+      }
+      .toSeq
+      .sortBy(_._1)
+      .toMap
 
     type2RideStats.foreach { case (carType, stats) =>
       writeCarTripStats(event.getIteration, stats, carType)
@@ -238,7 +242,11 @@ class CarTripStatsFromPathTraversalEventHandler(
     )
 
     val plot = chart.getCategoryPlot;
-    GraphUtils.plotLegendItemsWithColors(plot, dataset.getRowKeys.asInstanceOf[java.util.List[String]], GraphUtils.carTypesColors);
+    GraphUtils.plotLegendItemsWithColors(
+      plot,
+      dataset.getRowKeys.asInstanceOf[java.util.List[String]],
+      GraphUtils.carTypesColors
+    );
     GraphUtils.saveJFreeChartAsPNG(
       chart,
       controllerIO.getOutputFilename(s"${prefix}AverageCarSpeed.png"),
