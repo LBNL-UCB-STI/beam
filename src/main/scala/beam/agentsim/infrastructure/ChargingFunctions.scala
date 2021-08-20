@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -21,7 +22,8 @@ class ChargingFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  vehiclesConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles
 ) extends ParkingFunctions[GEO](
       vehicleManagerId,
       geoQuadTree,
@@ -42,10 +44,14 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param activityTypeLowerCased a String expressing activity Type in lower case
     * @return
     */
-  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    VehicleManager.getType(inquiry.vehicleManagerId) match {
-      case VehicleManager.BEAMRideHail if inquiry.parkingDuration <= 3600 =>
-        ChargingPointType.isFastCharger(zone.chargingPointType.get)
+  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(
+    zone: ParkingZone[GEO],
+    vehicleManagerId: Id[VehicleManager],
+    parkingDuration: Double
+  ): Boolean = {
+    VehicleManager.getType(vehicleManagerId) match {
+      case VehicleManager.BEAMRideHail if parkingDuration <= 3600 =>
+        ChargingPointType.isFastCharger(zone.chargingPointType.get, vehiclesConfig)
       case _ =>
         true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
     }
@@ -63,12 +69,23 @@ class ChargingFunctions[GEO: GeoLevel](
     )
   }
 
-  private def getPower(implicit chargingCapability: ChargingPointType): Double = {
+  private def getPower(chargingCapability: ChargingPointType): Double = {
     ChargingPointType.getChargingPointInstalledPowerInKw(chargingCapability)
+  }
+
+  def hasValidChargingPointPowerInKw(zone: ParkingZone[GEO], activityType: ParkingActivityType): Boolean = {
+    activityType match {
+      case ParkingActivityType.FastCharge => // look for stations where power is >= configured threshold
+        zone.chargingPointType.exists(ChargingPointType.isFastCharger(_, vehiclesConfig))
+      case ParkingActivityType.Charge => // any will do as long as we have charging point
+        zone.chargingPointType.nonEmpty
+      case _ => false
+    }
   }
 
   /**
     * get Additional Search Filter Predicates
+    *
     * @param zone ParkingZone
     * @param inquiry ParkingInquiry
     * @return
@@ -82,14 +99,18 @@ class ChargingFunctions[GEO: GeoLevel](
 
     val isEV: Boolean = inquiry.beamVehicle.forall(v => v.isBEV || v.isPHEV)
 
-    val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
+    val rideHailFastChargingOnly: Boolean =
+      ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry.vehicleManagerId, inquiry.parkingDuration)
+
+    // todo rrp
+    val validChargingPointPowerInKw: Boolean = hasValidChargingPointPowerInKw(zone, inquiry.activityType)
 
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
 
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
 
-    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
+    isEV && rideHailFastChargingOnly && validChargingPointPowerInKw && validChargingCapability && canCarParkHere
   }
 
   /**

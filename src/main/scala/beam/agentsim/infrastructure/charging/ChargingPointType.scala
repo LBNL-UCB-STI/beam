@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure.charging
 
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.{AC, DC}
+import beam.sim.config.BeamConfig
 
 import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
@@ -175,15 +176,15 @@ object ChargingPointType {
     (sessionLength, sessionEnergyInJoules)
   }
 
-  // used to identify fast chargers
-  val FastChargingThreshold: Double = 20.0
-
   /**
     * recognizes fast charger ChargingPointTypes
     * @param chargingPointType a chargingPointType
     * @return if it is "fast"
     */
-  def isFastCharger(chargingPointType: ChargingPointType): Boolean =
-    getChargingPointInstalledPowerInKw(chargingPointType) > FastChargingThreshold
+  def isFastCharger(
+    chargingPointType: ChargingPointType,
+    vehiclesConfig: BeamConfig.Beam.Agentsim.Agents.Vehicles
+  ): Boolean =
+    getChargingPointInstalledPowerInKw(chargingPointType) > vehiclesConfig.fastChargingPowerThresholdInKw
 
 }

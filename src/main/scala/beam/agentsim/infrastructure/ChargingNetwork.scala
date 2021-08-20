@@ -154,7 +154,8 @@ object ChargingNetwork {
           maxSearchRadius,
           envelopeInUTM,
           seed,
-          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+          beamConfig.beam.agentsim.agents.vehicles
         )
       )
     }

@@ -1492,7 +1492,8 @@ object BeamConfig {
           vehicleTypesFilePath: java.lang.String,
           vehiclesFilePath: java.lang.String,
           rechargeRequiredThresholdInMeters: scala.Double,
-          noRechargeThresholdInMeters: scala.Double
+          noRechargeThresholdInMeters: scala.Double,
+          fastChargingPowerThresholdInKw: scala.Double
         )
 
         object Vehicles {
@@ -1726,11 +1727,15 @@ object BeamConfig {
                 if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath")
                 else "/test/input/beamville/vehicles.csv",
               rechargeRequiredThresholdInMeters =
-                if (c.hasPathOrNull("rechargeRequiredThresholdInMeters")) c.getDouble("rechargeRequiredThresholdInMeters")
+                if (c.hasPathOrNull("rechargeRequiredThresholdInMeters"))
+                  c.getDouble("rechargeRequiredThresholdInMeters")
                 else 10000.0,
               noRechargeThresholdInMeters =
                 if (c.hasPathOrNull("noRechargeThresholdInMeters")) c.getDouble("noRechargeThresholdInMeters")
                 else 50000.0,
+              fastChargingPowerThresholdInKw =
+                if (c.hasPathOrNull("fastChargingPowerThresholdInKw")) c.getDouble("fastChargingPowerThresholdInKw")
+                else 20.0
             )
           }
 

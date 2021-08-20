@@ -171,20 +171,9 @@ class ParkingFunctions[GEO: GeoLevel](
     preferredParkingTypes: Set[ParkingType]
   ): Boolean = {
 
-    val fiftyPowerInKw: Double = 50.0
-
     val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
-
-    // todo rrp
-    val validChargingPointPowerInKw: Boolean = inquiry.activityType match {
-      case ParkingActivityType.FastCharge => // look for stations where power is >= 50Kw
-        zone.chargingPointType.exists(ChargingPointType.getChargingPointInstalledPowerInKw(_) >= fiftyPowerInKw)
-      case ParkingActivityType.Charge => // any will do as long as we have charging point
-        zone.chargingPointType.nonEmpty
-      case _ => false
-    }
 
     val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
       zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
@@ -200,7 +189,7 @@ class ParkingFunctions[GEO: GeoLevel](
       zone.vehicleManagerId == VehicleManager.defaultManager || zone.vehicleManagerId == vehicle.vehicleManagerId
     }
 
-    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager & validChargingPointPowerInKw
+    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager
   }
 
   /**
