@@ -270,9 +270,13 @@ class ChargingNetworkManager(
     val (chargingDuration, energyToCharge) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
     log.info(
       s"dispatchEnergyAndProcessChargingCycle. startTime:$startTime, endTime:$endTime, updatedEndTime:$updatedEndTime, " +
-      s"duration:$duration, maxCycleDuration:$maxCycleDuration, chargingVehicle:$chargingVehicle"
+      s"duration:$duration, maxCycleDuration:$maxCycleDuration, chargingVehicle:$chargingVehicle, " +
+      s"chargingDuration:$chargingDuration, maxCycleDuration:$maxCycleDuration"
     )
     // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
+    log.info(
+      "Before processCycle" + chargingVehicle.vehicle.id + chargingVehicle.chargingSessions.map(x => s"$x,").mkString
+    )
     chargingVehicle
       .processCycle(startTime, startTime + chargingDuration, energyToCharge, maxCycleDuration)
       .flatMap {
@@ -281,13 +285,17 @@ class ChargingNetworkManager(
           None
         case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
           log.info(
-            s"Ending current refuel cycle at time ${cycle.endTime} of vehicle {}. Stall: {}. Provided energy: {} J. Remaining: {} J",
+            s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. Remaining: {} J",
             chargingVehicle.vehicle.id,
             chargingVehicle.stall,
             cycle.energyToCharge,
             energyToCharge
           )
-          log.info(s"here is the cycle $cycle")
+          log.info(
+            "After processCycle" + chargingVehicle.vehicle.id + chargingVehicle.chargingSessions
+              .map(x => s"$x,")
+              .mkString
+          )
           None
         case cycle =>
           // charging is going to end during this current session
