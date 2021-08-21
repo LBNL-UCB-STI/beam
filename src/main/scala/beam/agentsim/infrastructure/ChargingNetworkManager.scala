@@ -287,6 +287,7 @@ class ChargingNetworkManager(
             cycle.energyToCharge,
             energyToCharge
           )
+          log.info(s"here is the cycle $cycle")
           None
         case cycle =>
           // charging is going to end during this current session
