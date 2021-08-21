@@ -21,13 +21,14 @@ library(RColorBrewer)
 library(ggmap)
 
 
-scaleup <- FALSE
-expFactor <- (7.75/0.315) * 27.0 / 21.3
+scaleup <- TRUE
+#expFactor <- (7.75/0.315) * 27.0 / 21.3
+expFactor <- (6.015/0.6015)
 loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- "~/Data/GEMINI/2021Jul30-Oakland/BASE0"
+dataDir <- "/Users/haitamlaarabi/Data/GEMINI/2021Aug17-SFBay/BASE0"
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -39,7 +40,7 @@ dir.create(plotsDir, showWarnings = FALSE)
 scenarioNames <- c('Baseline0')
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 loadTypes <- data.table::data.table(
-  chargingPointType = c("evipublicdcfast(150.0|DC)", "evipublicdcfast(250.0|DC)", "evipublicdcfast(50.0|DC)", "fcsfast(50.0|DC)", "fcsfast(150.0|DC)", "fcsfast(250.0|DC)", "evipubliclevel2(7.2|AC)", "eviworklevel2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
+  chargingType = c("evipublicdcfast(150.0|DC)", "evipublicdcfast(250.0|DC)", "evipublicdcfast(50.0|DC)", "fcsfast(50.0|DC)", "fcsfast(150.0|DC)", "fcsfast(250.0|DC)", "evipubliclevel2(7.2|AC)", "eviworklevel2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
   loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2")
 )
 
