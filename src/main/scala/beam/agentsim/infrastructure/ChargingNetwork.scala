@@ -408,8 +408,8 @@ object ChargingNetwork {
           }
           true
         // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged
-        case x =>
-          logger.info(
+        case _ =>
+          logger.debug(
             "Either Vehicle {} at Stall: {} had been disconnected before the charging cycle." +
             "last charging cycle end time was {} while the current charging cycle end time is {}",
             vehicle.id,
@@ -417,12 +417,11 @@ object ChargingNetwork {
             chargingSessions.lastOption.map(_.endTime).getOrElse(-1),
             endTime
           )
-          logger.info(
+          logger.debug(
             "Or the unplug request event for Vehicle {} arrived after it finished charging at time {}",
             vehicle.id,
             endTime
           )
-          logger.info(s"The cycle again $x")
           false
       }
       if (addNewChargingCycle) {

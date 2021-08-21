@@ -756,7 +756,7 @@ class PersonAgent(
           StateTimeout,
           data @ BasePersonData(_, _, completedLeg :: theRestOfCurrentTrip, _, _, _, _, _, _, _, currentCost, _)
         ) =>
-      log.info("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
+      log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
         restOfCurrentTrip = theRestOfCurrentTrip,
         currentTripCosts = currentCost + completedLeg.cost
@@ -773,7 +773,7 @@ class PersonAgent(
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
-      log.info("{} replanning because vehicle not available when trying to board")
+      log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
@@ -858,7 +858,7 @@ class PersonAgent(
               .vehicle
               .isSharedVehicle
           ) {
-            log.info(
+            log.debug(
               "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
               legsToInclude
             )
@@ -881,7 +881,7 @@ class PersonAgent(
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
-      log.info("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+      log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
       eventsManager.processEvent(
@@ -1134,7 +1134,7 @@ class PersonAgent(
   ): FSM.State[BeamAgentState, PersonData] = {
     if (_currentTriggerId.isDefined) {
       val (tick, triggerId) = releaseTickAndTriggerId()
-      log.info("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
+      log.debug("releasing tick {} and scheduling triggers from reservation responses: {}", tick, triggersToSchedule)
       scheduler ! CompletionNotice(triggerId, triggersToSchedule)
     } else {
       // if _currentTriggerId is empty, this means we have received the reservation response from a batch
@@ -1164,7 +1164,7 @@ class PersonAgent(
   val myUnhandled: StateFunction = {
     case Event(BeamAgentSchedulerTimer, _) =>
       // Put a breakpoint here to see an internal state of the actor
-      log.info(s"Received message from ${sender()}")
+      log.debug(s"Received message from ${sender()}")
       stay
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
@@ -1196,7 +1196,7 @@ class PersonAgent(
           TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
           BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
-      log.info("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
+      log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
     case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: BasePersonData) =>
       handleBoardOrAlightOutOfPlace
@@ -1211,13 +1211,13 @@ class PersonAgent(
     case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.info("myUnhandled.StartingRefuelSession: {}", ev)
+      log.debug("myUnhandled.StartingRefuelSession: {}", ev)
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.info("myUnhandled.UnhandledVehicle: {}", ev)
+      log.debug("myUnhandled.UnhandledVehicle: {}", ev)
       stay()
     case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
-      log.info("myUnhandled.WaitingInLine: {}", ev)
+      log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
