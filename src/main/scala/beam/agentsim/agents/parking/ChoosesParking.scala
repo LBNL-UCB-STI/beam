@@ -107,7 +107,11 @@ trait ChoosesParking extends {
       val (tick, triggerId) = releaseTickAndTriggerId()
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
-        chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
+        chargingNetworkManager ! ChargingUnplugRequest(
+          tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+          currentBeamVehicle,
+          triggerId
+        )
         goto(ReleasingChargingPoint) using data
       } else {
         handleReleasingParkingSpot(tick, triggerId)

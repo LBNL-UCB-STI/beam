@@ -136,7 +136,8 @@ class ChargingNetworkManagerSpec
       Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
-      reservedFor = ParkingZone.GlobalReservedFor
+      reservedFor = ParkingZone.GlobalReservedFor,
+      taz2.coord
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _
@@ -394,7 +395,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, parkingStall, personId, 112)
-      expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, 112))
+      expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, parkingStall, 112))
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 

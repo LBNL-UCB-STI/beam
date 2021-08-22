@@ -194,7 +194,9 @@ class ChargingNetworkManager(
             case Some(chargingVehicle) if chargingVehicle.chargingSessions.nonEmpty =>
               val unplugTimeBin = currentTimeBin(tick)
               //val index = chargingVehicle.chargingSessions.indexWhere(_.startTime >= unplugTimeBin)
-              val index = chargingVehicle.chargingSessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTimeBin)
+              val index = chargingVehicle.chargingSessions.indexWhere(x =>
+                currentTimeBin(x.startTime) == unplugTimeBin && x.startTime <= tick
+              )
               val (startTime, endTime) =
                 if (index == -1) (unplugTimeBin, tick) else (chargingVehicle.chargingSessions(index).startTime, tick)
               dispatchEnergyAndProcessChargingCycle(
@@ -253,7 +255,7 @@ class ChargingNetworkManager(
     triggerId: Long,
     actorInterruptingCharging: Option[ActorRef] = None
   ): Option[ScheduleTrigger] = {
-    assume(endTime - startTime >= 0, "timeInterval should not be negative!")
+    assume(endTime - startTime >= 0, s"timeInterval should not be negative! startTime $startTime endTime $endTime")
     // Calculate the energy to charge each vehicle connected to the a charging station
     val updatedEndTime = chargingVehicle.chargingShouldEndAt
       .map(_ - beamConfig.beam.agentsim.schedulerParallelismWindow)
@@ -318,7 +320,7 @@ class ChargingNetworkManager(
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = obtainPowerPhysicalBounds(tick, None)
     vehicle.connectToChargingPoint(tick)
-    theSender ! StartingRefuelSession(tick, vehicle.id, triggerId)
+    theSender ! StartingRefuelSession(tick + beamConfig.beam.agentsim.schedulerParallelismWindow, vehicle.id, triggerId)
     handleStartChargingHelper(tick, chargingVehicle, beamServices)
     dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, physicalBounds, triggerId).foreach(
       scheduler ! _
@@ -349,7 +351,14 @@ class ChargingNetworkManager(
           parkingNetworkManager ! ReleaseParkingStall(vehicle.stall.get, triggerId)
           vehicle.unsetParkingStall()
         }
-        currentSenderMaybe.foreach(_ ! EndingRefuelSession(tick, vehicle.id, stall, triggerId))
+        currentSenderMaybe.foreach(
+          _ ! EndingRefuelSession(
+            tick + beamConfig.beam.agentsim.schedulerParallelismWindow,
+            vehicle.id,
+            stall,
+            triggerId
+          )
+        )
         chargingNetwork.processWaitingLine(tick, cv.chargingStation).foreach(handleStartCharging(tick, _, triggerId))
       case None =>
         log.debug(
