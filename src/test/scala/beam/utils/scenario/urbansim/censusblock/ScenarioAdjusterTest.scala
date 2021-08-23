@@ -26,7 +26,7 @@ class ScenarioAdjusterTest extends AnyFunSuite with Matchers {
       routerType = "r5",
       skimsGeoType = "h3",
       skimsKind = "od",
-      modesToBuild = ModesToBuild(drive = false, drive_transit = false, walk = false, walk_transit = false),
+      modesToBuild = ModesToBuild(drive = false, transit = false, walk = false),
       maxTravelDistanceInMeters = MaxTravelDistanceInMeters(bike = 10000, walk = 5000)
     )
 
