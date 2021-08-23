@@ -99,9 +99,9 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val inputPlans = Await.result(plansF, 500.seconds)
-    val persons = Await.result(personsF, 500.seconds)
-    val households = Await.result(householdsF, 500.seconds)
+    val inputPlans = Await.result(plansF, 1800.seconds)
+    val persons = Await.result(personsF, 1800.seconds)
+    val households = Await.result(householdsF, 1800.seconds)
 
     val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 

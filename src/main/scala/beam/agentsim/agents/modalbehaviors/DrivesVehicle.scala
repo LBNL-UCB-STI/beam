@@ -14,13 +14,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingPlugRequest,
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  WaitingInLine
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -344,6 +338,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       if (!isLastLeg) {
         if (data.hasParkingBehaviors) {
           holdTickAndTriggerId(tick, triggerId)
+          log.debug(s"state(DrivesVehicle.Driving) $id is going to ReadyToChooseParking")
           goto(ReadyToChooseParking) using data
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T]
@@ -358,6 +353,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           } else {
             nextLeg.startTime
           }
+          log.debug(s"state(DrivesVehicle.Driving) $id is going to WaitingToDrive")
           goto(WaitingToDrive) using stripLiterallyDrivingData(data)
             .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
             .asInstanceOf[T] replying CompletionNotice(
@@ -407,9 +403,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {
+          log.debug(s"state(DrivesVehicle.Driving) $id is going to ConnectingToChargingPoint")
           goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
           self ! LastLegPassengerSchedule(triggerId)
+          log.debug(s"state(DrivesVehicle.Driving) $id is going to DrivingInterrupted with $triggerId")
           goto(DrivingInterrupted) using data.asInstanceOf[T]
         }
       }
@@ -443,10 +441,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
+      log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
       stay()
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.Driving.WaitingInLine): {}", ev)
+    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
+      log.error("state(DrivesVehicle.Driving.WaitingInLine): {}. This probably should not happen", ev)
       stay()
 
   }
@@ -546,7 +544,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
+    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
+      stay
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
+      log.debug(s"state(DrivesVehicle.DrivingInterrupted): LastLegPassengerSchedule with $triggerId for $id")
       self ! PassengerScheduleEmptyMessage(
         geo.wgs2Utm(
           data.passengerSchedule.schedule
@@ -565,21 +567,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       goto(PassengerScheduleEmpty) using stripLiterallyDrivingData(data)
         .withCurrentLegPassengerScheduleIndex(data.currentLegPassengerScheduleIndex + 1)
         .asInstanceOf[T]
-
-    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted.StartingRefuelSession): {}", ev)
-      stash()
-      stay()
-
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted.UnhandledVehicle): {}", ev)
-      stash()
-      stay()
-
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
-      log.debug("state(DrivesVehicle.DrivingInterrupted.WaitingInLine): {}", ev)
-      stash()
-      stay()
 
   }
 

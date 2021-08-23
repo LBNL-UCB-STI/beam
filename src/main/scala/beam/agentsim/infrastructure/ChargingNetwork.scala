@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
@@ -82,22 +83,25 @@ class ChargingNetwork[GEO: GeoLevel](
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def attemptToConnectVehicle(
-    tick: Int,
-    vehicle: BeamVehicle,
-    stall: ParkingStall,
-    theSender: ActorRef,
-    personId: Id[Person],
-    shiftStatus: ShiftStatus = NotApplicable
+    request: ChargingPlugRequest,
+    theSender: ActorRef
   ): Option[(ChargingVehicle, ConnectionStatus.Value)] = {
-    lookupStation(stall.parkingZoneId)
-      .map { x =>
-        vehicle.useParkingStall(stall)
-        Some(x.connect(tick, vehicle, stall, theSender, personId, shiftStatus))
-      }
-      .getOrElse {
+    lookupStation(request.stall.parkingZoneId)
+      .map(
+        _.connect(
+          request.tick,
+          request.vehicle,
+          request.stall,
+          request.personId,
+          request.shiftStatus,
+          request.shiftDuration,
+          theSender
+        )
+      )
+      .orElse {
         logger.error(
-          s"Cannot find a $vehicleManagerId station identified with tazId ${stall.tazId}, " +
-          s"parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}!"
+          s"Cannot find a $vehicleManagerId station identified with tazId ${request.stall.tazId}, " +
+          s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
         )
         None
       }
@@ -124,7 +128,7 @@ object ChargingNetwork {
 
   object ConnectionStatus extends Enumeration {
     type ConnectionStatus = Value
-    val WaitingToCharge, Connected, Disconnected, AlreadyAtStation = Value
+    val WaitingAtStation, Connected, Disconnected, AlreadyAtStation = Value
   }
 
   def apply[GEO: GeoLevel](
@@ -271,33 +275,36 @@ object ChargingNetwork {
       tick: Int,
       vehicle: BeamVehicle,
       stall: ParkingStall,
-      theSender: ActorRef,
       personId: Id[Person],
-      shiftStatus: ShiftStatus = NotApplicable
-    ): (ChargingVehicle, ConnectionStatus.Value) =
+      shiftStatus: ShiftStatus = NotApplicable,
+      shiftDuration: Option[Int] = None,
+      theSender: ActorRef
+    ): (ChargingVehicle, ConnectionStatus.Value) = {
+      vehicle.useParkingStall(stall)
       vehicles.get(vehicle.id) match {
         case Some(chargingVehicle) => (chargingVehicle, AlreadyAtStation)
         case _ =>
-          val (sessionTime, status) = if (numAvailableChargers > 0) (tick, Connected) else (-1, WaitingToCharge)
+          val (sessionTime, status) = if (numAvailableChargers > 0) (tick, Connected) else (-1, WaitingAtStation)
           val listStatus = ListBuffer(status)
-          val chargingVehicle =
-            ChargingVehicle(
-              vehicle,
-              stall,
-              this,
-              tick,
-              sessionTime,
-              theSender,
-              personId,
-              listStatus,
-              shiftStatus = shiftStatus
-            )
+          val chargingVehicle = ChargingVehicle(
+            vehicle,
+            stall,
+            this,
+            tick,
+            sessionTime,
+            personId,
+            shiftStatus,
+            shiftDuration,
+            theSender,
+            listStatus
+          )
           status match {
             case Connected => connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
             case _         => waitingLineInternal.enqueue(chargingVehicle)
           }
           (chargingVehicle, status)
       }
+    }
 
     /**
       * remove vehicle from connected list and disconnect from charging point
@@ -340,13 +347,16 @@ object ChargingNetwork {
     chargingStation: ChargingStation,
     arrivalTime: Int,
     sessionStartTime: Int,
-    theSender: ActorRef,
     personId: Id[Person],
+    shiftStatus: ShiftStatus,
+    shiftDuration: Option[Int],
+    theSender: ActorRef,
     connectionStatus: ListBuffer[ConnectionStatus.ConnectionStatus],
-    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle],
-    shiftStatus: ShiftStatus = NotApplicable
+    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
+
+    val chargingShouldEndAt: Option[Int] = shiftDuration.map(_ + arrivalTime)
 
     /**
       * @param status the new connection status

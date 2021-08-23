@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
