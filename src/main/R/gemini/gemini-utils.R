@@ -57,9 +57,8 @@ filterEvents <- function(dataDir, filename, eventsList) {
   if(!file.exists(outputFilepath)) {
     events <- readCsv(paste(dataDir, "/events-raw", "/", filename, sep=""))
     filteredEvents <- events[type %in% eventsList][
-      ,c("vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType", 
-         "locationY", "locationX", "duration", "vehicleType", "person", "fuel", 
-         "parkingZoneId")]
+      ,c("vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType",
+         "locationY", "locationX", "duration", "vehicleType", "person", "fuel", "parkingZoneId")]
     dir.create(file.path(dataDir, "events"), showWarnings = FALSE)
     write.csv(
       filteredEvents,
@@ -79,10 +78,10 @@ processEventsFileAndScaleUp <- function(dataDir, scaleUpFlag, expFactor) {
     name <- unlist(strsplit(fileList[i], "\\."))
     print(paste("Filtering ", fileList[i], sep=""))
     filteredEvent <- filterEvents(
-      dataDir, 
+      dataDir,
       fileList[i], c(
-        "RefuelSessionEvent", 
-        "ChargingPlugInEvent", 
+        "RefuelSessionEvent",
+        "ChargingPlugInEvent",
         "ChargingPlugOutEvent",
         "actstart"))
     resultsFile <- paste("gemini.sim",name[3],"csv",sep=".")
@@ -93,7 +92,7 @@ processEventsFileAndScaleUp <- function(dataDir, scaleUpFlag, expFactor) {
       if(scaleUpFlag) {
         print("scaling up charging events...")
         simEvents <- scaleUpAllSessions(chargingEvents, expFactor)
-      } 
+      }
       print("Spreading charging events into power sessions")
       sessions <- spreadChargingSessionsIntoPowerIntervals(simEvents)
       resultsDir <- paste(dataDir, "/results",sep="")
@@ -153,12 +152,12 @@ generateReadyToPlot <- function(resultsDirName, loadTypes, loadInfo, countyNames
     chargingTypes <- data.table()
     if (!file.exists(pp(sim.xfc.temp.file,"-loads.csv"))) {
       code <- unlist(strsplit(sim.xfc.file, "\\."))[3]
-      
+
       sessions <- readCsv(sim.xfc.file)
       sessions[(depot),taz:=-kmeans(sessions[(depot)][,.(x,y)],20)$cluster]
       sessions[,code:=code]
       write.csv(sessions,file = pp(sim.xfc.temp.file,"-sessions.csv"),row.names=FALSE,quote=FALSE,na="0")
-      
+
       loads <- extractLoads(sessions, loadTypes, loadInfo, countyNames)
       loads[,hour.bin2:=hour.bin%%24]
       loads[,code:=code]

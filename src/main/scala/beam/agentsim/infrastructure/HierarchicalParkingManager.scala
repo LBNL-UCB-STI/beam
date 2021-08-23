@@ -213,8 +213,7 @@ class HierarchicalParkingManager(
       boxAroundRequest,
       new Random(seed),
       tazId = TAZ.EmergencyTAZId,
-      geoId = LinkLevelOperations.EmergencyLinkId,
-      activityLocation = location
+      geoId = LinkLevelOperations.EmergencyLinkId
     )
     newStall -> DefaultParkingZone
   }

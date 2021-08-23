@@ -3,8 +3,10 @@ package beam.agentsim.infrastructure.power
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
@@ -151,8 +153,9 @@ class SitePowerManagerSpec
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
+        val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
         val Some((chargingVehicle, status)) =
-          chargingNetwork.attemptToConnectVehicle(0, v, v.stall.get, ActorRef.noSender, person)
+          chargingNetwork.attemptToConnectVehicle(request, ActorRef.noSender)
         status shouldBe ConnectionStatus.Connected
         chargingVehicle shouldBe ChargingVehicle(
           v,
@@ -160,8 +163,10 @@ class SitePowerManagerSpec
           dummyStation,
           0,
           0,
-          ActorRef.noSender,
           person,
+          NotApplicable,
+          None,
+          ActorRef.noSender,
           ListBuffer(ConnectionStatus.Connected)
         )
         sitePowerManager.dispatchEnergy(

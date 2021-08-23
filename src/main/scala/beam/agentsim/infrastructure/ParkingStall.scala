@@ -20,8 +20,7 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: Id[VehicleManager],
-  activityLocation: Location
+  reservedFor: Id[VehicleManager]
 )
 
 object ParkingStall {
@@ -32,8 +31,7 @@ object ParkingStall {
     parkingZone: ParkingZone[GEO],
     tazId: Id[TAZ],
     location: Location,
-    costInDollars: Double,
-    activityLocation: Location
+    costInDollars: Double
   ): ParkingStall = {
     ParkingStall(
       parkingZone.geoId,
@@ -44,8 +42,7 @@ object ParkingStall {
       parkingZone.chargingPointType,
       parkingZone.pricingModel,
       parkingZone.parkingType,
-      parkingZone.reservedFor,
-      activityLocation
+      parkingZone.reservedFor
     )
   }
 
@@ -54,7 +51,7 @@ object ParkingStall {
     * @param coord the location for the stall
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
-  def defaultStall(coord: Coord, activityLocation: Location): ParkingStall = ParkingStall(
+  def defaultStall(coord: Coord): ParkingStall = ParkingStall(
     geoId = TAZ.DefaultTAZId,
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
@@ -63,8 +60,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = ParkingZone.GlobalReservedFor,
-    activityLocation = activityLocation
+    reservedFor = ParkingZone.GlobalReservedFor
   )
 
   /**
@@ -80,8 +76,7 @@ object ParkingStall {
     random: Random = Random,
     costInDollars: Double = CostOfEmergencyStallInDollars,
     tazId: Id[TAZ] = TAZ.EmergencyTAZId,
-    geoId: Id[_],
-    activityLocation: Location
+    geoId: Id[_]
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -95,8 +90,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = ParkingZone.GlobalReservedFor,
-      activityLocation = activityLocation
+      reservedFor = ParkingZone.GlobalReservedFor
     )
   }
 
@@ -122,8 +116,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = ParkingZone.GlobalReservedFor,
-    activityLocation = locationUTM
+    reservedFor = ParkingZone.GlobalReservedFor
   )
 
   /**
@@ -145,8 +138,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      parkingAlternative.parkingZone.reservedFor,
-      parkingAlternative.activityLocation
+      parkingAlternative.parkingZone.reservedFor
     )
   }
 

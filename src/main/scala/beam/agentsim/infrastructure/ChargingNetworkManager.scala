@@ -193,7 +193,6 @@ class ChargingNetworkManager(
           chargingNetwork.lookupVehicle(vehicle.id) match { // not taking into consideration vehicles waiting in line
             case Some(chargingVehicle) if chargingVehicle.chargingSessions.nonEmpty =>
               val unplugTimeBin = currentTimeBin(tick)
-              //val index = chargingVehicle.chargingSessions.indexWhere(_.startTime >= unplugTimeBin)
               val index = chargingVehicle.chargingSessions.indexWhere(x =>
                 currentTimeBin(x.startTime) == unplugTimeBin && x.startTime <= tick
               )
@@ -273,12 +272,9 @@ class ChargingNetworkManager(
     log.debug(
       s"dispatchEnergyAndProcessChargingCycle. startTime:$startTime, endTime:$endTime, updatedEndTime:$updatedEndTime, " +
       s"duration:$duration, maxCycleDuration:$maxCycleDuration, chargingVehicle:$chargingVehicle, " +
-      s"chargingDuration:$chargingDuration, maxCycleDuration:$maxCycleDuration"
+      s"chargingDuration:$chargingDuration"
     )
     // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
-    log.debug(
-      "Before processCycle" + chargingVehicle.vehicle.id + chargingVehicle.chargingSessions.map(x => s"$x,").mkString
-    )
     chargingVehicle
       .processCycle(startTime, startTime + chargingDuration, energyToCharge, maxCycleDuration)
       .flatMap {
@@ -292,11 +288,6 @@ class ChargingNetworkManager(
             chargingVehicle.stall,
             cycle.energyToCharge,
             energyToCharge
-          )
-          log.debug(
-            "After processCycle" + chargingVehicle.vehicle.id + chargingVehicle.chargingSessions
-              .map(x => s"$x,")
-              .mkString
           )
           None
         case cycle =>
@@ -473,10 +464,7 @@ object ChargingNetworkManager extends LazyLogging {
     // Refuel Session
     val refuelSessionEvent = new RefuelSessionEvent(
       currentTick,
-      stall.copy(
-        locationUTM = beamServices.geo.utm2Wgs(stall.locationUTM),
-        activityLocation = beamServices.geo.utm2Wgs(stall.activityLocation)
-      ),
+      stall.copy(locationUTM = beamServices.geo.utm2Wgs(stall.locationUTM)),
       totEnergy,
       vehicle.primaryFuelLevelInJoules - totEnergy,
       totDuration,
