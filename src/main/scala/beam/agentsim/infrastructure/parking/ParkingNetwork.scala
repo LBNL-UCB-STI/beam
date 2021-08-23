@@ -1,16 +1,13 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure._
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-abstract class ParkingNetwork[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-) extends LazyLogging {
+abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+    extends LazyLogging {
 
   // Generic
   protected val searchFunctions: Option[InfrastructureFunctions[_]]
@@ -18,8 +15,6 @@ abstract class ParkingNetwork[GEO: GeoLevel](
   // Core
   protected var totalStallsInUse: Long = 0L
   protected var totalStallsAvailable: Long = parkingZones.map(_._2.stallsAvailable).sum
-
-  def getVehicleManagerId: Id[VehicleManager] = vehicleManagerId
 
   /**
     * @param inquiry ParkingInquiry
