@@ -22,12 +22,13 @@ library(ggmap)
 
 
 scaleup <- FALSE
-expFactor <- (7.75/0.315) * 27.0 / 21.3
+#expFactor <- (7.75/0.315) * 27.0 / 21.3
+expFactor <- (6.015/0.6015)
 loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- "~/Data/GEMINI/2021Jul30-Oakland/BASE0"
+dataDir <- normalizePath("~/Data/GEMINI/2021Aug22-Oakland/BASE0")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -36,15 +37,27 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Baseline0')
+scenarioNames <- c('Baseline')
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 loadTypes <- data.table::data.table(
-  chargingPointType = c("evipublicdcfast(150.0|DC)", "evipublicdcfast(250.0|DC)", "evipublicdcfast(50.0|DC)", "fcsfast(50.0|DC)", "fcsfast(150.0|DC)", "fcsfast(250.0|DC)", "evipubliclevel2(7.2|AC)", "eviworklevel2(7.2|AC)", "homelevel1(1.8|AC)", "homelevel2(7.2|AC)"),
-  loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2")
+  chargingPointType = c("evipublicdcfast(150.0|DC)",
+                   "evipublicdcfast(250.0|DC)",
+                   "evipublicdcfast(50.0|DC)",
+                   "fcsfast(50.0|DC)",
+                   "fcsfast(150.0|DC)",
+                   "fcsfast(250.0|DC)",
+                   "evipubliclevel2(7.2|AC)",
+                   "eviworklevel2(7.2|AC)",
+                   "homelevel1(1.8|AC)",
+                   "homelevel2(7.2|AC)",
+                   "custom(150.0|DC)"),
+  loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2", "DCFC")
 )
 
+# MAIN
 processEventsFileAndScaleUp(dataDir, scaleup, expFactor)
 
+# PLOTS
 if (!file.exists(pp(resultsDir,'/ready-to-plot.Rdata'))) {
   generateReadyToPlot(resultsDir, loadTypes, loadInfo, countyNames)
 }
@@ -68,7 +81,7 @@ all.loads <- all.loads[scens, on="code", mult="all"]
 ##########################################
 
 ## Baseline XFC hours per site per day
-toplot <- all.loads[name=='Baseline0']
+toplot <- all.loads[name=='Baseline']
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(severity, levels=severity_order)))+
@@ -94,7 +107,7 @@ ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in
 
 
 ## Baseline ev charging loads by space time
-toplot <- all.loads[name=='Baseline0'&hour.bin2%in%c(0, 6, 12, 18)]
+toplot <- all.loads[name=='Baseline'&hour.bin2%in%c(0, 6, 12, 18)]
 toplot$mw <- toplot$kw/1000
 toplot$hour.bin2.label <- "12am"
 toplot[hour.bin2==6]$hour.bin2.label <- "6am"
