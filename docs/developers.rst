@@ -128,7 +128,7 @@ If you don't need the production data anymore and want to remove it locally you 
 
 or::
 
-  git submodule deinit
+  git submodule deinit --all
 
 to remove all production data.
 
