@@ -5,16 +5,28 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.collection.JavaConverters._
 
+/*
+Application expects to get two config files as input
+args(0) - config file #1
+args(1) - config file #2
+
+The output of application will contains the difference between values of two provided config files.
+Configs will be resolved, all included configs will be parsed too and all nested config values will be used in comparison.
+The order of config keys in the config files does not matter, but, if config entry contains list of values
+and the order in the list is different, then it will be considered as difference.
+
+./gradlew :execute -PmainClass=beam.utils.ConfigValuesComparator -PappArgs="['test/input/sf-light/sf-light-1k.conf','test/input/sf-light/sf-light-5k.conf']"
+ */
 object ConfigValuesComparator extends LazyLogging {
 
   def getFullConfigMap(configFileLocation: String): Predef.Map[String, String] = {
     val renderOptions = ConfigRenderOptions.concise()
-
     val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(configFileLocation)
     config
+      .resolve()
       .entrySet()
       .asScala
-      .map(x => x.getKey -> x.getValue.render(renderOptions).split(',').last)
+      .map(x => x.getKey -> x.getValue.render(renderOptions))
       .toMap
   }
 
