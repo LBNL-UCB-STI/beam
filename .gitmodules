@@ -1,0 +1,4 @@
+[submodule "production/austin"]
+	path = production/austin
+	url = git@github.com:LBNL-UCB-STI/beam-data-austin.git
+	branch = develop
