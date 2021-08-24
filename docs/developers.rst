@@ -103,46 +103,45 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 
 #. Just push the files as usual
 
-Keeping Production Data out of Master Branch
+Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
+Production data is located in separate git repositories each scenario in its own repo (see `#3254 <https://github.com/LBNL-UCB-STI/beam/issues/3254>`_ for the reason)
 
-However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
+These repositories have `beam-data-` prefix, e.g `beam-data-sfbay`
 
-Checkout your production branch::
+They are linked back to the parent repo by `git submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_. For example sfbay is mapped to `production/sfbay`.
 
-  git checkout production-branch
+When you clone a parent project, by default you get the production data directories that contain submodules, but none of the files within them.
+To fetch production data manually type::
 
-Bring branch even with master::
+   git submodule init production/sfbay
+   git submodule update production/sfbay --remote
 
-  git merge master
+(replace `sfbay` with other scenario if needed)
 
-Resolve conflicts if needed
+Note that ``git submodule init`` should be run only once
 
-Capture the files that are different now between production and master::
+If you don't need the production data anymore and want to remove it locally you can run::
 
-  git diff --name-only HEAD master > diff-with-master.txt
+  git submodule deinit production/sfbay
 
-You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+or::
 
-IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+  git submodule deinit
 
-Checkout master::
+to remove all production data.
 
-  git checkout master
+Adding new production scenario
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Create a new branch off of master, this is where you will stage the files to then merge back into master::
+First create a new repository for the data with beam-data- prefix.
 
-  git checkout -b new-branch-with-changes-4ci
+Then in the main repo type::
 
-Do a file by file checkout of all differing files from production branch onto master::
+  git submodule add -b develop git@github.com:LBNL-UCB-STI/beam-data-city.git production/city
 
-  cat diff-with-master.txt | xargs git checkout production-branch --
-
-Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt"). If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
-
-Finally, commit the files that were checked out of the production branch, push, and go create your pull request!
+replacing `city` with a new scenario name, assuming that repo uses `develop` branch as default one.
 
 
 Automated Cloud Deployment
