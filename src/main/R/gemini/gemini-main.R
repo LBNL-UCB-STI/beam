@@ -38,6 +38,7 @@ dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
 scenarioNames <- c('Baseline')
+scenarioBaselineLabel <- 'Baseline'
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 loadTypes <- data.table::data.table(
   chargingPointType = c("evipublicdcfast(150.0|DC)",
@@ -81,7 +82,7 @@ all.loads <- all.loads[scens, on="code", mult="all"]
 ##########################################
 
 ## Baseline XFC hours per site per day
-toplot <- all.loads[name=='Baseline']
+toplot <- all.loads[name==scenarioBaselineLabel]
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(severity, levels=severity_order)))+
@@ -107,7 +108,7 @@ ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in
 
 
 ## Baseline ev charging loads by space time
-toplot <- all.loads[name=='Baseline'&hour.bin2%in%c(0, 6, 12, 18)]
+toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2%in%c(0, 6, 12, 18)]
 toplot$mw <- toplot$kw/1000
 toplot$hour.bin2.label <- "12am"
 toplot[hour.bin2==6]$hour.bin2.label <- "6am"
@@ -138,7 +139,7 @@ p <- ggplot() +
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time.png'),p,width=16,height=8,units='in')
 
 
-# toplot <- all.loads[name=='Baseline'&hour.bin2%in%c(0, 6, 12, 18)]
+# toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2%in%c(0, 6, 12, 18)]
 # toplot[hour.bin2==0]$hour.bin2.label <- "12am"
 # toplot[hour.bin2==6]$hour.bin2.label <- "6am"
 # toplot[hour.bin2==12]$hour.bin2.label <- "12pm"
@@ -173,7 +174,7 @@ ggmap(oakland_map) +
     plot.title = element_text(colour = "orange"),
     panel.border = element_rect(colour = "grey", fill=NA, size=2)
   )
-toplot <- all.loads[name=='Baseline'&hour.bin2 %in% c(6, 9, 18, 0)]
+toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% c(6, 9, 18, 0)]
 toplot$hour.bin2.label <- "12am"
 toplot[hour.bin2==6]$hour.bin2.label <- "6am"
 toplot[hour.bin2==9]$hour.bin2.label <- "9am"
