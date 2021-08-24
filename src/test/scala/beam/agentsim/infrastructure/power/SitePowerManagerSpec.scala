@@ -3,8 +3,10 @@ package beam.agentsim.infrastructure.power
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
@@ -16,6 +18,7 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{BeamVehicleUtils, TestConfigUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.mockito.Mockito.mock
 import org.scalatest.BeforeAndAfterEach
@@ -98,7 +101,7 @@ class SitePowerManagerSpec
     None,
     taz.tazId,
     ParkingType.Workplace,
-    VehicleManager.defaultManager,
+    ParkingZone.GlobalReservedFor,
     maxStalls = 2,
     chargingPointType = Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
     pricingModel = Some(PricingModel.FlatFee(0.0))
@@ -109,22 +112,22 @@ class SitePowerManagerSpec
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType])),
-      VehicleManager.defaultManager
+      vehicleTypes(Id.create("PHEV", classOf[BeamVehicleType]))
     )
+    val person1: Id[Person] = Id.createPersonId("dummyPerson1")
     val v2 = new BeamVehicle(
       Id.createVehicleId("id2"),
       new Powertrain(0.0),
-      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType])),
-      VehicleManager.defaultManager
+      vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
     )
+    val person2: Id[Person] = Id.createPersonId("dummyPerson2")
     v1.useParkingStall(parkingStall1)
     v2.useParkingStall(parkingStall1.copy())
-    List(v1, v2)
+    List((v1, person1), (v2, person2))
   }
 
   val chargingNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
-    VehicleManager.defaultManager,
+    ParkingZone.GlobalReservedFor,
     Map(dummyChargingZone.parkingZoneId -> dummyChargingZone),
     envelopeInUTM,
     beamServices
@@ -133,7 +136,7 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val sitePowerManager = new SitePowerManager(Map(VehicleManager.defaultManager -> chargingNetwork), beamServices)
+    val sitePowerManager = new SitePowerManager(Map(ParkingZone.GlobalReservedFor -> chargingNetwork), beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
@@ -141,17 +144,18 @@ class SitePowerManagerSpec
       )
     }
     "get power over planning horizon greater than 0.0 for discharged vehicles" in {
-      val vehiclesMap = Map(vehiclesList.map(v => v.id -> v): _*)
+      val vehiclesMap = Map(vehiclesList.map { case (v, _) => v.id -> v }: _*)
       vehiclesMap.foreach(_._2.addFuel(-10000))
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
         ChargingStation(dummyChargingZone) -> 0.0
       )
     }
     "replan horizon and get charging plan per vehicle" in {
-      vehiclesList.foreach { v =>
+      vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
+        val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
         val Some((chargingVehicle, status)) =
-          chargingNetwork.attemptToConnectVehicle(0, v, v.stall.get, ActorRef.noSender)
+          chargingNetwork.attemptToConnectVehicle(request, ActorRef.noSender)
         status shouldBe ConnectionStatus.Connected
         chargingVehicle shouldBe ChargingVehicle(
           v,
@@ -159,6 +163,9 @@ class SitePowerManagerSpec
           dummyStation,
           0,
           0,
+          person,
+          NotApplicable,
+          None,
           ActorRef.noSender,
           ListBuffer(ConnectionStatus.Connected)
         )

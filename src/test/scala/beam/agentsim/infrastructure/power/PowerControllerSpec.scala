@@ -49,7 +49,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     None,
     tazFromBeamville.tazId,
     ParkingType.Public,
-    VehicleManager.defaultManager,
+    ParkingZone.GlobalReservedFor,
     maxStalls = 1,
     chargingPointType = Some(ChargingPointType.ChargingStationType1),
     pricingModel = Some(PricingModel.FlatFee(0.0))

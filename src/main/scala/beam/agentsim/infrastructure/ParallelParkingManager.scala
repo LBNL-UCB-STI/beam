@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -32,7 +31,6 @@ import scala.collection.mutable.ArrayBuffer
   * @author Dmitry Openkov
   */
 class ParallelParkingManager(
-  vehicleManagerId: Id[VehicleManager],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
   tazTreeMap: TAZTreeMap,
   clusters: Vector[ParkingCluster],
@@ -42,7 +40,7 @@ class ParallelParkingManager(
   maxSearchRadius: Double,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
-) extends ParkingNetwork[TAZ](vehicleManagerId, parkingZones) {
+) extends ParkingNetwork[TAZ](parkingZones) {
 
   override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
 
@@ -66,7 +64,6 @@ class ParallelParkingManager(
   protected def createWorker(cluster: ParkingCluster): Worker = {
     val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
     val parkingNetwork = ZonalParkingManager[TAZ](
-      vehicleManagerId,
       parkingZones,
       tazTreeMap.tazQuadTree,
       tazTreeMap.idToTAZMapping,
@@ -145,7 +142,6 @@ object ParallelParkingManager extends LazyLogging {
     * @return
     */
   def init(
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
@@ -156,7 +152,6 @@ object ParallelParkingManager extends LazyLogging {
     val numClusters =
       Math.min(tazTreeMap.tazQuadTree.size(), beamConfig.beam.agentsim.taz.parkingManager.parallel.numberOfClusters)
     init(
-      vehicleManagerId,
       parkingZones,
       beamConfig,
       tazTreeMap,
@@ -168,7 +163,6 @@ object ParallelParkingManager extends LazyLogging {
   }
 
   def init(
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
@@ -180,7 +174,6 @@ object ParallelParkingManager extends LazyLogging {
     val clusters: Vector[ParkingCluster] =
       createClusters(tazTreeMap, parkingZones, numClusters, seed.toLong)
     new ParallelParkingManager(
-      vehicleManagerId,
       parkingZones,
       tazTreeMap,
       clusters,

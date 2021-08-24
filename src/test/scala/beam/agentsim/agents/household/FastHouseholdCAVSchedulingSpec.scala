@@ -68,8 +68,7 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          VehicleManager.defaultManager
+          defaultCAVBeamVehicleType
         )
       )
       val household = scenario1(cavs)
@@ -89,14 +88,12 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          VehicleManager.defaultManager
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          vehicleType,
-          VehicleManager.defaultManager
+          vehicleType
         )
       )
       val household = scenario2(cavs)
@@ -119,14 +116,12 @@ class FastHouseholdCAVSchedulingSpec
         new BeamVehicle(
           Id.createVehicleId("id1"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          VehicleManager.defaultManager
+          defaultCAVBeamVehicleType
         ),
         new BeamVehicle(
           Id.createVehicleId("id2"),
           new Powertrain(0.0),
-          defaultCAVBeamVehicleType,
-          VehicleManager.defaultManager
+          defaultCAVBeamVehicleType
         )
       )
       val household = scenario5(cavs)

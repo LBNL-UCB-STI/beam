@@ -8,7 +8,9 @@ trait VehicleManager
 
 object VehicleManager {
 
-  def createIdUsingUnique(idString: String, vehType: VehicleManagerType): Id[VehicleManager] = {
+  val noManager: Id[VehicleManager] = Id.create("NoManager", classOf[VehicleManager])
+
+  def createOrGetIdUsingUnique(idString: String, vehType: VehicleManagerType): Id[VehicleManager] = {
     val vehId = Id.create(idString, classOf[VehicleManager])
     if (vehicleManagers.contains(vehId) && vehicleManagers(vehId) != vehType)
       throw new RuntimeException("Duplicate vehicle manager ids is not allowed")
@@ -25,11 +27,5 @@ object VehicleManager {
   case object BEAMFreight extends VehicleManagerType
   case object Others extends VehicleManagerType
 
-  val defaultManager: Id[VehicleManager] = Id.create("DefaultManager", classOf[VehicleManager])
-  val noManager: Id[VehicleManager] = Id.create("NoManager", classOf[VehicleManager])
-
-  private val vehicleManagers: TrieMap[Id[VehicleManager], VehicleManagerType] = TrieMap(
-    defaultManager -> BEAMCore,
-    noManager      -> Others
-  )
+  private val vehicleManagers: TrieMap[Id[VehicleManager], VehicleManagerType] = TrieMap(noManager -> Others)
 }
