@@ -6,3 +6,7 @@
 	path = production/sfbay
 	url = git@github.com:LBNL-UCB-STI/beam-data-sfbay.git
 	branch = develop
+[submodule "production/detroit"]
+	path = production/detroit
+	url = git@github.com:LBNL-UCB-STI/beam-data-detroit.git
+	branch = develop
