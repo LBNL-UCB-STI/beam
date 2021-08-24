@@ -3999,9 +3999,8 @@ object BeamConfig {
 
         case class ModesToBuild(
           drive: scala.Boolean,
-          drive_transit: scala.Boolean,
-          walk: scala.Boolean,
-          walk_transit: scala.Boolean
+          transit: scala.Boolean,
+          walk: scala.Boolean
         )
 
         object ModesToBuild {
@@ -4009,9 +4008,8 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild = {
             BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild(
               drive = !c.hasPathOrNull("drive") || c.getBoolean("drive"),
-              drive_transit = !c.hasPathOrNull("drive_transit") || c.getBoolean("drive_transit"),
-              walk = !c.hasPathOrNull("walk") || c.getBoolean("walk"),
-              walk_transit = !c.hasPathOrNull("walk_transit") || c.getBoolean("walk_transit")
+              transit = !c.hasPathOrNull("transit") || c.getBoolean("transit"),
+              walk = !c.hasPathOrNull("walk") || c.getBoolean("walk")
             )
           }
         }

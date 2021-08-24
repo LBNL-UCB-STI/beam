@@ -72,7 +72,7 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
       routes(0).activities should have size 3
       routes(0).activities(0).service.id should be("payload-3")
       routes(0).activities(0).service shouldBe a[Dropoff]
-      routes(0).activities(1).service.id should be("payload-4")
+      routes(0).activities(1).service.id should be("payload-6")
       routes(0).activities(1).service shouldBe a[Dropoff]
       routes(0).activities(2).service.id should be("payload-2")
       routes(0).activities(2).service shouldBe a[Pickup]
