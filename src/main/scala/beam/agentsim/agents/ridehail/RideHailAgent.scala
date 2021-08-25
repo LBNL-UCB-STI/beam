@@ -405,8 +405,25 @@ class RideHailAgent(
       isOnWayToParkAtStall = Some(stall)
       beamServices.beamRouter ! veh2StallRequest
       stay
-    case Event(RoutingResponse(itineraries, _, _, _, _), data) =>
+    case Event(resp @ RoutingResponse(itineraries, _, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
+      if (resp == RoutingResponse.dummyRoutingResponse.get) {
+        logger.error(
+          s"[RoutingResponse] routing response is dummyRoutingResponse, " +
+          s"here is the routing response $resp and the data $data and sender $sender"
+        )
+      } else if (itineraries.isEmpty) {
+        logger.error(
+          s"[RoutingResponse] itineraries is empty, " +
+          s"here is the routing response $resp and the data $data and sender $sender"
+        )
+      } else if (itineraries.head.beamLegs.isEmpty) {
+        logger.error(
+          s"[RoutingResponse] itineraries.head.beamLegs is empty, " +
+          s"here the head itineraries ${itineraries.head} " +
+          s"here is the routing response $resp and the data $data and sender $sender"
+        )
+      }
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
       val (tick, triggerId) = releaseTickAndTriggerId()
