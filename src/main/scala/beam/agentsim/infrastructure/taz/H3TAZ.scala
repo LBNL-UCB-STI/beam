@@ -1,5 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
+import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
 import beam.agentsim.infrastructure.taz.H3TAZ.{fillBox, toCoord, H3, HexIndex}
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -13,14 +14,15 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
+
 import scala.collection.JavaConverters._
 import scala.collection._
 
-import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
-
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
-  private def cfg = beamConfig.beam.agentsim.h3taz
-  if (cfg.lowerBoundResolution > cfg.upperBoundResolution) logger.error("lowerBoundResolution > upperBoundResolution")
+
+  private def cfgH3Taz: BeamConfig.Beam.Agentsim.H3taz = beamConfig.beam.agentsim.h3taz
+  if (cfgH3Taz.lowerBoundResolution > cfgH3Taz.upperBoundResolution)
+    logger.error("lowerBoundResolution > upperBoundResolution")
 
   private val toH3CoordSystem =
     new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
@@ -56,13 +58,12 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     }
 
   def getAll: Iterable[HexIndex] = tazToH3TAZMapping.keys
-  def getIndices(tazId: Id[TAZ]): Iterable[HexIndex] = tazToH3TAZMapping.filter(_._2 == tazId).keys
   def getTAZ(hex: HexIndex): Id[TAZ] = tazToH3TAZMapping.getOrElse(hex, TAZTreeMap.emptyTAZId)
   def getIndex(x: Double, y: Double): HexIndex = getIndex(new Coord(x, y))
   def getCentroid(hex: HexIndex): Coord = toScenarioCoordSystem.transform(toCoord(H3.h3ToGeo(hex)))
 
   def getSubIndex(c: Coord): Option[HexIndex] = {
-    if (getResolution + 1 <= cfg.upperBoundResolution) {
+    if (getResolution + 1 <= cfgH3Taz.upperBoundResolution) {
       val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
       Some(H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution + 1))
     } else None
@@ -72,7 +73,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     val coord = H3TAZ.toGeoCoord(toH3CoordSystem.transform(c))
     H3TAZ.H3.geoToH3Address(coord.lat, coord.lng, getResolution)
   }
-  def getResolution: Int = cfg.lowerBoundResolution
+  def getResolution: Int = cfgH3Taz.lowerBoundResolution
 }
 
 object H3TAZ {

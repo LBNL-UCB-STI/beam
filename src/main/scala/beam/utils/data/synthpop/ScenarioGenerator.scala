@@ -23,7 +23,6 @@ import beam.utils.data.synthpop.generators.{
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
-import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{
   CsvHouseholdInfoWriter,
   CsvParkingInfoWriter,
@@ -31,7 +30,6 @@ import beam.utils.scenario.generic.writers.{
   CsvPlanElementWriter
 }
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
@@ -211,19 +209,19 @@ class SimpleScenarioGenerator(
         tazGeoIdToOccurrences.par.map { case (tazGeoId: TazGeoId, nWorkingPlaces) =>
           val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
             case Some(geom) =>
-              ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${tazGeoId}", x => logger.info(x)) {
+              ProfilingUtils.timed(s"Generate $nWorkingPlaces geo points in $tazGeoId", x => logger.info(x)) {
                 val initLocations = pointsGenerator.generate(geom, (nPointsMultiplier * nWorkingPlaces).toInt)
                 val withinMapConstrains = initLocations.filter(c =>
                   geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
                 )
                 val finalLocations = withinMapConstrains.take(nWorkingPlaces)
                 logger.info(
-                  s"${tazGeoId}: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
+                  s"$tazGeoId: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
                 )
                 finalLocations
               }
             case None =>
-              logger.warn(s"Can't find ${tazGeoId} in `tazGeoIdToGeom`")
+              logger.warn(s"Can't find $tazGeoId in `tazGeoIdToGeom`")
               Seq.empty
           }
           tazGeoId -> workingGeos
@@ -242,7 +240,7 @@ class SimpleScenarioGenerator(
           )
           val finalLocations = withinMapConstrains.take(householdsWithPersonData.size)
           logger.info(
-            s"${blockGroupGeoId}: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
+            s"$blockGroupGeoId: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
           )
           blockGroupGeoId -> finalLocations
         }.seq
@@ -451,12 +449,12 @@ class SimpleScenarioGenerator(
 
             val householdWithPersons = uniquePersons
               .map(p => (personIdToHousehold(p.person), p))
-              .groupBy { case (hh, xs) => hh }
+              .groupBy { case (hh, _) => hh }
               .map { case (hh, xs) => (hh, xs.map(_._2)) }
               .toSeq
             val processed = numberOfProcessed.incrementAndGet()
             logger.info(
-              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${processed} out of ${geoIdToHouseholds.size}"
+              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, $processed out of ${geoIdToHouseholds.size}"
             )
             blockGroupGeoId -> householdWithPersons
         }
@@ -472,9 +470,8 @@ class SimpleScenarioGenerator(
       .groupBy { p =>
         p.person
       }
-      .map { case (p, xs) =>
-        new Random(randomSeed).shuffle(xs).head
-      }
+      .values
+      .map(xs => new Random(randomSeed).shuffle(xs).head)
       .toList
   }
 
@@ -576,7 +573,7 @@ object SimpleScenarioGenerator extends StrictLogging {
   def run(parsedArgs: Arguments): Unit = {
     val pathToOutput = parsedArgs.outputFolder + "_" + getCurrentDateTime
     val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
-    require(new File(pathToOutput).mkdirs(), s"${pathToOutput} exists, stopping...")
+    require(new File(pathToOutput).mkdirs(), s"$pathToOutput exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(

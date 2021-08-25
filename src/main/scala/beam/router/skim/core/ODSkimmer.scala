@@ -24,7 +24,6 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   import ODSkimmer._
 
   override lazy val readOnlySkim: AbstractSkimmerReadOnly = readonly.ODSkims(beamConfig, beamScenario)
-  import readOnlySkim._
 
   override protected val skimName: String = config.origin_destination_skimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.OD_SKIMMER
@@ -236,11 +235,8 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                   mode,
                   origin.center,
                   destCoord,
-                  timeBin * 3600,
-                  dummyId,
                   vehicleType,
-                  fuelPrice,
-                  beamScenario
+                  fuelPrice
                 )
             }
 
@@ -308,11 +304,8 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
               mode,
               origin.coord,
               adjustedDestCoord,
-              timeBin * 3600,
-              dummyId,
               beamScenario.vehicleTypes(dummyId),
-              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(dummyId).primaryFuelType),
-              beamScenario
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(dummyId).primaryFuelType)
             )
         }
     }

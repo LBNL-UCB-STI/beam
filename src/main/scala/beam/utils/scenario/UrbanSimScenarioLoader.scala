@@ -1,12 +1,12 @@
 package beam.utils.scenario
 
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
@@ -16,6 +16,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
@@ -23,8 +24,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
 import scala.util.Random
-
-import beam.utils.SequenceUtils
 
 class UrbanSimScenarioLoader(
   var scenario: MutableScenario,
@@ -100,9 +99,9 @@ class UrbanSimScenarioLoader(
       }
       householdsInsideBoundingBox
     }
-    val inputPlans = Await.result(plansF, 500.seconds)
-    val persons = Await.result(personsF, 500.seconds)
-    val households = Await.result(householdsF, 500.seconds)
+    val inputPlans = Await.result(plansF, 1800.seconds)
+    val persons = Await.result(personsF, 1800.seconds)
+    val households = Await.result(householdsF, 1800.seconds)
 
     val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
@@ -167,7 +166,7 @@ class UrbanSimScenarioLoader(
 
     val personId2Score: Map[PersonId, Double] =
       householdIdToPersons.flatMap { case (_, persons) =>
-        persons.map(x => x.personId -> getPersonScore(x, personIdToTravelStats(x.personId)))
+        persons.map(x => x.personId -> getPersonScore(personIdToTravelStats(x.personId)))
       }
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
@@ -245,7 +244,7 @@ class UrbanSimScenarioLoader(
     )
   }
 
-  private def getPersonScore(personInfo: PersonInfo, personTravelStats: PersonTravelStats): Double = {
+  private def getPersonScore(personTravelStats: PersonTravelStats): Double = {
     val distanceExcludingLastTrip =
       personTravelStats.tripStats.dropRight(1).map(x => geo.distUTMInMeters(x.origin, x.destination)).sum
     val tripTimePenalty = personTravelStats.tripStats

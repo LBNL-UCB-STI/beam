@@ -28,8 +28,6 @@ import org.matsim.vehicles.Vehicle
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
-import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.{Collections, Optional}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -53,7 +51,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     ptFares,
     geo,
     dates,
-    networkHelper,
+    _,
     fareCalculator,
     tollCalculator
   ) = workerParams
@@ -884,7 +882,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       segment.geometry.getEndPoint.getY
     )
 
-    var activeLinkIds = ArrayBuffer[Int]()
+    val activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
     }

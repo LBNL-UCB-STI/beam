@@ -22,7 +22,7 @@ object ParkingZoneSearch {
     * with the matching attributes. type parameter A is a tag from a graph partitioning, such as a TAZ,
     * or possibly an h3 key.
     */
-  type ZoneSearchTree[A] = scala.collection.Map[Id[A], Map[ParkingType, Vector[Int]]]
+  type ZoneSearchTree[A] = scala.collection.Map[Id[A], Map[ParkingType, Vector[Id[ParkingZoneId]]]]
 
   // increases search radius by this factor at each iteration
   val SearchFactor: Double = 2.0
@@ -64,7 +64,7 @@ object ParkingZoneSearch {
     parkingDuration: Double,
     parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
     zoneSearchTree: ZoneSearchTree[GEO],
-    parkingZones: Array[ParkingZone[GEO]],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     zoneQuadTree: QuadTree[GEO],
     random: Random,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
@@ -80,8 +80,8 @@ object ParkingZoneSearch {
   case class ParkingZoneSearchResult[GEO](
     parkingStall: ParkingStall,
     parkingZone: ParkingZone[GEO],
-    parkingZoneIdsSeen: List[Int] = List.empty,
-    parkingZonesSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
+    parkingZoneIdsSeen: List[Id[ParkingZoneId]] = List.empty,
+    parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)] = List.empty,
     iterations: Int = 1
   )
 
@@ -106,7 +106,6 @@ object ParkingZoneSearch {
   /**
     * used within a search to track search data
     *
-    * @param isValidAlternative
     * @param parkingAlternative
     * @param utilityParameters
     */
@@ -140,8 +139,8 @@ object ParkingZoneSearch {
     def _search(
       thisInnerRadius: Double,
       thisOuterRadius: Double,
-      parkingZoneIdsSeen: List[Int] = List.empty,
-      parkingZoneIdsSampled: List[(Int, Option[ChargingPointType], ParkingType, Double)] = List.empty,
+      parkingZoneIdsSeen: List[Id[ParkingZoneId]] = List.empty,
+      parkingZoneIdsSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)] = List.empty,
       iterations: Int = 1
     ): Option[ParkingZoneSearchResult[GEO]] = {
       if (thisInnerRadius > config.searchMaxRadius) None
@@ -215,16 +214,17 @@ object ParkingZoneSearch {
               geoToTAZ(taz).getId,
               parkingZone.parkingZoneId,
               coordinate,
-              costInDollars.toDouble,
+              costInDollars,
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,
-              parkingZone.reservedFor,
-              parkingZone.vehicleManager
+              parkingZone.reservedFor
             )
 
-            val theseParkingZoneIds: List[Int] = alternatives.map { _.parkingAlternative.parkingZone.parkingZoneId }
-            val theseSampledParkingZoneIds: List[(Int, Option[ChargingPointType], ParkingType, Double)] =
+            val theseParkingZoneIds: List[Id[ParkingZoneId]] = alternatives.map {
+              _.parkingAlternative.parkingZone.parkingZoneId
+            }
+            val theseSampledParkingZoneIds: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)] =
               alternativesToSample.map { altWithParams =>
                 (
                   altWithParams._1.parkingZone.parkingZoneId,

@@ -46,9 +46,9 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
       val numOfVertices = readInt()
       val numOfEdges = readInt()
 
-      val outEdgesFirst = (0 until numOfVertices).map(_ => readInt())
+      (0 until numOfVertices).foreach(_ => readInt()) //outEdgesFirst
 
-      val outEdgesEnd = (0 until numOfEdges).map(_ => readInt())
+      (0 until numOfEdges).foreach(_ => readInt()) //outEdgesEnd
 
       val numOfAttributes = readInt()
 

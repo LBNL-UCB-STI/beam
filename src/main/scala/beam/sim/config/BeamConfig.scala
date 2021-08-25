@@ -81,6 +81,7 @@ object BeamConfig {
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
           enabled: scala.Boolean,
+          name: java.lang.String,
           plansFilePath: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           toursFilePath: java.lang.String
@@ -114,6 +115,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
@@ -811,6 +813,7 @@ object BeamConfig {
           initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization,
           iterationStats: BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           linkFleetStateAcrossIterations: scala.Boolean,
+          name: java.lang.String,
           pooledBaseCost: scala.Double,
           pooledCostPerMile: scala.Double,
           pooledCostPerMinute: scala.Double,
@@ -820,8 +823,7 @@ object BeamConfig {
           refuelThresholdInMeters: scala.Double,
           repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager,
           rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager,
-          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
-          vehicleManager: java.lang.String
+          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
         )
 
         object RideHail {
@@ -970,7 +972,6 @@ object BeamConfig {
 
             case class VehicleChargingManager(
               defaultVehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager,
-              depotManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager,
               name: java.lang.String
             )
 
@@ -1059,42 +1060,6 @@ object BeamConfig {
                 }
               }
 
-              case class DepotManager(
-                stallAssignmentStrategy: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager.StallAssignmentStrategy
-              )
-
-              object DepotManager {
-
-                case class StallAssignmentStrategy(
-                  name: java.lang.String
-                )
-
-                object StallAssignmentStrategy {
-
-                  def apply(
-                    c: com.typesafe.config.Config
-                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager.StallAssignmentStrategy = {
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager
-                      .StallAssignmentStrategy(
-                        name = if (c.hasPathOrNull("name")) c.getString("name") else "SeparateParkingZoneStrategy"
-                      )
-                  }
-                }
-
-                def apply(
-                  c: com.typesafe.config.Config
-                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager = {
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager(
-                    stallAssignmentStrategy =
-                      BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager
-                        .StallAssignmentStrategy(
-                          if (c.hasPathOrNull("stallAssignmentStrategy")) c.getConfig("stallAssignmentStrategy")
-                          else com.typesafe.config.ConfigFactory.parseString("stallAssignmentStrategy{}")
-                        )
-                  )
-                }
-              }
-
               def apply(
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager = {
@@ -1106,10 +1071,6 @@ object BeamConfig {
                           c.getConfig("defaultVehicleChargingManager")
                         else com.typesafe.config.ConfigFactory.parseString("defaultVehicleChargingManager{}")
                       ),
-                  depotManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DepotManager(
-                    if (c.hasPathOrNull("depotManager")) c.getConfig("depotManager")
-                    else com.typesafe.config.ConfigFactory.parseString("depotManager{}")
-                  ),
                   name = if (c.hasPathOrNull("name")) c.getString("name") else "DefaultVehicleChargingManager"
                 )
               }
@@ -1415,6 +1376,7 @@ object BeamConfig {
               ),
               linkFleetStateAcrossIterations =
                 c.hasPathOrNull("linkFleetStateAcrossIterations") && c.getBoolean("linkFleetStateAcrossIterations"),
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "RideHail",
               pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
               pooledCostPerMile = if (c.hasPathOrNull("pooledCostPerMile")) c.getDouble("pooledCostPerMile") else 1.11,
               pooledCostPerMinute =
@@ -1440,8 +1402,7 @@ object BeamConfig {
               surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
-              ),
-              vehicleManager = if (c.hasPathOrNull("vehicleManager")) c.getString("vehicleManager") else "GlobalRHM"
+              )
             )
           }
         }
@@ -1835,27 +1796,11 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        chargingPoint: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
-
-        case class ChargingPoint(
-          thresholdDCFCinKW: scala.Int,
-          thresholdXFCinKW: scala.Int
-        )
-
-        object ChargingPoint {
-
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint = {
-            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              thresholdDCFCinKW = if (c.hasPathOrNull("thresholdDCFCinKW")) c.getInt("thresholdDCFCinKW") else 50,
-              thresholdXFCinKW = if (c.hasPathOrNull("thresholdXFCinKW")) c.getInt("thresholdXFCinKW") else 250
-            )
-          }
-        }
 
         case class Helics(
           bufferSize: scala.Int,
@@ -1893,10 +1838,6 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            chargingPoint = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ChargingPoint(
-              if (c.hasPathOrNull("chargingPoint")) c.getConfig("chargingPoint")
-              else com.typesafe.config.ConfigFactory.parseString("chargingPoint{}")
-            ),
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
@@ -1964,7 +1905,7 @@ object BeamConfig {
         case class ParkingManager(
           displayPerformanceTimings: scala.Boolean,
           level: java.lang.String,
-          name: java.lang.String,
+          method: java.lang.String,
           parallel: BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel
         )
 
@@ -1988,7 +1929,7 @@ object BeamConfig {
               displayPerformanceTimings =
                 c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
               level = if (c.hasPathOrNull("level")) c.getString("level") else "TAZ",
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "DEFAULT",
+              method = if (c.hasPathOrNull("method")) c.getString("method") else "DEFAULT",
               parallel = BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel(
                 if (c.hasPathOrNull("parallel")) c.getConfig("parallel")
                 else com.typesafe.config.ConfigFactory.parseString("parallel{}")
@@ -3718,6 +3659,7 @@ object BeamConfig {
 
         case class TazSkimmer(
           fileBaseName: java.lang.String,
+          geoHierarchy: java.lang.String,
           name: java.lang.String
         )
 
@@ -3726,6 +3668,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.TazSkimmer = {
             BeamConfig.Beam.Router.Skim.TazSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsTAZ",
+              geoHierarchy = if (c.hasPathOrNull("geoHierarchy")) c.getString("geoHierarchy") else "TAZ",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "taz-skimmer"
             )
           }
@@ -4068,9 +4011,8 @@ object BeamConfig {
 
         case class ModesToBuild(
           drive: scala.Boolean,
-          drive_transit: scala.Boolean,
-          walk: scala.Boolean,
-          walk_transit: scala.Boolean
+          transit: scala.Boolean,
+          walk: scala.Boolean
         )
 
         object ModesToBuild {
@@ -4078,9 +4020,8 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild = {
             BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.ModesToBuild(
               drive = !c.hasPathOrNull("drive") || c.getBoolean("drive"),
-              drive_transit = !c.hasPathOrNull("drive_transit") || c.getBoolean("drive_transit"),
-              walk = !c.hasPathOrNull("walk") || c.getBoolean("walk"),
-              walk_transit = !c.hasPathOrNull("walk_transit") || c.getBoolean("walk_transit")
+              transit = !c.hasPathOrNull("transit") || c.getBoolean("transit"),
+              walk = !c.hasPathOrNull("walk") || c.getBoolean("walk")
             )
           }
         }

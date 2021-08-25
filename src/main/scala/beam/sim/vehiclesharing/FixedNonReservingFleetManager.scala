@@ -31,8 +31,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Random
 
 private[vehiclesharing] class FixedNonReservingFleetManager(
-  val id: Id[VehicleManager],
-  val parkingManager: ActorRef,
+  val vehicleManagerId: Id[VehicleManager],
+  val parkingNetworkManager: ActorRef,
+  val chargingNetworkManager: ActorRef,
   val locations: Iterable[Coord],
   val vehicleType: BeamVehicleType,
   val mainScheduler: ActorRef,
@@ -55,7 +56,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       Id.createVehicleId(self.path.name + "-" + ix),
       new Powertrain(0.0),
       vehicleType,
-      vehicleManager = Some(id),
+      vehicleManagerId = vehicleManagerId,
       rand.nextInt()
     )
     vehicle.setManager(Some(self))
@@ -73,7 +74,9 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       Future
         .sequence(vehicles.values.map { veh =>
           veh.setManager(Some(self))
-          parkingManager ? parkingInquiry(veh.spaceTime, triggerId) flatMap {
+          val infrastructureManager = if (veh.isBEV || veh.isPHEV) chargingNetworkManager else parkingNetworkManager
+          infrastructureManager ? ParkingInquiry
+            .init(veh.spaceTime, "wherever", vehicleManagerId, triggerId = triggerId) flatMap {
             case ParkingInquiryResponse(stall, _, triggerId) =>
               veh.useParkingStall(stall)
               self ? ReleaseVehicleAndReply(veh, None, triggerId)
@@ -122,10 +125,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.release)
   }
 
-  def parkingInquiry(whenWhere: SpaceTime, triggerId: Long): ParkingInquiry =
-    ParkingInquiry(whenWhere, "wherever", triggerId = triggerId)
-
-  override def getId: Id[VehicleManager] = id
+  override def getId: Id[VehicleManager] = vehicleManagerId
 
   override def queryAvailableVehicles: List[BeamVehicle] =
     availableVehiclesIndex.queryAll().asScala.map(_.asInstanceOf[BeamVehicle]).toList

@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.Id
 object Fleets {
 
   def lookup(config: BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm): FleetType = {
-    val vehicleManager = Id.create(config.name, classOf[VehicleManager])
+    val vehicleManager = VehicleManager.createOrGetIdUsingUnique(config.name, VehicleManager.BEAMShared)
     val parkingFilePath = config.parkingFilePath
     config.managerType match {
       case "fixed-non-reserving-fleet-by-taz" =>

@@ -1,9 +1,9 @@
 package beam.agentsim.agents
 
 import beam.agentsim.agents.planning.{Tour, Trip}
-import beam.agentsim.agents.vehicles.{BeamVehicleType, PersonIdWithActorRef}
+import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.router.Modes.BeamMode
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
+import beam.router.model.EmbodiedBeamLeg
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.population.PopulationUtils
@@ -45,7 +45,7 @@ case class MobilityRequest(
       case Some(p) => p.personId.toString
       case None    => "None"
     }
-    s"${baselineNonPooledTime}|$tag|${personid}|${activity.getCoord}| => ${serviceTime}"
+    s"$baselineNonPooledTime|$tag|$personid|${activity.getCoord}| => $serviceTime"
   }
 
   override def equals(that: Any): Boolean = {

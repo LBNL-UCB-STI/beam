@@ -127,7 +127,7 @@ class PassengerScheduleTest
       case Right((schedule, newLeg)) =>
         schedule.schedule.get(newLeg) match {
           case None =>
-            fail(s"Expected to find Manifest by leg '${newLeg}")
+            fail(s"Expected to find Manifest by leg '$newLeg'")
           case Some(value) =>
             require(value.riders.size == 1)
             require(value.riders.head.personId.toString == "Hello")

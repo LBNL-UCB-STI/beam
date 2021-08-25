@@ -8,15 +8,6 @@ import org.scalatest.matchers.should.Matchers
 class RoutingFrameworkGraphReaderSpec extends AnyFlatSpec with Matchers {
   private val routingFrameworkGraph = new RoutingFrameworkGraphReaderImpl()
 
-  "RoutingFramework graph reader" must "correctly read generated graph" in {
-    val basePath = System.getenv("PWD")
-    val graphFile = new File(s"$basePath/test/test-resources/beam/router/graph.gr.bin")
-
-    val graph = routingFrameworkGraph.read(graphFile)
-
-    graph shouldBe expectedGraph
-  }
-
   val expectedGraph: RoutingFrameworkGraph = RoutingFrameworkGraph(
     Seq(
       Vertex(43, new Coordinate(0.01995, -5.0e-5)),
@@ -109,4 +100,13 @@ class RoutingFrameworkGraphReaderSpec extends AnyFlatSpec with Matchers {
       Vertex(70, new Coordinate(0.03995, 5.0e-5))
     )
   )
+
+  "RoutingFramework graph reader" must "correctly read generated graph" in {
+    val basePath = System.getenv("PWD")
+    val graphFile = new File(s"$basePath/test/test-resources/beam/router/graph.gr.bin")
+
+    val graph = routingFrameworkGraph.read(graphFile)
+
+    graph shouldBe expectedGraph
+  }
 }

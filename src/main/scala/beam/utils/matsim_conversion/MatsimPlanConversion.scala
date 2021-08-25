@@ -97,7 +97,7 @@ object MatsimPlanConversion {
   def generateHouseholdAttributes(persons: NodeSeq): Elem = {
     val popAttrs = persons.zipWithIndex map { case (person, index) =>
       val homeActivities = (person \\ "activity").filter(
-        _.attributes.exists(a => "type".equalsIgnoreCase(a.key.toString) && "home".equalsIgnoreCase(a.value.toString))
+        _.attributes.exists(a => "type".equalsIgnoreCase(a.key) && "home".equalsIgnoreCase(a.value.toString))
       )
       for {
         node   <- homeActivities.headOption

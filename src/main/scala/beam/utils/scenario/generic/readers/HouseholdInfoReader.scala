@@ -13,7 +13,7 @@ object CsvHouseholdInfoReader extends HouseholdInfoReader {
   import GenericCsvReader._
 
   override def read(path: String): Array[HouseholdInfo] = {
-    val (it, toClose) = readAs[HouseholdInfo](path, toHouseholdInfo, x => true)
+    val (it, toClose) = readAs[HouseholdInfo](path, toHouseholdInfo, _ => true)
     try {
       it.toArray
     } finally {

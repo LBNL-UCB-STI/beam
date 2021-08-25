@@ -4,7 +4,7 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
@@ -27,7 +27,6 @@ class TransitInitializer(
   beamConfig: BeamConfig,
   geo: GeoUtils,
   dates: DateUtils,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
   travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
@@ -92,11 +91,11 @@ class TransitInitializer(
         )
     }
 
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
+    def pathWithStreetRoute(streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
-      (departureTime: Int, _: Int, vehicleId: Id[Vehicle]) =>
+      (departureTime: Int, _: Int, _: Id[Vehicle]) =>
         val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
           edges.map(_.toInt).toIndexedSeq,
           departureTime,
@@ -146,7 +145,7 @@ class TransitInitializer(
               routeTransitPathThroughStreets(fromStop, toStop)
             ) match {
               case Some(streetSeg) =>
-                pathWithStreetRoute(fromStop, toStop, streetSeg)
+                pathWithStreetRoute(streetSeg)
               case None =>
                 pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
             }

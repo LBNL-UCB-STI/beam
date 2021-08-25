@@ -7,7 +7,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneId, PricingModel}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -17,6 +17,7 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{DateUtils, StuckFinder, TestConfigUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
@@ -73,11 +74,6 @@ class ChargingNetworkManagerSpec
      |    dataInStreamPoint = ""
      |    bufferSize = 100
      |  }
-     |
-     |  chargingPoint {
-     |    thresholdXFCinKW = 250
-     |    thresholdDCFCinKW = 50
-     |  }
      |}
      |""".stripMargin))
     .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
@@ -122,20 +118,25 @@ class ChargingNetworkManagerSpec
   }
 
   private val taz2 = beamServices.beamScenario.tazTreeMap.getTAZ("2").get
-  private val chargingType = ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")
-  private val pricingModel = PricingModel.Block(0.0, 0)
+  private val chargingPointType = ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")
+  private val pricingModel = PricingModel.FlatFee(0.0)
+
+  val personId: Id[Person] = Id.createPersonId("dummyPerson")
+
+  val parkingZoneId: Id[ParkingZoneId] =
+    ParkingZone.createId("cs_Global_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
 
   val parkingStall: ParkingStall =
     ParkingStall(
       taz2.tazId,
       taz2.tazId,
-      0,
+      parkingZoneId,
       taz2.coord,
       0.0,
-      Some(chargingType),
+      Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
-      reservedFor = Seq.empty
+      reservedFor = ParkingZone.GlobalReservedFor
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _
@@ -174,11 +175,8 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
-      expectMsgType[ScheduleTrigger] should be(
-        ScheduleTrigger(ChargingTimeOutTrigger(10, beamVilleCar), chargingNetworkManager)
-      )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
 
@@ -201,7 +199,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08e8)
@@ -231,7 +229,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
@@ -261,7 +259,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
@@ -293,7 +291,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4e7)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4e7)
@@ -325,7 +323,7 @@ class ChargingNetworkManagerSpec
       )
 
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
-      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, 0)
+      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4e7)
@@ -367,13 +365,13 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, 112)
-      expectMsgType[WaitingInLine] should be(WaitingInLine(10, beamVilleCar3.id, 112))
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, parkingStall, personId, 112)
+      expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, parkingStall, 112))
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
@@ -387,7 +385,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2), 12)
-      expectMsgType[StartingRefuelSession] should be(StartingRefuelSession(442, beamVilleCar3.id, 12))
+      expectMsgType[StartingRefuelSession] should be(StartingRefuelSession(472, beamVilleCar3.id, 12))
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
@@ -424,10 +422,13 @@ class ChargingNetworkManagerSpec
       )
     )
     parkingManager = new TestProbe(system)
+
+    val (_, chargingNetworkMap) = InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
+
     chargingNetworkManager = TestActorRef[ChargingNetworkManager](
       ChargingNetworkManager.props(
         beamServices,
-        ParkingAndChargingInfrastructure(beamServices, envelopeInUTM),
+        chargingNetworkMap,
         parkingManager.ref,
         scheduler
       )

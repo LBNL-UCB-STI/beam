@@ -60,23 +60,12 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
   private[core] var currentIterationInternal: Int = -1
-  private[core] val currentSkimInternal = new ConcurrentHashMap[AbstractSkimmerKey, AbstractSkimmerInternal]()
   private[core] var aggregatedFromPastSkimsInternal = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private[core] val pastSkimsInternal = mutable.HashMap.empty[Int, Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
 
   def currentIteration: Int = currentIterationInternal
-
-  /**
-    *  This method creates a copy of `currentSkimInternal`, so careful when you use it often! Consider using `getCurrentSkimValue` in such scenario
-    *  or expose other method to access `currentSkimInternal`
-    */
-  def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
-
-  def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
-    Option(currentSkimInternal.get(key))
   def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
   def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
-  def isEmpty: Boolean = currentSkimInternal.isEmpty
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)
@@ -95,6 +84,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
 
+  protected[core] val currentSkimInternal = new ConcurrentHashMap[AbstractSkimmerKey, AbstractSkimmerInternal]()
+
   import readOnlySkim._
 
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
@@ -108,6 +99,11 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal
+
+  protected[skim] def currentSkim: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = currentSkimInternal.asScala.toMap
+
+  protected[skim] def getCurrentSkimValue(key: AbstractSkimmerKey): Option[AbstractSkimmerInternal] =
+    Option(currentSkimInternal.get(key))
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
     val skimFilePath = beamConfig.beam.warmStart.skimsFilePaths

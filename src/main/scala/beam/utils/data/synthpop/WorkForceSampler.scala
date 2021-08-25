@@ -19,7 +19,7 @@ class WorkForceSampler(val dbInfo: CTPPDatabaseInfo, val stateCode: String, val 
 
   private val populationAge = new AgeTableReader(dbInfo, ResidenceGeography.State)
     .read()
-  require(populationAge.contains(stateCode), s"Can't find state ${stateCode} in ${populationAge.keySet}")
+  require(populationAge.contains(stateCode), s"Can't find state $stateCode in ${populationAge.keySet}")
   private val stateAges = populationAge(stateCode).filter { case (ageRng, _) => ageRng.range.start >= 16 }
 
   private val workerAgeToStats = workersAgesOD
@@ -51,8 +51,8 @@ class WorkForceSampler(val dbInfo: CTPPDatabaseInfo, val stateCode: String, val 
   }
 
   def isWorker(age: Int): Boolean = {
-    workerAgeToEmploymentRatio.find { case (ageRng, ratio) => ageRng.range.contains(age) } match {
-      case Some((rng, ratio)) =>
+    workerAgeToEmploymentRatio.find { case (ageRng, _) => ageRng.range.contains(age) } match {
+      case Some((_, ratio)) =>
         val probability = ratio
         randomGenerator.nextDouble() < probability
       case None =>
@@ -85,10 +85,10 @@ object WorkForceSampler {
     val isWorkerList = (1 to 100000).map { _ =>
       wfs.isWorker(age)
     }
-    val numOfWorkers = isWorkerList.count(x => x == true)
+    val numOfWorkers = isWorkerList.count(_ == true)
     val ratio = numOfWorkers.toDouble / isWorkerList.size
 
-    println(s"numOfWorkers: $numOfWorkers, isWorkerList size: ${isWorkerList.size}, ratio: ${ratio}")
+    println(s"numOfWorkers: $numOfWorkers, isWorkerList size: ${isWorkerList.size}, ratio: $ratio")
     val absDiff = Math.abs(expectedProbability - ratio)
     require(absDiff < 1e-2, "Something wrong with probability function?")
   }

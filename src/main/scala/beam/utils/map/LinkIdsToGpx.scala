@@ -56,7 +56,7 @@ object LinkIdsToGpx {
             .flatMap(x => Option(x.getAttribute("origid")).map(_.toString))
           osmId -> (link.getId.toString, link.getLength)
         }
-        .groupBy { case (k, v) => k }
+        .groupBy { case (k, _) => k }
         .map { case (k, v) =>
           k -> v.map(_._2).toList
         }

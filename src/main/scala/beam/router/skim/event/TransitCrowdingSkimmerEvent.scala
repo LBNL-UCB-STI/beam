@@ -13,7 +13,6 @@ class TransitCrowdingSkimmerEvent(
   transitCrowdingSkimmerConfig: beam.sim.config.BeamConfig.Beam.Router.Skim.TransitCrowdingSkimmer,
   vehicleId: Id[Vehicle],
   fromStopIdx: Int,
-  toStopIdx: Int,
   numberOfPassengers: Int,
   capacity: Int
 ) extends AbstractSkimmerEvent(eventTime) {

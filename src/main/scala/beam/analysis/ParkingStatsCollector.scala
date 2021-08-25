@@ -2,11 +2,9 @@ package beam.analysis
 
 import java.util
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events._
-import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
+import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
-import beam.sim.metrics.MetricsSupport
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
@@ -153,7 +151,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           if (personOutboundParkingStats.departureTime.isDefined) {
             //process the collected inbound stats for the person
             processOutboundParkingStats(
-              leavingParkingEvent.driverId,
               personOutboundParkingStats
                 .copy(leaveParkingTime = Some(leavingParkingEvent.getTime), parkingTAZ = parkingTaz)
             )
@@ -170,7 +167,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         beamServices.simMetricCollector.writeIteration(
           "parking",
           SimulationTime(parkEvent.time.toInt),
-          1,
           tags = Map("parking-type" -> parkEvent.parkingType.toString)
         )
 
@@ -204,7 +200,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
             // Calculate the inbound parking overhead time
             val arrivalTime: Option[Double] = Some(pathTraversalEvent.arrivalTime)
             //process the collected inbound stats for the person
-            processInboundParkingStats(driverId, personInboundParkingStats.copy(arrivalTime = arrivalTime))
+            processInboundParkingStats(personInboundParkingStats.copy(arrivalTime = arrivalTime))
             //stop tracking the person for inbound stats
             personInboundParkingStatsTracker.remove(driverId)
           }
@@ -224,7 +220,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     * @param personOutboundParkingStats The outbound parking related stats of a person
     */
   private def processOutboundParkingStats(
-    personId: String,
     personOutboundParkingStats: ParkingStatsCollector.PersonOutboundParkingStats
   ): Unit = {
 
@@ -264,7 +259,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     * @param personInboundParkingStats The outbound parking related stats of a person
     */
   private def processInboundParkingStats(
-    personId: String,
     personInboundParkingStats: ParkingStatsCollector.PersonInboundParkingStats
   ): Unit = {
 

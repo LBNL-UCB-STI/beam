@@ -69,7 +69,7 @@ trait GeoUtils extends ExponentialLazyLogging {
         .timed("getEdgesCloseToBoundingBox", x => logger.info(x)) {
           getEdgesCloseToBoundingBox(streetLayer)
         }
-        .map { case (edgeWithCoord, gpxPoint) => edgeWithCoord }
+        .map { case (edgeWithCoord, _) => edgeWithCoord }
       val closest = closestEdgesToTheCorners.minBy { edge =>
         val matsimUtmCoord = wgs2Utm(new v01.Coord(edge.wgsCoord.x, edge.wgsCoord.y))
         distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))

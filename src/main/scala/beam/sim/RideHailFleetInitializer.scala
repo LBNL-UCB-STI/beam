@@ -48,7 +48,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId = Id.create(rideHailManagerId, classOf[VehicleManager]),
+      rideHailManagerId = VehicleManager.createOrGetIdUsingUnique(rideHailManagerId, VehicleManager.BEAMRideHail),
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -150,7 +150,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     */
   def readFleetFromCSV(filePath: String): List[RideHailAgentInputData] = {
     // This is lazy, to make it to read the data we need to call `.toList`
-    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, x => true)
+    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, _ => true)
     try {
       // Read the data
       val fleetData = iter.toList
@@ -319,7 +319,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManager = Some(rideHailManagerId),
+        vehicleManagerId = rideHailManagerId,
         randomSeed
       )
 
@@ -560,8 +560,7 @@ class ProceduralRideHailFleetInitializer(
             .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
         }
       }
-      .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-      .size / fleet
+      .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
 
     math.round(
       initialNumHouseholdVehicles *

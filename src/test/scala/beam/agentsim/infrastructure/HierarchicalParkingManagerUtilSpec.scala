@@ -23,28 +23,31 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
   "HierarchicalParkingManager" when {
     "creates taz parking zones out of link parking zones" should {
       "produce correct zones" in new PositiveTestData {
-        val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, linkTree, totalRows, failedRows) =
-          ParkingZoneFileUtils.fromIterator[Link](linkLevelData)
+
+        val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, _, _, _) =
+          ParkingZoneFileUtils.fromIterator[Link](linkLevelData, None)
+
         val linkToTazMapping: Map[Id[Link], Id[TAZ]] = HashMap(
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83661) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ])
         )
-        private val (tazZones, linkToTaz) =
-          HierarchicalParkingManager.convertToTazParkingZones(linkZones.toArray, linkToTazMapping)
+
+        private val (tazZones, _) =
+          HierarchicalParkingManager.convertToTazParkingZones(linkZones.toMap, linkToTazMapping)
 
         println(tazZones.mkString("Array(", ", ", ")"))
-        tazZones.length should be(9)
-        val joinZone: Option[ParkingZone[TAZ]] = tazZones.find(zone =>
+        tazZones.size should be(9)
+        val joinZone: Option[ParkingZone[TAZ]] = tazZones.values.find { zone =>
           zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
             CustomChargingPoint("dcfast", 50.0, DC)
           )
-        )
+        }
 
         joinZone shouldBe defined
         joinZone.get.maxStalls should be(1100)
-        tazZones.count(_.geoId.toString == "100100") should be(2)
+        tazZones.count(_._2.geoId.toString == "100100") should be(2)
       }
     }
     "creates taz link quad tree mapping" should {
@@ -79,35 +82,19 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
         "produce a simplified structure" in {
           val (parkingZones, _) =
             ParkingZoneFileUtils
-              .fromFile[TAZ](
+              .fromFile[Link](
                 "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
-                new Random(777934L)
+                new Random(777934L),
+                None
               )
-          parkingZones should have length 3648
-          val zones205 = parkingZones.filter(_.geoId.toString == "205")
-          zones205 should have length 20
+          parkingZones should have size 2990
+          val zones205 = parkingZones.filter(_._2.geoId.toString == "205")
+          zones205 should have size 16
           val collapsed = HierarchicalParkingManager.collapse(parkingZones)
-          val collapsedZones205 = collapsed.filter(_.geoId.toString == "205")
-          collapsedZones205 should have length 11
-          collapsed should have length 2236
+          val collapsedZones205 = collapsed.filter(_._2.geoId.toString == "205")
+          collapsedZones205 should have size 11
+          collapsed should have size 2236
         }
-      }
-    }
-    "collapse parking zones" should {
-      "produce a simplified structure" in {
-        val (parkingZones, _) =
-          ParkingZoneFileUtils
-            .fromFile[TAZ](
-              "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
-              new Random(777934L)
-            )
-        parkingZones should have length 3648
-        val zones205 = parkingZones.filter(_.geoId.toString == "205")
-        zones205 should have length 20
-        val collapsed = HierarchicalParkingManager.collapse(parkingZones)
-        val collapsedZones205 = collapsed.filter(_.geoId.toString == "205")
-        collapsedZones205 should have length 11
-        collapsed should have length 2236
       }
     }
   }

@@ -31,21 +31,21 @@ import beam.router.r5.RouteDumper
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.readonly.ODSkims
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
-import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.TransportNetwork
 import com.romix.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id, Scenario}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
-import org.matsim.vehicles.{Vehicle, Vehicles}
+import org.matsim.vehicles.Vehicle
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
@@ -61,8 +61,6 @@ class BeamRouter(
   network: Network,
   networkHelper: NetworkHelper,
   geo: GeoUtils,
-  scenario: Scenario,
-  transitVehicles: Vehicles,
   fareCalculator: FareCalculator,
   tollCalculator: TollCalculator,
   eventsManager: EventsManager
@@ -535,8 +533,6 @@ object BeamRouter {
     network: Network,
     networkHelper: NetworkHelper,
     geo: GeoUtils,
-    scenario: Scenario,
-    transitVehicles: Vehicles,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator,
     eventsManager: EventsManager
@@ -550,8 +546,6 @@ object BeamRouter {
         network,
         networkHelper,
         geo,
-        scenario,
-        transitVehicles,
         fareCalculator,
         tollCalculator,
         eventsManager
@@ -736,7 +730,6 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
     skimmer: ODSkims,
     origTazId: Option[Id[TAZ]],
     destTazId: Option[Id[TAZ]]
@@ -751,7 +744,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -813,7 +805,7 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
     val arrivalTime = departureTime + departHourTravelTime
@@ -828,7 +820,6 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
         maybeOrigTazForPerformanceImprovement = origTazId,
         maybeDestTazForPerformanceImprovement = destTazId
       )
@@ -845,14 +836,14 @@ object BeamRouter {
         vehicleType = vehicleType,
         fuelPrice = fuelPrice,
         vehicleTypeId = vehicleTypeId,
-        beamScenario = beamScenario,
+        beamConfig = beamScenario.beamConfig,
         skimmer = skimmer
       )
       val secondsInDepartHour = arriveHour * 3600 - departureTime
       val secondsInArriveHour = arrivalTime - arriveHour * 3600
       Math
         .round(
-          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour).toDouble / (secondsInDepartHour + secondsInArriveHour).toDouble
+          (departHourTravelTime.toDouble * secondsInDepartHour + arrivalHourTravelTime.toDouble * secondsInArriveHour) / (secondsInDepartHour + secondsInArriveHour).toDouble
         )
         .intValue()
     }
@@ -883,7 +874,7 @@ object BeamRouter {
     vehicleTypeId: Id[BeamVehicleType],
     vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario,
+    beamConfig: BeamConfig,
     skimmer: ODSkims
   ): Int = {
     val skimTime =
@@ -896,7 +887,6 @@ object BeamRouter {
           vehicleTypeId,
           vehicleType,
           fuelPrice,
-          beamScenario,
           origTazId,
           destTazId
         )
@@ -909,7 +899,6 @@ object BeamRouter {
         vehicleTypeId,
         vehicleType,
         fuelPrice,
-        beamScenario,
         skimmer,
         origTazId,
         destTazId
@@ -918,12 +907,10 @@ object BeamRouter {
       skimTime,
       minTime,
       maxTime,
-      beamScenario.beamConfig.beam.routing.skimTravelTimesScalingFactor
+      beamConfig.beam.routing.skimTravelTimesScalingFactor
     )
-    Math.max(adjustedSkimTime, beamScenario.beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
+    Math.max(adjustedSkimTime, beamConfig.beam.routing.minimumPossibleSkimBasedTravelTimeInS)
   }
-
-  def oneSecondTravelTime(a: Double, b: Int, c: StreetMode) = 1.0
 
   sealed trait WorkMessage
 
