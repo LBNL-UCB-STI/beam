@@ -66,7 +66,10 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             // Extract the hours of the day recorded and sort them in order
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
             // Get the maximum hour value
-            int maxHour = hoursList.get(hoursList.size() - 1);
+            int maxHour = 0;
+            if (!hoursList.isEmpty()) {
+                maxHour = hoursList.get(hoursList.size() - 1);
+            }
             // A 2D matrix to store average travel times by mode and hour (rows = travel mode ; columns = hour of the day)
             double[][] averageTravelTimesByModeAndHour = new double[travelModes.size()][maxHour + 1];
             for (int i = 0; i < travelModes.size(); i++) {
