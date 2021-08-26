@@ -1,5 +1,6 @@
 package beam.agentsim.agents.parking
 
+import akka.actor.ActorRef
 import akka.pattern.pipe
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
@@ -7,18 +8,21 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
-import beam.agentsim.agents.vehicles.PassengerSchedule
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.sim.common.GeoUtils
 import beam.utils.logging.pattern.ask
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -31,6 +35,57 @@ object ChoosesParking {
   case object ReleasingParkingSpot extends BeamAgentState
   case object ReleasingChargingPoint extends BeamAgentState
   case object ConnectingToChargingPoint extends BeamAgentState
+
+  def handleUseParkingSpot(
+    tick: Int,
+    currentBeamVehicle: BeamVehicle,
+    driver: Id[_],
+    geo: GeoUtils,
+    eventsManager: EventsManager
+  ): Unit = {
+    currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
+      currentBeamVehicle.useParkingStall(stall)
+      val parkEvent = ParkingEvent(
+        time = tick,
+        stall = stall,
+        locationWGS = geo.utm2Wgs(stall.locationUTM),
+        vehicleId = currentBeamVehicle.id,
+        driverId = driver.toString
+      )
+      eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
+    }
+    currentBeamVehicle.setReservedParkingStall(None)
+  }
+
+  def calculateScore(
+    cost: Double,
+    energyCharge: Double
+  ): Double = -cost - energyCharge
+
+  def handleReleasingParkingSpot(
+    tick: Int,
+    currentBeamVehicle: BeamVehicle,
+    energyChargedMaybe: Option[Double],
+    driver: Id[_],
+    parkingManager: ActorRef,
+    eventsManager: EventsManager,
+    triggerId: Long
+  ): Unit = {
+    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
+      case Some(stall) =>
+        parkingManager ! ReleaseParkingStall(stall, triggerId)
+        currentBeamVehicle.unsetParkingStall()
+        stall
+      case None =>
+        // This can now happen if a vehicle was charging and released the stall already
+        currentBeamVehicle.lastUsedStall.get
+    }
+    val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
+    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
+    eventsManager.processEvent(
+      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, driver.toString, currentBeamVehicle.id)
+    )
+  }
 }
 
 trait ChoosesParking extends {
@@ -75,13 +130,14 @@ trait ChoosesParking extends {
 
   when(ConnectingToChargingPoint) {
     // todo rrp
-    case _ @Event(StartingRefuelSession(_, _, _), data: BasePersonData) if data.enrouteCharging.nonEmpty =>
+    case _ @Event(StartingRefuelSession(_, _), data: BasePersonData) if data.enrouteCharging.nonEmpty =>
       stay()
-    case _ @Event(StartingRefuelSession(tick, vehicleId, triggerId), data) =>
-      log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
+    case _@Event(StartingRefuelSession(tick, triggerId), data) =>
+      log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
+      handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingToCharge(tick, vehicleId, _, triggerId), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
@@ -91,14 +147,28 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case Event(EndingRefuelSession(tick, vehicleId, _, triggerId), data) =>
-      log.debug(s"Vehicle $vehicleId ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(tick, triggerId)
-      goto(WaitingToDrive) using data
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data) =>
-      log.debug(s"Vehicle $vehicleId is not handled by the CNM at tick $tick")
+      assume(
+        vehicleId == currentBeamVehicle.id,
+        s"Agent tried to disconnect a vehicle $vehicleId that's not the current beamVehicle ${currentBeamVehicle.id}"
+      )
+      log.error(
+        s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
+        s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
+      )
+      handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
       goto(ReleasingParkingSpot) using data
-      handleReleasingParkingSpot(tick, triggerId)
+    case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data) =>
+      log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
+      handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        Some(energyCharged),
+        id,
+        parkingManager,
+        eventsManager,
+        triggerId
+      )
       goto(WaitingToDrive) using data
   }
 
@@ -117,7 +187,7 @@ trait ChoosesParking extends {
         )
         goto(ReleasingChargingPoint) using data
       } else {
-        handleReleasingParkingSpot(tick, triggerId)
+        handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
         goto(WaitingToDrive) using data
       }
 
@@ -291,27 +361,4 @@ trait ChoosesParking extends {
         currentVehicle = newVehicle
       )
   }
-
-  def calculateScore(
-    cost: Double,
-    energyCharge: Double
-  ): Double = -cost - energyCharge
-
-  private def handleReleasingParkingSpot(tick: Int, triggerId: Long): Unit = {
-    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
-      case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall, triggerId)
-        currentBeamVehicle.unsetParkingStall()
-        stall
-      case None =>
-        // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
-    }
-    val energyCharge: Double = 0.0 //TODO
-    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
-    eventsManager.processEvent(
-      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.id)
-    )
-  }
-
 }
