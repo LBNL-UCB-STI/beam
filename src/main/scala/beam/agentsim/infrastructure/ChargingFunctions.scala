@@ -43,10 +43,10 @@ class ChargingFunctions[GEO: GeoLevel](
     * @return
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(
-    zone: ParkingZone[GEO],
-    reservedFor: Id[VehicleManager],
-    parkingDuration: Double
-  ): Boolean = {
+                                                      zone: ParkingZone[GEO],
+                                                      reservedFor: Id[VehicleManager],
+                                                      parkingDuration: Double
+                                                    ): Boolean = {
     VehicleManager.getType(reservedFor) match {
       case VehicleManager.BEAMRideHail if parkingDuration <= 3600 =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get, vehiclesConfig)

@@ -38,19 +38,20 @@ dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
 scenarioNames <- c('Baseline')
+scenarioBaselineLabel <- 'Baseline'
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 loadTypes <- data.table::data.table(
   chargingPointType = c("evipublicdcfast(150.0|DC)",
-                   "evipublicdcfast(250.0|DC)",
-                   "evipublicdcfast(50.0|DC)",
-                   "fcsfast(50.0|DC)",
-                   "fcsfast(150.0|DC)",
-                   "fcsfast(250.0|DC)",
-                   "evipubliclevel2(7.2|AC)",
-                   "eviworklevel2(7.2|AC)",
-                   "homelevel1(1.8|AC)",
-                   "homelevel2(7.2|AC)",
-                   "custom(150.0|DC)"),
+                        "evipublicdcfast(250.0|DC)",
+                        "evipublicdcfast(50.0|DC)",
+                        "fcsfast(50.0|DC)",
+                        "fcsfast(150.0|DC)",
+                        "fcsfast(250.0|DC)",
+                        "evipubliclevel2(7.2|AC)",
+                        "eviworklevel2(7.2|AC)",
+                        "homelevel1(1.8|AC)",
+                        "homelevel2(7.2|AC)",
+                        "custom(150.0|DC)"),
   loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2", "DCFC")
 )
 
@@ -81,7 +82,7 @@ all.loads <- all.loads[scens, on="code", mult="all"]
 ##########################################
 
 ## Baseline XFC hours per site per day
-toplot <- all.loads[name=='Baseline']
+toplot <- all.loads[name==scenarioBaselineLabel]
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(severity, levels=severity_order)))+
@@ -107,7 +108,7 @@ ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in
 
 
 ## Baseline ev charging loads by space time
-toplot <- all.loads[name=='Baseline'&hour.bin2%in%c(0, 6, 12, 18)]
+toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2%in%c(0, 6, 12, 18)]
 toplot$mw <- toplot$kw/1000
 toplot$hour.bin2.label <- "12am"
 toplot[hour.bin2==6]$hour.bin2.label <- "6am"
@@ -138,7 +139,7 @@ p <- ggplot() +
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time.png'),p,width=16,height=8,units='in')
 
 
-# toplot <- all.loads[name=='Baseline'&hour.bin2%in%c(0, 6, 12, 18)]
+# toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2%in%c(0, 6, 12, 18)]
 # toplot[hour.bin2==0]$hour.bin2.label <- "12am"
 # toplot[hour.bin2==6]$hour.bin2.label <- "6am"
 # toplot[hour.bin2==12]$hour.bin2.label <- "12pm"
@@ -173,7 +174,7 @@ ggmap(oakland_map) +
     plot.title = element_text(colour = "orange"),
     panel.border = element_rect(colour = "grey", fill=NA, size=2)
   )
-toplot <- all.loads[name=='Baseline'&hour.bin2 %in% c(6, 9, 18, 0)]
+toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% c(6, 9, 18, 0)]
 toplot$hour.bin2.label <- "12am"
 toplot[hour.bin2==6]$hour.bin2.label <- "6am"
 toplot[hour.bin2==9]$hour.bin2.label <- "9am"
@@ -212,7 +213,7 @@ p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=kw/tot.kw*100,fill=factor(
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "", y = "Share of Charging (%)", fill="load severity", title="Public Charging") +
   theme(axis.text.x = element_text(angle = 0, hjust=0.5), strip.text = element_text(size=rel(1.2)))
-  #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
+#theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/public-daily-charging-by-scenario.png'),p,width=3,height=3,units='in')
 
 
@@ -246,7 +247,7 @@ p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity
   theme_marain()+
   scale_fill_manual(values = c(brewer.pal(3, "Blues"), brewer.pal(3, "Reds"))) +
   theme(axis.text.x = element_text(angle=0, hjust=0.5), strip.text = element_text(size=rel(1.2)))
-  #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
+#theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/energy-charged-by-scenario.png'),p,width=8,height=3,units='in')
 
 
@@ -260,7 +261,7 @@ p <- ggplot(xfc.metric,aes(x=factor(name,scenarioNames),y=xfc.hours,fill=factor(
   theme_marain()+
   scale_fill_manual(values = c(brewer.pal(3, "Blues")[c(1,3)], brewer.pal(3, "Reds")[c(1,3)])) +
   theme(axis.text.x = element_text(angle=0, hjust=0.5),strip.text = element_text(size=rel(1.2)))
-  #theme(axis.text.x = element_text(angle = 30, hjust=1),strip.text = element_text(size=rel(1.2)))
+#theme(axis.text.x = element_text(angle = 30, hjust=1),strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='in')
 
 
@@ -318,5 +319,4 @@ p <- ggplot(fuel[label%in%scenarioNames],aes(x=label,y=value*100,fill=variable))
   #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))+
   scale_fill_manual(values = u(fuel$color))
 ggsave(pp(plotsDir,'/metric-fuel.png'),p,width=6,height=3,units='in')
-
 

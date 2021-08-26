@@ -31,9 +31,9 @@ spreadChargingSessionsIntoPowerIntervals <- function(ev) {
   ev[,depot:=(substr(vehicle,0,5)=='rideH' & substr(vehicleType,0,5)=='ev-L5')]
   ev[,plug.xfc:=(kw>=250)]
   sessions <- ev[chargingPointType!='None' & time/3600>=4
-                 ,.(start.time,depot,plug.xfc,taz=parkingTaz,kw,
-                    x=locationX,y=locationY,duration=duration/60,chargingPointType,
-                    parkingType,vehicleType,vehicle,person,fuel,parkingZoneId)]
+    ,.(start.time,depot,plug.xfc,taz=parkingTaz,kw,
+       x=locationX,y=locationY,duration=duration/60,chargingPointType,
+       parkingType,vehicleType,vehicle,person,fuel,parkingZoneId)]
   sessions[,row:=1:.N]
   start.time.dt <- data.table(time=sessions$start.time)
   sessions[,start.time.bin:=time.bins[start.time.dt,on=c(time="time"),roll='nearest']$quarter.hour]
@@ -58,8 +58,8 @@ filterEvents <- function(dataDir, filename, eventsList) {
     events <- readCsv(paste(dataDir, "/events-raw", "/", filename, sep=""))
     filteredEvents <- events[type %in% eventsList][
       ,c("vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType",
-         "locationY", "locationX", "duration", "vehicleType", "person", "fuel",
-         "parkingZoneId")]
+         "locationY", "locationX", "duration", "vehicleType", "person", "fuel", "parkingZoneId",
+         "pricingModel", "actType")]
     dir.create(file.path(dataDir, "events"), showWarnings = FALSE)
     write.csv(
       filteredEvents,
@@ -94,6 +94,15 @@ processEventsFileAndScaleUp <- function(dataDir, scaleUpFlag, expFactor) {
         print("scaling up charging events...")
         simEvents <- scaleUpAllSessions(chargingEvents, expFactor)
       }
+      simDir <- paste(dataDir, "/sim",sep="")
+      dir.create(file.path(dataDir, "sim"), showWarnings = FALSE)
+      simFile <- paste("events.sim",name[3],"csv.gz",sep=".")
+      write.csv(
+        simEvents,
+        file = paste(simDir,simFile,sep="/"),
+        row.names=FALSE,
+        quote=FALSE,
+        na="0")
       print("Spreading charging events into power sessions")
       sessions <- spreadChargingSessionsIntoPowerIntervals(simEvents)
       resultsDir <- paste(dataDir, "/results",sep="")

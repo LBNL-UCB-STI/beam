@@ -17,13 +17,14 @@ import scala.collection.immutable
   *
   * @param destinationUtm  the location where we are seeking nearby parking
   * @param activityType    the activity that the agent will partake in after parking
+  * @param reservedFor     a vehicle manager id
   * @param beamVehicle     an optional vehicle type (if applicable)
   * @param remainingTripData if vehicle can charge, this has the remaining range/tour distance data
   * @param valueOfTime     the value of time for the requestor
   * @param parkingDuration the duration an agent is parking for
   * @param reserveStall    whether or not we reserve a stall when we send this inquiry. used when simply requesting a cost estimate for parking.
   * @param requestId       a unique ID generated for this inquiry
-  * @param chargingPointTypes list preferred charging point types
+  * @param triggerId       trigger id
   */
 case class ParkingInquiry(
   destinationUtm: SpaceTime,
