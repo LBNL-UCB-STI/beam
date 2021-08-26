@@ -22,10 +22,7 @@ import beam.sim.metrics.MetricsSupport;
 import beam.sim.population.AttributesOfIndividual;
 import beam.sim.population.PopulationAdjustment;
 import beam.sim.population.PopulationAdjustment$;
-import beam.utils.BeamCalcLinkStats;
-import beam.utils.DebugLib;
-import beam.utils.FileUtils;
-import beam.utils.TravelTimeCalculatorHelper;
+import beam.utils.*;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
@@ -388,14 +385,13 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             addPTEtoPhysSimPlans(pte, vehicleId, driverId, 0);
 
             double fractionOfEvents = beamConfig.beam().physsim().duplicatePTE().fractionOfEventsToDuplicate();
-            int iterationOfAdding = 0;
             if (mode.equalsIgnoreCase(CAR)) {
-                while (rand.nextDouble() < (fractionOfEvents - iterationOfAdding)) {
+                long numberOfDuplicates = MathUtils.roundUniformly(fractionOfEvents);
+                for (int i = 0; i < numberOfDuplicates; i++) {
                     int departureTimeShift = getDepartureTimeShift();
-                    String clonedVehicleId = vehicleId + "_clone" + iterationOfAdding;
-                    String clonedDriverId = driverId + "_clone" + iterationOfAdding;
+                    String clonedVehicleId = vehicleId + "_clone" + i;
+                    String clonedDriverId = driverId + "_clone" + i;
                     addPTEtoPhysSimPlans(pte, clonedVehicleId, clonedDriverId, departureTimeShift);
-                    iterationOfAdding++;
                 }
             }
         }
