@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
@@ -154,20 +154,19 @@ class SitePowerManagerSpec
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
         val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
-        val Some((chargingVehicle, status)) =
-          chargingNetwork.attemptToConnectVehicle(request, ActorRef.noSender)
-        status shouldBe ConnectionStatus.Connected
+        val Some(chargingVehicle) =
+          chargingNetwork.processChargingPlugRequest(request, ActorRef.noSender)
+        chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,
           dummyStation,
           0,
-          0,
           person,
           NotApplicable,
           None,
           ActorRef.noSender,
-          ListBuffer(ConnectionStatus.Connected)
+          ListBuffer(ChargingStatus(ChargingStatus.Connected, 0))
         )
         sitePowerManager.dispatchEnergy(
           300,

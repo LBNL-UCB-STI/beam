@@ -98,6 +98,9 @@ class BeamVehicle(
   private var chargerConnectedTick: Option[Int] = None
   private var chargerConnectedPrimaryFuel: Option[Double] = None
 
+  private var waitingToCharge: Boolean = false
+  private var waitingToChargeTick: Option[Int] = None
+
   /**
     * Called by the driver.
     */
@@ -144,6 +147,23 @@ class BeamVehicle(
     }
   }
 
+  def waitingToCharge(startTick: Int): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
+      chargerRWLock.write {
+        waitingToCharge = true
+        waitingToChargeTick = Some(startTick)
+        connectedToCharger = false
+        chargerConnectedTick = None
+        chargerConnectedPrimaryFuel = None
+      }
+    } else {
+      logger.warn(
+        "Trying to connect a non BEV/PHEV to a electricity charging station. " +
+        "This will cause an explosion. Ignoring!"
+      )
+    }
+  }
+
   /**
     * @param startTick
     */
@@ -153,10 +173,13 @@ class BeamVehicle(
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
         chargerConnectedPrimaryFuel = Some(primaryFuelLevelInJoules)
+        waitingToCharge = false
+        waitingToChargeTick = None
       }
     } else
       logger.warn(
-        "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
+        "Trying to connect a non BEV/PHEV to a electricity charging station. " +
+        "This will cause an explosion. Ignoring!"
       )
   }
 
@@ -165,6 +188,8 @@ class BeamVehicle(
       connectedToCharger = false
       chargerConnectedTick = None
       chargerConnectedPrimaryFuel = None
+      waitingToCharge = false
+      waitingToChargeTick = None
     }
   }
 
