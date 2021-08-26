@@ -25,7 +25,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
       "produce correct zones" in new PositiveTestData {
 
         val ParkingZoneFileUtils.ParkingLoadingAccumulator(linkZones, _, _, _) =
-          ParkingZoneFileUtils.fromIterator[Link](linkLevelData, VehicleManager.defaultManager)
+          ParkingZoneFileUtils.fromIterator[Link](linkLevelData, None)
 
         val linkToTazMapping: Map[Id[Link], Id[TAZ]] = HashMap(
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
@@ -85,7 +85,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
               .fromFile[Link](
                 "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
                 new Random(777934L),
-                defaultVehicleManagerId = VehicleManager.defaultManager
+                None
               )
           parkingZones should have size 2990
           val zones205 = parkingZones.filter(_._2.geoId.toString == "205")

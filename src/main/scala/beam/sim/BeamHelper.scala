@@ -7,7 +7,7 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePri
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.agentsim.infrastructure.parking.LinkLevelOperations
+import beam.agentsim.infrastructure.parking.{LinkLevelOperations, ParkingZone}
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -359,7 +359,7 @@ trait BeamHelper extends LazyLogging {
           beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
           vehicleTypes,
           beamConfig.matsim.modules.global.randomSeed,
-          VehicleManager.defaultManager
+          ParkingZone.GlobalReservedFor
         ).toSeq: _*
       )
     }

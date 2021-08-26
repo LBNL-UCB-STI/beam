@@ -48,7 +48,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId = VehicleManager.createIdUsingUnique(rideHailManagerId, VehicleManager.BEAMRideHail),
+      rideHailManagerId = VehicleManager.createOrGetIdUsingUnique(rideHailManagerId, VehicleManager.BEAMRideHail),
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,

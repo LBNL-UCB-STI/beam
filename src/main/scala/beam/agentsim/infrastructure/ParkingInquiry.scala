@@ -3,8 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
-import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
@@ -18,18 +17,19 @@ import scala.collection.immutable
   *
   * @param destinationUtm  the location where we are seeking nearby parking
   * @param activityType    the activity that the agent will partake in after parking
+  * @param reservedFor     a vehicle manager id
   * @param beamVehicle     an optional vehicle type (if applicable)
   * @param remainingTripData if vehicle can charge, this has the remaining range/tour distance data
   * @param valueOfTime     the value of time for the requestor
   * @param parkingDuration the duration an agent is parking for
   * @param reserveStall    whether or not we reserve a stall when we send this inquiry. used when simply requesting a cost estimate for parking.
   * @param requestId       a unique ID generated for this inquiry
-  * @param chargingPointTypes list preferred charging point types
+  * @param triggerId       trigger id
   */
 case class ParkingInquiry(
   destinationUtm: SpaceTime,
   activityType: ParkingActivityType,
-  vehicleManagerId: Id[VehicleManager],
+  reservedFor: Id[VehicleManager] = ParkingZone.GlobalReservedFor,
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,
@@ -81,7 +81,7 @@ object ParkingInquiry extends LazyLogging {
   def init(
     destinationUtm: SpaceTime,
     activityType: String,
-    vehicleManagerId: Id[VehicleManager],
+    reservedFor: Id[VehicleManager] = ParkingZone.GlobalReservedFor,
     beamVehicle: Option[BeamVehicle] = None,
     remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
     valueOfTime: Double = 0.0,
@@ -93,7 +93,7 @@ object ParkingInquiry extends LazyLogging {
     ParkingInquiry(
       destinationUtm,
       activityTypeStringToEnum(activityType),
-      vehicleManagerId,
+      reservedFor,
       beamVehicle,
       remainingTripData,
       valueOfTime,

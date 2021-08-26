@@ -10,7 +10,6 @@ import os
 
 
 def run_beam_to_pydss_federate(station_bus_pairs):
-    logging.basicConfig(filename='beam_to_pydss_federate.log', level=logging.DEBUG, filemode='w')
     fedinfo = h.helicsCreateFederateInfo()
 
     # set the name
@@ -38,6 +37,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     #     station_id = station_bus_pairs[s][0]
     #     pubs_station_loads[station_id] = h.helicsFederateRegisterTypePublication(cfed, station_id, "string_vector", "")
 
+    print("Register a publication of control signals")
 
     # Register a publication of control signals
     pubs_control = h.helicsFederateRegisterTypePublication(cfed, "pubs_power_limit_and_lpm_control", "string", "")
@@ -52,15 +52,21 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     h.helicsFederateEnterExecutingMode(cfed)
     logging.info("beam_to_pydss_federate in execution mode")
 
-    currenttime = -1
+    print("entered execution mode")
+
+    def syncTime(requestedtime):
+        grantedtime = -1
+        while grantedtime < requestedtime:
+            grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
+
     timebin = 300
     # start execution loop
-    for t in range(0, 30*3600-timebin, timebin):
-        while currenttime < t:
-            currenttime = h.helicsFederateRequestTime(cfed, t)
+    for t in range(0, 60*3600-timebin, timebin):
+        syncTime(t)
         isupdated = 0
-        while isupdated != 1:
-            isupdated = h.helicsInputIsUpdated(subs_charger_loads)
+        # while isupdated != 1:
+        #     isupdated = h.helicsInputIsUpdated(subs_charger_loads)
+        print("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
         updated_station_ids = []
@@ -75,7 +81,7 @@ def run_beam_to_pydss_federate(station_bus_pairs):
             charger_type = station['chargingPointType']
             n_plugs = station['numChargers']
             manager_id = station['managerId']
-            station_id = 'cs_'+str(manager_id)+'_'+str(taz)+'_'+str(parking_type)+'_'+str(charger_type)+'_'+str(n_plugs)
+            station_id = 'cs_'+str(manager_id)+'_'+str(taz)+'_'+str(parking_type)+'_'+str(charger_type)
             station_load = station['estimatedLoad']
             updated_station_ids.append(station_id)
             updated_station_loads.append(station_load)
@@ -98,23 +104,23 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         # Let's uncomment this and send dummy control signal to BEAM
         ## send updated signal to BEAM
         all_stations_with_control = []
-        for station_id in updated_station_ids:
-            #station_id = pairing[0]
-            station_info = station_id.split("_")
+        for station in charger_load_json:
             station_with_control = {
-                'managerId': str(station_info[1]),
-                'tazId': str(station_info[2]),
-                'parkingType': str(station_info[3]),
-                'chargingPointType': str(station_info[4]),
-                'power_limit_upper': 0,
-                'power_limit_lower': 0,
+                'managerId': str(station['managerId']),
+                'tazId': str(station['tazId']),
+                'parkingType': str(station['parkingType']),
+                'chargingPointType': str(station['chargingPointType']),
+                'power_limit_upper': station['estimatedLoad'],
+                'power_limit_lower': station['estimatedLoad'],
                 'lmp_with_control_signal': 0
             }
             all_stations_with_control.append(station_with_control)
+
         h.helicsPublicationPublishString(pubs_control, json.dumps(all_stations_with_control, separators=(',', ':')))
         #h.helicsPublicationPublishString(pubs_power_limit_upper, power_limit_upper)
         #h.helicsPublicationPublishString(pubs_power_limit_lower, power_limit_lower)
         #h.helicsPublicationPublishString(pubs_lmp_control, lmp_with_control_signal)
+        syncTime(t+1)
 
     # close the federate
     h.helicsFederateFinalize(cfed)
@@ -138,6 +144,7 @@ def load_station_bus_pairs():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(filename='beam_to_pydss_federate.log', level=logging.DEBUG, filemode='w')
     station_bus_pairs = load_station_bus_pairs()
     logging.info("stations_list_loaded")
     run_beam_to_pydss_federate(station_bus_pairs)
