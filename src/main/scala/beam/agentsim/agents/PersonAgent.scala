@@ -860,7 +860,7 @@ class PersonAgent(
             _,
             _,
             _,
-            _
+            None
           )
         ) if nextLeg.asDriver =>
       // Declaring a function here because this case is already so convoluted that I require a return
@@ -957,6 +957,31 @@ class PersonAgent(
         )
       }
       nextState
+
+    // NEED TO RECHARGE, HEAD TOWARDS CHARGING STALL
+    case Event(
+          StateTimeout,
+          data @ BasePersonData(
+            _,
+            _,
+            nextLeg :: _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            Some(_)
+          )
+        ) if nextLeg.asDriver =>
+      scheduler ! CompletionNotice(
+        _currentTriggerId.get,
+        Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
+      )
+      goto(WaitingToDrive) using data
 
     // TRANSIT but too late
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
@@ -1203,6 +1228,7 @@ class PersonAgent(
       }
   }
 
+  // todo rrp
   when(PlanningEnRouteCharging) {
     case Event(
           ParkingInquiryResponse(stall, _, triggerId),
@@ -1223,12 +1249,20 @@ class PersonAgent(
       vehicle.vehicle.setReservedParkingStall(Some(stall))
       stay()
     case Event(
-          RoutingResponse(_, _, _, _, _),
-          BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, Some(enrouteCharging))
+          RoutingResponse(itineraries, _, _, _, _),
+          data @ BasePersonData(_, _, nextLeg :: _, currentVehicle, _, _, _, _, _, _, _, _, Some(_))
         ) =>
-      // todo rrp
-      log.debug("PlanningEnRouteCharging: routing response has arrived.")
-      ???
+      itineraries.headOption match {
+        case None =>
+          log.error("PlanningEnRouteCharging: not sure what to do here!!?")
+          stay()
+        case Some(itinerary) =>
+          goto(ProcessingNextLegOrStartActivity) using data.copy(
+            currentTrip = Some(itinerary),
+            restOfCurrentTrip = itinerary.legs.toList,
+            currentVehicle = nextLeg.beamVehicleId +: currentVehicle
+          )
+      }
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {

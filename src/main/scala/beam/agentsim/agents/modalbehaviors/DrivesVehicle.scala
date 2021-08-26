@@ -218,6 +218,25 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   def updateLatestObservedTick(newTick: Int): Unit = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
+    // todo rrp
+    case _ @Event(
+          TriggerWithId(EndLegTrigger(tick), triggerId),
+          LiterallyDrivingData(
+            data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, Some(_)),
+            legEndingAt,
+            _
+          )
+        ) if tick == legEndingAt && nextLeg.asDriver =>
+      chargingNetworkManager ! ChargingPlugRequest(
+        tick,
+        currentBeamVehicle,
+        currentBeamVehicle.reservedStall.head,
+        Id.createPersonId(id),
+        triggerId,
+        shiftStatus = NotApplicable
+      )
+      goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
+
     case _ @Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(data, legEndingAt, _)
@@ -588,6 +607,18 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
   when(WaitingToDrive) {
+    // todo rrp
+    case _ @Event(
+          TriggerWithId(StartLegTrigger(tick, newLeg), triggerId),
+          data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, Some(_))
+        ) if (data.legStartsAt.isEmpty || tick == data.legStartsAt.get) && nextLeg.asDriver =>
+      val endTime = tick + newLeg.duration
+      goto(Driving) using LiterallyDrivingData(data, endTime, Some(tick))
+        .asInstanceOf[T] replying CompletionNotice(
+        triggerId,
+        Vector(ScheduleTrigger(EndLegTrigger(endTime), self))
+      )
+
     case _ @Event(TriggerWithId(StartLegTrigger(tick, newLeg), triggerId), data)
         if data.legStartsAt.isEmpty || tick == data.legStartsAt.get =>
       updateLatestObservedTick(tick)
