@@ -115,12 +115,9 @@ They are linked back to the parent repo by `git submodules <https://git-scm.com/
 When you clone a parent project, by default you get the production data directories that contain submodules, but none of the files within them.
 To fetch production data manually type::
 
-   git submodule init production/sfbay
-   git submodule update production/sfbay --remote
+   git submodule update --init --remote production/sfbay
 
 (replace `sfbay` with other scenario if needed)
-
-Note that ``git submodule init`` should be run only once
 
 If you don't need the production data anymore and want to remove it locally you can run::
 
