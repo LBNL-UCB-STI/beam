@@ -383,6 +383,8 @@ class BeamMobsimIteration(
   envelopeInUTM.expandToInclude(activityQuadTreeBounds.maxx, activityQuadTreeBounds.maxy)
   log.info(s"envelopeInUTM after expansion: $envelopeInUTM")
 
+  import scala.language.existentials
+
   private val (parkingNetwork, chargingNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
@@ -406,8 +408,8 @@ class BeamMobsimIteration(
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
   private val rideHailManagerId =
-    VehicleManager.createIdUsingUnique(
-      beamConfig.beam.agentsim.agents.rideHail.vehicleManagerId,
+    VehicleManager.createOrGetIdUsingUnique(
+      beamConfig.beam.agentsim.agents.rideHail.name,
       VehicleManager.BEAMRideHail
     )
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()

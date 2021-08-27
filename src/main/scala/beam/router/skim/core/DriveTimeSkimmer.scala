@@ -60,7 +60,7 @@ class DriveTimeSkimmer @Inject() (
                 val key = PathCache(origin.tazId, destination.tazId, timeBin)
                 observedTravelTimes.get(key).foreach { timeObserved =>
                   val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
-                  getCurrentSkim.get(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
+                  getCurrentSkimValue(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
                     theSkimInternal =>
                       series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
                       for (_ <- 1 to theSkimInternal.observations)

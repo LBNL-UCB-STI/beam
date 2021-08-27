@@ -21,7 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingInLine}
+import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingToCharge}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -1216,7 +1216,7 @@ class PersonAgent(
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
       log.debug("myUnhandled.UnhandledVehicle: {}", ev)
       stay()
-    case ev @ Event(WaitingInLine(_, _, _), _) =>
+    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
       log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
     case Event(e, s) =>

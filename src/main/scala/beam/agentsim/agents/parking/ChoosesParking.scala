@@ -78,7 +78,7 @@ trait ChoosesParking extends {
       log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingInLine(tick, vehicleId, triggerId), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, _, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
@@ -107,7 +107,11 @@ trait ChoosesParking extends {
       val (tick, triggerId) = releaseTickAndTriggerId()
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
-        chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
+        chargingNetworkManager ! ChargingUnplugRequest(
+          tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+          currentBeamVehicle,
+          triggerId
+        )
         goto(ReleasingChargingPoint) using data
       } else {
         handleReleasingParkingSpot(tick, triggerId)
