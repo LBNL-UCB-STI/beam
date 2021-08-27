@@ -129,6 +129,15 @@ or::
 
 to remove all production data.
 
+Using old production data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Old production data is still available at branches `production-gemini-develop`, `inm/merge-urbansim-with-detroit` etc.
+
+If for some reason you need to merge latest changes to these branches please note that there could be a conflict with the
+same directory name for example `production/sfbay`. In that case you will need to rename this directory in production branch
+to some other name before merging, commit this change and then merge the latest changes from develop.
+
 Adding new production scenario
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
