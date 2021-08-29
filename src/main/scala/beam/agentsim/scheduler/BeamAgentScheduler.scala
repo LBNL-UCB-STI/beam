@@ -357,6 +357,7 @@ class BeamAgentScheduler(
 
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
+    nowInSeconds = newNow
     if (
       newNow <= stopTick || !triggerQueue.isEmpty && triggerQueue
         .peek()
@@ -364,7 +365,6 @@ class BeamAgentScheduler(
         .trigger
         .tick <= stopTick
     ) {
-      nowInSeconds = newNow
       if (
         awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
           .keySet()
@@ -405,7 +405,6 @@ class BeamAgentScheduler(
       }
 
     } else {
-      nowInSeconds = newNow
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
         stuckAgentChecker.foreach(_.cancel)

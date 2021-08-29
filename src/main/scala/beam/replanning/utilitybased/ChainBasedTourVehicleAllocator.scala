@@ -74,10 +74,8 @@ case class ChainBasedTourVehicleAllocator(
       getVehicularToursSortedByStartTime(householdPlans).find(rec => rec.subtour == subtour)
 
     vehicularTours foreach { vt =>
-      if (allocateVehicles(vt)) {
-        //TODO: turn back on when using intra-household choice
-//        processAllocation(vt, plan)
-      }
+      //TODO: turn back on when using intra-household choice
+      allocateVehicles(vt)
     }
   }
 
