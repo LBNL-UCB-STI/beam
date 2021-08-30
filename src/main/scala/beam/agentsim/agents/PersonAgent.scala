@@ -728,7 +728,21 @@ class PersonAgent(
     // en route charging, restore trip to original destination
     case Event(
           RoutingResponse(itineraries, _, _, _, _),
-          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, Some(EnrouteCharging(_, afterVehicleTrip)))
+          data @ BasePersonData(
+            _,
+            _,
+            _,
+            currentVehicle,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            Some(EnrouteCharging(_, afterVehicleTrip))
+          )
         ) =>
       itineraries.headOption match {
         case None =>
@@ -736,6 +750,7 @@ class PersonAgent(
           stay()
         case Some(itinerary) =>
           goto(ProcessingNextLegOrStartActivity) using data.copy(
+            currentVehicle = currentVehicle.tail,
             currentTrip = Some(itinerary.copy(legs = itinerary.legs ++ afterVehicleTrip)),
             restOfCurrentTrip = itinerary.legs.toList ++ afterVehicleTrip,
             enrouteCharging = None
