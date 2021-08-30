@@ -723,6 +723,7 @@ class PersonAgent(
           triggerId = triggerId
         )
       }
+      vehicle.vehicle.unsetParkingStall()
       stay()
 
     // en route charging, restore trip to original destination
@@ -1018,10 +1019,8 @@ class PersonAgent(
 
         val stateToGo =
           if (
-            nextLeg.beamLeg.mode == CAR
-            || actualVehicle.isSharedVehicle
-            || actualVehicle.isConnectedToChargingPoint()
-            || actualVehicle.stall.isDefined
+            nextLeg.beamLeg.mode == CAR && (actualVehicle.isSharedVehicle || actualVehicle
+              .isConnectedToChargingPoint() || actualVehicle.stall.isDefined)
           ) {
             log.debug(
               "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
