@@ -218,7 +218,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   def updateLatestObservedTick(newTick: Int): Unit = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
-    // todo rrp
+    // en route charging, reached to the charging stall and waiting to get charged
     case _ @Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(
@@ -235,7 +235,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId,
         shiftStatus = NotApplicable
       )
-      goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
+      goto(Waiting) using data.asInstanceOf[T]
 
     case _ @Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
@@ -596,7 +596,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
   when(WaitingToDrive) {
-    // todo rrp
+    // en route charging, start driving towards charging stall
     case _ @Event(
           TriggerWithId(StartLegTrigger(tick, newLeg), triggerId),
           data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, Some(_))

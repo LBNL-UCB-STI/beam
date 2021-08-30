@@ -21,11 +21,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
@@ -157,9 +153,10 @@ object PersonAgent {
 
   /**
     * holds information related to PlanningEnRouteCharging state
-    * @param destinationUTM original location vehicle was heading before taking detour for recharging
+    * @param vehicleDestinationUTM  original location vehicle was heading before taking detour for recharging
+    * @param afterVehicleTrip       rest of the trip after vehicle destination
     */
-  final case class EnrouteCharging(destinationUTM: Location)
+  final case class EnrouteCharging(vehicleDestinationUTM: Location, afterVehicleTrip: List[EmbodiedBeamLeg])
 
   /**
     * TODO if you are reading this, please add short explanations of each field
@@ -243,9 +240,7 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
-  /**
-    * TODO explain enroute charging related state transitions in brief
-    */
+  // en route charging, state in which to inquire charging stall and make re-route request
   case object PlanningEnRouteCharging extends Traveling
 
   def correctTripEndTime(
@@ -685,6 +680,68 @@ class PersonAgent(
   }
 
   when(Waiting) {
+    // en route charging, send unplug request
+    case Event(EndingRefuelSession(tick, vehicleId, triggerId), data: BasePersonData)
+        if currentBeamVehicle.id == vehicleId && data.enrouteCharging.nonEmpty =>
+      updateLatestObservedTick(tick)
+      chargingNetworkManager ! ChargingUnplugRequest(
+        tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+        currentBeamVehicle,
+        triggerId
+      )
+      stay()
+
+    // en route charging, re-route to vehicle destination
+    case Event(
+          UnpluggingVehicle(tick, _, triggerId),
+          BasePersonData(
+            _,
+            _,
+            _,
+            currentVehicle,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            Some(EnrouteCharging(vehicleDestinationUTM, _))
+          )
+        ) =>
+      val vehicle = beamVehicles(currentVehicle.head)
+      vehicle.vehicle.stall.foreach { stall =>
+        router ! RoutingRequest(
+          originUTM = stall.locationUTM,
+          destinationUTM = vehicleDestinationUTM,
+          departureTime = tick,
+          withTransit = false,
+          personId = Some(id),
+          streetVehicles = IndexedSeq(vehicle.streetVehicle),
+          attributesOfIndividual = Some(attributes),
+          triggerId = triggerId
+        )
+      }
+      stay()
+
+    // en route charging, restore trip to original destination
+    case Event(
+          RoutingResponse(itineraries, _, _, _, _),
+          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, Some(EnrouteCharging(_, afterVehicleTrip)))
+        ) =>
+      itineraries.headOption match {
+        case None =>
+          log.error("Waiting, not sure what to do here!!?")
+          stay()
+        case Some(itinerary) =>
+          goto(ProcessingNextLegOrStartActivity) using data.copy(
+            currentTrip = Some(itinerary.copy(legs = itinerary.legs ++ afterVehicleTrip)),
+            restOfCurrentTrip = itinerary.legs.toList ++ afterVehicleTrip,
+            enrouteCharging = None
+          )
+      }
+
     /*
      * Learn as passenger that it is time to board the vehicle
      */
@@ -791,7 +848,7 @@ class PersonAgent(
           StateTimeout,
           data @ BasePersonData(_, _, completedLeg :: theRestOfCurrentTrip, _, _, _, _, _, _, _, currentCost, _, _)
         ) =>
-      log.debug("ReadyToChooseParking, restoftrip: {}", theRestOfCurrentTrip.toString())
+      log.debug("ReadyToChooseParking, rest of trip: {}", theRestOfCurrentTrip.toString())
       goto(ChoosingParkingSpot) using data.copy(
         restOfCurrentTrip = theRestOfCurrentTrip,
         currentTripCosts = currentCost + completedLeg.cost
@@ -799,13 +856,13 @@ class PersonAgent(
   }
 
   onTransition {
-    // todo rrp
+    // inquire nearby charging station
     case _ -> PlanningEnRouteCharging =>
       nextStateData match {
         case data: BasePersonData if data.enrouteCharging.nonEmpty =>
           val vehicleOpt = data.restOfCurrentTrip.headOption.map(leg => beamVehicles(leg.beamVehicleId).vehicle)
           vehicleOpt match {
-            case None => log.error("PlanningEnRouteCharging: vehicle not found.")
+            case None => log.error("PlanningEnRouteCharging, vehicle not found.")
             case Some(vehicle) =>
               chargingNetworkManager ! ParkingInquiry(
                 destinationUtm = vehicle.spaceTime,
@@ -817,7 +874,7 @@ class PersonAgent(
               )
           }
         case _ =>
-          log.debug("PlanningEnRouteCharging: no need to handle.")
+          log.debug("PlanningEnRouteCharging, no need to handle.")
       }
     case _ -> _ =>
       unstashAll()
@@ -863,7 +920,7 @@ class PersonAgent(
             _,
             _,
             _,
-            None
+            None // when regular trip
           )
         ) if nextLeg.asDriver =>
       // Declaring a function here because this case is already so convoluted that I require a return
@@ -890,7 +947,8 @@ class PersonAgent(
           } else {
             currentVehicle
           }
-        // todo rrp
+
+        // en route charging block
         currentVehicleForNextState.headOption.foreach { beamVehicleId =>
           import beamScenario.beamConfig.beam.agentsim.agents.vehicles.{
             noRechargeThresholdInMeters,
@@ -913,9 +971,14 @@ class PersonAgent(
 
             if (refuelNeeded) {
               val enrouteCharging = EnrouteCharging(
-                destinationUTM = beamServices.geo.wgs2Utm(vehicleTrip.last.beamLeg.travelPath.endPoint.loc)
+                vehicleDestinationUTM = beamServices.geo.wgs2Utm(vehicleTrip.last.beamLeg.travelPath.endPoint.loc),
+                afterVehicleTrip = trip.dropWhile(_.beamVehicleId == vehicle.id)
               )
-              return goto(PlanningEnRouteCharging) using data.copy(enrouteCharging = Some(enrouteCharging))
+              // en route charging, vehicle is electric and needs to be recharged
+              return goto(PlanningEnRouteCharging) using data.copy(
+                currentVehicle = nextLeg.beamVehicleId +: currentVehicle,
+                enrouteCharging = Some(enrouteCharging)
+              )
             }
           }
         }
@@ -978,7 +1041,7 @@ class PersonAgent(
             _,
             _,
             _,
-            Some(_)
+            Some(_) // when en route charging
           )
         ) if nextLeg.asDriver =>
       scheduler ! CompletionNotice(
@@ -1232,18 +1295,18 @@ class PersonAgent(
       }
   }
 
-  // todo rrp
   when(PlanningEnRouteCharging) {
+    // request travelling plan from the router to go to charging stall
     case Event(
           ParkingInquiryResponse(stall, _, triggerId),
-          BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, Some(enrouteCharging))
+          BasePersonData(_, _, currentLeg :: _, _, _, _, _, _, _, _, _, _, Some(_))
         ) =>
-      val myLocation = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint)
-      val vehicle = beamVehicles(nextLeg.beamVehicleId)
+      val currentLocation = beamServices.geo.wgs2Utm(currentLeg.beamLeg.travelPath.startPoint)
+      val vehicle = beamVehicles(currentLeg.beamVehicleId)
       router ! RoutingRequest(
-        originUTM = myLocation.loc,
+        originUTM = currentLocation.loc,
         destinationUTM = stall.locationUTM,
-        departureTime = myLocation.time,
+        departureTime = currentLocation.time,
         withTransit = false,
         personId = Some(id),
         streetVehicles = IndexedSeq(vehicle.streetVehicle),
@@ -1252,19 +1315,20 @@ class PersonAgent(
       )
       vehicle.vehicle.setReservedParkingStall(Some(stall))
       stay()
+
+    // set the plan as current trip, and start travelling
     case Event(
           RoutingResponse(itineraries, _, _, _, _),
-          data @ BasePersonData(_, _, nextLeg :: _, currentVehicle, _, _, _, _, _, _, _, _, Some(_))
+          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, Some(_))
         ) =>
       itineraries.headOption match {
         case None =>
-          log.error("PlanningEnRouteCharging: not sure what to do here!!?")
+          log.error("PlanningEnRouteCharging, not sure what to do here!!?")
           stay()
         case Some(itinerary) =>
           goto(ProcessingNextLegOrStartActivity) using data.copy(
             currentTrip = Some(itinerary),
-            restOfCurrentTrip = itinerary.legs.toList,
-            currentVehicle = nextLeg.beamVehicleId +: currentVehicle
+            restOfCurrentTrip = itinerary.legs.toList
           )
       }
   }

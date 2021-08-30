@@ -129,9 +129,6 @@ trait ChoosesParking extends {
   }
 
   when(ConnectingToChargingPoint) {
-    // todo rrp
-    case _ @Event(StartingRefuelSession(_, _), data: BasePersonData) if data.enrouteCharging.nonEmpty =>
-      stay()
     case _@Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
       handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
