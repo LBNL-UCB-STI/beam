@@ -123,6 +123,6 @@ class VolumeCalculatorSpec extends AnyWordSpecLike with Matchers {
 object VolumeCalculatorSpec {
 
   implicit class ReachTuple(val t: (Double, Double)) extends AnyVal {
-    def comparable: (Double, Double) = (t._1, BigDecimal(t._2).setScale(5, RoundingMode.HALF_UP).toDouble)
+    def comparable: (Double, Double) = (t._1, BigDecimal.decimal(t._2).setScale(5, RoundingMode.HALF_UP).toDouble)
   }
 }

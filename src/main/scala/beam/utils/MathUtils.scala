@@ -16,7 +16,7 @@ object MathUtils {
     * @return
     */
   def roundDouble(inVal: Double, scale: Int = 3): Double = {
-    BigDecimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
+    BigDecimal.decimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
   /**
