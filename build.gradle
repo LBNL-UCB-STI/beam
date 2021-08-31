@@ -344,10 +344,11 @@ tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
 }
 
 tasks.withType(ScalaCompile) {
+    // LooksLikeInterpolatedString must stay
     def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
                                 "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
                                 "-P:scapegoat:reports:html:xml",
-                                "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:UnusedMethodParameter:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:ParameterlessMethodReturnsUnit:SuspiciousMatchOnClassObject:PointlessTypeBounds:BrokenOddness:VarClosure:EmptyTryBlock:RepeatedIfElseBody:BigDecimalDoubleConstructor:EmptyInterpolatedString:LooksLikeInterpolatedString",
+                                "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:UnusedMethodParameter:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:ParameterlessMethodReturnsUnit:SuspiciousMatchOnClassObject:PointlessTypeBounds:BrokenOddness:VarClosure:EmptyTryBlock:RepeatedIfElseBody:BigDecimalDoubleConstructor:LooksLikeInterpolatedString",
                                 "-P:scapegoat:verbose:false",
                                 "-P:scapegoat:consoleOutput:true"]
     def minimumCompilationParameters = ["-unchecked", "-deprecation", "-feature"]
