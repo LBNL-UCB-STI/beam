@@ -32,7 +32,7 @@ object MathUtils {
       val sortedList = list.asScala.sortWith(_ < _)
       list.size match {
         case 1                   => sortedList.head
-        case odd if odd % 2 == 1 => sortedList(odd / 2)
+        case odd if odd % 2 != 0 => sortedList(odd / 2)
         case even if even % 2 == 0 =>
           val (l, h) = sortedList splitAt even / 2
           (l.last + h.head) / 2
