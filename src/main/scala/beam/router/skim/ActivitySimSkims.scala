@@ -17,7 +17,6 @@ case class ActivitySimSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) 
     pathType: ActivitySimPathType,
     originUTM: Location,
     destinationUTM: Location,
-    departureTime: Int,
     vehicleTypeId: Id[BeamVehicleType],
     beamScenario: BeamScenario
   ): ActivitySimSkimmerInternal = {

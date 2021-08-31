@@ -398,9 +398,9 @@ class HierarchicalParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.DefaultParkingZoneId,
-        Block(0.0, 3600),
-        ParkingType.Residential,
+//        ParkingZone.DefaultParkingZoneId,
+//        Block(0.0, 3600),
+//        ParkingType.Residential,
         ParkingZone.GlobalReservedFor
       )
 
@@ -408,9 +408,9 @@ class HierarchicalParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.DefaultParkingZoneId,
-        FlatFee(0.0),
-        ParkingType.Residential,
+//        ParkingZone.DefaultParkingZoneId,
+//        FlatFee(0.0),
+//        ParkingType.Residential,
         ParkingZone.GlobalReservedFor
       )
 
@@ -418,9 +418,9 @@ class HierarchicalParkingManagerSpec
         zpm,
         new Coord(166500.0, 1500.0),
         "1",
-        ParkingZone.DefaultParkingZoneId,
-        Block(0.0, 3600),
-        ParkingType.Public,
+//        ParkingZone.DefaultParkingZoneId,
+//        Block(0.0, 3600),
+//        ParkingType.Public,
         ParkingZone.GlobalReservedFor
       )
     }
@@ -430,9 +430,9 @@ class HierarchicalParkingManagerSpec
     spm: ParkingNetwork[_],
     coord: Coord,
     tazId: String,
-    parkingZoneId: Id[ParkingZoneId],
-    pricingModel: PricingModel,
-    parkingType: ParkingType,
+//    parkingZoneId: Id[ParkingZoneId],
+//    pricingModel: PricingModel,
+//    parkingType: ParkingType,
     vehicleManagerId: Id[VehicleManager]
   ): Any = {
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 27)

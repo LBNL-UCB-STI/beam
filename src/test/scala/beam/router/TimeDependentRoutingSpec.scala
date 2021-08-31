@@ -216,7 +216,7 @@ class TimeDependentRoutingSpec
       // Then route again.
       // Like a one-person iterated dynamic traffic assignment.
       def estimatedTotalTravelTime = carOption.totalTravelTimeInSecs
-      def longerTravelTimes(enterTime: Int, linkId: Int) = 2000
+      val longerTravelTimes = (_: Int, _: Int) => 2000
       def experiencedTotalTravelTime = (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000
       // This ^^ is the travel time which I am now reporting to the TravelTimeCalculator, 2000 per fully-traversed link
 
