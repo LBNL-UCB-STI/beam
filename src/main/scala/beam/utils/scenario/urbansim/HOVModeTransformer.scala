@@ -92,7 +92,7 @@ object HOVModeTransformer extends LazyLogging {
       forcedCarHOV3Count * 2 > forcedHOV3Teleports
     }
 
-    def replaceHOVwithCar(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
+    def replaceHOVwithCar(trip: List[PlanElement]): List[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
           forcedHOV2Teleports -= 1
@@ -105,7 +105,7 @@ object HOVModeTransformer extends LazyLogging {
       }
     }
 
-    def replaceHOVwithTeleportation(trip: Iterable[PlanElement]): Iterable[PlanElement] = {
+    def replaceHOVwithTeleportation(trip: List[PlanElement]): List[PlanElement] = {
       trip.map {
         case hov2Leg if itIsAnHOV2Leg(hov2Leg) =>
           forcedCarHOV2Count -= 1
@@ -117,36 +117,57 @@ object HOVModeTransformer extends LazyLogging {
       }
     }
 
-    splitToTrips(plansProbablyWithHOV).flatMap { trip =>
-      if (allHOVUsers.contains(trip.head.personId)) {
-        if (isForcedHOVTeleportationTrip(trip)) {
-          val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedHOVTeleportation(trip)
-          forcedHOV2Teleports += forcedHOV2
-          forcedHOV3Teleports += forcedHOV3
-          mappedTrip
-        } else if (isForcedCarHOVTrip(trip)) {
-          val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedCarHOVTrip(trip)
-          forcedCarHOV2Count += forcedHOV2
-          forcedCarHOV3Count += forcedHOV3
-          mappedTrip
-        } else if (thereAreMoreHOVTeleportations) {
-          replaceHOVwithCar(trip)
-        } else if (thereAreMoreHOVCars) {
-          replaceHOVwithTeleportation(trip)
+    val tripsTransformed: Iterable[List[PlanElement]] = splitToTrips(plansProbablyWithHOV)
+      .map { trip =>
+        if (allHOVUsers.contains(trip.head.personId)) {
+          if (isForcedHOVTeleportationTrip(trip)) {
+            val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedHOVTeleportation(trip)
+            forcedHOV2Teleports += forcedHOV2
+            forcedHOV3Teleports += forcedHOV3
+            mappedTrip
+          } else if (isForcedCarHOVTrip(trip)) {
+            val (mappedTrip, forcedHOV2, forcedHOV3) = mapToForcedCarHOVTrip(trip)
+            forcedCarHOV2Count += forcedHOV2
+            forcedCarHOV3Count += forcedHOV3
+            mappedTrip
+          } else if (thereAreMoreHOVTeleportations) {
+            replaceHOVwithCar(trip)
+          } else if (thereAreMoreHOVCars) {
+            replaceHOVwithTeleportation(trip)
+          } else {
+            mapRandomHOVTeleportationOrCar(trip)
+          }
         } else {
-          mapRandomHOVTeleportationOrCar(trip)
+          trip
         }
-      } else {
-        trip
       }
+    // we need to merge plans without creating duplicates of home activity for persons with more than one trip
+    val plans = joinTripsIntoPlans(tripsTransformed)
+    plans
+  }
+
+  def joinTripsIntoPlans(tripsTransformed: Iterable[List[PlanElement]]): Iterable[PlanElement] = {
+    val personToLastActivity = mutable.HashMap.empty[PersonId, PlanElement]
+    val plans = tripsTransformed.map { trip =>
+      val personId = trip.head.personId
+      val tripToAdd = personToLastActivity.get(personId) match {
+        // we need to remove the first activity because it is a duplicate
+        // that was added while plans were split to trips
+        case Some(lastSeenActivity) if lastSeenActivity == trip.head => trip.tail
+        case _                                                       => trip
+      }
+      personToLastActivity(personId) = trip.last
+      tripToAdd
     }
+
+    plans.flatten
   }
 
   /**
     * Splits provided plans to trips. Each sub collection is a separate trip for separate person.
     */
-  def splitToTrips(planElements: Iterable[PlanElement]): Iterable[Iterable[PlanElement]] = {
-    val trips = mutable.ListBuffer.empty[Iterable[PlanElement]]
+  def splitToTrips(planElements: Iterable[PlanElement]): Iterable[List[PlanElement]] = {
+    val trips = mutable.ListBuffer.empty[List[PlanElement]]
     val personToTrip = mutable.HashMap.empty[PersonId, mutable.ListBuffer[PlanElement]]
     val homeActivity = "home"
     val plansByPerson = mutable.LinkedHashMap.empty[PersonId, mutable.ListBuffer[PlanElement]]
@@ -177,9 +198,15 @@ object HOVModeTransformer extends LazyLogging {
 
     def addActivity(activity: PlanElement): Unit = personToTrip.get(activity.personId) match {
       case Some(trip) if isHomeActivity(activity) && trip.size > 1 =>
-        trips.append(trip :+ activity)
+        trips.append(trip.toList :+ activity)
         personToTrip.remove(activity.personId)
+
         // we should start a new trip in case a person will continue, if not we will drop this orphaned home activity later
+        // this also creates a home activity duplicates later when we join trips back together
+        // i.e.
+        // original plans: home - leg - work - leg - home - leg - other - leg - home
+        // splitted trip1: home - leg - work - leg - home
+        //          trip2: home - leg - other - leg - home
         personToTrip(activity.personId) = mutable.ListBuffer(activity)
 
       case Some(trip) if isHomeActivity(activity) && trip.size == 1 =>
@@ -201,7 +228,7 @@ object HOVModeTransformer extends LazyLogging {
         }
       } else {
         logger.warn("Cannot split plans to trips for person: {}", plans.head.personId)
-        trips.append(plans)
+        trips.append(plans.toList)
       }
     }
 
@@ -215,7 +242,7 @@ object HOVModeTransformer extends LazyLogging {
       )
     }
 
-    trips ++ personToTrip.values
+    trips ++ personToTrip.values.map(_.toList)
   }
 
   def itIsAnHOV2Leg(planElement: PlanElement): Boolean = {
@@ -272,7 +299,7 @@ object HOVModeTransformer extends LazyLogging {
     }
 
     /** @return the tuple of (transformed trip, transformed HOV2 count, transformed HOV3 count) */
-    def mapToForcedHOVTeleportation(trip: Iterable[PlanElement]): (Iterable[PlanElement], Int, Int) = {
+    def mapToForcedHOVTeleportation(trip: List[PlanElement]): (List[PlanElement], Int, Int) = {
       var forcedHOV2Teleports = 0
       var forcedHOV3Teleports = 0
       // return trip with all HOV replaced by HOV_teleportation
@@ -324,13 +351,13 @@ object HOVModeTransformer extends LazyLogging {
 
   object ForcedCarHOVTransformer {
 
-    def isForcedCarHOVTrip(trip: Iterable[PlanElement]): Boolean = {
+    def isForcedCarHOVTrip(trip: List[PlanElement]): Boolean = {
       val modes = trip.flatMap(_.legMode.map(_.toLowerCase))
       modes.exists(allCarModes.contains) && modes.exists(allHOVModes.contains)
     }
 
     /** @return the tuple of (transformed trip, transformed CAR_HOV2 count, transformed CAR_HOV3 count) */
-    def mapToForcedCarHOVTrip(trip: Iterable[PlanElement]): (Iterable[PlanElement], Int, Int) = {
+    def mapToForcedCarHOVTrip(trip: List[PlanElement]): (List[PlanElement], Int, Int) = {
       var forcedCarHOV2Count = 0
       var forcedCarHOV3Count = 0
 
@@ -355,7 +382,7 @@ object HOVModeTransformer extends LazyLogging {
     private val chanceToBeCarHOV2 = 0.5
     private val chanceToBeCarHOV3 = 0.333333333333
 
-    def mapRandomHOVTeleportationOrCar(trip: Iterable[PlanElement])(implicit rand: Random): Iterable[PlanElement] = {
+    def mapRandomHOVTeleportationOrCar(trip: List[PlanElement])(implicit rand: Random): List[PlanElement] = {
       def getHOV2CarOrTeleportation: String = {
         if (rand.nextDouble <= chanceToBeCarHOV2) {
           CAR_HOV2.value

@@ -3,6 +3,8 @@ package beam.utils.scenario.urbansim
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.utils.scenario._
+import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
+import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader, TripReader}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -109,6 +111,105 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     val plansBefore = getNumberOfHOVTrips(100)
     val trips = HOVModeTransformer.splitToTrips(plansBefore)
     trips.size shouldBe 100
+  }
+
+  test("Plans after split and join should have the same length as original plans") {
+    val plansBefore = Seq(
+      newActivity(1, 1, Act("Home", -97.88378875069999, 30.2216674426)),
+      newLeg(1, 2, "car"),
+      newActivity(1, 3, Act("escort", -97.96989530443756, 30.35731823073682)),
+      newLeg(1, 4, "car"),
+      newActivity(1, 5, Act("Home", -97.88378875069999, 30.2216674426)),
+      newLeg(1, 6, "car"),
+      newActivity(1, 7, Act("work", -97.79891452443114, 30.246216356094088)),
+      newLeg(1, 8, "car"),
+      newActivity(1, 9, Act("Home", -97.88378875069999, 30.2216674426))
+    )
+
+    val trips = HOVModeTransformer.splitToTrips(plansBefore)
+    trips.size shouldBe 2
+
+    val plansAfter = HOVModeTransformer.joinTripsIntoPlans(trips)
+    plansAfter.size shouldBe plansBefore.size
+  }
+
+  test("separation into trips should not change plans length") {
+    val modeMap = Map(
+      "SHARED2PAY"     -> "car",
+      "SHARED2FREE"    -> "car",
+      "WALK_COM"       -> "walk_transit",
+      "DRIVEALONEFREE" -> "car",
+      "WALK_LOC"       -> "walk_transit",
+      "DRIVE_EXP"      -> "drive_transit",
+      "TNC_SINGLE"     -> "ride_hail",
+      "WALK"           -> "walk",
+      "DRIVE_HVY"      -> "drive_transit",
+      "SHARED3FREE"    -> "car",
+      "WALK_LRF"       -> "walk_transit",
+      "TAXI"           -> "ride_hail",
+      "TNC_SHARED"     -> "ride_hail",
+      "DRIVE_COM"      -> "drive_transit",
+      "DRIVEALONEPAY"  -> "car",
+      "DRIVE_LRF"      -> "drive_transit",
+      "SHARED3PAY"     -> "car",
+      "BIKE"           -> "bike",
+      "WALK_HVY"       -> "walk_transit",
+      "WALK_EXP"       -> "walk_transit",
+      "DRIVE_LOC"      -> "drive_transit"
+    )
+
+    val pathToPlans = "test/test-resources/plans-transformation-test-data/plans.csv.gz"
+    val pathToTrips = "test/test-resources/plans-transformation-test-data/trips.csv.gz"
+
+    val tripReader = new TripReader(pathToTrips)
+    val modes = tripReader
+      .iterator()
+      .map(tripElement => PlanMerger.tripKey(tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
+      .toMap
+
+    val merger = new PlanMerger(modes, modeMap)
+    val planReader = new PlanReader(pathToPlans)
+
+    val originalPlans: Iterable[PlanElement] =
+      try {
+        merger
+          .merge(planReader.iterator())
+          .toList
+      } finally {
+        planReader.close()
+        tripReader.close()
+      }
+
+    HOVModeTransformer.reseedRandomGenerator(42)
+    val transformedPlans: Iterable[PlanElement] = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(
+      originalPlans,
+      Seq.empty[PersonInfo],
+      Seq.empty[HouseholdInfo]
+    )
+
+    val personToPlanOriginal: Map[PersonId, Iterable[PlanElement]] = originalPlans.groupBy(plan => plan.personId)
+    val personToPlanTransformed: Map[PersonId, Iterable[PlanElement]] =
+      transformedPlans.groupBy(plan => plan.personId)
+
+    personToPlanOriginal.keySet.foreach { personId =>
+      val originalPersonPlans: Iterable[PlanElement] = personToPlanOriginal(personId)
+      val transformedPersonPlans = personToPlanTransformed(personId)
+
+      assert(
+        originalPersonPlans.size == transformedPersonPlans.size,
+        s"Length of plans for person $personId was changed during transformation"
+      )
+    }
+
+    assert(personToPlanOriginal.size == personToPlanTransformed.size, "Size of plans is different")
+    personToPlanOriginal.keys.foreach { personId =>
+      val personOriginalPlans = personToPlanOriginal(personId)
+      val personTransformedPlans = personToPlanTransformed(personId)
+      assert(
+        personOriginalPlans.size == personTransformedPlans.size,
+        s"Size of plans for person $personId is different"
+      )
+    }
   }
 
   test("separation into trips should work for complicated trips") {
