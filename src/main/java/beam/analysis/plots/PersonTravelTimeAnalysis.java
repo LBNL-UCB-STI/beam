@@ -53,6 +53,8 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
 
+        private final Logger log = LoggerFactory.getLogger(PersonTravelTimeComputation.class);
+
         /**
          * Computes the required stats from the given input.
          *
@@ -66,8 +68,11 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             // Extract the hours of the day recorded and sort them in order
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
             // Get the maximum hour value
-            int maxHour = 0;
-            if (hoursList.size() > 0) {
+            int maxHour;
+            if (hoursList.isEmpty()) {
+                log.warn("hoursList is empty, maxHour is set to 0");
+                maxHour = 0;
+            } else {
                 maxHour = hoursList.get(hoursList.size() - 1);
             }
             // A 2D matrix to store average travel times by mode and hour (rows = travel mode ; columns = hour of the day)
@@ -172,28 +177,26 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         List<String> modes = data.getFirst();
         double[][] dataSets = data.getSecond().getFirst();
         String csvFileName = ioCotroller.getIterationFilename(iteration, fileBaseName + ".csv");
-        if (dataSets.length > 0) {
-            try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
-                StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
-                int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
-                for (int hour = 0; hour <= hours; hour++) {
-                    heading.append(",").append(hour);
-                }
-                out.write(heading.toString());
-                out.newLine();
-
-                for (int category = 0; category < dataSets.length; category++) {
-                    out.write(modes.get(category));
-                    double[] categories = dataSets[category];
-                    for (double inner : categories) {
-                        out.write("," + inner);
-                    }
-                    out.newLine();
-                }
-                out.flush();
-            } catch (IOException e) {
-                log.error("Error in Average Travel Time CSV generation", e);
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
+            StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
+            int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
+            for (int hour = 0; hour <= hours; hour++) {
+                heading.append(",").append(hour);
             }
+            out.write(heading.toString());
+            out.newLine();
+
+            for (int category = 0; category < dataSets.length; category++) {
+                out.write(modes.get(category));
+                double[] categories = dataSets[category];
+                for (double inner : categories) {
+                    out.write("," + inner);
+                }
+                out.newLine();
+            }
+            out.flush();
+        } catch (IOException e) {
+            log.error("Error in Average Travel Time CSV generation", e);
         }
     }
 

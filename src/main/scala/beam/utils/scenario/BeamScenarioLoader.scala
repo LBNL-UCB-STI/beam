@@ -3,10 +3,10 @@ package beam.utils.scenario
 import beam.agentsim.agents.household.HouseholdFleetManager
 
 import java.util
-
 import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -83,7 +83,7 @@ class BeamScenarioLoader(
 
     beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt, VehicleManager.defaultManager))
+      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt, ParkingZone.GlobalReservedFor))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)

@@ -4,8 +4,8 @@ import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.infrastructure.DefaultRidehailFunctions.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
@@ -21,7 +21,6 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.collection.mutable
 
 class DefaultRidehailFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -36,7 +35,6 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims
 ) extends InfrastructureFunctions[GEO](
-      vehicleManagerId,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,

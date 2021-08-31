@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -22,7 +22,6 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 abstract class InfrastructureFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -84,7 +83,6 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZone.defaultInit(
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
-      vehicleManagerId,
       UbiqiutousParkingAvailability
     )
 

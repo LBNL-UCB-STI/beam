@@ -61,12 +61,8 @@ class HouseholdFleetManager(
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
-        (parkingManager ? ParkingInquiry.init(
-          SpaceTime(homeCoord, 0),
-          "init",
-          VehicleManager.defaultManager,
-          triggerId = triggerId
-        )).mapTo[ParkingInquiryResponse]
+        (parkingManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), "init", triggerId = triggerId))
+          .mapTo[ParkingInquiryResponse]
           .map { r =>
             (id, r)
           }
