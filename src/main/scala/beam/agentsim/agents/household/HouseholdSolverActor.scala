@@ -26,7 +26,7 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
   override def loggedReceive: Receive = {
     case BeginSolving =>
       //println(self + ": Starting Solving")
-      val ongoingSolver: Future[Unit] = Future { solve }
+      val ongoingSolver: Future[Unit] = Future { solve() }
       ongoingSolver.map(_ => SolutionComplete) pipeTo self
       //ongoingSolver.onComplete(println)
       contextBecome(solving)
@@ -44,7 +44,7 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
     This is where the heavy lifting is done by the solver
     This is just a simple equation, and should be changed to handle whichever you feel is needed
    */
-  def solve: Unit = {
+  def solve(): Unit = {
     implicit val model: MPModel = MPModel(SolverLib.oJSolver)
     val x1 = MPFloatVar("x1", 0, INFINITE)
     val x2 = MPFloatVar("x2", 0, INFINITE)
@@ -61,7 +61,7 @@ class HouseholdSolverActor extends LoggingMessageActor with ActorLogging {
     This is a more simple, but complicated usecase of the solver
     It simply creates a large number of variables and constraints
    */
-  def moreComplicatedSolve: Unit = {
+  def moreComplicatedSolve(): Unit = {
     import context._
     val numberOfVariables = 15360
     var totalTime = 0L

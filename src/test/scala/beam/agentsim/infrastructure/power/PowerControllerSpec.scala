@@ -69,7 +69,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     "lmp_with_control_signal" -> 0.0
   )
 
-  override def beforeEach: Unit = {
+  override def beforeEach(): Unit = {
     reset(beamFederateMock)
     when(beamFederateMock.sync(300)).thenReturn(300.0)
     when(beamFederateMock.collectJSON()).thenReturn(List(dummyPhysicalBounds))

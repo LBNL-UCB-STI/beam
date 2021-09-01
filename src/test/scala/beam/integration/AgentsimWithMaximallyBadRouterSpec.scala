@@ -76,7 +76,7 @@ object AgentsimWithMaximallyBadRouterSpec {
 
     var router: ActorRef = _
 
-    override def beforeAll: Unit = {
+    override def beforeAll(): Unit = {
       super.beforeAll()
       router = TestActorRef(Props(new Actor {
         override def receive: Receive = { case _ =>
