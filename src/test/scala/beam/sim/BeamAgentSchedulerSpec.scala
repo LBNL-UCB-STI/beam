@@ -99,7 +99,7 @@ class BeamAgentSchedulerSpec
     }
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 
