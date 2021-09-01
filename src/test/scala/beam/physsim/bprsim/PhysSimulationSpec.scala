@@ -55,7 +55,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
 
   "JDEQ Simulation" must {
     "produce the right sequence of events" in {
-      val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
+      val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager(false)
       val sim = new JDEQSimulation(jdeqConfig, scenario, eventManager)
       sim.run()
       validateEvents(eventBuffer.buffer)
@@ -74,7 +74,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           (time, link, _, _) => link.getLength / link.getFreespeed(time),
           None
         )
-      val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
+      val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager(false)
       val sim = new BPRSimulation(scenario, bprConfig, eventManager)
       sim.run()
       validateEvents(eventBuffer.buffer)
@@ -93,7 +93,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
           (time, link, _, _) => link.getLength / link.getFreespeed(time),
           None
         )
-      val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
+      val (eventManager: BatchEventManager, eventBuffer: BufferEventHandler) = createEventManager(true)
       val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager, 42)
       sim.run()
       validateEvents(eventBuffer.buffer)
@@ -158,10 +158,11 @@ object PhysSimulationSpec {
     scenario
   }
 
-  private def createEventManager = {
-    val eventManager = new EventsManagerImpl
+  private def createEventManager(batch: Boolean) = {
+    val eventManager = if (batch) new BatchEventManager else new EventsManagerImpl
     val bufferEventHandler = new BufferEventHandler
     eventManager.addHandler(bufferEventHandler)
+    eventManager.initProcessing()
     (eventManager, bufferEventHandler)
   }
 }

@@ -15,7 +15,6 @@ import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanD
 import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
 
 import scala.collection.JavaConverters._
@@ -24,7 +23,7 @@ import scala.collection.mutable.ArrayBuffer
 /**
   * @author Dmitry Openkov
   */
-class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: EventsManager, seed: Long)
+class ParallelBPRSimulation(scenario: Scenario, config: BPRSimConfig, eventManager: BatchEventManager, seed: Long)
     extends Mobsim
     with LazyLogging {
 

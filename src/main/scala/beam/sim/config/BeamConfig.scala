@@ -2815,7 +2815,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.EventManager = {
           BeamConfig.Beam.Physsim.EventManager(
             numberOfThreads = if (c.hasPathOrNull("numberOfThreads")) c.getInt("numberOfThreads") else 1,
-            `type` = if (c.hasPathOrNull("type")) c.getString("type") else "Auto"
+            `type` = if (c.hasPathOrNull("type")) c.getString("type") else "Parallel"
           )
         }
       }

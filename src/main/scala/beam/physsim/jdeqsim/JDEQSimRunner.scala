@@ -4,7 +4,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
-import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
+import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, BatchEventManager, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   Hao2018CaccRoadCapacityAdjustmentFunction,
@@ -28,8 +28,6 @@ import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
-
-import scala.concurrent.ExecutionContext
 
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
@@ -148,18 +146,20 @@ class JDEQSimRunner(
     }
 
     def sequentialEventManger = new EventsManagerImpl
+    def batchEventManger = new BatchEventManager
 
-    beamConfig.beam.physsim.eventManager.`type`.toLowerCase match {
-      case "auto"       => if (beamConfig.beam.physsim.name == "PARBPRSim") sequentialEventManger else parallelEventManager
-      case "sequential" => sequentialEventManger
-      case "parallel"   => parallelEventManager
-      case _ =>
-        logger.error(
-          "Wrong beam.physsim.eventManager parameter: {}. Using sequential event manger",
-          beamConfig.beam.physsim.eventManager
-        )
-        sequentialEventManger
-    }
+    if (beamConfig.beam.physsim.name == "PARBPRSim") batchEventManger
+    else
+      beamConfig.beam.physsim.eventManager.`type`.toLowerCase match {
+        case "sequential" => sequentialEventManger
+        case "parallel"   => parallelEventManager
+        case _ =>
+          logger.error(
+            "Wrong beam.physsim.eventManager parameter: {}. Using sequential event manger",
+            beamConfig.beam.physsim.eventManager
+          )
+          sequentialEventManger
+      }
   }
 
   private def getPhysSimulation(
@@ -215,7 +215,12 @@ class JDEQSimRunner(
           ),
           maybeCACCSettings
         )
-        new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents, beamConfig.matsim.modules.global.randomSeed)
+        new ParallelBPRSimulation(
+          jdeqSimScenario,
+          bprCfg,
+          jdeqsimEvents.asInstanceOf[BatchEventManager],
+          beamConfig.matsim.modules.global.randomSeed
+        )
       case "JDEQSim" =>
         maybeCACCSettings match {
           case Some(caccSettings) =>

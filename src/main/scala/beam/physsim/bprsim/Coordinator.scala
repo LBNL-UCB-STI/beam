@@ -8,7 +8,6 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
@@ -20,7 +19,7 @@ class Coordinator(
   clusters: Vector[Set[Id[Link]]],
   scenario: Scenario,
   config: BPRSimConfig,
-  eventManager: EventsManager
+  eventManager: BatchEventManager
 ) extends StrictLogging {
 
   private val executorService =
@@ -77,12 +76,12 @@ class Coordinator(
 
   var seqFuture: Future[Unit] = Future.successful(())
 
-  private def asyncFlushEvents(events: Vector[Event]): Unit = {
+  private def asyncFlushEvents(events: Vector[Event]): Unit = if (events.nonEmpty) {
     seqFuture = seqFuture.flatMap(_ =>
       Future {
         import BPRSimulation.eventTimeOrdering
         val sorted = util.Sorting.stableSort(events)
-        sorted.foreach(eventManager.processEvent)
+        eventManager.processEvents(sorted)
       }(eventEC)
     )(eventEC)
   }
