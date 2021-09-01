@@ -7,6 +7,27 @@ import glob
 import base64
 from botocore.errorfactory import ClientError
 
+HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
+  -    cd /home/ubuntu/git/beam
+  -    '''
+
+HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
+  -    opth="output"
+  -    echo $opth
+  -    finalPath=""
+  -    for file in $opth/*; do
+  -       for path2 in $file/*; do
+  -         finalPath="$path2";
+  -       done;
+  -    done;
+  -    finalPath="${finalPath}/helics_output" 
+  -    mkdir "$finalPath"
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/*.log "$finalPath"
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"
+  -    cd "$finalPath"
+  -    sudo gzip -9 *
+  -    cd - '''
+
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
@@ -68,6 +89,28 @@ write_files:
     - content: |
           0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
       path: /tmp/slack_notification
+    - content: |
+            #!/bin/bash
+            pip install helics
+            pip install helics-apps
+            cd /home/ubuntu/git/beam/src/main/python
+            sudo chown ubuntu:ubuntu -R gemini
+            cd -
+            cd /home/ubuntu/git/beam/src/main/python/gemini
+            now="$(date +"%Y_%m_%d_%I_%M_%p")"
+            python beam_pydss_broker.py > output_${now}_broker.log &
+            echo "broker started"
+            sleep 5s
+            python beam_to_pydss_federate.py > output_${now}_federate.log &
+            echo "federate started"
+            sleep 5s
+            helics_recorder beam_recorder.txt --output=recording_output.txt > output_${now}_recorder.log &
+            echo "recorder started"
+            sleep 5s
+            cd -
+      path: /home/ubuntu/install-and-run-helics-scripts.sh
+
+    
 runcmd:
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Starting Beam Sim----------------------"
@@ -100,6 +143,7 @@ runcmd:
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - echo $start_json
   - chmod +x /tmp/slack.sh
+  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - echo "notification sent..."
   - echo "notification saved..."
   - crontab /tmp/slack_notification
@@ -560,6 +604,7 @@ def deploy_handler(event, context):
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
+    run_helics = event.get('run_helics', False)
     profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
@@ -588,11 +633,12 @@ def deploy_handler(event, context):
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
-    selected_script = ""
+    selected_script = CONFIG_SCRIPT
     if run_grafana:
         selected_script = CONFIG_SCRIPT_WITH_GRAFANA
-    else:
-        selected_script = CONFIG_SCRIPT
+
+    if run_helics:
+        selected_script = HELICS_RUN + selected_script + HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT
 
     params = configs
     if s3_publish:
@@ -644,10 +690,13 @@ def deploy_handler(event, context):
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+            txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
             if run_grafana:
-                txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
+                txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(dns=host)
+
+            if run_helics:
+                txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
 
             runNum += 1
     else:
