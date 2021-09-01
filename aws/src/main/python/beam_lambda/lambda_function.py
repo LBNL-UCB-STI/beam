@@ -156,6 +156,18 @@ runcmd:
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
+  
+  - SUBMODULES=$(git submodule | awk '{ print $2 }')
+  - for i in $SUBMODULES
+  -  do
+  -    for cf in $CONFIG 
+  -      do
+  -        if [[ $cf =~ $i ]]; then
+  -          echo "Loading remote production data for $i"
+  -          git submodule update --init --remote $i
+  -        fi
+  -      done
+  -  done
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
