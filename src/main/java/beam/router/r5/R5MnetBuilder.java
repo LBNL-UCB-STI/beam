@@ -49,7 +49,7 @@ public class R5MnetBuilder {
         this.beamConfig = beamConfig;
         this.highwaySetting = highwaySetting;
 
-        osmFile = beamConfig.beam().routing().r5().osmMapdbFile();
+        osmFile = beamConfig.beam().routing().r5().osmMapdbFilePath();
         transform = new GeotoolsTransformation(
                 beamConfig.beam().routing().r5().mNetBuilder().fromCRS(),
                 beamConfig.beam().routing().r5().mNetBuilder().toCRS()
