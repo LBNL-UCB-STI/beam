@@ -447,7 +447,7 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }

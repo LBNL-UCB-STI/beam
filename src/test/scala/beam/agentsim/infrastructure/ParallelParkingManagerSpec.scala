@@ -420,7 +420,7 @@ class ParallelParkingManagerSpec
     )
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }
