@@ -179,9 +179,13 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         String csvFileName = ioCotroller.getIterationFilename(iteration, fileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
-            int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
-            for (int hour = 0; hour <= hours; hour++) {
-                heading.append(",").append(hour);
+            int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(0);
+            if (hours != 0) {
+                for (int hour = 0; hour <= hours; hour++) {
+                    heading.append(",").append(hour);
+                }
+            } else {
+                log.warn(String.format("dataSets is empty, no data for %s.csv", fileBaseName));
             }
             out.write(heading.toString());
             out.newLine();
