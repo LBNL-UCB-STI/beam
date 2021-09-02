@@ -475,7 +475,11 @@ class BeamVehicle(
       where any range that yields a negative probability would just be truncated to 0
      */
     val remainingRangeInMeters = getState.remainingPrimaryRangeInM + getState.remainingSecondaryRangeInM.getOrElse(0.0)
-    if (remainingRangeInMeters < refuelRequiredThresholdInMeters) {
+    if (
+      getState.primaryFuelLevel == beamVehicleType.primaryFuelCapacityInJoule && getState.secondaryFuelLevel == beamVehicleType.secondaryFuelCapacityInJoule
+    ) {
+      false
+    } else if (remainingRangeInMeters < refuelRequiredThresholdInMeters) {
       logger.debug(
         "Refueling since range of {} m is less than {} for {}",
         remainingRangeInMeters,

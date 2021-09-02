@@ -11,7 +11,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
-import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.parking.ChoosesParking.{handleUseParkingSpot, ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -680,6 +680,12 @@ class PersonAgent(
   }
 
   when(Waiting) {
+    case Event(StartingRefuelSession(tick, triggerId), data: BasePersonData) if data.enrouteCharging.nonEmpty =>
+      updateLatestObservedTick(tick)
+      handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
+      scheduler ! CompletionNotice(triggerId, Vector())
+      stay()
+
     // en route charging, send unplug request
     case Event(EndingRefuelSession(tick, vehicleId, triggerId), data: BasePersonData)
         if currentBeamVehicle.id == vehicleId && data.enrouteCharging.nonEmpty =>
@@ -693,7 +699,7 @@ class PersonAgent(
 
     // en route charging, re-route to vehicle destination
     case Event(
-          UnpluggingVehicle(tick, _, triggerId),
+          UnpluggingVehicle(tick, energyCharged, triggerId),
           BasePersonData(
             _,
             _,
@@ -974,17 +980,8 @@ class PersonAgent(
           val vehicle = beamVehicles(beamVehicleId).vehicle
           if (vehicle.isBEV || vehicle.isPHEV) {
             val vehicleTrip = trip.view.takeWhile(_.beamVehicleId == vehicle.id)
-            val distanceToDestinationInMeters = vehicleTrip.foldLeft(0.0)(_ + _.beamLeg.travelPath.distanceInM)
-            val newRechargeRequiredThresholdInMeters = {
-              rechargeRequiredThresholdInMeters +
-              (1 - rechargeRequiredThresholdInMeters / distanceToDestinationInMeters) *
-              distanceToDestinationInMeters
-            }
-            // todo: compute new noRechargeThresholdInMeters using distanceToDestinationInMeters value.
-            val newNoRechargeThresholdInMeters = noRechargeThresholdInMeters
             val refuelNeeded =
-              vehicle.isRefuelNeeded(newRechargeRequiredThresholdInMeters, newNoRechargeThresholdInMeters)
-
+              vehicle.isRefuelNeeded(rechargeRequiredThresholdInMeters, noRechargeThresholdInMeters)
             if (refuelNeeded) {
               val enrouteCharging = EnrouteCharging(
                 vehicleDestinationUTM = beamServices.geo.wgs2Utm(vehicleTrip.last.beamLeg.travelPath.endPoint.loc),
