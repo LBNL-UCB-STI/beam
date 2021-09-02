@@ -57,7 +57,7 @@ object ConversionConfig {
     val populationInput =
       s"$scenarioDir/conversion-input/${matsimConversionConfig.getString("populationFile")}"
     val generateVehicles = matsimConversionConfig.getBoolean("generateVehicles")
-    val osmFile = s"$scenarioDir/conversion-input/${matsimConversionConfig.getString("osmFilePath")}"
+    val osmFile = s"$scenarioDir/conversion-input/${matsimConversionConfig.getString("osmFile")}"
 
 //    val transitVehiclesPath = Try(c.getString("matsim.modules.transit.vehiclesFile")).toOption
 

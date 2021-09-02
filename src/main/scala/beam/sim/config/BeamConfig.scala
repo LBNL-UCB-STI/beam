@@ -2728,7 +2728,7 @@ object BeamConfig {
       eventsSampling: scala.Double,
       flowCapacityFactor: scala.Double,
       initializeRouterWithFreeFlowTimes: scala.Boolean,
-      inputNetworkFilePath: java.lang.String,
+      inputPhyssimNetworkFilePath: java.lang.String,
       jdeqsim: BeamConfig.Beam.Physsim.Jdeqsim,
       linkStatsBinSize: scala.Int,
       linkStatsWriteInterval: scala.Int,
@@ -3479,8 +3479,8 @@ object BeamConfig {
           flowCapacityFactor = if (c.hasPathOrNull("flowCapacityFactor")) c.getDouble("flowCapacityFactor") else 1.0,
           initializeRouterWithFreeFlowTimes =
             !c.hasPathOrNull("initializeRouterWithFreeFlowTimes") || c.getBoolean("initializeRouterWithFreeFlowTimes"),
-          inputNetworkFilePath =
-            if (c.hasPathOrNull("inputNetworkFilePath")) c.getString("inputNetworkFilePath")
+          inputPhyssimNetworkFilePath =
+            if (c.hasPathOrNull("inputPhyssimNetworkFilePath")) c.getString("inputPhyssimNetworkFilePath")
             else "/test/input/beamville/r5/physsim-network.xml",
           jdeqsim = BeamConfig.Beam.Physsim.Jdeqsim(
             if (c.hasPathOrNull("jdeqsim")) c.getConfig("jdeqsim")

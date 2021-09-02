@@ -109,7 +109,7 @@ object PhysSimReplayer extends StrictLogging {
             ConfigValueFactory.fromAnyRef(s"""$pwd/fuelTypes.csv""")
           )
           .withValue(
-            "beam.physsim.inputNetworkFilePath",
+            "beam.physsim.inputPhyssimNetworkFilePath",
             ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local/physsim-network.xml""")
           )
           .withValue("beam.routing.r5.directory", ConfigValueFactory.fromAnyRef(s"""$pwd/r5-simple-no-local"""))
