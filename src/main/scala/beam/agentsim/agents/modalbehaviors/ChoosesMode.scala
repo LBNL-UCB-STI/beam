@@ -360,7 +360,6 @@ trait ChoosesMode {
               withRouting = true,
               withRideHail = true,
               withRideHailTransit = !choosesModeData.isWithinTripReplanning,
-//              emergencyGeoId = emergencyGeoId
             )
             makeRideHailRequest()
             if (!choosesModeData.isWithinTripReplanning) {
@@ -1525,7 +1524,6 @@ object ChoosesMode {
     withRideHail: Boolean = false,
     withRideHailTransit: Boolean = false,
     withPrivateCAV: Boolean = false,
-//    emergencyGeoId: Id[_]
   ): ChoosesModeResponsePlaceholders = {
     ChoosesModeResponsePlaceholders(
       routingResponse = if (withRouting) {
