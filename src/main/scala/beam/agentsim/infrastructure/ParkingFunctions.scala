@@ -7,6 +7,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternativ
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.config.BeamConfig
+import org.matsim.households.Household
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -167,8 +168,13 @@ class ParkingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     preferredParkingTypes: Set[ParkingType]
   ): Boolean = {
+    val trackedZone = parkingZones(zone.parkingZoneId)
 
-    val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
+    val hasAvailability: Boolean = trackedZone.stallsAvailable > 0
+
+    val hasResidentialAvailability = inquiry.householdId.flatMap(trackedZone.residentialParkingMap.get).map {
+      _.stallsAvailable(trackedZone.chargingPointType)
+    }
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 

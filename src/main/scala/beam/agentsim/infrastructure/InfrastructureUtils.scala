@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.parking.ParkingZone.ResidentialParking
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -9,11 +10,15 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.Fleets
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.FileUtils
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
+import org.matsim.households.Household
+import org.supercsv.io.CsvMapReader
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.language.existentials
@@ -39,6 +44,7 @@ object InfrastructureUtils extends LazyLogging {
     val parkingManagerCfg = beamConfig.beam.agentsim.taz.parkingManager
 
     val mainParkingFile: String = beamConfig.beam.agentsim.taz.parkingFilePath
+    val residentialParkingFile: String = beamConfig.beam.agentsim.taz.parkingManager.residentialParkingFilePath
     // ADD HERE ALL PARKING FILES THAT BELONGS TO VEHICLE MANAGERS
     val vehicleManagersParkingFiles: IndexedSeq[(String, Id[VehicleManager], Seq[ParkingType])] = {
       // SHARED FLEET
@@ -67,6 +73,11 @@ object InfrastructureUtils extends LazyLogging {
       (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFile).toIndexedSeq
     }
 
+    // RESIDENTIAL PARKING
+    logger.info(s"loading residential parking information")
+    val residentialParkingMap =
+      readCSV(residentialParkingFile, beamServices.matsimServices.getScenario.getHouseholds.getHouseholds.asScala.toMap)
+
     // STALLS ARE LOADED HERE
     logger.info(s"loading stalls...")
     val stalls = beamConfig.beam.agentsim.taz.parkingManager.level.toLowerCase match {
@@ -78,7 +89,8 @@ object InfrastructureUtils extends LazyLogging {
           beamScenario.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamScenario.beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
           beamScenario.beamConfig.matsim.modules.global.randomSeed,
-          beamScenario.beamConfig
+          beamScenario.beamConfig,
+          residentialParkingMap
         )
       case "link" =>
         loadStalls[Link](
@@ -88,7 +100,8 @@ object InfrastructureUtils extends LazyLogging {
           beamScenario.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamScenario.beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
           beamScenario.beamConfig.matsim.modules.global.randomSeed,
-          beamScenario.beamConfig
+          beamScenario.beamConfig,
+          residentialParkingMap
         )
       case _ =>
         throw new IllegalArgumentException(
@@ -193,13 +206,14 @@ object InfrastructureUtils extends LazyLogging {
   }
 
   /**
-    * @param parkingFilePath
-    * @param depotFilePaths
-    * @param geoQuadTree
-    * @param parkingStallCountScalingFactor
-    * @param parkingCostScalingFactor
-    * @param seed
-    * @tparam GEO
+    * @param parkingFilePath parking file path
+    * @param depotFilePaths depot file paths
+    * @param geoQuadTree geo guad
+    * @param parkingStallCountScalingFactor parking stall count
+    * @param parkingCostScalingFactor parking cost
+    * @param seed random seed
+    * @param beamConfig beam config
+    * @param residentialParkingMap Map of ResidentialParking
     * @return
     */
   def loadStalls[GEO: GeoLevel](
@@ -209,7 +223,8 @@ object InfrastructureUtils extends LazyLogging {
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
     seed: Long,
-    beamConfig: BeamConfig
+    beamConfig: BeamConfig,
+    residentialParkingMap: Map[Id[ParkingZoneId], ResidentialParking] = Map.empty
   ): Map[Id[ParkingZoneId], ParkingZone[GEO]] = {
     val random = new Random(seed)
     val initialAccumulator: ParkingLoadingAccumulator[GEO] = if (parkingFilePath.isEmpty) {
@@ -290,6 +305,47 @@ object InfrastructureUtils extends LazyLogging {
     stalls
       .filter(_._2.chargingPointType.isDefined)
       .groupBy(_._2.reservedFor)
+  }
+
+  def readCSV(
+    filePath: String,
+    householdMap: Map[Id[Household], Household]
+  ): Map[Id[ParkingZoneId], ResidentialParking] = {
+    var res = Map.empty[Id[ParkingZoneId], ResidentialParking]
+    var mapReader: CsvMapReader = null
+    try {
+      mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val householdIdStr = line.getOrDefault("householdId", "")
+        val parkingZoneIdStr = line.getOrDefault("parkingZoneId", "")
+        if (householdIdStr.nonEmpty || parkingZoneIdStr.nonEmpty) {
+          val householdId = Id.create(householdIdStr, classOf[Household])
+          if (householdMap.contains(householdId)) {
+            val parkingZoneId = Id.create(parkingZoneIdStr, classOf[ParkingZoneId])
+            val numParkingStalls = line.getOrDefault("numParkingStalls", "0").toInt
+            val numLevel1Chargers = line.getOrDefault("numLevel1Chargers", "0").toInt
+            val numLevel2Chargers = line.getOrDefault("numLevel2Chargers", "0").toInt
+            res = res ++ Map(
+              parkingZoneId -> ResidentialParking(
+                householdId,
+                numParkingStalls,
+                numLevel1Chargers,
+                numLevel2Chargers
+              )
+            )
+          } else logger.error(s"Cannot find household with Id $householdId in residential parking file $filePath")
+        } else logger.error(s"Household/ParkingZone Ids are empty at line $line in residential parking file $filePath")
+        line = mapReader.read(header: _*)
+      }
+    } catch {
+      case e: Exception => logger.error(s"issue with reading $filePath: $e")
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    res
   }
 
 }

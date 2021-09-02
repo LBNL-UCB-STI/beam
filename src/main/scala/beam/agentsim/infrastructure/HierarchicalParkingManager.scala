@@ -7,6 +7,7 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
+import beam.agentsim.infrastructure.parking.ResidentialParking.ResidentialParkingInquiry
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -140,9 +141,11 @@ class HierarchicalParkingManager(
         s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
         else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
       )
-
-      ParkingZone.claimStall(parkingZone)
-      ParkingZone.claimStall(tazParkingZone)
+      val residentialParkingInquiry = if (inquiry.householdId.isDefined && inquiry.beamVehicle.isDefined) {
+        Some(ResidentialParkingInquiry(inquiry.householdId.get, inquiry.beamVehicle.get))
+      } else None
+      ParkingZone.claimStall(parkingZone, residentialParkingInquiry)
+      ParkingZone.claimStall(tazParkingZone, residentialParkingInquiry)
     }
 
     Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))

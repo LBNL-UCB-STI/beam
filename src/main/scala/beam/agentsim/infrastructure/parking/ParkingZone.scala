@@ -3,8 +3,10 @@ package beam.agentsim.infrastructure.parking
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ResidentialParking.ResidentialParkingInquiry
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.households.Household
 
 import scala.language.higherKinds
 
@@ -30,7 +32,8 @@ class ParkingZone[GEO](
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
   val parkingZoneName: Option[String],
-  val landCostInUSDPerSqft: Option[Double]
+  val landCostInUSDPerSqft: Option[Double],
+  val residentialParkingMap: Map[Id[Household], ResidentialParking]
 ) {
 
   /**
@@ -64,7 +67,8 @@ class ParkingZone[GEO](
       this.pricingModel,
       this.timeRestrictions,
       this.parkingZoneName,
-      this.landCostInUSDPerSqft
+      this.landCostInUSDPerSqft,
+      this.residentialParkingMap
     )
   }
 
@@ -108,7 +112,8 @@ object ParkingZone extends LazyLogging {
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     parkingZoneName: Option[String] = None,
-    landCostInUSDPerSqft: Option[Double] = None
+    landCostInUSDPerSqft: Option[Double] = None,
+    residentialParkingMap: Map[Id[Household], ResidentialParking] = Map.empty
   ): ParkingZone[GEO] =
     new ParkingZone[GEO](
       parkingZoneId,
@@ -121,7 +126,8 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       parkingZoneName,
-      landCostInUSDPerSqft
+      landCostInUSDPerSqft,
+      residentialParkingMap
     )
 
   def defaultInit[GEO](
@@ -142,7 +148,8 @@ object ParkingZone extends LazyLogging {
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     parkingZoneName: Option[String] = None,
-    landCostInUSDPerSqft: Option[Double] = None
+    landCostInUSDPerSqft: Option[Double] = None,
+    residentialParkingMap: Map[Id[Household], ResidentialParking] = Map.empty
   ): ParkingZone[GEO] = {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
@@ -160,7 +167,8 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       parkingZoneName,
-      landCostInUSDPerSqft
+      landCostInUSDPerSqft,
+      residentialParkingMap
     )
   }
 
@@ -170,7 +178,10 @@ object ParkingZone extends LazyLogging {
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
     */
-  def releaseStall[GEO](parkingZone: ParkingZone[GEO]): Boolean =
+  def releaseStall[GEO](
+    parkingZone: ParkingZone[GEO],
+    residentialParkingInquiry: Option[ResidentialParkingInquiry]
+  ): Boolean =
     if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
       // this zone does not exist in memory but it has infinitely many stalls to release
       true
@@ -179,6 +190,11 @@ object ParkingZone extends LazyLogging {
       false
     } else {
       parkingZone.stallsAvailable += 1
+      if (parkingZone.parkingType == ParkingType.Residential) {
+        residentialParkingInquiry.flatMap(x => parkingZone.residentialParkingMap.get(x.householdId)) foreach {
+          _.releaseStall(parkingZone.chargingPointType, residentialParkingInquiry.get)
+        }
+      }
       true
     }
 
@@ -188,12 +204,20 @@ object ParkingZone extends LazyLogging {
     * @param parkingZone the object to increment
     * @return True|False (representing success) wrapped in an effect type
     */
-  def claimStall[GEO](parkingZone: ParkingZone[GEO]): Boolean =
+  def claimStall[GEO](
+    parkingZone: ParkingZone[GEO],
+    residentialParkingInquiry: Option[ResidentialParkingInquiry]
+  ): Boolean =
     if (parkingZone.parkingZoneId == DefaultParkingZoneId) {
       // this zone does not exist in memory but it has infinitely many stalls to release
       true
     } else if (parkingZone.stallsAvailable - 1 >= 0) {
       parkingZone.stallsAvailable -= 1
+      if (parkingZone.parkingType == ParkingType.Residential) {
+        residentialParkingInquiry.flatMap(x => parkingZone.residentialParkingMap.get(x.householdId)) foreach {
+          _.claimStall(parkingZone.chargingPointType, residentialParkingInquiry.get)
+        }
+      }
       true
     } else {
       // log debug that we tried to claim a stall when there were no free stalls

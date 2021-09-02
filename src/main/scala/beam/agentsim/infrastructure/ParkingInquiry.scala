@@ -6,9 +6,11 @@ import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking.{ParkingMNL, ParkingZone}
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
+import org.matsim.households.Household
 import com.typesafe.scalalogging.LazyLogging
 import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.Id
+import org.matsim.households.Household
 
 import scala.collection.immutable
 
@@ -29,6 +31,7 @@ case class ParkingInquiry(
   activityType: ParkingActivityType,
   reservedFor: Id[VehicleManager] = ParkingZone.GlobalReservedFor,
   beamVehicle: Option[BeamVehicle] = None,
+  householdId: Option[Id[Household]],
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
   valueOfTime: Double = 0.0,
   parkingDuration: Double = 0,

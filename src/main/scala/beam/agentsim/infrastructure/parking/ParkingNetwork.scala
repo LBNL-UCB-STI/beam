@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure._
+import beam.agentsim.infrastructure.parking.ResidentialParking.ResidentialParkingInquiry
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -35,7 +36,10 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
             else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
           )
           // update the parking stall data
-          val claimed: Boolean = ParkingZone.claimStall(parkingZone)
+          val residentialParkingInquiry = if (inquiry.householdId.isDefined && inquiry.beamVehicle.isDefined) {
+            Some(ResidentialParkingInquiry(inquiry.householdId.get, inquiry.beamVehicle.get))
+          } else None
+          val claimed: Boolean = ParkingZone.claimStall(parkingZone, residentialParkingInquiry)
           if (claimed) {
             totalStallsInUse += 1
             totalStallsAvailable -= 1
@@ -61,6 +65,7 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
       logger.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
       false
     } else {
+      release.stall.
       val releasedTemp: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId))
       if (releasedTemp) {
         totalStallsInUse -= 1
