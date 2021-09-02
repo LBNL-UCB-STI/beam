@@ -13,7 +13,7 @@ import scala.collection.mutable.ArrayBuffer
   * @author Dmitry Openkov
   */
 private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
-  private val queue = mutable.PriorityQueue.empty[SimEvent](BPRSimulation.simEventOrdering)
+  private val queue = new java.util.PriorityQueue[SimEvent](1024, BPRSimulation.simEventOrdering)
   // we need to use time window at least twice as much as syncInterval
   // in order to keep events for the subsequent sim steps
   private val timeWindow = Math.max(config.inFlowAggregationTimeWindow, config.syncInterval * 2)
@@ -31,9 +31,7 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
   }
 
   def minTime: Double = {
-    queue.headOption
-      .map(_.time)
-      .getOrElse(Double.MaxValue)
+    if (queue.isEmpty) Double.MaxValue else queue.peek().time
   }
 
   def processQueuedEvents(
@@ -42,11 +40,11 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
   ): (Seq[Event], collection.Map[BPRSimWorker, Seq[SimEvent]]) = {
     @tailrec
     def processQueuedEvents(workers: Map[Id[Link], BPRSimWorker], tillTime: Double, counter: Int): Int = {
-      val seOption = queue.headOption
-      if (seOption.isEmpty || seOption.get.time > tillTime) {
+      val seOption = queue.peek()
+      if (seOption == null || seOption.time > tillTime) {
         counter
       } else {
-        val simEvent = queue.dequeue()
+        val simEvent = queue.poll()
         val (events, maybeSimEvent) = simEvent.execute(scenario, params)
         eventBuffer ++= events
         maybeSimEvent
@@ -73,7 +71,7 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
 
   private def acceptSimEvent(simEvent: SimEvent): Unit = {
     if (simEvent.time <= config.simEndTime) {
-      queue += simEvent
+      queue.add(simEvent)
     }
   }
 
