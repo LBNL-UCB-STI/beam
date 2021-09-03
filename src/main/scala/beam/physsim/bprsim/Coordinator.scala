@@ -1,7 +1,6 @@
 package beam.physsim.bprsim
 
 import java.util.concurrent.{Executors, TimeUnit}
-
 import beam.utils.ConcurrentUtils.parallelExecution
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.StrictLogging
@@ -10,6 +9,7 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -50,7 +50,7 @@ class Coordinator(
 
   @tailrec
   private def executePeriod(tillTime: Double): Unit = {
-    val events = executeSubPeriod(tillTime, Vector.empty[Event])
+    val events = executeSubPeriod(tillTime, ArrayBuffer.empty[Event])
     asyncFlushEvents(events)
     val minTime = workers.map(_.minTime).min
     if (!minTime.equals(Double.MaxValue)) {
@@ -59,14 +59,14 @@ class Coordinator(
   }
 
   @tailrec
-  private def executeSubPeriod(tillTime: Double, eventAcc: Vector[Event]): Vector[Event] = {
+  private def executeSubPeriod(tillTime: Double, eventAcc: ArrayBuffer[Event]): ArrayBuffer[Event] = {
     val events: Seq[(Seq[Event], collection.Map[BPRSimWorker, Seq[SimEvent]])] =
       parallelExecution(workers.map(w => () => w.processQueuedEvents(workerMap, tillTime)))
     val (producedEvents, workerEvents) = events.unzip
     val acceptedEvents: Seq[Int] = parallelExecution(workers.map(w => () => w.acceptEvents(workerEvents)))
     logger.debug(s"Accepted events: ${acceptedEvents.mkString(",")}")
     val minTime = workers.map(_.minTime).min
-    val allEvents = eventAcc ++ producedEvents.flatten
+    val allEvents = eventAcc ++= producedEvents.flatten
     if (minTime > tillTime) {
       allEvents
     } else {
@@ -76,7 +76,7 @@ class Coordinator(
 
   var seqFuture: Future[Unit] = Future.successful(())
 
-  private def asyncFlushEvents(events: Vector[Event]): Unit = if (events.nonEmpty) {
+  private def asyncFlushEvents(events: ArrayBuffer[Event]): Unit = if (events.nonEmpty) {
     seqFuture = seqFuture.flatMap(_ =>
       Future {
         import BPRSimulation.eventTimeOrdering
