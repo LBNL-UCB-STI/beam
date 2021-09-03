@@ -8,7 +8,6 @@ import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.Household
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -101,8 +100,7 @@ object ParkingZoneSearch {
     parkingType: ParkingType,
     parkingZone: ParkingZone[GEO],
     coord: Coord,
-    costInDollars: Double,
-    householdId: Option[Id[Household]]
+    costInDollars: Double
   )
 
   /**
@@ -208,8 +206,7 @@ object ParkingZoneSearch {
             )
 
           mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, householdId) =
-              result.alternativeType
+            val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars) = result.alternativeType
 
             // create a new stall instance. you win!
             val parkingStall = ParkingStall(
@@ -221,8 +218,7 @@ object ParkingZoneSearch {
               parkingZone.chargingPointType,
               parkingZone.pricingModel,
               parkingType,
-              parkingZone.reservedFor,
-              householdId
+              parkingZone.reservedFor
             )
 
             val theseParkingZoneIds: List[Id[ParkingZoneId]] = alternatives.map {

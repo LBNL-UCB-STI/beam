@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 import beam.agentsim.infrastructure.parking._
@@ -8,7 +9,6 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.households.Household
 
 import scala.util.Random
 
@@ -21,8 +21,7 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: Id[VehicleManager],
-  householdId: Option[Id[Household]]
+  reservedFor: ReservedFor
 )
 
 object ParkingStall {
@@ -62,8 +61,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = ParkingZone.GlobalReservedFor,
-    householdId = None
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -93,8 +91,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = ParkingZone.GlobalReservedFor,
-      householdId = None
+      reservedFor = VehicleManager.AnyManager
     )
   }
 
@@ -120,8 +117,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = ParkingZone.GlobalReservedFor,
-    householdId = None
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -143,8 +139,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      parkingAlternative.parkingZone.reservedFor,
-      parkingAlternative.householdId
+      parkingAlternative.parkingZone.reservedFor
     )
   }
 

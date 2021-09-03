@@ -728,7 +728,7 @@ trait ChoosesMode {
               seq :+ (vehicleOnTrip -> ParkingInquiry.init(
                 SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
-                veh.vehicleManagerId,
+                VehicleManager.getReservedFor(veh.vehicleManagerId.get).get,
                 Some(veh),
                 None,
                 attributes.valueOfTime,

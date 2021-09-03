@@ -124,7 +124,7 @@ class ChargingNetworkManagerSpec
   val personId: Id[Person] = Id.createPersonId("dummyPerson")
 
   val parkingZoneId: Id[ParkingZoneId] =
-    ParkingZone.createId("cs_Global_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
+    ParkingZone.createId("cs_default(Any)_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
 
   val parkingStall: ParkingStall =
     ParkingStall(
@@ -136,7 +136,7 @@ class ChargingNetworkManagerSpec
       Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
-      reservedFor = ParkingZone.GlobalReservedFor
+      reservedFor = VehicleManager.AnyManager
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _
   var parkingManager: TestProbe = _
@@ -423,12 +423,15 @@ class ChargingNetworkManagerSpec
     )
     parkingManager = new TestProbe(system)
 
-    val (_, chargingNetworkMap) = InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
+    import scala.language.existentials
+    val (_, chargingNetworkMap, rideHailNetwork) =
+      InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
     chargingNetworkManager = TestActorRef[ChargingNetworkManager](
       ChargingNetworkManager.props(
         beamServices,
         chargingNetworkMap,
+        rideHailNetwork,
         parkingManager.ref,
         scheduler
       )

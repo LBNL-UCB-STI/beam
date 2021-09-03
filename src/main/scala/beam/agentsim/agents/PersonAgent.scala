@@ -48,6 +48,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -280,7 +281,7 @@ class PersonAgent(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType,
-    vehicleManagerId = VehicleManager.noManager
+    vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))

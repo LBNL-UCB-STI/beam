@@ -2,12 +2,11 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.parking.ResidentialParking.ResidentialParkingInquiry
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
@@ -141,11 +140,9 @@ class HierarchicalParkingManager(
         s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
         else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
       )
-      val residentialParkingInquiry = if (inquiry.householdId.isDefined && inquiry.beamVehicle.isDefined) {
-        Some(ResidentialParkingInquiry(inquiry.householdId.get, inquiry.beamVehicle.get))
-      } else None
-      ParkingZone.claimStall(parkingZone, residentialParkingInquiry)
-      ParkingZone.claimStall(tazParkingZone, residentialParkingInquiry)
+
+      ParkingZone.claimStall(parkingZone)
+      ParkingZone.claimStall(tazParkingZone)
     }
 
     Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
@@ -233,12 +230,10 @@ object HierarchicalParkingManager {
     */
   case class ParkingZoneDescription(
     parkingType: ParkingType,
-    reservedFor: Id[VehicleManager],
+    reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range],
-    parkingZoneName: Option[String],
-    landCostInUSDPerSqft: Option[Double]
+    timeRestrictions: Map[VehicleCategory, Range]
   )
 
   object ParkingZoneDescription {
@@ -249,9 +244,7 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions,
-        zone.parkingZoneName,
-        zone.landCostInUSDPerSqft
+        zone.timeRestrictions
       )
     }
   }
@@ -349,9 +342,7 @@ object HierarchicalParkingManager {
         reservedFor = description.reservedFor,
         chargingPointType = description.chargingPointType,
         pricingModel = description.pricingModel,
-        timeRestrictions = description.timeRestrictions,
-        parkingZoneName = description.parkingZoneName,
-        landCostInUSDPerSqft = description.landCostInUSDPerSqft
+        timeRestrictions = description.timeRestrictions
       )
       parkingZone.parkingZoneId -> parkingZone
     }.toMap
@@ -410,9 +401,7 @@ object HierarchicalParkingManager {
           reservedFor = description.reservedFor,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
-          timeRestrictions = description.timeRestrictions,
-          parkingZoneName = description.parkingZoneName,
-          landCostInUSDPerSqft = description.landCostInUSDPerSqft
+          timeRestrictions = description.timeRestrictions
         )
         parkingZone.parkingZoneId -> parkingZone
       }

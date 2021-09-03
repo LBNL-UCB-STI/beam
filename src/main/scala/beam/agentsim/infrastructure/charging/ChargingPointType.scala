@@ -1,11 +1,5 @@
 package beam.agentsim.infrastructure.charging
 
-import beam.agentsim.infrastructure.charging.ChargingPointType.ChargerTypeEnum.{
-  HomeLevel1,
-  HomeLevel2,
-  NoCharger,
-  Others
-}
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.{AC, DC}
 
 import scala.util.matching.Regex
@@ -192,21 +186,4 @@ object ChargingPointType {
   def isFastCharger(chargingPointType: ChargingPointType): Boolean =
     getChargingPointInstalledPowerInKw(chargingPointType) > FastChargingThreshold
 
-  object ChargerTypeEnum extends Enumeration {
-    type ChargerTypeEnum = Value
-    val HomeLevel1, HomeLevel2, NoCharger, Others = Value
-  }
-
-  def getChargingType(chargingPointType: Option[ChargingPointType]): ChargerTypeEnum.ChargerTypeEnum = {
-    chargingPointType match {
-      case None => NoCharger
-      case Some(chargingPoint) if List("nocharger", "none", "").contains(chargingPoint.toString.trim.toLowerCase) =>
-        NoCharger
-      case Some(CustomChargingPoint(id, _, _)) if id.trim.toLowerCase.contains("householdsocket") => HomeLevel1
-      case Some(CustomChargingPoint(id, _, _)) if id.trim.toLowerCase.contains("homelevel1")      => HomeLevel1
-      case Some(CustomChargingPoint(id, _, _)) if id.trim.toLowerCase.contains("homelevel2")      => HomeLevel2
-      case Some(CustomChargingPoint(_, _, _))                                                     => Others
-      case _                                                                                      => throw new IllegalArgumentException("invalid argument")
-    }
-  }
 }
