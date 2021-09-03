@@ -77,7 +77,7 @@ class ChargingNetworkManager(
     None
   }
 
-  override def postStop: Unit = {
+  override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
     log.debug(
       s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger ms, nHandledPlanEnergyDispatchTrigger: $nHandledPlanEnergyDispatchTrigger, AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
