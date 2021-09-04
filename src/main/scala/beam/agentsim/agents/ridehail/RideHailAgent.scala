@@ -517,7 +517,7 @@ class RideHailAgent(
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
       if (vehicle.isCAV) {
         if (debugEnabled) outgoingMessages += ev
-        startRefueling(tickToUse, Vector())
+        startRefueling(triggerId, Vector())
         goto(Refueling)
       } else {
         holdTickAndTriggerId(tickToUse, triggerId)
@@ -611,7 +611,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev, Vehicle ID: ${vehicle.id}")
       if (debugEnabled) outgoingMessages += ev
-      startRefueling(tickToUse, Vector())
+      startRefueling(triggerId, Vector())
       goto(Refueling)
     case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
@@ -1077,11 +1077,11 @@ class RideHailAgent(
           stall.parkingZoneId
         )
     }
-    startRefueling(tick, triggers)
+    startRefueling(triggerId, triggers)
   }
 
-  private def startRefueling(tick: Int, triggers: Seq[ScheduleTrigger]): Unit = {
-    handleStartRefuel(tick, triggers)
+  private def startRefueling(triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
+    handleStartRefuel(triggerId, triggers)
   }
 
   def requestParkingStall(): Unit = {
