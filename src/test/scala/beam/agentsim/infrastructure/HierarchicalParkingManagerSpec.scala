@@ -395,33 +395,24 @@ class HierarchicalParkingManagerSpec
       )
 
       assertParkingResponse(
-        zpm,
-        new Coord(170308.0, 2964.0),
-        "4",
-//        ParkingZone.DefaultParkingZoneId,
-//        Block(0.0, 3600),
-//        ParkingType.Residential,
-        ParkingZone.GlobalReservedFor
+        spm = zpm,
+        coord = new Coord(170308.0, 2964.0),
+        tazId = "4",
+        vehicleManagerId = ParkingZone.GlobalReservedFor
       )
 
       assertParkingResponse(
-        zpm,
-        new Coord(166321.0, 1568.0),
-        "1",
-//        ParkingZone.DefaultParkingZoneId,
-//        FlatFee(0.0),
-//        ParkingType.Residential,
-        ParkingZone.GlobalReservedFor
+        spm = zpm,
+        coord = new Coord(166321.0, 1568.0),
+        tazId = "1",
+        vehicleManagerId = ParkingZone.GlobalReservedFor
       )
 
       assertParkingResponse(
-        zpm,
-        new Coord(166500.0, 1500.0),
-        "1",
-//        ParkingZone.DefaultParkingZoneId,
-//        Block(0.0, 3600),
-//        ParkingType.Public,
-        ParkingZone.GlobalReservedFor
+        spm = zpm,
+        coord = new Coord(166500.0, 1500.0),
+        tazId = "1",
+        vehicleManagerId = ParkingZone.GlobalReservedFor
       )
     }
   }
