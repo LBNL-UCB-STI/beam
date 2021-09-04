@@ -120,7 +120,6 @@ object ChargingPointTypeSpec extends org.scalatest.Assertions {
     * @param pos required for calling "fail" here, an implicit that tracks the call point of an error
     * @return either an error string, or a CustomChargingPoint
     */
-//  def expectsACustomChargingPoint(input: String)(implicit pos: source.Position): Either[String, CustomChargingPoint] = {
   def expectsACustomChargingPoint(input: String): Either[String, CustomChargingPoint] = {
     ChargingPointType(input) match {
       case None =>
