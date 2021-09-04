@@ -421,9 +421,6 @@ class HierarchicalParkingManagerSpec
     spm: ParkingNetwork[_],
     coord: Coord,
     tazId: String,
-//    parkingZoneId: Id[ParkingZoneId],
-//    pricingModel: PricingModel,
-//    parkingType: ParkingType,
     vehicleManagerId: Id[VehicleManager]
   ): Any = {
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 27)
