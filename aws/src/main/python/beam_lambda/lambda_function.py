@@ -160,12 +160,13 @@ runcmd:
   - SUBMODULES=$(git submodule | awk '{ print $2 }')
   - for i in $SUBMODULES
   -  do
-  -    for cf in $CONFIG 
+  -    for cf in $CONFIG
   -      do
-  -        if [[ $cf =~ $i ]]; then
-  -          echo "Loading remote production data for $i"
-  -          git submodule update --init --remote $i
-  -        fi
+  -        case $cf in
+  -         '*$i*)'
+  -            echo "Loading remote production data for $i"
+  -            git submodule update --init --remote $i
+  -        esac
   -      done
   -  done
 
