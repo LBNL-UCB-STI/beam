@@ -12,7 +12,6 @@ import beam.utils.csv.GenericCsvReader
 class ParkingEntriesReader[T](
   parkingFile: Path,
   parkingEntryMapper: java.util.Map[String, String] => ParkingEntry[T]
-//) {
 )(implicit t: ClassTag[T]) {
 
   def readParkingEntries(): Seq[ParkingEntry[T]] = {
