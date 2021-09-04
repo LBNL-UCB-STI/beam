@@ -8,15 +8,15 @@ import scala.reflect.ClassTag
 import beam.agentsim.infrastructure.geozone.H3Index
 import beam.utils.csv.GenericCsvReader
 
-@SuppressWarnings(Array("UnusedMethodParameter")) // can be removed
 class ParkingEntriesReader[T](
   parkingFile: Path,
   parkingEntryMapper: java.util.Map[String, String] => ParkingEntry[T]
-)(implicit t: ClassTag[T]) {
+)(implicit classTag: ClassTag[ParkingEntry[T]]) {
 
   def readParkingEntries(): Seq[ParkingEntry[T]] = {
     val (iter: Iterator[ParkingEntry[T]], toClose: Closeable) =
-      GenericCsvReader.readAs[ParkingEntry[T]](parkingFile.toString, parkingEntryMapper, _ => true)
+      GenericCsvReader
+        .readAs[ParkingEntry[T]](parkingFile.toString, parkingEntryMapper, _ => true)
     try {
       iter.toList
     } finally {
