@@ -588,7 +588,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       .groupBy(x => (x.vehicleId, x.driverId))
     val drivingWithParkingPtes = grouped.map { case ((vehId, driverId), xs) =>
       val sorted = xs.sortBy(x => x.departureTime)
-      if (sorted.length % 2 == 1 && treatMismatchAsWarning) {
+      if (sorted.length % 2 != 0 && treatMismatchAsWarning) {
         logger.warn(
           s"Vehicle $vehId with driver $driverId has ${sorted.length} events, but expected to have odd number of events (1 driving PathTraversalEvent and 1 parking PathTraversalEvent)"
         )
