@@ -27,9 +27,10 @@ object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
 
-  @SuppressWarnings(Array("UnusedMethodParameter")) // LOOKS LIKE SCAPEGOAT BUG
-  def init[GEO: GeoLevel](
-    parkingZone: ParkingZone[GEO],
+//  @SuppressWarnings(Array("UnusedMethodParameter")) // LOOKS LIKE SCAPEGOAT BUG
+//  def init[GEO: GeoLevel](
+  def init[T](
+    parkingZone: ParkingZone[T],
     tazId: Id[TAZ],
     location: Location,
     costInDollars: Double
