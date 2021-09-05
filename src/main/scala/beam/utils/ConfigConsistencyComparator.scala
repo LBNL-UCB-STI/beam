@@ -24,7 +24,7 @@ object ConfigConsistencyComparator extends LazyLogging {
   private val bottom = sessionSeparator + eol
   private val consistentFileMessage = buildTopicTile("All good, your config file is fully consistent!")
 
-  private val ignorePaths: Set[String] = Set("beam.physsim.inputPhyssimNetworkFilePath")
+  private val ignorePaths: Set[String] = Set("beam.physsim.inputNetworkFilePath")
 
   private var consistencyMessage: Option[String] = None
 
