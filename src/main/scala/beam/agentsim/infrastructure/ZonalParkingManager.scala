@@ -118,7 +118,7 @@ object ZonalParkingManager extends LazyLogging {
     maxSearchRadius: Double,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-    beamConfig: BeamConfig,
+    beamConfig: BeamConfig
   ): ZonalParkingManager[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,

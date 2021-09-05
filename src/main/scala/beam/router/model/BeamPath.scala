@@ -86,7 +86,6 @@ object BeamPath extends Ordering[BeamPath] {
 
   import scala.annotation.tailrec
 
-
   // TODO: looks like a bug on scapegoat.
   //  it does not recognize the usage of implicit ev variable (used inside internal function)
   @SuppressWarnings(Array("UnusedMethodParameter"))
