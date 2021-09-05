@@ -27,8 +27,8 @@ object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
 
-  def init[GEO: GeoLevel](
-    parkingZone: ParkingZone[GEO],
+  def init[T](
+    parkingZone: ParkingZone[T],
     tazId: Id[TAZ],
     location: Location,
     costInDollars: Double

@@ -12,6 +12,7 @@ import scala.util.Try
 
 object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
+  @SuppressWarnings(Array("UnusedMethodParameter"))
   def main(array: Array[String]): Unit = {
     //    readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.parquet").take(3).foreach(println)
     //    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.parquet").take(3).foreach(println)
