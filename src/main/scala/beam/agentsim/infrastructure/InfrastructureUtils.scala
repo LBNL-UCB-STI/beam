@@ -284,8 +284,7 @@ object InfrastructureUtils extends LazyLogging {
     * @param stalls Map[Id[ParkingZoneId], ParkingZone[GEO]]
     * @return
     */
-  @SuppressWarnings(Array("UnusedMethodParameter"))
-  def buildChargingZones[GEO: GeoLevel](
+  def buildChargingZones[GEO](
     stalls: Map[Id[ParkingZoneId], ParkingZone[GEO]]
   ): Map[Id[VehicleManager], Map[Id[ParkingZoneId], ParkingZone[GEO]]] = {
     stalls
