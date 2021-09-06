@@ -106,7 +106,14 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Production data is located in separate git repositories each scenario in its own repo (see `#3254 <https://github.com/LBNL-UCB-STI/beam/issues/3254>`_ for the reason)
+Production data is located in separate git repositories each scenario in its own repo.
+
+Separation of production data and code is needed for:
+
+1. Reducing the git repository size for developers
+2. Easier addition or changing production data without merging back into develop code changes
+3. Ability to use any production data with any code branch/commit without creation of yet another git production branch
+
 
 These repositories have `beam-data-` prefix, e.g `beam-data-sfbay`
 
