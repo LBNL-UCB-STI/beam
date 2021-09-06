@@ -31,14 +31,7 @@ class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
     cnt += 1
     val hour = (event.getTime / 3600).toInt
     val className = event.getClass.getSimpleName
-    val hourFreq = eventToHourFreq.get(className) match {
-      case Some(value) =>
-        value
-      case None =>
-        val r = mutable.Map[Int, Int]()
-        eventToHourFreq.update(className, r)
-        r
-    }
+    val hourFreq = eventToHourFreq.getOrElseUpdate(className, mutable.Map[Int, Int]())
     val prev = hourFreq.getOrElse(hour, 0)
     hourFreq.update(hour, prev + 1)
   }
