@@ -157,8 +157,8 @@ runcmd:
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
   
-  - SUBMODULES=$(git submodule | awk '{ print $2 }')
-  - for i in $SUBMODULES
+  - production_data_submodules=$(git submodule | awk '{ print $2 }')
+  - for i in $production_data_submodules
   -  do
   -    for cf in $CONFIG
   -      do
