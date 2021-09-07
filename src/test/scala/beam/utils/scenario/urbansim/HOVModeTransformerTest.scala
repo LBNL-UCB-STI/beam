@@ -19,10 +19,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     val plansBefore = modes.zipWithIndex.flatMap { case (mode, idx) =>
       newTrip(personId = 1, idx, mode.value)
     }
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 1))
-
-    val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
+    val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore)
     plansAfter should equal(plansBefore)
   }
 
@@ -30,10 +27,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     val allHov = Set("HOV2", "HOV3", "hov2", "hov3")
     allHov.foreach { mode =>
       val plansBefore = newTrip(1, 1, mode)
-      val persons = Seq(newPerson(1, 1))
-      val households = Seq(newHousehold(1, 1))
 
-      val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
+      val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore)
       plansAfter.foreach { plan =>
         plan.legMode match {
           case Some(mode) => allHov shouldNot contain(mode)
@@ -48,10 +43,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     val allHov = Set("HOV2", "hov2")
     allHov.foreach { mode =>
       val plansBefore = newTrip(1, 1, mode)
-      val persons = Seq(newPerson(1, 1))
-      val households = Seq(newHousehold(1, 1))
 
-      val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
+      val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore)
       plansAfter.foreach { plan =>
         plan.legMode match {
           case Some(mode) => expected should contain(mode)
@@ -66,10 +59,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     val allHov = Set("HOV3", "hov3")
     allHov.foreach { mode =>
       val plansBefore = newTrip(1, 1, mode)
-      val persons = Seq(newPerson(1, 1))
-      val households = Seq(newHousehold(1, 1))
 
-      val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
+      val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore)
       plansAfter.foreach { plan =>
         plan.legMode match {
           case Some(mode) => expected should contain(mode)
@@ -90,10 +81,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
   test("hov2 / hov3 legs if car available should be transformed into car_hov / hov_teleportation") {
     val plansBefore = getNumberOfHOVTrips(302)
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 1))
 
-    val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore, persons, households)
+    val plansAfter = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plansBefore)
     val modesAfter = plansAfter.filter(plan => plan.legMode.nonEmpty).map(_.legMode.get.toLowerCase).toSet
 
     Seq("hov2", "hov3").foreach { mode =>
@@ -181,11 +170,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       }
 
     HOVModeTransformer.reseedRandomGenerator(42)
-    val transformedPlans: Iterable[PlanElement] = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(
-      originalPlans,
-      Seq.empty[PersonInfo],
-      Seq.empty[HouseholdInfo]
-    )
+    val transformedPlans: Iterable[PlanElement] =
+      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(originalPlans)
 
     val personToPlanOriginal: Map[PersonId, Iterable[PlanElement]] = originalPlans.groupBy(plan => plan.personId)
     val personToPlanTransformed: Map[PersonId, Iterable[PlanElement]] =
@@ -323,9 +309,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 
     val manyPlans = (1 to 50).flatMap(_ => fewPlans)
 
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 1))
-    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(manyPlans, persons, households)
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(manyPlans)
 
     val modes = processedPlans.flatMap(_.legMode).map(_.toLowerCase).toSet
 
@@ -348,9 +332,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
         Seq(Act("Home", 1.1, 1.1), Act("Shopping"), Act("Other"), Act("Work"), Act("Shopping"), Act("Home", 1.1, 1.1))
     )
 
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 1))
-    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans)
     val processedTrips = HOVModeTransformer.splitToTrips(processedPlans).toArray
 
     val tripsModes = processedTrips.map(_.flatMap(_.legMode))
@@ -375,9 +357,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       )
     )
 
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 1))
-    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans)
     val processedTrips = HOVModeTransformer.splitToTrips(processedPlans).toArray
 
     val tripsModes = processedTrips.map(_.flatMap(_.legMode))
@@ -402,9 +382,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       )
     )
 
-    val persons = Seq(newPerson(1, 1))
-    val households = Seq(newHousehold(1, 1))
-    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans)
     val processedTrips = HOVModeTransformer.splitToTrips(processedPlans).toArray
 
     val tripsModes = processedTrips.map(_.flatMap(_.legMode))
@@ -425,9 +403,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       newTrip(1, 1, modes = Seq("HOV2", "WALK", "HOV2"), activities = activities) ++
       newTrip(2, 1, modes = Seq("HOV2", "CAR", "HOV2"), activities = activities)
 
-    val persons = Seq(newPerson(1, 1), newPerson(2, 1))
-    val households = Seq(newHousehold(1, 1))
-    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans)
     processedPlans.flatMap(_.legMode).toList shouldBe List(
       "hov2_teleportation",
       "WALK",
@@ -456,9 +432,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       activities = Seq(Act("Home", 1.1, 1.1), Act("Shopping", 2.0, 2.0), Act("Work", 1.2, 1.2), Act("Home", 1.1, 1.1))
     )
 
-    val persons = Seq(newPerson(1, 1), newPerson(2, 1), newPerson(3, 1))
-    val households = Seq(newHousehold(1, 1))
-    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans, persons, households)
+    val processedPlans = HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(plans)
     processedPlans.flatMap(_.legMode).toList shouldBe List(
       "hov3_teleportation",
       "hov3_teleportation",
@@ -476,12 +450,12 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 object HOVModeTransformerTest {
 
   private val random = new Random()
-
-  def newPerson(personId: Int, householdId: Int): PersonInfo =
-    PersonInfo(PersonId(personId.toString), HouseholdId(householdId.toString), 0, 33, List(), isFemale = false, 42.0)
-
-  def newHousehold(householdId: Int, numberOfCars: Int): HouseholdInfo =
-    HouseholdInfo(HouseholdId(householdId.toString), numberOfCars, 90000.0, 10000.0, 20000.0)
+//
+//  def newPerson(personId: Int, householdId: Int): PersonInfo =
+//    PersonInfo(PersonId(personId.toString), HouseholdId(householdId.toString), 0, 33, List(), isFemale = false, 42.0)
+//
+//  def newHousehold(householdId: Int, numberOfCars: Int): HouseholdInfo =
+//    HouseholdInfo(HouseholdId(householdId.toString), numberOfCars, 90000.0, 10000.0, 20000.0)
 
   def newTrip(
     personId: Int,
