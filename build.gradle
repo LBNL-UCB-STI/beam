@@ -122,6 +122,13 @@ configurations {
 }
 
 
+configurations.all {
+    resolutionStrategy {
+//       we need this in order to get Elki library working fine.
+        force 'it.unimi.dsi:fastutil:8.5.4'
+    }
+}
+
 dependencies {
 
     implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.12') {
