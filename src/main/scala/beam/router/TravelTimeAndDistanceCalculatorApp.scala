@@ -129,7 +129,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
     GraphHopperWrapper.createCarGraphDirectoryFromR5(
       "quasiDynamicGH",
       workerParams.transportNetwork,
-      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFilePath),
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
       graphHopperDir,
       wayId2TravelTime
     )

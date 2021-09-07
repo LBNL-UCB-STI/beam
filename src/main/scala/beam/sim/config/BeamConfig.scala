@@ -3751,8 +3751,8 @@ object BeamConfig {
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
-        osmFilePath: java.lang.String,
-        osmMapdbFilePath: java.lang.String,
+        osmFile: java.lang.String,
+        osmMapdbFile: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
 
@@ -3803,11 +3803,10 @@ object BeamConfig {
               else com.typesafe.config.ConfigFactory.parseString("maxDistanceLimitByModeInMeters{}")
             ),
             numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
-            osmFilePath =
-              if (c.hasPathOrNull("osmFilePath")) c.getString("osmFilePath")
-              else "/test/input/beamville/r5/beamville.osm.pbf",
-            osmMapdbFilePath =
-              if (c.hasPathOrNull("osmMapdbFilePath")) c.getString("osmMapdbFilePath")
+            osmFile =
+              if (c.hasPathOrNull("osmFile")) c.getString("osmFile") else "/test/input/beamville/r5/beamville.osm.pbf",
+            osmMapdbFile =
+              if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0

@@ -250,7 +250,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   private def createWalkGraphHopper(): Unit = {
     GraphHopperWrapper.createWalkGraphDirectoryFromR5(
       workerParams.transportNetwork,
-      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFilePath),
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
       graphHopperDir
     )
 
@@ -283,7 +283,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         GraphHopperWrapper.createCarGraphDirectoryFromR5(
           carRouter,
           workerParams.transportNetwork,
-          new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFilePath),
+          new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
           ghDir,
           wayId2TravelTime
         )

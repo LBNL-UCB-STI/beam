@@ -189,7 +189,7 @@ object RouteRequester extends BeamHelper {
     GraphHopperWrapper.createCarGraphDirectoryFromR5(
       carRouter,
       r5Parameters.transportNetwork,
-      new OSM(r5Parameters.beamConfig.beam.routing.r5.osmMapdbFilePath),
+      new OSM(r5Parameters.beamConfig.beam.routing.r5.osmMapdbFile),
       ghDir,
       Map.empty
     )

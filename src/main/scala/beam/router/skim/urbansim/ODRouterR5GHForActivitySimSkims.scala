@@ -153,7 +153,7 @@ case class ODRouterR5GHForActivitySimSkims(
       GraphHopperWrapper.createCarGraphDirectoryFromR5(
         carRouter,
         workerParams.transportNetwork,
-        new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFilePath),
+        new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
         ghDir,
         wayId2TravelTime
       )
@@ -176,7 +176,7 @@ case class ODRouterR5GHForActivitySimSkims(
   private def createWalkGraphHopper(): WalkGraphHopperWrapper = {
     GraphHopperWrapper.createWalkGraphDirectoryFromR5(
       workerParams.transportNetwork,
-      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFilePath),
+      new OSM(workerParams.beamConfig.beam.routing.r5.osmMapdbFile),
       graphHopperDir
     )
 

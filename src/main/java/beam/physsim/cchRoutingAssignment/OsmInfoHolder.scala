@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
   * Cache for OSM nodes and ways
   */
 class OsmInfoHolder(beamServices: BeamServices) {
-  private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFilePath)
+  private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
 
   private val id2NodeIds: Map[Long, Seq[Long]] = osm.ways.asScala.map { case (id, way) =>
     id.toLong -> way.nodes.toSeq
