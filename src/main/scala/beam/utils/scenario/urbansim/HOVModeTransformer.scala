@@ -58,9 +58,7 @@ object HOVModeTransformer extends LazyLogging {
     (allCarModes ++ allHOVModes).toSet
 
   def transformHOVtoHOVCARorHOVTeleportation(
-    plansProbablyWithHOV: Iterable[PlanElement],
-    persons: Iterable[PersonInfo],
-    households: Iterable[HouseholdInfo]
+    plansProbablyWithHOV: Iterable[PlanElement]
   ): Iterable[PlanElement] = {
     val allHOVUsers: Set[PersonId] = plansProbablyWithHOV
       .filter(planElement => {

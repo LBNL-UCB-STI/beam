@@ -109,7 +109,7 @@ class UrbanSimScenarioLoader(
 
     val plans = if (withReplacingHOVToTeleportationOrCar) {
       HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans, persons, households)
+      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
     } else {
       mergedPlans
     }
