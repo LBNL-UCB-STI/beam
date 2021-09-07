@@ -7,7 +7,7 @@ sealed trait ActivitySimPathType
 
 object ActivitySimPathType {
 
-  private def determineCarPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
+  private def determineCarPathType(): ActivitySimPathType = {
     //    HOV2,
     //    HOV3,
     //    SOV,
@@ -89,7 +89,7 @@ object ActivitySimPathType {
       if (uniqueNotWalkingModes.exists(isWalkTransit)) {
         determineDriveTransitPathType(trip)
       } else {
-        determineCarPathType(trip)
+        determineCarPathType()
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       determineTransitPathType(trip)

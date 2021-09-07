@@ -47,7 +47,7 @@ object OsmSpeedConverter {
 
     def median: BigDecimal = {
       val sortedValues = values.sorted
-      if (size % 2 == 1) {
+      if (size % 2 != 0) {
         sortedValues(size / 2)
       } else {
         val (left, right) = sortedValues.splitAt(size / 2)
