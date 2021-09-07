@@ -214,8 +214,8 @@ class PersonAverageTravelTimeAnalysis @Inject() (
     // Plot XY line charts in the last iteration and save in the root folder
     if ((event.getIteration == beamConfig.beam.agentsim.lastIteration) && beamConfig.beam.outputs.writeGraphs) {
       val line1Data =
-        getSeriesDataForMode(averageCarTravelTimesIncludingWalkForAllIterations, event, "CarTravelTimes_IncludingWalk")
-      val line2Data = getSeriesDataForMode(averageCarTravelTimesForAllIterations, event, "CarTravelTimes")
+        getSeriesDataForMode(averageCarTravelTimesIncludingWalkForAllIterations, "CarTravelTimes_IncludingWalk")
+      val line2Data = getSeriesDataForMode(averageCarTravelTimesForAllIterations, "CarTravelTimes")
       val dataset = GraphUtils.createMultiLineXYDataset(Array(line1Data, line2Data))
       createRootGraphForAverageCarTravelTime(event, dataset)
     }
@@ -224,13 +224,11 @@ class PersonAverageTravelTimeAnalysis @Inject() (
   /**
     * Generates the series data required for the XY graph
     * @param data data that needs to be converted to the series data
-    * @param event instance of iteration ends event
     * @param title title for the series graph
     * @return XYSeries data set
     */
   private def getSeriesDataForMode(
     data: mutable.HashMap[Int, Double],
-    event: IterationEndsEvent,
     title: String
   ): XYSeries = {
     // Compute average travel time of all people during the current iteration
