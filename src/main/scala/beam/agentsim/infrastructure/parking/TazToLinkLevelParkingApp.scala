@@ -1,9 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.BeamServices
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
@@ -37,7 +35,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   if (argsMap.size != 4) {
     println(
       "Usage: --taz-parking test/input/beamville/parking/taz-parking.csv" +
-      " --network test/input/beamville/physsim-network.xml" +
+      " --network test/input/beamville/r5/physsim-network.xml" +
       " --taz-centers test/input/beamville/taz-centers.csv --out test/input/beamville/parking/link-parking.csv"
     )
     System.exit(1)

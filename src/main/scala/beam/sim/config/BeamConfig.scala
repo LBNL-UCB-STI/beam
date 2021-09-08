@@ -4451,7 +4451,7 @@ object BeamConfig {
           BeamConfig.Matsim.Modules.Network(
             inputNetworkFile =
               if (c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile")
-              else "/test/input/beamville/physsim-network.xml"
+              else "/test/input/beamville/r5/physsim-network.xml"
           )
         }
       }
