@@ -6,9 +6,9 @@ import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.sim.config.BeamConfig
-import beam.utils.FileUtils
 import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.{FileUtils, MathUtils}
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 
@@ -470,12 +470,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     initialNumStalls: Double
   )(implicit parkingStallCountScalingFactor: Double, rand: Random): Int = {
     val expectedNumberOfStalls = initialNumStalls * parkingStallCountScalingFactor
-    val floorNumberOfStalls = math.floor(expectedNumberOfStalls).toInt
-    if ((expectedNumberOfStalls % 1.0) > rand.nextDouble) {
-      floorNumberOfStalls + 1
-    } else {
-      floorNumberOfStalls
-    }
+    MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt
   }
 
   private def validateReservedFor(

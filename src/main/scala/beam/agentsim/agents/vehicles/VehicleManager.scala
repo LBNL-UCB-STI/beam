@@ -43,19 +43,6 @@ object VehicleManager extends LazyLogging {
     }
   }
 
-  def initReservedFor(reservedForString: String): Option[ReservedFor] = {
-    reservedForString match {
-      case null | "" =>
-        Some(VehicleManager.AnyManager)
-      case x if x == VehicleManager.AnyManager.managerId.toString =>
-        Some(createOrGetReservedFor(reservedForString, TypeEnum.Default))
-      case CustomReservedForRegex(kind, id) =>
-        Some(createOrGetReservedFor(id, TypeEnum.withName(kind.trim.toLowerCase)))
-      case _ =>
-        None
-    }
-  }
-
   def getReservedFor(managerId: Id[VehicleManager]): Option[ReservedFor] = vehicleManagers.get(managerId)
 
   def createOrGetReservedFor(idString: String, vehType: TypeEnum.VehicleManagerType): ReservedFor = {
