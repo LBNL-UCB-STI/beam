@@ -185,8 +185,8 @@ object ConfigConsistencyComparator extends LazyLogging {
     val r5directory = userConf.getConfig("beam").getConfig("routing").getConfig("r5").getString("directory")
     if (!inputNetworkFilePath.contains(r5directory)) {
       throw new IllegalArgumentException(
-        s"The beam.physsim.inputNetworkFilePath doesn't point to beam.routing.r5.directory [$r5directory]. " +
-          s"Instead it points to: [$inputNetworkFilePath]"
+        s"It is expected that beam.physsim.inputNetworkFilePath points to the file inside beam.routing.r5.directory " +
+          s"[$r5directory]. Instead it points to: [$inputNetworkFilePath]"
       )
     }
   }
