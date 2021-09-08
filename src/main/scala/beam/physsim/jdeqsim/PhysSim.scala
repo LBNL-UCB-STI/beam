@@ -3,7 +3,7 @@ package beam.physsim.jdeqsim
 import beam.router.r5.R5Parameters
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
-import beam.utils.Statistics
+import beam.utils.{ProfilingUtils, Statistics}
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.{LazyLogging, StrictLogging}
 import org.matsim.api.core.v01.Scenario
@@ -100,7 +100,9 @@ class PhysSim(
         agentSimIterationNumber
       )
       val simulationResult =
-        jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+        ProfilingUtils.timed(s"Physsim simulation $agentSimIterationNumber.$currentIter", x => logger.info(x)) {
+          jdeqSimRunner.simulate(currentIter, writeEvents = shouldWritePhysSimEvents && currentIter == nIterations)
+        }
       carTravelTimeWriter.writeRow(
         Vector(
           currentIter,

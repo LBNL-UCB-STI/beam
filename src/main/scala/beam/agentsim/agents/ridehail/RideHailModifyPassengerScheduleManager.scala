@@ -417,7 +417,8 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    // TODO: FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
+    // TODO: https://github.com/LBNL-UCB-STI/beam/issues/3296
+    log.warning(s"`vehicleIdToModifyPassengerScheduleStatus` is broken and variable vehicleId($vehicleId) is not used")
     // !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
     true
   }
