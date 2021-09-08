@@ -36,7 +36,9 @@ class SitePowerManager(
       .seq
       .toMap
     temporaryLoadEstimate.clear()
-    if (plans.isEmpty) logger.debug(s"Charging Replan did not produce allocations")
+    if (plans.isEmpty) {
+      logger.debug(s"Charging Replan did not produce allocations on tick: [$tick]")
+    }
     plans
   }
 

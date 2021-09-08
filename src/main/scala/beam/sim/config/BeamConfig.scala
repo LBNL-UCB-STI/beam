@@ -2723,6 +2723,7 @@ object BeamConfig {
       bprsim: BeamConfig.Beam.Physsim.Bprsim,
       cchRoutingAssignment: BeamConfig.Beam.Physsim.CchRoutingAssignment,
       duplicatePTE: BeamConfig.Beam.Physsim.DuplicatePTE,
+      eventManager: BeamConfig.Beam.Physsim.EventManager,
       events: BeamConfig.Beam.Physsim.Events,
       eventsForFullVersionOfVia: scala.Boolean,
       eventsSampling: scala.Double,
@@ -2800,6 +2801,21 @@ object BeamConfig {
               if (c.hasPathOrNull("departureTimeShiftMin")) c.getInt("departureTimeShiftMin") else -600,
             fractionOfEventsToDuplicate =
               if (c.hasPathOrNull("fractionOfEventsToDuplicate")) c.getDouble("fractionOfEventsToDuplicate") else 0.0
+          )
+        }
+      }
+
+      case class EventManager(
+        numberOfThreads: scala.Int,
+        `type`: java.lang.String
+      )
+
+      object EventManager {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.EventManager = {
+          BeamConfig.Beam.Physsim.EventManager(
+            numberOfThreads = if (c.hasPathOrNull("numberOfThreads")) c.getInt("numberOfThreads") else 1,
+            `type` = if (c.hasPathOrNull("type")) c.getString("type") else "Auto"
           )
         }
       }
@@ -3468,6 +3484,10 @@ object BeamConfig {
           duplicatePTE = BeamConfig.Beam.Physsim.DuplicatePTE(
             if (c.hasPathOrNull("duplicatePTE")) c.getConfig("duplicatePTE")
             else com.typesafe.config.ConfigFactory.parseString("duplicatePTE{}")
+          ),
+          eventManager = BeamConfig.Beam.Physsim.EventManager(
+            if (c.hasPathOrNull("eventManager")) c.getConfig("eventManager")
+            else com.typesafe.config.ConfigFactory.parseString("eventManager{}")
           ),
           events = BeamConfig.Beam.Physsim.Events(
             if (c.hasPathOrNull("events")) c.getConfig("events")

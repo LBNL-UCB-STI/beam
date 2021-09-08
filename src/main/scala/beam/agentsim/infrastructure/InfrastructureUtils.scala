@@ -286,7 +286,7 @@ object InfrastructureUtils extends LazyLogging {
     * @param stalls Map[Id[ParkingZoneId], ParkingZone[GEO]]
     * @return
     */
-  def buildParkingZones[GEO: GeoLevel](
+  def buildParkingZones[GEO](
     stalls: Map[Id[ParkingZoneId], ParkingZone[GEO]]
   ): Map[Id[ParkingZoneId], ParkingZone[GEO]] = stalls.filter(_._2.chargingPointType.isEmpty)
 
