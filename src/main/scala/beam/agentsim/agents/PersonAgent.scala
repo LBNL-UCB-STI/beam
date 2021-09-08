@@ -157,7 +157,11 @@ object PersonAgent {
     * @param beforeVehicleTrip      ???
     * @param afterVehicleTrip       rest of the trip after vehicle destination
     */
-  final case class EnrouteCharging(vehicleDestinationUTM: Location, beforeVehicleTrip: List[EmbodiedBeamLeg], afterVehicleTrip: List[EmbodiedBeamLeg])
+  final case class EnrouteCharging(
+    vehicleDestinationUTM: Location,
+    beforeVehicleTrip: List[EmbodiedBeamLeg],
+    afterVehicleTrip: List[EmbodiedBeamLeg]
+  )
 
   /**
     * TODO if you are reading this, please add short explanations of each field
@@ -722,7 +726,7 @@ class PersonAgent(
           )
         ) =>
       releaseTickAndTriggerId()
-      val newTick = tick // todo rrp + 800
+      val newTick = tick // todo rrp + 500
       holdTickAndTriggerId(newTick, triggerId)
       val vehicle = beamVehicles(currentVehicle.head)
       vehicle.vehicle.stall.foreach { stall =>
@@ -764,13 +768,16 @@ class PersonAgent(
           log.error("Waiting, not sure what to do here!!?")
           stay()
         case Some(itinerary) =>
-          goto(ProcessingNextLegOrStartActivity) using data.copy(
+          val updatedData = data.copy(
             currentVehicle = currentVehicle.tail,
-            // this replaces original trip with en-route charging trip
-            currentTrip = Some(itinerary.copy(legs = beforeVehicleTrip.toVector ++ itinerary.legs ++ afterVehicleTrip.toVector)),
-            restOfCurrentTrip = itinerary.legs.toList ++ afterVehicleTrip,
+            // This replaces original trip with en-route charging trip.
+            // Do we need to make legs consistent in `currentTrip`?
+            currentTrip =
+              Some(itinerary.copy(legs = beforeVehicleTrip.toVector ++ itinerary.legs ++ afterVehicleTrip.toVector)),
+            restOfCurrentTrip = EmbodiedBeamLeg.makeLegsConsistent(itinerary.legs.toVector ++ afterVehicleTrip).toList,
             enrouteCharging = None
           )
+          goto(ProcessingNextLegOrStartActivity) using updatedData
       }
 
     /*
@@ -1340,7 +1347,21 @@ class PersonAgent(
     // set the plan as current trip, and start travelling
     case Event(
           RoutingResponse(itineraries, _, _, _, _),
-          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, Some(_))
+          data @ BasePersonData(
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            Some(enrouteCharging @ EnrouteCharging(_, beforeVehicleTrip, _))
+          )
         ) =>
       itineraries.headOption match {
         case None =>
@@ -1349,7 +1370,8 @@ class PersonAgent(
         case Some(itinerary) =>
           goto(ProcessingNextLegOrStartActivity) using data.copy(
             currentTrip = Some(itinerary),
-            restOfCurrentTrip = itinerary.legs.toList
+            restOfCurrentTrip = itinerary.legs.toList,
+            enrouteCharging = Some(enrouteCharging.copy(beforeVehicleTrip = beforeVehicleTrip ++ itinerary.legs))
           )
       }
   }
