@@ -23,7 +23,7 @@ trait RouteRequester {
     if (!request.withTransit && request.streetVehicles.exists(_.mode == carMode)) {
       routeInner(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == carMode)))
     } else {
-      RoutingResponse(Seq(), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(Seq(), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false, request.triggerId)
     }
   }
 
@@ -40,6 +40,7 @@ class CchRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exte
 }
 
 class R5RouteRequester(workerParams: R5Parameters, travelTime: TravelTime) extends RouteRequester {
+
   private val r5: R5Wrapper = new R5Wrapper(
     workerParams,
     travelTime,
@@ -97,13 +98,12 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
         val ghDir = Paths.get(carGraphHopperDir, i.toString).toString
 
         val wayId2TravelTime = workerParams.networkHelper.allLinks.toSeq
-          .map(
-            link =>
-              link.getId.toString.toLong ->
-              carWeightCalculator.calcTravelTime(
-                link.getId.toString.toInt,
-                travelTime,
-                i * workerParams.beamConfig.beam.agentsim.timeBinSize
+          .map(link =>
+            link.getId.toString.toLong ->
+            carWeightCalculator.calcTravelTime(
+              link.getId.toString.toInt,
+              travelTime,
+              i * workerParams.beamConfig.beam.agentsim.timeBinSize
             )
           )
           .toMap

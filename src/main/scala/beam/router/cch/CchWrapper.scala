@@ -85,7 +85,11 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
     osmFile
   }
 
-  override def calcRoute(req: RoutingRequest): RoutingResponse = {
+  override def calcRoute(
+    req: RoutingRequest,
+    buildDirectCarRoute: Boolean = true,
+    buildDirectWalkRoute: Boolean = true
+  ): RoutingResponse = {
     val origin = workerParams.geo.utm2Wgs(req.originUTM)
     val destination = workerParams.geo.utm2Wgs(req.destinationUTM)
 
@@ -128,8 +132,8 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
         )
       )
 
-      RoutingResponse(Seq(alternative), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false)
-    } else RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(Seq(alternative), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false, req.triggerId)
+    } else RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false, req.triggerId)
   }
 
   def rebuildNativeCCHWeights(newTravelTime: TravelTime): Unit = {
