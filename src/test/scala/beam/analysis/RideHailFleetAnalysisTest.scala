@@ -5,7 +5,8 @@ import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.utils.{BeamVehicleUtils, EventReader}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.util.Try
@@ -40,7 +41,7 @@ class Values(values: mutable.Map[Long, Double] = mutable.Map.empty) {
   }
 }
 
-class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) extends FlatSpec with Matchers {
+class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) extends AnyFlatSpec with Matchers {
 
   def apply(key: String): Values = metrics.getOrElse(key, new Values())
 
@@ -71,7 +72,7 @@ class Metrics(val metrics: mutable.Map[String, Values] = mutable.Map.empty) exte
   }
 }
 
-class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
+class RideHailFleetAnalysisTest extends AnyFlatSpec with Matchers {
 
   // eventsFileBig may be downloaded from https://beam-outputs.s3.amazonaws.com/output/austin/austin-prod-200k-skims-with-h3-index__2020-04-14_07-06-56_xah/ITERS/it.0/0.events.csv.gz
   val eventsFileBig = ""
@@ -106,28 +107,6 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     }
   }
 
-  def testBig(metrics: mutable.Map[String, Metrics]): Unit = {
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig1(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig2(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig3(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig4(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig5(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig6(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig7(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputBig8(metrics)
-  }
-
-  def testSmall(metrics: mutable.Map[String, Metrics]): Unit = {
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall1(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall2(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall3(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall4(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall5(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall6(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall7(metrics)
-    //    RideHailFleetAnalysisTestData.testExpectedOutputSmall8(metrics)
-  }
-
   def test(process: Event => Unit, doItFast: Boolean = false, printTestCases: Boolean = false): Unit = {
     throw new IllegalArgumentException(
       """In order to use these tests you need to generate content of RideHailFleetAnalysisTestData
@@ -152,9 +131,6 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
     }
 
     collectedMetrics shouldNot be(empty)
-
-    if (doItFast) testSmall(collectedMetrics)
-    else testBig(collectedMetrics)
 
     println("done")
 
@@ -248,7 +224,9 @@ class RideHailFleetAnalysisTest extends FlatSpec with Matchers {
           "hash SAME "
         else
           "          "
-      println(s"${accum.hashCode()} $hashInfo $changed ret acc val: ${retVal.getContent} $funcInfo") // acc hash: ${accum.hashCode()} threadId: ${Thread.currentThread().getId}")
+      println(
+        s"${accum.hashCode()} $hashInfo $changed ret acc val: ${retVal.getContent} $funcInfo"
+      ) // acc hash: ${accum.hashCode()} threadId: ${Thread.currentThread().getId}")
       retVal
     }
 

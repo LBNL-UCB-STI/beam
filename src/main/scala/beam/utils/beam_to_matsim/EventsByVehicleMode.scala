@@ -131,12 +131,12 @@ object EventsByVehicleMode extends App {
 
     val interestingLinks = LinkCoordinate
       .parseNetwork(networkXml, interestingNodes)
-      .foldLeft(mutable.HashSet.empty[Int]) {
-        case (links, (linkId, _)) => links += linkId
+      .foldLeft(mutable.HashSet.empty[Int]) { case (links, (linkId, _)) =>
+        links += linkId
       }
 
     class CircleAccumulator() {
-      var interestingVehicles = mutable.HashSet.empty[String]
+      val interestingVehicles = mutable.HashSet.empty[String]
 
       def process(event: BeamEvent): Unit = event match {
         case pte: BeamPathTraversal if pte.linkIds.exists(interestingLinks.contains) =>
@@ -149,10 +149,14 @@ object EventsByVehicleMode extends App {
     Console.println(s"looking for vehicles which move through circle (X:$circleX Y:$circleY R:$circleR) ...")
 
     val vehiclesInCircle = BeamEventsReader
-      .fromFileFoldLeft[CircleAccumulator](eventsPath, new CircleAccumulator(), (acc, event) => {
-        acc.process(event)
-        acc
-      })
+      .fromFileFoldLeft[CircleAccumulator](
+        eventsPath,
+        new CircleAccumulator(),
+        (acc, event) => {
+          acc.process(event)
+          acc
+        }
+      )
       .getOrElse(new CircleAccumulator())
       .interestingVehicles
 

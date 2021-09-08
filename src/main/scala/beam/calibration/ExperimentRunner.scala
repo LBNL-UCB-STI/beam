@@ -98,18 +98,22 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
       val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(outpath.toAbsolutePath.toString, ErrorComparisonType.AbsoluteError)
-    } else if (objectiveFunctionClassName.equals(
-                 "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
-               ) && benchmarkFileExists) {
+    } else if (
+      objectiveFunctionClassName.equals(
+        "ModeChoiceObjectiveFunction_AbsolutErrorWithPreferrenceForModeDiversity"
+      ) && benchmarkFileExists
+    ) {
       val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(
           outpath.toAbsolutePath.toString,
           ErrorComparisonType.AbsoluteErrorWithPreferenceForModeDiversity
         )
-    } else if (objectiveFunctionClassName.equals(
-                 "ModeChoiceObjectiveFunction_AbsoluteErrorWithMinLevelRepresentationOfMode"
-               ) && benchmarkFileExists) {
+    } else if (
+      objectiveFunctionClassName.equals(
+        "ModeChoiceObjectiveFunction_AbsoluteErrorWithMinLevelRepresentationOfMode"
+      ) && benchmarkFileExists
+    ) {
       val outpath = Paths.get(ioController.getOutputFilename("modeChoice.csv"))
       new ModeChoiceObjectiveFunction(benchmarkData.toAbsolutePath.toString)
         .evaluateFromRun(
@@ -134,9 +138,11 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
       val countsWeight = 1 - modeWeight
 
       -(countsWeight * Math.abs(countsObjVal) + modeWeight * Math.abs(modesObjVal))
-    } else if (objectiveFunctionClassName.equals(
-                 "RideHail_maximizeReservationCount"
-               )) {
+    } else if (
+      objectiveFunctionClassName.equals(
+        "RideHail_maximizeReservationCount"
+      )
+    ) {
       val outpath = Paths.get(ioController.getOutputFilename("ridehailStats.csv"))
       RideHailObjectiveFunction.evaluateFromRun(outpath.toAbsolutePath.toString)
     } else {
@@ -157,16 +163,17 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
     val configParams: mutable.Map[String, Object] = JavaConverters.mapAsScalaMap(
       experimentData.experimentDef.defaultParams
     ) ++
-    JavaConverters
-      .iterableAsScalaIterable(assignments.entrySet())
-      .seq
-      .map { e =>
-        e.getKey -> e.getValue
-      }
-      .toMap
+      JavaConverters
+        .iterableAsScalaIterable(assignments.entrySet())
+        .seq
+        .map { e =>
+          e.getKey -> e.getValue
+        }
+        .toMap
 
-    val experimentBaseDir
-      : Path = new File(experimentData.experimentDef.header.beamTemplateConfPath).toPath.getParent.toAbsolutePath
+    val experimentBaseDir: Path = new File(
+      experimentData.experimentDef.header.beamTemplateConfPath
+    ).toPath.getParent.toAbsolutePath
 
     val runDirectory = experimentData.experimentDef.projectRoot.relativize(
       Paths.get(experimentBaseDir.toString, "experiments", experimentName, "suggestions")
@@ -181,10 +188,9 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
       "beam.outputs.baseOutputDirectory"           -> beamOutputDir.getParent.toString,
       "beam.outputs.addTimestampToOutputDirectory" -> "false",
       "beam.inputDirectory"                        -> experimentData.experimentDef.getTemplateConfigParentDirAsString
-    ) ++ configParams).foldLeft(experimentData.baseConfig) {
-      case (prevConfig, (paramName, paramValue)) =>
-        val configValue = ConfigValueFactory.fromAnyRef(paramValue)
-        prevConfig.withValue(paramName, configValue)
+    ) ++ configParams).foldLeft(experimentData.baseConfig) { case (prevConfig, (paramName, paramValue)) =>
+      val configValue = ConfigValueFactory.fromAnyRef(paramValue)
+      prevConfig.withValue(paramName, configValue)
     }
   }
 

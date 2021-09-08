@@ -15,7 +15,7 @@ case class ChargingPlugInEvent(
   locationWGS: Coord,
   vehId: Id[Vehicle],
   primaryFuelLevel: Double,
-  secondaryFuelLevel: Option[Double],
+  secondaryFuelLevel: Option[Double]
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
@@ -55,6 +55,6 @@ object ChargingPlugInEvent {
   val ATTRIBUTE_LOCATION_Y: String = "locationY"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
 }

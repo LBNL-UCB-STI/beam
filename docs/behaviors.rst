@@ -61,7 +61,7 @@ In BEAM, parking is issued at the granularity of a Traffic Analysis Zone (TAZ). 
 +----------------+----------------------------------------------+
 | *pricingModel* | FlatFee, Block                               |
 +----------------+----------------------------------------------+
-| *chargingType* | NoCharger, Level1, Level2, DCFast, UltraFast |
+| *chargingPointType* | NoCharger, Level1, Level2, DCFast, UltraFast |
 +----------------+----------------------------------------------+
 | *numStalls*    | *integer*                                    |
 +----------------+----------------------------------------------+
@@ -74,10 +74,10 @@ BEAM agents seek parking mid-tour, from within a leg of their trip. A search is 
 
 The following should be considered when configuring a set of parking alternatives. The default behavior is to provide a nearly unbounded number of parking stalls for each combination of attributes, per TAZ, for the public, and provide no parking alternatives for ride hail agents. This behavior can be overridden manually by providing replacement values in the parking configuration file. Parking which is *reservedFor* a RideHailManager should only appear as *Workplace* parking. Free parking can be instantiated by setting *feeInCents* to zero. *numStalls* should be non-negative. Charging behavior is currently implemented for ride hail agents only.
 
-the *chargingType* attribute will result in the following charger power in kW:
+the *chargingPointType* attribute will result in the following charger power in kW:
 
 +----------------+--------+
-| *chargingType* | kW     |
+| *chargingPointType* | kW     |
 +================+========+
 | NoCharger      | 0.0    |
 +----------------+--------+

@@ -14,25 +14,31 @@ object Reader {
   ): (Traversable[VehicleTrip], Traversable[PersonEvents]) = {
 
     val beamEventsFilter = BeamEventsReader
-      .fromFileFoldLeft[MutableSamplingFilter](eventsPath, filter, (f, ev) => {
-        f.filter(ev)
-        f
-      })
+      .fromFileFoldLeft[MutableSamplingFilter](
+        eventsPath,
+        filter,
+        (f, ev) => {
+          f.filter(ev)
+          f
+        }
+      )
       .getOrElse(filter)
 
     // fix overlapping of path traversal events for vehicle
     def pteOverlappingFix(pteSeq: Seq[BeamPathTraversal]): Unit = {
-      pteSeq.tail.foldLeft(pteSeq.head) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
+      val pteSeqHead = pteSeq.head
+      pteSeq.drop(1).foldLeft(pteSeqHead) {
         case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
           // if they overlap each other in case of time
           val timeDiff = currPTE.time - prevPTE.arrivalTime
           if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
 
           // if they overlap each other in case of travel links
-          if (prevPTE.linkIds.last == currPTE.linkIds.head) {
-            val removedLinkTime = currPTE.linkTravelTime.head
+          if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption) {
             currPTE.removeHeadLinkFromTrip()
-
+            @SuppressWarnings(Array("UnsafeTraversableMethods"))
+            val removedLinkTime = currPTE.linkTravelTime.head
             if (currPTE.linkIds.nonEmpty) currPTE.adjustTime(removedLinkTime)
             else prevPTE.adjustTime(removedLinkTime)
           }
@@ -161,7 +167,7 @@ object Reader {
 
         case class EventsTransformer(
           events: mutable.PriorityQueue[ViaEvent],
-          var prevEvent: Option[ViaTraverseLinkEvent] = None,
+          var prevEvent: Option[ViaTraverseLinkEvent] = None
         ) {
           def addPTEEvent(curr: ViaTraverseLinkEvent): Unit = {
             prevEvent match {
@@ -170,9 +176,11 @@ object Reader {
                   curr.time = prev.time + minTimeStep
                 }
 
-                if ((curr.time - prev.time > minTimeIntervalForContinuousMovement &&
-                    curr.eventType == EnteredLink &&
-                    prev.eventType == LeftLink) || (prev.vehicle != curr.vehicle)) {
+                if (
+                  (curr.time - prev.time > minTimeIntervalForContinuousMovement &&
+                  curr.eventType == EnteredLink &&
+                  prev.eventType == LeftLink) || (prev.vehicle != curr.vehicle)
+                ) {
 
                   if (curr.time - prev.time < minTimeIntervalForContinuousMovement) addPersonArrival(curr.time, prev)
                   else addPersonArrival(prev.time, prev)

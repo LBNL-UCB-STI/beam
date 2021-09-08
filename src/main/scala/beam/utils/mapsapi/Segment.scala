@@ -8,8 +8,8 @@ case class Segment(
   durationInSeconds: Option[Int] = None,
   speedLimitInMetersPerSecond: Option[Int] = None
 ) {
-  private val meterPerHourToKmPerHourConversionFactor = 3.6D
-  private val meterPerHourToMilesPerHourConversionFactor = 2.23694D
+  private val meterPerHourToKmPerHourConversionFactor = 3.6d
+  private val meterPerHourToMilesPerHourConversionFactor = 2.23694d
 
   def speedInKmPerHour: Option[Double] = {
     speedLimitInMetersPerSecond.map(_ * meterPerHourToKmPerHourConversionFactor)

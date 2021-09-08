@@ -195,6 +195,24 @@ Similarly for experiment batch, you can specify comma-separated experiment files
 
 For demo and presentation material, please follow the link_ on google drive.
 
+BEAM run on NERSC
+~~~~~~~~~~~~~~~~~
+
+In order to run BEAM on NERSC one needs to get an `ssh key <https://docs.nersc.gov/connect/mfa/#sshproxy>`_ that allows you to ssh to NERSC systems without further authentication until the key expires (24 hours). You also need to specify your user name on NERSC in the following property: **nerscUser**, i.e::
+
+ ./gradlew deployToNersc -PnerscUser=dmitriio
+
+You need to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on NERSC:
+
+* **runName**: to specify instance name.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **beamConfigs**: The `beam.conf` file. It should be relative path under the project home.
+* **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
+* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+
+Your task is going to be added to the queue and when it starts/finishes you receive a notification on your git user email. It may take 1-24 hours (or even more) for the task to get started. It depends on the NERSC workload. In your user home directory on NERSC you can find the output file of your task that looks like `slurm-<job id>.out`. The BEAM output directory is resides at `$SCRATCH/beam_runs/`. Also the output is uploaded to s3 if `s3Backup` is set to true.
+
 
 PILATES run on EC2
 ~~~~~~~~~~~~~~~~~~

@@ -1,12 +1,13 @@
 package beam.analysis
 
 import beam.utils.{VMClassInfo, VMUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
-class VMInformationCollectorTest extends FlatSpec with Matchers {
+class VMInformationCollectorTest extends AnyFlatSpec with Matchers {
   import VMInformationCollectorTest._
 
   it should "parse class histogram from JFR output" in {
@@ -18,11 +19,10 @@ class VMInformationCollectorTest extends FlatSpec with Matchers {
       new VMClassInfo("[I", 22648216, 204633)
     )
 
-    parts.zip(expectedInfos).foreach {
-      case (ci1: VMClassInfo, ci2: VMClassInfo) =>
-        ci1.className shouldBe ci2.className
-        ci1.numberOfBytes shouldBe ci2.numberOfBytes
-        ci1.countOfInstances shouldBe ci2.countOfInstances
+    parts.zip(expectedInfos).foreach { case (ci1: VMClassInfo, ci2: VMClassInfo) =>
+      ci1.className shouldBe ci2.className
+      ci1.numberOfBytes shouldBe ci2.numberOfBytes
+      ci1.countOfInstances shouldBe ci2.countOfInstances
     }
   }
 

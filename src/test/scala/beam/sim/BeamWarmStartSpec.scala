@@ -2,7 +2,6 @@ package beam.sim
 
 import java.io.IOException
 import java.nio.file.{Files, Path, Paths}
-
 import beam.integration.IntegrationSpecCommon
 import beam.sim.BeamWarmStartSpec._
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -11,11 +10,14 @@ import beam.utils.FileUtils
 import com.typesafe.config.ConfigValueFactory
 import org.apache.commons.io.FileUtils.getTempDirectoryPath
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.slf4j.LoggerFactory
 
 class BeamWarmStartSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeforeAndAfterAll
     with IntegrationSpecCommon
@@ -23,7 +25,8 @@ class BeamWarmStartSpec
 
   lazy val testDataPath: Path = Paths.get(getTempDirectoryPath, "warmStartTestData")
 
-  override def beforeAll: Unit = {
+  override def beforeAll(): Unit = {
+    deleteDir(testDataPath)
     createDirs(testDataPath)
   }
 
@@ -264,20 +267,20 @@ class BeamWarmStartSpec
 
   private def getWarmStart(casePath: Path): BeamWarmStart = {
     val conf = baseConfig
-      .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(true))
+      .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
       .withValue("beam.warmStart.path", ConfigValueFactory.fromAnyRef(casePath.toString))
       .resolve()
-    BeamWarmStart(BeamConfig(conf))
+    BeamWarmStart(BeamConfig(conf), 30)
   }
 
-  "Warmstart" should {
+  "Warmstart" must {
 
     "sample population when sampling enabled" in {
       loadScenarioAndGetPopulationSize(0.5, true, 1) < 30 should be(true)
     }
 
     "not sample population when sampling disabled" in {
-      loadScenarioAndGetPopulationSize(0.5, true, 0) shouldBe (50)
+      loadScenarioAndGetPopulationSize(0.5, true, 0) shouldBe 50
     }
 
     "should not impact population sampling when warmstart disabled" in {
@@ -297,7 +300,7 @@ class BeamWarmStartSpec
           "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
           ConfigValueFactory.fromAnyRef(agentSampleSizeAsFractionOfPopulation)
         )
-        .withValue("beam.warmStart.enabled", ConfigValueFactory.fromAnyRef(warmstartEnabled))
+        .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef(if (warmstartEnabled) "full" else "disabled"))
         .withValue(
           "beam.warmStart.samplePopulationIntegerFlag",
           ConfigValueFactory.fromAnyRef(samplePopulationIntegerFlag)
@@ -345,12 +348,8 @@ object BeamWarmStartSpec {
     }
   }
 
-  def deleteDir(directoryToBeDeleted: Path): Boolean = {
-    val allContents = directoryToBeDeleted.toFile.listFiles
-    if (allContents != null) for (file <- allContents) {
-      deleteDir(file.toPath)
-    }
-    directoryToBeDeleted.toFile.delete
+  def deleteDir(directoryToBeDeleted: Path): Unit = {
+    org.apache.commons.io.FileUtils.deleteDirectory(directoryToBeDeleted.toFile)
   }
 
   def copyPlans(toDir: Path, asName: String): Option[String] = {

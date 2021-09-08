@@ -14,7 +14,7 @@ import collection.JavaConverters._
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
 
-/**HasPersonId is added as Matsim ScoringFunction for population requires it**/
+/** HasPersonId is added as Matsim ScoringFunction for population requires it* */
 case class ParkingEvent(
   time: Double,
   driverId: String,
@@ -47,7 +47,7 @@ case class ParkingEvent(
     val chargingPointString = chargingPointType.map { _.toString }.getOrElse("None")
 
     attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
-    attr.put(ATTRIBUTE_DRIVER_ID, driverId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
     attr.put(ATTRIBUTE_COST, costInDollars.toString)
     attr.put(ATTRIBUTE_LOCATION_X, locationWGS.getX.toString)
     attr.put(ATTRIBUTE_LOCATION_Y, locationWGS.getY.toString)
@@ -70,7 +70,7 @@ object ParkingEvent {
   val ATTRIBUTE_LOCATION_Y: String = "locationY"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
 
   def apply(
@@ -104,7 +104,7 @@ object ParkingEvent {
     val locationWGS: Coord = new Coord(attr(ATTRIBUTE_LOCATION_X).toDouble, attr(ATTRIBUTE_LOCATION_Y).toDouble)
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
     val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), cost)
-    val chargingType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
-    new ParkingEvent(time, driverId, vehicleId, tazId, locationWGS, parkingType, pricingModel, chargingType)
+    val chargingPointType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
+    new ParkingEvent(time, driverId, vehicleId, tazId, locationWGS, parkingType, pricingModel, chargingPointType)
   }
 }

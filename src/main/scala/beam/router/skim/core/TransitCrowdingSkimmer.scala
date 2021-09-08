@@ -3,6 +3,7 @@ package beam.router.skim.core
 import java.math.RoundingMode
 
 import beam.router.skim.readonly.TransitCrowdingSkims
+import beam.router.skim.Skims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import com.google.common.math.IntMath
@@ -13,10 +14,9 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.vehicles.Vehicle
 
 /**
-  *
   * @author Dmitry Openkov
   */
-class TransitCrowdingSkimmer @Inject()(
+class TransitCrowdingSkimmer @Inject() (
   matsimServices: MatsimServices,
   beamScenario: BeamScenario,
   beamConfig: BeamConfig
@@ -26,6 +26,7 @@ class TransitCrowdingSkimmer @Inject()(
   override protected val skimFileBaseName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
   override protected val skimFileHeader = "vehicleId,fromStopIdx,numberOfPassengers,capacity,observations,iterations"
   override protected val skimName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.name
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
 
   override protected def fromCsv(
     line: collection.Map[String, String]
@@ -85,7 +86,7 @@ object TransitCrowdingSkimmer extends LazyLogging {
   case class TransitCrowdingSkimmerInternal(
     numberOfPassengers: Int,
     capacity: Int,
-    iterations: Int = 1,
+    iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = numberOfPassengers + "," + capacity + "," + observations + "," + iterations
 

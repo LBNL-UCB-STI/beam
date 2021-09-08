@@ -1,12 +1,18 @@
 package beam.agentsim.agents.ridehail
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.mutable.PriorityQueue
+import scala.collection.parallel.{ParIterable, ParSeq}
+
 import akka.actor.ActorRef
-import beam.agentsim.agents.ridehail.RideHailMatching.VehicleAndSchedule
 import beam.agentsim.agents.ridehail.RideHailManagerHelper._
+import beam.agentsim.agents.ridehail.RideHailMatching.VehicleAndSchedule
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
@@ -16,11 +22,8 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.PriorityQueue
-
 object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
+
   override def compare(
     o1: RideHailAgentETA,
     o2: RideHailAgentETA
@@ -30,6 +33,7 @@ object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgen
 }
 
 object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] {
+
   override def compare(
     o1: RideHailAgentETA,
     o2: RideHailAgentETA
@@ -39,6 +43,7 @@ object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] 
 }
 
 object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
+
   override def compare(
     o1: (RideHailAgentLocation, Double),
     o2: (RideHailAgentLocation, Double)
@@ -50,12 +55,12 @@ object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLo
 /**
   * BEAM
   */
-class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: Envelope) extends LazyLogging {
+class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envelope) extends LazyLogging {
 
   val vehicleState: mutable.Map[Id[BeamVehicle], BeamVehicleState] =
     mutable.Map[Id[BeamVehicle], BeamVehicleState]()
 
-  val idleRideHailAgentSpatialIndex = {
+  private[ridehail] val idleRideHailAgentSpatialIndex: QuadTree[RideHailAgentLocation] = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -64,7 +69,7 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     )
   }
 
-  val inServiceRideHailAgentSpatialIndex = {
+  private val inServiceRideHailAgentSpatialIndex: QuadTree[RideHailAgentLocation] = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -73,7 +78,7 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     )
   }
 
-  val outOfServiceRideHailAgentSpatialIndex = {
+  private val outOfServiceRideHailAgentSpatialIndex: QuadTree[RideHailAgentLocation] = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -82,7 +87,7 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     )
   }
 
-  val refuelingRideHailAgentSpatialIndex = {
+  private val refuelingRideHailAgentSpatialIndex = {
     new QuadTree[RideHailAgentLocation](
       boundingBox.getMinX,
       boundingBox.getMinY,
@@ -91,15 +96,15 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     )
   }
 
-  val idleRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val outOfServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val inServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val refuelingRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
-  val vehicleOutOfCharge = mutable.Set[Id[BeamVehicle]]()
-  val mobileVehicleChargingTimes = PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
-  var latestSpatialIndexUpdateTick = 0
+  private[ridehail] val idleRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+  private[ridehail] val outOfServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+  private[ridehail] val inServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+  private val refuelingRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
+  private val vehicleOutOfCharge = mutable.Set[Id[BeamVehicle]]()
+  private val mobileVehicleChargingTimes = mutable.PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
+  private[this] var latestSpatialIndexUpdateTick = 0
 
-  def addVehicleOutOfCharge(vehicleId: Id[BeamVehicle]) = {
+  def addVehicleOutOfCharge(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleOutOfCharge.add(vehicleId)
   }
 
@@ -109,8 +114,8 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
 
   def getMobileChargedVehiclesForProcessing(time: Int): mutable.Set[Id[BeamVehicle]] = {
     val result = mutable.Set[Id[BeamVehicle]]()
-    while (!mobileVehicleChargingTimes.isEmpty && time > mobileVehicleChargingTimes.head._1) {
-      val (endChargingTime, vehicleId) = mobileVehicleChargingTimes.dequeue()
+    while (mobileVehicleChargingTimes.nonEmpty && time > mobileVehicleChargingTimes.head._1) {
+      val (_, vehicleId) = mobileVehicleChargingTimes.dequeue()
       vehicleOutOfCharge.remove(vehicleId)
       result.add(vehicleId)
     }
@@ -158,7 +163,7 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
 
   def getClosestIdleVehiclesWithinRadiusByETA(
     pickupLocation: Coord,
-    dropoffLocation: Coord,
+    dropOffLocation: Coord,
     radius: Double,
     customerRequestTime: Int,
     maxWaitingTimeInSec: Double,
@@ -166,104 +171,151 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     includeRepositioningVehicles: Boolean = false
   ): Option[RideHailAgentETA] = {
     var start = System.currentTimeMillis()
-    val filteredIdleVehicles = if (includeRepositioningVehicles) {
-      getIdleAndRepositioningVehiclesAndFilterOutExluded
-    } else {
-      getIdleVehiclesAndFilterOutExluded
+    val nearbyAvailableRideHailAgents: ParIterable[RideHailAgentLocation] = {
+      val agentsInRadius = selectAgentsInRadius(pickupLocation, radius, includeRepositioningVehicles)
+      val searchOnlyVehicles = selectVehiclesToSearchOn(excludeRideHailVehicles, includeRepositioningVehicles)
+      filterRideHailAgentsFromVehicles(pickupLocation, dropOffLocation, agentsInRadius, searchOnlyVehicles)
     }
-    val nearbyRideHailAgents = if (includeRepositioningVehicles) {
-      idleRideHailAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala ++
-      inServiceRideHailAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala
-    } else {
-      idleRideHailAgentSpatialIndex.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala
-    }
-    val nearbyAvailableRideHailAgents = nearbyRideHailAgents.par
-      .filter { x =>
-        filteredIdleVehicles.contains(x.vehicleId) && !excludeRideHailVehicles.contains(x.vehicleId) &&
-        (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
-        (x.geofence.isDefined && x.geofence.get
-          .contains(dropoffLocation))))
-      }
-      .filter(x => !vehicleOutOfCharge.contains(x.vehicleId))
-
     var end = System.currentTimeMillis()
     val diff1 = end - start
 
     start = System.currentTimeMillis()
-    val pickupTazId = rideHailManager.beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY).tazId
-    val dropoffTazId = rideHailManager.beamScenario.tazTreeMap.getTAZ(dropoffLocation.getX, dropoffLocation.getY).tazId
-
-    val times2RideHailAgents = nearbyAvailableRideHailAgents
-      .map { rideHailAgentLocation =>
-        val fuelPrice = rideHailManager.beamScenario.fuelTypePrices(rideHailAgentLocation.vehicleType.primaryFuelType)
-        val skimTimeAndDistanceToCustomer = BeamRouter.computeTravelTimeAndDistanceAndCost(
-          originUTM = rideHailAgentLocation.getCurrentLocationUTM(customerRequestTime, rideHailManager.beamServices),
-          destinationUTM = pickupLocation,
-          departureTime = customerRequestTime,
-          mode = CAR,
-          vehicleTypeId = rideHailAgentLocation.vehicleType.id,
-          rideHailAgentLocation.vehicleType,
-          fuelPrice,
-          beamScenario = rideHailManager.beamScenario,
-          skimmer = rideHailManager.beamServices.skims.od_skimmer,
-          maybeOrigTazId = None,
-          maybeDestTazId = Some(pickupTazId),
-        )
-        val skimTimeAndDistanceOfTrip = BeamRouter.computeTravelTimeAndDistanceAndCost(
-          originUTM = pickupLocation,
-          destinationUTM = dropoffLocation,
-          departureTime = customerRequestTime,
-          mode = CAR,
-          vehicleTypeId = rideHailAgentLocation.vehicleType.id,
-          rideHailAgentLocation.vehicleType,
-          fuelPrice,
-          beamScenario = rideHailManager.beamScenario,
-          skimmer = rideHailManager.beamServices.skims.od_skimmer,
-          maybeOrigTazId = Some(pickupTazId),
-          maybeDestTazId = Some(dropoffTazId),
-        )
-        // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
-        // already moving or dropping off a customer, etc.)
-        val extra = Math.max(rideHailAgentLocation.latestUpdatedLocationUTM.time - customerRequestTime, 0)
-        val totalWaitTime = skimTimeAndDistanceToCustomer.time + extra
-        val totalServiceTime = totalWaitTime + skimTimeAndDistanceOfTrip.time
-        val totalServiceDistance = skimTimeAndDistanceToCustomer.distance + skimTimeAndDistanceOfTrip.distance
-        RideHailAgentETA(rideHailAgentLocation, totalServiceDistance, totalWaitTime, totalServiceTime)
-      }
-      .filter { x =>
-        x.timeToCustomer <= maxWaitingTimeInSec
-      }
-      .filter { x =>
-        (rideHailManager
-          .resources(x.agentLocation.vehicleId)
-          .getTotalRemainingRange - rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters > x.distance)
-      }
+    val times2RideHailAgents = calculateTimesToRideHailAgents(
+      pickupLocation = pickupLocation,
+      dropOffLocation = dropOffLocation,
+      customerRequestTime = customerRequestTime,
+      maxWaitingTimeInSec = maxWaitingTimeInSec,
+      nearbyAvailableRideHailAgents = nearbyAvailableRideHailAgents
+    )
     end = System.currentTimeMillis()
     val diff2 = end - start
-
-//    times2RideHailAgents.foreach { x =>
-//      val beamVehicle = rideHailManager.resources(x.agentLocation.vehicleId)
-//      if (Math.abs(
-//            beamVehicle.primaryFuelLevelInJoules / beamVehicle.powerTrain
-//              .estimateConsumptionInJoules(1) - getVehicleState(x.agentLocation.vehicleId).remainingPrimaryRangeInM
-//          ) > 100) {
-//        logger.warn(
-//          s"vehicle {} has different range as calculated by beamVehicle {} as RHVM.getVehicleState {}",
-//          x.agentLocation.vehicleId,
-//          beamVehicle.primaryFuelLevelInJoules / beamVehicle.powerTrain.estimateConsumptionInJoules(1),
-//          getVehicleState(x.agentLocation.vehicleId).remainingPrimaryRangeInM
-//        )
-//      }
-//    }
 
     if (diff1 + diff2 > 100)
       logger.debug(
         s"getClosestIdleVehiclesWithinRadiusByETA for $pickupLocation with $radius nearbyAvailableRideHailAgents: $diff1, diff2: $diff2. Total: ${diff1 + diff2} ms"
       )
+
     if (times2RideHailAgents.isEmpty) None
     else {
       Some(times2RideHailAgents.min(RideHailAgentETAComparatorServiceTime))
     }
+  }
+
+  def calculateTimesToRideHailAgents(
+    pickupLocation: Location,
+    dropOffLocation: Location,
+    customerRequestTime: Int,
+    maxWaitingTimeInSec: Double,
+    nearbyAvailableRideHailAgents: ParIterable[RideHailAgentLocation]
+  ): ParIterable[RideHailAgentETA] = {
+    val pickupTazId: Id[TAZ] = rideHailManager.beamScenario.tazTreeMap
+      .getTAZ(pickupLocation.getX, pickupLocation.getY)
+      .tazId
+    val dropOffTazId: Id[TAZ] = rideHailManager.beamScenario.tazTreeMap
+      .getTAZ(dropOffLocation.getX, dropOffLocation.getY)
+      .tazId
+    val allAgentsETA = nearbyAvailableRideHailAgents.map { rideHailAgentLocation =>
+      calculateAgentETA(
+        pickupLocation,
+        dropOffLocation,
+        customerRequestTime,
+        pickupTazId,
+        dropOffTazId,
+        rideHailAgentLocation
+      )
+    }
+    val bufferForDispatchInMeters: Int =
+      rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+    filterETALessThanMaxWaitingTimeAndWithEnoughFuel(
+      maxWaitingTimeInSec,
+      allAgentsETA,
+      rideHailManager.resources,
+      bufferForDispatchInMeters
+    )
+  }
+
+  private def calculateAgentETA(
+    pickupLocation: Location,
+    dropOffLocation: Location,
+    customerRequestTime: Int,
+    pickupTazId: Id[TAZ],
+    dropOffTazId: Id[TAZ],
+    rideHailAgentLocation: RideHailAgentLocation
+  ): RideHailAgentETA = {
+    val fuelPrice = rideHailManager.beamScenario.fuelTypePrices(rideHailAgentLocation.vehicleType.primaryFuelType)
+    val skimTimeAndDistanceToCustomer = BeamRouter.computeTravelTimeAndDistanceAndCost(
+      originUTM = rideHailAgentLocation.getCurrentLocationUTM(customerRequestTime, rideHailManager.beamServices),
+      destinationUTM = pickupLocation,
+      departureTime = customerRequestTime,
+      mode = CAR,
+      vehicleTypeId = rideHailAgentLocation.vehicleType.id,
+      rideHailAgentLocation.vehicleType,
+      fuelPrice,
+      beamScenario = rideHailManager.beamScenario,
+      skimmer = rideHailManager.beamServices.skims.od_skimmer,
+      maybeOrigTazId = None,
+      maybeDestTazId = Some(pickupTazId)
+    )
+    val skimTimeAndDistanceOfTrip = BeamRouter.computeTravelTimeAndDistanceAndCost(
+      originUTM = pickupLocation,
+      destinationUTM = dropOffLocation,
+      departureTime = customerRequestTime,
+      mode = CAR,
+      vehicleTypeId = rideHailAgentLocation.vehicleType.id,
+      rideHailAgentLocation.vehicleType,
+      fuelPrice,
+      beamScenario = rideHailManager.beamScenario,
+      skimmer = rideHailManager.beamServices.skims.od_skimmer,
+      maybeOrigTazId = Some(pickupTazId),
+      maybeDestTazId = Some(dropOffTazId)
+    )
+    // we consider the time to travel to the customer and the time before the vehicle is actually ready (due to
+    // already moving or dropping off a customer, etc.)
+    val extra = Math.max(rideHailAgentLocation.latestUpdatedLocationUTM.time - customerRequestTime, 0)
+    val totalWaitTime = skimTimeAndDistanceToCustomer.time + extra
+    val totalServiceTime = totalWaitTime + skimTimeAndDistanceOfTrip.time
+    val totalServiceDistance = skimTimeAndDistanceToCustomer.distance + skimTimeAndDistanceOfTrip.distance
+    RideHailAgentETA(rideHailAgentLocation, totalServiceDistance, totalWaitTime, totalServiceTime)
+  }
+
+  private def selectVehiclesToSearchOn(
+    excludeRideHailVehicles: Set[Id[BeamVehicle]],
+    includeRepositioningVehicles: Boolean
+  ): Set[Id[BeamVehicle]] = {
+    val filteredIdleVehicles: Set[Id[BeamVehicle]] = if (includeRepositioningVehicles) {
+      getIdleAndRepositioningVehiclesAndFilterOutExluded.keySet.toSet
+    } else {
+      getIdleVehiclesAndFilterOutExluded.keySet.toSet
+    }
+    filteredIdleVehicles -- excludeRideHailVehicles -- vehicleOutOfCharge
+  }
+
+  private def selectAgentsInRadius(
+    pickupLocation: Location,
+    radius: Double,
+    includeRepositioningVehicles: Boolean
+  ): ParSeq[RideHailAgentLocation] = {
+    val newSource =
+      if (includeRepositioningVehicles)
+        Seq(idleRideHailAgentSpatialIndex, inServiceRideHailAgentSpatialIndex)
+      else
+        Seq(idleRideHailAgentSpatialIndex)
+    RideHailManagerHelper.selectAgentsInRadius(pickupLocation, radius, newSource.par)
+  }
+
+  private[ridehail] def filterRideHailAgentsFromVehicles(
+    pickupLocation: Location,
+    dropoffLocation: Location,
+    nearbyRideHailAgents: ParIterable[RideHailAgentLocation],
+    searchOnlyVehicles: Set[Id[BeamVehicle]]
+  ): ParIterable[RideHailAgentLocation] = {
+    nearbyRideHailAgents
+      .filter { x =>
+        searchOnlyVehicles.contains(x.vehicleId) &&
+        (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
+        (x.geofence.isDefined && x.geofence.get
+          .contains(dropoffLocation))))
+      }
   }
 
   /**
@@ -279,11 +331,10 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
     def addIfNotInAllocation(
       idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
     ): Unit = {
-      idleOrRepositioning.foreach {
-        case (vehicleId, location) =>
-          if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
-            filteredVehicles.put(vehicleId, location)
-          }
+      idleOrRepositioning.foreach { case (vehicleId, location) =>
+        if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
+          filteredVehicles.put(vehicleId, location)
+        }
       }
     }
 
@@ -669,6 +720,31 @@ class RideHailManagerHelper(val rideHailManager: RideHailManager, boundingBox: E
 
 object RideHailManagerHelper {
 
+  private[ridehail] def selectAgentsInRadius(
+    pickupLocation: Location,
+    radius: Double,
+    searchAt: ParSeq[QuadTree[RideHailAgentLocation]]
+  ): ParSeq[RideHailAgentLocation] = {
+    searchAt.flatMap { source =>
+      source.getDisk(pickupLocation.getX, pickupLocation.getY, radius).asScala
+    }
+  }
+
+  private[ridehail] def filterETALessThanMaxWaitingTimeAndWithEnoughFuel(
+    maxWaitingTimeInSec: Double,
+    allAgentsETA: ParIterable[RideHailAgentETA],
+    resources: mutable.Map[Id[BeamVehicle], BeamVehicle],
+    bufferForDispatchInMeters: Int
+  ): ParIterable[RideHailAgentETA] = {
+    allAgentsETA
+      .filter { x =>
+        x.timeToCustomer <= maxWaitingTimeInSec
+      }
+      .filter { x =>
+        resources(x.agentLocation.vehicleId).getTotalRemainingRange - bufferForDispatchInMeters > x.distance
+      }
+  }
+
   def RideHailAgentLocationFromVehicleAndSchedule(vehicleAndSchedule: VehicleAndSchedule): RideHailAgentLocation = {
     RideHailAgentLocation(
       vehicleAndSchedule.vehicle.getDriver.get,
@@ -678,7 +754,8 @@ object RideHailManagerHelper {
     )
   }
 
-  /** Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
+  /**
+    * Please be careful when use it as a Key in Map/Set. It has overridden `equals` and `hashCode` which only respects `vehicleId`
     */
   case class RideHailAgentLocation(
     rideHailAgent: ActorRef,

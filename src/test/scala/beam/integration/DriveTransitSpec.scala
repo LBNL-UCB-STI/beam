@@ -11,12 +11,13 @@ import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartur
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
   * Created by colinsheppard 2018-05-14
   */
-class DriveTransitSpec extends WordSpecLike with Matchers with BeamHelper {
+class DriveTransitSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
   /*
    * This test passes, but it is slow b/c it runs sf-light-1k so ignoring for now. When we actually run "Periodic" tests

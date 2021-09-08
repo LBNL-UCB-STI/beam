@@ -23,6 +23,7 @@ import scala.collection.mutable.ArrayBuffer
   More: https://blog.superfeedr.com/streaming-percentiles/
  */
 class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends LazyLogging {
+
   implicit val actorTypeToMaxNumberOfMessagesDecoder: Encoder[ActorTypeToMaxNumberOfMessages] =
     deriveEncoder[ActorTypeToMaxNumberOfMessages]
   implicit val thresholds$ElmDecoder: Encoder[Thresholds$Elm] = deriveEncoder[Thresholds$Elm]
@@ -30,8 +31,10 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   private val triggerWithIdToStartTime: mutable.Map[TriggerWithId, Long] =
     mutable.Map[TriggerWithId, Long]()
+
   private val triggerTypeToOccurrence: mutable.Map[Class[_], ArrayBuffer[Long]] =
     mutable.Map[Class[_], ArrayBuffer[Long]]()
+
   private val actorToTriggerMessages: mutable.Map[ActorRef, mutable.Map[Class[_], Int]] =
     mutable.Map[ActorRef, mutable.Map[Class[_], Int]]()
 
@@ -77,18 +80,16 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
   def getStat: String = {
     val sb = new mutable.StringBuilder()
     val nl = System.lineSeparator()
-    triggerTypeToOccurrence.foreach {
-      case (clazz, buf) =>
-        val s = Statistics(buf.map(_.toDouble))
-        sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
+    triggerTypeToOccurrence.foreach { case (clazz, buf) =>
+      val s = Statistics(buf.map(_.toDouble))
+      sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
     }
-    sb.append(s"${nl}Max number of trigger messages per actor type${nl}")
-    getMaxPerActorType.foreach {
-      case (actorType, triggetTypeToMaxMsgs) =>
-        val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t${key} => $v$nl" }.mkString
-        val str = s"""\t$actorType => ${triggetTypeToMaxMsgs.map { case (_, v) => v }.sum}
+    sb.append(s"$nl Max number of trigger messages per actor type$nl")
+    getMaxPerActorType.foreach { case (actorType, triggetTypeToMaxMsgs) =>
+      val s = triggetTypeToMaxMsgs.map { case (key, v) => s"\t\t$key => $v$nl" }.mkString
+      val str = s"""\t$actorType => ${triggetTypeToMaxMsgs.map { case (_, v) => v }.sum}
         |$s""".stripMargin
-        sb.append(str)
+      sb.append(str)
     }
     sb.toString()
   }
@@ -100,71 +101,64 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   private def getMaxPerActorType: Map[String, Map[String, Int]] = {
     // Do not remove `toIterable` (Map can't contain duplicates!)
-    val actorTypeToTriggers = actorToTriggerMessages.map {
-      case (actorRef, map) =>
-        getType(actorRef) -> map.map { case (k, v) => k.getName -> v }
+    val actorTypeToTriggers = actorToTriggerMessages.map { case (actorRef, map) =>
+      getType(actorRef) -> map.map { case (k, v) => k.getName -> v }
     }
 
     val groupedByActorType = actorTypeToTriggers.groupBy { case (actorType, _) => actorType }
 
-    val maxPerActorType = groupedByActorType.map {
-      case (actorType, seq) =>
-        val typeToCount = seq.flatMap { case (key, value) => value }.toSeq
-        val classToMaxMsgCount = typeToCount
-          .groupBy {
-            case (clazz, _) =>
-              clazz
-          }
-          .map { case (clazz, xs) => (clazz, xs.maxBy { case (k, v) => v }._2) }
-        actorType -> classToMaxMsgCount
+    val maxPerActorType = groupedByActorType.map { case (actorType, seq) =>
+      val typeToCount = seq.values.flatten.toSeq
+      val classToMaxMsgCount = typeToCount
+        .groupBy { case (clazz, _) =>
+          clazz
+        }
+        .map { case (clazz, xs) => (clazz, xs.maxBy { case (_, v) => v }._2) }
+      actorType -> classToMaxMsgCount
     }
     maxPerActorType
   }
 
   def prepareJsonConfig(maxPerActorType: Map[String, Map[String, Int]]): String = {
-    val temp = maxPerActorType.toSeq.flatMap {
-      case (actorType, map) =>
-        map.toIterator.map {
-          case (triggerType, count) =>
-            (triggerType, (actorType, count))
-        }
+    val temp = maxPerActorType.toSeq.flatMap { case (actorType, map) =>
+      map.toIterator.map { case (triggerType, count) =>
+        (triggerType, (actorType, count))
+      }
     }
     val triggerType2MaxMessagesPerActorType = temp
       .groupBy { case (triggerType, _) => triggerType }
-      .map {
-        case (triggerType, seq) =>
-          val actorType2Count = seq.map { case (tp, (actorType, count)) => (actorType, count) }
-          triggerType -> actorType2Count
+      .map { case (triggerType, seq) =>
+        val actorType2Count = seq.map { case (_, (actorType, count)) => (actorType, count) }
+        triggerType -> actorType2Count
       }
-    val thresholds = triggerType2MaxMessagesPerActorType.map {
-      case (triggerType, seq) =>
-        val maxTime = triggerTypeToOccurrence(Class.forName(triggerType)).max
-        val actorMax = seq.foldLeft(Thresholds$Elm.ActorTypeToMaxNumberOfMessages(None, None, None, None)) {
-          case (acc, curr) =>
-            val (name, count) = curr
-            val newAcc = name match {
-              case `transitDriverAgentName` => acc.copy(transitDriverAgent = Some(count))
-              case `populationName`         => acc.copy(population = Some(count))
-              case `rideHailAgentName`      => acc.copy(rideHailAgent = Some(count))
-              case `rideHailManagerName`    => acc.copy(rideHailManager = Some(count))
-              case x =>
-                logger.error(s"Don't know what to do with $x")
-                acc
-            }
-            newAcc
-        }
-        // To get default values that's why we create it from empty configuration
-        val threshold = Thresholds$Elm.apply(ConfigFactory.empty())
-        val finalMaxTime = if (threshold.markAsStuckAfterMs > maxTime) {
-          threshold.markAsStuckAfterMs
-        } else {
-          maxTime
-        }
-        threshold.copy(
-          markAsStuckAfterMs = finalMaxTime,
-          triggerType = triggerType,
-          actorTypeToMaxNumberOfMessages = actorMax
-        )
+    val thresholds = triggerType2MaxMessagesPerActorType.map { case (triggerType, seq) =>
+      val maxTime = triggerTypeToOccurrence(Class.forName(triggerType)).max
+      val actorMax = seq.foldLeft(Thresholds$Elm.ActorTypeToMaxNumberOfMessages(None, None, None, None)) {
+        case (acc, curr) =>
+          val (name, count) = curr
+          val newAcc = name match {
+            case `transitDriverAgentName` => acc.copy(transitDriverAgent = Some(count))
+            case `populationName`         => acc.copy(population = Some(count))
+            case `rideHailAgentName`      => acc.copy(rideHailAgent = Some(count))
+            case `rideHailManagerName`    => acc.copy(rideHailManager = Some(count))
+            case x =>
+              logger.error(s"Don't know what to do with $x")
+              acc
+          }
+          newAcc
+      }
+      // To get default values that's why we create it from empty configuration
+      val threshold = Thresholds$Elm.apply(ConfigFactory.empty())
+      val finalMaxTime = if (threshold.markAsStuckAfterMs > maxTime) {
+        threshold.markAsStuckAfterMs
+      } else {
+        maxTime
+      }
+      threshold.copy(
+        markAsStuckAfterMs = finalMaxTime,
+        triggerType = triggerType,
+        actorTypeToMaxNumberOfMessages = actorMax
+      )
     }.toList
 
     val sortedByTriggerType = thresholds.sortBy(x => x.triggerType)

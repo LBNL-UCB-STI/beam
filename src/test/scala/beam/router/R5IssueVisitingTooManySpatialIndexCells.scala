@@ -1,16 +1,16 @@
 package beam.router
 
 import java.io.File
-
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Coord
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class R5IssueVisitingTooManySpatialIndexCells extends FlatSpec with Matchers {
+class R5IssueVisitingTooManySpatialIndexCells extends AnyFlatSpec with Matchers {
 
   class GeoUtilsTestImpl(localCRSString: String) extends GeoUtils {
     override def localCRS: String = localCRSString

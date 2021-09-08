@@ -24,8 +24,8 @@ class WgsCoordinateH3IndexMapper(
   }
 
   override lazy val generateSummary: GeoZoneSummary = {
-    val items = generateContent.map {
-      case (index, coordinates) => GeoZoneSummaryItem(index, coordinates.size)
+    val items = generateContent.map { case (index, coordinates) =>
+      GeoZoneSummaryItem(index, coordinates.size)
     }.toSeq
     GeoZoneSummary(items)
   }

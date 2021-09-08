@@ -11,13 +11,14 @@ trait IntegrationSpecCommon {
 
   System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback-test.xml")
 
-  protected var totalIterations: Int = 1
+  protected val totalIterations: Int = 1
 
   private val configFileName = "test/input/beamville/beam.conf"
 
   private val configLocation = ConfigFactory.parseString("config=" + configFileName)
 
   protected def extensionConfig: Config = ConfigFactory.empty
+
   protected lazy val unResolvedBaseConfig: Config = {
     extensionConfig
       .withFallback(testConfig(configFileName))

@@ -6,6 +6,7 @@ import scala.collection.mutable
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.BeamServices
 import beam.utils.scenario.VehicleInfo
+import ScenarioCsvWriter._
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household

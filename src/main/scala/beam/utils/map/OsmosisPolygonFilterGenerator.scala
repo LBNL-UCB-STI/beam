@@ -25,9 +25,9 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     val geoIds = if (args(1) == "") Set.empty[String] else args(1).split(",").map(_.trim.toLowerCase).toSet
     val pathToOutputFolder = args(2)
 
-    logger.info(s"pathToCountyShapeFile: ${pathToCountyShapeFile}")
-    logger.info(s"geoIds to take: ${geoIds}")
-    logger.info(s"pathToOutputFolder: ${pathToOutputFolder}")
+    logger.info(s"pathToCountyShapeFile: $pathToCountyShapeFile")
+    logger.info(s"geoIds to take: $geoIds")
+    logger.info(s"pathToOutputFolder: $pathToOutputFolder")
 
     val countyWithGeom: Array[(String, Geometry)] = readShape(pathToCountyShapeFile, geoIds)
     logger.info(s"countyWithGeom: ${countyWithGeom.length}")
@@ -48,14 +48,13 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
       sb.append(System.lineSeparator())
     }
     write("counties")
-    countyToGeom.foreach {
-      case (county, geom) =>
-        write(county)
-        geom.getCoordinates.foreach { coord =>
-          val s = s"\t${coord.getOrdinate(0)}\t${coord.getOrdinate(1)}"
-          write(s)
-        }
-        write("END")
+    countyToGeom.foreach { case (county, geom) =>
+      write(county)
+      geom.getCoordinates.foreach { coord =>
+        val s = s"\t${coord.getOrdinate(0)}\t${coord.getOrdinate(1)}"
+        write(s)
+      }
+      write("END")
     }
     write("END")
 
@@ -93,9 +92,8 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     val resultGeomFilePath = pathToOutputPolygonFilterFile + "/wkt.csv"
     val writer = new CsvWriter(resultGeomFilePath, Array("county", "wkt"))
     try {
-      countyToGeom.foreach {
-        case (county, geom) =>
-          writer.write(county, "\"" + geom.toText + "\"")
+      countyToGeom.foreach { case (county, geom) =>
+        writer.write(county, "\"" + geom.toText + "\"")
       }
     } finally {
       Try(writer.close())

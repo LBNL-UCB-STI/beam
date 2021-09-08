@@ -30,19 +30,18 @@ object SummaryVehicleStatsParser {
     )
 
     val Accumulator(ignoredStats, selectedStats) = stats
-      .foldLeft(Accumulator()) {
-        case (accumulator, (statName_vehicleType, statValue)) =>
-          splitToStatVehicle(statName_vehicleType) match {
-            case Some((statName, vehicleType)) if statNameIsSelected(statName) =>
-              statNamesIndexes.get(statName) match {
-                case Some(idx) => accumulator.selectedStats += ParsedState(statName, vehicleType, statValue, idx)
-                case _         => accumulator.ignoredStats += statName_vehicleType
-              }
+      .foldLeft(Accumulator()) { case (accumulator, (statName_vehicleType, statValue)) =>
+        splitToStatVehicle(statName_vehicleType) match {
+          case Some((statName, vehicleType)) if statNameIsSelected(statName) =>
+            statNamesIndexes.get(statName) match {
+              case Some(idx) => accumulator.selectedStats += ParsedState(statName, vehicleType, statValue, idx)
+              case _         => accumulator.ignoredStats += statName_vehicleType
+            }
 
-            case _ => accumulator.ignoredStats += statName_vehicleType
-          }
+          case _ => accumulator.ignoredStats += statName_vehicleType
+        }
 
-          accumulator
+        accumulator
       }
 
     val processed = selectedStats

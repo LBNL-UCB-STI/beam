@@ -56,7 +56,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
     val attribs = event.getAttributes
     // We need only PathTraversal with mode `CAR`, no ride hail
     val isNeededEvent = event.getEventType == "PathTraversal" && Option(attribs.get("mode")).contains("car") &&
-    !Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
+      !Option(attribs.get("vehicle")).exists(vehicle => vehicle.contains("rideHailVehicle-"))
     isNeededEvent
   }
 
@@ -77,7 +77,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
     try {
       // Actual reading happens here because we force computation by `toArray`
       val pathTraversalEvents = ProfilingUtils.timed("Read PathTraversal and filter by mode", x => logger.info(x)) {
-        events.map(PathTraversalEvent.apply).toArray
+        events.map(PathTraversalEvent.apply(_)).toArray
       }
       logger.info(s"pathTraversalEvents size: ${pathTraversalEvents.length}")
 
@@ -85,12 +85,11 @@ object TazTravelTimeAnalyzer extends LazyLogging {
         .groupBy { x =>
           x.vehicleId
         }
-        .flatMap {
-          case (vehId, xs) =>
-            // sliding 2 by 2 because every trip must have two path traversal events (1 + parking)
-            xs.sortBy(x => x.departureTime).sliding(2, 2).map { legs =>
-              Trip(legs)
-            }
+        .flatMap { case (_, xs) =>
+          // sliding 2 by 2 because every trip must have two path traversal events (1 + parking)
+          xs.sortBy(x => x.departureTime).sliding(2, 2).map { legs =>
+            Trip(legs)
+          }
         }
         .toArray
 
@@ -145,7 +144,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
           writer.write(ot.trip.tripLength.toString)
           writer.write(',')
 
-          writer.write(ot.trip.tripLinks.mkString(" ").toString)
+          writer.write(ot.trip.tripLinks.mkString(" "))
           writer.write(',')
 
           val startDiff = geoUtils.distUTMInMeters(startTaz.coord, geoUtils.wgs2Utm(ot.trip.wgsStartCoord))
@@ -192,12 +191,6 @@ object TazTravelTimeAnalyzer extends LazyLogging {
 
     writer.write(wgsCoord.getX.toString)
     writer.write(',')
-  }
-
-  private def wgsToUtm(geoUtils: GeoUtils, x: Double, y: Double): Coord = {
-    val startWgsCoord = new Coord(x, y)
-    val startUtmCoord = geoUtils.wgs2Utm(startWgsCoord)
-    startUtmCoord
   }
 
   private def getObservedTravelTime(

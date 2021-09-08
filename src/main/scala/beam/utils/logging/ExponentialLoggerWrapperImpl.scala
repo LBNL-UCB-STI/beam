@@ -13,7 +13,7 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
   override def error(msgTemplate: String, args: Any*): Unit = {
     if (logger.isErrorEnabled) {
-      processMessage(msgTemplate, args) { message =>
+      processMessage(msgTemplate) { message =>
         logger.error(message, args.map(_.asInstanceOf[AnyRef]): _*)
       }
     }
@@ -21,7 +21,7 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
   def warn(msgTemplate: String, args: Any*): Unit = {
     if (logger.isWarnEnabled) {
-      processMessage(msgTemplate, args) { message =>
+      processMessage(msgTemplate) { message =>
         logger.warn(message, args.map(_.asInstanceOf[AnyRef]): _*)
       }
     }
@@ -29,7 +29,7 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
   override def info(msgTemplate: String, args: Any*): Unit = {
     if (logger.isInfoEnabled) {
-      processMessage(msgTemplate, args) { message =>
+      processMessage(msgTemplate) { message =>
         logger.info(message, args.map(_.asInstanceOf[AnyRef]): _*)
       }
     }
@@ -37,13 +37,13 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
   override def debug(msgTemplate: String, args: Any*): Unit = {
     if (logger.isDebugEnabled) {
-      processMessage(msgTemplate, args) { message =>
+      processMessage(msgTemplate) { message =>
         logger.debug(message, args.map(_.asInstanceOf[AnyRef]): _*)
       }
     }
   }
 
-  private def processMessage(messageTemplate: String, args: Any*)(func: Func): Unit = {
+  private def processMessage(messageTemplate: String)(func: Func): Unit = {
     // by focusing on first 20 characters, we allow people to avoid verbose messages
     // while keeping some unique info in the message. just put that info at the end
     val first20Characters = messageTemplate.substring(0, Math.min(19, messageTemplate.length - 1))

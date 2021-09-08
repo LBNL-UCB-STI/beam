@@ -38,7 +38,7 @@ class ParkingH3IndexConverter[T](
           h3Index = idToH3Index(entry.id),
           parkingType = entry.parkingType,
           pricingModel = entry.pricingModel,
-          chargingType = entry.chargingType,
+          chargingPointType = entry.chargingPointType,
           reservedFor = entry.reservedFor
         ),
         numStalls = entry.numStalls,
@@ -55,14 +55,14 @@ object ParkingH3IndexConverter {
     h3Index: H3Index,
     parkingType: String,
     pricingModel: String,
-    chargingType: String,
-    reservedFor: String,
+    chargingPointType: String,
+    reservedFor: String
   )
 
   case class H3IndexParkingEntry(
     group: H3IndexParkingEntryGroup,
     numStalls: Long,
-    feeInCents: Double,
+    feeInCents: Double
   )
 
   def tazParkingToH3Index(

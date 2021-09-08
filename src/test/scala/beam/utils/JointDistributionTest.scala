@@ -3,9 +3,10 @@ package beam.utils
 import beam.utils.data.ctpp.JointDistribution
 import beam.utils.data.ctpp.JointDistribution.CustomRange
 import org.apache.commons.math3.random.MersenneTwister
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class JointDistributionTest extends WordSpecLike with Matchers {
+class JointDistributionTest extends AnyWordSpecLike with Matchers {
 
   val jointDistribution: JointDistribution = JointDistribution.fromCsvFile(
     pathToCsv = "test/input/beamville/test-data/joint-distribution.csv",
@@ -39,7 +40,7 @@ class JointDistributionTest extends WordSpecLike with Matchers {
       assert(
         ~=(
           jointDistribution.getProbability(("startTimeIndex", Left("4.00, 4.50")), ("durationIndex", Left("0.0, 2.5"))),
-          9.869863907610778E-8,
+          9.869863907610778e-8,
           0.0000000001
         )
       )
