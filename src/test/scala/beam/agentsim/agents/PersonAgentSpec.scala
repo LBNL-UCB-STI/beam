@@ -666,7 +666,7 @@ class PersonAgentSpec
         )
       )
 
-      val (parkingNetworks, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
+      val (parkingNetworks, _, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
       val parkingManager = system.actorOf(Props(new ParkingNetworkManager(services, parkingNetworks)), "ParkingManager")
 
       //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))

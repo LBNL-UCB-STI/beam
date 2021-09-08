@@ -9,6 +9,7 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import java.util
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.Random
 
 object BeamVehicleUtils {
@@ -35,7 +36,7 @@ object BeamVehicleUtils {
           vehicleId,
           powerTrain,
           vehicleType,
-          vehicleManagerId,
+          new AtomicReference(vehicleManagerId),
           randomSeed = rand.nextInt
         )
       acc += ((vehicleId, beamVehicle))

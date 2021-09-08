@@ -15,6 +15,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactory, Income, IncomeImpl}
 import org.matsim.vehicles.Vehicle
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.Random
 
 /**
@@ -167,7 +168,9 @@ object PayloadPlansConverter {
       beamVehicleId,
       powertrain,
       vehicleType,
-      vehicleManagerId = VehicleManager.createOrGetIdUsingUnique(carrierId.toString, VehicleManager.BEAMFreight),
+      vehicleManagerId = new AtomicReference(
+        VehicleManager.createOrGetReservedFor(carrierId.toString, VehicleManager.TypeEnum.Freight).managerId
+      ),
       randomSeed
     )
     vehicle.spaceTime = SpaceTime(initialLocation, 0)

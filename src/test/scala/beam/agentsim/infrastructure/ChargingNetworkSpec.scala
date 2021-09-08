@@ -76,7 +76,6 @@ class ChargingNetworkSpec
                                                |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
           """.stripMargin.split("\n").toIterator
         chargingNetwork = ChargingNetworkSpec.mockChargingNetwork(
-          ParkingZone.GlobalReservedFor,
           config,
           tazTreeMap,
           geo,
@@ -105,7 +104,7 @@ class ChargingNetworkSpec
             Some(xfcChargingPoint),
             Some(FlatFee(56.78)),
             ParkingType.Workplace,
-            ParkingZone.GlobalReservedFor
+            VehicleManager.AnyManager
           )
         val response1 = chargingNetwork.processParkingInquiry(firstInquiry)
         assert(
@@ -134,7 +133,6 @@ class ChargingNetworkSpec
 object ChargingNetworkSpec {
 
   def mockChargingNetwork(
-    vehicleManagerId: Id[VehicleManager],
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
@@ -145,7 +143,6 @@ object ChargingNetworkSpec {
     val minSearchRadius = 1000.0
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
     ChargingNetwork[TAZ](
-      vehicleManagerId,
       parkingDescription,
       tazTreeMap.tazQuadTree,
       tazTreeMap.idToTAZMapping,

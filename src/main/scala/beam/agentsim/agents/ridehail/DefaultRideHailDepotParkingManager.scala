@@ -47,7 +47,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
   outputDirectory: OutputDirectoryHierarchy,
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
-) extends RideHailDepotParkingManager[GEO](vehicleManagerId, parkingZones) {
+) extends RideHailDepotParkingManager[GEO](parkingZones) {
 
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
@@ -132,7 +132,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
           ParkingInquiry.init(
             SpaceTime(locationUtm, tick),
             "wherever",
-            vehicleManagerId,
+            VehicleManager.getReservedFor(vehicleManagerId).get,
             Some(beamVehicle),
             valueOfTime = rideHailConfig.cav.valueOfTime,
             triggerId = 0
