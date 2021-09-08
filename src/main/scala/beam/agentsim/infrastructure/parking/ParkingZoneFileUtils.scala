@@ -663,6 +663,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   /**
     * Write parking zones to csv.
     */
+  @SuppressWarnings(Array("UnusedMethodParameter")) // TODO: scapegoat bug?
   def toCsv[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]], filePath: String): Unit = {
     val fileContent = parkingZones
       .map { case (_, parkingZone) =>
