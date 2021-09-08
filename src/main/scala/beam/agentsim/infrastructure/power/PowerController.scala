@@ -8,7 +8,6 @@ import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
