@@ -44,6 +44,8 @@ object ConfigConsistencyComparator extends LazyLogging {
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
 
+    checkMapFilesDirectoriesConsistency(userConf)
+
     val duplicateKeys = findDuplicateKeys(userConfFileLocation)
     if (duplicateKeys.nonEmpty) {
       val title = "Found the following duplicate config keys from your config file:"
@@ -178,4 +180,14 @@ object ConfigConsistencyComparator extends LazyLogging {
       .mkString(borderLeft + eol, eol, eol)
   }
 
+  def checkMapFilesDirectoriesConsistency(userConf: TypesafeConfig): Unit = {
+    val inputNetworkFilePath = userConf.getConfig("beam").getConfig("physsim").getString("inputNetworkFilePath")
+    val r5directory = userConf.getConfig("beam").getConfig("routing").getConfig("r5").getString("directory")
+    if (!inputNetworkFilePath.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"The beam.physsim.inputNetworkFilePath doesn't point to beam.routing.r5.directory [$r5directory]. " +
+          s"Instead it points to: [$inputNetworkFilePath]"
+      )
+    }
+  }
 }
