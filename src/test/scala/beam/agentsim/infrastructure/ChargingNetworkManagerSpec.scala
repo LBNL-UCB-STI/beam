@@ -21,6 +21,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import beam.agentsim.agents.vehicles.VehicleManager
 
 import scala.language.postfixOps
 

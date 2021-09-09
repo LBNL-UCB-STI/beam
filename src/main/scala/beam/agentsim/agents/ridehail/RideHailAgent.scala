@@ -517,7 +517,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
-      startRefueling(tickToUse, triggerId, data, Vector())
+      startRefueling(tickToUse, triggerId, Vector())
       goto(Refueling)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
@@ -609,7 +609,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev, Vehicle ID: ${vehicle.id}")
       if (debugEnabled) outgoingMessages += ev
-      startRefueling(tickToUse, triggerId, data, Vector())
+      startRefueling(tickToUse, triggerId, Vector())
       goto(Refueling)
     case ev @ Event(reply @ WaitingToCharge(_, _, _), data) =>
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
@@ -1092,12 +1092,12 @@ class RideHailAgent(
           stall.parkingZoneId
         )
     }
-    startRefueling(tick, triggerId, data, triggers)
+    startRefueling(tick, triggerId, triggers)
   }
 
-  def startRefueling(tick: Int, triggerId: Long, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
+  def startRefueling(tick: Int, triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
     handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
-    handleStartRefuel(tick, triggerId, data, triggers)
+    handleStartRefuel(triggerId, triggers)
   }
 
   def requestParkingStall(): Unit = {
@@ -1123,7 +1123,7 @@ class RideHailAgent(
     chargingNetworkManager ! inquiry
   }
 
-  def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
+  def handleStartRefuel(triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
     if (debugEnabled)
       outgoingMessages += CompletionNotice(triggerId, triggers)
     log.debug(s"Sending Completion for ${vehicle.id} and trigger $triggerId")
