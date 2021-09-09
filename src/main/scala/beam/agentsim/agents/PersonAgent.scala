@@ -52,6 +52,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -284,7 +285,7 @@ class PersonAgent(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType,
-    vehicleManagerId = VehicleManager.noManager
+    vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -1215,13 +1216,13 @@ class PersonAgent(
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
-    case ev @ Event(StartingRefuelSession(_, triggerId), _) =>
+    case ev @ Event(StartingRefuelSession(_, _), _) =>
       log.debug("myUnhandled.StartingRefuelSession: {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, triggerId), _) =>
+    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
       log.debug("myUnhandled.UnhandledVehicle: {}", ev)
       stay()
-    case ev @ Event(EndingRefuelSession(_, _, triggerId), _) =>
+    case ev @ Event(EndingRefuelSession(_, _, _), _) =>
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
       stay()
     case Event(e, s) =>

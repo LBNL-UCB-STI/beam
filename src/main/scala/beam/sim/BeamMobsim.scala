@@ -7,12 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{
-  RideHailDepotParkingManager,
-  RideHailIterationHistory,
-  RideHailManager,
-  RideHailSurgePricingManager
-}
+import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
@@ -385,7 +380,7 @@ class BeamMobsimIteration(
 
   import scala.language.existentials
 
-  private val (parkingNetwork, chargingNetwork) =
+  private val (parkingNetwork, nonRhChargingNetwork, rhChargingNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
   // Parking Network Manager
@@ -400,7 +395,7 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, chargingNetwork, parkingNetworkManager, scheduler)
+      .props(beamServices, nonRhChargingNetwork, rhChargingNetwork, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
@@ -408,10 +403,12 @@ class BeamMobsimIteration(
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
   private val rideHailManagerId =
-    VehicleManager.createOrGetIdUsingUnique(
-      beamConfig.beam.agentsim.agents.rideHail.name,
-      VehicleManager.BEAMRideHail
-    )
+    VehicleManager
+      .createOrGetReservedFor(
+        beamConfig.beam.agentsim.agents.rideHail.name,
+        VehicleManager.TypeEnum.RideHail
+      )
+      .managerId
   private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
 
   private val rideHailManager = context.actorOf(
@@ -434,7 +431,7 @@ class BeamMobsimIteration(
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
         rideHailFleetInitializer,
-        chargingNetwork(rideHailManagerId).asInstanceOf[RideHailDepotParkingManager[_]]
+        rhChargingNetwork
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"

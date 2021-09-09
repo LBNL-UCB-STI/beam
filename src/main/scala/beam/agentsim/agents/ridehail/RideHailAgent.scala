@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.MarkVehicleBatteryDepleted
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.RefuelSessionEvent.{OffShift, OnShift}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
@@ -549,10 +549,10 @@ class RideHailAgent(
     case _ @Event(NotifyVehicleDoneRefuelingAndOutOfServiceReply(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(StartingRefuelSession(_, _), _) =>
+    case _ @Event(StartingRefuelSession(_, _), _) =>
       stash()
       stay()
-    case ev @ Event(EndingRefuelSession(_, _, _), _) =>
+    case _ @Event(EndingRefuelSession(_, _, _), _) =>
       stash()
       stay()
     case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
@@ -1115,7 +1115,7 @@ class RideHailAgent(
     val inquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, time),
       "charge",
-      vehicle.vehicleManagerId,
+      VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
       beamVehicle = Some(vehicle),
       parkingDuration = parkingDuration,
       triggerId = getCurrentTriggerIdOrGenerate

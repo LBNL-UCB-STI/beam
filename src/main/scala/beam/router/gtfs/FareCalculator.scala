@@ -1,13 +1,12 @@
 package beam.router.gtfs
 
-import java.io.{ObjectOutputStream, _}
-import java.nio.file.{Files, Path, Paths}
-import java.util.zip.ZipFile
 import beam.router.gtfs.FareCalculator._
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
 import com.conveyal.gtfs.GTFSFeed
 
+import java.io._
+import java.nio.file.{Files, Path, Paths}
 import javax.inject.Inject
 
 class FareCalculator @Inject() (beamConfig: BeamConfig) {
