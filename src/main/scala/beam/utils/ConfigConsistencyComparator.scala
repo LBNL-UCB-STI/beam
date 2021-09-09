@@ -181,12 +181,34 @@ object ConfigConsistencyComparator extends LazyLogging {
   }
 
   def checkMapFilesDirectoriesConsistency(userConf: TypesafeConfig): Unit = {
-    val inputNetworkFilePath = userConf.getConfig("beam").getConfig("physsim").getString("inputNetworkFilePath")
-    val r5directory = userConf.getConfig("beam").getConfig("routing").getConfig("r5").getString("directory")
+    val r5config = userConf.getConfig("beam.routing.r5")
+    val r5directory = r5config.getString("directory")
+    val osmFile = r5config.getString("osmFile")
+    if (!osmFile.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that beam.routing.r5.osmFile points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$osmFile]"
+      )
+    }
+    val osmMapdbFile = r5config.getString("osmMapdbFile")
+    if (!osmMapdbFile.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that beam.routing.r5.osmMapdbFile points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$osmMapdbFile]"
+      )
+    }
+    val inputNetworkFilePath = userConf.getString("beam.physsim.inputNetworkFilePath")
     if (!inputNetworkFilePath.contains(r5directory)) {
       throw new IllegalArgumentException(
         s"It is expected that beam.physsim.inputNetworkFilePath points to the file inside beam.routing.r5.directory " +
-          s"[$r5directory]. Instead it points to: [$inputNetworkFilePath]"
+        s"[$r5directory]. Instead it points to: [$inputNetworkFilePath]"
+      )
+    }
+    val matsimInputNetworkFile = userConf.getString("matsim.modules.network.inputNetworkFile")
+    if (!matsimInputNetworkFile.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that matsim.modules.network.inputNetworkFilePath points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$matsimInputNetworkFile]"
       )
     }
   }
