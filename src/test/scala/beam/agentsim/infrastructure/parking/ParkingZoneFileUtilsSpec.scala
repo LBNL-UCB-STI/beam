@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleCategory.{Car, LightDutyTruck, MediumDutyPassenger}
+import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.HierarchicalParkingManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType.{Public, Residential, Workplace}
@@ -54,7 +54,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
                       case Some(chargingPoint) =>
                         chargingPoint should equal(ChargingPointType.TeslaSuperCharger)
                     }
-                    parkingZone.reservedFor should be(ParkingZone.GlobalReservedFor)
+                    parkingZone.reservedFor should be(VehicleManager.AnyManager)
                     parkingZone.timeRestrictions should be(
                       Map(
                         VehicleCategory.Car            -> Range(3600, 43200),

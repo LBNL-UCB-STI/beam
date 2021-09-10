@@ -3,7 +3,6 @@ package beam.agentsim.agents.freight
 import beam.agentsim.agents.vehicles.BeamVehicle
 import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
 
 import scala.collection.immutable
 

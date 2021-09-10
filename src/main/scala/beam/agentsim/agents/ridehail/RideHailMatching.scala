@@ -25,6 +25,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.collections.QuadTree
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -388,7 +389,7 @@ object RideHailMatching {
       Id.create(veh.vehicleId, classOf[BeamVehicle]),
       new Powertrain(0.0),
       veh.vehicleType,
-      vehicleManagerId = vehicleManagerId
+      vehicleManagerId = new AtomicReference(vehicleManagerId)
     )
     val vehCurrentLocation = veh.getCurrentLocationUTM(tick, beamServices)
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${veh.vehicleId}Act0", vehCurrentLocation)
@@ -512,7 +513,7 @@ object RideHailMatching {
       Id.create(vid, classOf[BeamVehicle]),
       new Powertrain(0.0),
       vehicleType,
-      vehicleManagerId = vehicleManagerId
+      vehicleManagerId = new AtomicReference(vehicleManagerId)
     )
     val v1Act0: Activity = PopulationUtils.createActivityFromCoord(s"${vid}Act0", dst)
     v1Act0.setEndTime(dstTime)

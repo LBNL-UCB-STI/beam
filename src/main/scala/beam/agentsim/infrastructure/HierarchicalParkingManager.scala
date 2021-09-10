@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
@@ -230,12 +230,10 @@ object HierarchicalParkingManager {
     */
   case class ParkingZoneDescription(
     parkingType: ParkingType,
-    reservedFor: Id[VehicleManager],
+    reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range],
-    parkingZoneName: Option[String],
-    landCostInUSDPerSqft: Option[Double]
+    timeRestrictions: Map[VehicleCategory, Range]
   )
 
   object ParkingZoneDescription {
@@ -246,9 +244,7 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions,
-        zone.parkingZoneName,
-        zone.landCostInUSDPerSqft
+        zone.timeRestrictions
       )
     }
   }
@@ -346,9 +342,7 @@ object HierarchicalParkingManager {
         reservedFor = description.reservedFor,
         chargingPointType = description.chargingPointType,
         pricingModel = description.pricingModel,
-        timeRestrictions = description.timeRestrictions,
-        parkingZoneName = description.parkingZoneName,
-        landCostInUSDPerSqft = description.landCostInUSDPerSqft
+        timeRestrictions = description.timeRestrictions
       )
       parkingZone.parkingZoneId -> parkingZone
     }.toMap
@@ -407,9 +401,7 @@ object HierarchicalParkingManager {
           reservedFor = description.reservedFor,
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
-          timeRestrictions = description.timeRestrictions,
-          parkingZoneName = description.parkingZoneName,
-          landCostInUSDPerSqft = description.landCostInUSDPerSqft
+          timeRestrictions = description.timeRestrictions
         )
         parkingZone.parkingZoneId -> parkingZone
       }

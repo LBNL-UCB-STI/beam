@@ -16,7 +16,7 @@ class R5MnetBuilderSpec extends AnyFlatSpec {
     val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config), HighwaySetting.empty())
     builder.buildMNet()
     val network = builder.getNetwork
-    new NetworkWriter(network).write("test/input/beamville/physsim-network.xml")
+    new NetworkWriter(network).write("test/input/beamville/r5/physsim-network.xml")
   }
   //
   //  it should "not a real test, just for extracting edge data" in {

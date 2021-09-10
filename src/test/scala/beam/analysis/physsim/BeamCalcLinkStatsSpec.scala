@@ -23,7 +23,7 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "linkstats-test"
   private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/linkStatsTest.events.xml"
-  private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/physsim-network.xml"
+  private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/r5/physsim-network.xml"
 
   private var beamCalcLinkStats: BeamCalcLinkStats = _
 

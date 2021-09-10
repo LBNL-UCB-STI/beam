@@ -130,6 +130,19 @@ object MathUtils {
     Math.round(floor + addition)
   }
 
+  /**
+    * Tested with not negative
+    * @param x float to round
+    * @param random scala.util.Random
+    * @return
+    */
+  def roundUniformly(x: Double, random: Random): Long = {
+    val floor: Double = Math.floor(x)
+    val diff = x - floor
+    val addition = if (random.nextDouble() < diff) 1 else 0
+    Math.round(floor + addition)
+  }
+
   def formatBytes(v: Long): String = {
     if (v < 1024) return v + " B"
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10

@@ -3,19 +3,18 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
-import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.agentsim.infrastructure.parking.ParkingZone.createId
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class PowerController(
-  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+  chargingNetwork: ChargingNetwork[_],
+  rideHailNetwork: ChargingNetwork[_],
   chargingNetworkManagerConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
   unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
 ) extends LazyLogging {
@@ -90,11 +89,14 @@ class PowerController(
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
           val reservedFor = x("reservedFor").asInstanceOf[String] match {
-            case managerIdString if managerIdString.isEmpty => ParkingZone.GlobalReservedFor
-            case managerIdString                            => Id.create(managerIdString, classOf[VehicleManager])
+            case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
+            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, None).get
           }
-          val chargingNetwork = chargingNetworkMap(reservedFor)
-          chargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
+          val appropriateChargingNetwork = reservedFor.managerType match {
+            case VehicleManager.TypeEnum.RideHail => rideHailNetwork
+            case _                                => chargingNetwork
+          }
+          appropriateChargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
             case Some(station) =>
               Some(
                 station -> PhysicalBounds(

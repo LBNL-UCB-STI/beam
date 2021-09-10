@@ -9,7 +9,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
@@ -114,7 +114,7 @@ trait ChoosesParking extends {
     val parkingInquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
       nextActivityType,
-      this.currentBeamVehicle.vehicleManagerId,
+      VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get,
       Some(this.currentBeamVehicle),
       remainingTripData,
       attributes.valueOfTime,
@@ -129,7 +129,7 @@ trait ChoosesParking extends {
   }
 
   when(ConnectingToChargingPoint) {
-    case _@Event(StartingRefuelSession(tick, triggerId), data) =>
+    case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
       handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
       self ! LastLegPassengerSchedule(triggerId)

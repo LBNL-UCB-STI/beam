@@ -23,6 +23,8 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.events._
+import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingToCharge}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -50,6 +52,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -315,7 +318,7 @@ class PersonAgent(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
     bodyType,
-    vehicleManagerId = VehicleManager.noManager
+    vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -905,7 +908,7 @@ class PersonAgent(
               chargingNetworkManager ! ParkingInquiry(
                 destinationUtm = vehicle.spaceTime,
                 activityType = ParkingActivityType.FastCharge,
-                reservedFor = vehicle.vehicleManagerId,
+                reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
                 beamVehicle = Some(vehicle),
                 valueOfTime = attributes.valueOfTime,
                 triggerId = getCurrentTriggerIdOrGenerate

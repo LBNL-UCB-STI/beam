@@ -39,16 +39,12 @@ class ChargingFunctions[GEO: GeoLevel](
   /**
     * function that verifies if RideHail Then Fast Charging Only
     * @param zone ParkingZone
-    * @param activityTypeLowerCased a String expressing activity Type in lower case
+    * @param inquiry the parking inquiry
     * @return
     */
-  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(
-                                                      zone: ParkingZone[GEO],
-                                                      reservedFor: Id[VehicleManager],
-                                                      parkingDuration: Double
-                                                    ): Boolean = {
-    VehicleManager.getType(reservedFor) match {
-      case VehicleManager.BEAMRideHail if parkingDuration <= 3600 =>
+  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+    inquiry.reservedFor match {
+      case VehicleManager.TypeEnum.RideHail if inquiry.parkingDuration <= 3600 =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get, vehiclesConfig)
       case _ =>
         true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
@@ -83,7 +79,6 @@ class ChargingFunctions[GEO: GeoLevel](
 
   /**
     * get Additional Search Filter Predicates
-    *
     * @param zone ParkingZone
     * @param inquiry ParkingInquiry
     * @return
@@ -98,7 +93,7 @@ class ChargingFunctions[GEO: GeoLevel](
     val isEV: Boolean = inquiry.beamVehicle.forall(v => v.isBEV || v.isPHEV)
 
     val rideHailFastChargingOnly: Boolean =
-      ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry.reservedFor, inquiry.parkingDuration)
+      ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
 
     // todo rrp
     val validChargingPointPowerInKw: Boolean = hasValidChargingPointPowerInKw(zone, inquiry.activityType)

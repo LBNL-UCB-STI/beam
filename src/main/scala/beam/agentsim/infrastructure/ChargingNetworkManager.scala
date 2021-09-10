@@ -35,7 +35,8 @@ import scala.language.postfixOps
 
 class ChargingNetworkManager(
   beamServices: BeamServices,
-  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+  chargingNetwork: ChargingNetwork[_],
+  rideHailNetwork: ChargingNetwork[_],
   parkingNetworkManager: ActorRef,
   scheduler: ActorRef
 ) extends LoggingMessageActor
@@ -47,18 +48,16 @@ class ChargingNetworkManager(
   private val beamConfig: BeamConfig = beamScenario.beamConfig
   private val cnmConfig = beamConfig.beam.agentsim.chargingNetworkManager
 
-  private val sitePowerManager = new SitePowerManager(chargingNetworkMap, beamServices)
+  private val sitePowerManager = new SitePowerManager(chargingNetwork, rideHailNetwork, beamServices)
 
   private val powerController =
     new PowerController(
-      chargingNetworkMap,
+      chargingNetwork,
+      rideHailNetwork,
       beamConfig.beam.agentsim.chargingNetworkManager,
       sitePowerManager.unlimitedPhysicalBounds
     )
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
-
-  import powerController._
-  import sitePowerManager._
 
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.Future
@@ -99,7 +98,7 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkMap(inquiry.reservedFor).processParkingInquiry(inquiry) match {
+      getAppropriateChargingNetwork(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
         case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
@@ -113,14 +112,13 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      val estimatedLoad = requiredPowerInKWOverNextPlanningHorizon(timeBin)
+      val estimatedLoad = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
       log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
 
       // obtaining physical bounds
-      val physicalBounds = obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
+      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
 
-      val allConnectedVehicles = chargingNetworkMap.flatMap(_._2.connectedVehicles)
-      val triggers = allConnectedVehicles.par.flatMap { case (_, chargingVehicle) =>
+      val triggers = chargingNetwork.connectedVehicles.par.flatMap { case (_, chargingVehicle) =>
         // Refuel
         handleRefueling(chargingVehicle)
         // Calculate the energy to charge and prepare for next current cycle of charging
@@ -151,9 +149,9 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       vehicle.stall match {
         case Some(stall) =>
-          val chargingNetwork = chargingNetworkMap(stall.reservedFor)
-          chargingNetwork.endChargingSession(vehicle.id, tick) map { chargingVehicle =>
-            handleEndCharging(tick, chargingVehicle, triggerId, false)
+          getAppropriateChargingNetwork(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
+            chargingVehicle =>
+              handleEndCharging(tick, chargingVehicle, triggerId, false)
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
@@ -162,9 +160,8 @@ class ChargingNetworkManager(
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
-        val chargingNetwork = chargingNetworkMap(stall.reservedFor)
         // connecting the current vehicle
-        chargingNetwork.processChargingPlugRequest(request, sender()) map {
+        getAppropriateChargingNetwork(stall.reservedFor.managerId).processChargingPlugRequest(request, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
@@ -185,11 +182,10 @@ class ChargingNetworkManager(
 
     case ChargingUnplugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
-      val bounds = obtainPowerPhysicalBounds(tick, None)
+      val bounds = powerController.obtainPowerPhysicalBounds(tick, None)
       vehicle.stall match {
         case Some(stall) =>
-          val chargingNetwork = chargingNetworkMap(stall.reservedFor)
-          chargingNetwork.disconnectVehicle(vehicle.id, tick) match {
+          getAppropriateChargingNetwork(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
             case Some(chargingVehicle) =>
               if (
                 chargingVehicle.chargingSessions.nonEmpty && !chargingVehicle.chargingStatus.exists(
@@ -229,17 +225,29 @@ class ChargingNetworkManager(
 
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
-      val nbWaitingVehicles = chargingNetworkMap.flatMap(_._2.waitingLineVehicles).size
+      val nbWaitingVehicles = chargingNetwork.waitingLineVehicles.size + rideHailNetwork.waitingLineVehicles.size
       if (nbWaitingVehicles > 0) {
         log.warning(
           s"There were $nbWaitingVehicles vehicles waiting to be charged." +
           s"It might be due to lack of charging infrastructure or something is broken"
         )
       }
-      chargingNetworkMap.foreach(_._2.clearAllMappedStations())
+      chargingNetwork.clearAllMappedStations()
+      rideHailNetwork.clearAllMappedStations()
       powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
+  }
+
+  /**
+    * @param reservedFor vehicle manager id
+    * @return
+    */
+  private def getAppropriateChargingNetwork(reservedFor: Id[VehicleManager]): ChargingNetwork[_] = {
+    VehicleManager.getReservedFor(reservedFor) match {
+      case VehicleManager.TypeEnum.RideHail => rideHailNetwork
+      case _                                => chargingNetwork
+    }
   }
 
   /**
@@ -275,7 +283,7 @@ class ChargingNetworkManager(
       chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow - startTime).getOrElse(Int.MaxValue)
     )
     chargingVehicle.checkAndCorrectCycleAfterInterruption(updatedEndTime)
-    val (chargingDuration, energyToCharge) = dispatchEnergy(duration, chargingVehicle, physicalBounds)
+    val (chargingDuration, energyToCharge) = sitePowerManager.dispatchEnergy(duration, chargingVehicle, physicalBounds)
     log.debug(
       s"dispatchEnergyAndProcessChargingCycle. startTime:$startTime, endTime:$endTime, updatedEndTime:$updatedEndTime, " +
       s"duration:$duration, maxCycleDuration:$maxCycleDuration, chargingVehicle:$chargingVehicle, " +
@@ -318,7 +326,7 @@ class ChargingNetworkManager(
     if (vehicle.stall.isEmpty)
       vehicle.useParkingStall(chargingVehicle.stall)
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
-    val physicalBounds = obtainPowerPhysicalBounds(tick, None)
+    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
     chargingVehicle.theSender ! StartingRefuelSession(tick + parallelismWindow, triggerId)
     handleStartChargingHelper(tick, chargingVehicle, beamServices)
     dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, physicalBounds, triggerId, false).foreach(
@@ -362,7 +370,12 @@ class ChargingNetworkManager(
     */
   private def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
     chargingVehicle.refuel.foreach { case ChargingCycle(startTime, endTime, _, _) =>
-      collectObservedLoadInKW(startTime, endTime - startTime, chargingVehicle.vehicle, chargingVehicle.chargingStation)
+      sitePowerManager.collectObservedLoadInKW(
+        startTime,
+        endTime - startTime,
+        chargingVehicle.vehicle,
+        chargingVehicle.chargingStation
+      )
     }
   }
 
@@ -404,11 +417,12 @@ object ChargingNetworkManager extends LazyLogging {
 
   def props(
     beamServices: BeamServices,
-    chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+    chargingNetwork: ChargingNetwork[_],
+    rideHailNetwork: ChargingNetwork[_],
     parkingManager: ActorRef,
     scheduler: ActorRef
   ): Props = {
-    Props(new ChargingNetworkManager(beamServices, chargingNetworkMap, parkingManager, scheduler))
+    Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, parkingManager, scheduler))
   }
 
   /**
@@ -439,11 +453,7 @@ object ChargingNetworkManager extends LazyLogging {
     * @param currentTick current time
     * @param chargingVehicle vehicle charging information
     */
-  def handleEndChargingHelper(
-    currentTick: Int,
-    chargingVehicle: ChargingVehicle,
-    beamServices: BeamServices
-  ): Unit = {
+  def handleEndChargingHelper(currentTick: Int, chargingVehicle: ChargingVehicle, beamServices: BeamServices): Unit = {
     val (totDuration, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
     val vehicle = chargingVehicle.vehicle
     val stall = chargingVehicle.stall
