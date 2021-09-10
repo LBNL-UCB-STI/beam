@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
@@ -22,10 +22,8 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
-  chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-) extends ParkingNetwork[GEO](chargingZones) {
+class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+    extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._
 
@@ -100,7 +98,7 @@ class ChargingNetwork[GEO: GeoLevel](
       )
       .orElse {
         logger.error(
-          s"Cannot find a $vehicleManagerId station identified with tazId ${request.stall.tazId}, " +
+          s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
           s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
         )
         None
@@ -132,7 +130,6 @@ object ChargingNetwork {
   }
 
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -144,10 +141,7 @@ object ChargingNetwork {
     maxSearchRadius: Double,
     seed: Int
   ): ChargingNetwork[GEO] = {
-    new ChargingNetwork[GEO](
-      vehicleManagerId,
-      chargingZones
-    ) {
+    new ChargingNetwork[GEO](chargingZones) {
       override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
         new ChargingFunctions[GEO](
           geoQuadTree,
@@ -166,7 +160,6 @@ object ChargingNetwork {
   }
 
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     parkingDescription: Iterator[String],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -187,7 +180,6 @@ object ChargingNetwork {
       1.0
     )
     ChargingNetwork[GEO](
-      vehicleManagerId,
       parking.zones.toMap,
       geoQuadTree,
       idToGeoMapping,
@@ -202,13 +194,11 @@ object ChargingNetwork {
   }
 
   def init(
-    vehicleManagerId: Id[VehicleManager],
     chargingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     envelopeInUTM: Envelope,
     beamServices: BeamServices
   ): ChargingNetwork[TAZ] = {
     ChargingNetwork[TAZ](
-      vehicleManagerId,
       chargingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
@@ -223,7 +213,6 @@ object ChargingNetwork {
   }
 
   def init(
-    vehicleManagerId: Id[VehicleManager],
     chargingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
     geoQuadTree: QuadTree[Link],
     idToGeoMapping: scala.collection.Map[Id[Link], Link],
@@ -232,7 +221,6 @@ object ChargingNetwork {
     beamServices: BeamServices
   ): ChargingNetwork[Link] = {
     ChargingNetwork[Link](
-      vehicleManagerId,
       chargingZones,
       geoQuadTree,
       idToGeoMapping,

@@ -11,7 +11,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager.MarkVehicleBatteryDepleted
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.RefuelSessionEvent.{OffShift, OnShift}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
@@ -534,7 +534,7 @@ class RideHailAgent(
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
       if (vehicle.isCAV) {
         if (debugEnabled) outgoingMessages += ev
-        startRefueling(tickToUse, triggerId, data, Vector())
+        startRefueling(triggerId, Vector())
         goto(Refueling)
       } else {
         holdTickAndTriggerId(tickToUse, triggerId)
@@ -628,9 +628,9 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev, Vehicle ID: ${vehicle.id}")
       if (debugEnabled) outgoingMessages += ev
-      startRefueling(tickToUse, triggerId, data, Vector())
+      startRefueling(triggerId, Vector())
       goto(Refueling)
-    case ev @ Event(reply @ WaitingToCharge(tick, _, _, triggerId), data) =>
+    case ev @ Event(reply @ WaitingToCharge(_, _, _, _), data) =>
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       handleWaitingLineReply(reply, data)
@@ -972,7 +972,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
       holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
-      handleEndRefuel(tick, triggerId)
+      handleEndRefuel(tick)
       if (isCurrentlyOnShift && !needsToEndShift) {
         goto(Idle)
       } else {
@@ -983,7 +983,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Refueling.UnhandledVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
       holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
-      handleEndRefuel(tick, triggerId)
+      handleEndRefuel(tick)
       if (isCurrentlyOnShift && !needsToEndShift) {
         goto(Idle)
       } else {
@@ -1020,7 +1020,7 @@ class RideHailAgent(
     }
   }
 
-  def handleEndRefuel(tick: Int, triggerId: Long): Unit = {
+  def handleEndRefuel(tick: Int): Unit = {
     lastLocationOfRefuel = Some(vehicle.stall.get.locationUTM)
     val newLocation = vehicle.stall match {
       case None =>
@@ -1094,11 +1094,11 @@ class RideHailAgent(
           stall.parkingZoneId
         )
     }
-    startRefueling(tick, triggerId, data, triggers)
+    startRefueling(triggerId, triggers)
   }
 
-  def startRefueling(tick: Int, triggerId: Long, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
-    handleStartRefuel(tick, triggerId, data, triggers)
+  private def startRefueling(triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
+    handleStartRefuel(triggerId, triggers)
   }
 
   def requestParkingStall(): Unit = {
@@ -1116,7 +1116,7 @@ class RideHailAgent(
     val inquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, time),
       "charge",
-      vehicle.vehicleManagerId,
+      VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
       beamVehicle = Some(vehicle),
       parkingDuration = parkingDuration,
       triggerId = getCurrentTriggerIdOrGenerate
@@ -1124,7 +1124,7 @@ class RideHailAgent(
     chargingNetworkManager ! inquiry
   }
 
-  def handleStartRefuel(tick: Int, triggerId: Long, data: RideHailAgentData, triggers: Seq[ScheduleTrigger]): Unit = {
+  def handleStartRefuel(triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
     if (debugEnabled)
       outgoingMessages += CompletionNotice(triggerId, triggers)
     log.debug(s"Sending Completion for ${vehicle.id} and trigger $triggerId")

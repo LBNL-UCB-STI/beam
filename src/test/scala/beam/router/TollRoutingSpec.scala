@@ -47,7 +47,7 @@ class TollRoutingSpec
   var beamScenario: BeamScenario = _
   var fareCalculator: FareCalculator = _
 
-  override def beforeAll: Unit = {
+  override def beforeAll(): Unit = {
     val beamConfig = BeamConfig(system.settings.config)
     beamScenario = loadScenario(beamConfig)
       .copy(fuelTypePrices = Map().withDefaultValue(0.0)) // Reset fuel prices to 0 so we get pure monetary costs
@@ -210,7 +210,7 @@ class TollRoutingSpec
 
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 

@@ -136,7 +136,7 @@ class PassengerScheduleTest
 
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 

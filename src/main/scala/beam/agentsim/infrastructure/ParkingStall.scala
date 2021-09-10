@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 import beam.agentsim.infrastructure.parking._
@@ -20,15 +21,15 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: Id[VehicleManager]
+  reservedFor: ReservedFor
 )
 
 object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
 
-  def init[GEO: GeoLevel](
-    parkingZone: ParkingZone[GEO],
+  def init[T](
+    parkingZone: ParkingZone[T],
     tazId: Id[TAZ],
     location: Location,
     costInDollars: Double
@@ -60,7 +61,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = ParkingZone.GlobalReservedFor
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -90,7 +91,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = ParkingZone.GlobalReservedFor
+      reservedFor = VehicleManager.AnyManager
     )
   }
 
@@ -116,7 +117,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = ParkingZone.GlobalReservedFor
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**

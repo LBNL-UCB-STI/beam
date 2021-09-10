@@ -22,10 +22,7 @@ import beam.sim.metrics.MetricsSupport;
 import beam.sim.population.AttributesOfIndividual;
 import beam.sim.population.PopulationAdjustment;
 import beam.sim.population.PopulationAdjustment$;
-import beam.utils.BeamCalcLinkStats;
-import beam.utils.DebugLib;
-import beam.utils.FileUtils;
-import beam.utils.TravelTimeCalculatorHelper;
+import beam.utils.*;
 import com.conveyal.r5.transit.TransportNetwork;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
@@ -37,13 +34,7 @@ import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
-import org.matsim.api.core.v01.population.Activity;
-import org.matsim.api.core.v01.population.Leg;
-import org.matsim.api.core.v01.population.Person;
-import org.matsim.api.core.v01.population.Plan;
-import org.matsim.api.core.v01.population.Population;
-import org.matsim.api.core.v01.population.PopulationWriter;
-import org.matsim.api.core.v01.population.Route;
+import org.matsim.api.core.v01.population.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
@@ -355,56 +346,85 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
 
         if (event instanceof PathTraversalEvent) {
-            PathTraversalEvent pte = (PathTraversalEvent) event;
-            String mode = pte.mode().value();
+            handlePathTraversalEvent((PathTraversalEvent) event);
+        }
+    }
 
-            if (isCarMode(mode)) {
-                double departureTime = pte.departureTime();
-                double travelTime = pte.arrivalTime() - departureTime;
+    private void handlePathTraversalEvent(PathTraversalEvent pte) {
+        String mode = pte.mode().value();
 
-                if (travelTime > 0.0) {
-                    double speed = pte.legLength() / travelTime;
-                    int bin = (int) departureTime / beamConfig.beam().physsim().linkStatsBinSize();
-                    Mean mean = binSpeed.getOrDefault(bin, new Mean());
-                    mean.increment(speed);
-                }
-            }
-            // pt sampling
-            // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
-            // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
+        if (isCarMode(mode)) {
+            double departureTime = pte.departureTime();
+            double travelTime = pte.arrivalTime() - departureTime;
 
-            if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
-                return;
-            }
-            if (isPhyssimMode(mode)) {
-                traversalEventsForPhysSimulation.add((PathTraversalEvent) event);
-
-                double departureTime = pte.departureTime();
-                String vehicleId = pte.vehicleId().toString();
-
-                String vehicleType = pte.vehicleType();
-                Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleType, BeamVehicleType.class);
-                boolean isCaccEnabled = beamServices.beamScenario().vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
-                caccVehiclesMap.put(vehicleId, isCaccEnabled);
-
-                // For every PathTraversalEvent which has PhysSim mode (CAR or BUS) we create
-                // - If person does not exist, we create Person from `vehicleId`. For that person we create plan, set it to selected plan and add attributes from the original person
-                // - Create leg
-                // - Create dummy activity
-                final Person person = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(pte.driverId()));
-                final Plan plan = person.getSelectedPlan();
-                final Leg leg = createLeg(pte);
-
-                if (leg == null) {
-                    return; // dont't process leg further, if empty
-                }
-
-                Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
-                previousActivity.setEndTime(departureTime);
-                plan.addActivity(previousActivity);
-                plan.addLeg(leg);
+            if (travelTime > 0.0) {
+                double speed = pte.legLength() / travelTime;
+                int bin = (int) departureTime / beamConfig.beam().physsim().linkStatsBinSize();
+                Mean mean = binSpeed.getOrDefault(bin, new Mean());
+                mean.increment(speed);
             }
         }
+        // pt sampling
+        // TODO: if requested, add beam.physsim.ptSamplingMode (pathTraversal | busLine), which controls if instead of filtering outWriter
+        // pathTraversal, a busLine should be filtered out, avoiding jumping buses in visualization (but making traffic flows less precise).
+
+        if (mode.equalsIgnoreCase(BUS) && rand.nextDouble() > beamConfig.beam().physsim().ptSampleSize()) {
+            return;
+        }
+        if (isPhyssimMode(mode)) {
+            traversalEventsForPhysSimulation.add(pte);
+
+            String driverId = pte.driverId();
+            String vehicleId = pte.vehicleId().toString();
+
+            String vehicleType = pte.vehicleType();
+            Id<BeamVehicleType> beamVehicleTypeId = Id.create(vehicleType, BeamVehicleType.class);
+            boolean isCaccEnabled = beamServices.beamScenario().vehicleTypes().get(beamVehicleTypeId).get().isCaccEnabled();
+            caccVehiclesMap.put(vehicleId, isCaccEnabled);
+
+            addPTEtoPhysSimPlans(pte, vehicleId, driverId, 0);
+
+            double fractionOfEvents = beamConfig.beam().physsim().duplicatePTE().fractionOfEventsToDuplicate();
+            if (mode.equalsIgnoreCase(CAR)) {
+                long numberOfDuplicates = MathUtils.roundUniformly(fractionOfEvents);
+                for (int i = 0; i < numberOfDuplicates; i++) {
+                    int departureTimeShift = getDepartureTimeShift();
+                    String clonedVehicleId = vehicleId + "_clone" + i;
+                    String clonedDriverId = driverId + "_clone" + i;
+                    addPTEtoPhysSimPlans(pte, clonedVehicleId, clonedDriverId, departureTimeShift);
+                }
+            }
+        }
+    }
+
+    private int getDepartureTimeShift() {
+        int minShift = Math.min(beamConfig.beam().physsim().duplicatePTE().departureTimeShiftMin(),
+                beamConfig.beam().physsim().duplicatePTE().departureTimeShiftMax());
+        int maxShift = Math.max(beamConfig.beam().physsim().duplicatePTE().departureTimeShiftMin(),
+                beamConfig.beam().physsim().duplicatePTE().departureTimeShiftMax());
+        int shiftSize = Math.abs(maxShift - minShift);
+
+        return minShift + rand.nextInt(shiftSize);
+    }
+
+    private void addPTEtoPhysSimPlans(PathTraversalEvent pte, String vehicleId, String driverId, Integer departureTimeShift) {
+        // For every PathTraversalEvent which has PhysSim mode (CAR or BUS) we create
+        // - If person does not exist, we create Person from `vehicleId`. For that person we create plan, set it to selected plan and add attributes from the original person
+        // - Create leg
+        // - Create dummy activity
+        final Person person = initializePersonAndPlanIfNeeded(Id.createPersonId(vehicleId), Id.createPersonId(driverId));
+        final Plan plan = person.getSelectedPlan();
+        final Leg leg = createLeg(pte, departureTimeShift);
+
+        if (leg == null) {
+            return;
+        }
+
+        Activity previousActivity = jdeqsimPopulation.getFactory().createActivityFromLinkId(DUMMY_ACTIVITY, leg.getRoute().getStartLinkId());
+        // math max in case of negative departure time shift
+        previousActivity.setEndTime(Math.max(0, pte.departureTime() + departureTimeShift));
+        plan.addActivity(previousActivity);
+        plan.addLeg(leg);
     }
 
     private void writeIterationCsv(int iteration) {
@@ -450,7 +470,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         }
     }
 
-    private Leg createLeg(PathTraversalEvent pte) {
+    private Leg createLeg(PathTraversalEvent pte, Integer departureTimeShift) {
         List<Id<Link>> linkIds = new ArrayList<>();
 
         for (Object linkObjId : pte.linkIdsJava()) {
@@ -481,8 +501,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         leg.setTravelTime(0);
         leg.setRoute(route);
         leg.getAttributes().putAttribute("travel_time", pte.arrivalTime() - pte.departureTime());
-        leg.getAttributes().putAttribute("departure_time", pte.departureTime());
-        leg.getAttributes().putAttribute("event_time", pte.time());
+        // math.max in case of negative departureTimeShift
+        leg.getAttributes().putAttribute("departure_time", Math.max(0, pte.departureTime() + departureTimeShift));
+        leg.getAttributes().putAttribute("event_time", Math.max(0, pte.time() + departureTimeShift));
         return leg;
     }
 

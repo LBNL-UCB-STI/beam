@@ -67,7 +67,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
   }
 
-  def clearPrimaryBufferAndFillFromSecondary: Unit = {
+  def clearPrimaryBufferAndFillFromSecondary(): Unit = {
     bufferedRideHailRequests = secondaryBufferedRideHailRequests
     secondaryBufferedRideHailRequests = Map()
   }

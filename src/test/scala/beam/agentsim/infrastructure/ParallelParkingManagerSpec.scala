@@ -6,6 +6,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.InfrastructureUtils.buildParkingZones
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
@@ -173,13 +174,13 @@ class ParallelParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_Global_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            ParkingZone.GlobalReservedFor
+            VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
@@ -239,13 +240,13 @@ class ParallelParkingManagerSpec
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_Global_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            ParkingZone.GlobalReservedFor
+            VehicleManager.AnyManager
           )
 
         // request the stall
@@ -361,30 +362,30 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_Global_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
-        ParkingZone.GlobalReservedFor
+        VehicleManager.AnyManager
       )
 
       assertParkingResponse(
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_Global_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
-        ParkingZone.GlobalReservedFor
+        VehicleManager.AnyManager
       )
 
       assertParkingResponse(
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("cs_Global_2_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
-        ParkingZone.GlobalReservedFor
+        VehicleManager.AnyManager
       )
     }
   }
@@ -396,9 +397,9 @@ class ParallelParkingManagerSpec
     parkingZoneId: Id[ParkingZoneId],
     pricingModel: PricingModel,
     parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager]
+    reservedFor: ReservedFor
   ) = {
-    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 77370)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, triggerId = 77370)
     val response = spm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val expectedStall =
@@ -411,7 +412,7 @@ class ParallelParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        reservedFor = vehicleManagerId
+        reservedFor = reservedFor
       )
     assert(response.isDefined, "no response")
     assert(
@@ -420,7 +421,7 @@ class ParallelParkingManagerSpec
     )
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }

@@ -162,3 +162,11 @@ oakland_charging_events_merged_with_urbansim_tripIds_scaledUpby10 <- scaleUpAllS
 #         axis.text.y = element_blank(),
 #         axis.ticks.x = element_blank(),
 #         axis.ticks.y = element_blank())
+
+##
+
+
+initInfra_1_5 <- readCsv(pp(workDir, "/init1.5.csv"))
+
+
+

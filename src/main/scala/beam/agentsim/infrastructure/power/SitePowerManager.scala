@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -8,22 +8,20 @@ import beam.router.skim.event
 import beam.sim.BeamServices
 import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
 class SitePowerManager(
-  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+  chargingNetwork: ChargingNetwork[_],
+  rideHailNetwork: ChargingNetwork[_],
   beamServices: BeamServices
 ) extends LazyLogging {
   import SitePowerManager._
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
-  private lazy val allChargingStations = chargingNetworkMap.flatMap(_._2.chargingStations).toList.distinct
-
-  private[infrastructure] val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
-    chargingNetworkMap.flatMap(_._2.chargingStations).toSeq
-  ).value
+  private lazy val allChargingStations = chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
+  private[infrastructure] val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
 
   /**
@@ -38,7 +36,9 @@ class SitePowerManager(
       .seq
       .toMap
     temporaryLoadEstimate.clear()
-    if (plans.isEmpty) logger.debug(s"Charging Replan did not produce allocations")
+    if (plans.isEmpty) {
+      logger.debug(s"Charging Replan did not produce allocations on tick: [$tick]")
+    }
     plans
   }
 

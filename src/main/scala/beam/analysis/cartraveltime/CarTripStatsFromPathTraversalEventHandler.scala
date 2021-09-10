@@ -173,7 +173,7 @@ class CarTripStatsFromPathTraversalEventHandler(
 
     averageCarSpeedPerIterationByType += type2Statistics.mapValues(_.speed.stats.avg)
 
-    createRootGraphForAverageCarSpeedByType(event)
+    createRootGraphForAverageCarSpeedByType()
     createPercentageFreeSpeedGraph(event.getServices.getControlerIO.getOutputFilename("percentageFreeSpeed.png"))
 
     // write the iteration level car ride stats to output file
@@ -227,7 +227,7 @@ class CarTripStatsFromPathTraversalEventHandler(
     *
     * @param event IterationEndsEvent
     */
-  private def createRootGraphForAverageCarSpeedByType(event: IterationEndsEvent): Unit = {
+  private def createRootGraphForAverageCarSpeedByType(): Unit = {
     val dataset = new DefaultCategoryDataset
 
     executeOnAverageSpeedData({ case (it, carType, speed) => dataset.addValue(speed, carType, it) })
@@ -268,7 +268,7 @@ class CarTripStatsFromPathTraversalEventHandler(
       executeOnAverageSpeedData({ case (it, carType, speed) => csvWriter.write(it, carType, speed) })
     } catch {
       case NonFatal(ex) =>
-        logger.error(s"Writing average car speed to the $outputPath has failed with: ${ex.getMessage}", ex)
+        logger.error(s"Writing average car speed to the $outputPath has failed. Event: $event", ex)
     } finally {
       Try(csvWriter.close())
     }
@@ -588,7 +588,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       .groupBy(x => (x.vehicleId, x.driverId))
     val drivingWithParkingPtes = grouped.map { case ((vehId, driverId), xs) =>
       val sorted = xs.sortBy(x => x.departureTime)
-      if (sorted.length % 2 == 1 && treatMismatchAsWarning) {
+      if (sorted.length % 2 != 0 && treatMismatchAsWarning) {
         logger.warn(
           s"Vehicle $vehId with driver $driverId has ${sorted.length} events, but expected to have odd number of events (1 driving PathTraversalEvent and 1 parking PathTraversalEvent)"
         )

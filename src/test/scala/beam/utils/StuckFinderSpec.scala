@@ -20,7 +20,7 @@ class StuckFinderSpec
     with Matchers
     with BeforeAndAfterAll {
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 

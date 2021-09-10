@@ -2722,6 +2722,8 @@ object BeamConfig {
     case class Physsim(
       bprsim: BeamConfig.Beam.Physsim.Bprsim,
       cchRoutingAssignment: BeamConfig.Beam.Physsim.CchRoutingAssignment,
+      duplicatePTE: BeamConfig.Beam.Physsim.DuplicatePTE,
+      eventManager: BeamConfig.Beam.Physsim.EventManager,
       events: BeamConfig.Beam.Physsim.Events,
       eventsForFullVersionOfVia: scala.Boolean,
       eventsSampling: scala.Double,
@@ -2779,6 +2781,41 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.CchRoutingAssignment = {
           BeamConfig.Beam.Physsim.CchRoutingAssignment(
             congestionFactor = if (c.hasPathOrNull("congestionFactor")) c.getDouble("congestionFactor") else 1.0
+          )
+        }
+      }
+
+      case class DuplicatePTE(
+        departureTimeShiftMax: scala.Int,
+        departureTimeShiftMin: scala.Int,
+        fractionOfEventsToDuplicate: scala.Double
+      )
+
+      object DuplicatePTE {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.DuplicatePTE = {
+          BeamConfig.Beam.Physsim.DuplicatePTE(
+            departureTimeShiftMax =
+              if (c.hasPathOrNull("departureTimeShiftMax")) c.getInt("departureTimeShiftMax") else 600,
+            departureTimeShiftMin =
+              if (c.hasPathOrNull("departureTimeShiftMin")) c.getInt("departureTimeShiftMin") else -600,
+            fractionOfEventsToDuplicate =
+              if (c.hasPathOrNull("fractionOfEventsToDuplicate")) c.getDouble("fractionOfEventsToDuplicate") else 0.0
+          )
+        }
+      }
+
+      case class EventManager(
+        numberOfThreads: scala.Int,
+        `type`: java.lang.String
+      )
+
+      object EventManager {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.EventManager = {
+          BeamConfig.Beam.Physsim.EventManager(
+            numberOfThreads = if (c.hasPathOrNull("numberOfThreads")) c.getInt("numberOfThreads") else 1,
+            `type` = if (c.hasPathOrNull("type")) c.getString("type") else "Auto"
           )
         }
       }
@@ -3443,6 +3480,14 @@ object BeamConfig {
           cchRoutingAssignment = BeamConfig.Beam.Physsim.CchRoutingAssignment(
             if (c.hasPathOrNull("cchRoutingAssignment")) c.getConfig("cchRoutingAssignment")
             else com.typesafe.config.ConfigFactory.parseString("cchRoutingAssignment{}")
+          ),
+          duplicatePTE = BeamConfig.Beam.Physsim.DuplicatePTE(
+            if (c.hasPathOrNull("duplicatePTE")) c.getConfig("duplicatePTE")
+            else com.typesafe.config.ConfigFactory.parseString("duplicatePTE{}")
+          ),
+          eventManager = BeamConfig.Beam.Physsim.EventManager(
+            if (c.hasPathOrNull("eventManager")) c.getConfig("eventManager")
+            else com.typesafe.config.ConfigFactory.parseString("eventManager{}")
           ),
           events = BeamConfig.Beam.Physsim.Events(
             if (c.hasPathOrNull("events")) c.getConfig("events")
@@ -4406,7 +4451,7 @@ object BeamConfig {
           BeamConfig.Matsim.Modules.Network(
             inputNetworkFile =
               if (c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile")
-              else "/test/input/beamville/physsim-network.xml"
+              else "/test/input/beamville/r5/physsim-network.xml"
           )
         }
       }

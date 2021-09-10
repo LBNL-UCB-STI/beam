@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.power
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
@@ -101,7 +101,7 @@ class SitePowerManagerSpec
     None,
     taz.tazId,
     ParkingType.Workplace,
-    ParkingZone.GlobalReservedFor,
+    VehicleManager.AnyManager,
     maxStalls = 2,
     chargingPointType = Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
     pricingModel = Some(PricingModel.FlatFee(0.0))
@@ -127,8 +127,13 @@ class SitePowerManagerSpec
   }
 
   val chargingNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
-    ParkingZone.GlobalReservedFor,
     Map(dummyChargingZone.parkingZoneId -> dummyChargingZone),
+    envelopeInUTM,
+    beamServices
+  )
+
+  val rideHailNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
+    Map(),
     envelopeInUTM,
     beamServices
   )
@@ -136,7 +141,7 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val sitePowerManager = new SitePowerManager(Map(ParkingZone.GlobalReservedFor -> chargingNetwork), beamServices)
+    val sitePowerManager = new SitePowerManager(chargingNetwork, rideHailNetwork, beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(

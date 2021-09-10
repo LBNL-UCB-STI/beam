@@ -216,10 +216,11 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         4,
         VehicleManager
-          .createOrGetIdUsingUnique(
+          .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.BEAMRideHail
+            VehicleManager.TypeEnum.RideHail
           )
+          .managerId
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -230,10 +231,11 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         4,
         VehicleManager
-          .createOrGetIdUsingUnique(
+          .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.BEAMRideHail
+            VehicleManager.TypeEnum.RideHail
           )
+          .managerId
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -290,10 +292,11 @@ object MatchingAlgorithmsForRideHailSpec {
         Some(CircularGeofence(10000, 10000, 13400)),
         4,
         VehicleManager
-          .createOrGetIdUsingUnique(
+          .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.BEAMRideHail
+            VehicleManager.TypeEnum.RideHail
           )
+          .managerId
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -304,10 +307,11 @@ object MatchingAlgorithmsForRideHailSpec {
         Some(CircularGeofence(10000, 10000, 13400)),
         4,
         VehicleManager
-          .createOrGetIdUsingUnique(
+          .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.BEAMRideHail
+            VehicleManager.TypeEnum.RideHail
           )
+          .managerId
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -378,7 +382,6 @@ object MatchingAlgorithmsForRideHailSpec {
 
   def beamvilleScenario(vehicleType: BeamVehicleType, remainingRangeInM: Int = 10000)(implicit
     services: BeamServices,
-    beamScenario: BeamScenario,
     mockActorRef: ActorRef
   ): (List[VehicleAndSchedule], List[CustomerRequest]) = {
     import scala.concurrent.duration._
@@ -391,10 +394,11 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         remainingRangeInM,
         VehicleManager
-          .createOrGetIdUsingUnique(
+          .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.BEAMRideHail
+            VehicleManager.TypeEnum.RideHail
           )
+          .managerId
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -405,10 +409,11 @@ object MatchingAlgorithmsForRideHailSpec {
         None,
         remainingRangeInM,
         VehicleManager
-          .createOrGetIdUsingUnique(
+          .createOrGetReservedFor(
             services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.BEAMRideHail
+            VehicleManager.TypeEnum.RideHail
           )
+          .managerId
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(

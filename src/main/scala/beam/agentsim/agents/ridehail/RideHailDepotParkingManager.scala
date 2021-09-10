@@ -3,7 +3,7 @@ package beam.agentsim.agents.ridehail
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.{ChargingNetwork, ParkingStall}
 import beam.sim.{BeamServices, Geofence}
@@ -11,10 +11,8 @@ import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
 
-abstract class RideHailDepotParkingManager[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-) extends ChargingNetwork[GEO](vehicleManagerId, parkingZones) {
+abstract class RideHailDepotParkingManager[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+    extends ChargingNetwork[GEO](parkingZones) {
 
   override def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
     if (!parkingZones.contains(release.stall.parkingZoneId)) {

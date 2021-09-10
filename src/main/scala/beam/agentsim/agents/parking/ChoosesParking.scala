@@ -7,7 +7,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
@@ -59,7 +59,7 @@ trait ChoosesParking extends {
     val parkingInquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
       nextActivityType,
-      this.currentBeamVehicle.vehicleManagerId,
+      VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get,
       Some(this.currentBeamVehicle),
       remainingTripData,
       attributes.valueOfTime,

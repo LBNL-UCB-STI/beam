@@ -82,9 +82,9 @@ object ReflectionUtils {
               log.info(indent + s"\t$name: $value")
             }
           }
-
         } catch {
-          case _: Exception =>
+          case error: Exception =>
+            log.debug("Error on logField", error)
         }
 
         if (level > 0) {

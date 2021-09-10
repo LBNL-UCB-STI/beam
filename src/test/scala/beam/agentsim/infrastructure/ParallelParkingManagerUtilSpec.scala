@@ -40,7 +40,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
       val numZones = List(1, 1, 1, 1, 1, 1, 1, 1, 1, 10, 11, 12, 13, 14, 15, 16)
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
-      val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones, ParkingZone.GlobalReservedFor)
+      val parkingZones = ZonalParkingManagerSpec.makeParkingZones(treeMap, numZones, VehicleManager.AnyManager)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 4, 42)
       clusters.size should (be(3) or be(4)) //sometimes we got only 3 clusters
@@ -58,7 +58,7 @@ class ParallelParkingManagerUtilSpec extends AnyWordSpecLike with Matchers {
 
       val treeMap: TAZTreeMap = ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 200, 200).get
       val parkingZones = ZonalParkingManagerSpec
-        .makeParkingZones(treeMap, numZones, ParkingZone.GlobalReservedFor)
+        .makeParkingZones(treeMap, numZones, VehicleManager.AnyManager)
         .drop(1)
       val clusters: Vector[ParallelParkingManager.ParkingCluster] =
         ParallelParkingManager.createClusters(treeMap, parkingZones, 2, 42)
