@@ -165,8 +165,64 @@ oakland_charging_events_merged_with_urbansim_tripIds_scaledUpby10 <- scaleUpAllS
 
 ##
 
+# uncontrained_parking <- readCsv(pp(workDir, "/gemini_taz_parking_plugs_power_150kw_unlimited.csv"))
+# uncontrained_parking[,.N,by=.(parkingType,pricingModel,chargingPointType,feeInCents)]
+# parkingType pricingModel               chargingPointType feeInCents    N
+# 1: Residential        Block                       NoCharger          0 1454
+# 2: Residential        Block              HomeLevel1(1.8|AC)         50 1454
+# 3: Residential        Block              HomeLevel2(7.2|AC)        200 1454
+# 4:   Workplace        Block                       NoCharger          0 1454
+# 5:   Workplace        Block           EVIWorkLevel2(7.2|AC)        200 1454
+# 6:      Public        Block                       NoCharger          0 1454
+# 7:      Public        Block EVIPublicLevel2(7.2|AC)(7.2|AC)        200 1454
+# 8:      Public        Block         EVIPublicDCFast(150|DC)       7500 1454
+
+sfbay_contrained_parking <- readCsv(pp(workDir, "/gemini_taz_parking_plugs_power_150kw.csv"))
+fbay_contrained_parking[,.N,by=.(parkingType,pricingModel,chargingPointType,feeInCents)]
+
+# b_low_tech <- readCsv(pp(workDir, "/taz-parking-sparse-fast-limited-l2-150-lowtech-b.csv"))
+# b_low_tech_sum <- b_low_tech[chargingType!="NoCharger",.N,by=.(parkingType,pricingModel,chargingType,feeInCents)]
+# b_low_tech_sum[,.(feeInCents=mean(feeInCents)),by=.(parkingType,pricingModel,chargingType)]
 
 initInfra_1_5 <- readCsv(pp(workDir, "/init1.5.csv"))
+initInfra_1_5_updated <- initInfra_1_5[,c("subSpace", "pType", "chrgType", "household_id")]
+setnames(initInfra_1_5_updated, "chrgType", "chargingPointType")
+setnames(initInfra_1_5_updated, "pType", "parkingType")
+setnames(initInfra_1_5_updated, "subSpace", "taz")
+initInfra_1_5_updated$reservedFor <- "Any"
+initInfra_1_5_updated[!is.na(household_id)]$reservedFor <- paste("household(",initInfra_1_5_updated[!is.na(household_id)]$household_id,")",sep="")
+initInfra_1_5_updated <- initInfra_1_5_updated[,-c("household_id")]
+initInfra_1_5_updated <- initInfra_1_5_updated[,.(numStalls=.N),by=.(taz,parkingType,chargingPointType,reservedFor)]
+initInfra_1_5_updated$pricingModel <- "Block"
+initInfra_1_5_updated$feeInCents <- 0
+initInfra_1_5_updated[chargingPointType == "homelevel1(1.8|AC)"]$feeInCents <- 50
+initInfra_1_5_updated[chargingPointType == "homelevel2(7.2|AC)"]$feeInCents <- 200
+initInfra_1_5_updated[chargingPointType == "evipublicdcfast(150.0|DC)"]$feeInCents <- 7500
+initInfra_1_5_updated[chargingPointType == "evipubliclevel2(7.2|AC)"]$feeInCents <- 200
+initInfra_1_5_updated[chargingPointType == "eviworklevel2(7.2|AC)"]$feeInCents <- 200
+initInfra_1_5_updated[,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),by=.(taz)]
+####
+alameda_oakland_tazs <- unique(initInfra_1_5_updated$taz)
+no_charger_or_non_AlamedaOakland_constrained <- sfbay_contrained_parking[
+  chargingPointType == "NoCharger" | !(taz %in% alameda_oakland_tazs)][
+    ,`:=`(parkingZoneId=paste("X-PEV",taz,1:.N,sep="-")),by=.(taz)
+  ]
+initInfra_1_5_updated_constrained_non_AlamedaOakland <- rbind(initInfra_1_5_updated, no_charger_or_non_AlamedaOakland_constrained)
+write.csv(
+  initInfra_1_5_updated_constrained_non_AlamedaOakland,
+  file = pp(workDir, "/gemini-base-scenario-2-parking-initInfra15-and-constrained-nonAO.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
+##
 
-
+uncontrained_rh_parking <- readCsv(pp(workDir, "/gemini_depot_parking_power_150kw.csv"))
+uncontrained_rh_parking[,`:=`(parkingZoneId=paste("X-REV",taz,1:.N,sep="-")),by=.(taz)]
+uncontrained_rh_parking[taz %in% alameda_oakland_tazs,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),by=.(taz)]
+write.csv(
+  uncontrained_rh_parking,
+  file = pp(workDir, "/gemini-base-scenario-2-depot-constrained.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
 
