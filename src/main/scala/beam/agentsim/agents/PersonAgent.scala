@@ -28,17 +28,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -51,15 +41,18 @@ import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
+import org.slf4j.LoggerFactory
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
 
 /**
   */
@@ -459,7 +452,17 @@ class PersonAgent(
     }
   }
 
+  protected val strictLogger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
+
   when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
+    val currentPlanLegModes = this.matsimPlan.getPlanElements.asScala
+      .flatMap {
+        case leg: Leg => Some(leg.getMode)
+        case _        => None
+      }.mkString(",")
+
+    strictLogger.info(s"DEBUGGING. Initializing actor ${this.id} with following modes: $currentPlanLegModes")
+
     goto(Initialized) replying CompletionNotice(
       triggerId,
       Vector(ScheduleTrigger(ActivityStartTrigger(0), self))
@@ -524,12 +527,14 @@ class PersonAgent(
         )
       )
       assert(currentActivity(data).getLinkId != null)
+
+      val legMode = currentTrip.tripClassifier.value
       eventsManager.processEvent(
         new PersonDepartureEvent(
           tick,
           id,
           currentActivity(data).getLinkId,
-          currentTrip.tripClassifier.value
+          legMode
         )
       )
 
