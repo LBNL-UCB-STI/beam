@@ -142,7 +142,7 @@ class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], Parki
     station.connectFromWaitingLine(tick)
 }
 
-object ChargingNetwork {
+object ChargingNetwork extends LazyLogging {
 
   case class ChargingStatus(status: ChargingStatus.ChargingStatusEnum, time: Int)
 
@@ -263,7 +263,7 @@ object ChargingNetwork {
 
     private val gracedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 
-    private val waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
+    private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
     private[ChargingNetwork] def numAvailableChargers: Int =
@@ -304,7 +304,9 @@ object ChargingNetwork {
       theSender: ActorRef
     ): ChargingVehicle = {
       vehicles.get(vehicle.id) match {
-        case Some(chargingVehicle) => chargingVehicle
+        case Some(chargingVehicle) =>
+          logger.error("Trying to connect a vehicle already connected. Something is broken!")
+          chargingVehicle
         case _ =>
           val chargingVehicle =
             ChargingVehicle(vehicle, stall, this, tick, personId, shiftStatus, shiftDuration, theSender)
@@ -315,7 +317,6 @@ object ChargingNetwork {
             waitingLineInternal.enqueue(chargingVehicle)
             chargingVehicle.updateStatus(WaitingAtStation, tick)
           }
-          chargingVehicle
       }
     }
 
@@ -343,6 +344,12 @@ object ChargingNetwork {
           .remove(vehicleId)
           .map(_.updateStatus(Disconnected, tick))
           .orElse(gracedVehiclesInternal.remove(vehicleId).map(_.updateStatus(Disconnected, tick)))
+          .orElse {
+            waitingLineInternal.find(_.vehicle.id == vehicleId) map { chargingVehicle =>
+              waitingLineInternal = waitingLineInternal.filterNot(_.vehicle.id == vehicleId)
+              chargingVehicle
+            }
+          }
       }
 
     /**

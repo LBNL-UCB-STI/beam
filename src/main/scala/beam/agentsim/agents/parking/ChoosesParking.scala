@@ -187,7 +187,6 @@ trait ChoosesParking extends {
         handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
         goto(WaitingToDrive) using data
       }
-
     case Event(StateTimeout, data) =>
       val stall = currentBeamVehicle.stall.get
       parkingManager ! ReleaseParkingStall(stall, getCurrentTriggerIdOrGenerate)

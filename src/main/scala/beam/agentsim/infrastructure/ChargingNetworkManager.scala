@@ -69,9 +69,6 @@ class ChargingNetworkManager(
   private def currentTimeBin(tick: Int): Int = cnmConfig.timeStepInSeconds * (tick / cnmConfig.timeStepInSeconds)
   private def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
-  private var timeSpentToPlanEnergyDispatchTrigger: Long = 0
-  private var nHandledPlanEnergyDispatchTrigger: Int = 0
-
   private val maybeDebugReport: Option[Cancellable] = if (beamServices.beamConfig.beam.debug.debugEnabled) {
     Some(context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, DebugReport)(context.dispatcher))
   } else {
@@ -150,8 +147,7 @@ class ChargingNetworkManager(
       vehicle.stall match {
         case Some(stall) =>
           getAppropriateChargingNetwork(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
-            chargingVehicle =>
-              handleEndCharging(tick, chargingVehicle, triggerId, false)
+            handleEndCharging(tick, _, triggerId, false)
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
@@ -186,24 +182,18 @@ class ChargingNetworkManager(
       vehicle.stall match {
         case Some(stall) =>
           getAppropriateChargingNetwork(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
-            case Some(chargingVehicle) =>
-              if (
-                chargingVehicle.chargingSessions.nonEmpty && !chargingVehicle.chargingStatus.exists(
-                  _.status == GracePeriod
-                )
-              ) {
-                val unplugTimeBin = currentTimeBin(tick)
-                val index = chargingVehicle.chargingSessions.indexWhere(x =>
-                  currentTimeBin(x.startTime) == unplugTimeBin && x.startTime <= tick
-                )
-                val (startTime, endTime) =
-                  if (index == -1) (unplugTimeBin, tick) else (chargingVehicle.chargingSessions(index).startTime, tick)
+            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, status, sessions)) =>
+              if (sessions.nonEmpty && !status.exists(_.status == GracePeriod)) {
+                // If the vehicle was still charging
+                val unplugTime = currentTimeBin(tick)
+                val index = sessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTime && x.startTime <= tick)
+                val (startTime, endTime) = if (index == -1) (unplugTime, tick) else (sessions(index).startTime, tick)
                 dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, triggerId, true)
               }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
               sender ! UnpluggingVehicle(tick + parallelismWindow, totEnergy, triggerId)
               chargingNetwork
-                .processWaitingLine(tick, chargingVehicle.chargingStation)
+                .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
                   self ! ChargingPlugRequest(
                     tick + parallelismWindow,
@@ -216,6 +206,7 @@ class ChargingNetworkManager(
                   )
                 }
             case _ =>
+              log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")
               sender ! UnhandledVehicle(tick + parallelismWindow, vehicle.id, triggerId)
           }
         case _ =>
@@ -263,7 +254,7 @@ class ChargingNetworkManager(
     * @param endTime the end time
     * @param physicalBounds physical bounds
     * @param triggerId trigger Id
-    * @param actorInterruptingCharging the actor that interrupted charging
+    * @param interruptCharging True if the charging should be interrupted
     * @return
     */
   private def dispatchEnergyAndProcessChargingCycle(
@@ -339,6 +330,7 @@ class ChargingNetworkManager(
     * @param tick current time
     * @param chargingVehicle charging vehicle information
     * @param triggerId the trigger
+    * @param chargingInterrupted Boolean
     */
   private def handleEndCharging(
     tick: Int,
@@ -487,4 +479,7 @@ object ChargingNetworkManager extends LazyLogging {
     logger.debug(s"ChargingPlugOutEvent: $chargingPlugOutEvent")
     beamServices.matsimServices.getEvents.processEvent(chargingPlugOutEvent)
   }
+
+  private var timeSpentToPlanEnergyDispatchTrigger: Long = 0
+  private var nHandledPlanEnergyDispatchTrigger: Int = 0
 }
