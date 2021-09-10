@@ -859,10 +859,7 @@ class PersonAgent(
 
         val stateToGo =
           if (
-            nextLeg.beamLeg.mode == CAR
-            || actualVehicle.isSharedVehicle
-            || actualVehicle.isConnectedToChargingPoint()
-            || actualVehicle.stall.isDefined
+            nextLeg.beamLeg.mode == CAR || actualVehicle.isSharedVehicle || actualVehicle.isConnectedToChargingPoint()
           ) {
             log.debug(
               "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
