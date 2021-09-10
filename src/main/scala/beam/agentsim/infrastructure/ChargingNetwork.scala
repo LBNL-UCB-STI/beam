@@ -188,6 +188,7 @@ object ChargingNetwork extends LazyLogging {
     geoToTAZ: GEO => TAZ,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
+    beamServicesMaybe: Option[BeamServices],
     distanceFunction: (Coord, Coord) => Double,
     minSearchRadius: Double,
     maxSearchRadius: Double,
@@ -196,6 +197,7 @@ object ChargingNetwork extends LazyLogging {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
       Some(beamConfig),
+      beamServicesMaybe,
       new Random(beamConfig.matsim.modules.global.randomSeed),
       None,
       1.0,

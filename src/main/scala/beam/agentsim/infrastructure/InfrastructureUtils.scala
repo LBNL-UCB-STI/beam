@@ -79,7 +79,8 @@ object InfrastructureUtils extends LazyLogging {
           beamScenario.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamScenario.beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
           beamScenario.beamConfig.matsim.modules.global.randomSeed,
-          beamScenario.beamConfig
+          beamScenario.beamConfig,
+          Some(beamServices)
         )
       case "link" =>
         loadStalls[Link](
@@ -89,7 +90,8 @@ object InfrastructureUtils extends LazyLogging {
           beamScenario.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor,
           beamScenario.beamConfig.beam.agentsim.taz.parkingCostScalingFactor,
           beamScenario.beamConfig.matsim.modules.global.randomSeed,
-          beamScenario.beamConfig
+          beamScenario.beamConfig,
+          Some(beamServices)
         )
       case _ =>
         throw new IllegalArgumentException(
@@ -219,7 +221,8 @@ object InfrastructureUtils extends LazyLogging {
     parkingStallCountScalingFactor: Double,
     parkingCostScalingFactor: Double,
     seed: Long,
-    beamConfig: BeamConfig
+    beamConfig: BeamConfig,
+    beamServicesMaybe: Option[BeamServices]
   ): Map[Id[ParkingZoneId], ParkingZone[GEO]] = {
     val random = new Random(seed)
     val initialAccumulator: ParkingLoadingAccumulator[GEO] = if (parkingFilePath.isEmpty) {
@@ -234,6 +237,7 @@ object InfrastructureUtils extends LazyLogging {
           parkingFilePath,
           random,
           Some(beamConfig),
+          beamServicesMaybe,
           parkingStallCountScalingFactor,
           parkingCostScalingFactor
         )
@@ -267,6 +271,7 @@ object InfrastructureUtils extends LazyLogging {
                 depotParkingFilePath,
                 random,
                 Some(beamConfig),
+                beamServicesMaybe,
                 parkingStallCountScalingFactor,
                 parkingCostScalingFactor,
                 acc
