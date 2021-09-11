@@ -226,3 +226,54 @@ write.csv(
   quote=FALSE,
   na="")
 
+
+initInfra_1_5_updated_constrained_non_AlamedaOakland[startsWith(reservedFor, "household")]
+
+initInfra_1_5[household_id == 1800619]
+
+
+###########
+
+initInfra_1_5 <- readCsv(pp(workDir, "/init1.5-wgs84.csv"))
+initInfra_1_5_updated <- initInfra_1_5[,c("subSpace", "pType", "chrgType", "id", "household_id", "X", "Y")]
+setnames(initInfra_1_5_updated, "chrgType", "chargingPointType")
+setnames(initInfra_1_5_updated, "pType", "parkingType")
+setnames(initInfra_1_5_updated, "subSpace", "taz")
+setnames(initInfra_1_5_updated, "X", "locationX")
+setnames(initInfra_1_5_updated, "Y", "locationY")
+initInfra_1_5_updated$reservedFor <- "Any"
+initInfra_1_5_updated[!is.na(household_id)]$reservedFor <- paste("household(",initInfra_1_5_updated[!is.na(household_id)]$household_id,")",sep="")
+initInfra_1_5_updated <- initInfra_1_5_updated[,-c("household_id", "id")]
+initInfra_1_5_updated$pricingModel <- "Block"
+initInfra_1_5_updated$feeInCents <- 0
+initInfra_1_5_updated[chargingPointType == "homelevel1(1.8|AC)"]$feeInCents <- 50
+initInfra_1_5_updated[chargingPointType == "homelevel2(7.2|AC)"]$feeInCents <- 200
+initInfra_1_5_updated[chargingPointType == "evipublicdcfast(150.0|DC)"]$feeInCents <- 7500
+initInfra_1_5_updated[chargingPointType == "evipubliclevel2(7.2|AC)"]$feeInCents <- 200
+initInfra_1_5_updated[chargingPointType == "eviworklevel2(7.2|AC)"]$feeInCents <- 200
+initInfra_1_5_updated[,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),]
+initInfra_1_5_updated$numStalls <- 1
+
+write.csv(
+  initInfra_1_5_updated,
+  file = pp(workDir, "/initInfra_1_5_updated.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
+
+alameda_oakland_tazs <- unique(initInfra_1_5_updated$taz)
+no_charger_or_non_AlamedaOakland_constrained <- sfbay_contrained_parking[
+  chargingPointType == "NoCharger" | !(taz %in% alameda_oakland_tazs)][
+    ,`:=`(parkingZoneId=paste("X-PEV",taz,1:.N,sep="-")),by=.(taz)
+  ]
+no_charger_or_non_AlamedaOakland_constrained$locationX <- ""
+no_charger_or_non_AlamedaOakland_constrained$locationY <- ""
+initInfra_1_5_updated_constrained_non_AlamedaOakland <- rbind(initInfra_1_5_updated, no_charger_or_non_AlamedaOakland_constrained)
+write.csv(
+  initInfra_1_5_updated_constrained_non_AlamedaOakland,
+  file = pp(workDir, "/gemini-base-scenario-2-parking-initInfra15-and-constrained-nonAO.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
+
+
