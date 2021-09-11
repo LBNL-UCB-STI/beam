@@ -533,9 +533,15 @@ class RideHailAgent(
       val tickToUse = Math.max(tick, latestObservedTick)
       updateLatestObservedTick(tick)
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
-      if (debugEnabled) outgoingMessages += ev
-      startRefueling(tickToUse, triggerId, Vector())
-      goto(Refueling)
+      if (vehicle.isCAV) {
+        if (debugEnabled) outgoingMessages += ev
+        startRefueling(tickToUse, triggerId, Vector())
+        goto(Refueling)
+      } else {
+        holdTickAndTriggerId(tickToUse, triggerId)
+        requestParkingStall()
+        stay
+      }
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
         "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
@@ -581,13 +587,13 @@ class RideHailAgent(
     case _ @Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       goto(IdleInterrupted)
-    case ev @ Event(WaitingToCharge(_, _, _), _) =>
+    case _ @Event(WaitingToCharge(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+    case _ @Event(UnhandledVehicle(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(UnpluggingVehicle(_, _, _), _) =>
+    case _ @Event(UnpluggingVehicle(_, _, _), _) =>
       stash()
       stay()
   }
@@ -632,6 +638,9 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       handleWaitingLineReply(reply.triggerId, data)
+    case ev @ Event(_ @UnhandledVehicle(_, _, _), _) =>
+      log.debug(s"state(RideHailingAgent.Idle.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
+      stay
   }
 
   when(IdleInterrupted) {

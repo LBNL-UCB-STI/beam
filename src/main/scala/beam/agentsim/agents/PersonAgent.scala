@@ -24,7 +24,8 @@ import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager.{
   EndingRefuelSession,
   StartingRefuelSession,
-  UnhandledVehicle
+  UnhandledVehicle,
+  WaitingToCharge
 }
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
@@ -855,11 +856,13 @@ class PersonAgent(
           )
         }
 
-        val actualVehicle = beamVehicles(nextLeg.beamVehicleId).asInstanceOf[ActualVehicle].vehicle
-
         val stateToGo =
           if (
-            nextLeg.beamLeg.mode == CAR || actualVehicle.isSharedVehicle || actualVehicle.isConnectedToChargingPoint()
+            nextLeg.beamLeg.mode == CAR
+            || beamVehicles(nextLeg.beamVehicleId)
+              .asInstanceOf[ActualVehicle]
+              .vehicle
+              .isSharedVehicle
           ) {
             log.debug(
               "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
@@ -1218,6 +1221,9 @@ class PersonAgent(
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
       log.debug("myUnhandled.UnhandledVehicle: {}", ev)
+      stay()
+    case ev @ Event(WaitingToCharge(_, _, _), _) =>
+      log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
     case ev @ Event(EndingRefuelSession(_, _, _), _) =>
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)

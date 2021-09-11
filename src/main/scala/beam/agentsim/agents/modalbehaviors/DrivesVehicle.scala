@@ -429,15 +429,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
     case ev @ Event(StartingRefuelSession(_, _), _) =>
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
-      stash()
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _), _) =>
       log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
-      stash()
       stay()
     case ev @ Event(WaitingToCharge(_, _, _), _) =>
       log.error("state(DrivesVehicle.Driving.WaitingInLine): {}. This probably should not happen", ev)
-      stash()
       stay()
   }
 
@@ -535,6 +532,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(Interrupt(_, _, _), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
+      stay
+    case ev @ Event(StartingRefuelSession(_, _), _) =>
+      log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
       log.debug(s"state(DrivesVehicle.DrivingInterrupted): LastLegPassengerSchedule with $triggerId for $id")
@@ -815,6 +815,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
+    case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>
+      log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
+      stay()
   }
 
   private def hasRoomFor(
