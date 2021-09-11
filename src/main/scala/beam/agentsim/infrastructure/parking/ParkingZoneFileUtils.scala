@@ -489,13 +489,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
            Some(new Coord(locationXString.toDouble, locationYString.toDouble))) match {
           case Some(coord) if beamServices.isDefined =>
             Some(
-              NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.utm2Wgs(coord))
+              NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord))
             )
           case None if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
             getHouseholdLocation(beamServices.get, reservedFor.managerId.toString) map { homeCoord =>
               NetworkUtils.getNearestLink(
                 beamServices.get.beamScenario.network,
-                beamServices.get.geo.utm2Wgs(homeCoord)
+                homeCoord
               )
             }
           case _ => None
