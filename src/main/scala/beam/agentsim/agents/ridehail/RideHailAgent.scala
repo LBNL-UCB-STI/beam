@@ -985,7 +985,6 @@ class RideHailAgent(
     case ev @ Event(UnpluggingVehicle(tick, energyCharged, triggerId), _) =>
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
-      holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, energyCharged, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
@@ -996,7 +995,6 @@ class RideHailAgent(
     case ev @ Event(UnhandledVehicle(tick, _, triggerId), _) =>
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.UnhandledVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
-      holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, 0.0, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
