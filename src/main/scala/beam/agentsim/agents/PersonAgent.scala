@@ -452,16 +452,16 @@ class PersonAgent(
     }
   }
 
-  protected val strictLogger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
+//  protected val strictLogger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
 
   when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
-    val currentPlanLegModes = this.matsimPlan.getPlanElements.asScala
-      .flatMap {
-        case leg: Leg => Some(leg.getMode)
-        case _        => None
-      }.mkString(",")
-
-    strictLogger.info(s"DEBUGGING. Initializing actor ${this.id} with following modes: $currentPlanLegModes")
+    //    val currentPlanLegModes = this.matsimPlan.getPlanElements.asScala
+    //      .flatMap {
+    //        case leg: Leg => Some(leg.getMode)
+    //        case _        => None
+    //      }.mkString(",")
+    //
+    //    strictLogger.info(s"DEBUGGING. Initializing actor ${this.id} with following modes: $currentPlanLegModes")
 
     goto(Initialized) replying CompletionNotice(
       triggerId,
