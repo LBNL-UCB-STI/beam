@@ -419,12 +419,13 @@ object ChargingNetwork extends LazyLogging {
       * @return
       */
     def refuel: Option[ChargingCycle] = {
-      chargingSessions.lastOption.map {
-        case cycle @ ChargingCycle(_, _, energy, _) if !cycle.refueled =>
+      chargingSessions.lastOption match {
+        case Some(cycle @ ChargingCycle(_, _, energy, _)) if !cycle.refueled =>
           vehicle.addFuel(energy)
           cycle.refueled = true
           logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
-          cycle
+          Some(cycle)
+        case _ => None
       }
     }
 
