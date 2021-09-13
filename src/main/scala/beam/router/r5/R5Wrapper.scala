@@ -883,16 +883,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     } else {
       val hasBike = request.streetVehicles.exists(_.mode == BIKE)
       val hasCar = request.streetVehicles.exists(_.mode == CAR)
-      (hasBike, hasCar, request.withTransit) match {
-        case (false, false, false) => Set(WALK)
-        case (true, false, false)  => Set(WALK, BIKE)
-        case (false, true, false)  => Set(WALK, CAR)
-        case (true, true, false)   => Set(WALK, BIKE, CAR)
-        case (false, false, true)  => Set(WALK, WALK_TRANSIT)
-        case (true, false, true)   => Set(WALK, BIKE, WALK_TRANSIT, BIKE_TRANSIT)
-        case (false, true, true)   => Set(WALK, CAR, WALK_TRANSIT, DRIVE_TRANSIT)
-        case (true, true, true)    => Set(WALK, BIKE, CAR, WALK_TRANSIT, BIKE_TRANSIT, DRIVE_TRANSIT)
+      val modes: Set[BeamMode] = (hasBike, hasCar) match {
+        case (false, false) => Set(WALK)
+        case (true, false)  => Set(WALK, BIKE)
+        case (false, true)  => Set(WALK, CAR)
+        case (true, true)   => Set(WALK, BIKE, CAR)
       }
+      if (request.withTransit) modes + TRANSIT else modes
     }
     (buildDirectWalkRoute, buildDirectCarRoute) match {
       case (true, true)   => searchedModes

@@ -26,8 +26,11 @@ class RoutingStatistic(ioController: OutputDirectoryHierarchy) extends Actor {
 
     case RoutingResponse(itineraries, _, Some(request), _, searchedModes, _) =>
       searchedModes.foreach { mode =>
-        val tripClassifier = if (mode == RIDE_HAIL_TRANSIT) DRIVE_TRANSIT else mode
-        if (!itineraries.exists(_.tripClassifier == tripClassifier)) {
+        val tripFound =
+          if (mode == RIDE_HAIL_TRANSIT) itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)
+          else if (mode.isTransit) itineraries.exists(_.tripClassifier.isTransit)
+          else itineraries.exists(_.tripClassifier == mode)
+        if (!tripFound) {
           writer.write(
             request.departureTime,
             request.originUTM.getX,
