@@ -28,7 +28,17 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  CAR,
+  CAV,
+  HOV2_TELEPORTATION,
+  HOV3_TELEPORTATION,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -459,7 +469,8 @@ class PersonAgent(
     //      .flatMap {
     //        case leg: Leg => Some(leg.getMode)
     //        case _        => None
-    //      }.mkString(",")
+    //      }
+    //      .mkString(",")
     //
     //    strictLogger.info(s"DEBUGGING. Initializing actor ${this.id} with following modes: $currentPlanLegModes")
 
@@ -513,8 +524,10 @@ class PersonAgent(
   when(Teleporting) {
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, false, _, _, _)
         ) =>
+      assert(currentActivity(data).getLinkId != null)
+
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(
@@ -526,9 +539,11 @@ class PersonAgent(
           currentActivity(data).getType
         )
       )
-      assert(currentActivity(data).getLinkId != null)
+      val legMode = maybeCurrentTourMode match {
+        case Some(currentTourMode) => currentTourMode.value
+        case None                  => currentTrip.tripClassifier.value
+      }
 
-      val legMode = currentTrip.tripClassifier.value
       eventsManager.processEvent(
         new PersonDepartureEvent(
           tick,
@@ -548,7 +563,7 @@ class PersonAgent(
 
     case Event(
           TriggerWithId(TeleportationEndsTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, true, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, true, _, _, _)
         ) =>
       holdTickAndTriggerId(tick, triggerId)
 
@@ -561,7 +576,7 @@ class PersonAgent(
         startY = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getY,
         endX = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getX,
         endY = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getY,
-        currentTourMode = data.currentTourMode.map(_.value)
+        currentTourMode = maybeCurrentTourMode.map(_.value)
       )
       eventsManager.processEvent(teleportationEvent)
 
@@ -575,8 +590,10 @@ class PersonAgent(
       */
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, false, _, _, _)
         ) =>
+      assert(currentActivity(data).getLinkId != null)
+
       // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
       // hail a ride. We stay at the party until our Uber is there.
       eventsManager.processEvent(
@@ -588,13 +605,18 @@ class PersonAgent(
           currentActivity(data).getType
         )
       )
-      assert(currentActivity(data).getLinkId != null)
+      val legMode = maybeCurrentTourMode match {
+        case Some(currentTourMode) if currentTourMode.value == BeamMode.CAR_HOV2.value => BeamMode.CAR_HOV2.value
+        case Some(currentTourMode) if currentTourMode.value == BeamMode.CAR_HOV3.value => BeamMode.CAR_HOV3.value
+        case None                                                                      => currentTrip.tripClassifier.value
+      }
+
       eventsManager.processEvent(
         new PersonDepartureEvent(
           tick,
           id,
           currentActivity(data).getLinkId,
-          currentTrip.tripClassifier.value
+          legMode
         )
       )
       holdTickAndTriggerId(tick, triggerId)
