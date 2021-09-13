@@ -195,7 +195,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       }
       eventualResponse.recover { case e =>
         log.error(e, "calcRoute failed")
-        RoutingFailure(e, request.requestId)
+        RoutingFailure(e, request)
       } pipeTo sender
       askForMoreWork()
 

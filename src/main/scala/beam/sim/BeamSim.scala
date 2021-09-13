@@ -211,7 +211,8 @@ class BeamSim @Inject() (
         beamServices.geo,
         beamServices.fareCalculator,
         tollCalculator,
-        eventsManager
+        eventsManager,
+        event.getServices.getControlerIO,
       ),
       "router"
     )
@@ -421,6 +422,7 @@ class BeamSim @Inject() (
     }
 
     maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
+    beamServices.beamRouter ! BeamRouter.IterationEndsMessage(event.getIteration)
 
     val outputGraphsFuture = Future {
       if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
