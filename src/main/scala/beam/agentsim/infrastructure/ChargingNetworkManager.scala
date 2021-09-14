@@ -51,12 +51,7 @@ class ChargingNetworkManager(
   private val sitePowerManager = new SitePowerManager(chargingNetwork, rideHailNetwork, beamServices)
 
   private val powerController =
-    new PowerController(
-      chargingNetwork,
-      rideHailNetwork,
-      beamConfig.beam.agentsim.chargingNetworkManager,
-      sitePowerManager.unlimitedPhysicalBounds
-    )
+    new PowerController(chargingNetwork, rideHailNetwork, beamConfig, sitePowerManager.unlimitedPhysicalBounds)
   private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
 
   import scala.concurrent.ExecutionContext.Implicits.global

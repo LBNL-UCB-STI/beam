@@ -15,38 +15,40 @@ import scala.util.{Failure, Try}
 class PowerController(
   chargingNetwork: ChargingNetwork[_],
   rideHailNetwork: ChargingNetwork[_],
-  chargingNetworkManagerConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
+  beamConfig: BeamConfig,
   unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
 ) extends LazyLogging {
   import SitePowerManager._
+  private val timeStep = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
+  private val isConnectedToHelics = beamConfig.beam.agentsim.chargingNetworkManager.helics.connectionEnabled
 
-  private val helicsConfig = chargingNetworkManagerConfig.helics
-
-  private[power] lazy val beamFederateOption: Option[BeamFederate] = if (helicsConfig.connectionEnabled) {
-    logger.warn("ChargingNetworkManager should be connected to a grid via Helics...")
-    Try {
-      logger.debug("Init PowerController resources...")
-      getFederate(
-        helicsConfig.federateName,
-        helicsConfig.coreType,
-        helicsConfig.coreInitString,
-        helicsConfig.timeDeltaProperty,
-        helicsConfig.intLogLevel,
-        helicsConfig.bufferSize,
-        helicsConfig.dataOutStreamPoint match {
-          case s: String if s.nonEmpty => Some(s)
-          case _                       => None
-        },
-        helicsConfig.dataInStreamPoint match {
-          case s: String if s.nonEmpty => Some(s)
-          case _                       => None
-        }
-      )
-    }.recoverWith { case e =>
-      logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
-      Failure(e)
-    }.toOption
-  } else None
+  private[power] lazy val beamFederateOption: Option[BeamFederate] =
+    if (isConnectedToHelics) {
+      logger.warn("ChargingNetworkManager should be connected to a grid via Helics...")
+      val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.helics
+      Try {
+        logger.debug("Init PowerController resources...")
+        getFederate(
+          helicsConfig.federateName,
+          helicsConfig.coreType,
+          helicsConfig.coreInitString,
+          helicsConfig.timeDeltaProperty,
+          helicsConfig.intLogLevel,
+          helicsConfig.bufferSize,
+          helicsConfig.dataOutStreamPoint match {
+            case s: String if s.nonEmpty => Some(s)
+            case _                       => None
+          },
+          helicsConfig.dataInStreamPoint match {
+            case s: String if s.nonEmpty => Some(s)
+            case _                       => None
+          }
+        )
+      }.recoverWith { case e =>
+        logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
+        Failure(e)
+      }.toOption
+    } else None
 
   private var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
   private var currentBin = -1
@@ -64,7 +66,7 @@ class PowerController(
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)
-          if helicsConfig.connectionEnabled && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / chargingNetworkManagerConfig.timeStepInSeconds) =>
+          if isConnectedToHelics && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
         val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
@@ -90,7 +92,7 @@ class PowerController(
         gridBounds.flatMap { x =>
           val reservedFor = x("reservedFor").asInstanceOf[String] match {
             case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
-            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, None).get
+            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
           }
           val appropriateChargingNetwork = reservedFor.managerType match {
             case VehicleManager.TypeEnum.RideHail => rideHailNetwork
@@ -117,7 +119,7 @@ class PowerController(
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
         unlimitedPhysicalBounds
     }
-    currentBin = currentTime / chargingNetworkManagerConfig.timeStepInSeconds
+    currentBin = currentTime / timeStep
     physicalBounds
   }
 
