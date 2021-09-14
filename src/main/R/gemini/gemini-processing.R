@@ -277,3 +277,10 @@ write.csv(
   na="")
 
 
+logs <- readCsv(pp(workDir, "/beam_to_pydss_federate.csv"))
+
+logs[,.(estimatedLoad=sum(estimatedLoad)),by=.(currentTime)] %>%
+  ggplot(aes(currentTime/3600.,estimatedLoad/1000)) + 
+  geom_bar(stat="identity")
+ggplot(logs) + geom_histogram(aes(estimatedLoad))
+
