@@ -85,6 +85,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "git_user_email": "${getCurrentGitUserEmail()}",
   "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+  "dataBranch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
   "configs": "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}",
@@ -143,13 +144,14 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         defaultParamVals['region'] = defRegion
         defaultParamVals['dataRegion'] = defRegion
         defaultParamVals['beamBranch'] = getCurrentGitBranch()
+        defaultParamVals['dataBranch'] = 'develop'
 
         def paramMap = [:]
         def missing = []
 
         // all possible parameters
         ['runName', 'pilatesScenarioName',
-         'beamBranch', 'beamCommit',
+         'beamBranch', 'dataBranch', 'beamCommit',
          'beamConfig',
          'startYear', 'countOfYears', 'beamItLen', 'urbansimItLen',
          'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
