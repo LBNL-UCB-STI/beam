@@ -101,22 +101,29 @@ trait ChoosesMode {
   private var teleportationVehicleId = 0
   private val teleportationVehicleIdPrefix = "teleportationSharedVehicle"
 
+  private lazy val teleportationVehicleBeamType: BeamVehicleType = {
+    val firstCarVehicleType = beamScenario.vehicleTypes
+      .find { case (_, beamVehicleType) =>
+        beamVehicleType.vehicleCategory == VehicleCategory.Car
+      }
+      .map(_._2)
+      .get
+
+    // if teleportation is used there should be vehicles of CAR category
+    firstCarVehicleType
+  }
+
   private def vehicleIsSharedTeleportation(vehicleId: Id[BeamVehicle]): Boolean = {
-    vehicleId.toString.contains(teleportationVehicleIdPrefix)
+    vehicleId.toString.startsWith(teleportationVehicleIdPrefix)
   }
 
   private def createSharedTeleportationVehicle(location: SpaceTime): BeamVehicle = {
     teleportationVehicleId += 1
-    val beamVehicleType = beamScenario.vehicleTypes(
-      Id.create(
-        beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
-        classOf[BeamVehicleType]
-      )
-    )
+
     val vehicle = new BeamVehicle(
       BeamVehicle.createId(id, Some(s"$teleportationVehicleIdPrefix-$teleportationVehicleId")),
       new Powertrain(0.0),
-      beamVehicleType = beamVehicleType,
+      beamVehicleType = teleportationVehicleBeamType,
       VehicleManager.noManager
     )
     vehicle.spaceTime = location

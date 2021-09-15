@@ -230,7 +230,7 @@ object HOVModeTransformer extends LazyLogging {
       }
     }
 
-    if (personToTrip.nonEmpty) {
+    if (personToTrip.exists { case (_, trip) => trip.size > 1 }) {
       // remove orphaned home locations
       personToTrip.retain((_, trip) => trip.size > 1)
       val cnt = personToTrip.size

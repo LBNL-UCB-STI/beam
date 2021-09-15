@@ -541,7 +541,7 @@ class PersonAgent(
       )
       val legMode = maybeCurrentTourMode match {
         case Some(currentTourMode) => currentTourMode.value
-        case None                  => currentTrip.tripClassifier.value
+        case _                     => currentTrip.tripClassifier.value
       }
 
       eventsManager.processEvent(
@@ -608,7 +608,7 @@ class PersonAgent(
       val legMode = maybeCurrentTourMode match {
         case Some(currentTourMode) if currentTourMode.value == BeamMode.CAR_HOV2.value => BeamMode.CAR_HOV2.value
         case Some(currentTourMode) if currentTourMode.value == BeamMode.CAR_HOV3.value => BeamMode.CAR_HOV3.value
-        case None                                                                      => currentTrip.tripClassifier.value
+        case _                                                                         => currentTrip.tripClassifier.value
       }
 
       eventsManager.processEvent(
