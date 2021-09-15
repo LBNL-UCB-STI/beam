@@ -112,10 +112,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       createCarGraphHoppers(new FreeFlowTravelTime)
     } else if (carRouter == "nativeCCH") {
       log.info("Init CchNative")
-      val s = System.currentTimeMillis()
-      cchWrapper = CchWrapper(workerParams)
-      val e = System.currentTimeMillis()
-      log.info(s"Cch native built in ${e - s} ms")
+      cchWrapper = ProfilingUtils.timed("Cch native construction", log.info(_))(CchWrapper(workerParams))
     }
 
     askForMoreWork()
@@ -315,10 +312,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
   }
 
   private def rebuildNativeCCHWeights(newTravelTime: TravelTime): Unit = {
-    val s = System.currentTimeMillis()
-    cchWrapper.rebuildNativeCCHWeights(newTravelTime)
-    val e = System.currentTimeMillis()
-    log.info(s"Cch native rebuilt weights in ${e - s} ms")
+    ProfilingUtils.timed("Cch native rebuilt weights", log.info(_))(cchWrapper.rebuildNativeCCHWeights(newTravelTime))
   }
 
   private def calcCarNativeCCHRoute(req: RoutingRequest) = {
@@ -368,7 +362,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     modesToExclude: List[BeamMode],
     request: RoutingRequest,
     responses: Option[RoutingResponse]*
-  ) = {
+  ): RoutingResponse = {
     if (modesToExclude.isEmpty) {
       r5.calcRoute(request)
     } else {
@@ -380,15 +374,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       }
 
       val definedResponses = responses.flatten
-      definedResponses.headOption
-        .map {
-          _.copy(
-            definedResponses.flatMap(_.itineraries) ++
-            r5ResponseOption.map(_.itineraries).getOrElse(Seq.empty)
-          )
-        }
-        .orElse(r5ResponseOption)
-        .getOrElse(r5.calcRoute(request))
+      (definedResponses, r5ResponseOption) match {
+        case (head +: _, Some(r5Resp)) =>
+          head.copy(itineraries = definedResponses.flatMap(_.itineraries) ++ r5Resp.itineraries)
+        case (head +: _, None) =>
+          head.copy(itineraries = definedResponses.flatMap(_.itineraries))
+        case (Seq(), Some(r5Resp)) =>
+          r5Resp
+        case (Seq(), None) => r5.calcRoute(request)
+      }
     }
   }
 }
