@@ -212,7 +212,7 @@ class BeamSim @Inject() (
         beamServices.fareCalculator,
         tollCalculator,
         eventsManager,
-        event.getServices.getControlerIO,
+        event.getServices.getControlerIO
       ),
       "router"
     )

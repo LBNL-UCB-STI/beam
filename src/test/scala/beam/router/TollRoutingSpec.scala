@@ -74,7 +74,7 @@ class TollRoutingSpec
         fareCalculator,
         tollCalculator,
         eventsManager = mock(classOf[EventsManager]),
-        ioController = mock(classOf[OutputDirectoryHierarchy]),
+        ioController = mock(classOf[OutputDirectoryHierarchy])
       )
     )
   }
