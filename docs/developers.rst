@@ -220,6 +220,7 @@ You need to define the deploy properties that are similar to the ones for AWS de
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **dataBranch**: To specify the branch for production data, 'develop' branch will be used as default branch.
 * **beamConfigs**: The `beam.conf` file. It should be relative path under the project home.
 * **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
