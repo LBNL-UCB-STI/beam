@@ -102,6 +102,16 @@ trait ChoosesMode {
   private val teleportationVehicleIdPrefix = "teleportationSharedVehicle"
 
   private lazy val teleportationVehicleBeamType: BeamVehicleType = {
+    // TODO use this code once https://github.com/LBNL-UCB-STI/beam/issues/3306 implemented
+    //
+    //    val sharedVehicleType = beamScenario.vehicleTypes(
+    //      Id.create(
+    //        beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+    //        classOf[BeamVehicleType]
+    //      )
+    //    )
+    //    sharedVehicleType
+
     val firstCarVehicleType = beamScenario.vehicleTypes
       .find { case (_, beamVehicleType) =>
         beamVehicleType.vehicleCategory == VehicleCategory.Car
@@ -109,7 +119,6 @@ trait ChoosesMode {
       .map(_._2)
       .get
 
-    // if teleportation is used there should be vehicles of CAR category
     firstCarVehicleType
   }
 
