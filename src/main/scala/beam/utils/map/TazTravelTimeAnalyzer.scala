@@ -77,7 +77,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
     try {
       // Actual reading happens here because we force computation by `toArray`
       val pathTraversalEvents = ProfilingUtils.timed("Read PathTraversal and filter by mode", x => logger.info(x)) {
-        events.map(PathTraversalEvent.apply).toArray
+        events.map(PathTraversalEvent.apply(_)).toArray
       }
       logger.info(s"pathTraversalEvents size: ${pathTraversalEvents.length}")
 

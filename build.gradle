@@ -122,6 +122,13 @@ configurations {
 }
 
 
+configurations.all {
+    resolutionStrategy {
+//       we need this in order to get Elki library working fine.
+        force 'it.unimi.dsi:fastutil:8.5.4'
+    }
+}
+
 dependencies {
 
     implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.12') {
@@ -344,10 +351,11 @@ tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
 }
 
 tasks.withType(ScalaCompile) {
+    // LooksLikeInterpolatedString must stay
     def additionalParameters = ["-Xplugin:" + configurations.scalaCompilerPlugin.asPath,
                                 "-P:scapegoat:dataDir:" + buildDir + "/reports/scapegoat",
                                 "-P:scapegoat:reports:html:xml",
-                                "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:UnusedMethodParameter:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:ParameterlessMethodReturnsUnit:SuspiciousMatchOnClassObject:PointlessTypeBounds:BrokenOddness:VarClosure:EmptyTryBlock:RepeatedIfElseBody:BigDecimalDoubleConstructor:EmptyInterpolatedString:SwallowedException:LooksLikeInterpolatedString:FinalModifierOnCaseClass",
+                                "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:SuspiciousMatchOnClassObject:VarClosure:RepeatedIfElseBody:LooksLikeInterpolatedString",
                                 "-P:scapegoat:verbose:false",
                                 "-P:scapegoat:consoleOutput:true"]
     def minimumCompilationParameters = ["-unchecked", "-deprecation", "-feature"]

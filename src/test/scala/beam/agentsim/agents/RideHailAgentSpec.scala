@@ -12,7 +12,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{PathTraversalEvent, ShiftEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager}
+import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentScheduler, Trigger}
@@ -23,14 +23,15 @@ import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 //#Test needs to be updated/fixed on LBNL side
 class RideHailAgentSpec
@@ -62,15 +63,9 @@ class RideHailAgentSpec
 
   lazy val eventMgr = new EventsManagerImpl()
 
-  private lazy val zonalParkingManager = system.actorOf(
-    ParkingNetworkManager.props(services, ParkingAndChargingInfrastructure(services, boundingBox)),
-    "ParkingManager"
-  )
-
-  /*private lazy val chargingNetworkManager = (scheduler: ActorRef) =>
-    system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))*/
-
   case class TestTrigger(tick: Int) extends Trigger
+
+  var zonalParkingManager: ActorRef = _
 
   describe("A RideHailAgent") {
 
@@ -155,8 +150,14 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          vehicleManager =
-            Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
+          vehicleManagerId = new AtomicReference(
+            VehicleManager
+              .createOrGetReservedFor(
+                services.beamConfig.beam.agentsim.agents.rideHail.name,
+                VehicleManager.TypeEnum.RideHail
+              )
+              .managerId
+          )
         )
       beamVehicle.setManager(Some(self))
 
@@ -235,7 +236,14 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
+          new AtomicReference(
+            VehicleManager
+              .createOrGetReservedFor(
+                services.beamConfig.beam.agentsim.agents.rideHail.name,
+                VehicleManager.TypeEnum.RideHail
+              )
+              .managerId
+          )
         )
       beamVehicle.setManager(Some(self))
 
@@ -306,7 +314,14 @@ class RideHailAgentSpec
           vehicleId,
           new Powertrain(0.0),
           vehicleType,
-          Some(Id.create(services.beamConfig.beam.agentsim.agents.rideHail.vehicleManager, classOf[VehicleManager]))
+          new AtomicReference(
+            VehicleManager
+              .createOrGetReservedFor(
+                services.beamConfig.beam.agentsim.agents.rideHail.name,
+                VehicleManager.TypeEnum.RideHail
+              )
+              .managerId
+          )
         )
       beamVehicle.setManager(Some(self))
 
@@ -384,6 +399,8 @@ class RideHailAgentSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
+    val (parkingNetworks, _, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
+    zonalParkingManager = system.actorOf(ParkingNetworkManager.props(services, parkingNetworks), "ParkingManager")
     eventMgr.addHandler(new BasicEventHandler {
       override def handleEvent(event: Event): Unit = {
         self ! event

@@ -1,12 +1,12 @@
 package beam.router.gtfs
 
-import java.io._
-import java.nio.file.{Files, Path, Paths}
-import java.util.zip.ZipFile
-
 import beam.router.gtfs.FareCalculator._
 import beam.sim.config.BeamConfig
+import beam.utils.FileUtils
 import com.conveyal.gtfs.GTFSFeed
+
+import java.io._
+import java.nio.file.{Files, Path, Paths}
 import javax.inject.Inject
 
 class FareCalculator @Inject() (beamConfig: BeamConfig) {
@@ -14,21 +14,19 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
   private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
 
-  /**
-    * agencies is a Map of FareRule by agencyId
-    */
-  val agencies: Map[String, Vector[BeamFareRule]] = loadBeamFares
+  private type AgencyId = String
+  private val agencies: Map[AgencyId, Vector[BeamFareRule]] = loadBeamFares
 
-  private def loadBeamFares = {
-    if (cacheFile.exists()) {
+  private def loadBeamFares: Map[AgencyId, Vector[BeamFareRule]] = {
+    if (cacheFile.isFile) {
       new ObjectInputStream(new FileInputStream(cacheFile))
         .readObject()
         .asInstanceOf[Map[String, Vector[BeamFareRule]]]
     } else {
       val agencies = fromDirectory(dataDirectory)
-      val stream = new ObjectOutputStream(new FileOutputStream(cacheFile))
-      stream.writeObject(agencies)
-      stream.close()
+      FileUtils.using(new ObjectOutputStream(new FileOutputStream(cacheFile))) { stream =>
+        stream.writeObject(agencies)
+      }
       agencies
     }
   }
@@ -41,23 +39,6 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
   private def fromDirectory(directory: Path): Map[String, Vector[BeamFareRule]] = {
 
     var agencies: Map[String, Vector[BeamFareRule]] = Map()
-
-    /**
-      * Checks whether its a valid gtfs feed and has fares data.
-      */
-    val hasFares: FileFilter = file => {
-      var isFareExist = false
-      if (file.getName.endsWith(".zip")) {
-        try {
-          val zip = new ZipFile(file)
-          isFareExist = zip.getEntry("fare_attributes.txt") != null
-          zip.close()
-        } catch {
-          case _: Throwable => // do nothing
-        }
-      }
-      isFareExist
-    }
 
     /**
       * Takes GTFSFeed and loads agencies map with fare and its rules.
@@ -119,7 +100,7 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
 
     if (Files.isDirectory(directory)) {
       directory.toFile
-        .listFiles(hasFares)
+        .listFiles(FareUtils.hasFares)
         .map(_.getAbsolutePath)
         .foreach(p => {
           val feed = GTFSFeed.fromFile(p)

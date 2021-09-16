@@ -1,10 +1,5 @@
 package beam.utils.scenario
 
-import beam.agentsim.agents.household.HouseholdFleetManager
-
-import java.util
-
-import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.router.Modes.BeamMode
@@ -13,17 +8,19 @@ import beam.sim.common.GeoUtils
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
-import org.matsim.households.{Household, _}
+import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
+import java.util
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 class BeamScenarioLoader(
   val scenarioBuilder: ScenarioBuilder,
@@ -350,11 +347,14 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
 
     val beamVehicleType = map(beamVehicleTypeId)
 
+    val vehicleManagerId =
+      VehicleManager.createOrGetReservedFor(info.householdId, VehicleManager.TypeEnum.Household).managerId
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
     new BeamVehicle(
       beamVehicleId,
       powerTrain,
       beamVehicleType,
+      new AtomicReference(vehicleManagerId),
       randomSeed = randomSeed
     )
   }

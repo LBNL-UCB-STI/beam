@@ -1,17 +1,17 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan, PayloadType}
+import beam.agentsim.agents.freight._
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.utils.BeamVehicleUtils
-import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.wordspec.AnyWordSpecLike
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito
 import org.mockito.Mockito.when
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.util
 import scala.collection.mutable
@@ -31,7 +31,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       payloadPlans should have size 8
       val plan7 = payloadPlans("payload-7".createId)
       plan7.payloadId should be("payload-7".createId)
-      plan7.location should be(new Coord(168160.35027718433, 3126.262044268827))
+      plan7.location should be(new Coord(169624.51213105154, 3272.492326224974))
       plan7.estimatedTimeOfArrivalInSec should be(18000)
       plan7.arrivalTimeWindowInSec should be(1800)
       plan7.operationDurationInSec should be(500)
@@ -66,7 +66,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       carrier1.tourMap(Id.createVehicleId("freight-2")).head should have(
         'tourId ("tour-1".createId[FreightTour]),
         'departureTimeInSec (1000),
-        'warehouseLocation (new Coord(170525.60810804204, 3616.646677168515)),
+        'warehouseLocation (new Coord(169637.3661199976, 3030.52756066406)),
         'maxTourDurationInSec (36000)
       )
       carrier1.plansPerTour should have size 3
@@ -97,6 +97,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
         }
         person
       }
+
       val householdFactory: HouseholdsFactory = Mockito.mock(classOf[HouseholdsFactory])
       when(householdFactory.createHousehold(any())).thenAnswer { invocation =>
         val id = invocation.getArgument[Id[Household]](0)
@@ -117,15 +118,15 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       val plan1 = personPlans(Id.createPersonId("freight-agent-freight-1"))
       plan1.getPlanElements should have size 15
       plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
-        new Coord(168588.65984900188, 1454.8989514493483)
+        new Coord(169567.3017564815, 836.6518909569604)
       )
       plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(
-        new Coord(169863.89737672394, 2359.15017571258)
+        new Coord(169576.80444138843, 3380.0075111142937)
       )
       val plan4 = personPlans(Id.createPersonId("freight-agent-freight-2-1"))
       plan4.getPlanElements should have size 5
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
-        new Coord(170282.22499250135, 3960.714261754291)
+        new Coord(169900.11498160253, 3510.2356380579545)
       )
       plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Warehouse")
     }

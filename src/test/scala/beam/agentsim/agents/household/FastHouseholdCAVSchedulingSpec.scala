@@ -65,7 +65,11 @@ class FastHouseholdCAVSchedulingSpec
   describe("A Household CAV Scheduler") {
     it("generates two schedules") {
       val cavs = List[BeamVehicle](
-        new BeamVehicle(Id.createVehicleId("id1"), new Powertrain(0.0), defaultCAVBeamVehicleType)
+        new BeamVehicle(
+          Id.createVehicleId("id1"),
+          new Powertrain(0.0),
+          defaultCAVBeamVehicleType
+        )
       )
       val household = scenario1(cavs)
       val alg = new FastHouseholdCAVScheduling(household, cavs, services)

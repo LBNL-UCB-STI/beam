@@ -14,7 +14,7 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
 
   var router: ActorRef = _
 
-  override def beforeAll: Unit = {
+  override def beforeAll(): Unit = {
     super.beforeAll()
     val beamScenario = services.beamScenario
     router = system.actorOf(

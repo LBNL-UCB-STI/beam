@@ -21,6 +21,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import java.nio.file.{Files, Paths}
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
@@ -48,7 +49,8 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId = Id.create(rideHailManagerId, classOf[VehicleManager]),
+      rideHailManagerId =
+        VehicleManager.createOrGetReservedFor(rideHailManagerId, VehicleManager.TypeEnum.RideHail).managerId,
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -319,7 +321,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManager = Some(rideHailManagerId),
+        vehicleManagerId = new AtomicReference(rideHailManagerId),
         randomSeed
       )
 
@@ -560,8 +562,7 @@ class ProceduralRideHailFleetInitializer(
             .getOrElse(throw new IllegalStateException(s"$vehId is not found in `beamServices.privateVehicles`"))
         }
       }
-      .filter(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car)
-      .size / fleet
+      .count(beamVehicleType => beamVehicleType.vehicleCategory == VehicleCategory.Car) / fleet
 
     math.round(
       initialNumHouseholdVehicles *

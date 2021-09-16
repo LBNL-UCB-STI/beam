@@ -33,7 +33,7 @@ class DriveTimeSkimmer @Inject() (
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
   override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims()
-  import readOnlySkim._
+
   override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
 
   override protected val skimFileHeader: String =

@@ -16,7 +16,7 @@ import scopt.OParser
 
 /*
 Example of parameters usage:
-  --input:test/input/beamville/physsim-network.xml \
+  --input:test/input/beamville/r5/physsim-network.xml \
   --mode car \
   --output:something.txt \
   --boundBox y1=0.00995,x1=-125.99,x2=17.91,y2=31.5 \

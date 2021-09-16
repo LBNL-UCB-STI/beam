@@ -359,15 +359,14 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(
               withRouting = true,
               withRideHail = true,
-              withRideHailTransit = !choosesModeData.isWithinTripReplanning,
-              emergencyGeoId = emergencyGeoId
+              withRideHailTransit = !choosesModeData.isWithinTripReplanning
             )
             makeRideHailRequest()
             if (!choosesModeData.isWithinTripReplanning) {
               requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
             }
           } else {
-            responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+            responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             requestId = None
           }
           makeRequestWith(
@@ -376,15 +375,15 @@ trait ChoosesMode {
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
         case Some(WALK_TRANSIT) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(CAV) =>
           // Request from household the trip legs to put into trip
           householdRef ! CavTripLegsRequest(bodyVehiclePersonId, currentActivity(choosesModeData.personData))
-          responsePlaceholders = makeResponsePlaceholders(withPrivateCAV = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withPrivateCAV = true)
         case Some(mode @ (CAR | BIKE)) =>
           val maybeLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
@@ -407,17 +406,17 @@ trait ChoosesMode {
                     nextAct.getCoord,
                     triggerId
                   )
-                  responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+                  responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
-                  responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+                  responsePlaceholders = makeResponsePlaceholders(withRouting = true)
               }
             case _ =>
               makeRequestWith(
                 withTransit = false,
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode) :+ bodyStreetVehicle
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
@@ -438,7 +437,7 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), vehicleMode)
                 :+ bodyStreetVehicle
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             case (LastTripIndex, Some(currentTourPersonalVehicle)) =>
               // At the end of the tour, only drive home a vehicle that we have also taken away from there.
               makeRequestWith(
@@ -448,30 +447,28 @@ trait ChoosesMode {
                   .filter(_.id == currentTourPersonalVehicle) :+ bodyStreetVehicle,
                 streetVehiclesIntermodalUse = Egress
               )
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             case _ =>
               // Reset available vehicles so we don't release our car that we've left during this replanning
               availablePersonalStreetVehicles = Vector()
               makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
-          responsePlaceholders =
-            makeResponsePlaceholders(withRouting = true, withRideHail = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
           // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
-          responsePlaceholders =
-            makeResponsePlaceholders(withRouting = true, withRideHail = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) =>
-          responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = true, emergencyGeoId = emergencyGeoId)
+          responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = true)
           requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
         case Some(m) =>
           logDebug(m.toString)
@@ -721,13 +718,15 @@ trait ChoosesMode {
           val vehicleOnTrip = VehicleOnTrip(leg.beamVehicleId, tripIdentifier)
           if (requested.contains(vehicleOnTrip)) {
             (requested, seq)
-          } else
+          } else {
+            val veh = beamVehicles(leg.beamVehicleId).vehicle
             (
               requested + vehicleOnTrip,
-              seq :+ (vehicleOnTrip -> ParkingInquiry(
+              seq :+ (vehicleOnTrip -> ParkingInquiry.init(
                 SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
-                Some(beamVehicles(leg.beamVehicleId).vehicle),
+                VehicleManager.getReservedFor(veh.vehicleManagerId.get).get,
+                Some(veh),
                 None,
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
@@ -735,9 +734,13 @@ trait ChoosesMode {
                 triggerId = getCurrentTriggerIdOrGenerate
               ))
             )
+          }
       }
 
-    parkingInquiries.foreach { case (_, inquiry) => parkingManager ! inquiry }
+    parkingInquiries.foreach { case (_, inquiry) =>
+      if (inquiry.isChargingRequestOrEV) chargingNetworkManager ! inquiry
+      else parkingManager ! inquiry
+    }
     parkingInquiries.map { case (vehicleOnTrip, inquiry) =>
       inquiry.requestId -> vehicleOnTrip
     }
@@ -1514,12 +1517,11 @@ object ChoosesMode {
     cavTripLegs: Option[CavTripLegsResponse] = None
   )
 
-  def makeResponsePlaceholders(
+  private def makeResponsePlaceholders(
     withRouting: Boolean = false,
     withRideHail: Boolean = false,
     withRideHailTransit: Boolean = false,
-    withPrivateCAV: Boolean = false,
-    emergencyGeoId: Id[_]
+    withPrivateCAV: Boolean = false
   ): ChoosesModeResponsePlaceholders = {
     ChoosesModeResponsePlaceholders(
       routingResponse = if (withRouting) {

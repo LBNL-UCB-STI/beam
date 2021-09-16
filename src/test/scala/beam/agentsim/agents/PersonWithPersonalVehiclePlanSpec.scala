@@ -32,10 +32,10 @@ import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
 import org.scalatest.matchers.should.Matchers._
-
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
@@ -320,7 +320,13 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val vehicleId = Id.createVehicleId("bicycle-dummyAgent")
       val vehicleType = beamScenario.vehicleTypes(Id.create("Bicycle", classOf[BeamVehicleType]))
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
+      val beamVehicle =
+        new BeamVehicle(
+          vehicleId,
+          new Powertrain(0.0),
+          vehicleType,
+          vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
+        )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -460,8 +466,16 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val car1 = new BeamVehicle(Id.createVehicleId("car-1"), new Powertrain(0.0), vehicleType)
-      val car2 = new BeamVehicle(Id.createVehicleId("car-2"), new Powertrain(0.0), vehicleType)
+      val car1 = new BeamVehicle(
+        Id.createVehicleId("car-1"),
+        new Powertrain(0.0),
+        vehicleType
+      )
+      val car2 = new BeamVehicle(
+        Id.createVehicleId("car-2"),
+        new Powertrain(0.0),
+        vehicleType
+      )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
@@ -562,7 +576,8 @@ class PersonWithPersonalVehiclePlanSpec
       )
       val vehicleId = Id.createVehicleId("car-1")
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val beamVehicle = new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
+      val beamVehicle =
+        new BeamVehicle(vehicleId, new Powertrain(0.0), vehicleType)
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 

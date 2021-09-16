@@ -17,7 +17,7 @@ trait ParkingInfoWriter {
 object CsvParkingInfoWriter extends ParkingInfoWriter {
 
   private val headers: Array[String] =
-    Array("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents", "reservedFor")
+    Array("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents", "reservedFor")
 
   override def write(path: String, geoService: GeoService, tazCounts: Map[GenericGeoId, (Int, Int)]): Unit = {
 

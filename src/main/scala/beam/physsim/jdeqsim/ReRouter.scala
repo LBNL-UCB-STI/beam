@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCateg
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.r5.{R5Parameters, R5Wrapper}

@@ -1,61 +1,82 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import enumeratum._
+import beam.sim.config.BeamConfig
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-import scala.collection.immutable
+import scala.collection.concurrent.TrieMap
+import scala.util.matching.Regex
 
 trait VehicleManager
 
-object VehicleManager {
+object VehicleManager extends LazyLogging {
 
-  def createId(idString: String): Id[VehicleManager] = Id.create(idString, classOf[VehicleManager])
+  val NoManager: ReservedFor = ReservedFor(Id.create("None", classOf[VehicleManager]), TypeEnum.NoManager)
+  val AnyManager: ReservedFor = ReservedFor(Id.create("Any", classOf[VehicleManager]), TypeEnum.Default)
 
-  def getType(
-    vehicleType: BeamVehicleType,
-    isRideHail: Boolean = false,
-    isShared: Boolean = false,
-    isFreight: Boolean = false
-  ): VehicleManagerType =
-    VehicleManagerType.getManagerType(isRideHail, isShared, isFreight, Some(vehicleType.vehicleCategory))
-}
+  private val vehicleManagers: TrieMap[Id[VehicleManager], ReservedFor] = TrieMap(
+    NoManager.managerId  -> NoManager,
+    AnyManager.managerId -> AnyManager
+  )
 
-sealed abstract class VehicleManagerType(
-  val isPrivate: Boolean,
-  val isShared: Boolean = false,
-  val isFreight: Boolean = false
-) extends EnumEntry
+  val CustomReservedForRegex: Regex = """([\w-]+)\(([\w-]+)\)""".r.unanchored
 
-object VehicleManagerType extends Enum[VehicleManagerType] {
-  val values: immutable.IndexedSeq[VehicleManagerType] = findValues
+  object TypeEnum extends Enumeration {
+    type VehicleManagerType = Value
+    val Default: VehicleManagerType = Value("default")
+    val Household: VehicleManagerType = Value("household")
+    val RideHail: VehicleManagerType = Value("ridehail")
+    val Shared: VehicleManagerType = Value("shared")
+    val Freight: VehicleManagerType = Value("freight")
+    val NoManager: VehicleManagerType = Value("nomanager")
+  }
 
-  case object Bodies extends VehicleManagerType(isPrivate = true) //for human bodies
-  case object Cars extends VehicleManagerType(isPrivate = true) //for private cars
-  case object Bikes extends VehicleManagerType(isPrivate = true) //for private bikes
-  case object Carsharing extends VehicleManagerType(isPrivate = false, isShared = true) //for shared fleet of type car
-  case object SharedMicromobility
-      extends VehicleManagerType(isPrivate = false, isShared = true) //for shared bikes and scooters
-  case object Ridehail extends VehicleManagerType(isPrivate = false) //for ridehail
-  case object Freight extends VehicleManagerType(isPrivate = false, isFreight = true)
-  case object Transit extends VehicleManagerType(isPrivate = false, isShared = true) // for transit
+  case class ReservedFor(managerId: Id[VehicleManager], managerType: TypeEnum.VehicleManagerType) {
 
-  def getManagerType(
-    isRideHail: Boolean = false,
-    isShared: Boolean = false,
-    isFreight: Boolean = false,
-    vehicleCategory: Option[VehicleCategory]
-  ): VehicleManagerType = {
+    override def hashCode: Int = toString.hashCode
 
-    vehicleCategory match {
-      case Some(VehicleCategory.Body)              => Bodies
-      case Some(VehicleCategory.Bike) if isShared  => SharedMicromobility
-      case Some(VehicleCategory.Bike)              => Bikes
-      case Some(VehicleCategory.Car) if isRideHail => Ridehail
-      case Some(VehicleCategory.Car) if isShared   => Carsharing
-      case Some(VehicleCategory.Car)               => Cars
-      case _ if isFreight                          => Freight
-      case _                                       => Transit
+    override def toString: String = {
+      managerType match {
+        case TypeEnum.NoManager => NoManager.toString
+        case _                  => managerType + s"($managerId)"
+      }
     }
+  }
+
+  def getReservedFor(managerId: Id[VehicleManager]): Option[ReservedFor] = vehicleManagers.get(managerId)
+
+  def createOrGetReservedFor(idString: String, vehType: TypeEnum.VehicleManagerType): ReservedFor = {
+    val vehId = Id.create(idString, classOf[VehicleManager])
+    if (vehicleManagers.contains(vehId) && vehicleManagers(vehId).managerType != vehType)
+      throw new RuntimeException("Duplicate vehicle manager ids is not allowed")
+    val reservedFor = ReservedFor(vehId, vehType)
+    vehicleManagers.put(vehId, reservedFor)
+    reservedFor
+  }
+
+  def createOrGetReservedFor(reservedForString: String, beamConfigMaybe: Option[BeamConfig]): Option[ReservedFor] = {
+    var reservedForMaybe = reservedForString match {
+      case null | "" =>
+        Some(VehicleManager.AnyManager)
+      case x if x == VehicleManager.AnyManager.managerId.toString =>
+        Some(createOrGetReservedFor(reservedForString, TypeEnum.Default))
+      case CustomReservedForRegex(kind, id) =>
+        Some(createOrGetReservedFor(id, TypeEnum.withName(kind.trim.toLowerCase)))
+      case _ =>
+        None
+    }
+    if (reservedForMaybe.isEmpty && beamConfigMaybe.isDefined) {
+      val cfgAgentSim = beamConfigMaybe.get.beam.agentsim
+      val sharedFleets = cfgAgentSim.agents.vehicles.sharedFleets
+      reservedForMaybe = reservedForString match {
+        case cfgAgentSim.agents.freight.name  => Some(createOrGetReservedFor(reservedForString, TypeEnum.Freight))
+        case cfgAgentSim.agents.rideHail.name => Some(createOrGetReservedFor(reservedForString, TypeEnum.RideHail))
+        case reservedFor if sharedFleets.exists(_.name == reservedFor) =>
+          Some(createOrGetReservedFor(reservedForString, TypeEnum.Shared))
+        case _ =>
+          None
+      }
+    }
+    reservedForMaybe map { case ReservedFor(mngId, mngType) => createOrGetReservedFor(mngId.toString, mngType) }
   }
 }
