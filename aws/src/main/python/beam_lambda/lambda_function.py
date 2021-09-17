@@ -168,7 +168,7 @@ runcmd:
   -        case $cf in
   -         '*$i*)'
   -            echo "Loading remote production data for $i"
-  -            git config submodule.$i.branch $data_branch
+  -            git config submodule.$i.branch $DATA_BRANCH
   -            git submodule update --init --remote $i
   -        esac
   -      done
