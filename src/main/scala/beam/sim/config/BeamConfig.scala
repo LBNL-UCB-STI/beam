@@ -3758,7 +3758,8 @@ object BeamConfig {
       r5: BeamConfig.Beam.Routing.R5,
       skimTravelTimesScalingFactor: scala.Double,
       startingIterationForTravelTimesMSA: scala.Int,
-      transitOnStreetNetwork: scala.Boolean
+      transitOnStreetNetwork: scala.Boolean,
+      writeRoutingStatistic: scala.Boolean
     )
 
     object Routing {
@@ -3854,7 +3855,8 @@ object BeamConfig {
           startingIterationForTravelTimesMSA =
             if (c.hasPathOrNull("startingIterationForTravelTimesMSA")) c.getInt("startingIterationForTravelTimesMSA")
             else 0,
-          transitOnStreetNetwork = !c.hasPathOrNull("transitOnStreetNetwork") || c.getBoolean("transitOnStreetNetwork")
+          transitOnStreetNetwork = !c.hasPathOrNull("transitOnStreetNetwork") || c.getBoolean("transitOnStreetNetwork"),
+          writeRoutingStatistic = c.hasPathOrNull("writeRoutingStatistic") && c.getBoolean("writeRoutingStatistic")
         )
       }
     }
