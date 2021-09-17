@@ -8,13 +8,13 @@ import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.Id
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class PowerController(
-  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+  chargingNetwork: ChargingNetwork[_],
+  rideHailNetwork: ChargingNetwork[_],
   chargingNetworkManagerConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
   unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
 ) extends LazyLogging {
@@ -69,9 +69,9 @@ class PowerController(
         // PUBLISH
         val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
           Map(
-            "vehicleManager" -> station.zone.vehicleManagerId,
-            "parkingZoneId"  -> station.zone.parkingZoneId,
-            "estimatedLoad"  -> powerInKW
+            "reservedFor"   -> station.zone.reservedFor,
+            "parkingZoneId" -> station.zone.parkingZoneId,
+            "estimatedLoad" -> powerInKW
           )
         }
         beamFederate.publishJSON(msgToPublish.toList)
@@ -88,12 +88,15 @@ class PowerController(
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
         gridBounds.flatMap { x =>
-          val managerId = x("vehicleManager").asInstanceOf[String] match {
-            case managerIdString if managerIdString.isEmpty => VehicleManager.defaultManager
-            case managerIdString                            => Id.create(managerIdString, classOf[VehicleManager])
+          val reservedFor = x("reservedFor").asInstanceOf[String] match {
+            case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
+            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, None).get
           }
-          val chargingNetwork = chargingNetworkMap(managerId)
-          chargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
+          val appropriateChargingNetwork = reservedFor.managerType match {
+            case VehicleManager.TypeEnum.RideHail => rideHailNetwork
+            case _                                => chargingNetwork
+          }
+          appropriateChargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
             case Some(station) =>
               Some(
                 station -> PhysicalBounds(

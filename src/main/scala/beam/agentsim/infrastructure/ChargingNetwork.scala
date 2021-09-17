@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
@@ -10,6 +11,7 @@ import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
@@ -20,10 +22,8 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
-  chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]]
-) extends ParkingNetwork[GEO](vehicleManagerId, chargingZones) {
+class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+    extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._
 
@@ -81,21 +81,25 @@ class ChargingNetwork[GEO: GeoLevel](
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def attemptToConnectVehicle(
-    tick: Int,
-    vehicle: BeamVehicle,
-    stall: ParkingStall,
-    theSender: ActorRef,
-    shiftStatus: ShiftStatus = NotApplicable
+    request: ChargingPlugRequest,
+    theSender: ActorRef
   ): Option[(ChargingVehicle, ConnectionStatus.Value)] = {
-    lookupStation(stall.parkingZoneId)
-      .map { x =>
-        vehicle.useParkingStall(stall)
-        Some(x.connect(tick, vehicle, stall, theSender, shiftStatus))
-      }
-      .getOrElse {
+    lookupStation(request.stall.parkingZoneId)
+      .map(
+        _.connect(
+          request.tick,
+          request.vehicle,
+          request.stall,
+          request.personId,
+          request.shiftStatus,
+          request.shiftDuration,
+          theSender
+        )
+      )
+      .orElse {
         logger.error(
-          s"Cannot find a $vehicleManagerId station identified with tazId ${stall.tazId}, " +
-          s"parkingType ${stall.parkingType} and chargingPointType ${stall.chargingPointType.get}!"
+          s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
+          s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
         )
         None
       }
@@ -122,11 +126,10 @@ object ChargingNetwork {
 
   object ConnectionStatus extends Enumeration {
     type ConnectionStatus = Value
-    val WaitingToCharge, Connected, Disconnected, AlreadyAtStation = Value
+    val WaitingAtStation, Connected, Disconnected, AlreadyAtStation = Value
   }
 
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -138,13 +141,9 @@ object ChargingNetwork {
     maxSearchRadius: Double,
     seed: Int
   ): ChargingNetwork[GEO] = {
-    new ChargingNetwork[GEO](
-      vehicleManagerId,
-      chargingZones
-    ) {
+    new ChargingNetwork[GEO](chargingZones) {
       override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
         new ChargingFunctions[GEO](
-          vehicleManagerId,
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,
@@ -161,7 +160,6 @@ object ChargingNetwork {
   }
 
   def apply[GEO: GeoLevel](
-    vehicleManagerId: Id[VehicleManager],
     parkingDescription: Iterator[String],
     geoQuadTree: QuadTree[GEO],
     idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -175,13 +173,13 @@ object ChargingNetwork {
   ): ChargingNetwork[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
-      vehicleManagerId,
+      Some(beamConfig),
       new Random(beamConfig.matsim.modules.global.randomSeed),
+      None,
       1.0,
       1.0
     )
     ChargingNetwork[GEO](
-      vehicleManagerId,
       parking.zones.toMap,
       geoQuadTree,
       idToGeoMapping,
@@ -196,13 +194,11 @@ object ChargingNetwork {
   }
 
   def init(
-    vehicleManagerId: Id[VehicleManager],
     chargingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     envelopeInUTM: Envelope,
     beamServices: BeamServices
   ): ChargingNetwork[TAZ] = {
     ChargingNetwork[TAZ](
-      vehicleManagerId,
       chargingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
@@ -217,7 +213,6 @@ object ChargingNetwork {
   }
 
   def init(
-    vehicleManagerId: Id[VehicleManager],
     chargingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
     geoQuadTree: QuadTree[Link],
     idToGeoMapping: scala.collection.Map[Id[Link], Link],
@@ -226,7 +221,6 @@ object ChargingNetwork {
     beamServices: BeamServices
   ): ChargingNetwork[Link] = {
     ChargingNetwork[Link](
-      vehicleManagerId,
       chargingZones,
       geoQuadTree,
       idToGeoMapping,
@@ -269,22 +263,36 @@ object ChargingNetwork {
       tick: Int,
       vehicle: BeamVehicle,
       stall: ParkingStall,
-      theSender: ActorRef,
-      shiftStatus: ShiftStatus = NotApplicable
-    ): (ChargingVehicle, ConnectionStatus.Value) =
+      personId: Id[Person],
+      shiftStatus: ShiftStatus = NotApplicable,
+      shiftDuration: Option[Int] = None,
+      theSender: ActorRef
+    ): (ChargingVehicle, ConnectionStatus.Value) = {
+      vehicle.useParkingStall(stall)
       vehicles.get(vehicle.id) match {
         case Some(chargingVehicle) => (chargingVehicle, AlreadyAtStation)
         case _ =>
-          val (sessionTime, status) = if (numAvailableChargers > 0) (tick, Connected) else (-1, WaitingToCharge)
+          val (sessionTime, status) = if (numAvailableChargers > 0) (tick, Connected) else (-1, WaitingAtStation)
           val listStatus = ListBuffer(status)
-          val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, sessionTime, theSender, listStatus, shiftStatus = shiftStatus)
+          val chargingVehicle = ChargingVehicle(
+            vehicle,
+            stall,
+            this,
+            tick,
+            sessionTime,
+            personId,
+            shiftStatus,
+            shiftDuration,
+            theSender,
+            listStatus
+          )
           status match {
             case Connected => connectedVehiclesInternal.put(vehicle.id, chargingVehicle)
             case _         => waitingLineInternal.enqueue(chargingVehicle)
           }
           (chargingVehicle, status)
       }
+    }
 
     /**
       * remove vehicle from connected list and disconnect from charging point
@@ -317,7 +325,9 @@ object ChargingNetwork {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int)
+  final case class ChargingCycle(startTime: Int, endTime: Int, energyToCharge: Double, maxDuration: Int) {
+    var refueled: Boolean = false
+  }
 
   final case class ChargingVehicle(
     vehicle: BeamVehicle,
@@ -325,12 +335,16 @@ object ChargingNetwork {
     chargingStation: ChargingStation,
     arrivalTime: Int,
     sessionStartTime: Int,
+    personId: Id[Person],
+    shiftStatus: ShiftStatus,
+    shiftDuration: Option[Int],
     theSender: ActorRef,
     connectionStatus: ListBuffer[ConnectionStatus.ConnectionStatus],
-    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle],
-    shiftStatus: ShiftStatus = NotApplicable
+    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
     import ConnectionStatus._
+
+    val chargingShouldEndAt: Option[Int] = shiftDuration.map(_ + arrivalTime)
 
     /**
       * @param status the new connection status
@@ -342,6 +356,19 @@ object ChargingNetwork {
     }
 
     /**
+      * @return
+      */
+    def refuel: Option[ChargingCycle] = {
+      chargingSessions.lastOption.map {
+        case cycle @ ChargingCycle(_, _, energy, _) if !cycle.refueled =>
+          vehicle.addFuel(energy)
+          cycle.refueled = true
+          logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
+          cycle
+      }
+    }
+
+    /**
       * adding a new charging cycle to the charging session
       * @param startTime start time of the charging cycle
       * @param energy energy delivered
@@ -350,14 +377,23 @@ object ChargingNetwork {
       */
     def processCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
-        // first charging cycle
-        case None => true
-        // either a new cycle or an unplug cycle arriving in the middle of the current cycle
-        case Some(latestCycle) if startTime >= latestCycle.endTime && connectionStatus.last == Connected => true
-        // an unplug request arrived right before the new cycle started
-        // or vehicle finished charging right before unplug requests arrived
-        case Some(latestCycle) if endTime < latestCycle.endTime =>
-          chargingSessions.remove(chargingSessions.length - 1)
+        case None =>
+          // first charging cycle
+          true
+        case Some(cycle) if startTime >= cycle.endTime && connectionStatus.last == Connected =>
+          // either a new cycle or an unplug cycle arriving in the middle of the current cycle
+          true
+        case Some(cycle) if endTime <= cycle.endTime =>
+          // an unplug request arrived right before the new cycle started
+          // or vehicle finished charging right before unplug requests arrived
+          while (chargingSessions.lastOption.exists(_.endTime >= endTime)) {
+            val cycle = chargingSessions.last
+            if (cycle.refueled) {
+              vehicle.addFuel(-1 * cycle.energyToCharge)
+              logger.debug(s"Deleting cycle $cycle for vehicle $vehicle due to an interruption!")
+            }
+            chargingSessions.remove(chargingSessions.length - 1)
+          }
           true
         // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged
         case _ =>
@@ -366,7 +402,7 @@ object ChargingNetwork {
             "last charging cycle end time was {} while the current charging cycle end time is {}",
             vehicle.id,
             stall,
-            latestCycle.map(_.endTime).getOrElse(-1),
+            chargingSessions.lastOption.map(_.endTime).getOrElse(-1),
             endTime
           )
           logger.debug(
@@ -386,13 +422,8 @@ object ChargingNetwork {
     /**
       * @return
       */
-    def latestCycle: Option[ChargingCycle] = chargingSessions.lastOption
-
-    /**
-      * @return
-      */
     def calculateChargingSessionLengthAndEnergyInJoule: (Long, Double) = chargingSessions.foldLeft((0L, 0.0)) {
-      case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energy)
+      case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energyToCharge)
     }
   }
 }

@@ -43,6 +43,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -150,21 +151,20 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val managerId = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
       (parkingManager ? ParkingInquiry.init(
         SpaceTime(0.0, 0.0, 28800),
         "wherever",
-        triggerId = 0,
-        vehicleManagerId = managerId
+        triggerId = 0
       )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
         vehicle.useParkingStall(stall)
         MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
@@ -309,20 +309,19 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
-      val managerId = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
       (parkingManager ? ParkingInquiry.init(
         SpaceTime(0.0, 0.0, 28800),
         "wherever",
-        triggerId = 0,
-        vehicleManagerId = managerId
+        triggerId = 0
       )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
         vehicle.setReservedParkingStall(Some(stall))
         vehicle.useParkingStall(stall)
@@ -425,14 +424,13 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? ParkingInquiry.init(
         SpaceTime(0.01, 0.01, 61200),
         "wherever",
-        triggerId = 0,
-        vehicleManagerId = managerId
+        triggerId = 0
       )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
         vehicle2.setReservedParkingStall(Some(stall))
         vehicle2.useParkingStall(stall)
@@ -486,7 +484,9 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = VehicleManager.createIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+        vehicleManagerId = new AtomicReference(
+          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+        )
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -570,8 +570,7 @@ class PersonWithVehicleSharingSpec
       (parkingManager ? ParkingInquiry.init(
         SpaceTime(0.0, 0.0, 28800),
         "wherever",
-        triggerId = 0,
-        vehicleManagerId = VehicleManager.defaultManager
+        triggerId = 0
       )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
         car1.useParkingStall(stall)
         MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1)), triggerId)

@@ -1,10 +1,10 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingType, ParkingZone, ParkingZoneId, PricingModel}
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
@@ -21,16 +21,15 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: Seq[VehicleCategory],
-  vehicleManagerId: Id[VehicleManager]
+  reservedFor: ReservedFor
 )
 
 object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
 
-  def init[GEO: GeoLevel](
-    parkingZone: ParkingZone[GEO],
+  def init[T](
+    parkingZone: ParkingZone[T],
     tazId: Id[TAZ],
     location: Location,
     costInDollars: Double
@@ -44,8 +43,7 @@ object ParkingStall {
       parkingZone.chargingPointType,
       parkingZone.pricingModel,
       parkingZone.parkingType,
-      Seq.empty,
-      parkingZone.vehicleManagerId
+      parkingZone.reservedFor
     )
   }
 
@@ -63,8 +61,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = Seq.empty,
-    vehicleManagerId = VehicleManager.defaultManager
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -94,8 +91,7 @@ object ParkingStall {
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = Seq.empty,
-      vehicleManagerId = VehicleManager.defaultManager
+      reservedFor = VehicleManager.AnyManager
     )
   }
 
@@ -121,8 +117,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = Seq.empty,
-    vehicleManagerId = VehicleManager.defaultManager
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -144,8 +139,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      parkingAlternative.parkingZone.reservedFor,
-      parkingAlternative.parkingZone.vehicleManagerId
+      parkingAlternative.parkingZone.reservedFor
     )
   }
 

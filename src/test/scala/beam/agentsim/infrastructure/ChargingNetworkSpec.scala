@@ -10,7 +10,7 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
 import beam.agentsim.infrastructure.charging.ElectricCurrentType
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
@@ -76,7 +76,6 @@ class ChargingNetworkSpec
                                                |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
           """.stripMargin.split("\n").toIterator
         chargingNetwork = ChargingNetworkSpec.mockChargingNetwork(
-          VehicleManager.defaultManager,
           config,
           tazTreeMap,
           geo,
@@ -89,13 +88,12 @@ class ChargingNetworkSpec
         val vehicle1 = new BeamVehicle(
           id = Id.createVehicleId("car-01"),
           powerTrain = new Powertrain(0.0),
-          beamVehicleType = vehicleType1,
-          vehicleManagerId = VehicleManager.defaultManager
+          beamVehicleType = vehicleType1
         )
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
         val firstInquiry =
-          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle1), triggerId = 73737)
+          ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle1), triggerId = 73737)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -106,8 +104,7 @@ class ChargingNetworkSpec
             Some(xfcChargingPoint),
             Some(FlatFee(56.78)),
             ParkingType.Workplace,
-            reservedFor = IndexedSeq.empty,
-            VehicleManager.defaultManager
+            VehicleManager.AnyManager
           )
         val response1 = chargingNetwork.processParkingInquiry(firstInquiry)
         assert(
@@ -120,11 +117,10 @@ class ChargingNetworkSpec
         val vehicle2 = new BeamVehicle(
           id = Id.createVehicleId("car-01"),
           powerTrain = new Powertrain(0.0),
-          beamVehicleType = vehicleType2,
-          vehicleManagerId = VehicleManager.defaultManager
+          beamVehicleType = vehicleType2
         )
         val secondInquiry =
-          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, Some(vehicle2), triggerId = 49238)
+          ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle2), triggerId = 49238)
         val response2 = chargingNetwork.processParkingInquiry(secondInquiry)
         chargingNetwork.processParkingInquiry(secondInquiry)
         assert(response2.isEmpty, "it should not get an Ultra Fast charging point stall")
@@ -137,7 +133,6 @@ class ChargingNetworkSpec
 object ChargingNetworkSpec {
 
   def mockChargingNetwork(
-    vehicleManagerId: Id[VehicleManager],
     beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
@@ -148,7 +143,6 @@ object ChargingNetworkSpec {
     val minSearchRadius = 1000.0
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
     ChargingNetwork[TAZ](
-      vehicleManagerId,
       parkingDescription,
       tazTreeMap.tazQuadTree,
       tazTreeMap.idToTAZMapping,

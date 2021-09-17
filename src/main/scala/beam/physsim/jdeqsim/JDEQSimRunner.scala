@@ -23,7 +23,7 @@ import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.events.ParallelEventsManagerImpl
+import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -43,7 +43,7 @@ class JDEQSimRunner(
 ) extends StrictLogging {
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
-    val jdeqsimEvents = new ParallelEventsManagerImpl(10)
+    val jdeqsimEvents = createEventManager
     val travelTimeCalculator =
       new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
     val legHistogram = new LegHistogram(
@@ -139,6 +139,27 @@ class JDEQSimRunner(
       eventTypeToNumberOfMessages = eventTypeCounter.getStats,
       carTravelTimeStats = carTravelTimeHandler.compute
     )
+  }
+
+  private def createEventManager = {
+    def parallelEventManager = {
+      val numberOfThreads = beamConfig.beam.physsim.eventManager.numberOfThreads
+      new ParallelEventsManagerImpl(Math.max(1, numberOfThreads))
+    }
+
+    def sequentialEventManger = new EventsManagerImpl
+
+    beamConfig.beam.physsim.eventManager.`type`.toLowerCase match {
+      case "auto"       => if (beamConfig.beam.physsim.name == "PARBPRSim") sequentialEventManger else parallelEventManager
+      case "sequential" => sequentialEventManger
+      case "parallel"   => parallelEventManager
+      case _ =>
+        logger.error(
+          "Wrong beam.physsim.eventManager parameter: {}. Using sequential event manger",
+          beamConfig.beam.physsim.eventManager
+        )
+        sequentialEventManger
+    }
   }
 
   private def getPhysSimulation(

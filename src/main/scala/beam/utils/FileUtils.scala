@@ -440,11 +440,12 @@ object FileUtils extends LazyLogging {
     saver: (Int, Path, BufferedWriter) => Unit
   ): Unit = {
     assert(numberOfParts > 0, "numberOfParts must be greater than zero")
-    assert(fileNamePattern.contains("$i"), "fileNamePattern must contain $i for substitution")
+    val strPattern = "$i"
+    assert(fileNamePattern.contains(strPattern), s"fileNamePattern must contain $strPattern for substitution")
     import scala.concurrent.ExecutionContext.Implicits._
     val fileList = (1 to numberOfParts)
       .map { i =>
-        (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
+        (i, Paths.get(outputDir.toString, fileNamePattern.replace(strPattern, i.toString)))
       }
     val futures = fileList.map { case (i: Int, path: Path) =>
       Future {

@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
@@ -36,7 +35,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   if (argsMap.size != 4) {
     println(
       "Usage: --taz-parking test/input/beamville/parking/taz-parking.csv" +
-      " --network test/input/beamville/physsim-network.xml" +
+      " --network test/input/beamville/r5/physsim-network.xml" +
       " --taz-centers test/input/beamville/taz-centers.csv --out test/input/beamville/parking/link-parking.csv"
     )
     System.exit(1)
@@ -52,7 +51,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   }
 
   val (parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]], zoneSearchTree: ZoneSearchTree[TAZ]) =
-    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random(), VehicleManager.defaultManager)
+    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random(), None)
 
   val linkToTaz = LinkLevelOperations.getLinkToTazMapping(network, tazMap)
 
@@ -74,12 +73,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
         parkingType = zone.parkingType,
         maxStalls = zone.maxStalls,
         reservedFor = zone.reservedFor,
-        vehicleManagerId = zone.vehicleManagerId,
         chargingPointType = zone.chargingPointType,
         pricingModel = zone.pricingModel,
-        timeRestrictions = zone.timeRestrictions,
-        parkingZoneName = zone.parkingZoneName,
-        landCostInUSDPerSqft = zone.landCostInUSDPerSqft
+        timeRestrictions = zone.timeRestrictions
       )
       zoneId.parkingZoneId -> zoneId
     }
@@ -129,12 +125,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           maxStalls = numZones,
           reservedFor = zone.reservedFor,
-          vehicleManagerId = zone.vehicleManagerId,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
-          timeRestrictions = zone.timeRestrictions,
-          parkingZoneName = zone.parkingZoneName,
-          landCostInUSDPerSqft = zone.landCostInUSDPerSqft
+          timeRestrictions = zone.timeRestrictions
         )
       }
     }

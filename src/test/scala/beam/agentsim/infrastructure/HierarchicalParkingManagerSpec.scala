@@ -6,8 +6,8 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamHelper
@@ -70,7 +70,6 @@ class HierarchicalParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         parkingManager = HierarchicalParkingManager.init(
-          VehicleManager.defaultManager,
           Map.empty[Id[ParkingZoneId], ParkingZone[Link]],
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -84,7 +83,7 @@ class HierarchicalParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 10)
+        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 10)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.loc.getX + 2000,
@@ -113,7 +112,6 @@ class HierarchicalParkingManagerSpec
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
       val parkingManager = HierarchicalParkingManager.init(
-        VehicleManager.defaultManager,
         Map.empty[Id[ParkingZoneId], ParkingZone[Link]],
         tazTreeMap,
         HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -126,7 +124,7 @@ class HierarchicalParkingManagerSpec
         checkThatNumberOfStallsMatch = true
       )
 
-      val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 34347)
+      val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 34347)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.loc.getX + 2000,
@@ -168,11 +166,10 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator[Link](
           oneParkingOption,
-          VehicleManager.defaultManager,
+          Some(beamConfig),
           random
         )
         parkingManager = HierarchicalParkingManager.init(
-          VehicleManager.defaultManager,
           parking.zones.toMap,
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -188,19 +185,18 @@ class HierarchicalParkingManagerSpec
 
         // first request is handled with the only stall in the system
         val firstInquiry =
-          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 734734)
+          ParkingInquiry.init(centerSpaceTime, "work", triggerId = 734734)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.defaultManager
+            reservedFor = VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
@@ -211,7 +207,7 @@ class HierarchicalParkingManagerSpec
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry =
-          ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3333)
+          ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
           case Some(ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
@@ -243,11 +239,10 @@ class HierarchicalParkingManagerSpec
         parking = ParkingZoneFileUtils
           .fromIterator[Link](
             oneParkingOption,
-            VehicleManager.defaultManager,
+            Some(beamConfig),
             random
           )
         parkingManager = HierarchicalParkingManager.init(
-          VehicleManager.defaultManager,
           parking.zones.toMap,
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -261,21 +256,20 @@ class HierarchicalParkingManagerSpec
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 101)
-        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 102)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 101)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 102)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.defaultManager
+            reservedFor = VehicleManager.AnyManager
           )
 
         // request the stall
@@ -331,11 +325,10 @@ class HierarchicalParkingManagerSpec
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator[Link](
           parkingConfiguration,
-          VehicleManager.defaultManager,
+          Some(beamConfig),
           random
         )
         parkingManager = HierarchicalParkingManager.init(
-          VehicleManager.defaultManager,
           parking.zones.toMap,
           tazTreeMap,
           HierarchicalParkingManagerSpec.mockLinks(tazTreeMap),
@@ -351,7 +344,7 @@ class HierarchicalParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 17)
+          req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", triggerId = 17)
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _, req.triggerId)) =>
@@ -383,12 +376,12 @@ class HierarchicalParkingManagerSpec
           null, //it is required only in case of failures
           1.0,
           1.0,
-          randomSeed
+          randomSeed,
+          beamConfig
         )
         .filter(_._2.chargingPointType.isEmpty)
 
       val zpm = HierarchicalParkingManager.init(
-        VehicleManager.defaultManager,
         stalls,
         scenario.tazTreeMap,
         scenario.linkToTAZMapping,
@@ -405,30 +398,21 @@ class HierarchicalParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.DefaultParkingZoneId,
-        Block(0.0, 3600),
-        ParkingType.Residential,
-        VehicleManager.defaultManager
+        VehicleManager.AnyManager
       )
 
       assertParkingResponse(
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.DefaultParkingZoneId,
-        FlatFee(0.0),
-        ParkingType.Residential,
-        VehicleManager.defaultManager
+        VehicleManager.AnyManager
       )
 
       assertParkingResponse(
         zpm,
         new Coord(166500.0, 1500.0),
         "1",
-        ParkingZone.DefaultParkingZoneId,
-        Block(0.0, 3600),
-        ParkingType.Public,
-        VehicleManager.defaultManager
+        VehicleManager.AnyManager
       )
     }
   }
@@ -437,12 +421,9 @@ class HierarchicalParkingManagerSpec
     spm: ParkingNetwork[_],
     coord: Coord,
     tazId: String,
-    parkingZoneId: Id[ParkingZoneId],
-    pricingModel: PricingModel,
-    parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager]
+    reservedFor: ReservedFor
   ): Any = {
-    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 27)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, triggerId = 27)
     val response = spm.processParkingInquiry(inquiry)
     response match {
       case Some(rsp @ ParkingInquiryResponse(_, _, inquiry.triggerId)) =>
@@ -454,7 +435,7 @@ class HierarchicalParkingManagerSpec
     }
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }

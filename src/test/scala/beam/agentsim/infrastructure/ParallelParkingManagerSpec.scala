@@ -6,6 +6,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.InfrastructureUtils.buildParkingZones
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
@@ -67,7 +68,6 @@ class ParallelParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         parkingManager = ParallelParkingManager.init(
-          VehicleManager.defaultManager,
           Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]],
           beamConfig,
           tazTreeMap,
@@ -78,7 +78,7 @@ class ParallelParkingManagerSpec
         )
       } {
 
-        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 11)
+        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 11)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
             inquiry.destinationUtm.loc.getX + 2000,
@@ -107,7 +107,6 @@ class ParallelParkingManagerSpec
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
       val parkingManager = ParallelParkingManager.init(
-        VehicleManager.defaultManager,
         Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]],
         beamConfig,
         tazTreeMap,
@@ -117,7 +116,7 @@ class ParallelParkingManagerSpec
         8
       )
 
-      val inquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 173)
+      val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 173)
       val expectedStall: ParkingStall = ParkingStall.lastResortStall(
         new Envelope(
           inquiry.destinationUtm.loc.getX + 2000,
@@ -157,9 +156,8 @@ class ParallelParkingManagerSpec
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, VehicleManager.defaultManager, random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), random)
         parkingManager = ParallelParkingManager.init(
-          VehicleManager.defaultManager,
           parking.zones.toMap,
           beamConfig,
           tazTreeMap,
@@ -171,19 +169,18 @@ class ParallelParkingManagerSpec
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 9902)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 9902)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.defaultManager
+            VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
@@ -193,7 +190,7 @@ class ParallelParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 237)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 237)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
           case Some(ParkingInquiryResponse(stall, responseId, triggerId))
@@ -223,9 +220,8 @@ class ParallelParkingManagerSpec
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, VehicleManager.defaultManager, random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), random)
         parkingManager = ParallelParkingManager.init(
-          VehicleManager.defaultManager,
           parking.zones.toMap,
           beamConfig,
           tazTreeMap,
@@ -237,21 +233,20 @@ class ParallelParkingManagerSpec
 
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 3737)
-        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", VehicleManager.defaultManager, triggerId = 190)
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3737)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 190)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_DefaultManager_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            reservedFor = Seq.empty,
-            VehicleManager.defaultManager
+            VehicleManager.AnyManager
           )
 
         // request the stall
@@ -305,9 +300,8 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, VehicleManager.defaultManager, random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, Some(beamConfig), random)
         parkingManager = ParallelParkingManager.init(
-          VehicleManager.defaultManager,
           parking.zones.toMap,
           beamConfig,
           tazTreeMap,
@@ -320,7 +314,7 @@ class ParallelParkingManagerSpec
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", VehicleManager.defaultManager, triggerId = 902)
+          req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", triggerId = 902)
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _, _)) =>
@@ -350,52 +344,48 @@ class ParallelParkingManagerSpec
         tazMap.tazQuadTree,
         1.0,
         1.0,
-        randomSeed
+        randomSeed,
+        beamConfig
       )
-      val zpm = buildParkingZones[TAZ](stalls)
-        .filter(_._1 == VehicleManager.defaultManager)
-        .map { case (managerId, parkingZones) =>
-          ParallelParkingManager.init(
-            managerId,
-            parkingZones,
-            beamConfig,
-            tazMap,
-            geo.distUTMInMeters,
-            boundingBox,
-            randomSeed,
-            8
-          )
-        }
-        .head
+      val parkingZones = buildParkingZones[TAZ](stalls)
+      val zpm = ParallelParkingManager.init(
+        parkingZones,
+        beamConfig,
+        tazMap,
+        geo.distUTMInMeters,
+        boundingBox,
+        randomSeed,
+        8
+      )
 
       assertParkingResponse(
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_DefaultManager_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
-        VehicleManager.defaultManager
+        VehicleManager.AnyManager
       )
 
       assertParkingResponse(
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_DefaultManager_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
-        VehicleManager.defaultManager
+        VehicleManager.AnyManager
       )
 
       assertParkingResponse(
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("cs_DefaultManager_2_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
-        VehicleManager.defaultManager
+        VehicleManager.AnyManager
       )
     }
   }
@@ -407,9 +397,9 @@ class ParallelParkingManagerSpec
     parkingZoneId: Id[ParkingZoneId],
     pricingModel: PricingModel,
     parkingType: ParkingType,
-    vehicleManagerId: Id[VehicleManager]
+    reservedFor: ReservedFor
   ) = {
-    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, triggerId = 77370)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, triggerId = 77370)
     val response = spm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val expectedStall =
@@ -422,8 +412,7 @@ class ParallelParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        reservedFor = IndexedSeq.empty,
-        vehicleManagerId
+        reservedFor = reservedFor
       )
     assert(response.isDefined, "no response")
     assert(
@@ -432,7 +421,7 @@ class ParallelParkingManagerSpec
     )
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 }

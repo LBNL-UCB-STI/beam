@@ -14,7 +14,6 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 class ParkingFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -26,7 +25,6 @@ class ParkingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends InfrastructureFunctions[GEO](
-      vehicleManagerId,
       geoQuadTree,
       idToGeoMapping,
       geoToTAZ,
@@ -119,26 +117,25 @@ class ParkingFunctions[GEO: GeoLevel](
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _ =>
-        if (inquiry.activityType == ParkingActivityType.Init || inquiry.activityType == ParkingActivityType.Home) {
-          val newStall =
-            ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
-          ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
-        } else {
-          // didn't find any stalls, so, as a last resort, create a very expensive stall
-          val boxAroundRequest = new Envelope(
-            inquiry.destinationUtm.loc.getX + 2000,
-            inquiry.destinationUtm.loc.getX - 2000,
-            inquiry.destinationUtm.loc.getY + 2000,
-            inquiry.destinationUtm.loc.getY - 2000
-          )
-          val newStall =
-            ParkingStall.lastResortStall(
+        inquiry.activityType match {
+          case ParkingActivityType.Init | ParkingActivityType.Home =>
+            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
+            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+          case _ =>
+            // didn't find any stalls, so, as a last resort, create a very expensive stall
+            val boxAroundRequest = new Envelope(
+              inquiry.destinationUtm.loc.getX + 2000,
+              inquiry.destinationUtm.loc.getX - 2000,
+              inquiry.destinationUtm.loc.getY + 2000,
+              inquiry.destinationUtm.loc.getY - 2000
+            )
+            val newStall = ParkingStall.lastResortStall(
               boxAroundRequest,
               new Random(seed),
               tazId = TAZ.EmergencyTAZId,
               geoId = GeoLevel[GEO].emergencyGeoId
             )
-          ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
         }
     }
     Some(output)
@@ -155,7 +152,12 @@ class ParkingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
     geoArea: GEO
-  ): Coord = GeoLevel[GEO].geoSampling(new Random(seed), inquiry.destinationUtm.loc, geoArea, parkingZone.availability)
+  ): Coord = {
+    if (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household)
+      inquiry.destinationUtm.loc
+    else
+      GeoLevel[GEO].geoSampling(new Random(seed), inquiry.destinationUtm.loc, geoArea, parkingZone.availability)
+  }
 
   /**
     * Can This Car Park Here
@@ -169,14 +171,9 @@ class ParkingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     preferredParkingTypes: Set[ParkingType]
   ): Boolean = {
-
     val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
-
-    val isValidCategory = zone.reservedFor.isEmpty || inquiry.beamVehicle.forall(vehicle =>
-      zone.reservedFor.contains(vehicle.beamVehicleType.vehicleCategory)
-    )
 
     val isValidTime = inquiry.beamVehicle.forall(vehicle =>
       zone.timeRestrictions
@@ -185,10 +182,10 @@ class ParkingFunctions[GEO: GeoLevel](
     )
 
     val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-      zone.vehicleManagerId == VehicleManager.defaultManager || zone.vehicleManagerId == vehicle.vehicleManagerId
+      zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor.managerId == vehicle.vehicleManagerId.get
     }
 
-    hasAvailability & validParkingType & isValidCategory & isValidTime & isValidVehicleManager
+    hasAvailability & validParkingType & isValidTime & isValidVehicleManager
   }
 
   /**

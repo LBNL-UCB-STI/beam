@@ -7,7 +7,7 @@ import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
-import beam.agentsim.agents.vehicles.PassengerSchedule
+import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
@@ -59,7 +59,7 @@ trait ChoosesParking extends {
     val parkingInquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
       nextActivityType,
-      this.currentBeamVehicle.vehicleManagerId,
+      VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get,
       Some(this.currentBeamVehicle),
       remainingTripData,
       attributes.valueOfTime,
@@ -78,7 +78,7 @@ trait ChoosesParking extends {
       log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingInLine(tick, vehicleId, triggerId), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, _, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
@@ -107,7 +107,11 @@ trait ChoosesParking extends {
       val (tick, triggerId) = releaseTickAndTriggerId()
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
-        chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
+        chargingNetworkManager ! ChargingUnplugRequest(
+          tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+          currentBeamVehicle,
+          triggerId
+        )
         goto(ReleasingChargingPoint) using data
       } else {
         handleReleasingParkingSpot(tick, triggerId)

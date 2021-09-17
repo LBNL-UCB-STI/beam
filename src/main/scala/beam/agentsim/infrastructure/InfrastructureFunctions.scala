@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -22,7 +22,6 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 abstract class InfrastructureFunctions[GEO: GeoLevel](
-  vehicleManagerId: Id[VehicleManager],
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
   geoToTAZ: GEO => TAZ,
@@ -84,7 +83,6 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZone.defaultInit(
       GeoLevel[GEO].defaultGeoId,
       ParkingType.Public,
-      vehicleManagerId,
       UbiqiutousParkingAvailability
     )
 
@@ -240,39 +238,4 @@ object InfrastructureFunctions {
       .map(x => x._1.toString + ": " + x._2)
       .mkString(", ")
   }
-
-  /**
-    * if the destination activity is "home" then we are a PEV. this function is true when:
-    *
-    * 1. we are not headed home (i.e. not a PersonAgent driving their car home)
-    * 2. if we are headed home,
-    *   - and we have an electric engine,
-    *   - that we require charging plugs on some probability
-    *   - that this zone meets that criteria
-    *
-    * @param zone ParkingZone
-    * @param isPEVAndNeedsToChargeAtHome Option[Boolean]
-    * @param beamVehicleOption Option[BeamVehicle]
-    * @return
-    */
-  def testPEVChargeWhenHeadedHome[GEO](
-    zone: ParkingZone[GEO],
-    isPEVAndNeedsToChargeAtHome: Option[Boolean],
-    beamVehicleOption: Option[BeamVehicle]
-  ): Boolean =
-    isPEVAndNeedsToChargeAtHome match {
-      case None => true // not a PEV, any stall is ok
-      case Some(needToCharge) =>
-        if (!needToCharge) true // don't need to charge, any stall is ok
-        else
-          beamVehicleOption match {
-            case Some(beamVehicle) =>
-              beamVehicle.beamVehicleType.primaryFuelType match {
-                case Electricity => zone.chargingPointType.nonEmpty
-                case _           => true // not a charging car, any stall is ok
-              }
-            case _ => true // not in a vehicle, any stall is ok
-          }
-    }
-
 }
