@@ -216,6 +216,7 @@ object HOVModeTransformer extends LazyLogging {
       case None => personToTrip(activity.personId) = mutable.ListBuffer(activity)
     }
 
+    val cantSplitTripsForPersons = mutable.ListBuffer.empty[PersonId]
     plansByPerson.values.foreach { plans =>
       if (canBeSplitToTrips(plans)) {
         plans.foreach { planElement =>
@@ -225,9 +226,17 @@ object HOVModeTransformer extends LazyLogging {
           }
         }
       } else {
-        logger.warn("Cannot split plans to trips for person: {}", plans.head.personId)
+        cantSplitTripsForPersons.append(plans.head.personId)
         trips.append(plans.toList)
       }
+    }
+
+    if (cantSplitTripsForPersons.nonEmpty) {
+      logger.info(
+        "Cannot split plans to trips because plans does not start and end by Home activity for {} persons: {}",
+        cantSplitTripsForPersons.size,
+        cantSplitTripsForPersons.mkString(",")
+      )
     }
 
     if (personToTrip.exists { case (_, trip) => trip.size > 1 }) {
