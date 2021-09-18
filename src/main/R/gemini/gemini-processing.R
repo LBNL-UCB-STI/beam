@@ -296,7 +296,7 @@ parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
 
 #####
 
-eventsFile <- "/2021Aug22-Oakland/BATCH2-Calibration/events-raw/0.events.csv.gz"
+eventsFile <- "/2021Aug22-Oakland/BATCH2-Calibration/events-raw/0.events (4).csv.gz"
 events <- readCsv(pp(workDir, eventsFile))
 
 rse <- events[type=='RefuelSessionEvent']
@@ -305,16 +305,14 @@ rse[,.N,by=.(parkingType,chargingPointType)]
 
 rseSum <- rse[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
 rseSum[,fuelShare:=fuel/sum(fuel)]
-dcfc <- rseSum[chargingPointType=="custom(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="custom(250.0|DC)"]$fuelShare
-publicL2 <- rseSum[chargingPointType=="custom(7.2|AC)"]$fuelShare
-workL2 <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
-homeL1 <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare
-homeL2 <- rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
+dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
+publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
+work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
+home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
 print("************************")
 print(pp("DCFC: ",dcfc))
 print(pp("PublicL2: ",publicL2))
-print(pp("WorkL2: ",workL2))
-print(pp("HomeL1: ",homeL1))
-print(pp("HomeL2: ",homeL2))
+print(pp("Work: ",work))
+print(pp("Home: ",home))
 
 

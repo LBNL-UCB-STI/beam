@@ -14,7 +14,7 @@ with open('gemini_taz_unlimited_parking_plugs_power.csv', mode='w') as csv_write
         csv_writer.write(f"{x},Workplace,Block,WorkLevel2(7.2|AC),9999999,200,Any" + "\n")
 
         csv_writer.write(f"{x},Public,Block,NoCharger,9999999,0,Any" + "\n")
-        csv_writer.write(f"{x},Public,Block,PublicLevel2(7.2|AC),9999999,200,Any" + "\n")
+        csv_writer.write(f"{x},Public,Block,PublicLevel2(7.2|AC),9999999,500,Any" + "\n")
         csv_writer.write(f"{x},Public,Block,PublicFC(150|DC),9999999,7500,Any" + "\n")
         csv_writer.write(f"{x},Public,Block,PublicXFC(250|DC),9999999,15000,Any" + "\n")
 
