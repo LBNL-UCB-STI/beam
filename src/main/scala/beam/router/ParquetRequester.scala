@@ -9,7 +9,9 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.avro.util.Utf8
 
+import java.io.File
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Path, Paths}
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.concurrent.duration._
@@ -26,6 +28,14 @@ object ParquetRequester extends BeamHelper with LazyLogging {
   private val routeTime = new AtomicLong(0)
 
   def main(args: Array[String]): Unit = {
+    parseArgs(args) match {
+      case Some(cliOptions) =>
+        executeProgram(Array("--config", cliOptions.config.toString), cliOptions.input.toString)
+      case None => System.exit(1)
+    }
+  }
+
+  private def executeProgram(args: Array[String], filePath: String): Unit = {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
     val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
     val requester = new CchRouteRequester(workerParams, new FreeFlowTravelTime)
@@ -35,7 +45,7 @@ object ParquetRequester extends BeamHelper with LazyLogging {
     val totalCounter = new AtomicInteger(0)
     var i = 0
     do {
-      val requests = getRequests(i * portionSize, portionSize, "/home/crixal/Downloads/0.routingRequest.parquet")
+      val requests = getRequests(i * portionSize, portionSize, filePath)
       counter.set(requests.length)
       if (counter.get() != 0) {
         requests
@@ -65,7 +75,7 @@ object ParquetRequester extends BeamHelper with LazyLogging {
     val requestRecords = {
       val (it, toClose) = ParquetReader.read(filePath)
       try {
-        it.drop(drop).take(take).toArray
+        it.slice(drop, drop + take).toArray
       } finally {
         toClose.close()
       }
@@ -77,5 +87,33 @@ object ParquetRequester extends BeamHelper with LazyLogging {
     }
     logger.info(s"requests: ${requests.length}")
     requests
+  }
+
+  case class CliOptions(
+    input: Path,
+    config: Path
+  )
+
+  private def parseArgs(args: Array[String]): Option[CliOptions] = {
+    import scopt.OParser
+    val builder = OParser.builder[CliOptions]
+    val parser1 = {
+      import builder._
+      OParser.sequence(
+        programName("parquet-requester"),
+        opt[File]('i', "input")
+          .required()
+          .valueName("<request-file>")
+          .action((x, c) => c.copy(input = x.toPath))
+          .text("Parquet file containing routing requests"),
+        opt[File]('c', "config")
+          .required()
+          .valueName("<beam-config>")
+          .action((x, c) => c.copy(config = x.toPath))
+          .text("Beam config"),
+        help("help")
+      )
+    }
+    OParser.parse(parser1, args, CliOptions(Paths.get("."), Paths.get(".")))
   }
 }
