@@ -2,8 +2,11 @@ package beam.physsim.travelTime
 
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
-import beam.physsim.jdeqsim.{JDEQSimRunner, cacc}
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
+  Hao2018CaccRoadCapacityAdjustmentFunction,
+  RoadCapacityAdjustmentFunction
+}
+import beam.physsim.jdeqsim.{cacc, JDEQSimRunner}
 import beam.physsim.{LinkPickUpsDropOffs, PickUpDropOffHolder, TimeToValueCollection}
 import beam.sim.BeamConfigChangesObservable
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -197,7 +200,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
         1.0,
         900,
         travelTimeFunction,
-        maybeCaccSettings,
+        maybeCaccSettings
       )
     val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
     val sim = new BPRSimulation(scenario, bprConfig, eventManager)
@@ -225,7 +228,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
         1.0,
         900,
         travelTimeFunction,
-        None,
+        None
       )
     val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
     val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager, 42)

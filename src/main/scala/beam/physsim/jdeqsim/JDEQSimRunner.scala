@@ -95,8 +95,10 @@ class JDEQSimRunner(
     val maybeCaccSettings = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) Some(createCaccSettings()) else None
 
     val maybePickUpDropOffHolder: Option[PickUpDropOffHolder] =
-      if (beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled
-          && maybePickUpDropOffCollector.nonEmpty) {
+      if (
+        beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled
+        && maybePickUpDropOffCollector.nonEmpty
+      ) {
         Some(createPickUpDropOffHolder(maybePickUpDropOffCollector.get))
       } else {
         None
@@ -307,11 +309,9 @@ object JDEQSimRunner {
     val additionalTravelTime: (Link, Double) => Double = {
       maybePickUpDropOffHolder match {
         case Some(holder) =>
-          (link, simulationTime) =>
-            holder.getAdditionalLinkTravelTime(link, simulationTime)
+          (link, simulationTime) => holder.getAdditionalLinkTravelTime(link, simulationTime)
         case None =>
-          (_, _) =>
-            0.0
+          (_, _) => 0.0
       }
     }
 
@@ -333,11 +333,11 @@ object JDEQSimRunner {
                 val tmp = volume / (capacity * 3600)
                 val result = ftt * (1 + tmp * tmp)
 
-                  val originalTravelTime =
-                    Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
-                  originalTravelTime + additionalTravelTime(link, time)
+                val originalTravelTime =
+                  Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
+                originalTravelTime + additionalTravelTime(link, time)
               } else {
-                  ftt + additionalTravelTime(link, time)
+                ftt + additionalTravelTime(link, time)
               }
             }
           case None =>
@@ -345,10 +345,10 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                  val originalTravelTime = ftt * (1 + tmp * tmp)
-                  originalTravelTime + additionalTravelTime(link, time)
+                val originalTravelTime = ftt * (1 + tmp * tmp)
+                originalTravelTime + additionalTravelTime(link, time)
               } else {
-                  ftt + additionalTravelTime(link, time)
+                ftt + additionalTravelTime(link, time)
               }
             }
         }

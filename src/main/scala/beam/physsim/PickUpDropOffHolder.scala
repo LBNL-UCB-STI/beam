@@ -21,17 +21,16 @@ class PickUpDropOffHolder(linkToPickUpsDropOffs: mutable.HashMap[Int, LinkPickUp
   var linkTravelTimeAnalyzed: Long = 0
   var linkTravelTimeAffected: Long = 0
 
-  private val totalPickUpsDropOffs = linkIdToPickUpsDropOffs.map {
-    case (_, linkPD) => linkPD.timeToPickUps.times.size + linkPD.timeToDropOffs.times.size
+  private val totalPickUpsDropOffs = linkIdToPickUpsDropOffs.map { case (_, linkPD) =>
+    linkPD.timeToPickUps.times.size + linkPD.timeToDropOffs.times.size
   }.sum
   logger.info(
     s"Holder created with total $totalPickUpsDropOffs pick ups and drop offs for ${linkIdToPickUpsDropOffs.size} links."
   )
 
   private def toLinkIdToPickUpsDropOffsMap: Map[Id[Link], LinkPickUpsDropOffs] = {
-    linkToPickUpsDropOffs.map {
-      case (strLinkId, pickUpsDropOffs) =>
-        (Id.createLinkId(strLinkId), pickUpsDropOffs)
+    linkToPickUpsDropOffs.map { case (strLinkId, pickUpsDropOffs) =>
+      (Id.createLinkId(strLinkId), pickUpsDropOffs)
     }.toMap
   }
 
@@ -79,6 +78,7 @@ class PickUpDropOffHolder(linkToPickUpsDropOffs: mutable.HashMap[Int, LinkPickUp
 class AdditionalLinkTravelTimeCalculationFunctionImplementation(
   calcAdditionalLinkTravelTime: (Link, Double) => Double
 ) extends AdditionalLinkTravelTimeCalculationFunction {
+
   override def getAdditionalLinkTravelTime(link: Link, simulationTime: Double): Double =
     calcAdditionalLinkTravelTime(link, simulationTime)
 }
