@@ -132,8 +132,15 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
         )
       )
 
-      RoutingResponse(Seq(alternative), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false, req.triggerId)
-    } else RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false, req.triggerId)
+      RoutingResponse(
+        Seq(alternative),
+        req.requestId,
+        Some(req),
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = req.triggerId
+      )
+    } else
+      RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false, triggerId = req.triggerId)
   }
 
   def rebuildNativeCCHWeights(newTravelTime: TravelTime): Unit = {
