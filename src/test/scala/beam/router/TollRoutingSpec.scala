@@ -22,6 +22,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
@@ -72,7 +73,8 @@ class TollRoutingSpec
         new GeoUtilsImpl(beamConfig),
         fareCalculator,
         tollCalculator,
-        eventsManager = mock(classOf[EventsManager])
+        eventsManager = mock(classOf[EventsManager]),
+        ioController = mock(classOf[OutputDirectoryHierarchy])
       )
     )
   }
@@ -138,7 +140,8 @@ class TollRoutingSpec
           new GeoUtilsImpl(beamScenario.beamConfig),
           fareCalculator,
           moreExpensiveTollCalculator,
-          eventsManager = mock(classOf[EventsManager])
+          eventsManager = mock(classOf[EventsManager]),
+          ioController = mock(classOf[OutputDirectoryHierarchy])
         )
       )
       moreExpensiveRouter ! request
