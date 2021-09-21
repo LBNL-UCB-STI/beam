@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
@@ -36,7 +37,6 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.util.Try
 import scala.concurrent.duration._
-
 import scala.util.control.NonFatal
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
@@ -422,7 +422,7 @@ class BeamSim @Inject() (
     }
 
     maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
-    beamServices.beamRouter ! BeamRouter.IterationEndsMessage(event.getIteration)
+    val routerFinished = beamServices.beamRouter ? BeamRouter.IterationEndsMessage(event.getIteration)
 
     val outputGraphsFuture = Future {
       if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
@@ -474,16 +474,17 @@ class BeamSim @Inject() (
       }
     }
 
-    if (beamConfig.beam.physsim.skipPhysSim) {
-      Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
+    val physsimFuture = if (beamConfig.beam.physsim.skipPhysSim) {
+      Future.successful(Finish)
     } else {
-      val physsimFuture = Future {
+      Future {
         agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
-
-      // executing code blocks parallel
-      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
+    val futuresToWait = List(outputGraphsFuture, routerFinished, physsimFuture)
+
+    // executing code blocks parallel
+    Await.result(Future.sequence(futuresToWait), Duration.Inf)
 
     if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.end (after GC): "))

@@ -1,6 +1,7 @@
 package beam.router
 
 import akka.actor.{Actor, Props}
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.router.BeamRouter.{IterationEndsMessage, IterationStartsMessage, RoutingFailure, RoutingResponse}
 import beam.router.Modes.BeamMode._
 import beam.utils.csv.CsvWriter
@@ -21,8 +22,9 @@ class RoutingStatistic(ioController: OutputDirectoryHierarchy) extends Actor {
 
   def handleRouterResponses(writer: CsvWriter): Receive = {
     case _: IterationEndsMessage =>
-      writer.flush()
       writer.close()
+      context.become(receive)
+      sender() ! Finish
 
     case RoutingResponse(itineraries, _, Some(request), _, searchedModes, _) =>
       searchedModes.foreach { mode =>
