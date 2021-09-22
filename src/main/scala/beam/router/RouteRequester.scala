@@ -23,7 +23,13 @@ trait RouteRequester {
     if (!request.withTransit && request.streetVehicles.exists(_.mode == carMode)) {
       routeInner(request.copy(streetVehicles = request.streetVehicles.filter(_.mode == carMode)))
     } else {
-      RoutingResponse(Seq(), request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false, request.triggerId)
+      RoutingResponse(
+        Seq(),
+        request.requestId,
+        Some(request),
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = request.triggerId
+      )
     }
   }
 

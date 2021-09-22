@@ -319,7 +319,16 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     val carMode = Modes.BeamMode.CAR
     if (req.streetVehicles.exists(_.mode == carMode)) {
       Some(cchWrapper.calcRoute(req.copy(streetVehicles = req.streetVehicles.filter(_.mode == carMode))))
-    } else Some(RoutingResponse(Seq(), req.requestId, Some(req), isEmbodyWithCurrentTravelTime = false, req.triggerId))
+    } else
+      Some(
+        RoutingResponse(
+          Seq(),
+          req.requestId,
+          Some(req),
+          isEmbodyWithCurrentTravelTime = false,
+          triggerId = req.triggerId
+        )
+      )
   }
 
   private def calcCarGhRoute(request: RoutingRequest): Option[RoutingResponse] = {
