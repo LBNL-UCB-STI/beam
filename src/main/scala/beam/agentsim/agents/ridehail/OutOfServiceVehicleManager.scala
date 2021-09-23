@@ -45,7 +45,7 @@ class OutOfServiceVehicleManager(
           RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId,
           tick,
           triggerId,
-          Some(vehicleId)
+          vehicleId
         ),
         rideHailManagerActor
       )

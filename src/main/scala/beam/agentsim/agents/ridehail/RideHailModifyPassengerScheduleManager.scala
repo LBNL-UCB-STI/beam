@@ -407,7 +407,7 @@ class RideHailModifyPassengerScheduleManager(
           passengerScheduleStatus.interruptId,
           passengerScheduleStatus.tick,
           triggerId,
-          Some(passengerScheduleStatus.vehicleId)
+          passengerScheduleStatus.vehicleId
         ),
         rideHailManagerRef
       )
