@@ -1,5 +1,4 @@
-
-
+#ADD MANY 50DC 150DC 250DC 350DC
 headerfile = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor"
 
 with open('gemini_taz_unlimited_parking_plugs_power.csv', mode='w') as csv_writer:

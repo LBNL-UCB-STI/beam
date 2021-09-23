@@ -28,7 +28,7 @@ loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2021Aug22-Oakland/BATCH1")
+dataDir <- normalizePath("~/Data/GEMINI/2021Aug22-Oakland/BATCH3")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -37,23 +37,9 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Scenario1', 'Scenario2')
-scenarioBaselineLabel <- 'Scenario2'
+scenarioNames <- c('Scenario0', 'Scenario1')
+scenarioBaselineLabel <- 'Scenario0'
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
-loadTypes <- data.table::data.table(
-  chargingPointType = c("evipublicdcfast(150.0|DC)",
-                   "evipublicdcfast(250.0|DC)",
-                   "evipublicdcfast(50.0|DC)",
-                   "fcsfast(50.0|DC)",
-                   "fcsfast(150.0|DC)",
-                   "fcsfast(250.0|DC)",
-                   "evipubliclevel2(7.2|AC)",
-                   "eviworklevel2(7.2|AC)",
-                   "homelevel1(1.8|AC)",
-                   "homelevel2(7.2|AC)",
-                   "custom(150.0|DC)"),
-  loadType = c("DCFC", "XFC", "DCFC", "DCFC", "DCFC", "XFC", "Public-L2", "Work-L2", "Home-L1", "Home-L2", "DCFC")
-)
 
 # MAIN
 processEventsFileAndScaleUp(dataDir, scaleup, expFactor)
@@ -74,9 +60,13 @@ for(j in 1:nrow(publicLoads)){
   print(temp[,.(loadType,fuelShare)][order(factor(loadType,levels=names(chargingTypes.colors)))])
 }
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
-all.loads <- all.loads[scens, on="code", mult="all"]
+all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
+
+#####
+
+all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
 ##########################################

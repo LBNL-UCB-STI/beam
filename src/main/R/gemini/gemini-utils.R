@@ -4,6 +4,18 @@ library(data.table)
 setClass("loadInfo", slots=list(timebinInSec="numeric", siteXFCInKW="numeric", plugXFCInKW="numeric"))
 
 time.bins <- data.table(time=seq(0,61,by=0.25)*3600,quarter.hour=seq(0,61,by=0.25))
+
+loadTypes <- data.table::data.table(
+  chargingPointType = c(
+    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)", "publiclevel2(7.2|AC)", 
+    "worklevel2(7.2|AC)", "custom(7.2|AC)",
+    "publicfc(150.0|DC)", "custom(150.0|DC)", "publicxfc(250.0|DC)", "custom(250.0|DC)"),
+  loadType = c(
+    "Home-L1", "Home-L2", "Public-L2", 
+    "Work-L2", "Work-L2", 
+    "DCFC", "DCFC", "XFC", "XFC"))
+
+
 nextTimePoisson <- function(rate) {
   return(-log(1.0 - runif(1)) / rate)
 }
@@ -146,8 +158,8 @@ extractLoads <- function(sessions, loadTypes, loadInfo, countyNames) {
 
 ## *****************
 generateReadyToPlot <- function(resultsDirName, loadTypes, loadInfo, countyNames) {
-  chargingTypes.colors <- c("#66CCFF", "#669900", "#660099", "#FFCC33", "#CC3300", "#0066CC")
-  names(chargingTypes.colors) <- c("DCFC", "Public-L2", "Work-L2", "Work-L1", "Home-L2", "Home-L1")
+  chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#FFCC33", "#CC3300", "#0066CC")
+  names(chargingTypes.colors) <- c("XFC", "DCFC", "Public-L2", "Work-L2", "Work-L1", "Home-L2", "Home-L1")
   file.list <- list.files(path=resultsDirName)
   all.sessions <- list()
   all.chargingTypes <- list()
