@@ -42,7 +42,12 @@ class ErrorListener() extends Actor with ActorLogging {
         case interrupt: Interrupt =>
           log.error(s"Received $interrupt from ${d.sender} supposed to go to ${d.recipient}")
 
-          d.sender ! InterruptedWhileOffline(interrupt.interruptId, interrupt.vehicleId, interrupt.tick, interrupt.triggerId)
+          d.sender ! InterruptedWhileOffline(
+            interrupt.interruptId,
+            interrupt.vehicleId,
+            interrupt.tick,
+            interrupt.triggerId
+          )
         case m: RoutingRequest =>
           log.debug(
             "Retrying {} via {} tell {} using {}",
