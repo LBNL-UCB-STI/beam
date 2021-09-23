@@ -122,7 +122,7 @@ class PowerController(
         unlimitedPhysicalBounds
     }
     currentBin = currentTime / timeStep
-    if (currentBin >= endOfSimulationTime)
+    if (currentBin * timeStep >= endOfSimulationTime)
       close()
     physicalBounds
   }
