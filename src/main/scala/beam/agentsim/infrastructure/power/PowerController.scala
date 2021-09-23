@@ -7,6 +7,7 @@ import beam.agentsim.infrastructure.parking.ParkingZone.createId
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
+import beam.utils.DateUtils
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.control.NonFatal
@@ -19,6 +20,7 @@ class PowerController(
   unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
 ) extends LazyLogging {
   import SitePowerManager._
+  private val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
   private val timeStep = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
   private val isConnectedToHelics = beamConfig.beam.agentsim.chargingNetworkManager.helics.connectionEnabled
 
@@ -120,6 +122,8 @@ class PowerController(
         unlimitedPhysicalBounds
     }
     currentBin = currentTime / timeStep
+    if (currentBin >= endOfSimulationTime)
+      close()
     physicalBounds
   }
 
