@@ -474,10 +474,8 @@ class BeamSim @Inject() (
       }
     }
 
-    val physsimFuture = if (beamConfig.beam.physsim.skipPhysSim) {
-      Future.successful(Finish)
-    } else {
-      Future {
+    val physsimFuture = Future {
+      if (!beamConfig.beam.physsim.skipPhysSim) {
         agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
     }
