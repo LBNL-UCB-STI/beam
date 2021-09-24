@@ -893,6 +893,11 @@ trait BeamHelper extends LazyLogging {
     logger.debug(s"Beam output directory is: $outputDirectory")
     logger.info(ConfigConsistencyComparator.getMessage.getOrElse(""))
 
+    val errors = InputConsistencyCheck.checkConsistency(beamConfig)
+    if (errors.nonEmpty) {
+      logger.error("Input consistency check failed:\n" + errors.mkString("\n"))
+    }
+
     level = beamConfig.beam.metrics.level
     runName = beamConfig.beam.agentsim.simulationName
     if (isMetricsEnable) {
