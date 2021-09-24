@@ -36,7 +36,8 @@ object InputConsistencyCheck {
   }
 
   def checkConsistency(beamConfig: BeamConfig): List[String] = {
-    val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val vehicleTypes =
+      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
     checkVehicleTypes(
       vehicleTypes.keySet,
       beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
