@@ -2,7 +2,6 @@ package beam.utils
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.sim.config.BeamConfig
-import beam.utils.BeamVehicleUtils
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable.ListBuffer
