@@ -183,6 +183,8 @@ p <- ggmap(oakland_map) +
   facet_wrap(~hour.bin2.label)
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p,width=16,height=8,units='in')
 
+
+## **************************************
 ##  public charging by scenario
 p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
