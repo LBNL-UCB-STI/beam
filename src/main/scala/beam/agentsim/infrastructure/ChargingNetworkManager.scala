@@ -223,7 +223,7 @@ class ChargingNetworkManager(
       }
       chargingNetwork.clearAllMappedStations()
       rideHailNetwork.clearAllMappedStations()
-      // powerController.close()
+      powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
   }
