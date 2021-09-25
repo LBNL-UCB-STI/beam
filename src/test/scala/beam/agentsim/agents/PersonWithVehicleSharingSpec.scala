@@ -196,7 +196,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        embodyRequest.triggerId
+        triggerId = embodyRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -379,7 +379,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest.triggerId
+        triggerId = routingRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -468,7 +468,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest2.triggerId
+        triggerId = routingRequest2.triggerId
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -597,7 +597,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -638,7 +638,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -677,7 +677,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
