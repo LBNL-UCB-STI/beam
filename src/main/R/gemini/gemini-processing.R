@@ -347,7 +347,7 @@ parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
 
 
 #####
-eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events (2).csv.gz"
+eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events (3).csv.gz"
 events <- readCsv(pp(workDir, eventsFile))
 
 rse <- events[type=='RefuelSessionEvent']
