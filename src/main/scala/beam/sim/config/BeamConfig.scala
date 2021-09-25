@@ -1376,7 +1376,7 @@ object BeamConfig {
               ),
               linkFleetStateAcrossIterations =
                 c.hasPathOrNull("linkFleetStateAcrossIterations") && c.getBoolean("linkFleetStateAcrossIterations"),
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "RideHail",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
               pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
               pooledCostPerMile = if (c.hasPathOrNull("pooledCostPerMile")) c.getDouble("pooledCostPerMile") else 1.11,
               pooledCostPerMinute =

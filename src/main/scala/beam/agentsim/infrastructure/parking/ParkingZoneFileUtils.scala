@@ -478,7 +478,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
-      val numStalls = calculateNumStalls(numStallsString.toDouble)
+      val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor)
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
         else Some(ParkingZone.createId(parkingZoneIdString))
@@ -524,10 +524,19 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   private def calculateNumStalls(
-    initialNumStalls: Double
+    initialNumStalls: Double,
+    reservedFor: ReservedFor
   )(implicit parkingStallCountScalingFactor: Double, rand: Random): Int = {
-    val expectedNumberOfStalls = initialNumStalls * parkingStallCountScalingFactor
-    MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt
+    reservedFor.managerType match {
+      case VehicleManager.TypeEnum.Household =>
+        if (rand.nextDouble() <= parkingStallCountScalingFactor)
+          initialNumStalls.toInt
+        else
+          0
+      case _ =>
+        val expectedNumberOfStalls = initialNumStalls * parkingStallCountScalingFactor
+        MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt
+    }
   }
 
   private def validateReservedFor(

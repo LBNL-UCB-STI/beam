@@ -406,8 +406,25 @@ class RideHailAgent(
       isOnWayToParkAtStall = Some(stall)
       beamServices.beamRouter ! veh2StallRequest
       stay
-    case Event(RoutingResponse(itineraries, _, _, _, _), data) =>
+    case Event(resp @ RoutingResponse(itineraries, _, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
+      if (resp == RoutingResponse.dummyRoutingResponse.get) {
+        logger.error(
+          s"[RoutingResponse] routing response is dummyRoutingResponse, " +
+          s"here is the routing response $resp and the data $data and sender $sender"
+        )
+      } else if (itineraries.isEmpty) {
+        logger.error(
+          s"[RoutingResponse] itineraries is empty, " +
+          s"here is the routing response $resp and the data $data and sender $sender"
+        )
+      } else if (itineraries.head.beamLegs.isEmpty) {
+        logger.error(
+          s"[RoutingResponse] itineraries.head.beamLegs is empty, " +
+          s"here the head itineraries ${itineraries.head} " +
+          s"here is the routing response $resp and the data $data and sender $sender"
+        )
+      }
       val theLeg = itineraries.head.beamLegs.head
       val updatedPassengerSchedule = PassengerSchedule().addLegs(Seq(theLeg))
       val (tick, triggerId) = releaseTickAndTriggerId()
@@ -516,9 +533,15 @@ class RideHailAgent(
       val tickToUse = Math.max(tick, latestObservedTick)
       updateLatestObservedTick(tick)
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
-      if (debugEnabled) outgoingMessages += ev
-      startRefueling(tickToUse, triggerId, Vector())
-      goto(Refueling)
+      if (vehicle.isCAV) {
+        if (debugEnabled) outgoingMessages += ev
+        startRefueling(tickToUse, triggerId, Vector())
+        goto(Refueling)
+      } else {
+        holdTickAndTriggerId(tickToUse, triggerId)
+        requestParkingStall()
+        stay
+      }
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
         "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
@@ -564,13 +587,13 @@ class RideHailAgent(
     case _ @Event(ModifyPassengerSchedule(_, _, _, _), _) =>
       stash()
       goto(IdleInterrupted)
-    case ev @ Event(WaitingToCharge(_, _, _), _) =>
+    case _ @Event(WaitingToCharge(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+    case _ @Event(UnhandledVehicle(_, _, _), _) =>
       stash()
       stay()
-    case ev @ Event(UnpluggingVehicle(_, _, _), _) =>
+    case _ @Event(UnpluggingVehicle(_, _, _), _) =>
       stash()
       stay()
   }
@@ -615,6 +638,9 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       handleWaitingLineReply(reply.triggerId, data)
+    case ev @ Event(_ @UnhandledVehicle(_, _, _), _) =>
+      log.debug(s"state(RideHailingAgent.Idle.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
+      stay
   }
 
   when(IdleInterrupted) {
@@ -959,7 +985,6 @@ class RideHailAgent(
     case ev @ Event(UnpluggingVehicle(tick, energyCharged, triggerId), _) =>
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
-      holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, energyCharged, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
@@ -970,7 +995,6 @@ class RideHailAgent(
     case ev @ Event(UnhandledVehicle(tick, _, triggerId), _) =>
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.UnhandledVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
-      holdTickAndTriggerId(tick, triggerId)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, 0.0, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
