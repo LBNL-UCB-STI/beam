@@ -22,6 +22,8 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.analysis._
+import beam.physsim.PickUpDropOffCollector
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter.ODSkimmerReady
 import beam.router.BeamRouter.UpdateTravelTimeLocal
@@ -162,6 +164,13 @@ class BeamSim @Inject() (
     beamServices.matsimServices.getControlerIO
   )
 
+  val maybePickUpDropOffCollector =
+    if (beamServices.beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled) {
+      Some(new PickUpDropOffCollector(beamServices.beamScenario.vehicleTypes))
+    } else {
+      None
+    }
+
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
   beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -195,6 +204,7 @@ class BeamSim @Inject() (
       eventsManager.addHandler(transitOccupancyByStop)
       eventsManager.addHandler(modeChoiceAlternativesCollector)
       eventsManager.addHandler(rideHailUtilizationCollector)
+      maybePickUpDropOffCollector.foreach(eventsManager.addHandler(_))
       carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     }
 
@@ -233,7 +243,8 @@ class BeamSim @Inject() (
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamConfigChangesObservable
+        beamConfigChangesObservable,
+        maybePickUpDropOffCollector
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -375,6 +386,8 @@ class BeamSim @Inject() (
     if (isFirstIteration(iterationNumber)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
+
+    maybePickUpDropOffCollector.foreach(_.notifyIterationStarts(event))
 
     if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
       rideHailUtilizationCollector.reset(event.getIteration)
