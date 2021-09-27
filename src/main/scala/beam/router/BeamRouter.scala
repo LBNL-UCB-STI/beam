@@ -17,6 +17,7 @@ import akka.cluster.ClusterEvent._
 import akka.cluster.{Cluster, Member, MemberStatus}
 import akka.pattern._
 import akka.util.Timeout
+import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
@@ -163,7 +164,10 @@ class BeamRouter(
       currentIteration = iteration
       routingStatistic.foreach(_ ! iterationStartsMessage)
     case iterationEndsMessage: IterationEndsMessage =>
-      routingStatistic.foreach(_ ! iterationEndsMessage)
+      routingStatistic match {
+        case Some(actor) => (actor ? iterationEndsMessage).pipeTo(sender())
+        case None        => sender() ! Finish
+      }
     case `tick` =>
       if (isWorkAndNoAvailableWorkers) notifyWorkersOfAvailableWork()
       logExcessiveOutstandingWorkAndClearIfEnabledAndOver
