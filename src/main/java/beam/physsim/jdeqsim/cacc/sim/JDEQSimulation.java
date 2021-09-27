@@ -1,23 +1,19 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
-import beam.physsim.AdditionalLinkTravelTimeCalculationFunction;
-import beam.physsim.AdditionalLinkTravelTimeCalculationFunctionMock;
 import beam.physsim.PickUpDropOffHolder;
 import beam.physsim.jdeqsim.cacc.CACCSettings;
-import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunction;
-import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunctionMock;
 import beam.sim.config.BeamConfig;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.api.experimental.events.EventsManager;
-import org.matsim.core.mobsim.jdeqsim.*;
+import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup;
+import org.matsim.core.mobsim.jdeqsim.Scheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
 
 import javax.inject.Inject;
-
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,16 +36,10 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
 
         if (maybeCaccSettings.nonEmpty()) {
             Road.setRoadCapacityAdjustmentFunction(maybeCaccSettings.get().roadCapacityAdjustmentFunction());
-        } else {
-            RoadCapacityAdjustmentFunction mock = new RoadCapacityAdjustmentFunctionMock();
-            Road.setRoadCapacityAdjustmentFunction(mock);
         }
 
         if (maybePickUpDropOffHolder.nonEmpty()) {
             Road.setAdditionalLinkTravelTimeCalculationFunction(maybePickUpDropOffHolder.get().additionalLinkTravelTimeCalculationFunction());
-        } else {
-            AdditionalLinkTravelTimeCalculationFunction mock = new AdditionalLinkTravelTimeCalculationFunctionMock();
-            Road.setAdditionalLinkTravelTimeCalculationFunction(mock);
         }
     }
 

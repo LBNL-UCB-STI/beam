@@ -2,7 +2,7 @@ package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions;
 
 import org.matsim.api.core.v01.network.Link;
 
-public class RoadCapacityAdjustmentFunctionMock implements RoadCapacityAdjustmentFunction {
+public class EmptyRoadCapacityAdjustmentFunction implements RoadCapacityAdjustmentFunction {
     @Override
     public double getCapacityWithCACCPerSecond(Link link, double fractionCACCOnRoad, double simTime) {
         double initialCapacity = link.getCapacity();

@@ -1,8 +1,8 @@
 package beam.physsim.jdeqsim.cacc.sim;
 
 import beam.physsim.AdditionalLinkTravelTimeCalculationFunction;
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.EmptyRoadCapacityAdjustmentFunction;
 import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.RoadCapacityAdjustmentFunction;
-import beam.utils.DebugLib;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.mobsim.jdeqsim.DeadlockPreventionMessage;
@@ -11,12 +11,15 @@ import org.matsim.core.mobsim.jdeqsim.Scheduler;
 
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Optional;
 
 public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     private static final double INCREASE_TIMESTAMP = 0.0000000001D;
-    private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction;
-    private static AdditionalLinkTravelTimeCalculationFunction additionalLinkTravelTimeCalculationFunction;
+    private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new EmptyRoadCapacityAdjustmentFunction();
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static Optional<AdditionalLinkTravelTimeCalculationFunction> additionalLinkTravelTimeCalculationFunction;
 
     private final HashMap<Vehicle, Double> caccShareEncounteredByVehicle = new HashMap<>();
     private final double speedAdjustmentFactor;
@@ -37,7 +40,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     }
 
     public static void setAdditionalLinkTravelTimeCalculationFunction(AdditionalLinkTravelTimeCalculationFunction additionalLinkTravelTimeCalculationFunction) {
-        Road.additionalLinkTravelTimeCalculationFunction = additionalLinkTravelTimeCalculationFunction;
+        Road.additionalLinkTravelTimeCalculationFunction = Optional.of(additionalLinkTravelTimeCalculationFunction);
     }
 
     public void updateCACCShareEncounteredByVehicle(Vehicle vehicle) {
@@ -88,7 +91,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     }
 
     private double getAdditionalTravelTime(double simulationTime) {
-        return additionalLinkTravelTimeCalculationFunction.getAdditionalLinkTravelTime(link, simulationTime);
+        return additionalLinkTravelTimeCalculationFunction
+                .map(func -> func.getAdditionalLinkTravelTime(link, simulationTime))
+                .orElse(0.0);
     }
 
     private double getInverseCapacity(org.matsim.core.mobsim.jdeqsim.Vehicle vehicle, double simTime) {
