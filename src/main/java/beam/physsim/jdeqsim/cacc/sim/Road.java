@@ -19,7 +19,7 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new EmptyRoadCapacityAdjustmentFunction();
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static Optional<AdditionalLinkTravelTimeCalculationFunction> additionalLinkTravelTimeCalculationFunction;
+    private static Optional<AdditionalLinkTravelTimeCalculationFunction> additionalLinkTravelTimeCalculationFunction = Optional.empty();
 
     private final HashMap<Vehicle, Double> caccShareEncounteredByVehicle = new HashMap<>();
     private final double speedAdjustmentFactor;
@@ -92,7 +92,10 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
     private double getAdditionalTravelTime(double simulationTime) {
         return additionalLinkTravelTimeCalculationFunction
-                .map(func -> func.getAdditionalLinkTravelTime(link, simulationTime))
+                .map(func -> {
+
+                    return func.getAdditionalLinkTravelTime(link, simulationTime);
+                })
                 .orElse(0.0);
     }
 
