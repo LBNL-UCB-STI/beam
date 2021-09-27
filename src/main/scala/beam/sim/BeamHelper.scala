@@ -387,6 +387,9 @@ trait BeamHelper extends LazyLogging {
   ): Unit = {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
 
+    logger.info(
+      "if you want health analysis on this execution then run `python3 simulation_health_analysis.py` after execution complete from directory <beam.home>/src/main/python/general_analysis"
+    )
     parsedArgs.clusterType match {
       case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
       case _ =>
