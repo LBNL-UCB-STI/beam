@@ -347,13 +347,10 @@ parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
 
 
 #####
-eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events (3).csv.gz"
+eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events.csv.gz"
 events <- readCsv(pp(workDir, eventsFile))
-
 rse <- events[type=='RefuelSessionEvent']
-
-rse[,.N,by=.(parkingType,chargingPointType)]
-
+#rse[,.N,by=.(parkingType,chargingPointType)]
 rseSum <- rse[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
 rseSum[,fuelShare:=fuel/sum(fuel)]
 dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
@@ -365,14 +362,15 @@ print(pp("DCFC: ",dcfc))
 print(pp("PublicL2: ",publicL2))
 print(pp("Work: ",work))
 print(pp("Home: ",home))
+#####
 
-rse$chargingPointType2 <- "DCFC"
-rse[chargingPointType%in%c("homelevel1(1.8|AC)","homelevel2(7.2|AC)")]$chargingPointType2 <- "HOME"
-rse[chargingPointType%in%c("worklevel2(7.2|AC)")]$chargingPointType2 <- "WORK"
-rse[chargingPointType%in%c("publiclevel2(7.2|AC)")]$chargingPointType2 <- "PUBLIC"
-
-rse[,.N,by=.(chargingPointType2,timeBin=floor(time/300))] %>% 
-  ggplot(aes((timeBin*300)/3600.,N,colour=chargingPointType2)) +
-  geom_line()
+# rse$chargingPointType2 <- "DCFC"
+# rse[chargingPointType%in%c("homelevel1(1.8|AC)","homelevel2(7.2|AC)")]$chargingPointType2 <- "HOME"
+# rse[chargingPointType%in%c("worklevel2(7.2|AC)")]$chargingPointType2 <- "WORK"
+# rse[chargingPointType%in%c("publiclevel2(7.2|AC)")]$chargingPointType2 <- "PUBLIC"
+# 
+# rse[,.N,by=.(chargingPointType2,timeBin=floor(time/300))] %>% 
+#   ggplot(aes((timeBin*300)/3600.,N,colour=chargingPointType2)) +
+#   geom_line()
 
 
