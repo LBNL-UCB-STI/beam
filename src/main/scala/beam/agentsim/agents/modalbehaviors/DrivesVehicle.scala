@@ -435,7 +435,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
       stay replying CompletionNotice(triggerId, Vector())
 
-    case ev @ Event(Interrupt(interruptId, _, triggerId), data) =>
+    case ev @ Event(Interrupt(interruptId, _, triggerId, _), data) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
       goto(DrivingInterrupted) replying InterruptedWhileDriving(
         interruptId,
@@ -551,7 +551,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
-    case ev @ Event(Interrupt(_, _, _), _) =>
+    case ev @ Event(Interrupt(_, _, _, _), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
@@ -666,7 +666,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           triggerToSchedule ++ Vector(ScheduleTrigger(EndLegTrigger(endTime), self))
         )
       }
-    case ev @ Event(Interrupt(interruptId, _, triggerId), _) =>
+    case ev @ Event(Interrupt(interruptId, _, triggerId, _), _) =>
       log.debug("state(DrivesVehicle.WaitingToDrive): {}", ev)
       goto(WaitingToDriveInterrupted) replying InterruptedWhileWaitingToDrive(
         interruptId,
