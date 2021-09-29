@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
 
-class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrategyAdopter {
+class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStrategyAdopter {
 
   private val log = LoggerFactory.getLogger(classOf[AddSupplementaryTrips])
 
@@ -23,10 +23,7 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
       val simplifiedPlan = mandatoryTour(person.getSelectedPlan)
 
       val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
-        addSecondaryActivities(
-          simplifiedPlan,
-          person.getSelectedPlan.getPerson
-        )
+        addSecondaryActivities(simplifiedPlan)
       )
 
       AttributesUtils.copyAttributesFromTo(person.getSelectedPlan, newPlan)
@@ -52,19 +49,18 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
       .filter(x => x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))
       .toList
 
-    val newElements = elements.foldLeft(mutable.MutableList[Activity]())(
-      (listOfAct, currentAct) =>
-        listOfAct.lastOption match {
-          case Some(lastAct) =>
-            if (lastAct.getType == currentAct.getType) {
-              val lastActivity = PopulationUtils.createActivity(lastAct)
-              lastActivity.setEndTime(currentAct.getEndTime)
-              val newList = listOfAct.dropRight(1)
-              newList :+ lastActivity
-            } else {
-              listOfAct += currentAct
-            }
-          case None => mutable.MutableList[Activity](currentAct)
+    val newElements = elements.foldLeft(mutable.MutableList[Activity]())((listOfAct, currentAct) =>
+      listOfAct.lastOption match {
+        case Some(lastAct) =>
+          if (lastAct.getType == currentAct.getType) {
+            val lastActivity = PopulationUtils.createActivity(lastAct)
+            lastActivity.setEndTime(currentAct.getEndTime)
+            val newList = listOfAct.dropRight(1)
+            newList :+ lastActivity
+          } else {
+            listOfAct += currentAct
+          }
+        case None => mutable.MutableList[Activity](currentAct)
       }
     )
 
@@ -76,7 +72,6 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
 
   private def definitelyAddSubtours(
     activity: Activity,
-    person: Person,
     nonWorker: Boolean = false
   ): List[Activity] = {
     val listOfActivities = activity.getType match {
@@ -85,12 +80,11 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
       case _      => List[Activity](activity)
     }
     if (nonWorker) {
-      listOfActivities.flatMap(
-        activity =>
-          activity.getType match {
-            case "Home" => addSubtourToActivity(activity)
-            case "Work" => List[Activity](activity)
-            case _      => List[Activity](activity)
+      listOfActivities.flatMap(activity =>
+        activity.getType match {
+          case "Home" => addSubtourToActivity(activity)
+          case "Work" => List[Activity](activity)
+          case _      => List[Activity](activity)
         }
       )
     } else {
@@ -101,8 +95,10 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
   private def addSubtourToActivity(
     activity: Activity
   ): List[Activity] = {
-    val startTime = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
-    val endTime = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+    val startTime = if (activity.getStartTime > 0) { activity.getStartTime }
+    else { 0 }
+    val endTime = if (activity.getEndTime > 0) { activity.getEndTime }
+    else { 3600 * 24 }
 
     val newStartTime = (endTime - startTime) / 2 - 1 + startTime
     val newEndTime = (endTime - startTime) / 2 + 1 + startTime
@@ -129,25 +125,21 @@ class AddSupplementaryTrips @Inject()(beamConfig: BeamConfig) extends PlansStrat
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
   }
 
-  private def addSecondaryActivities(
-    plan: Plan,
-    person: Person
-  ): Plan = {
+  private def addSecondaryActivities(plan: Plan): Plan = {
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
     newPlan.setType(plan.getType)
 
     val elements = plan.getPlanElements.asScala.collect { case activity: Activity => activity }
-    val nonWorker = (elements.length == 1)
-    val newActivitiesToAdd = elements.zipWithIndex.map {
-      case (planElement, idx) =>
-        val prevEndTime = if (idx > 0) {
-          (elements(idx - 1).getEndTime + 1).max(0)
-        } else {
-          0
-        }
-        planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
-        planElement.setStartTime(prevEndTime)
-        definitelyAddSubtours(planElement, person, nonWorker)
+    val nonWorker = elements.length == 1
+    val newActivitiesToAdd = elements.zipWithIndex.map { case (planElement, idx) =>
+      val prevEndTime = if (idx > 0) {
+        (elements(idx - 1).getEndTime + 1).max(0)
+      } else {
+        0
+      }
+      planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
+      planElement.setStartTime(prevEndTime)
+      definitelyAddSubtours(planElement, nonWorker)
     }
     newActivitiesToAdd.flatten.foreach { x =>
       newPlan.addActivity(x)

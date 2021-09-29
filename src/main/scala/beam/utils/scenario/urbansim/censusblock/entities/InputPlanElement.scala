@@ -15,6 +15,7 @@ case class InputPlanElement(
 )
 
 object InputPlanElement extends EntityTransformer[InputPlanElement] {
+
   override def transform(m: util.Map[String, String]): InputPlanElement = {
     val personId = getIfNotNull(m, "person_id").split("\\.").apply(0)
     val planElementIndex = getIfNotNull(m, "PlanElementIndex").toInt

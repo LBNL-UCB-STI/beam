@@ -5,13 +5,12 @@ import jp.classmethod.aws.reboot.gradle.lambda.AWSLambdaInvokeTask
 
 buildscript {
     repositories {
-        jcenter()
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        classpath "jp.classmethod.aws.reboot:gradle-aws-plugin-reboot:0.42"
+        classpath "jp.classmethod.aws.reboot:gradle-aws-plugin-reboot:0.45"
     }
 }
 
@@ -103,6 +102,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "profiler_type": "${ext.getParameterValue('profiler_type')}",
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
+  "run_helics" : ${ext.getParameterValue('runHelics') ?: false},
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
   "min_cores": ${ext.getParameterValue('minCores') ?: 0},
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},

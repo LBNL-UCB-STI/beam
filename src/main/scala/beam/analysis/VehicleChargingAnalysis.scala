@@ -78,8 +78,8 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
   private def createChargingDataset(): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
 
-    hourlyChargingCount.foreach({
-      case (hour, count) => dataset.addValue(count, "charging-vehicle", hour)
+    hourlyChargingCount.foreach({ case (hour, count) =>
+      dataset.addValue(count, "charging-vehicle", hour)
     })
 
     dataset

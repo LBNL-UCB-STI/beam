@@ -164,10 +164,9 @@ object SkimsUtils extends LazyLogging {
       val filterByMaxDistance = xs.filter { case (_, _, distance) => distance <= maxDistanceFromBeamTaz }
       val tazId2MovIdByMinDistance = filterByMaxDistance
         .groupBy { case (taz, _, _) => taz }
-        .map {
-          case (taz, arr) =>
-            val (_, movId, _) = arr.minBy { case (_, _, distance) => distance }
-            (taz, movId)
+        .map { case (taz, arr) =>
+          val (_, movId, _) = arr.minBy { case (_, _, distance) => distance }
+          (taz, movId)
         }
       val numOfUniqueMovId = tazId2MovIdByMinDistance.values.toSet.size
       logger.info(
@@ -227,20 +226,18 @@ object SkimsUtils extends LazyLogging {
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     def getClosest(num: Double): Int = buckets.minBy(v => math.abs(v - num))
 
-    var dataset = new XYSeriesCollection()
+    val dataset = new XYSeriesCollection()
     val seriesPerCount = mutable.HashMap[Int, XYSeries]()
-    series.foreach {
-      case (count, simulatedTime, observedTime) =>
-        val closestBucket = getClosest(count)
+    series.foreach { case (count, simulatedTime, observedTime) =>
+      val closestBucket = getClosest(count)
 
-        if (!seriesPerCount.contains(closestBucket))
-          seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
+      if (!seriesPerCount.contains(closestBucket))
+        seriesPerCount(closestBucket) = new XYSeries(closestBucket.toString, false)
 
-        seriesPerCount(closestBucket).add(simulatedTime, observedTime)
+      seriesPerCount(closestBucket).add(simulatedTime, observedTime)
     }
-    seriesPerCount.toSeq.sortBy(_._1).foreach {
-      case (_, seriesToAdd) =>
-        dataset.addSeries(seriesToAdd)
+    seriesPerCount.toSeq.sortBy(_._1).foreach { case (_, seriesToAdd) =>
+      dataset.addSeries(seriesToAdd)
     }
 
     val chart = ChartFactory.createScatterPlot(
@@ -306,15 +303,14 @@ object SkimsUtils extends LazyLogging {
       (-36, Color.BLUE, 500.0)
     )
 
-    percents.foreach {
-      case (percent: Int, color: Color, value: Double) =>
-        drawLineHelper(
-          color,
-          percent,
-          xyplot,
-          max,
-          value
-        )
+    percents.foreach { case (percent: Int, color: Color, value: Double) =>
+      drawLineHelper(
+        color,
+        percent,
+        xyplot,
+        max,
+        value
+      )
     }
 
     GraphUtils.saveJFreeChartAsPNG(

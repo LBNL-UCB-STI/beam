@@ -15,7 +15,7 @@ case class AvailabilityBasedRepositioning(
   repositionTimeBin: Int,
   statTimeBin: Int,
   matchLimit: Int,
-  vehicleManager: Id[VehicleManager],
+  vehicleManagerId: Id[VehicleManager],
   beamServices: BeamServices
 ) extends RepositionAlgorithm {
 
@@ -49,7 +49,7 @@ case class AvailabilityBasedRepositioning(
     val fromBin = time / statTimeBin
     val untilBin = (time + repositionTimeBin) / statTimeBin
     (fromBin until untilBin)
-      .map(i => beamServices.skims.taz_skimmer.getLatestSkim(i, idTAZ, vehicleManager.toString, label))
+      .map(i => beamServices.skims.taz_skimmer.getLatestSkim(i, idTAZ, vehicleManagerId.toString, label))
       .toVector
       .flatten
   }
@@ -105,50 +105,47 @@ case class AvailabilityBasedRepositioning(
           destTimeOpt = Some((dst, skim.time))
         }
       }
-      destTimeOpt foreach {
-        case (dst, tt) =>
-          val fleetSize = Math.min(org.availableVehicles, dst.shortage)
-          topOversuppliedTAZ.remove(org)
-          if (org.availableVehicles > fleetSize) {
-            topOversuppliedTAZ.add(org.copy(availableVehicles = org.availableVehicles - fleetSize))
-          }
-          topUndersuppliedTAZ.remove(dst)
-          if (dst.shortage > fleetSize) {
-            topUndersuppliedTAZ.add(dst.copy(shortage = dst.shortage - fleetSize))
-          }
-          ODs.append((org, dst, tt, fleetSize))
+      destTimeOpt foreach { case (dst, tt) =>
+        val fleetSize = Math.min(org.availableVehicles, dst.shortage)
+        topOversuppliedTAZ.remove(org)
+        if (org.availableVehicles > fleetSize) {
+          topOversuppliedTAZ.add(org.copy(availableVehicles = org.availableVehicles - fleetSize))
+        }
+        topUndersuppliedTAZ.remove(dst)
+        if (dst.shortage > fleetSize) {
+          topUndersuppliedTAZ.add(dst.copy(shortage = dst.shortage - fleetSize))
+        }
+        ODs.append((org, dst, tt, fleetSize))
       }
     }
 
     val vehiclesForReposition = mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
     val rand = new scala.util.Random(System.currentTimeMillis())
     var fleetTemp = availableFleet
-    ODs.foreach {
-      case (org, dst, tt, fleetSizeToReposition) =>
-        val arrivalTime = now + tt
-        val vehiclesForRepositionTemp =
-          mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
-        fleetTemp
-          .filter(
-            v =>
-              org.taz == beamServices.beamScenario.tazTreeMap
-                .getTAZ(v.spaceTime.loc.getX, v.spaceTime.loc.getY)
+    ODs.foreach { case (org, dst, tt, fleetSizeToReposition) =>
+      val arrivalTime = now + tt
+      val vehiclesForRepositionTemp =
+        mutable.ListBuffer.empty[(BeamVehicle, SpaceTime, Id[TAZ], SpaceTime, Id[TAZ])]
+      fleetTemp
+        .filter(v =>
+          org.taz == beamServices.beamScenario.tazTreeMap
+            .getTAZ(v.spaceTime.loc.getX, v.spaceTime.loc.getY)
+        )
+        .take(fleetSizeToReposition)
+        .map(
+          (
+            _,
+            SpaceTime(org.taz.coord, now),
+            org.taz.tazId,
+            SpaceTime(TAZTreeMap.randomLocationInTAZ(dst.taz, rand), arrivalTime),
+            dst.taz.tazId
           )
-          .take(fleetSizeToReposition)
-          .map(
-            (
-              _,
-              SpaceTime(org.taz.coord, now),
-              org.taz.tazId,
-              SpaceTime(TAZTreeMap.randomLocationInTAZ(dst.taz, rand), arrivalTime),
-              dst.taz.tazId
-            )
-          )
-          .foreach(vehiclesForRepositionTemp.append(_))
-        val orgKey = (nowRepBin, org.taz.tazId)
-        minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehiclesForRepositionTemp.size)
-        fleetTemp = fleetTemp.filter(x => !vehiclesForRepositionTemp.exists(_._1 == x))
-        vehiclesForReposition.appendAll(vehiclesForRepositionTemp)
+        )
+        .foreach(vehiclesForRepositionTemp.append(_))
+      val orgKey = (nowRepBin, org.taz.tazId)
+      minAvailabilityMap.update(orgKey, minAvailabilityMap(orgKey) - vehiclesForRepositionTemp.size)
+      fleetTemp = fleetTemp.filter(x => !vehiclesForRepositionTemp.exists(_._1 == x))
+      vehiclesForReposition.appendAll(vehiclesForRepositionTemp)
     }
 
     vehiclesForReposition.toList

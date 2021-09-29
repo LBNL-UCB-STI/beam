@@ -3,7 +3,7 @@ package beam.sim.vehicles
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamScenario
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
@@ -13,10 +13,9 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
 
   private val vehicleTypesAndProbabilityByCategoryAndGroup =
     scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
-  beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory).foreach {
-    case (cat, vehTypes) =>
-      val submap = getCategoryAndGroup(cat, vehTypes.toArray)
-      vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
+  beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory).foreach { case (cat, vehTypes) =>
+    val submap = getCategoryAndGroup(cat, vehTypes.toArray)
+    vehicleTypesAndProbabilityByCategoryAndGroup ++= submap
   }
 
   override def sampleVehicleTypesForHousehold(
@@ -26,19 +25,19 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution,
+    realDistribution: UniformRealDistribution
   ): List[BeamVehicleType] = {
     val matchedGroups =
       vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val categoryAndGroup = if (matchedGroups.size > 1) {
       logger.warn(
-        s"Multiple categories defined for household with income ${householdIncome}, choosing a default one"
+        s"Multiple categories defined for household with income $householdIncome, choosing a default one"
       )
       matchedGroups.head
     } else if (matchedGroups.isEmpty) {
       logger.warn(
-        s"No categories defined for household with income ${householdIncome}, choosing a default one"
+        s"No categories defined for household with income $householdIncome, choosing a default one"
       )
       vehicleTypesAndProbabilityByCategoryAndGroup.keys.head
     } else {
@@ -88,10 +87,10 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     category: VehicleCategory,
     vehTypes: Array[BeamVehicleType]
   ): scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]] = {
-    var groupIDs = scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
-    var groupIDlist: scala.collection.mutable.ListBuffer[CategoryAttributeAndGroup] =
+    val groupIDs = scala.collection.mutable.Map[CategoryAttributeAndGroup, Array[(BeamVehicleType, Double)]]()
+    val groupIDlist: scala.collection.mutable.ListBuffer[CategoryAttributeAndGroup] =
       scala.collection.mutable.ListBuffer()
-    var vehicleTypeAndProbabilityList: scala.collection.mutable.ListBuffer[(BeamVehicleType, Double)] =
+    val vehicleTypeAndProbabilityList: scala.collection.mutable.ListBuffer[(BeamVehicleType, Double)] =
       scala.collection.mutable.ListBuffer()
     vehTypes.foreach { vehType =>
       vehType.sampleProbabilityString.getOrElse("All").replaceAll("\\s", "").toLowerCase.split(";").foreach { group =>
@@ -104,23 +103,22 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
                   vehicleTypeAndProbabilityList += ((vehType, probability.toDouble))
                 case _ =>
                   logger.warn(
-                    s"Badly formed category in vehicle adjustment: ${value}"
+                    s"Badly formed category in vehicle adjustment: $value"
                   )
               }
             }
           case _ =>
             logger.warn(
-              s"Badly formed vehicle sampling string in vehicle adjustment: ${group}"
+              s"Badly formed vehicle sampling string in vehicle adjustment: $group"
             )
         }
       }
     }
-    groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map {
-      case (groupID, vehicleTypeAndProbability) =>
-        val probSum = vehicleTypeAndProbability.map(_._2._2).sum
-        val cumulativeProbabilities = vehicleTypeAndProbability.map(_._2._2 / probSum).scan(0.0)(_ + _).drop(1)
-        val vehicleTypes = vehicleTypeAndProbability.map(_._2._1)
-        groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
+    groupIDlist.zip(vehicleTypeAndProbabilityList).groupBy(_._1).map { case (groupID, vehicleTypeAndProbability) =>
+      val probSum = vehicleTypeAndProbability.map(_._2._2).sum
+      val cumulativeProbabilities = vehicleTypeAndProbability.map(_._2._2 / probSum).scan(0.0)(_ + _).drop(1)
+      val vehicleTypes = vehicleTypeAndProbability.map(_._2._1)
+      groupIDs += (groupID -> vehicleTypes.zip(cumulativeProbabilities).toArray)
     }
     groupIDs
   }

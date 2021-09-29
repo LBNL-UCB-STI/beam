@@ -51,51 +51,48 @@ object SythpopOutputUnion {
 
     try {
       var totalNumberOfHouseholds: Int = 0
-      householdFiles.zip(peopleFiles).foreach {
-        case (householdFile, peopleFile) =>
-          println(s"householdFile: $householdFile")
-          println(s"peopleFile: $peopleFile")
+      householdFiles.zip(peopleFiles).foreach { case (householdFile, peopleFile) =>
+        println(s"householdFile: $householdFile")
+        println(s"peopleFile: $peopleFile")
 
-          @SuppressWarnings(Array("UnsafeTraversableMethods"))
-          val households =
-            new HouseholdReader(householdFile.getAbsolutePath).read().groupBy(x => x.id).map {
-              case (hhId, xs) => hhId -> xs.head
+        @SuppressWarnings(Array("UnsafeTraversableMethods"))
+        val households =
+          new HouseholdReader(householdFile.getAbsolutePath).read().groupBy(x => x.id).map { case (hhId, xs) =>
+            hhId -> xs.head
+          }
+        val householdIdToPersons = new PopulationReader(peopleFile.getAbsolutePath).read().groupBy(x => x.householdId)
+        val householdWithPersons = householdIdToPersons.map { case (hhId, persons) =>
+          val household = households(hhId)
+          val newHouseholdId = household.id.toInt + totalNumberOfHouseholds
+          val updatedHousehold = household.copy(id = newHouseholdId.toString)
+          val updatedPersons = persons.map(p => p.copy(householdId = updatedHousehold.id))
+          (updatedHousehold, updatedPersons)
+        }
+        totalNumberOfHouseholds += households.values.size
+
+        householdWithPersons.foreach { case (household, persons) =>
+          val hh_children_val = if (household.numOfChildren >= 1) "yes" else "no"
+          householdCsvWriter.write(
+            household.numOfPersons,
+            household.numOfVehicles,
+            household.income,
+            hh_children_val,
+            household.numOfWorkers,
+            household.geoId.state,
+            household.geoId.county,
+            household.geoId.tract,
+            household.geoId.blockGroup,
+            household.id
+          )
+
+          persons.foreach { person =>
+            val gender = person.gender match {
+              case Gender.Male   => 1
+              case Gender.Female => 2
             }
-          val householdIdToPersons = new PopulationReader(peopleFile.getAbsolutePath).read().groupBy(x => x.householdId)
-          val householdWithPersons = householdIdToPersons.map {
-            case (hhId, persons) =>
-              val household = households(hhId)
-              val newHouseholdId = household.id.toInt + totalNumberOfHouseholds
-              val updatedHousehold = household.copy(id = newHouseholdId.toString)
-              val updatedPersons = persons.map(p => p.copy(householdId = updatedHousehold.id))
-              (updatedHousehold, updatedPersons)
+            peopleCsvWriter.write(person.age, gender, person.householdId)
           }
-          totalNumberOfHouseholds += households.values.size
-
-          householdWithPersons.foreach {
-            case (household, persons) =>
-              val hh_children_val = if (household.numOfChildren >= 1) "yes" else "no"
-              householdCsvWriter.write(
-                household.numOfPersons,
-                household.numOfVehicles,
-                household.income,
-                hh_children_val,
-                household.numOfWorkers,
-                household.geoId.state,
-                household.geoId.county,
-                household.geoId.tract,
-                household.geoId.blockGroup,
-                household.id
-              )
-
-              persons.foreach { person =>
-                val gender = person.gender match {
-                  case Gender.Male   => 1
-                  case Gender.Female => 2
-                }
-                peopleCsvWriter.write(person.age, gender, person.householdId)
-              }
-          }
+        }
       }
     } finally {
       Try(householdCsvWriter.close())

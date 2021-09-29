@@ -10,18 +10,20 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.EventsUtils
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.vehicles.Vehicle
-import org.scalatest.{Assertion, FunSuite}
+import org.scalatest.Assertion
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.collection.mutable.ArrayBuffer
 
 class DummyEventsHandler extends BasicEventHandler {
   val allEvents: ArrayBuffer[Event] = ArrayBuffer()
+
   override def handleEvent(event: Event): Unit = {
     allEvents += event
   }
 }
 
-class DrivesVehicleTest extends FunSuite {
+class DrivesVehicleTest extends AnyFunSuite {
   test("processLinkEvents should work properly") {
     val linkIds = Array(1, 2, 3, 4)
     val linkTravelTime = Array(1.0, 2.0, 3.0, 4.0)
@@ -166,11 +168,10 @@ class DrivesVehicleTest extends FunSuite {
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 
       var curTime = leg.startTime
-      linksWithTime.foreach {
-        case (Seq(from, to), timeAtNode) =>
-          curTime = math.round(curTime + timeAtNode).intValue()
-          eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
-          eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
+      linksWithTime.foreach { case (Seq(from, to), timeAtNode) =>
+        curTime = math.round(curTime + timeAtNode).intValue()
+        eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
+        eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))
       }
     }
   }

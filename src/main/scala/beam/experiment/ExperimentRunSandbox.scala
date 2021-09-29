@@ -42,7 +42,6 @@ case class ExperimentRunSandbox(
   }
 
   /**
-    *
     * @return path to an output folder relatively to project root
     */
   def beamOutputDir: Path = {
@@ -51,7 +50,7 @@ case class ExperimentRunSandbox(
 
   def getPathStringForConfig(path: Path): String = {
     // We need triple quotes because quotes cannot be escaped in string interpolation
-    s"""$${BEAM_REPO_PATH}"/${path}""""
+    s"""$${BEAM_REPO_PATH}"/$path""""
   }
 
   def buildRunConfig: Config = {
@@ -60,12 +59,11 @@ case class ExperimentRunSandbox(
     // beam.outputs.baseOutputDirectory
     val runConfig: Config = (Map(
       "beam.agentsim.simulationName"               -> "output",
-      "beam.outputs.addTimestampToOutputDirectory" -> "false",
+      "beam.outputs.addTimestampToOutputDirectory" -> "false"
     ) ++ modeChoiceConfigIfDefined ++ experimentRun.params)
-      .foldLeft(beamTplConf) {
-        case (prevConfig, (paramName, paramValue)) =>
-          val configValue = ConfigValueFactory.fromAnyRef(paramValue)
-          prevConfig.withValue(paramName, configValue)
+      .foldLeft(beamTplConf) { case (prevConfig, (paramName, paramValue)) =>
+        val configValue = ConfigValueFactory.fromAnyRef(paramValue)
+        prevConfig.withValue(paramName, configValue)
       }
 
     // Removing the baseOutputDirectoryString is necessary in this way due to idiosyncratic behavior of withFallback.

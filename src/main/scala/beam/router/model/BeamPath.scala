@@ -4,7 +4,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.model.RoutingModel.TransitStopsInfo
 
 /**
-  *
   * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
   * @param transitStops start and end stop if this path is transit (partial) route
   *
@@ -34,7 +33,11 @@ case class BeamPath(
 
   def duration: Int = endPoint.time - startPoint.time
 
-  if (linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 2) {
+  if (
+    linkTravelTime.size > 1 && math.abs(
+      math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)
+    ) > 2
+  ) {
     throw new IllegalStateException("Total travel time and total sum by edges are not same")
   }
 
@@ -53,7 +56,8 @@ case class BeamPath(
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
     val newLinkTimes = this.linkTravelTime.map(travelTime => travelTime * scaleBy)
-    val newDuration = if (newLinkTimes.size > 1) { math.round(newLinkTimes.tail.sum).toInt } else { 0 }
+    val newDuration = if (newLinkTimes.size > 1) { math.round(newLinkTimes.tail.sum).toInt }
+    else { 0 }
     this.copy(
       linkTravelTime = newLinkTimes,
       endPoint = this.endPoint.copy(time = this.startPoint.time + newDuration)
@@ -82,6 +86,9 @@ object BeamPath extends Ordering[BeamPath] {
 
   import scala.annotation.tailrec
 
+  // TODO: looks like a bug on scapegoat.
+  //  it does not recognize the usage of implicit ev variable (used inside internal function)
+  @SuppressWarnings(Array("UnusedMethodParameter"))
   def compareSeq[T: Numeric](xArr: IndexedSeq[T], yArr: IndexedSeq[T])(implicit ev: Numeric[T]): Int = {
     @tailrec
     def loop(idx: Int, shouldStop: Boolean, result: Int): Int = {

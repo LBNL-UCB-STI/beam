@@ -1,11 +1,10 @@
 package beam.analysis
+
 import java.util
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events._
-import beam.analysis.plots.{GraphAnalysis, GraphsStatsAgentSimEventsListener}
+import beam.analysis.plots.GraphAnalysis
 import beam.router.Modes.BeamMode
-import beam.sim.metrics.MetricsSupport
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.{BeamServices, OutputDataDescription}
 import beam.utils.{FileUtils, OutputDataDescriptor}
@@ -111,15 +110,19 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              stop tracking the person
        */
       case personEntersVehicleEvent: PersonEntersVehicleEvent =>
-        if (personOutboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
-              personEntersVehicleEvent.getVehicleId
-            )) {
+        if (
+          personOutboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
+            personEntersVehicleEvent.getVehicleId
+          )
+        ) {
           //stop tracking the person
           personOutboundParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId.toString)
         }
-        if (personInboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
-              personEntersVehicleEvent.getVehicleId
-            )) {
+        if (
+          personInboundParkingStatsTracker.contains(personEntersVehicleEvent.getPersonId.toString) && isTransitVehicle(
+            personEntersVehicleEvent.getVehicleId
+          )
+        ) {
           //stop tracking the person
           personInboundParkingStatsTracker.remove(personEntersVehicleEvent.getPersonId.toString)
         }
@@ -148,7 +151,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           if (personOutboundParkingStats.departureTime.isDefined) {
             //process the collected inbound stats for the person
             processOutboundParkingStats(
-              leavingParkingEvent.driverId,
               personOutboundParkingStats
                 .copy(leaveParkingTime = Some(leavingParkingEvent.getTime), parkingTAZ = parkingTaz)
             )
@@ -165,7 +167,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
         beamServices.simMetricCollector.writeIteration(
           "parking",
           SimulationTime(parkEvent.time.toInt),
-          1,
           tags = Map("parking-type" -> parkEvent.parkingType.toString)
         )
 
@@ -199,7 +200,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
             // Calculate the inbound parking overhead time
             val arrivalTime: Option[Double] = Some(pathTraversalEvent.arrivalTime)
             //process the collected inbound stats for the person
-            processInboundParkingStats(driverId, personInboundParkingStats.copy(arrivalTime = arrivalTime))
+            processInboundParkingStats(personInboundParkingStats.copy(arrivalTime = arrivalTime))
             //stop tracking the person for inbound stats
             personInboundParkingStatsTracker.remove(driverId)
           }
@@ -219,7 +220,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     * @param personOutboundParkingStats The outbound parking related stats of a person
     */
   private def processOutboundParkingStats(
-    personId: String,
     personOutboundParkingStats: ParkingStatsCollector.PersonOutboundParkingStats
   ): Unit = {
 
@@ -227,8 +227,9 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
 
       if (personOutboundParkingStats.leaveParkingTime.isDefined) {
         // Calculate the outbound parking overhead time
-        val outboundParkingTime = personOutboundParkingStats.leaveParkingTime.get - personOutboundParkingStats.departureTime
-          .getOrElse(0D)
+        val outboundParkingTime =
+          personOutboundParkingStats.leaveParkingTime.get - personOutboundParkingStats.departureTime
+            .getOrElse(0d)
         // Compute the hour of event
         val hourOfEvent = (personOutboundParkingStats.departureTime.get / 3600).toInt
         personOutboundParkingStats.parkingTAZ match {
@@ -258,7 +259,6 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     * @param personInboundParkingStats The outbound parking related stats of a person
     */
   private def processInboundParkingStats(
-    personId: String,
     personInboundParkingStats: ParkingStatsCollector.PersonInboundParkingStats
   ): Unit = {
 
@@ -267,7 +267,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
       if (personInboundParkingStats.arrivalTime.isDefined) {
         // Calculate the inbound parking overhead time
         val inboundParkingTime = personInboundParkingStats.arrivalTime.get - personInboundParkingStats.parkingTime
-          .getOrElse(0D)
+          .getOrElse(0d)
         // Compute the hour of event
         val hourOfEvent = (personInboundParkingStats.parkingTime.get / 3600).toInt
         personInboundParkingStats.parkingTAZ match {
@@ -278,7 +278,8 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
               ParkingStatsCollector.ParkingStats(List.empty, List.empty, List.empty)
             )
             val inboundParkingTimes = inboundParkingTime +: parkingStats.inboundParkingTimeOverhead
-            val inboundParkingCosts = personInboundParkingStats.parkingCost.getOrElse(0D) +: parkingStats.inboundParkingCostOverhead
+            val inboundParkingCosts =
+              personInboundParkingStats.parkingCost.getOrElse(0d) +: parkingStats.inboundParkingCostOverhead
             parkingStatsByBinAndTaz.put(
               hourOfEvent -> taz,
               parkingStats.copy(
@@ -309,29 +310,28 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
     try {
       val header = "timeBin,TAZ,outboundParkingOverheadTime,inboundParkingOverheadTime,inboundParkingOverheadCost"
       val csvFilePath = ioController.getIterationFilename(iterationNumber, fileBaseName + ".csv")
-      val data = parkingStatsByBinAndTaz map {
-        case ((bin, taz), parkingStats) =>
-          val outboundParkingTime: Double = parkingStats.outboundParkingTimeOverhead match {
-            case _ if parkingStats.outboundParkingTimeOverhead.isEmpty => 0D
-            case _ if parkingStats.outboundParkingTimeOverhead.size == 1 =>
-              parkingStats.outboundParkingTimeOverhead.head
-            case _ => parkingStats.outboundParkingTimeOverhead.sum / parkingStats.outboundParkingTimeOverhead.size
-          }
-          val inboundParkingTime: Double = parkingStats.inboundParkingTimeOverhead match {
-            case _ if parkingStats.inboundParkingTimeOverhead.isEmpty   => 0D
-            case _ if parkingStats.inboundParkingTimeOverhead.size == 1 => parkingStats.inboundParkingTimeOverhead.head
-            case _                                                      => parkingStats.inboundParkingTimeOverhead.sum / parkingStats.inboundParkingTimeOverhead.size
-          }
-          val inboundParkingCost: Double = parkingStats.inboundParkingCostOverhead match {
-            case _ if parkingStats.inboundParkingCostOverhead.isEmpty   => 0D
-            case _ if parkingStats.inboundParkingCostOverhead.size == 1 => parkingStats.inboundParkingCostOverhead.head
-            case _                                                      => parkingStats.inboundParkingCostOverhead.sum / parkingStats.inboundParkingCostOverhead.size
-          }
-          bin + "," +
-          taz + "," +
-          outboundParkingTime + "," +
-          inboundParkingTime + "," +
-          inboundParkingCost
+      val data = parkingStatsByBinAndTaz map { case ((bin, taz), parkingStats) =>
+        val outboundParkingTime: Double = parkingStats.outboundParkingTimeOverhead match {
+          case _ if parkingStats.outboundParkingTimeOverhead.isEmpty => 0d
+          case _ if parkingStats.outboundParkingTimeOverhead.size == 1 =>
+            parkingStats.outboundParkingTimeOverhead.head
+          case _ => parkingStats.outboundParkingTimeOverhead.sum / parkingStats.outboundParkingTimeOverhead.size
+        }
+        val inboundParkingTime: Double = parkingStats.inboundParkingTimeOverhead match {
+          case _ if parkingStats.inboundParkingTimeOverhead.isEmpty   => 0d
+          case _ if parkingStats.inboundParkingTimeOverhead.size == 1 => parkingStats.inboundParkingTimeOverhead.head
+          case _                                                      => parkingStats.inboundParkingTimeOverhead.sum / parkingStats.inboundParkingTimeOverhead.size
+        }
+        val inboundParkingCost: Double = parkingStats.inboundParkingCostOverhead match {
+          case _ if parkingStats.inboundParkingCostOverhead.isEmpty   => 0d
+          case _ if parkingStats.inboundParkingCostOverhead.size == 1 => parkingStats.inboundParkingCostOverhead.head
+          case _                                                      => parkingStats.inboundParkingCostOverhead.sum / parkingStats.inboundParkingCostOverhead.size
+        }
+        bin + "," +
+        taz + "," +
+        outboundParkingTime + "," +
+        inboundParkingTime + "," +
+        inboundParkingCost
       } mkString "\n"
       FileUtils.writeToFile(csvFilePath, Some(header), data, None)
     } catch {
@@ -400,9 +400,8 @@ object ParkingStatsCollector extends OutputDataDescriptor {
       "outboundParkingOverheadTime" -> "Time required to walk to the parked vehicle",
       "inboundParkingOverheadTime"  -> "Time required to walk from the parked vehicle to the destination. This metric does not include extra time spend driving to the parking space.",
       "inboundParkingOverheadCost"  -> "Cost for parking fees"
-    ) map {
-      case (header, description) =>
-        outputDataDescription.copy(field = header, description = description)
+    ) map { case (header, description) =>
+      outputDataDescription.copy(field = header, description = description)
     } asJava
   }
 }

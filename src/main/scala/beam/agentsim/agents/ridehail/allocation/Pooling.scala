@@ -38,7 +38,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
   override def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long
   ): AllocationResponse = {
     logger.info(s"buffer size: ${vehicleAllocationRequest.requests.size}")
     var toPool: Set[RideHailRequest] = Set()
@@ -139,7 +140,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
     tick: Int
   ): List[RoutingRequest] = {
     var routeReqs: List[RoutingRequest] = List()
-    var startTime = tick
+    val startTime = tick
     var rideHailVehicleAtOrigin = StreetVehicle(
       rideHailLocation.vehicleId,
       rideHailLocation.vehicleType.id,
@@ -157,7 +158,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         startTime,
         withTransit = false,
         Some(req.customer.personId),
-        Vector(rideHailVehicleAtOrigin)
+        Vector(rideHailVehicleAtOrigin),
+        triggerId = req.triggerId
       )
       routeReqs = routeReqs :+ routeReq2Pickup
       tempPickDropStore.put(routeReq2Pickup.requestId, MobilityRequest.simpleRequest(Pickup, Some(req.customer), None))
@@ -180,7 +182,8 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         startTime,
         withTransit = false,
         Some(req.customer.personId),
-        Vector(rideHailVehicleAtOrigin)
+        Vector(rideHailVehicleAtOrigin),
+        triggerId = req.triggerId
       )
       routeReqs = routeReqs :+ routeReq2Dropoff
       tempPickDropStore.put(
@@ -242,7 +245,8 @@ object Pooling {
           rideHailManager.createRoutingRequestsToCustomerAndDestination(
             pickUpTime,
             requestUpdated,
-            agentETA.agentLocation
+            agentETA.agentLocation,
+            request.triggerId
           )
         )
       case None =>

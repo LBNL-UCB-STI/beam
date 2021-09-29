@@ -12,6 +12,7 @@ import scala.util.Try
 
 object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
+  @SuppressWarnings(Array("UnusedMethodParameter"))
   def main(array: Array[String]): Unit = {
     //    readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.parquet").take(3).foreach(println)
     //    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.parquet").take(3).foreach(println)
@@ -47,8 +48,8 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     readAs[HouseholdInfo](path, "readHouseholdsFile", toHouseholdInfo)
   }
 
-  private[utils] def readAs[T](path: String, what: String, mapper: GenericRecord => T)(
-    implicit ct: ClassTag[T]
+  private[utils] def readAs[T](path: String, what: String, mapper: GenericRecord => T)(implicit
+    ct: ClassTag[T]
   ): Array[T] = {
     val (it, toClose) = ParquetReader.read(path)
     ProfilingUtils.timed(what, x => logger.info(x)) {
@@ -109,7 +110,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       age = age,
       excludedModes = excludedModes,
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0d)).getOrElse(0d)
     )
   }
 
@@ -131,6 +132,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val buildingId = getIfNotNull(rec, "building_id").toString
     UnitInfo(unitId = unitId, buildingId = buildingId)
   }
+
   private[scenario] def getIfNotNull(rec: GenericRecord, column: String): AnyRef = {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")

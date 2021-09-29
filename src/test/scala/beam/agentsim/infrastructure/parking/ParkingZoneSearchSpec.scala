@@ -13,7 +13,7 @@
 //import com.vividsolutions.jts.geom.Envelope
 //import org.geotools.data.shapefile.index.quadtree.QuadTree
 //
-//class ParkingZoneSearchSpec extends WordSpec with Matchers {
+//class ParkingZoneSearchSpec extends AnyWordSpec with Matchers {
 //  "A ParkingZoneSearch" when {
 //    "searched for something when there are no alternatives" should {
 //      "result in None" in new ParkingZoneSearchSpec.SimpleParkingAlternatives {
@@ -295,7 +295,7 @@
 //    // the TAZs have a slightly different number of stalls but are otherwise the same
 //
 //    val sourceData: Iterator[String] =
-//      """taz,parkingType,pricingModel,chargingType,numStalls,feeInCents,reservedFor
+//      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
 //        |A,Public,FlatFee,none,7,1000,
 //        |B,Public,Block,none,18,100,
 //        |

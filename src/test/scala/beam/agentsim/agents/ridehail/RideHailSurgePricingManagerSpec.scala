@@ -1,24 +1,22 @@
 package beam.agentsim.agents.ridehail
+
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import beam.sim.config.{BeamConfig, BeamExecutionConfig}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.Config
 import org.matsim.core.utils.misc.Time
 import org.mockito.Mockito._
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
+
 import scala.collection.JavaConverters._
 import scala.util.Random
-
 import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
+import org.mockito.Mockito
 
-class RideHailSurgePricingManagerSpec
-    extends WordSpecLike
-    with Matchers
-    with MockitoSugar
-    with BeamHelper
-    with BeforeAndAfterAll {
+class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   val testConfigFileName = "test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
@@ -27,7 +25,7 @@ class RideHailSurgePricingManagerSpec
   lazy val beamScenario: BeamScenario = loadScenario(beamExecConfig.beamConfig)
   lazy val scenario: MutableScenario = buildScenarioFromMatsimConfig(beamExecConfig.matsimConfig, beamScenario)
   lazy val injector: Injector = buildInjector(config, beamExecConfig.beamConfig, scenario, beamScenario)
-  lazy val beamServices: BeamServices = buildBeamServices(injector, scenario)
+  lazy val beamServices: BeamServices = buildBeamServices(injector)
 
   override def afterAll(): Unit = {
     injector.getInstance(classOf[org.matsim.analysis.TravelDistanceStats]).close()
@@ -45,7 +43,7 @@ class RideHailSurgePricingManagerSpec
 
     "correctly update SurgePriceLevels" in {
       //First iteration random returns true
-      val mockRandom = mock[Random]
+      val mockRandom = Mockito.mock(classOf[Random])
       when(mockRandom.nextBoolean) thenReturn true
 
       var rhspm = new RideHailSurgePricingManager(beamServices) {
@@ -53,24 +51,26 @@ class RideHailSurgePricingManagerSpec
       }
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
-      var expectedValue = rhspm.surgePriceBins.map({ f =>
+      var expectedValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel + rhspm.surgeLevelAdaptionStep))
-      })
+      }
 
       rhspm.updateSurgePriceLevels()
-      var finalValue = rhspm.surgePriceBins.map({ f =>
+      var finalValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel))
-      })
+      }
 
       expectedValue shouldBe finalValue
 
       //Next iteration when true
-      var expectedValue2 = rhspm.surgePriceBins.map {
-        case (tazId, binsArray) =>
-          (tazId, binsArray.map { binElem =>
+      var expectedValue2 = rhspm.surgePriceBins.map { case (tazId, binsArray) =>
+        (
+          tazId,
+          binsArray.map { binElem =>
             val updatedPreviousSurgePriceLevel =
               binElem.currentIterationSurgePriceLevel
-            val updatedSurgeLevel = binElem.currentIterationSurgePriceLevel //+ (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
+            val updatedSurgeLevel =
+              binElem.currentIterationSurgePriceLevel //+ (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
             val updatedCurrentSurgePriceLevel =
               Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
             val updatedPrevIterRevenue = binElem.currentIterationRevenue
@@ -81,7 +81,8 @@ class RideHailSurgePricingManagerSpec
               updatedPreviousSurgePriceLevel,
               updatedCurrentSurgePriceLevel
             )
-          })
+          }
+        )
       }
       rhspm.updateSurgePriceLevels()
       expectedValue2 shouldBe rhspm.surgePriceBins
@@ -96,24 +97,26 @@ class RideHailSurgePricingManagerSpec
       }
       rhspm.priceAdjustmentStrategy = "CONTINUES_DEMAND_SUPPLY_MATCHING"
 
-      expectedValue = rhspm.surgePriceBins.map({ f =>
+      expectedValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel - rhspm.surgeLevelAdaptionStep))
-      })
+      }
 
       rhspm.updateSurgePriceLevels()
-      finalValue = rhspm.surgePriceBins.map({ f =>
+      finalValue = rhspm.surgePriceBins.map { f =>
         (f._1, f._2.map(s => s.currentIterationSurgePriceLevel))
-      })
+      }
 
       expectedValue shouldBe finalValue
 
       //Next iteration when false
-      expectedValue2 = rhspm.surgePriceBins.map {
-        case (tazId, binsArray) =>
-          (tazId, binsArray.map { binElem =>
+      expectedValue2 = rhspm.surgePriceBins.map { case (tazId, binsArray) =>
+        (
+          tazId,
+          binsArray.map { binElem =>
             val updatedPreviousSurgePriceLevel =
               binElem.currentIterationSurgePriceLevel
-            val updatedSurgeLevel = binElem.currentIterationSurgePriceLevel //- (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
+            val updatedSurgeLevel =
+              binElem.currentIterationSurgePriceLevel //- (binElem.currentIterationSurgePriceLevel - binElem.previousIterationSurgePriceLevel)
             val updatedCurrentSurgePriceLevel =
               Math.max(updatedSurgeLevel, rhspm.minimumSurgeLevel)
             val updatedPrevIterRevenue = binElem.currentIterationRevenue
@@ -124,7 +127,8 @@ class RideHailSurgePricingManagerSpec
               updatedPreviousSurgePriceLevel,
               updatedCurrentSurgePriceLevel
             )
-          })
+          }
+        )
       }
       rhspm.updateSurgePriceLevels()
       expectedValue2 shouldBe rhspm.surgePriceBins

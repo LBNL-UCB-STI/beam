@@ -1,23 +1,22 @@
 package beam.router
 
 import java.io.File
-
 import beam.router.r5.{HighwaySetting, R5MnetBuilder}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.network.NetworkWriter
-import org.scalatest.FlatSpec
+import org.scalatest.flatspec.AnyFlatSpec
 
-class R5MnetBuilderSpec extends FlatSpec {
+class R5MnetBuilderSpec extends AnyFlatSpec {
 
   it should "do something" in {
     val config = testConfig("test/input/beamville/beam.conf").resolve()
-    var transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
+    val transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
     val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config), HighwaySetting.empty())
     builder.buildMNet()
     val network = builder.getNetwork
-    new NetworkWriter(network).write("test/input/beamville/physsim-network.xml")
+    new NetworkWriter(network).write("test/input/beamville/r5/physsim-network.xml")
   }
   //
   //  it should "not a real test, just for extracting edge data" in {

@@ -29,13 +29,26 @@ object UrbansimConverter {
     val tripReader = new TripReader(inputTripPath)
 
     val modes = getTripModes(tripReader)
+
+    val modeMap = Map(
+      "DRIVEALONEPAY"  -> "car",
+      "DRIVEALONEFREE" -> "car",
+      "WALK"           -> "walk",
+      "BIKE"           -> "bike",
+      "SHARED3FREE"    -> "car",
+      "SHARED2PAY"     -> "car",
+      "SHARED2FREE"    -> "car",
+      "SHARED3PAY"     -> "car",
+      "WALK_LOC"       -> "walk_transit",
+      "DRIVE_LOC"      -> "drive_transit"
+    )
     logger.info("Merging modes into plan...")
 
     val planReader = new PlanReader(inputPlanPath)
 
     try {
       val inputPlans = readPlan(planReader)
-      val outputIter = merge(inputPlans, modes)
+      val outputIter = merge(inputPlans, modes, modeMap)
       FileUtils.using(new BufferedWriter(new FileWriter(outputPlanPath))) { outputBuffer =>
         logger.info("Writing output plan...")
         val writer = writePlans(outputBuffer, outputIter)
@@ -50,9 +63,10 @@ object UrbansimConverter {
 
   private def merge(
     inputPlans: Iterator[InputPlanElement],
-    modes: Map[(String, Double), String]
+    modes: Map[(String, Double), String],
+    modeMap: Map[String, String]
   ): Iterator[PlanElement] = {
-    val merger = new PlanMerger(modes)
+    val merger = new PlanMerger(modes, modeMap)
 
     merger.merge(inputPlans)
   }

@@ -18,6 +18,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     householdRank: Int,
     excludedModes: String
   ) {
+
     override def toString: String =
       Seq(personId, age, isFemale, householdId, householdRank, excludedModes).mkString(FieldSeparator)
   }
@@ -27,6 +28,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
   type MemberId = String
   type HouseholdId = String
   type MemberToHousehold = Map[MemberId, HouseholdId]
+
   private def readMemberToHousehold(): MemberToHousehold = {
     val parser = ConstructingParser.fromFile(householdsXml, preserveWS = true)
     val doc = parser.document().docElem
@@ -39,6 +41,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
 
   type RankValue = Int
   private type MemberToRank = Map[MemberId, PersonAttributes]
+
   private def readMember2Rank(): MemberToRank = {
     val parser = ConstructingParser.fromFile(populationAttributesXml, preserveWS = true)
     val doc = parser.document().docElem

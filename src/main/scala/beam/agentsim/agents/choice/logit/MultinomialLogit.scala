@@ -48,22 +48,25 @@ class MultinomialLogit[A, T](
   ): Iterable[AlternativeWithUtility[A]] = {
     // evaluate utility of alternatives
     val altsWithUtility: Iterable[AlternativeWithUtility[A]] =
-      alternatives.foldLeft(List.empty[AlternativeWithUtility[A]]) {
-        case (accumulator, (alt, attributes)) =>
-          getUtilityOfAlternative(alt, attributes) match {
-            case None => accumulator
-            case Some(thisUtility: Double) =>
-              if (thisUtility.isPosInfinity) {
-                // place on tail of list, allowing us to short-circuit the sampling in next step
-                accumulator :+ AlternativeWithUtility(
-                  alt,
-                  thisUtility * scale_factor,
-                  math.exp(thisUtility * scale_factor)
-                )
-              } else {
-                AlternativeWithUtility(alt, thisUtility * scale_factor, math.exp(thisUtility * scale_factor)) +: accumulator
-              }
-          }
+      alternatives.foldLeft(List.empty[AlternativeWithUtility[A]]) { case (accumulator, (alt, attributes)) =>
+        getUtilityOfAlternative(alt, attributes) match {
+          case None => accumulator
+          case Some(thisUtility: Double) =>
+            if (thisUtility.isPosInfinity) {
+              // place on tail of list, allowing us to short-circuit the sampling in next step
+              accumulator :+ AlternativeWithUtility(
+                alt,
+                thisUtility * scale_factor,
+                math.exp(thisUtility * scale_factor)
+              )
+            } else {
+              AlternativeWithUtility(
+                alt,
+                thisUtility * scale_factor,
+                math.exp(thisUtility * scale_factor)
+              ) +: accumulator
+            }
+        }
       }
 
     altsWithUtility

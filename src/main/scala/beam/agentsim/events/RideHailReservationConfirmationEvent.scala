@@ -54,7 +54,7 @@ class RideHailReservationConfirmationEvent(
   val dropOffLocationWgs: Coord, /* Same CRS as in PathTraversalEvent */
   val offeredPickUpTimeOpt: Option[Int], /*  None if the reservation failed */
   val directRouteDistanceInMOpt: Option[Double],
-  val directRouteDurationInSOpt: Option[Int],
+  val directRouteDurationInSOpt: Option[Int]
 ) extends Event(time)
     with ScalaEvent {
   import RideHailReservationConfirmationEvent._

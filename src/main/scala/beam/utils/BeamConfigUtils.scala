@@ -49,8 +49,8 @@ object BeamConfigUtils {
         case path if !processedPaths.contains(path) => path
       }
 
-      unprocessedPaths.foldLeft(processedPaths + path) {
-        case (accumulator, unprocessed) => getIncludedPathsRecursively(unprocessed, accumulator)
+      unprocessedPaths.foldLeft(processedPaths + path) { case (accumulator, unprocessed) =>
+        getIncludedPathsRecursively(unprocessed, accumulator)
       }
     }
 
@@ -60,21 +60,19 @@ object BeamConfigUtils {
       val allIncludedPaths = getIncludedPathsRecursively(confFileLocationNormalized)
 
       val confNameToPaths = (allIncludedPaths - confFileLocationNormalized)
-        .map(_.toString)
-        .foldLeft(Map("beam.conf" -> confFileLocationNormalized)) {
-          case (fileNameToPath, confFilePath) =>
-            val confFileName = getName(confFilePath)
-            val newConfFileName = confFileNames.get(confFileName) match {
-              case None =>
-                confFileNames(confFileName) = 1
-                confFileName
-              case Some(cnt) =>
-                confFileNames(confFileName) = cnt + 1
-                val fExtension = getExtension(confFileName)
-                removeExtension(confFileName) + s"_$cnt" + EXTENSION_SEPARATOR_STR + fExtension
-            }
+        .foldLeft(Map("beam.conf" -> confFileLocationNormalized)) { case (fileNameToPath, confFilePath) =>
+          val confFileName = getName(confFilePath)
+          val newConfFileName = confFileNames.get(confFileName) match {
+            case None =>
+              confFileNames(confFileName) = 1
+              confFileName
+            case Some(cnt) =>
+              confFileNames(confFileName) = cnt + 1
+              val fExtension = getExtension(confFileName)
+              removeExtension(confFileName) + s"_$cnt" + EXTENSION_SEPARATOR_STR + fExtension
+          }
 
-            fileNameToPath + (newConfFileName -> confFilePath)
+          fileNameToPath + (newConfFileName -> confFilePath)
         }
 
       confNameToPaths
@@ -91,6 +89,16 @@ object BeamConfigUtils {
     val lines = source.getLines.toArray
     source.close()
     lines
+  }
+
+  def parseListToMap(mapEntries: List[String]): Map[String, String] = {
+    mapEntries.map { entry =>
+      val keySeparatorValue = entry.split("\\s+")
+      require(keySeparatorValue.size >= 2, "Map entry must contain key value pair")
+      val key = keySeparatorValue.head
+      val value = keySeparatorValue.last
+      key -> value
+    }.toMap
   }
 
 }

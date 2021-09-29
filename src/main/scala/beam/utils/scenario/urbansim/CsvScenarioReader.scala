@@ -39,8 +39,8 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     readAs[HouseholdInfo](path, "readHouseholdsFile", toHouseholdInfo)
   }
 
-  private[utils] def readAs[T](path: String, what: String, mapper: java.util.Map[String, String] => T)(
-    implicit ct: ClassTag[T]
+  private[utils] def readAs[T](path: String, what: String, mapper: java.util.Map[String, String] => T)(implicit
+    ct: ClassTag[T]
   ): Array[T] = {
     ProfilingUtils.timed(what, x => logger.info(x)) {
       FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)) { csvRdr =>
@@ -68,7 +68,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val x = Option(rec.get("x")).map(_.toDouble)
     val y = Option(rec.get("y")).map(_.toDouble)
     val endTime = Option(rec.get("endTime")).map(_.toDouble)
-    val mode = Option(rec.get("mode")).map(_.toString)
+    val mode: Option[String] = Option(rec.get("mode"))
     PlanElement(
       personId = personId,
       planElement = planElement,
@@ -98,7 +98,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       age = age,
       excludedModes = excludedModes,
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0D)).getOrElse(0D)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0d)).getOrElse(0d)
     )
   }
 
@@ -120,6 +120,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val buildingId = getIfNotNull(rec, "building_id")
     UnitInfo(unitId = unitId, buildingId = buildingId)
   }
+
   private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")

@@ -3,14 +3,15 @@ package beam.utils
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
-import beam.sim.{CircularGeofence, Geofence}
+import beam.sim.CircularGeofence
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
+class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers {
   // #####################################################################################
   // If one day this test breaks then most probably it is because of the changes in `RideHailAgentLocation.equals`
   // #####################################################################################
@@ -33,13 +34,13 @@ class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
     )
 
     spatialIndex.put(10, 10, rideHailAgentLocation)
-    spatialIndex.size() shouldBe (1)
+    spatialIndex.size() shouldBe 1
 
     val updatedRideHailAgentLocation = rideHailAgentLocation.copy(latestUpdatedLocationUTM = SpaceTime(2, 2, 4))
     spatialIndex.put(10, 10, updatedRideHailAgentLocation)
-    spatialIndex.size() shouldBe (1)
+    spatialIndex.size() shouldBe 1
 
-    spatialIndex.getDisk(0, 0, 20).asScala.head shouldBe (rideHailAgentLocation)
+    spatialIndex.getDisk(0, 0, 20).asScala.head shouldBe rideHailAgentLocation
   }
 
   test("Remove should respect only `RideHailAgentLocation.vehicleId`") {
@@ -68,6 +69,6 @@ class SpatialIndexForRideHailAgentLocationTest extends FunSuite with Matchers {
       geofence = Some(CircularGeofence(1, 2, 3))
     )
     spatialIndex.remove(10, 10, updatedRideHailAgentLocation)
-    spatialIndex.size() shouldBe (0)
+    spatialIndex.size() shouldBe 0
   }
 }

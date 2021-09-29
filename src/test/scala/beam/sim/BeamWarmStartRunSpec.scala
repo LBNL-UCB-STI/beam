@@ -6,9 +6,12 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.scalatest.{BeforeAndAfterAllConfigMap, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAllConfigMap
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-class BeamWarmStartRunSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
 
   "Beam WarmStart" must {
     "run sf-light scenario for two iteration with warmstart" in {
@@ -44,7 +47,7 @@ object BeamWarmStartRunSpec {
 
   def avgCarModeFromCsv(filePath: String): Double = {
     val (rdr, toClose) =
-      GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, x => true)
+      GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, _ => true)
     try {
       val travelTimes = rdr.toArray
       val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length

@@ -15,8 +15,9 @@ trait ParkingInfoWriter {
 }
 
 object CsvParkingInfoWriter extends ParkingInfoWriter {
+
   private val headers: Array[String] =
-    Array("taz", "parkingType", "pricingModel", "chargingType", "numStalls", "feeInCents", "reservedFor")
+    Array("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents", "reservedFor")
 
   override def write(path: String, geoService: GeoService, tazCounts: Map[GenericGeoId, (Int, Int)]): Unit = {
 
@@ -25,27 +26,25 @@ object CsvParkingInfoWriter extends ParkingInfoWriter {
     val mt: MathTransform = CRS.findMathTransform(sourceCoordSystem, destinationCoordSystem, true)
     val csvWriter = new CsvWriter(path, headers)
     try {
-      tazCounts.foreach {
-        case (tazGeoId, (numberPersons, numberWorkers)) =>
-          val scaledTazArea = geoService.tazGeoIdToGeom.get(tazGeoId.asInstanceOf[TazGeoId]) match {
-            case Some(geometry: Geometry) => JTS.transform(geometry, mt).getArea / 1000
-            case _                        => 100000
+      tazCounts.foreach { case (tazGeoId, (numberPersons, numberWorkers)) =>
+        val scaledTazArea = geoService.tazGeoIdToGeom.get(tazGeoId.asInstanceOf[TazGeoId]) match {
+          case Some(geometry: Geometry) => JTS.transform(geometry, mt).getArea / 1000
+          case _                        => 100000
+        }
+        val parkingInfo = getNumberOfSpaces(scaledTazArea, numberPersons, numberWorkers)
+        parkingInfo.foreach { case (parkingType, (spots, cost)) =>
+          if (spots > 0) {
+            csvWriter.write(
+              tazGeoId.asInstanceOf[TazGeoId].asUniqueKey,
+              parkingType,
+              "Block",
+              "None",
+              spots.toString,
+              cost.toString,
+              "Any"
+            )
           }
-          val parkingInfo = getNumberOfSpaces(scaledTazArea, numberPersons, numberWorkers)
-          parkingInfo.foreach {
-            case (parkingType, (spots, cost)) =>
-              if (spots > 0) {
-                csvWriter.write(
-                  tazGeoId.asInstanceOf[TazGeoId].asUniqueKey,
-                  parkingType,
-                  "Block",
-                  "None",
-                  spots.toString,
-                  cost.toString,
-                  "Any"
-                )
-              }
-          }
+        }
       }
     } finally {
       Try(csvWriter.close())
