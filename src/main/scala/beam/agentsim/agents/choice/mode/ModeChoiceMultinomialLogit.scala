@@ -146,26 +146,23 @@ class ModeChoiceMultinomialLogit(
     person match {
       case Some(p) =>
         val altUtility = alternativesWithUtility
-          .map(
-            au =>
-              au.alternative.value.toLowerCase() -> ModeChoiceOccurredEvent
-                .AltUtility(au.utility, au.expUtility)
+          .map(au =>
+            au.alternative.value.toLowerCase() -> ModeChoiceOccurredEvent
+              .AltUtility(au.utility, au.expUtility)
           )
           .toMap
 
         val altCostTimeTransfer = modeCostTimeTransfers
-          .map(
-            mctt =>
-              extractTripClassifier(mctt.beamTripData).value.toLowerCase() -> ModeChoiceOccurredEvent
-                .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
+          .map(mctt =>
+            extractTripClassifier(mctt.beamTripData).value.toLowerCase() -> ModeChoiceOccurredEvent
+              .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
           )
           .toMap
 
-        val time = alternatives.collectFirst {
-          case Right(trip) =>
-            trip.legs.headOption map { leg =>
-              leg.beamLeg.startTime
-            }
+        val time = alternatives.collectFirst { case Right(trip) =>
+          trip.legs.headOption map { leg =>
+            leg.beamLeg.startTime
+          }
         }.flatten
 
         if (time.nonEmpty) {
@@ -254,64 +251,63 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
   ): IndexedSeq[ModeCostTimeTransfer] = {
-    alternatives.zipWithIndex.map {
-      case (alt, idx) =>
-        val mode: BeamMode = extractTripClassifier(alt)
+    alternatives.zipWithIndex.map { case (alt, idx) =>
+      val mode: BeamMode = extractTripClassifier(alt)
 
-        val numTransfers = (alt, mode) match {
-          case (Right(trip), TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT) =>
-            var nVeh = -1
-            var vehId = Id.create("dummy", classOf[BeamVehicle])
-            trip.legs.foreach { leg =>
-              if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
-                vehId = leg.beamVehicleId
-                nVeh = nVeh + 1
-              }
+      val numTransfers = (alt, mode) match {
+        case (Right(trip), TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT) =>
+          var nVeh = -1
+          var vehId = Id.create("dummy", classOf[BeamVehicle])
+          trip.legs.foreach { leg =>
+            if (leg.beamLeg.mode.isTransit && leg.beamVehicleId != vehId) {
+              vehId = leg.beamVehicleId
+              nVeh = nVeh + 1
             }
-            nVeh
-          case _ =>
-            0
-        }
-        assert(numTransfers >= 0)
+          }
+          nVeh
+        case _ =>
+          0
+      }
+      assert(numTransfers >= 0)
 
-        val (totalCost, scaledTime, occupancyLevel) = alt match {
-          case Left(data) => (data.cost, data.time, 0.0)
-          case Right(trip) =>
-            val percentile =
-              beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
-            (
-              getNonTimeCost(trip, includeReplanningPenalty = true),
-              attributesOfIndividual.getVOT(
-                getGeneralizedTimeOfTripInHours(
-                  trip,
-                  Some(attributesOfIndividual),
-                  destinationActivity,
-                  adjustSpecialBikeLines = true
-                )
-              ),
-              transitCrowding.getTransitOccupancyLevelForPercentile(trip, percentile)
-            )
-        }
-        val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
-
-        val incentivizedCost = Math.max(0, totalCost - incentive)
-
-        if (totalCost < incentive)
-          logger.warn(
-            "Mode incentive is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Incentive: {}",
-            mode,
-            totalCost,
-            incentive
+      val (totalCost, scaledTime, occupancyLevel) = alt match {
+        case Left(data) => (data.cost, data.time, 0.0)
+        case Right(trip) =>
+          val percentile =
+            beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+          (
+            getNonTimeCost(trip, includeReplanningPenalty = true),
+            attributesOfIndividual.getVOT(
+              getGeneralizedTimeOfTripInHours(
+                trip,
+                Some(attributesOfIndividual),
+                destinationActivity,
+                adjustSpecialBikeLines = true
+              )
+            ),
+            transitCrowding.getTransitOccupancyLevelForPercentile(trip, percentile)
           )
+      }
+      val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
-        ModeCostTimeTransfer(
-          beamTripData = alt,
-          cost = incentivizedCost,
-          scaledTime = scaledTime,
-          numTransfers = numTransfers,
-          transitOccupancyLevel = occupancyLevel,
-          index = idx
+      val incentivizedCost = Math.max(0, totalCost - incentive)
+
+      if (totalCost < incentive)
+        logger.warn(
+          "Mode incentive is even higher then the cost, setting cost to zero. Mode: {}, Cost: {}, Incentive: {}",
+          mode,
+          totalCost,
+          incentive
         )
+
+      ModeCostTimeTransfer(
+        beamTripData = alt,
+        cost = incentivizedCost,
+        scaledTime = scaledTime,
+        numTransfers = numTransfers,
+        transitOccupancyLevel = occupancyLevel,
+        index = idx
+      )
     }
   }
 

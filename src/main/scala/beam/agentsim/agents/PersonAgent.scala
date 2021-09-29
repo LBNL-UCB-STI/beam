@@ -670,8 +670,8 @@ class PersonAgent(
      * Learn as passenger that it is time to board the vehicle
      */
     case Event(
-        TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
-        data @ BasePersonData(_, Some(Right(currentTrip)), currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _)
+          TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
+          data @ BasePersonData(_, Some(Right(currentTrip)), currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
@@ -716,10 +716,9 @@ class PersonAgent(
       )
   }
 
-  when(ImaginaryTravelling) {
-    case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
-      holdTickAndTriggerId(tick, triggerId)
-      goto(ProcessingNextLegOrStartActivity)
+  when(ImaginaryTravelling) { case Event(TriggerWithId(EndLegTrigger(tick), triggerId), _) =>
+    holdTickAndTriggerId(tick, triggerId)
+    goto(ProcessingNextLegOrStartActivity)
   }
 
   // Callback from DrivesVehicle. Analogous to AlightVehicleTrigger, but when driving ourselves.
@@ -815,8 +814,10 @@ class PersonAgent(
 
   def endTime(activity: Activity, tick: Int): Double = {
     val result =
-      if (activity.getEndTime >= tick && Math
-            .abs(activity.getEndTime) < Double.PositiveInfinity) {
+      if (
+        activity.getEndTime >= tick && Math
+          .abs(activity.getEndTime) < Double.PositiveInfinity
+      ) {
         activity.getEndTime
       } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
         tick
@@ -1010,21 +1011,21 @@ class PersonAgent(
       goto(WaitingForReservationConfirmation)
 
     case Event(
-        StateTimeout,
-        data @ BasePersonData(
-          _,
-          Some(Right(currentTrip)),
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _
-        )
+          StateTimeout,
+          data @ BasePersonData(
+            _,
+            Some(Right(currentTrip)),
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+          )
         ) =>
       nextActivity(data) match {
         case Some(activity) =>
@@ -1108,21 +1109,21 @@ class PersonAgent(
       }
 
     case Event(
-        StateTimeout,
-        data @ BasePersonData(
-          _,
-          Some(Left(tripData)),
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _,
-          _
-        )
+          StateTimeout,
+          data @ BasePersonData(
+            _,
+            Some(Left(tripData)),
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+          )
         ) =>
       nextActivity(data) match {
         case Some(activity) =>

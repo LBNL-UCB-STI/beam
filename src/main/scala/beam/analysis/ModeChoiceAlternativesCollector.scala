@@ -31,8 +31,8 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
     //we consider that skim trips have at least one non empty leg
     val allAlternativesHasAtLeastOneNonEmptyLeg = alternatives
-      .collect {
-        case Right(trip) => trip
+      .collect { case Right(trip) =>
+        trip
       }
       .forall(_.legs.exists(legIsNotEmpty))
 

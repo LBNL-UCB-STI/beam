@@ -66,7 +66,6 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
   def currentIteration: Int = currentIterationInternal
   def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
   def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
-  def isEmpty: Boolean = currentSkimInternal.isEmpty
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)

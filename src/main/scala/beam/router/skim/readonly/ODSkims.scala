@@ -146,11 +146,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       mode,
       originUTM,
       new Coord(destinationUTM.getX, destinationUTM.getY),
-      departureTime,
-      vehicleTypeId,
       vehicleType,
-      fuelPrice,
-      beamScenario
+      fuelPrice
     )
   }
 
@@ -159,7 +156,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     destTaz: Id[TAZ],
     departureTime: Int,
     mode: BeamMode,
-    vehicleTypeId: Id[BeamVehicleType],
+    vehicleTypeId: Id[BeamVehicleType]
   ): Option[Skim] = {
     getSkimValue(departureTime, mode, origTaz, destTaz) map { skimValue =>
       beamScenario.vehicleTypes.get(vehicleTypeId) match {
@@ -176,7 +173,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     origTaz: Id[TAZ],
     destTaz: Id[TAZ],
     departureTime: Int,
-    mode: BeamMode,
+    mode: BeamMode
   ): Option[Skim] = getSkimValue(departureTime, mode, origTaz, destTaz).map(_.toSkimExternal)
 
   def getExcerptData(
@@ -265,8 +262,10 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     departureTime: Int,
     mode: BeamMode,
     beamScenario: BeamScenario,
-    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] = None, //If multiple times the same origin/destination is used, it
-    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] = None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None, //If multiple times the same origin/destination is used, it
+    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
   ): Boolean = {
     val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
@@ -281,7 +280,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     origTaz: Id[TAZ],
     destTaz: Id[TAZ],
     departureTime: Int,
-    mode: BeamMode,
+    mode: BeamMode
   ): Boolean = {
     getSkimValue(departureTime, mode, origTaz, destTaz).isDefined
   }
