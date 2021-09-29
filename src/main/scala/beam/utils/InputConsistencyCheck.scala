@@ -25,11 +25,18 @@ object InputConsistencyCheck {
   ): List[String] = {
     val errors = ListBuffer[String]()
     val stringTypes = vehicleTypes.map(_.toString)
+    val vehicleTypeString = vehicleTypes.mkString(",")
     if (!stringTypes.contains(rideHailTypeId)) {
-      errors.append("beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId is not in vehicleTypes")
+      errors.append(
+        s"beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId '$rideHailTypeId' " +
+        s"is not in vehicleTypes [$vehicleTypeString]"
+      )
     }
     if (!stringTypes.contains(dummySharedCarTypeId)) {
-      errors.append("beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId is not in vehicleTypes")
+      errors.append(
+        s"beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId '$dummySharedCarTypeId' " +
+        s"is not in vehicleTypes [$vehicleTypeString]"
+      )
     }
     errors.toList
   }

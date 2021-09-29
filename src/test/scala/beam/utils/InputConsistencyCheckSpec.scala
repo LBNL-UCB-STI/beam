@@ -12,13 +12,15 @@ class InputConsistencyCheckSpec extends AnyWordSpecLike with Matchers {
   "InputConsistencyCheck" should {
     "verify vehicle types for ridehail type id" in {
       val vehicleTypes = Set(createId("one"), createId("two"))
+      val vehicleTypesStr = vehicleTypes.mkString(",")
+
       InputConsistencyCheck.checkVehicleTypes(vehicleTypes, "one", "two") shouldBe List()
       InputConsistencyCheck.checkVehicleTypes(vehicleTypes, "rh", "two") shouldBe List(
-        "beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId is not in vehicleTypes"
+        s"beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId 'rh' is not in vehicleTypes [$vehicleTypesStr]"
       )
       InputConsistencyCheck.checkVehicleTypes(vehicleTypes, "rh", "dummy") shouldBe List(
-        "beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId is not in vehicleTypes",
-        "beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId is not in vehicleTypes"
+        s"beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId 'rh' is not in vehicleTypes [$vehicleTypesStr]",
+        s"beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId 'dummy' is not in vehicleTypes [$vehicleTypesStr]"
       )
     }
 
