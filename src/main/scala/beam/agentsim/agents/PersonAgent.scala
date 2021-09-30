@@ -539,17 +539,13 @@ class PersonAgent(
           currentActivity(data).getType
         )
       )
-      val legMode = maybeCurrentTourMode match {
-        case Some(currentTourMode) => currentTourMode.value
-        case _                     => currentTrip.tripClassifier.value
-      }
 
       eventsManager.processEvent(
         new PersonDepartureEvent(
           tick,
           id,
           currentActivity(data).getLinkId,
-          legMode
+          currentTrip.tripClassifier.value
         )
       )
 
@@ -605,18 +601,13 @@ class PersonAgent(
           currentActivity(data).getType
         )
       )
-      val legMode = maybeCurrentTourMode match {
-        case Some(currentTourMode) if currentTourMode.value == BeamMode.CAR_HOV2.value => BeamMode.CAR_HOV2.value
-        case Some(currentTourMode) if currentTourMode.value == BeamMode.CAR_HOV3.value => BeamMode.CAR_HOV3.value
-        case _                                                                         => currentTrip.tripClassifier.value
-      }
 
       eventsManager.processEvent(
         new PersonDepartureEvent(
           tick,
           id,
           currentActivity(data).getLinkId,
-          legMode
+          currentTrip.tripClassifier.value
         )
       )
       holdTickAndTriggerId(tick, triggerId)

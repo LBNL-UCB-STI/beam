@@ -4,7 +4,6 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
@@ -27,8 +26,6 @@ abstract class GraphHopperWrapper(
   geo: GeoUtils,
   id2Link: Map[Int, (Coord, Coord)]
 ) extends Router {
-
-  protected val beamMode: BeamMode
 
   private val graphHopper = {
     val profile = getProfile()
@@ -147,7 +144,7 @@ abstract class GraphHopperWrapper(
     try {
       val beamLeg = BeamLeg(
         routingRequest.departureTime,
-        beamMode,
+        streetVehicle.mode,
         beamTotalTravelTime,
         BeamPath(
           linkIds,

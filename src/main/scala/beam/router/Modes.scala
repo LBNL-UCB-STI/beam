@@ -140,7 +140,9 @@ object Modes {
         RIDE_HAIL_TRANSIT,
         DRIVE_TRANSIT,
         WALK_TRANSIT,
-        BIKE_TRANSIT
+        BIKE_TRANSIT,
+        HOV2_TELEPORTATION,
+        HOV3_TELEPORTATION
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {
