@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorSystem
 import akka.util.Timeout
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
@@ -128,7 +127,8 @@ object ParkingManagerBenchmark extends StrictLogging {
         parkingStallCountScalingFactor,
         parkingCostScalingFactor,
         seed,
-        beamConfig
+        beamConfig,
+        None
       )
       val searchTree = ParkingZoneFileUtils.createZoneSearchTree(zones.values.toSeq)
       logger.info(s"Number of zones: ${zones.size}")

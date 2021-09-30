@@ -167,6 +167,7 @@ class HierarchicalParkingManagerSpec
         parking = ParkingZoneFileUtils.fromIterator[Link](
           oneParkingOption,
           Some(beamConfig),
+          None,
           random
         )
         parkingManager = HierarchicalParkingManager.init(
@@ -240,6 +241,7 @@ class HierarchicalParkingManagerSpec
           .fromIterator[Link](
             oneParkingOption,
             Some(beamConfig),
+            None,
             random
           )
         parkingManager = HierarchicalParkingManager.init(
@@ -326,6 +328,7 @@ class HierarchicalParkingManagerSpec
         parking = ParkingZoneFileUtils.fromIterator[Link](
           parkingConfiguration,
           Some(beamConfig),
+          None,
           random
         )
         parkingManager = HierarchicalParkingManager.init(
@@ -377,7 +380,8 @@ class HierarchicalParkingManagerSpec
           1.0,
           1.0,
           randomSeed,
-          beamConfig
+          beamConfig,
+          None
         )
         .filter(_._2.chargingPointType.isEmpty)
 
