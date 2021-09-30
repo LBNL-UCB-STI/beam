@@ -268,14 +268,14 @@ object ChargingNetwork extends LazyLogging {
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
     private[ChargingNetwork] def numAvailableChargers: Int =
-      zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreGraced
+      zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
     private[ChargingNetwork] def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
       chargingVehiclesInternal.toMap
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
-    def howManyVehiclesAreGraced: Int = vehiclesInGracePeriodAfterCharging.size
+    def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
 
     private[ChargingNetwork] def waitingLineVehiclesMap: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
