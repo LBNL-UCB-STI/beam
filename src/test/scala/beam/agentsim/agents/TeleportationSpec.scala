@@ -78,11 +78,11 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
       it("should check if activities happen at expected location with expected duration") {
         val activitiesList = activities.toList
         // links
-        activitiesList.map(_._1) shouldBe List("300", "142", "142", "300", "142", "142", "300", "142")
+        activitiesList.map(_._1) shouldBe List("300", "142", "300", "142", "300", "142")
         // times
-        activitiesList.map(_._2) shouldBe List(21891.0, 26430.0, 32480.0, 32845.0, 37231.0, 39876.0, 40167.0, 44282.0)
+        activitiesList.map(_._2) shouldBe List(21891.0, 26430.0, 32697.0, 37231.0, 39891.0, 44282.0)
         // type
-        activitiesList.map(_._3) shouldBe List("Other", "Home", "Home", "Other", "Home", "Home", "Other", "Home")
+        activitiesList.map(_._3) shouldBe List("Other", "Home", "Other", "Home", "Other", "Home")
       }
 
     }
