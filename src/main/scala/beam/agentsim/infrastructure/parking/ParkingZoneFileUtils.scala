@@ -508,9 +508,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           timeRestrictions,
           linkMaybe
         )
-
       ParkingLoadingDataRow(taz, parkingType, parkingZone)
-
     } match {
       case Success(updatedAccumulator) =>
         Some { updatedAccumulator }
