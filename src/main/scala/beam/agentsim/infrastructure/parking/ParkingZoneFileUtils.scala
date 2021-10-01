@@ -483,7 +483,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
         else Some(ParkingZone.createId(parkingZoneIdString))
-      val linkMaybe = !isBlank(locationXString) && !isBlank(locationYString) match {
+      val linkMaybe = (!isBlank(locationXString) && !isBlank(locationYString)) match {
         case true if beamServices.isDefined =>
           val coord = new Coord(locationXString.toDouble, locationYString.toDouble)
           Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
