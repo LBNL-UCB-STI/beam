@@ -3,6 +3,7 @@ package beam.physsim.jdeqsim
 import java.util.Random
 import java.{lang, util}
 
+import beam.physsim.PickUpDropOffCollector
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -21,7 +22,8 @@ sealed abstract class RelaxationExperiment(
   val beamConfigChangesObservable: BeamConfigChangesObservable,
   val iterationNumber: Int,
   val shouldWritePhysSimEvents: Boolean,
-  val javaRnd: java.util.Random
+  val javaRnd: java.util.Random,
+  val maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) {
   def run(prevTravelTime: TravelTime): SimulationResult
 }
@@ -37,7 +39,8 @@ object RelaxationExperiment extends LazyLogging {
     isCACCVehicle: util.Map[String, lang.Boolean],
     beamConfigChangesObservable: BeamConfigChangesObservable,
     iterationNumber: Int,
-    javaRnd: Random
+    javaRnd: Random,
+    maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
   ): RelaxationExperiment = {
     val `type` = beamConfig.beam.physsim.relaxation.`type`
     val writePhysSimEvents = shouldWritePhysSimEvents(beamConfig.beam.physsim.writeEventsInterval, iterationNumber)
@@ -53,7 +56,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_2.0" =>
         new Experiment_2_0(
@@ -66,7 +70,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_2.1" =>
         new Experiment_2_1(
@@ -79,7 +84,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_3.0" =>
         new Experiment_3_0(
@@ -92,7 +98,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_4.0" =>
         new Experiment_4_0(
@@ -105,7 +112,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_5.0" =>
         new Experiment_5_0(
@@ -118,7 +126,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_5.1" =>
         new Experiment_5_1(
@@ -131,7 +140,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case "experiment_5.2" =>
         new Experiment_5_2(
@@ -144,7 +154,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
       case _ =>
         logger.warn(s"beam.physsim.relaxation.type = '${`type`}' which is unknown. Will use normal")
@@ -158,7 +169,8 @@ object RelaxationExperiment extends LazyLogging {
           beamConfigChangesObservable,
           iterationNumber,
           writePhysSimEvents,
-          javaRnd
+          javaRnd,
+          maybePickUpDropOffCollector
         )
     }
   }
@@ -179,7 +191,8 @@ class Normal(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -190,7 +203,8 @@ class Normal(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -204,7 +218,8 @@ class Normal(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     )
     sim.run(1, 0.0, prevTravelTime)
   }
@@ -221,7 +236,8 @@ class Experiment_2_0(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -232,7 +248,8 @@ class Experiment_2_0(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -246,7 +263,8 @@ class Experiment_2_0(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     )
     val numOfPhysSimIters = beamConfig.beam.physsim.relaxation.experiment2_0.internalNumberOfIterations
     val fractionOfPopulationToReroute = beamConfig.beam.physsim.relaxation.experiment2_0.fractionOfPopulationToReroute
@@ -265,7 +283,8 @@ class Experiment_2_1(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -276,7 +295,8 @@ class Experiment_2_1(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -290,7 +310,8 @@ class Experiment_2_1(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     )
     val numOfPhysSimIters = beamConfig.beam.physsim.relaxation.experiment2_1.internalNumberOfIterations
     val fractionOfPopulationToReroute = beamConfig.beam.physsim.relaxation.experiment2_1.fractionOfPopulationToReroute
@@ -309,7 +330,8 @@ class Experiment_3_0(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -320,7 +342,8 @@ class Experiment_3_0(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -334,7 +357,8 @@ class Experiment_3_0(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     )
     val numOfPhysSimIters =
       if (iterationNumber == 0) beamConfig.beam.physsim.relaxation.experiment3_0.internalNumberOfIterations else 1
@@ -356,7 +380,8 @@ class Experiment_4_0(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -367,7 +392,8 @@ class Experiment_4_0(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -385,7 +411,8 @@ class Experiment_4_0(
       beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
         case Some(list) => list.toArray
         case None       => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
-      }
+      },
+      maybePickUpDropOffCollector
     )
     sim.run(prevTravelTime)
   }
@@ -403,7 +430,8 @@ class Experiment_5_0(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -414,7 +442,8 @@ class Experiment_5_0(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -433,7 +462,8 @@ class Experiment_5_0(
         beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
           case Some(list) => list.toArray
           case None       => Array(10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0)
-        }
+        },
+        maybePickUpDropOffCollector
       )
       sim.run(prevTravelTime)
     } else {
@@ -447,7 +477,8 @@ class Experiment_5_0(
         beamConfigChangesObservable,
         iterationNumber,
         shouldWritePhysSimEvents,
-        javaRnd
+        javaRnd,
+        maybePickUpDropOffCollector
       )
       sim.run(1, 0, prevTravelTime)
     }
@@ -467,7 +498,8 @@ class Experiment_5_1(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -478,7 +510,8 @@ class Experiment_5_1(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -497,7 +530,8 @@ class Experiment_5_1(
         beamConfig.beam.physsim.relaxation.experiment5_1.percentToSimulate match {
           case Some(list) => list.toArray
           case None       => Array(60.0, 10.0, 10.0, 10.0, 10.0)
-        }
+        },
+        maybePickUpDropOffCollector
       )
       sim.run(prevTravelTime)
     } else {
@@ -511,7 +545,8 @@ class Experiment_5_1(
         beamConfigChangesObservable,
         iterationNumber,
         shouldWritePhysSimEvents,
-        javaRnd
+        javaRnd,
+        maybePickUpDropOffCollector
       )
       sim.run(1, 0, prevTravelTime)
     }
@@ -531,7 +566,8 @@ class Experiment_5_2(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   iterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random
+  javaRnd: java.util.Random,
+  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends RelaxationExperiment(
       beamConfig,
       agentSimScenario,
@@ -542,7 +578,8 @@ class Experiment_5_2(
       beamConfigChangesObservable,
       iterationNumber,
       shouldWritePhysSimEvents,
-      javaRnd
+      javaRnd,
+      maybePickUpDropOffCollector
     ) {
 
   override def run(prevTravelTime: TravelTime): SimulationResult = {
@@ -561,7 +598,8 @@ class Experiment_5_2(
         beamConfig.beam.physsim.relaxation.experiment4_0.percentToSimulate match {
           case Some(list) => list.toArray
           case None       => Array(40.0, 20.0, 20.0, 20.0)
-        }
+        },
+        maybePickUpDropOffCollector
       )
       sim.run(prevTravelTime)
     } else {
@@ -575,7 +613,8 @@ class Experiment_5_2(
         beamConfigChangesObservable,
         iterationNumber,
         shouldWritePhysSimEvents,
-        javaRnd
+        javaRnd,
+        maybePickUpDropOffCollector
       )
       sim.run(1, 0, prevTravelTime)
     }
