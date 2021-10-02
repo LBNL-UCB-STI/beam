@@ -1797,6 +1797,7 @@ object BeamConfig {
 
       case class ChargingNetworkManager(
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
+        scaleUpExpansionFactor: scala.Double,
         timeStepInSeconds: scala.Int
       )
 
@@ -1842,6 +1843,8 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
+            scaleUpExpansionFactor =
+              if (c.hasPathOrNull("scaleUpExpansionFactor")) c.getDouble("scaleUpExpansionFactor") else 1.0,
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }

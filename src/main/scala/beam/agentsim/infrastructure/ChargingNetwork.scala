@@ -22,7 +22,7 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
     extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._

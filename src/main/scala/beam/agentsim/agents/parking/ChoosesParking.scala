@@ -94,8 +94,7 @@ trait ChoosesParking extends {
     val personData = stateData.asInstanceOf[BasePersonData]
 
     val firstLeg = personData.restOfCurrentTrip.head
-    val lastLeg =
-      personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
+    val lastLeg = personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
 
     val parkingDuration: Double = {
       for {
