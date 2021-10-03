@@ -430,8 +430,8 @@ trait BeamHelper extends LazyLogging {
   }
 
   private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
-    val physSimType = Try(config.getString("beam.physsim.name")).getOrElse("")
-    if (physSimType == "CCHRoutingAssignment") {
+    val physsimName = Try(config.getString("beam.physsim.name")).getOrElse("")
+    if (physsimName == "CCHRoutingAssignment") {
       // Exception will be thrown if docker is not available on device
       if (Try(Process("docker version").!!).isFailure) {
         throw new RuntimeException("Docker is required to run CCHRoutingAssignment physsim simulation")
