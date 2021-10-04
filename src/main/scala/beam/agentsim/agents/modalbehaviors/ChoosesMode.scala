@@ -32,6 +32,7 @@ import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -101,24 +102,14 @@ trait ChoosesMode {
   private var teleportationVehiclesCount = 0
 
   private lazy val teleportationVehicleBeamType: BeamVehicleType = {
-    // TODO use this code once https://github.com/LBNL-UCB-STI/beam/issues/3306 implemented
-    //
-    //    val sharedVehicleType = beamScenario.vehicleTypes(
-    //      Id.create(
-    //        beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
-    //        classOf[BeamVehicleType]
-    //      )
-    //    )
-    //    sharedVehicleType
+    val sharedVehicleType = beamScenario.vehicleTypes(
+      Id.create(
+        beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+        classOf[BeamVehicleType]
+      )
+    )
 
-    val firstCarVehicleType = beamScenario.vehicleTypes
-      .find { case (_, beamVehicleType) =>
-        beamVehicleType.vehicleCategory == VehicleCategory.Car
-      }
-      .map(_._2)
-      .get
-
-    firstCarVehicleType
+    sharedVehicleType
   }
 
   private def createSharedTeleportationVehicle(location: SpaceTime): BeamVehicle = {
@@ -129,7 +120,7 @@ trait ChoosesMode {
       BeamVehicle.createId(id, Some(stringId)),
       new Powertrain(0.0),
       beamVehicleType = teleportationVehicleBeamType,
-      VehicleManager.noManager
+      vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
     )
     vehicle.spaceTime = location
 
