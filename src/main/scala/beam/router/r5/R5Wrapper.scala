@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
@@ -948,8 +948,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     )
 
     val newLegMode = maybeVehicleMode match {
-      case Some(vehicleMode) => vehicleMode
-      case _                 => mapLegMode(legMode)
+      case Some(vehicleMode @ CAR) => vehicleMode
+      case _                       => mapLegMode(legMode)
     }
 
     val beamLeg = BeamLeg(
