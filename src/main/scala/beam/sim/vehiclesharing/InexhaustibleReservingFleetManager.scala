@@ -17,6 +17,7 @@ import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Random
 
@@ -47,7 +48,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = vehicleManagerId,
+        vehicleManagerId = new AtomicReference(vehicleManagerId),
         rand.nextInt()
       )
       nextVehicleIndex += 1
@@ -56,7 +57,12 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       vehicle.becomeDriver(sender)
 
       // Park it and forward it to the customer
-      (parkingManager ? ParkingInquiry.init(whenWhere, "wherever", vehicleManagerId, triggerId = triggerId))
+      (parkingManager ? ParkingInquiry.init(
+        whenWhere,
+        "wherever",
+        VehicleManager.getReservedFor(vehicleManagerId).get,
+        triggerId = triggerId
+      ))
         .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
           vehicle.useParkingStall(stall)
           MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)

@@ -580,7 +580,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-          theRouterResult @ RoutingResponse(_, requestId, _, _, _),
+          theRouterResult @ RoutingResponse(_, requestId, _, _, _, _),
           choosesModeData: ChoosesModeData
         ) if choosesModeData.routingRequestToLegMap.contains(requestId) =>
       //handling router responses for shared vehicles
@@ -626,7 +626,7 @@ trait ChoosesMode {
         )
 
     case Event(
-          theRouterResult @ RoutingResponse(_, requestId, _, _, _),
+          theRouterResult @ RoutingResponse(_, requestId, _, _, _, _),
           choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -827,7 +827,7 @@ trait ChoosesMode {
               seq :+ (vehicleOnTrip -> ParkingInquiry.init(
                 SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
-                veh.vehicleManagerId,
+                VehicleManager.getReservedFor(veh.vehicleManagerId.get).get,
                 Some(veh),
                 None,
                 attributes.valueOfTime,

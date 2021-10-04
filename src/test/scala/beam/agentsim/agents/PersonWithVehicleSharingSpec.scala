@@ -43,6 +43,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -150,13 +151,13 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val managerId = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -195,7 +196,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        embodyRequest.triggerId
+        triggerId = embodyRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -308,12 +309,12 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
-      val managerId = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -378,7 +379,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest.triggerId
+        triggerId = routingRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -423,7 +424,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? ParkingInquiry.init(
@@ -467,7 +468,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest2.triggerId
+        triggerId = routingRequest2.triggerId
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -483,7 +484,9 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+        vehicleManagerId = new AtomicReference(
+          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+        )
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -594,7 +597,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -635,7 +638,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -674,7 +677,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 

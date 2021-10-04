@@ -49,16 +49,16 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     None,
     tazFromBeamville.tazId,
     ParkingType.Public,
-    ParkingZone.GlobalReservedFor,
+    VehicleManager.AnyManager,
     maxStalls = 1,
     chargingPointType = Some(ChargingPointType.ChargingStationType1),
     pricingModel = Some(PricingModel.FlatFee(0.0))
   )
   val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
-  val chargingNetwork: Map[Id[VehicleManager], ChargingNetwork[_]] = mock(
-    classOf[Map[Id[VehicleManager], ChargingNetwork[_]]]
-  )
+  val chargingNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+
+  val rideHailNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
@@ -79,6 +79,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     val powerController: PowerController =
       new PowerController(
         chargingNetwork,
+        rideHailNetwork,
         beamConfig.beam.agentsim.chargingNetworkManager,
         SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
       ) {
@@ -100,6 +101,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     val powerController: PowerController =
       new PowerController(
         chargingNetwork,
+        rideHailNetwork,
         beamConfig.beam.agentsim.chargingNetworkManager,
         SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
       ) {

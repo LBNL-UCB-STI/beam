@@ -41,8 +41,8 @@ class ChargingFunctions[GEO: GeoLevel](
     * @return
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    VehicleManager.getType(inquiry.reservedFor) match {
-      case VehicleManager.BEAMRideHail if inquiry.parkingDuration <= 3600 =>
+    inquiry.reservedFor match {
+      case VehicleManager.TypeEnum.RideHail if inquiry.parkingDuration <= 3600 =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
       case _ =>
         true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger

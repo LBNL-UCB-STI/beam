@@ -38,6 +38,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -123,13 +124,13 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        vehicleManagerId = VehicleManager.noManager
+        vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
       )
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        vehicleManagerId = VehicleManager.noManager
+        vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
       )
 
       val busLeg = EmbodiedBeamLeg(
@@ -361,7 +362,7 @@ class PersonAndTransitDriverSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest.triggerId
+        triggerId = routingRequest.triggerId
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]

@@ -1,16 +1,14 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.{GetVehicleTypes, VehicleTypesResponse}
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.replanning.AddSupplementaryTrips
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
@@ -22,6 +20,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
 
 class Population(
@@ -119,8 +118,11 @@ class Population(
       val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
         .collectionAsScalaIterable(household.getVehicleIds)
         .map { vid =>
-          val bvid = BeamVehicle.createId(vid)
-          bvid -> beamScenario.privateVehicles(bvid)
+          val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
+          val reservedFor =
+            VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
+          bv.vehicleManagerId.set(reservedFor.managerId)
+          bv.id -> bv
         }
         .toMap
       val householdActor = context.actorOf(

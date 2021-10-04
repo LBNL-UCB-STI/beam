@@ -6,6 +6,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
@@ -23,6 +24,7 @@ import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.Random
@@ -150,7 +152,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            ParkingZone.GlobalReservedFor
+            VehicleManager.AnyManager
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
         assert(response1.isDefined, "no response")
@@ -216,7 +218,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
-            ParkingZone.GlobalReservedFor
+            VehicleManager.AnyManager
           )
 
         // request the stall
@@ -333,7 +335,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_Global_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
         "beamVilleCar"
@@ -343,7 +345,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("cs_Global_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
         "beamVilleCar"
@@ -353,7 +355,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(167141.3, 3326.017), 0),
         "2",
-        ParkingZone.createId("cs_Global_2_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
         ParkingType.Residential,
         "beamVilleCar"
@@ -366,9 +368,9 @@ class ZonalParkingManagerSpec
   describe("ZonalParkingManager with time restrictions") {
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
-        """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions,vehicleManager,parkingZoneId
-          |4,Public,FlatFee,NoCharger,10,0,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,
-          |4,Public,Block,NoCharger,20,0,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
+        """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId
+          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,
+          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
@@ -392,7 +394,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
         "4",
-        ParkingZone.createId("cs_Global_4_Public_NA_Block_0_20"),
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_Block_0_20"),
         PricingModel("block", "0").get,
         ParkingType.Public,
         "FREIGHT-1"
@@ -402,8 +404,8 @@ class ZonalParkingManagerSpec
 
   describe("ZonalParkingManager with multiple parking files loaded") {
     it("should return the correct stall corresponding with the request (reservedFor, vehicleManagerId)") {
-      val sharedFleet1 = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
-      val sharedFleet2 = VehicleManager.createOrGetIdUsingUnique("shared-fleet-2", VehicleManager.BEAMShared)
+      val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared)
+      val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", VehicleManager.TypeEnum.Shared)
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls[TAZ](
         "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
@@ -443,9 +445,9 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_Global_4_Public_NA_Block_77_1909"),
-        PricingModel("block", "0.77").get,
-        ParkingType.Public,
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_199_1144"),
+        FlatFee(1.99),
+        ParkingType.Residential,
         "beamVilleCar"
       )
 
@@ -453,14 +455,14 @@ class ZonalParkingManagerSpec
         zonesMap,
         new Coord(166321.0, 1568.0),
         sharedFleet1,
-        Seq(sharedFleet1, ParkingZone.GlobalReservedFor)
+        Seq(sharedFleet1, VehicleManager.AnyManager)
       )
 
       assertVehicleManager(
         zonesMap,
         new Coord(166500.0, 1500.0),
         sharedFleet2,
-        Seq(sharedFleet2, ParkingZone.GlobalReservedFor)
+        Seq(sharedFleet2, VehicleManager.AnyManager)
       )
     }
   }
@@ -468,17 +470,17 @@ class ZonalParkingManagerSpec
   private def assertVehicleManager(
     zpm: ParkingNetwork[_],
     coord: Coord,
-    vehicleManagerId: Id[VehicleManager],
-    vehicleManagerToAssert: Seq[Id[VehicleManager]]
+    reservedFor: ReservedFor,
+    vehicleManagerToAssert: Seq[ReservedFor]
   ) = {
     val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
     val vehicle = new BeamVehicle(
       id = Id.createVehicleId("car-01"),
       powerTrain = new Powertrain(0.0),
       beamVehicleType = vehicleType,
-      vehicleManagerId = vehicleManagerId
+      vehicleManagerId = new AtomicReference(reservedFor.managerId)
     )
-    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", vehicleManagerId, Some(vehicle), triggerId = 0)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
     assert(response.isDefined, "no response")
     assert(vehicleManagerToAssert.contains(response.get.stall.reservedFor), "something is wildly broken")
@@ -492,16 +494,16 @@ class ZonalParkingManagerSpec
     pricingModel: PricingModel,
     parkingType: ParkingType,
     vehicleTypeName: String,
-    vehicleManagerId: Id[VehicleManager] = ParkingZone.GlobalReservedFor
+    reservedFor: ReservedFor = VehicleManager.AnyManager
   ) = {
     val vehicleType = beamScenario.vehicleTypes(Id.create(vehicleTypeName, classOf[BeamVehicleType]))
     val vehicle = new BeamVehicle(
       id = Id.createVehicleId("car-01"),
       powerTrain = new Powertrain(0.0),
       beamVehicleType = vehicleType,
-      vehicleManagerId = vehicleManagerId
+      vehicleManagerId = new AtomicReference(reservedFor.managerId)
     )
-    val inquiry = ParkingInquiry.init(spaceTime, "init", vehicleManagerId, Some(vehicle), triggerId = 3737)
+    val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0
@@ -515,20 +517,12 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
-        reservedFor = vehicleManagerId
+        reservedFor = reservedFor
       )
-    assert(response.isDefined, "no response")
-    assert(response.get.stall.geoId == expectedStall.geoId, "something is wildly broken")
-    assert(response.get.stall.tazId == expectedStall.tazId, "something is wildly broken")
-    assert(response.get.stall.reservedFor == expectedStall.reservedFor, "something is wildly broken")
-    assert(response.get.stall.locationUTM == expectedStall.locationUTM, "something is wildly broken")
-    assert(response.get.stall.chargingPointType == expectedStall.chargingPointType, "something is wildly broken")
-    assert(response.get.requestId == inquiry.requestId, "something is wildly broken")
-    assert(response.get.triggerId == inquiry.triggerId, "something is wildly broken")
-//    assert(
-//      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
-//      "something is wildly broken"
-//    )
+    assert(
+      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+      "something is wildly broken"
+    )
   }
 
   override def afterAll(): Unit = {
@@ -625,7 +619,7 @@ object ZonalParkingManagerSpec {
   def makeParkingZones(
     treeMap: TAZTreeMap,
     zones: List[Int],
-    vehicleManagerId: Id[VehicleManager]
+    reservedFor: ReservedFor
   ): Map[Id[ParkingZoneId], ParkingZone[TAZ]] = {
     val result = treeMap.getTAZs
       .zip(zones)
@@ -636,7 +630,7 @@ object ZonalParkingManagerSpec {
               None,
               taz.tazId,
               ParkingType.Workplace,
-              vehicleManagerId,
+              reservedFor,
               5,
               pricingModel = Some(FlatFee(3.0))
             )
