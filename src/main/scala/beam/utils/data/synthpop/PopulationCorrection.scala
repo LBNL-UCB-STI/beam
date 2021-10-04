@@ -44,18 +44,4 @@ object PopulationCorrection extends StrictLogging {
 
     finalResult
   }
-
-  private def showAgeCounts(hhToPeople: Map[Models.Household, Seq[Models.Person]]): Unit = {
-    val ages = hhToPeople.values.flatten
-      .map { person =>
-        person.age
-      }
-      .groupBy(x => x)
-      .toSeq
-      .map { case (age, xs) => (age, xs.size) }
-      .sortBy { case (age, _) => age }
-    ages.foreach { case (age, cnt) =>
-      logger.info(s"Age: $age, count: $cnt")
-    }
-  }
 }

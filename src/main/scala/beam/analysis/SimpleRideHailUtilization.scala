@@ -16,7 +16,7 @@ import scala.collection.mutable
 class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnalysis {
   // Offset is number of passengers, value is number of rides with that amount of passengers
   private var overallRideStat: Array[Int] = Array.fill[Int](0)(0)
-  private var iterOverallRideStat = mutable.Map[Int, Array[Int]]()
+  private val iterOverallRideStat = mutable.Map[Int, Array[Int]]()
 
   override def createGraph(event: IterationEndsEvent): Unit = {
     iterOverallRideStat += event.getIteration -> overallRideStat.clone()

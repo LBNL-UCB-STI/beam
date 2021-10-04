@@ -2,8 +2,6 @@ package beam.utils
 
 import java.io.File
 
-import beam.utils.ConfigConsistencyComparator.buildTopicWithKeysAndValues
-
 import scala.collection.JavaConverters._
 import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
@@ -45,6 +43,8 @@ object ConfigConsistencyComparator extends LazyLogging {
     val userMatsimConf = baseUserConf.withOnlyPath("matsim")
     val userConf = userBeamConf.withFallback(userMatsimConf).resolve(configResolver)
     val templateConf = ConfigFactory.parseFile(new File("src/main/resources/beam-template.conf")).resolve()
+
+    checkMapFilesDirectoriesConsistency(userConf)
 
     val duplicateKeys = findDuplicateKeys(userConfFileLocation)
     if (duplicateKeys.nonEmpty) {
@@ -147,7 +147,7 @@ object ConfigConsistencyComparator extends LazyLogging {
 
   def findNotFoundFiles(userConf: TypesafeConfig): Seq[(String, String)] = {
 
-    def resolve(key: String, value: ConfigValue): String = {
+    def resolve(value: ConfigValue): String = {
       try {
         value.unwrapped().toString
       } catch {
@@ -159,7 +159,7 @@ object ConfigConsistencyComparator extends LazyLogging {
     userConf
       .entrySet()
       .asScala
-      .map(entry => (entry.getKey, resolve(entry.getKey, entry.getValue)))
+      .map(entry => (entry.getKey, resolve(entry.getValue)))
       .filter { case (key, value) =>
         val shouldCheck = !ignorePaths.contains(key)
         shouldCheck && key.toLowerCase.endsWith("filepath") && value.nonEmpty && !new File(value).isFile
@@ -180,4 +180,36 @@ object ConfigConsistencyComparator extends LazyLogging {
       .mkString(borderLeft + eol, eol, eol)
   }
 
+  def checkMapFilesDirectoriesConsistency(userConf: TypesafeConfig): Unit = {
+    val r5config = userConf.getConfig("beam.routing.r5")
+    val r5directory = r5config.getString("directory")
+    val osmFile = r5config.getString("osmFile")
+    if (!osmFile.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that beam.routing.r5.osmFile points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$osmFile]"
+      )
+    }
+    val osmMapdbFile = r5config.getString("osmMapdbFile")
+    if (!osmMapdbFile.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that beam.routing.r5.osmMapdbFile points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$osmMapdbFile]"
+      )
+    }
+    val inputNetworkFilePath = userConf.getString("beam.physsim.inputNetworkFilePath")
+    if (!inputNetworkFilePath.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that beam.physsim.inputNetworkFilePath points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$inputNetworkFilePath]"
+      )
+    }
+    val matsimInputNetworkFile = userConf.getString("matsim.modules.network.inputNetworkFile")
+    if (!matsimInputNetworkFile.contains(r5directory)) {
+      throw new IllegalArgumentException(
+        s"It is expected that matsim.modules.network.inputNetworkFilePath points to the file inside beam.routing.r5.directory " +
+        s"[$r5directory]. Instead it points to: [$matsimInputNetworkFile]"
+      )
+    }
+  }
 }

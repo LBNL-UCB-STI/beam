@@ -226,7 +226,7 @@ ch <- rbindlist(chs)
 ch[,charge:=ifelse(grepl('P250',file),'P250','P50')]
 ch[,range:=ifelse(grepl('R150',file),'R150','R75')]
 ch[,qos:=ifelse(grepl('S60',file),'S60',ifelse(grepl('S70',file),'S70',ifelse(grepl('S80',file),'S80',ifelse(grepl('S90',file),'S90',ifelse(grepl('S95',file),'S95','S98')))))]
-ch.sum <- ch[reservedFor=='RideHailManager' & numStalls<2147483000 & chargingType=='DCFast',.(nchargers=sum(numStalls)),by=c('charge','range','qos')]
+ch.sum <- ch[reservedFor=='RideHailManager' & numStalls<2147483000 & chargingPointType=='DCFast',.(nchargers=sum(numStalls)),by=c('charge','range','qos')]
 
 library(stringr)
 

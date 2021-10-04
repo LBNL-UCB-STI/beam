@@ -55,7 +55,7 @@ class ChangeModeForTour(
 
   val stageActivityTypes = new CompositeStageActivityTypes()
 
-  def findAlternativesForTour(tour: Subtour, person: Person): Vector[BeamMode] = {
+  def findAlternativesForTour(person: Person): Vector[BeamMode] = {
     val res = weightedRandom.sample(1, Array())
     chainBasedTourVehicleAllocator.identifyChainBasedModesForAgent(person.getId) ++ Vector[
       BeamMode
@@ -68,7 +68,7 @@ class ChangeModeForTour(
     person: Person,
     modeChoiceCalculator: ModeChoiceCalculator
   ): Map[BeamMode, Double] = {
-    val alternativesForTour = findAlternativesForTour(tour, person)
+    val alternativesForTour = findAlternativesForTour(person)
     (for { alt <- alternativesForTour } yield {
       alt -> JavaConverters
         .collectionAsScalaIterable(tour.getTrips)
@@ -113,7 +113,7 @@ class ChangeModeForTour(
         beamScenario.fuelTypePrices(Gasoline) * distance
       case WALK => distance * 6 // MATSim Default
       case RIDE_HAIL =>
-        distance * DefaultRideHailCostPerMile.toDouble * (1 / 1609.34) // 1 mile = 1609.34
+        distance * DefaultRideHailCostPerMile * (1 / 1609.34) // 1 mile = 1609.34
       case a: BeamMode if a.isTransit =>
         TransitFareDefaults.faresByMode(beamMode)
     }
@@ -129,7 +129,7 @@ class ChangeModeForTour(
       case WALK =>
         tripDistanceInMeters / 1.4 // 1.4 m/s beeline walk (typical default)
       case RIDE_HAIL =>
-        tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute.toDouble
+        tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute
       case a: BeamMode if a.isTransit =>
         tripDistanceInMeters / transitSpeedDefault
     }
@@ -176,8 +176,7 @@ class ChangeModeForTour(
     } else {
       chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
         plan.getPerson.getId,
-        subtour,
-        plan
+        subtour
       )
     }
   }

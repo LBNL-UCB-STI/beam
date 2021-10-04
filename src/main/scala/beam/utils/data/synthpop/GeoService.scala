@@ -119,7 +119,7 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
       val wgsGeom = JTS.transform(geom.getGeometry, mathTransform)
       PumaGeoId(State(state), puma) -> wgsGeom
     }
-    ShapefileReader.read(crsCode, pathToPumaShapeFile, x => true, map).toMap
+    ShapefileReader.read(crsCode, pathToPumaShapeFile, _ => true, map).toMap
   }
 
   def coordinatesWithinBoundaries(wgsCoord: Coord): CheckResult = {
@@ -191,7 +191,7 @@ object GeoService {
     val foundFiles = search(new File(folderPath), filter, Set.empty, Set.empty)
     require(
       foundFiles.nonEmpty,
-      s"Could not find Shape files under folder '${folderPath}'. Please, make sure input is correct"
+      s"Could not find Shape files under folder '$folderPath'. Please, make sure input is correct"
     )
     foundFiles.toArray.sorted
   }

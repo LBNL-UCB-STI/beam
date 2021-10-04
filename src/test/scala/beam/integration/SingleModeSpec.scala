@@ -17,7 +17,6 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -160,10 +159,8 @@ class SingleModeSpec
             val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
               case activity: Activity if activity.getType == "Home" =>
                 Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity =>
-                Seq(activity)
-              case leg: Leg =>
-                Nil
+              case activity: Activity => Seq(activity)
+              case _: Leg             => Nil
             }.flatten
             if (newPlanElements.last.isInstanceOf[Leg]) {
               newPlanElements.remove(newPlanElements.size - 1)
@@ -219,12 +216,7 @@ class SingleModeSpec
       assert(seenEvent, "Have not seen `PersonDepartureEvent`")
 
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
-      val filteredEventsByPerson = eventsByPerson.filter {
-        _._2
-          .filter(_.isInstanceOf[ActivityEndEvent])
-          .sliding(2)
-          .exists(pair => pair.forall(activity => activity.asInstanceOf[ActivityEndEvent].getActType != "Home"))
-      }
+
       eventsByPerson.map {
         _._2.span {
           case event: ActivityEndEvent if event.getActType == "Home" =>

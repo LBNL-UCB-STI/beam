@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, HeavyDutyTruck, LightDutyTruck}
+import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
@@ -47,7 +47,7 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
-  val vehicleManager: Option[Id[VehicleManager]] = None,
+  val vehicleManagerId: AtomicReference[Id[VehicleManager]] = new AtomicReference(VehicleManager.AnyManager.managerId),
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
@@ -220,7 +220,6 @@ class BeamVehicle(
       )
 
     val primaryEnergyForFullLeg =
-      /*val (primaryEnergyForFullLeg, primaryLoggingData) =*/
       beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
         fuelConsumptionData,
         fallBack = powerTrain.getRateInJoulesPerMeter,
@@ -228,13 +227,11 @@ class BeamVehicle(
       )
     var primaryEnergyConsumed = primaryEnergyForFullLeg
     var secondaryEnergyConsumed = 0.0
-    /*var secondaryLoggingData = IndexedSeq.empty[LoggingData]*/
     fuelRWLock.write {
       if (primaryFuelLevelInJoulesInternal < primaryEnergyForFullLeg) {
         if (secondaryFuelLevelInJoulesInternal > 0.0) {
           // Use secondary fuel if possible
           val secondaryEnergyForFullLeg =
-            /*val (secondaryEnergyForFullLeg, secondaryLoggingData) =*/
             beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
               fuelConsumptionData,
               fallBack = powerTrain.getRateInJoulesPerMeter,

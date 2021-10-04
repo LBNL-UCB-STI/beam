@@ -4,7 +4,6 @@ import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode._
-import beam.router.model.{BeamLeg, BeamPath}
 import beam.router.skim.ActivitySimSkimmer.ActivitySimSkimmerInternal
 import beam.router.skim.SkimsUtils.distanceAndTime
 import beam.router.skim.core.AbstractSkimmerReadOnly
@@ -18,7 +17,6 @@ case class ActivitySimSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) 
     pathType: ActivitySimPathType,
     originUTM: Location,
     destinationUTM: Location,
-    departureTime: Int,
     vehicleTypeId: Id[BeamVehicleType],
     beamScenario: BeamScenario
   ): ActivitySimSkimmerInternal = {

@@ -6,7 +6,7 @@ import scala.collection.parallel.ParSet
 
 import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
 
-class ParkingEntriesContainer[T <: Any](
+class ParkingEntriesContainer[T](
   val parkingEntries: Seq[ParkingEntry[T]],
   private val idToCoordinates: Map[T, WgsCoordinate]
 ) {

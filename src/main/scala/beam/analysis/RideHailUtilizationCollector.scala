@@ -179,7 +179,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
             |totalRides: ${utilization.totalRides}
             |movedPassengers: ${utilization.movedPassengers}
             |numOfPassengersToTheNumberOfRides: ${utilization.numOfPassengersToTheNumberOfRides}
-            |numberOfRidesServedByNumberOfVehicles: ${sorted}
+            |numberOfRidesServedByNumberOfVehicles: $sorted
             |rideHailChoices: ${utilization.rideHailModeChoices}
             |rideHailInAlternatives: ${utilization.rideHailInAlternatives}
             |rideHailPooledChoices: ${utilization.rideHailPooledChoices}

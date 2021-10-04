@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, 
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.{ReservationResponse, ReserveConfirmInfo, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{ParkingAndChargingInfrastructure, ParkingNetworkManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{InfrastructureUtils, ParkingNetworkManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -99,8 +99,6 @@ class PersonAgentSpec
           )
         )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
-      val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK))
       val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
@@ -214,7 +212,7 @@ class PersonAgentSpec
         requestId = request1.requestId,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        request1.triggerId
+        triggerId = request1.triggerId
       )
 
       // This is the regular routing request.
@@ -251,7 +249,7 @@ class PersonAgentSpec
         requestId = request2.requestId,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        request2.triggerId
+        triggerId = request2.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -466,7 +464,7 @@ class PersonAgentSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        request3.triggerId
+        triggerId = request3.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -668,10 +666,8 @@ class PersonAgentSpec
         )
       )
 
-      val parkingManager = system.actorOf(
-        Props(new ParkingNetworkManager(services, ParkingAndChargingInfrastructure(services, boundingBox))),
-        "ParkingManager"
-      )
+      val (parkingNetworks, _, _) = InfrastructureUtils.buildParkingAndChargingNetworks(services, boundingBox)
+      val parkingManager = system.actorOf(Props(new ParkingNetworkManager(services, parkingNetworks)), "ParkingManager")
 
       //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
@@ -765,7 +761,7 @@ class PersonAgentSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest4.triggerId
+        triggerId = routingRequest4.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -825,7 +821,7 @@ class PersonAgentSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest5.triggerId
+        triggerId = routingRequest5.triggerId
       )
       events.expectMsgType[ModeChoiceEvent]
 

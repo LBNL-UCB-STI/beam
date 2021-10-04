@@ -1,9 +1,9 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -35,7 +35,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
   if (argsMap.size != 4) {
     println(
       "Usage: --taz-parking test/input/beamville/parking/taz-parking.csv" +
-      " --network test/input/beamville/physsim-network.xml" +
+      " --network test/input/beamville/r5/physsim-network.xml" +
       " --taz-centers test/input/beamville/taz-centers.csv --out test/input/beamville/parking/link-parking.csv"
     )
     System.exit(1)
@@ -50,8 +50,8 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     network
   }
 
-  val (parkingZones: Array[ParkingZone[TAZ]], zoneSearchTree: ZoneSearchTree[TAZ]) =
-    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random())
+  val (parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]], zoneSearchTree: ZoneSearchTree[TAZ]) =
+    ParkingZoneFileUtils.fromFile[TAZ](argsMap("taz-parking"), new Random(), None)
 
   val linkToTaz = LinkLevelOperations.getLinkToTazMapping(network, tazMap)
 
@@ -63,28 +63,25 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
     distributeParking(taz, links, parkingZones, zoneSearchTree)
   }
 
-  val zoneArrayLink: Array[ParkingZone[Link]] = zonesLink
+  val zoneArrayLink: Map[Id[ParkingZoneId], ParkingZone[Link]] = zonesLink
     .filter(_.maxStalls > 0)
     .zipWithIndex
-    .map { case (zone, idx) =>
-      new ParkingZone[Link](
-        parkingZoneId = idx,
+    .map { case (zone, _) =>
+      val zoneId = ParkingZone.init[Link](
+        None,
         geoId = zone.geoId,
         parkingType = zone.parkingType,
-        stallsAvailable = zone.stallsAvailable,
         maxStalls = zone.maxStalls,
         reservedFor = zone.reservedFor,
-        vehicleManager = zone.vehicleManager,
         chargingPointType = zone.chargingPointType,
         pricingModel = zone.pricingModel,
-        timeRestrictions = zone.timeRestrictions,
-        parkingZoneName = zone.parkingZoneName,
-        landCostInUSDPerSqft = zone.landCostInUSDPerSqft
+        timeRestrictions = zone.timeRestrictions
       )
+      zoneId.parkingZoneId -> zoneId
     }
-    .toArray
+    .toMap
 
-  val zoneSearchTreeLink = zoneArrayLink
+  val zoneSearchTreeLink = zoneArrayLink.values
     .groupBy(_.geoId)
     .mapValues { zones =>
       zones
@@ -92,14 +89,14 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
         .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toVector)
     }
 
-  logger.info("Generated {} zones", zoneArrayLink.length)
-  logger.info("with {} parking stalls", zoneArrayLink.map(_.stallsAvailable.toLong).sum)
+  logger.info("Generated {} zones", zoneArrayLink.size)
+  logger.info("with {} parking stalls", zoneArrayLink.map(_._2.stallsAvailable.toLong).sum)
   ParkingZoneFileUtils.writeParkingZoneFile(zoneSearchTreeLink, zoneArrayLink, argsMap("out"))
 
   private def distributeParking(
     taz: TAZ,
     links: List[Link],
-    parkingZones: Array[ParkingZone[TAZ]],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
     zoneSearchTree: ZoneSearchTree[TAZ]
   ) = {
     val totalLength = links.map(_.getLength).sum
@@ -122,19 +119,15 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
       randomZones.map { zone =>
         val zonesPerMeter = zone.maxStalls * multiplier / totalLength
         val numZones = Math.round(zonesPerMeter * link.getLength).toInt
-        new ParkingZone[Link](
-          parkingZoneId = -1,
+        ParkingZone.init[Link](
+          None,
           geoId = link.getId,
           parkingType = zone.parkingType,
-          stallsAvailable = numZones,
           maxStalls = numZones,
           reservedFor = zone.reservedFor,
-          vehicleManager = zone.vehicleManager,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
-          timeRestrictions = zone.timeRestrictions,
-          parkingZoneName = zone.parkingZoneName,
-          landCostInUSDPerSqft = zone.landCostInUSDPerSqft
+          timeRestrictions = zone.timeRestrictions
         )
       }
     }

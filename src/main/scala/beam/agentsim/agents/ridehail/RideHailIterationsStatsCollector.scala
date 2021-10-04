@@ -139,7 +139,7 @@ class RideHailIterationsStatsCollector(
 
     rideHailLastEvent.foreach(rhEvent => {
       val vehicleId = rhEvent._1
-      var idlingBins = vehicleIdlingBins.get(vehicleId) match {
+      val idlingBins = vehicleIdlingBins.get(vehicleId) match {
         case Some(bins) => bins
         case None =>
           val bins = mutable.Map[Int, String]()
@@ -387,13 +387,13 @@ class RideHailIterationsStatsCollector(
     val startY = currentEvent.startY
     val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
     val startTazId = getStartTazId(currentEvent)
-    val endTazId = getEndTazId(currentEvent)
+    getEndTazId(currentEvent)
 
     val startTime = currentEvent.departureTime
     val endTime = currentEvent.arrivalTime
 
     val startBin = getTimeBin(startTime)
-    val endingBin = getTimeBin(endTime)
+    getTimeBin(endTime)
 
 //    logger.debug(
 //      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
@@ -405,7 +405,7 @@ class RideHailIterationsStatsCollector(
 //        .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
 //    )
 
-    var idlingBins = vehicleIdlingBins.get(vehicleId) match {
+    val idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins
       case None =>
         val bins = mutable.Map[Int, String]()

@@ -32,8 +32,8 @@ object GTFSToShape extends LazyLogging {
   }
 
   def gtfsToShapefiles(zipFolderPath: String, outputPath: String): Unit = {
-    val gtfsFolder = new File(zipFolderPath);
-    val gtfsFiles = gtfsFolder.listFiles();
+    val gtfsFolder = new File(zipFolderPath)
+    val gtfsFiles = gtfsFolder.listFiles()
 
     val agencyToStops = mutable.HashMap.empty[Agency, mutable.Buffer[WgsCoordinate]]
     val sourceToStops = mutable.HashMap.empty[String, Int]
@@ -173,7 +173,7 @@ object GTFSToShape extends LazyLogging {
       }
     }
 
-    val f = new File(srcDir);
+    val f = new File(srcDir)
     val inputLooksFine = {
       if (f.exists) {
         if (f.isDirectory) {

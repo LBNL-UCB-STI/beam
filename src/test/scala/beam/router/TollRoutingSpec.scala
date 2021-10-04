@@ -22,6 +22,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
@@ -47,7 +48,7 @@ class TollRoutingSpec
   var beamScenario: BeamScenario = _
   var fareCalculator: FareCalculator = _
 
-  override def beforeAll: Unit = {
+  override def beforeAll(): Unit = {
     val beamConfig = BeamConfig(system.settings.config)
     beamScenario = loadScenario(beamConfig)
       .copy(fuelTypePrices = Map().withDefaultValue(0.0)) // Reset fuel prices to 0 so we get pure monetary costs
@@ -70,11 +71,10 @@ class TollRoutingSpec
         networkCoordinator.network,
         networkHelper,
         new GeoUtilsImpl(beamConfig),
-        scenario,
-        scenario.getTransitVehicles,
         fareCalculator,
         tollCalculator,
-        eventsManager = mock(classOf[EventsManager])
+        eventsManager = mock(classOf[EventsManager]),
+        ioController = mock(classOf[OutputDirectoryHierarchy])
       )
     )
   }
@@ -138,11 +138,10 @@ class TollRoutingSpec
           networkCoordinator.network,
           new NetworkHelperImpl(networkCoordinator.network),
           new GeoUtilsImpl(beamScenario.beamConfig),
-          scenario,
-          scenario.getTransitVehicles,
           fareCalculator,
           moreExpensiveTollCalculator,
-          eventsManager = mock(classOf[EventsManager])
+          eventsManager = mock(classOf[EventsManager]),
+          ioController = mock(classOf[OutputDirectoryHierarchy])
         )
       )
       moreExpensiveRouter ! request
@@ -214,7 +213,7 @@ class TollRoutingSpec
 
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     shutdown()
   }
 

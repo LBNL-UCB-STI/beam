@@ -1,16 +1,7 @@
 package beam.utils
 
-import java.io._
-import java.net.URL
-import java.nio.charset.StandardCharsets
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
-import java.text.SimpleDateFormat
-import java.util.stream
-import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
-
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
-import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.GetObjectRequest
 import com.typesafe.scalalogging.LazyLogging
@@ -20,10 +11,16 @@ import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
+import java.io._
+import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.text.SimpleDateFormat
+import java.util.stream
+import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 import scala.util.{Failure, Random, Success, Try}
@@ -443,11 +440,12 @@ object FileUtils extends LazyLogging {
     saver: (Int, Path, BufferedWriter) => Unit
   ): Unit = {
     assert(numberOfParts > 0, "numberOfParts must be greater than zero")
-    assert(fileNamePattern.contains("$i"), "fileNamePattern must contain $i for substitution")
+    val strPattern = "$i"
+    assert(fileNamePattern.contains(strPattern), s"fileNamePattern must contain $strPattern for substitution")
     import scala.concurrent.ExecutionContext.Implicits._
     val fileList = (1 to numberOfParts)
       .map { i =>
-        (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
+        (i, Paths.get(outputDir.toString, fileNamePattern.replace(strPattern, i.toString)))
       }
     val futures = fileList.map { case (i: Int, path: Path) =>
       Future {

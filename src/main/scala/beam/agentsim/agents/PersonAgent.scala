@@ -20,7 +20,8 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.events.{RideHailReservationConfirmationEvent, _}
+import beam.agentsim.events._
+import beam.agentsim.infrastructure.ChargingNetworkManager.{StartingRefuelSession, UnhandledVehicle, WaitingToCharge}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -31,8 +32,8 @@ import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_H
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
+import beam.router.skim.ActivitySimSkimmerEvent
 import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
-import beam.router.skim.{ActivitySimSkimmerEvent, Skims}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
@@ -47,6 +48,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -278,7 +280,8 @@ class PersonAgent(
   val body: BeamVehicle = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType
+    bodyType,
+    vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
@@ -375,8 +378,7 @@ class PersonAgent(
                       CAR,
                       currentBeamVehicle.beamVehicleType.id,
                       currentBeamVehicle.beamVehicleType,
-                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType),
-                      beamServices.beamScenario
+                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType)
                     )
                     .distance
                 )
@@ -402,7 +404,7 @@ class PersonAgent(
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(timeInSeconds: Double, beamMode: Option[BeamMode] = None): Double = {
+  def scaleTimeByValueOfTime(timeInSeconds: Double): Double = {
     attributes.unitConversionVOTT(
       timeInSeconds
     ) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
@@ -767,11 +769,11 @@ class PersonAgent(
   }
 
   when(TryingToBoardVehicle) {
-    case Event(Boarded(vehicle, _), basePersonData: BasePersonData) =>
+    case Event(Boarded(vehicle, _), _: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable(triggerId), basePersonData: BasePersonData) =>
+    case Event(NotAvailable(_), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
@@ -1155,7 +1157,7 @@ class PersonAgent(
 
   }
 
-  def handleBoardOrAlightOutOfPlace(triggerId: Long, currentTrip: Option[EmbodiedBeamTrip]): State = {
+  def handleBoardOrAlightOutOfPlace: State = {
     stash
     stay
   }
@@ -1187,93 +1189,37 @@ class PersonAgent(
         logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
       }
       stop
-    case Event(
-          TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
-          ChoosesModeData(
-            BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          )
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
-    case Event(
-          TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
-          ChoosesModeData(
-            BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _),
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          )
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
+    case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: ChoosesModeData) =>
+      handleBoardOrAlightOutOfPlace
+    case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: ChoosesModeData) =>
+      handleBoardOrAlightOutOfPlace
     case Event(
           TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
           BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())
-    case Event(
-          TriggerWithId(BoardVehicleTrigger(_, _), triggerId),
-          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
-    case Event(
-          TriggerWithId(AlightVehicleTrigger(_, _, _), triggerId),
-          BasePersonData(_, currentTrip, _, _, _, _, _, _, _, _, _, _)
-        ) =>
-      handleBoardOrAlightOutOfPlace(triggerId, currentTrip)
-    case Event(NotifyVehicleIdle(_, _, _, _, _, _), _) =>
+    case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: BasePersonData) =>
+      handleBoardOrAlightOutOfPlace
+    case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: BasePersonData) =>
+      handleBoardOrAlightOutOfPlace
+    case Event(_: NotifyVehicleIdle, _) =>
       stay()
-    case Event(TriggerWithId(RideHailResponseTrigger(_, _), triggerId), _) =>
-      stay() replying CompletionNotice(triggerId)
-    case Event(
-          TriggerWithId(EndRefuelSessionTrigger(tick, sessionDuration, fuelAddedInJoule, vehicle), triggerId),
-          _
-        ) =>
-      log.info(s"PersonAgent: EndRefuelSessionTrigger. tick: $tick, vehicle: $vehicle")
-      if (vehicle.isConnectedToChargingPoint()) {
-        handleEndCharging(tick, vehicle, sessionDuration, fuelAddedInJoule, triggerId)
-      }
+    case Event(TriggerWithId(_: RideHailResponseTrigger, triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
+    case ev @ Event(StartingRefuelSession(_, _, _), _) =>
+      log.debug("myUnhandled.StartingRefuelSession: {}", ev)
+      stay()
+    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+      log.debug("myUnhandled.UnhandledVehicle: {}", ev)
+      stay()
+    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
+      log.debug("myUnhandled.WaitingInLine: {}", ev)
+      stay()
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
       stay()
@@ -1282,5 +1228,4 @@ class PersonAgent(
   whenUnhandled(drivingBehavior.orElse(myUnhandled))
 
   override def logPrefix(): String = s"PersonAgent:$id "
-
 }

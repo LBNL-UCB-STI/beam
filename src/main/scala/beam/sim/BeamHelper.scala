@@ -12,15 +12,15 @@ import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
 import beam.matsim.{CustomPlansDumpingImpl, MatsimConfigUpdater}
+import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
-import beam.replanning.{StaticModes, _}
 import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5._
-import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
+import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -31,6 +31,7 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationScaling
 import beam.sim.termination.TerminationCriterionProvider
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.generic.GenericScenarioSource
@@ -38,14 +39,13 @@ import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
-import beam.utils.{NetworkHelper, _}
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
 import com.google.inject.Scopes
 import com.google.inject.name.Names
-import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.network.Link
@@ -60,11 +60,11 @@ import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.{Household, Households, Income, IncomeImpl}
+import org.matsim.households.{Household, Households}
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
-import java.io.{File, FileOutputStream, PrintWriter}
+import java.io.FileOutputStream
 import java.nio.file.{Files, Paths, StandardCopyOption}
 import java.time.ZonedDateTime
 import java.util.Properties
@@ -282,7 +282,7 @@ trait BeamHelper extends LazyLogging {
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(path => TAZTreeMap.getTazTreeMap(path))
+    val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(TAZTreeMap.getTazTreeMap)
     val linkQuadTree: QuadTree[Link] =
       LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
     val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
@@ -308,10 +308,7 @@ trait BeamHelper extends LazyLogging {
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
       privateVehicles(beamConfig, vehicleTypes) ++ freightCarriers.flatMap(_.fleet),
-      new VehicleEnergy(
-        consumptionRateFilterStore,
-        vehicleCsvReader.getLinkToGradeRecordsUsing
-      ),
+      new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
       beamConfig,
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
@@ -358,7 +355,8 @@ trait BeamHelper extends LazyLogging {
         readVehiclesFile(
           beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
           vehicleTypes,
-          beamConfig.matsim.modules.global.randomSeed
+          beamConfig.matsim.modules.global.randomSeed,
+          VehicleManager.AnyManager.managerId
         ).toSeq: _*
       )
     }
@@ -623,10 +621,7 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
-  def buildBeamServices(
-    injector: inject.Injector,
-    scenario: MutableScenario
-  ): BeamServices = {
+  def buildBeamServices(injector: inject.Injector): BeamServices = {
     val result = injector.getInstance(classOf[BeamServices])
     result
   }
@@ -919,26 +914,6 @@ trait BeamHelper extends LazyLogging {
     BeamExecutionConfig(beamConfig, matsimConfig, outputDirectory)
   }
 
-  /**
-    * This method merges all configuration parameters into a single file including parameters from
-    * 'include' statements. Two full config files are written out: One without comments and one with
-    * comments in JSON format.
-    * @param config the input config file
-    * @param outputDirectory output folder where full configs will be generated
-    */
-  private def writeFullConfigs(config: TypesafeConfig, outputDirectory: String) = {
-    val configConciseWithoutJson = config.root().render(ConfigRenderOptions.concise().setFormatted(true).setJson(false))
-    writeStringToFile(configConciseWithoutJson, new File(outputDirectory, "fullBeamConfig.conf"))
-
-    writeStringToFile(config.root().render(), new File(outputDirectory, "fullBeamConfigJson.conf"))
-  }
-
-  private def writeStringToFile(text: String, output: File) = {
-    val fileWriter = new PrintWriter(output)
-    fileWriter.write(text)
-    fileWriter.close
-  }
-
   protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
     val result = if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
       FrequencyAdjustingNetworkCoordinator(beamConfig)
@@ -986,17 +961,6 @@ trait BeamHelper extends LazyLogging {
 
   def run(beamServices: BeamServices) {
     beamServices.controler.run()
-  }
-
-  private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
-    vehicleIds
-      .groupBy(vehicleId =>
-        beamScenario.privateVehicles.get(vehicleId).map(_.beamVehicleType.id.toString).getOrElse("")
-      )
-      .map { case (vehicleType, ids) =>
-        s"$vehicleType (${ids.size})"
-      }
-      .mkString(" , ")
   }
 
   private def buildUrbansimScenarioSource(

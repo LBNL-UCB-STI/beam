@@ -95,15 +95,8 @@ object CoordInBoundsUtil extends App {
 
   def readPlansFile(filePath: String): ListBuffer[Coord] = {
     readCsvFileByLine(filePath, ListBuffer[Coord]()) { case (line, acc) =>
-      val personId = line.get("personId")
-      val planElement = line.get("planElement")
-      val planElementId = line.get("planElementId")
-      val activityType = line.get("activityType")
       val lng = line.get("x")
       val lat = line.get("y")
-
-      val endTime = line.get("endTime")
-      val mode = line.get("mode")
 
       (lng, lat) match {
         case (lng_, lat_) if lng_ != null && lat_ != null => acc += new Coord(lng.toDouble, lat.toDouble)

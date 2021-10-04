@@ -9,7 +9,7 @@ import scala.util.Try
 class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
 
   def read(): Seq[Household] = {
-    val (it, toClose) = GenericCsvReader.readAs[Household](pathToHouseholdFile, toHousehold, x => true)
+    val (it, toClose) = GenericCsvReader.readAs[Household](pathToHouseholdFile, toHousehold, _ => true)
     try {
       it.toVector
     } finally {
@@ -21,8 +21,8 @@ class HouseholdReader(val pathToHouseholdFile: String) extends StrictLogging {
     // Get the details of columns from https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2017.pdf?
 
     val compoundId = {
-      val serialNo = GenericCsvReader.getIfNotNull(rec, "serialno").toString
-      val id = GenericCsvReader.getIfNotNull(rec, "id").toString
+      val serialNo = GenericCsvReader.getIfNotNull(rec, "serialno")
+      val id = GenericCsvReader.getIfNotNull(rec, "id")
       HouseholdReader.getCompoundHouseholdId(serialNo, id)
     }
 

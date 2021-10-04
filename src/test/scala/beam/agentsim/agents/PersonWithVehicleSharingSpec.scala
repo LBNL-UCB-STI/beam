@@ -1,7 +1,5 @@
 package beam.agentsim.agents
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.{ActorSystem, Props}
 import akka.pattern._
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
@@ -15,7 +13,6 @@ import beam.agentsim.agents.household.HouseholdActor.{
   MobilityStatusResponse,
   ReleaseVehicle
 }
-import beam.agentsim.agents.household.HouseholdFleetManager
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
@@ -43,9 +40,10 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
-import org.matsim.vehicles._
 import org.scalatest.funspec.AnyFunSpecLike
 
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -100,7 +98,7 @@ class PersonWithVehicleSharingSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId)
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"))
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -153,19 +151,24 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager]))
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
-        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
-          vehicle.useParkingStall(stall)
-          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0
+      )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+        vehicle.useParkingStall(stall)
+        MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       // The agent will ask for current travel times for a route it already knows.
       val embodyRequest = mockRouter.expectMsgType[EmbodyWithCurrentTravelTime]
@@ -193,7 +196,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        embodyRequest.triggerId
+        triggerId = embodyRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -252,7 +255,7 @@ class PersonWithVehicleSharingSpec
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
       val person: Person =
-        createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, withRoute = false, returnTrip = true)
+        createTestPerson(Id.createPersonId("dummyAgent"), withRoute = false, returnTrip = true)
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -306,19 +309,24 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager]))
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
-        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
-          vehicle.setReservedParkingStall(Some(stall))
-          vehicle.useParkingStall(stall)
-          MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0
+      )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+        vehicle.setReservedParkingStall(Some(stall))
+        vehicle.useParkingStall(stall)
+        MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       val routingRequest = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
@@ -371,7 +379,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest.triggerId
+        triggerId = routingRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -416,15 +424,18 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager]))
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
-      (parkingManager ? parkingInquiry(SpaceTime(0.01, 0.01, 61200)))
-        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
-          vehicle2.setReservedParkingStall(Some(stall))
-          vehicle2.useParkingStall(stall)
-          MobilityStatusResponse(Vector(ActualVehicle(vehicle2)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.01, 0.01, 61200),
+        "wherever",
+        triggerId = 0
+      )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+        vehicle2.setReservedParkingStall(Some(stall))
+        vehicle2.useParkingStall(stall)
+        MobilityStatusResponse(Vector(ActualVehicle(vehicle2)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       val routingRequest2 = mockRouter.expectMsgType[RoutingRequest]
       mockRouter.lastSender ! RoutingResponse(
@@ -457,7 +468,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest2.triggerId
+        triggerId = routingRequest2.triggerId
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -473,13 +484,15 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManager = Some(Id.create("shared-fleet-1", classOf[VehicleManager]))
+        vehicleManagerId = new AtomicReference(
+          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+        )
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
-      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id)
+      val person1: Person = createTestPerson(Id.createPersonId("dummyAgent"))
       population.addPerson(person1)
-      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, 20)
+      val person2: Person = createTestPerson(Id.createPersonId("dummyAgent2"), 20)
       population.addPerson(person2)
 
       val modeChoiceEvents = TestProbe()
@@ -553,11 +566,15 @@ class PersonWithVehicleSharingSpec
       scheduler ! StartSchedule(0)
 
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
-      (parkingManager ? parkingInquiry(SpaceTime(0.0, 0.0, 28800)))
-        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
-          car1.useParkingStall(stall)
-          MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1)), triggerId)
-        } pipeTo mockSharedVehicleFleet.lastSender
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0
+      )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+        car1.useParkingStall(stall)
+        MobilityStatusResponse(Vector(Token(car1.id, car1.getManager.get, car1)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
 
       mockRouter.expectMsgPF() { case EmbodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, _, triggerId) =>
         assert(vehicleId == car1.id, "Agent should ask for route with the car I gave it.")
@@ -580,7 +597,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -621,7 +638,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -660,7 +677,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -671,7 +688,6 @@ class PersonWithVehicleSharingSpec
 
   private def createTestPerson(
     personId: Id[Person],
-    vehicleId: Id[Vehicle],
     departureTimeOffset: Int = 0,
     withRoute: Boolean = true,
     returnTrip: Boolean = false
@@ -715,8 +731,6 @@ class PersonWithVehicleSharingSpec
     person.addPlan(plan)
     person
   }
-
-  def parkingInquiry(whenWhere: SpaceTime): ParkingInquiry = ParkingInquiry(whenWhere, "wherever", triggerId = 0)
 
   override def afterAll(): Unit = {
     super.afterAll()

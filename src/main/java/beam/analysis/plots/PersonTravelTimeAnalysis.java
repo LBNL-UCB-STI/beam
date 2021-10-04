@@ -53,6 +53,8 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     public static class PersonTravelTimeComputation implements StatsComputation<Map<String, Map<Integer, List<Double>>>, Tuple<List<String>, Tuple<double[][], Double>>> {
 
+        private final Logger log = LoggerFactory.getLogger(PersonTravelTimeComputation.class);
+
         /**
          * Computes the required stats from the given input.
          *
@@ -66,7 +68,13 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             // Extract the hours of the day recorded and sort them in order
             List<Integer> hoursList = stat.values().stream().flatMap(m -> m.keySet().stream()).sorted().collect(Collectors.toList());
             // Get the maximum hour value
-            int maxHour = hoursList.get(hoursList.size() - 1);
+            int maxHour;
+            if (hoursList.isEmpty()) {
+                log.warn("hoursList is empty, maxHour is set to 0");
+                maxHour = 0;
+            } else {
+                maxHour = hoursList.get(hoursList.size() - 1);
+            }
             // A 2D matrix to store average travel times by mode and hour (rows = travel mode ; columns = hour of the day)
             double[][] averageTravelTimesByModeAndHour = new double[travelModes.size()][maxHour + 1];
             for (int i = 0; i < travelModes.size(); i++) {
@@ -171,9 +179,13 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         String csvFileName = ioCotroller.getIterationFilename(iteration, fileBaseName + ".csv");
         try (BufferedWriter out = new BufferedWriter(new FileWriter(new File(csvFileName)))) {
             StringBuilder heading = new StringBuilder("TravelTimeMode\\Hour");
-            int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(dataSets[0].length);
-            for (int hour = 0; hour <= hours; hour++) {
-                heading.append(",").append(hour);
+            int hours = Arrays.stream(dataSets).mapToInt(value -> value.length).max().orElse(0);
+            if (hours != 0) {
+                for (int hour = 0; hour <= hours; hour++) {
+                    heading.append(",").append(hour);
+                }
+            } else {
+                log.warn(String.format("dataSets is empty, no data for %s.csv", fileBaseName));
             }
             out.write(heading.toString());
             out.newLine();
