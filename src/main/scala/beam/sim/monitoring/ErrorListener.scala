@@ -5,7 +5,7 @@ import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, InterruptedWhileOffline}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
-import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
+import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, WorkAvailable}
@@ -40,8 +40,14 @@ class ErrorListener() extends Actor with ActorLogging {
           d.sender ! CompletionNotice(triggerId)
         // Allow RHM to continue
         case interrupt: Interrupt =>
-          log.error(s"Received $interrupt from ${d.sender}")
-          d.sender ! InterruptedWhileOffline
+          log.error(s"Received $interrupt from ${d.sender} supposed to go to ${d.recipient}")
+
+          d.sender ! InterruptedWhileOffline(
+            interrupt.interruptId,
+            interrupt.vehicleId,
+            interrupt.tick,
+            interrupt.triggerId
+          )
         case m: RoutingRequest =>
           log.debug(
             "Retrying {} via {} tell {} using {}",
