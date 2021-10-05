@@ -347,7 +347,7 @@ parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
 
 
 #####
-eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events.csv.gz"
+eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events (3).csv.gz"
 events <- readCsv(pp(workDir, eventsFile))
 rse <- events[type=='RefuelSessionEvent']
 #rse[,.N,by=.(parkingType,chargingPointType)]
@@ -373,4 +373,7 @@ print(pp("Home: ",home))
 #   ggplot(aes((timeBin*300)/3600.,N,colour=chargingPointType2)) +
 #   geom_line()
 
+ggplot() + 
+  aes(runif(1000000)) +
+  geom_histogram(binwidth=0.05, colour="black", fill="white")
 
