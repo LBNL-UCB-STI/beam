@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
@@ -76,10 +77,10 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   }
 
   "PowerController when connected to grid" should {
+    val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
     val powerController: PowerController =
       new PowerController(
-        chargingNetwork,
-        rideHailNetwork,
+        chargingNetworkHelper,
         beamConfig,
         SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
       ) {
@@ -98,10 +99,10 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   }
 
   "PowerController when not connected to grid" should {
+    val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
     val powerController: PowerController =
       new PowerController(
-        chargingNetwork,
-        rideHailNetwork,
+        chargingNetworkHelper,
         beamConfig,
         SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
       ) {

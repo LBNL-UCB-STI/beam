@@ -177,7 +177,7 @@ trait ChoosesParking extends {
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
         chargingNetworkManager ! ChargingUnplugRequest(
-          tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+          tick,
           currentBeamVehicle,
           triggerId
         )

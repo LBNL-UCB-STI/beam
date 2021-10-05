@@ -82,7 +82,7 @@ trait ScaleUpCharging extends {
         val timeStep = acc + nextTimePoisson(elem)
         val startTime = MathUtils.roundUniformly(timeBin + timeStep, rand).toInt
         val duration = MathUtils.roundUniformly(rand.nextGaussian() * data.avgDuration * data.sdDuration, rand).toInt
-        val parkingZone = getAppropriateChargingNetwork(data.managerId).chargingZones(parkingZoneId)
+        val parkingZone = chargingNetworkHelper.get(data.managerId).chargingZones(parkingZoneId)
         val activityType = parkingZone.parkingType match {
           case ParkingType.Residential => ParkingActivityType.Home
           case ParkingType.Public      => ParkingActivityType.Wherever
