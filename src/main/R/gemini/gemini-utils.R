@@ -15,12 +15,6 @@ loadTypes <- data.table::data.table(
     "Work-L2", "Work-L2",
     "DCFC", "DCFC", "XFC", "XFC"))
 
-test <- 3600
-for(i in 1:500) {
-  test <- test + nextTimePoisson(2000)*3600
-}
-print(test)
-
 nextTimePoisson <- function(rate) {
   return(-log(1.0 - runif(1)) / rate)
 }
