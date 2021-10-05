@@ -22,7 +22,7 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
     extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._
@@ -262,20 +262,20 @@ object ChargingNetwork extends LazyLogging {
     import ChargingStatus._
     private val chargingVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 
-    private val gracedVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
+    private val vehiclesInGracePeriodAfterCharging = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 
     private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
     private[ChargingNetwork] def numAvailableChargers: Int =
-      zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreGraced
+      zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
     private[ChargingNetwork] def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
       chargingVehiclesInternal.toMap
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
-    def howManyVehiclesAreGraced: Int = gracedVehiclesInternal.size
+    def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
 
     private[ChargingNetwork] def waitingLineVehiclesMap: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
@@ -286,7 +286,7 @@ object ChargingNetwork extends LazyLogging {
     private[ChargingNetwork] def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
       chargingVehiclesInternal
         .get(vehicleId)
-        .orElse(gracedVehiclesInternal.get(vehicleId))
+        .orElse(vehiclesInGracePeriodAfterCharging.get(vehicleId))
         .orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
 
     /**
@@ -329,7 +329,7 @@ object ChargingNetwork extends LazyLogging {
     private[infrastructure] def endCharging(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] =
       this.synchronized {
         chargingVehiclesInternal.remove(vehicleId).map { v =>
-          gracedVehiclesInternal.put(vehicleId, v)
+          vehiclesInGracePeriodAfterCharging.put(vehicleId, v)
           v.updateStatus(GracePeriod, tick)
         }
       }
@@ -344,7 +344,7 @@ object ChargingNetwork extends LazyLogging {
         chargingVehiclesInternal
           .remove(vehicleId)
           .map(_.updateStatus(Disconnected, tick))
-          .orElse(gracedVehiclesInternal.remove(vehicleId).map(_.updateStatus(Disconnected, tick)))
+          .orElse(vehiclesInGracePeriodAfterCharging.remove(vehicleId).map(_.updateStatus(Disconnected, tick)))
           .orElse {
             waitingLineInternal.find(_.vehicle.id == vehicleId) map { chargingVehicle =>
               waitingLineInternal = waitingLineInternal.filterNot(_.vehicle.id == vehicleId)
@@ -368,7 +368,7 @@ object ChargingNetwork extends LazyLogging {
     private[ChargingNetwork] def clearAllVehiclesFromTheStation(): Unit = {
       chargingVehiclesInternal.clear()
       waitingLineInternal.clear()
-      gracedVehiclesInternal.clear()
+      vehiclesInGracePeriodAfterCharging.clear()
     }
   }
 

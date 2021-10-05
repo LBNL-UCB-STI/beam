@@ -1,7 +1,6 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -97,7 +96,7 @@ class BeamVehicle(
   private var chargerConnectedTick: Option[Int] = None
   private var chargerConnectedPrimaryFuel: Option[Double] = None
 
-  private var waitingToCharge: Boolean = false
+  private var waitingToChargeInternal: Boolean = false
   private var waitingToChargeTick: Option[Int] = None
 
   /**
@@ -149,7 +148,7 @@ class BeamVehicle(
   def waitingToCharge(startTick: Int): Unit = {
     if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
       chargerRWLock.write {
-        waitingToCharge = true
+        waitingToChargeInternal = true
         waitingToChargeTick = Some(startTick)
         connectedToCharger = false
         chargerConnectedTick = None
@@ -172,7 +171,7 @@ class BeamVehicle(
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
         chargerConnectedPrimaryFuel = Some(primaryFuelLevelInJoules)
-        waitingToCharge = false
+        waitingToChargeInternal = false
         waitingToChargeTick = None
       }
     } else
@@ -187,7 +186,7 @@ class BeamVehicle(
       connectedToCharger = false
       chargerConnectedTick = None
       chargerConnectedPrimaryFuel = None
-      waitingToCharge = false
+      waitingToChargeInternal = false
       waitingToChargeTick = None
     }
   }

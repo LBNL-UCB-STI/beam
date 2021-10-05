@@ -17,7 +17,7 @@ import glob
 #If there is ever a programmatic way to update the cloud config then this could be moved to a lambda
 #Until then it should be setup as a cron job per below - to be executed once every 2 days at 2 AM
 # sudo crontab -e
-# 0 2 */2 * * /home/ubuntu/AMI_Cleanup.py >> /home/ubuntu/AMI_Cleanup.log 2>&1
+# 0 2 */2 * * pip install boto3 && pip install python-dateutil && pip install pytz && /usr/bin/python2 /home/ubuntu/AMI_Cleanup.py >> /home/ubuntu/AMI_Cleanup.log 2>&1
 #Jenkins is/should be set up to use beambox
 
 utc=pytz.UTC

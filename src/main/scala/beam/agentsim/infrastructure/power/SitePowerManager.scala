@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure.power
 
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.skim.event
 import beam.sim.BeamServices
@@ -12,15 +12,13 @@ import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
-class SitePowerManager(
-  chargingNetwork: ChargingNetwork[_],
-  rideHailNetwork: ChargingNetwork[_],
-  beamServices: BeamServices
-) extends LazyLogging {
+class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamServices: BeamServices) extends LazyLogging {
   import SitePowerManager._
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
-  private lazy val allChargingStations = chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
+
+  private lazy val allChargingStations =
+    chargingNetworkHelper.chargingNetwork.chargingStations ++ chargingNetworkHelper.rideHailNetwork.chargingStations
   private[infrastructure] val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(allChargingStations).value
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
 

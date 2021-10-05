@@ -5,7 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode._
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
@@ -118,6 +118,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       embodyRequestId,
       None,
       isEmbodyWithCurrentTravelTime = true,
+      searchedModes = Set.empty,
       triggerId
     )
     response
@@ -823,6 +824,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
     }
 
+    val modesWeSearched =
+      searchedModes(request, buildDirectCarRoute, buildDirectWalkRoute, isRouteForPerson, mainRouteRideHailTransit)
+
     val routingResponse = if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
       val maybeBody = accessVehicles.find(_.mode == WALK)
       if (buildDirectWalkRoute && maybeBody.isDefined) {
@@ -838,6 +842,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           request.requestId,
           Some(request),
           isEmbodyWithCurrentTravelTime = false,
+          modesWeSearched,
           request.triggerId
         )
       } else {
@@ -846,6 +851,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           request.requestId,
           Some(request),
           isEmbodyWithCurrentTravelTime = false,
+          modesWeSearched,
           request.triggerId
         )
       }
@@ -855,11 +861,42 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         request.requestId,
         Some(request),
         isEmbodyWithCurrentTravelTime = false,
+        modesWeSearched,
         request.triggerId
       )
     }
 
     routingResponse
+  }
+
+  private def searchedModes(
+    request: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean,
+    isRouteForPerson: Boolean,
+    mainRouteRideHailTransit: Boolean
+  ): Set[BeamMode] = {
+    val searchedModes: Set[BeamMode] = if (mainRouteRideHailTransit) {
+      Set(RIDE_HAIL_TRANSIT)
+    } else if (!isRouteForPerson) {
+      Set(RIDE_HAIL)
+    } else {
+      val hasBike = request.streetVehicles.exists(_.mode == BIKE)
+      val hasCar = request.streetVehicles.exists(_.mode == CAR)
+      val modes: Set[BeamMode] = (hasBike, hasCar) match {
+        case (false, false) => Set(WALK)
+        case (true, false)  => Set(WALK, BIKE)
+        case (false, true)  => Set(WALK, CAR)
+        case (true, true)   => Set(WALK, BIKE, CAR)
+      }
+      if (request.withTransit) modes + TRANSIT else modes
+    }
+    (buildDirectWalkRoute, buildDirectCarRoute) match {
+      case (true, true)   => searchedModes
+      case (false, false) => searchedModes - WALK - CAR
+      case (false, true)  => searchedModes - WALK
+      case (true, false)  => searchedModes - CAR
+    }
   }
 
   private def getDistanceBetweenStops(fromStop: Stop, toStop: Stop): Double = {

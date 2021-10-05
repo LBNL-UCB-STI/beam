@@ -13,6 +13,7 @@ import beam.utils.{FileUtils, MathUtils}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
+import org.apache.commons.lang3.StringUtils.isBlank
 
 import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
@@ -455,7 +456,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       logger.error(s"Failed to match row of parking configuration '$csvRow' to expected schema")
       return None
     }
-    implicit val parkingStallCountScalingFactorImplicit: Double = parkingStallCountScalingFactor
     implicit val randImplicit: Random = rand
     val tazString = csvRow.get("taz")
     val parkingTypeString = csvRow.get("parkingType")
@@ -478,28 +478,23 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
-      val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor)
+      val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
         else Some(ParkingZone.createId(parkingZoneIdString))
-      val linkMaybe =
-        (if (locationXString == null || locationXString.isEmpty || locationYString == null || locationYString.isEmpty)
-           None
-         else
-           Some(new Coord(locationXString.toDouble, locationYString.toDouble))) match {
-          case Some(coord) if beamServices.isDefined =>
-            Some(
-              NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord))
+      val linkMaybe = !isBlank(locationXString) && !isBlank(locationYString) match {
+        case true if beamServices.isDefined =>
+          val coord = new Coord(locationXString.toDouble, locationYString.toDouble)
+          Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
+        case false if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
+          getHouseholdLocation(beamServices.get, reservedFor.managerId.toString) map { homeCoord =>
+            NetworkUtils.getNearestLink(
+              beamServices.get.beamScenario.network,
+              homeCoord
             )
-          case None if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
-            getHouseholdLocation(beamServices.get, reservedFor.managerId.toString) map { homeCoord =>
-              NetworkUtils.getNearestLink(
-                beamServices.get.beamScenario.network,
-                homeCoord
-              )
-            }
-          case _ => None
-        }
+          }
+        case _ => None
+      }
       val parkingZone =
         ParkingZone.init(
           parkingZoneIdMaybe,
@@ -523,18 +518,17 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     }
   }
 
-  private def calculateNumStalls(
-    initialNumStalls: Double,
-    reservedFor: ReservedFor
-  )(implicit parkingStallCountScalingFactor: Double, rand: Random): Int = {
+  private def calculateNumStalls(initialNumStalls: Double, reservedFor: ReservedFor, scalingFactor: Double)(implicit
+    rand: Random
+  ): Int = {
     reservedFor.managerType match {
       case VehicleManager.TypeEnum.Household =>
-        if (rand.nextDouble() <= parkingStallCountScalingFactor)
+        if (rand.nextDouble() <= scalingFactor)
           initialNumStalls.toInt
         else
           0
       case _ =>
-        val expectedNumberOfStalls = initialNumStalls * parkingStallCountScalingFactor
+        val expectedNumberOfStalls = initialNumStalls * scalingFactor
         MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt
     }
   }

@@ -215,7 +215,7 @@ oakland_charging_events_merged_with_urbansim_tripIds_scaledUpby10 <- scaleUpAllS
 #   quote=FALSE,
 #   na="")
 # ##
-# 
+#
 # uncontrained_rh_parking <- readCsv(pp(workDir, "/gemini_depot_parking_power_150kw.csv"))
 # uncontrained_rh_parking[,`:=`(parkingZoneId=paste("X-REV",taz,1:.N,sep="-")),by=.(taz)]
 # uncontrained_rh_parking[taz %in% alameda_oakland_tazs,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),by=.(taz)]
@@ -225,10 +225,10 @@ oakland_charging_events_merged_with_urbansim_tripIds_scaledUpby10 <- scaleUpAllS
 #   row.names=FALSE,
 #   quote=FALSE,
 #   na="")
-# 
+#
 # 
 # initInfra_1_5_updated_constrained_non_AlamedaOakland[startsWith(reservedFor, "household")]
-# 
+#
 # initInfra_1_5[household_id == 1800619]
 
 
@@ -269,7 +269,7 @@ setFees <- function(DF, DF_FEE) {
       for (i in 1:dim(DF_TEMP)[1]) {
         feeInCents <- DF_TEMP[i]$feeInCents
         numStalls <- DF_TEMP[i]$numStalls
-        res <- c(res, rep(feeInCents, numStalls))     
+        res <- c(res, rep(feeInCents, numStalls))
       }
       return(res)
     }
@@ -296,7 +296,7 @@ setFees <- function(DF, DF_FEE) {
       } else {
         DF[i]$feeInCents <- fee
       }
-    } 
+    }
   }
   return(DF)
 }
@@ -332,7 +332,7 @@ write.csv(
 logs <- readCsv(pp(workDir, "/beam_to_pydss_federate.csv"))
 
 logs[,.(estimatedLoad=sum(estimatedLoad)),by=.(currentTime)] %>%
-  ggplot(aes(currentTime/3600.,estimatedLoad/1000)) + 
+  ggplot(aes(currentTime/3600.,estimatedLoad/1000)) +
   geom_bar(stat="identity")
 ggplot(logs) + geom_histogram(aes(estimatedLoad))
 
@@ -376,4 +376,3 @@ print(pp("Home: ",home))
 ggplot() + 
   aes(runif(1000000)) +
   geom_histogram(binwidth=0.05, colour="black", fill="white")
-

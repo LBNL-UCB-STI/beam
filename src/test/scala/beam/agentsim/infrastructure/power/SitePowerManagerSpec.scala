@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingNetworkHelper, ChargingPlugRequest}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
@@ -141,7 +141,7 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val sitePowerManager = new SitePowerManager(chargingNetwork, rideHailNetwork, beamServices)
+    val sitePowerManager = new SitePowerManager(ChargingNetworkHelper(chargingNetwork, rideHailNetwork), beamServices)
 
     "get power over planning horizon 0.0 for charged vehicles" in {
       sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(

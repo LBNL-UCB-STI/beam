@@ -1796,7 +1796,12 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
+        evAdoptionFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
+        parkingFilePath: java.lang.String,
+        scaleUpExpansionFactor: scala.Double,
+        stallCostScalingFactor: scala.Double,
+        stallCountScalingFactor: scala.Double,
         timeStepInSeconds: scala.Int
       )
 
@@ -1838,10 +1843,18 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
+            evAdoptionFilePath = if (c.hasPathOrNull("evAdoptionFilePath")) c.getString("evAdoptionFilePath") else "",
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
+            parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
+            scaleUpExpansionFactor =
+              if (c.hasPathOrNull("scaleUpExpansionFactor")) c.getDouble("scaleUpExpansionFactor") else 1.0,
+            stallCostScalingFactor =
+              if (c.hasPathOrNull("stallCostScalingFactor")) c.getDouble("stallCostScalingFactor") else 1.0,
+            stallCountScalingFactor =
+              if (c.hasPathOrNull("stallCountScalingFactor")) c.getDouble("stallCountScalingFactor") else 1.0,
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
@@ -2737,6 +2750,7 @@ object BeamConfig {
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
       parbprsim: BeamConfig.Beam.Physsim.Parbprsim,
+      pickUpDropOffAnalysis: BeamConfig.Beam.Physsim.PickUpDropOffAnalysis,
       ptSampleSize: scala.Double,
       quick_fix_minCarSpeedInMetersPerSecond: scala.Double,
       relaxation: BeamConfig.Beam.Physsim.Relaxation,
@@ -3301,6 +3315,28 @@ object BeamConfig {
         }
       }
 
+      case class PickUpDropOffAnalysis(
+        additionalTravelTimeMultiplier: scala.Double,
+        enabled: scala.Boolean,
+        secondsFromPickUpPropOffToAffectTravelTime: scala.Int
+      )
+
+      object PickUpDropOffAnalysis {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.PickUpDropOffAnalysis = {
+          BeamConfig.Beam.Physsim.PickUpDropOffAnalysis(
+            additionalTravelTimeMultiplier =
+              if (c.hasPathOrNull("additionalTravelTimeMultiplier")) c.getDouble("additionalTravelTimeMultiplier")
+              else 1.0,
+            enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+            secondsFromPickUpPropOffToAffectTravelTime =
+              if (c.hasPathOrNull("secondsFromPickUpPropOffToAffectTravelTime"))
+                c.getInt("secondsFromPickUpPropOffToAffectTravelTime")
+              else 600
+          )
+        }
+      }
+
       case class Relaxation(
         experiment2_0: BeamConfig.Beam.Physsim.Relaxation.Experiment20,
         experiment2_1: BeamConfig.Beam.Physsim.Relaxation.Experiment21,
@@ -3519,6 +3555,10 @@ object BeamConfig {
           parbprsim = BeamConfig.Beam.Physsim.Parbprsim(
             if (c.hasPathOrNull("parbprsim")) c.getConfig("parbprsim")
             else com.typesafe.config.ConfigFactory.parseString("parbprsim{}")
+          ),
+          pickUpDropOffAnalysis = BeamConfig.Beam.Physsim.PickUpDropOffAnalysis(
+            if (c.hasPathOrNull("pickUpDropOffAnalysis")) c.getConfig("pickUpDropOffAnalysis")
+            else com.typesafe.config.ConfigFactory.parseString("pickUpDropOffAnalysis{}")
           ),
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
           quick_fix_minCarSpeedInMetersPerSecond =
@@ -3758,7 +3798,8 @@ object BeamConfig {
       r5: BeamConfig.Beam.Routing.R5,
       skimTravelTimesScalingFactor: scala.Double,
       startingIterationForTravelTimesMSA: scala.Int,
-      transitOnStreetNetwork: scala.Boolean
+      transitOnStreetNetwork: scala.Boolean,
+      writeRoutingStatistic: scala.Boolean
     )
 
     object Routing {
@@ -3854,7 +3895,8 @@ object BeamConfig {
           startingIterationForTravelTimesMSA =
             if (c.hasPathOrNull("startingIterationForTravelTimesMSA")) c.getInt("startingIterationForTravelTimesMSA")
             else 0,
-          transitOnStreetNetwork = !c.hasPathOrNull("transitOnStreetNetwork") || c.getBoolean("transitOnStreetNetwork")
+          transitOnStreetNetwork = !c.hasPathOrNull("transitOnStreetNetwork") || c.getBoolean("transitOnStreetNetwork"),
+          writeRoutingStatistic = c.hasPathOrNull("writeRoutingStatistic") && c.getBoolean("writeRoutingStatistic")
         )
       }
     }

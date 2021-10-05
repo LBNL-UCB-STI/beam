@@ -63,7 +63,6 @@ scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
-
 #####
 
 all.loads <- all.loads[!is.na(loadType)]
