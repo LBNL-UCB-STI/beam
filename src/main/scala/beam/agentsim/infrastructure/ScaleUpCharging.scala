@@ -28,13 +28,9 @@ trait ScaleUpCharging extends {
   private lazy val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
   private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
 
-  private lazy val scaleUpFactor = {
-    if (cnmConfig.scaleUpExpansionFactor <= 1.0) 0.0
-    else {
-      val popExpansionFactor = 1.0 / beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation
-      Math.max(cnmConfig.scaleUpExpansionFactor, popExpansionFactor) - 1
-    }
-  }
+  private lazy val scaleUpFactorMaybe: Option[Double] =
+    if (cnmConfig.scaleUpExpansionFactor <= 1.0) None
+    else Some(cnmConfig.scaleUpExpansionFactor)
 
   protected lazy val inquiryMap: mutable.Map[Int, ChargingDataInquiry] = mutable.Map()
   protected lazy val simulatedEvents: mutable.Map[Id[ParkingZoneId], ChargingData] = mutable.Map()
@@ -135,17 +131,21 @@ trait ScaleUpCharging extends {
     * @return map
     */
   protected def summarizeAndSkimOrGetChargingData(): Map[Id[ParkingZoneId], ChargingDataSummary] = {
-    val chargingDataSummary = simulatedEvents.par
-      .map { case (parkingZoneId, data) =>
-        val mean: Double = data.durations.sum.toDouble / data.durations.size
-        val stdDev: Double = Math.sqrt(data.durations.map(_ - mean).map(t => t * t).sum / data.durations.size)
-        val rate = data.durations.size * scaleUpFactor / 0.25
-        parkingZoneId -> ChargingDataSummary(rate, mean, stdDev, data.parkingZoneId, data.managerId)
-      }
-      .seq
-      .toMap
-    simulatedEvents.clear()
-    chargingDataSummary
+    scaleUpFactorMaybe match {
+      case None => Map.empty[Id[ParkingZoneId], ChargingDataSummary]
+      case Some(scaleUpFactor) =>
+        val chargingDataSummary = simulatedEvents.par
+          .map { case (parkingZoneId, data) =>
+            val mean: Double = data.durations.sum.toDouble / data.durations.size
+            val stdDev: Double = Math.sqrt(data.durations.map(_ - mean).map(t => t * t).sum / data.durations.size)
+            val rate = data.durations.size * scaleUpFactor / 0.25
+            parkingZoneId -> ChargingDataSummary(rate, mean, stdDev, data.parkingZoneId, data.managerId)
+          }
+          .seq
+          .toMap
+        simulatedEvents.clear()
+        chargingDataSummary
+    }
   }
 
   /**
@@ -154,15 +154,20 @@ trait ScaleUpCharging extends {
     * @param vehicle Beam Vehicle
     */
   protected def collectChargingData(stall: ParkingStall, vehicle: BeamVehicle): Unit = {
-    if (!simulatedEvents.contains(stall.parkingZoneId)) {
-      simulatedEvents.put(
-        stall.parkingZoneId,
-        ChargingData(ListBuffer.empty[Int], stall.parkingZoneId, stall.reservedFor.managerId)
-      )
+    scaleUpFactorMaybe match {
+      case Some(_) =>
+        if (!simulatedEvents.contains(stall.parkingZoneId)) {
+          simulatedEvents.put(
+            stall.parkingZoneId,
+            ChargingData(ListBuffer.empty[Int], stall.parkingZoneId, stall.reservedFor.managerId)
+          )
+        }
+        val data = simulatedEvents(stall.parkingZoneId)
+        val (chargingDuration, _) =
+          vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(stall), None, None, None)
+        simulatedEvents.put(stall.parkingZoneId, data.copy(durations = data.durations :+ chargingDuration))
+      case _ =>
     }
-    val data = simulatedEvents(stall.parkingZoneId)
-    val (chargingDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(stall), None, None, None)
-    simulatedEvents.put(stall.parkingZoneId, data.copy(durations = data.durations :+ chargingDuration))
   }
 }
 
