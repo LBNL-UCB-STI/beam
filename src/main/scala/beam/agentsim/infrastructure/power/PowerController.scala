@@ -91,7 +91,8 @@ class PowerController(
         gridBounds.flatMap { x =>
           val reservedFor = x("reservedFor").asInstanceOf[String] match {
             case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
-            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
+            case managerIdString =>
+              VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
           }
           chargingNetworkHelper
             .get(reservedFor)
