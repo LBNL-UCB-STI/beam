@@ -1,19 +1,10 @@
 package beam.agentsim.infrastructure
 
-import akka.pattern.pipe
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingPlugRequest,
-  ChargingUnplugRequest,
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  UnpluggingVehicle,
-  WaitingToCharge
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -21,7 +12,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Agentsim
-import beam.utils.logging.pattern.ask
 import beam.utils.{MathUtils, VehicleIdGenerator}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -29,9 +19,8 @@ import org.matsim.api.core.v01.population.Person
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.util.Random
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.language.postfixOps
+import scala.util.Random
 
 trait ScaleUpCharging extends {
   this: ChargingNetworkManager =>
@@ -50,11 +39,11 @@ trait ScaleUpCharging extends {
 
   override def loggedReceive: Receive = {
     case TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
+      sender ! CompletionNotice(triggerId)
       self ! inquiry
-      getScheduler ! CompletionNotice(triggerId, Vector())
     case TriggerWithId(PlanChargingUnplugRequestTrigger(tick, requestId), triggerId) =>
+      sender ! CompletionNotice(triggerId)
       self ! ChargingUnplugRequest(tick, inquiryMap(requestId).parkingInquiry.beamVehicle.get, triggerId)
-      getScheduler ! CompletionNotice(triggerId, Vector())
       inquiryMap.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received parking response: $response")
@@ -70,7 +59,10 @@ trait ScaleUpCharging extends {
           None
         )
         val endTime = (inquiryEntity.startTime + inquiryEntity.parkingInquiry.parkingDuration).toInt
-        (getScheduler ? ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, requestId), self)).pipeTo(sender())
+        getScheduler ! CompletionNotice(
+          triggerId,
+          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, requestId), self))
+        )
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.debug(s"Received parking response: $reply")
