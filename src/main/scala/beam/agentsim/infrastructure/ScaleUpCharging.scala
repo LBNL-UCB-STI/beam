@@ -59,10 +59,7 @@ trait ScaleUpCharging extends {
           None
         )
         val endTime = (inquiryEntity.startTime + inquiryEntity.parkingInquiry.parkingDuration).toInt
-        getScheduler ! CompletionNotice(
-          triggerId,
-          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, requestId), self))
-        )
+        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, requestId), self)
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.debug(s"Received parking response: $reply")
