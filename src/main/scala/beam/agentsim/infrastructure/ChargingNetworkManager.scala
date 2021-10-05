@@ -6,6 +6,7 @@ import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStatus, ChargingVehicle}
@@ -13,9 +14,9 @@ import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
+import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
-import beam.sim.config.BeamConfig.Beam.{Agentsim, Debug}
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.typesafe.scalalogging.LazyLogging
@@ -43,9 +44,7 @@ class ChargingNetworkManager(
   import ChargingNetworkManager._
   import ChargingStatus._
 
-  protected val beamScenario: BeamScenario = beamServices.beamScenario
-  protected val beamConfig: BeamConfig = beamScenario.beamConfig
-  protected val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
+  protected val beamConfig: BeamConfig = beamServices.beamScenario.beamConfig
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.Future
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
@@ -59,10 +58,12 @@ class ChargingNetworkManager(
     None
   }
 
-  protected val sitePowerManager = new SitePowerManager(chargingNetwork, rideHailNetwork, beamServices)
+  protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
+
+  protected val sitePowerManager = new SitePowerManager(chargingNetworkHelper, beamServices)
 
   protected val powerController =
-    new PowerController(chargingNetwork, rideHailNetwork, beamConfig, sitePowerManager.unlimitedPhysicalBounds)
+    new PowerController(chargingNetworkHelper, beamConfig, sitePowerManager.unlimitedPhysicalBounds)
 
   override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
@@ -84,7 +85,7 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      getAppropriateChargingNetwork(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
+      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
         case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
@@ -111,7 +112,7 @@ class ChargingNetworkManager(
         dispatchEnergyAndProcessChargingCycle(
           chargingVehicle,
           timeBin,
-          timeBin + cnmConfig.timeStepInSeconds,
+          timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
           physicalBounds,
           triggerId,
           false
@@ -135,7 +136,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       vehicle.stall match {
         case Some(stall) =>
-          getAppropriateChargingNetwork(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
+          chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
             handleEndCharging(tick, _, triggerId, false)
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
@@ -147,7 +148,7 @@ class ChargingNetworkManager(
       if (vehicle.isBEV || vehicle.isPHEV) {
         collectChargingData(stall, vehicle)
         // connecting the current vehicle
-        getAppropriateChargingNetwork(stall.reservedFor.managerId).processChargingPlugRequest(request, sender()) map {
+        chargingNetworkHelper.get(stall.reservedFor.managerId).processChargingPlugRequest(request, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
@@ -171,7 +172,7 @@ class ChargingNetworkManager(
       val bounds = powerController.obtainPowerPhysicalBounds(tick, None)
       vehicle.stall match {
         case Some(stall) =>
-          getAppropriateChargingNetwork(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
+          chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
             case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, status, sessions)) =>
               if (sessions.nonEmpty && !status.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
@@ -222,17 +223,6 @@ class ChargingNetworkManager(
 
   protected def getScheduler: ActorRef = scheduler
   protected def getBeamServices: BeamServices = beamServices
-
-  /**
-    * @param reservedFor vehicle manager id
-    * @return
-    */
-  protected def getAppropriateChargingNetwork(reservedFor: Id[VehicleManager]): ChargingNetwork[_] = {
-    VehicleManager.getReservedFor(reservedFor) match {
-      case VehicleManager.TypeEnum.RideHail => rideHailNetwork
-      case _                                => chargingNetwork
-    }
-  }
 }
 
 object ChargingNetworkManager extends LazyLogging {
@@ -264,5 +254,27 @@ object ChargingNetworkManager extends LazyLogging {
     scheduler: ActorRef
   ): Props = {
     Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, parkingManager, scheduler))
+  }
+
+  case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork[_], rideHailNetwork: ChargingNetwork[_]) {
+
+    /**
+      * @param managerId vehicle manager id
+      * @return
+      */
+    def get(managerId: Id[VehicleManager]): ChargingNetwork[_] = {
+      get(VehicleManager.getReservedFor(managerId).get)
+    }
+
+    /**
+      * @param managerType vehicle manager type
+      * @return
+      */
+    def get(managerType: ReservedFor): ChargingNetwork[_] = {
+      managerType match {
+        case VehicleManager.TypeEnum.RideHail => rideHailNetwork
+        case _                                => chargingNetwork
+      }
+    }
   }
 }

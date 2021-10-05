@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure.power
 
 import beam.agentsim.agents.vehicles.VehicleManager
-import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.parking.ParkingZone.createId
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
@@ -13,8 +13,7 @@ import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class PowerController(
-  chargingNetwork: ChargingNetwork[_],
-  rideHailNetwork: ChargingNetwork[_],
+  chargingNetworkHelper: ChargingNetworkHelper,
   beamConfig: BeamConfig,
   unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
 ) extends LazyLogging {
@@ -94,11 +93,9 @@ class PowerController(
             case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
             case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
           }
-          val appropriateChargingNetwork = reservedFor.managerType match {
-            case VehicleManager.TypeEnum.RideHail => rideHailNetwork
-            case _                                => chargingNetwork
-          }
-          appropriateChargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
+          chargingNetworkHelper
+            .get(reservedFor)
+            .lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
             case Some(station) =>
               Some(
                 station -> PhysicalBounds(

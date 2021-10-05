@@ -11,6 +11,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.config.BeamConfig.Beam.Agentsim
 import beam.utils.{MathUtils, VehicleIdGenerator}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
@@ -25,6 +26,7 @@ trait ScaleUpCharging extends {
   import ScaleUpCharging._
 
   private lazy val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+  private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
 
   private lazy val scaleUpFactor = {
     if (cnmConfig.scaleUpExpansionFactor <= 1.0) 0.0
@@ -87,7 +89,7 @@ trait ScaleUpCharging extends {
           case ParkingType.Workplace   => ParkingActivityType.Work
         }
         val tazId = parkingZone.geoId.asInstanceOf[Id[TAZ]]
-        val taz = beamScenario.tazTreeMap.getTAZ(tazId).get
+        val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
         val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
         val vehicleType = BeamVehicleType(
           id = Id.create("VirtualCar", classOf[BeamVehicleType]),

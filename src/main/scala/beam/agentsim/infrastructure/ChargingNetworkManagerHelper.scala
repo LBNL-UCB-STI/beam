@@ -10,12 +10,14 @@ import beam.agentsim.infrastructure.ChargingNetworkManager.{
 }
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.sim.config.BeamConfig.Beam.Agentsim
 import beam.utils.DateUtils
 
 trait ChargingNetworkManagerHelper extends {
   this: ChargingNetworkManager =>
 
   private lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
+  private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val parallelismWindow: Int = beamConfig.beam.agentsim.schedulerParallelismWindow
 
   /**
