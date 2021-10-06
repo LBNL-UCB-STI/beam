@@ -40,21 +40,22 @@ trait ScaleUpCharging extends {
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
-      log.info(s"Received parking response: $t")
+      log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
       self ! inquiry
-    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, requestId), triggerId) =>
-      log.info(s"Received parking response: $t")
+    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
+      log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
-      self ! ChargingUnplugRequest(tick, inquiryMap(requestId).parkingInquiry.beamVehicle.get, triggerId)
+      self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
       inquiryMap.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.info(s"Received parking response: $response")
       if (stall.chargingPointType.isDefined) {
         val inquiryEntity = inquiryMap(requestId)
+        val beamVehicle = inquiryEntity.parkingInquiry.beamVehicle.get
         self ! ChargingPlugRequest(
           inquiryEntity.startTime,
-          inquiryEntity.parkingInquiry.beamVehicle.get,
+          beamVehicle,
           stall,
           inquiryEntity.personId,
           triggerId,
@@ -62,16 +63,16 @@ trait ScaleUpCharging extends {
           None
         )
         val endTime = (inquiryEntity.startTime + inquiryEntity.parkingInquiry.parkingDuration).toInt
-        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, requestId), self)
+        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, requestId), self)
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.info(s"Received parking response: $reply")
     case reply @ EndingRefuelSession(_, _, _) =>
       log.info(s"Received parking response: $reply")
     case reply @ WaitingToCharge(_, _, _) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(_, _, _) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
     case reply @ UnpluggingVehicle(_, _, _) =>
       log.info(s"Received parking response: $reply")
   }
@@ -94,49 +95,32 @@ trait ScaleUpCharging extends {
     timeBin: Int,
     triggerId: Long
   ): Vector[ScheduleTrigger] = {
+    import MathUtils._
     val s = System.currentTimeMillis
-    log.info(s"Simulate event - timeBin: $timeBin")
+    log.info(s"Simulate event - timeBin: $timeBin - chargingDataSummaryMap size: ${chargingDataSummaryMap.size}")
     var triggers = Vector.empty[ScheduleTrigger]
     chargingDataSummaryMap.par.map { case ((tazId, chargingType), data) =>
-      val scaledUpNumEvents = MathUtils.roundUniformly(data.rate * timeStepByHour, rand).toInt
+      val scaledUpNumEvents = roundUniformly(data.rate * timeStepByHour, rand).toInt
+      log.info(
+        s"tazId $tazId - chargingType: $chargingType - rate: ${data.rate} - scaledUpNumEvents: $scaledUpNumEvents"
+      )
       (1 to scaledUpNumEvents).foldLeft(timeBin) { case (acc, _) =>
-        val startTime = MathUtils.roundUniformly(acc + nextTimePoisson(data.rate), rand).toInt
-        val duration = MathUtils.roundUniformly(data.avgDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
-        val fuel = MathUtils.roundUniformly(data.avgFuel + (rand.nextGaussian() * data.sdFuel), rand).toInt
-        val activityType =
-          if (chargingType.toString.toLowerCase.contains("home"))
-            ParkingActivityType.Home
-          else if (chargingType.toString.toLowerCase.contains("work"))
-            ParkingActivityType.Work
-          else
-            ParkingActivityType.Wherever
+        log.info(s"tazId $tazId - chargingType: $chargingType - acc: $acc")
+        val startTime = roundUniformly(acc + nextTimePoisson(data.rate), rand).toInt
+        val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
+        val soc = roundUniformly(data.meanSOC + (rand.nextGaussian() * data.sdSOC), rand).toInt
+        val activityType = getActivityType(chargingType)
         val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
         val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-        val vehicleType = BeamVehicleType(
-          id = Id.create("VirtualCar", classOf[BeamVehicleType]),
-          seatingCapacity = 4,
-          standingRoomCapacity = 0,
-          lengthInMeter = 4.1,
-          primaryFuelType = FuelType.Electricity,
-          primaryFuelConsumptionInJoulePerMeter = 626,
-          primaryFuelCapacityInJoule = 302234052,
-          vehicleCategory = VehicleCategory.Car
-        )
-        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
-        val nextId = VehicleIdGenerator.nextId
+        val vehicleType = getBeamVehicleType()
         val reservedFor = data.reservedFor.managerType match {
           case VehicleManager.TypeEnum.Household => VehicleManager.AnyManager
           case _                                 => data.reservedFor
         }
-        val beamVehicle =
-          new BeamVehicle(
-            Id.create("VirtualCar-" + nextId, classOf[BeamVehicle]),
-            powerTrain,
-            vehicleType,
-            new AtomicReference(reservedFor.managerId),
-            randomSeed = rand.nextInt
-          )
-        beamVehicle.initializeFuelLevels(fuel)
+        val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
+        val vehicleId = beamVehicle.id.toString
+        val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[Person])
+        log.info(s"tazId $tazId - chargingType: $chargingType - soc: $soc")
         val inquiry = ParkingInquiry(
           SpaceTime(destinationUtm, startTime),
           activityType,
@@ -147,15 +131,68 @@ trait ScaleUpCharging extends {
           duration,
           triggerId = triggerId
         )
-        val personId = Id.create("VirtualPerson-" + nextId, classOf[Person])
+        log.info(s"tazId $tazId - chargingType: $inquiry - soc: $inquiry")
         inquiryMap.put(inquiry.requestId, ChargingDataInquiry(startTime, personId, inquiry))
         triggers = triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self)
+        log.info(s"tazId $tazId - chargingType: $inquiry - triggers: $triggers")
         startTime
       }
     }
     val e = System.currentTimeMillis()
     log.info(s"Simulate event end: $timeBin. triggers size: ${triggers.size}. runtime: ${(e - s) / 1000.0}")
     triggers
+  }
+
+  /**
+    * get activity type
+    * @param chargingType ChargingPointType
+    * @return
+    */
+  protected def getActivityType(chargingType: ChargingPointType): ParkingActivityType = {
+    if (chargingType.toString.toLowerCase.contains("home"))
+      ParkingActivityType.Home
+    else if (chargingType.toString.toLowerCase.contains("work"))
+      ParkingActivityType.Work
+    else
+      ParkingActivityType.Wherever
+  }
+
+  /**
+    * get Beam Vehicle Type
+    * @return
+    */
+  protected def getBeamVehicleType(): BeamVehicleType = {
+    BeamVehicleType(
+      id = Id.create("VirtualCar", classOf[BeamVehicleType]),
+      seatingCapacity = 4,
+      standingRoomCapacity = 0,
+      lengthInMeter = 4.1,
+      primaryFuelType = FuelType.Electricity,
+      primaryFuelConsumptionInJoulePerMeter = 626,
+      primaryFuelCapacityInJoule = 302234052,
+      vehicleCategory = VehicleCategory.Car
+    )
+  }
+
+  /**
+    * get Beam Vehicle
+    * @param vehicleType BeamVehicleType
+    * @param reservedFor ReservedFor
+    * @param fuel Double
+    * @return
+    */
+  protected def getBeamVehicle(vehicleType: BeamVehicleType, reservedFor: ReservedFor, soc: Double): BeamVehicle = {
+    val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+    val nextId = VehicleIdGenerator.nextId
+    val beamVehicle = new BeamVehicle(
+      Id.create("VirtualCar-" + nextId, classOf[BeamVehicle]),
+      powerTrain,
+      vehicleType,
+      new AtomicReference(reservedFor.managerId),
+      randomSeed = rand.nextInt
+    )
+    beamVehicle.initializeFuelLevels(soc)
+    beamVehicle
   }
 
   /**
@@ -170,10 +207,11 @@ trait ScaleUpCharging extends {
         val chargingDataSummary = simulatedEvents.par
           .map { case (key, data) =>
             val rate = data.durations.size * scaleUpFactor / timeStepByHour
-            val meanDur = data.durations.sum / data.durations.size
+            // Adding 60 seconds to avoid null duration
+            val meanDur = 60 + (data.durations.sum / data.durations.size)
             val stdDevDur = Math.sqrt(data.durations.map(_ - meanDur).map(t => t * t).sum / data.durations.size)
-            val meanFuel = data.fuel.sum / data.fuel.size
-            val stdDevFuel = Math.sqrt(data.fuel.map(_ - meanFuel).map(t => t * t).sum / data.fuel.size)
+            val meanFuel = data.soc.sum / data.soc.size
+            val stdDevFuel = Math.sqrt(data.soc.map(_ - meanFuel).map(t => t * t).sum / data.soc.size)
             key -> ChargingDataSummary(rate, meanDur, stdDevDur, meanFuel, stdDevFuel, data.reservedFor)
           }
           .seq
@@ -204,7 +242,8 @@ trait ScaleUpCharging extends {
         }
         val (duration, _) = vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(stall), None, None, None)
         simulatedEvents(key).durations.append(duration)
-        simulatedEvents(key).fuel.append(vehicle.primaryFuelLevelInJoules)
+        val soc = vehicle.primaryFuelLevelInJoules / vehicle.beamVehicleType.primaryFuelCapacityInJoule
+        simulatedEvents(key).soc.append(soc)
         val e = System.currentTimeMillis()
         log.info(
           s"collectChargingData. simulatedEvents size: ${simulatedEvents.size}. runtime: ${(e - s) / 1000.0}"
@@ -216,21 +255,17 @@ trait ScaleUpCharging extends {
 
 object ScaleUpCharging {
   case class PlanParkingInquiryTrigger(tick: Int, inquiry: ParkingInquiry) extends Trigger
-  case class PlanChargingUnplugRequestTrigger(tick: Int, requestId: Int) extends Trigger
+  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
 
-  case class ChargingData(
-    durations: ListBuffer[Int],
-    fuel: ListBuffer[Double],
-    reservedFor: ReservedFor
-  )
+  case class ChargingData(durations: ListBuffer[Int], soc: ListBuffer[Double], reservedFor: ReservedFor)
+  case class ChargingDataInquiry(startTime: Int, personId: Id[Person], parkingInquiry: ParkingInquiry)
 
   case class ChargingDataSummary(
     rate: Double,
-    avgDuration: Int,
+    meanDuration: Int,
     sdDuration: Double,
-    avgFuel: Double,
-    sdFuel: Double,
+    meanSOC: Double,
+    sdSOC: Double,
     reservedFor: ReservedFor
   )
-  case class ChargingDataInquiry(startTime: Int, personId: Id[Person], parkingInquiry: ParkingInquiry)
 }

@@ -83,7 +83,7 @@ trait ChargingNetworkManagerHelper extends {
     )
     chargingVehicle.checkAndCorrectCycleAfterInterruption(updatedEndTime)
     val (chargingDuration, energyToCharge) = sitePowerManager.dispatchEnergy(duration, chargingVehicle, physicalBounds)
-    log.debug(
+    log.info(
       s"dispatchEnergyAndProcessChargingCycle. startTime:$startTime, endTime:$endTime, updatedEndTime:$updatedEndTime, " +
       s"duration:$duration, maxCycleDuration:$maxCycleDuration, chargingVehicle:$chargingVehicle, " +
       s"chargingDuration:$chargingDuration"
