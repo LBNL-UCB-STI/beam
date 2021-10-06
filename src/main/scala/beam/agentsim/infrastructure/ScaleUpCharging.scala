@@ -102,7 +102,7 @@ trait ScaleUpCharging extends {
       (1 to scaledUpNumEvents).foldLeft(timeBin) { case (acc, _) =>
         val startTime = roundUniformly(acc + nextTimePoisson(data.rate), rand).toInt
         val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
-        val soc = roundUniformly(data.meanSOC + (rand.nextGaussian() * data.sdSOC), rand).toInt
+        val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
         val activityType = getActivityType(chargingType)
         val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
         val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
