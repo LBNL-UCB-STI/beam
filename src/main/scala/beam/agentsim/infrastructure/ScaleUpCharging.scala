@@ -131,10 +131,10 @@ trait ScaleUpCharging extends {
           duration,
           triggerId = triggerId
         )
-        log.info(s"tazId $tazId - chargingType: $inquiry - soc: $inquiry")
+        log.info(s"tazId $tazId - chargingType: $chargingType - soc: $soc")
         inquiryMap.put(inquiry.requestId, ChargingDataInquiry(startTime, personId, inquiry))
         triggers = triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self)
-        log.info(s"tazId $tazId - chargingType: $inquiry - triggers: $triggers")
+        log.info(s"tazId $tazId - chargingType: $chargingType - triggers: ${triggers.size}")
         startTime
       }
     }
