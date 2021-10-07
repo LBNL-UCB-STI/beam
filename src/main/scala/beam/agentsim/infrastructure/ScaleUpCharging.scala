@@ -95,12 +95,10 @@ trait ScaleUpCharging extends {
     chargingDataSummaryMap: Map[(Id[TAZ], ChargingPointType), ChargingDataSummary],
     timeBin: Int,
     triggerId: Long
-  ): Vector[ScheduleTrigger] = {
-    var triggers = Vector.empty[ScheduleTrigger]
-    chargingDataSummaryMap.par.map { case ((tazId, chargingType), data) =>
-      val scaledUpNumEvents = roundUniformly(data.rate * timeStepByHour, rand).toInt
-      (1 to scaledUpNumEvents).foldLeft(timeBin) { case (acc, _) =>
-        val startTime = roundUniformly(acc + nextTimePoisson(data.rate), rand).toInt
+  ): Vector[ScheduleTrigger] = chargingDataSummaryMap.par.flatMap { case ((tazId, chargingType), data) =>
+    (1 to roundUniformly(data.rate * timeStepByHour, rand).toInt)
+      .foldLeft((timeBin, Vector.empty[ScheduleTrigger])) { case ((prevStartTime, triggers), i) =>
+        val startTime = roundUniformly(prevStartTime + nextTimePoisson(data.rate), rand).toInt
         val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
         val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
         val activityType = getActivityType(chargingType)
@@ -125,12 +123,10 @@ trait ScaleUpCharging extends {
           triggerId = triggerId
         )
         inquiryMap.put(inquiry.requestId, ChargingDataInquiry(startTime, personId, inquiry))
-        triggers = triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self)
-        startTime
+        (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self))
       }
-    }
-    triggers
-  }
+      ._2
+  }.toVector
 
   /**
     * get activity type
