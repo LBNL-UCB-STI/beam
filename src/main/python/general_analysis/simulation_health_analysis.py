@@ -1,20 +1,22 @@
 import os
 import sys
+import json
+import requests
 from glob import glob
 
 # detectors is a dictionary that consist key as health metric and
 # value as lambda function that can detect health metric from line.
 # if we need to add more detector then we have to add that detector in this dictionary
 detectors = {
-                "deadLetter": lambda line: "DeadLetter" in line,
-                "actor died" : lambda line: "terminated unexpectedly" in line,
-                "warn": lambda line: " WARN " in line, 
-                "error": lambda line: " ERROR " in line, 
-                "stacktrace": lambda line: line.startswith("\tat ")   
-            }
-beam_home = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.getcwd()))))
-log_file_location = glob(beam_home+"/output/*/*/beamLog.out")
-log_file_location.sort(key=lambda x: os.path.getmtime(x), reverse = True)
+    "deadLetter": lambda line: "DeadLetter" in line,
+    "actorDied": lambda line: "terminated unexpectedly" in line,
+    "warn": lambda line: " WARN " in line,
+    "error": lambda line: " ERROR " in line,
+    "stacktrace": lambda line: line.startswith("\tat ")
+}
+beam_home = os.getcwd()
+log_file_location = glob(beam_home + "/output/*/*/beamLog.out")
+log_file_location.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 with open(log_file_location[0]) as file:
     file = file.readlines()
 
@@ -34,7 +36,7 @@ for line in file:
         continue
 
     # iterating each detector and evaluating if line consist that detector
-    for key,value in detectors.items():
+    for key, value in detectors.items():
         if value(line):
             matric = matric_log.get(key, [])
             matric.append(line)
