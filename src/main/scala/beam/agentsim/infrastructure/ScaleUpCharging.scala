@@ -98,49 +98,46 @@ trait ScaleUpCharging extends {
     import MathUtils._
     val s = System.currentTimeMillis
     log.info(s"Simulate event - timeBin: $timeBin - chargingDataSummaryMap size: ${chargingDataSummaryMap.size}")
-    var triggers = Vector.empty[ScheduleTrigger]
-    chargingDataSummaryMap.par.map { case ((tazId, chargingType), data) =>
-      val scaledUpNumEvents = roundUniformly(data.rate * timeStepByHour, rand).toInt
-      log.info(
-        s"tazId $tazId - chargingType: $chargingType - rate: ${data.rate} - scaledUpNumEvents: $scaledUpNumEvents"
-      )
-      (1 to scaledUpNumEvents).foldLeft(timeBin) { case (acc, _) =>
-        log.info(s"tazId $tazId - chargingType: $chargingType - acc: $acc")
-        val startTime = roundUniformly(acc + nextTimePoisson(data.rate), rand).toInt
-        val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
-        val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
-        val activityType = getActivityType(chargingType)
-        val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
-        val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-        val vehicleType = getBeamVehicleType()
-        val reservedFor = data.reservedFor.managerType match {
-          case VehicleManager.TypeEnum.Household => VehicleManager.AnyManager
-          case _                                 => data.reservedFor
+    val allTriggers = chargingDataSummaryMap.par.flatMap { case ((tazId, chargingType), data) =>
+      (1 to roundUniformly(data.rate * timeStepByHour, rand).toInt)
+        .foldLeft((timeBin, Vector.empty[ScheduleTrigger])) { case ((prevStartTime, triggers), i) =>
+          log.info(
+            s"tazId $tazId - chargingType: $chargingType - index: $i - timBin: $prevStartTime - triggers: ${triggers.size}"
+          )
+          val startTime = roundUniformly(prevStartTime + nextTimePoisson(data.rate), rand).toInt
+          val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
+          val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
+          val activityType = getActivityType(chargingType)
+          val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
+          val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+          val vehicleType = getBeamVehicleType()
+          val reservedFor = data.reservedFor.managerType match {
+            case VehicleManager.TypeEnum.Household => VehicleManager.AnyManager
+            case _                                 => data.reservedFor
+          }
+          val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
+          val vehicleId = beamVehicle.id.toString
+          val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[Person])
+          log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - soc: $soc")
+          val inquiry = ParkingInquiry(
+            SpaceTime(destinationUtm, startTime),
+            activityType,
+            reservedFor,
+            Some(beamVehicle),
+            None, // remainingTripData
+            0.0, // valueOfTime
+            duration,
+            triggerId = triggerId
+          )
+          inquiryMap.put(inquiry.requestId, ChargingDataInquiry(startTime, personId, inquiry))
+          log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - spaceTime: ${inquiry.destinationUtm}")
+          (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self))
         }
-        val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
-        val vehicleId = beamVehicle.id.toString
-        val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[Person])
-        log.info(s"tazId $tazId - chargingType: $chargingType - soc: $soc")
-        val inquiry = ParkingInquiry(
-          SpaceTime(destinationUtm, startTime),
-          activityType,
-          reservedFor,
-          Some(beamVehicle),
-          None, // remainingTripData
-          0.0, // valueOfTime
-          duration,
-          triggerId = triggerId
-        )
-        log.info(s"tazId $tazId - chargingType: $chargingType - soc: $soc")
-        inquiryMap.put(inquiry.requestId, ChargingDataInquiry(startTime, personId, inquiry))
-        triggers = triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self)
-        log.info(s"tazId $tazId - chargingType: $chargingType - triggers: ${triggers.size}")
-        startTime
-      }
-    }
+        ._2
+    }.toVector
     val e = System.currentTimeMillis()
-    log.info(s"Simulate event end: $timeBin. triggers size: ${triggers.size}. runtime: ${(e - s) / 1000.0}")
-    triggers
+    log.info(s"Simulate event end: $timeBin. triggers size: ${allTriggers.size}. runtime: ${(e - s) / 1000.0}")
+    allTriggers
   }
 
   /**
