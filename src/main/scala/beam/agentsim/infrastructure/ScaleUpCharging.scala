@@ -13,7 +13,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Agentsim
-import beam.utils.{MathUtils, VehicleIdGenerator}
+import beam.utils.{MathUtils, ParkingManagerIdGenerator, VehicleIdGenerator}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
@@ -36,14 +36,14 @@ trait ScaleUpCharging extends {
     if (cnmConfig.scaleUpExpansionFactor <= 1.0) None
     else Some(cnmConfig.scaleUpExpansionFactor)
 
-  protected lazy val inquiryMap: mutable.Map[Int, ChargingDataInquiry] = mutable.Map()
+  protected lazy val inquiryMap: mutable.Map[Int, ParkingInquiry] = mutable.Map()
   protected lazy val simulatedEvents: mutable.Map[(Id[TAZ], ChargingPointType), ChargingData] = mutable.Map()
 
   override def loggedReceive: Receive = {
-    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
+    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
-      self ! inquiry
+      self ! inquiryMap(requestId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
@@ -52,18 +52,18 @@ trait ScaleUpCharging extends {
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received parking response: $response")
       if (stall.chargingPointType.isDefined) {
-        val inquiryEntity = inquiryMap(requestId)
-        val beamVehicle = inquiryEntity.parkingInquiry.beamVehicle.get
+        val parkingInquiry = inquiryMap(requestId)
+        val beamVehicle = parkingInquiry.beamVehicle.get
         self ! ChargingPlugRequest(
-          inquiryEntity.startTime,
+          parkingInquiry.destinationUtm.time,
           beamVehicle,
           stall,
-          inquiryEntity.personId,
+          Id.create(parkingInquiry.personId.toString, classOf[Person]),
           triggerId,
           NotApplicable,
           None
         )
-        val endTime = (inquiryEntity.startTime + inquiryEntity.parkingInquiry.parkingDuration).toInt
+        val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
         getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, requestId), self)
       }
     case reply @ StartingRefuelSession(_, _) =>
@@ -112,18 +112,23 @@ trait ScaleUpCharging extends {
         val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
         val vehicleId = beamVehicle.id.toString
         val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[Person])
-        val inquiry = ParkingInquiry(
-          SpaceTime(destinationUtm, startTime),
-          activityType,
-          reservedFor,
-          Some(beamVehicle),
-          None, // remainingTripData
-          0.0, // valueOfTime
-          duration,
-          triggerId = triggerId
+        val requestId = ParkingManagerIdGenerator.nextId
+        log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - soc: $soc")
+        inquiryMap.put(
+          requestId,
+          ParkingInquiry(
+            SpaceTime(destinationUtm, startTime),
+            activityType,
+            reservedFor,
+            Some(beamVehicle),
+            None, // remainingTripData
+            Some(personId),
+            0.0, // valueOfTime
+            duration,
+            triggerId = triggerId
+          )
         )
-        inquiryMap.put(inquiry.requestId, ChargingDataInquiry(startTime, personId, inquiry))
-        (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, inquiry), self))
+        (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, requestId), self))
       }
       ._2
   }.toVector
@@ -227,7 +232,7 @@ trait ScaleUpCharging extends {
 }
 
 object ScaleUpCharging {
-  case class PlanParkingInquiryTrigger(tick: Int, inquiry: ParkingInquiry) extends Trigger
+  case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
   case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
 
   case class ChargingData(durations: ListBuffer[Int], soc: ListBuffer[Double], reservedFor: ReservedFor)
