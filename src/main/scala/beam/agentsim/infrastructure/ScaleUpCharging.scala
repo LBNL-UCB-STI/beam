@@ -44,14 +44,15 @@ trait ScaleUpCharging extends {
       log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
       self ! inquiryMap(requestId)
-    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle), triggerId) =>
+    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
+      inquiryMap.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.info(s"Received parking response: $response")
       if (stall.chargingPointType.isDefined) {
-        val parkingInquiry = inquiryMap.remove(requestId).get
+        val parkingInquiry = inquiryMap(requestId)
         val beamVehicle = parkingInquiry.beamVehicle.get
         self ! ChargingPlugRequest(
           parkingInquiry.destinationUtm.time,
@@ -63,7 +64,10 @@ trait ScaleUpCharging extends {
           None
         )
         val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle), self)
+        getScheduler ! ScheduleTrigger(
+          PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
+          self
+        )
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.info(s"Received parking response: $reply")
@@ -266,7 +270,7 @@ trait ScaleUpCharging extends {
 
 object ScaleUpCharging {
   case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
-  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle) extends Trigger
+  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
 
   case class ChargingData(durations: ListBuffer[Int], soc: ListBuffer[Double], reservedFor: ReservedFor)
 
