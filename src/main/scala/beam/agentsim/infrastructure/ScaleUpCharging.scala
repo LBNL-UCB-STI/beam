@@ -51,23 +51,25 @@ trait ScaleUpCharging extends {
       inquiryMap.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.info(s"Received parking response: $response")
-      if (stall.chargingPointType.isDefined) {
-        val parkingInquiry = inquiryMap(requestId)
-        val beamVehicle = parkingInquiry.beamVehicle.get
-        self ! ChargingPlugRequest(
-          parkingInquiry.destinationUtm.time,
-          beamVehicle,
-          stall,
-          Id.create(parkingInquiry.personId.toString, classOf[Person]),
-          triggerId,
-          NotApplicable,
-          None
-        )
-        val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-        getScheduler ! ScheduleTrigger(
-          PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
-          self
-        )
+      inquiryMap.get(requestId) match {
+        case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
+          val beamVehicle = parkingInquiry.beamVehicle.get
+          self ! ChargingPlugRequest(
+            parkingInquiry.destinationUtm.time,
+            beamVehicle,
+            stall,
+            Id.create(parkingInquiry.personId.toString, classOf[Person]),
+            triggerId,
+            NotApplicable,
+            None
+          )
+          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
+          getScheduler ! ScheduleTrigger(
+            PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
+            self
+          )
+        case _ =>
+          log.warning(s"inquiryMap does not have this requestId $requestId")
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.info(s"Received parking response: $reply")
@@ -124,7 +126,7 @@ trait ScaleUpCharging extends {
             val vehicleId = beamVehicle.id.toString
             val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[PersonAgent])
             val requestId = ParkingManagerIdGenerator.nextId
-            log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - soc: $soc")
+            log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - requestId: $requestId")
             inquiryMap.put(
               requestId,
               ParkingInquiry(
