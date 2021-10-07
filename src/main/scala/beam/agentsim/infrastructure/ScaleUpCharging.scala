@@ -141,7 +141,9 @@ trait ScaleUpCharging extends {
             )
             (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, requestId), self))
           } catch {
-            case t: Throwable => throw new RuntimeException(s"WHAT HAPPENED ?: $t")
+            case t: Throwable =>
+              log.info(s"WHAT HAPPENED ?: $t")
+              (0, Vector.empty)
           }
         }
         ._2
