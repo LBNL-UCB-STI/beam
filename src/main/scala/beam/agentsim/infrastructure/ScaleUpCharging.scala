@@ -19,7 +19,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.mutable
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.language.postfixOps
 import scala.util.Random
@@ -36,23 +36,22 @@ trait ScaleUpCharging extends {
     if (cnmConfig.scaleUpExpansionFactor <= 1.0) None
     else Some(cnmConfig.scaleUpExpansionFactor)
 
-  protected lazy val inquiryMap: mutable.Map[Int, ParkingInquiry] = mutable.Map()
-  protected lazy val simulatedEvents: mutable.Map[(Id[TAZ], ChargingPointType), ChargingData] = mutable.Map()
+  protected lazy val inquiryMap: TrieMap[Int, ParkingInquiry] = TrieMap()
+  protected lazy val simulatedEvents: TrieMap[(Id[TAZ], ChargingPointType), ChargingData] = TrieMap()
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
       self ! inquiryMap(requestId)
-    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
+    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle), triggerId) =>
       log.debug(s"Received parking response: $t")
       sender ! CompletionNotice(triggerId)
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
-      inquiryMap.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.info(s"Received parking response: $response")
       if (stall.chargingPointType.isDefined) {
-        val parkingInquiry = inquiryMap(requestId)
+        val parkingInquiry = inquiryMap.remove(requestId).get
         val beamVehicle = parkingInquiry.beamVehicle.get
         self ! ChargingPlugRequest(
           parkingInquiry.destinationUtm.time,
@@ -64,7 +63,7 @@ trait ScaleUpCharging extends {
           None
         )
         val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, requestId), self)
+        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle), self)
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.info(s"Received parking response: $reply")
@@ -267,7 +266,7 @@ trait ScaleUpCharging extends {
 
 object ScaleUpCharging {
   case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
-  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
+  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle) extends Trigger
 
   case class ChargingData(durations: ListBuffer[Int], soc: ListBuffer[Double], reservedFor: ReservedFor)
 
