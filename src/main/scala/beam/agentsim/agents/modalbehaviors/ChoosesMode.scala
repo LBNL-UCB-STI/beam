@@ -728,6 +728,7 @@ trait ChoosesMode {
                 VehicleManager.getReservedFor(veh.vehicleManagerId.get).get,
                 Some(veh),
                 None,
+                Some(this.id),
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
                 reserveStall = false,

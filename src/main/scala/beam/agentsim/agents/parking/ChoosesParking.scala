@@ -116,6 +116,7 @@ trait ChoosesParking extends {
       VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get,
       Some(this.currentBeamVehicle),
       remainingTripData,
+      Some(this.id),
       attributes.valueOfTime,
       parkingDuration,
       triggerId = getCurrentTriggerIdOrGenerate
