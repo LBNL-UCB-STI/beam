@@ -44,13 +44,13 @@ object InfrastructureUtils extends LazyLogging {
     val parkingCostScalingFactor: Double = beamConfig.beam.agentsim.taz.parkingCostScalingFactor
 
     val (mainChargingFile, chargingStallCountScalingFactor, chargingCostScalingFactor) =
-      if (beamConfig.beam.agentsim.chargingNetworkManager.parkingFilePath.isEmpty)
+      if (beamConfig.beam.agentsim.chargingNetworkManager.chargingPointFilePath.isEmpty)
         (mainParkingFile, parkingStallCountScalingFactor, parkingCostScalingFactor)
       else
         (
-          beamConfig.beam.agentsim.chargingNetworkManager.parkingFilePath,
-          beamConfig.beam.agentsim.chargingNetworkManager.stallCountScalingFactor,
-          beamConfig.beam.agentsim.chargingNetworkManager.stallCostScalingFactor
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPointFilePath,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPointCountScalingFactor,
+          beamConfig.beam.agentsim.chargingNetworkManager.chargingPointCostScalingFactor
         )
     // ADD HERE ALL PARKING FILES THAT BELONGS TO VEHICLE MANAGERS
     val vehicleManagersParkingFiles: IndexedSeq[(String, ReservedFor, Seq[ParkingType])] = {

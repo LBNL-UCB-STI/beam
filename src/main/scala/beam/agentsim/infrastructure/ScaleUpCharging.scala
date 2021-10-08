@@ -58,7 +58,7 @@ trait ScaleUpCharging extends {
             parkingInquiry.destinationUtm.time,
             beamVehicle,
             stall,
-            Id.create(parkingInquiry.personId.toString, classOf[Person]),
+            parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person])),
             triggerId,
             NotApplicable,
             None

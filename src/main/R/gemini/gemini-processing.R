@@ -364,32 +364,37 @@ parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
 
 
 #####
-eventsFile <- "/2021Aug22-Oakland/BATCH3-Calibration/events-raw/0.events (3).csv.gz"
-events <- readCsv(pp(workDir, eventsFile))
-rse <- events[type=='RefuelSessionEvent']
-#rse[,.N,by=.(parkingType,chargingPointType)]
-rseSum <- rse[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
-rseSum[,fuelShare:=fuel/sum(fuel)]
-dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
-publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
-work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
-home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
-print("************************")
-print(pp("DCFC: ",dcfc))
-print(pp("PublicL2: ",publicL2))
-print(pp("Work: ",work))
-print(pp("Home: ",home))
+chargingBehaviorFunc <- function(DT) {
+  rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
+  rseSum[,fuelShare:=fuel/sum(fuel)]
+  dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
+  publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
+  work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
+  home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
+  print("************************")
+  print(pp("DCFC: ",dcfc))
+  print(pp("PublicL2: ",publicL2))
+  print(pp("Work: ",work))
+  print(pp("Home: ",home))
+}
+eventsFile1 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1.csv.gz"
+rse1 <- readCsv(pp(workDir, eventsFile1))[type=='RefuelSessionEvent']
+eventsFile11 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1-1.csv.gz"
+rse11 <- readCsv(pp(workDir, eventsFile11))[type=='RefuelSessionEvent']
+eventsFile12 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1-2.csv.gz"
+rse12 <- readCsv(pp(workDir, eventsFile12))[type=='RefuelSessionEvent']
+
+print("SC1")
+chargingBehaviorFunc(rse1)
+print("SC1-1")
+chargingBehaviorFunc(rse11)
+print("SC1-2")
+chargingBehaviorFunc(rse12)
 #####
 
-# rse$chargingPointType2 <- "DCFC"
-# rse[chargingPointType%in%c("homelevel1(1.8|AC)","homelevel2(7.2|AC)")]$chargingPointType2 <- "HOME"
-# rse[chargingPointType%in%c("worklevel2(7.2|AC)")]$chargingPointType2 <- "WORK"
-# rse[chargingPointType%in%c("publiclevel2(7.2|AC)")]$chargingPointType2 <- "PUBLIC"
-# 
-# rse[,.N,by=.(chargingPointType2,timeBin=floor(time/300))] %>% 
-#   ggplot(aes((timeBin*300)/3600.,N,colour=chargingPointType2)) +
-#   geom_line()
+events[grepl("Virtual",person)]
 
-ggplot() + 
-  aes(runif(1000000)) +
-  geom_histogram(binwidth=0.05, colour="black", fill="white")
+
+
+
+
