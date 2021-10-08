@@ -68,8 +68,10 @@ trait ScaleUpCharging extends {
             PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
             self
           )
+        case Some(_) if stall.chargingPointType.isEmpty =>
+          log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
         case _ =>
-          log.warning(s"inquiryMap does not have this requestId $requestId")
+          log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.debug(s"Received parking response: $reply")
@@ -102,16 +104,11 @@ trait ScaleUpCharging extends {
     triggerId: Long
   ): Vector[ScheduleTrigger] = {
     import MathUtils._
-//    val s = System.currentTimeMillis
-//    log.info(s"Simulate event - timeBin: $timeBin - chargingDataSummaryMap size: ${chargingDataSummaryMap.size}")
-    val allTriggers = chargingDataSummaryMap.par.flatMap { case ((tazId, chargingType), data) =>
+    chargingDataSummaryMap.par.flatMap { case ((tazId, chargingType), data) =>
       val partialTriggers = (1 to roundUniformly(data.rate * timeStepByHour, rand).toInt)
         .foldLeft((timeBin, Vector.empty[ScheduleTrigger])) { case ((prevStartTime, triggers), i) =>
           try {
             val startTime = prevStartTime + roundUniformly(nextTimePoisson(data.rate), rand).toInt
-//            log.info(
-//              s"tazId $tazId - chargingType: $chargingType - index: $i - timBin: $startTime - triggers: ${triggers.size}"
-//            )
             val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
             val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
             val activityType = getActivityType(chargingType)
@@ -125,31 +122,22 @@ trait ScaleUpCharging extends {
             val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
             val vehicleId = beamVehicle.id.toString
             val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[PersonAgent])
-            val requestId = ParkingManagerIdGenerator.nextId
-            println(requestId)
-//            log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - requestId: $requestId")
-            inquiryMap.put(
-              requestId,
-              ParkingInquiry(
-                SpaceTime(destinationUtm, startTime),
-                activityType,
-                reservedFor,
-                Some(beamVehicle),
-                None, // remainingTripData
-                Some(personId),
-                0.0, // valueOfTime
-                duration,
-                requestId = requestId,
-                triggerId = triggerId
-              )
+            val parkingInquiry = ParkingInquiry(
+              SpaceTime(destinationUtm, startTime),
+              activityType,
+              reservedFor,
+              Some(beamVehicle),
+              None, // remainingTripData
+              Some(personId),
+              0.0, // valueOfTime
+              duration,
+              triggerId = triggerId
             )
-            println(requestId)
-//            log.info(
-//              s"tazId $tazId - chargingType: $chargingType - index: $i - spaceTime: ${inquiryMap(requestId).destinationUtm}"
-//            )
-            val t = triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, requestId), self)
-            println(requestId)
-            (startTime, t)
+            inquiryMap.put(parkingInquiry.requestId, parkingInquiry)
+            (
+              startTime,
+              triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
+            )
           } catch {
             case t: Throwable =>
               log.warning(s"WHAT HAPPENED ?: $t")
@@ -157,12 +145,8 @@ trait ScaleUpCharging extends {
           }
         }
         ._2
-//      log.info(s"tazId $tazId - chargingType: $chargingType - DONE}")
       partialTriggers
     }.toVector
-//    val e = System.currentTimeMillis()
-//    log.info(s"Simulate event end: $timeBin. triggers size: ${allTriggers.size}. runtime: ${(e - s) / 1000.0}")
-    allTriggers
   }
 
   /**
