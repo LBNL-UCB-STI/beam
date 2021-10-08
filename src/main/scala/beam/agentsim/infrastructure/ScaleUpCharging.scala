@@ -126,6 +126,7 @@ trait ScaleUpCharging extends {
             val vehicleId = beamVehicle.id.toString
             val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[PersonAgent])
             val requestId = ParkingManagerIdGenerator.nextId
+            println(requestId)
 //            log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - requestId: $requestId")
             inquiryMap.put(
               requestId,
@@ -138,13 +139,17 @@ trait ScaleUpCharging extends {
                 Some(personId),
                 0.0, // valueOfTime
                 duration,
+                requestId = requestId,
                 triggerId = triggerId
               )
             )
+            println(requestId)
 //            log.info(
 //              s"tazId $tazId - chargingType: $chargingType - index: $i - spaceTime: ${inquiryMap(requestId).destinationUtm}"
 //            )
-            (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, requestId), self))
+            val t = triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, requestId), self)
+            println(requestId)
+            (startTime, t)
           } catch {
             case t: Throwable =>
               log.warning(s"WHAT HAPPENED ?: $t")
