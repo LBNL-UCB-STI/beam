@@ -156,7 +156,7 @@ class ParallelParkingManagerSpec
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
           parking.zones.toMap,
           beamConfig,
@@ -220,7 +220,7 @@ class ParallelParkingManagerSpec
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
           parking.zones.toMap,
           beamConfig,
@@ -300,7 +300,7 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, Some(beamConfig), random)
+        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
           parking.zones.toMap,
           beamConfig,
@@ -345,7 +345,8 @@ class ParallelParkingManagerSpec
         1.0,
         1.0,
         randomSeed,
-        beamConfig
+        beamConfig,
+        None
       )
       val parkingZones = buildParkingZones[TAZ](stalls)
       val zpm = ParallelParkingManager.init(

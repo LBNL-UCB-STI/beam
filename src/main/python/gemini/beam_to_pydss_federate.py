@@ -76,16 +76,12 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         logging.info('Logging this as CSV')
         logging.info('stationId,estimatedLoad,currentTime')
         for station in charger_load_json:
-            taz = station['tazId']
-            parking_type = station['parkingType']
-            charger_type = station['chargingPointType']
-            n_plugs = station['numChargers']
-            manager_id = station['managerId']
-            station_id = 'cs_'+str(manager_id)+'_'+str(taz)+'_'+str(parking_type)+'_'+str(charger_type)
+            reservedFor = station['reservedFor']
+            parkingZoneId = station['parkingZoneId']
             station_load = station['estimatedLoad']
-            updated_station_ids.append(station_id)
+            updated_station_ids.append(parkingZoneId)
             updated_station_loads.append(station_load)
-            logging.info(str(station_id)+','+str(station_load)+','+str(t))
+            logging.info(str(parkingZoneId)+','+str(station_load)+','+str(reservedFor)+','+str(t))
 
         # uncomment this when pydss is included
         # for i in range(len(updated_station_ids)):
@@ -106,10 +102,8 @@ def run_beam_to_pydss_federate(station_bus_pairs):
         all_stations_with_control = []
         for station in charger_load_json:
             station_with_control = {
-                'managerId': str(station['managerId']),
-                'tazId': str(station['tazId']),
-                'parkingType': str(station['parkingType']),
-                'chargingPointType': str(station['chargingPointType']),
+                'parkingZoneId': str(station['parkingZoneId']),
+                'reservedFor': str(station['reservedFor']),
                 'power_limit_upper': station['estimatedLoad'],
                 'power_limit_lower': station['estimatedLoad'],
                 'lmp_with_control_signal': 0
