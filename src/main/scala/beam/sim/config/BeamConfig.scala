@@ -1796,12 +1796,11 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
-        evAdoptionFilePath: java.lang.String,
+        chargingPointCostScalingFactor: scala.Double,
+        chargingPointCountScalingFactor: scala.Double,
+        chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
-        parkingFilePath: java.lang.String,
         scaleUpExpansionFactor: scala.Double,
-        stallCostScalingFactor: scala.Double,
-        stallCountScalingFactor: scala.Double,
         timeStepInSeconds: scala.Int
       )
 
@@ -1843,18 +1842,20 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
-            evAdoptionFilePath = if (c.hasPathOrNull("evAdoptionFilePath")) c.getString("evAdoptionFilePath") else "",
+            chargingPointCostScalingFactor =
+              if (c.hasPathOrNull("chargingPointCostScalingFactor")) c.getDouble("chargingPointCostScalingFactor")
+              else 1.0,
+            chargingPointCountScalingFactor =
+              if (c.hasPathOrNull("chargingPointCountScalingFactor")) c.getDouble("chargingPointCountScalingFactor")
+              else 1.0,
+            chargingPointFilePath =
+              if (c.hasPathOrNull("chargingPointFilePath")) c.getString("chargingPointFilePath") else "",
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
-            parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
             scaleUpExpansionFactor =
               if (c.hasPathOrNull("scaleUpExpansionFactor")) c.getDouble("scaleUpExpansionFactor") else 1.0,
-            stallCostScalingFactor =
-              if (c.hasPathOrNull("stallCostScalingFactor")) c.getDouble("stallCostScalingFactor") else 1.0,
-            stallCountScalingFactor =
-              if (c.hasPathOrNull("stallCountScalingFactor")) c.getDouble("stallCountScalingFactor") else 1.0,
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }

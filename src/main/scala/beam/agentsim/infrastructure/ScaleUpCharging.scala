@@ -18,7 +18,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.mutable
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.language.postfixOps
 import scala.util.Random
@@ -36,8 +36,8 @@ trait ScaleUpCharging extends {
     if (cnmConfig.scaleUpExpansionFactor <= 1.0) None
     else Some(cnmConfig.scaleUpExpansionFactor)
 
-  protected lazy val inquiryMap: mutable.Map[Int, ParkingInquiry] = mutable.Map()
-  protected lazy val simulatedEvents: mutable.Map[(Id[TAZ], ChargingPointType), ChargingData] = mutable.Map()
+  protected lazy val inquiryMap: TrieMap[Int, ParkingInquiry] = TrieMap()
+  protected lazy val simulatedEvents: TrieMap[(Id[TAZ], ChargingPointType), ChargingData] = TrieMap()
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
@@ -51,20 +51,27 @@ trait ScaleUpCharging extends {
       inquiryMap.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received parking response: $response")
-      if (stall.chargingPointType.isDefined) {
-        val parkingInquiry = inquiryMap(requestId)
-        val beamVehicle = parkingInquiry.beamVehicle.get
-        self ! ChargingPlugRequest(
-          parkingInquiry.destinationUtm.time,
-          beamVehicle,
-          stall,
-          Id.create(parkingInquiry.personId.toString, classOf[Person]),
-          triggerId,
-          NotApplicable,
-          None
-        )
-        val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-        getScheduler ! ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, requestId), self)
+      inquiryMap.get(requestId) match {
+        case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
+          val beamVehicle = parkingInquiry.beamVehicle.get
+          self ! ChargingPlugRequest(
+            parkingInquiry.destinationUtm.time,
+            beamVehicle,
+            stall,
+            parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person])),
+            triggerId,
+            NotApplicable,
+            None
+          )
+          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
+          getScheduler ! ScheduleTrigger(
+            PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
+            self
+          )
+        case Some(_) if stall.chargingPointType.isEmpty =>
+          log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+        case _ =>
+          log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.debug(s"Received parking response: $reply")
@@ -86,9 +93,9 @@ trait ScaleUpCharging extends {
   private def nextTimePoisson(rate: Double): Double = 3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate)
 
   /**
-    * @param chargingDataSummaryMap
-    * @param timeBin
-    * @param triggerId
+    * @param chargingDataSummaryMap summary of collected charging events
+    * @param timeBin current time bin
+    * @param triggerId triggerId from the scheduler
     * @return
     */
   protected def simulateEvents(
@@ -112,23 +119,22 @@ trait ScaleUpCharging extends {
         val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
         val vehicleId = beamVehicle.id.toString
         val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[Person])
-        val requestId = ParkingManagerIdGenerator.nextId
-        log.info(s"tazId $tazId - chargingType: $chargingType - index: $i - soc: $soc")
-        inquiryMap.put(
-          requestId,
-          ParkingInquiry(
-            SpaceTime(destinationUtm, startTime),
-            activityType,
-            reservedFor,
-            Some(beamVehicle),
-            None, // remainingTripData
-            Some(personId),
-            0.0, // valueOfTime
-            duration,
-            triggerId = triggerId
-          )
+        val parkingInquiry = ParkingInquiry(
+          SpaceTime(destinationUtm, startTime),
+          activityType,
+          reservedFor,
+          Some(beamVehicle),
+          None, // remainingTripData
+          Some(personId),
+          0.0, // valueOfTime
+          duration,
+          triggerId = triggerId
         )
-        (startTime, triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, requestId), self))
+        inquiryMap.put(parkingInquiry.requestId, parkingInquiry)
+        (
+          startTime,
+          triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
+        )
       }
       ._2
   }.toVector
@@ -168,7 +174,7 @@ trait ScaleUpCharging extends {
     * get Beam Vehicle
     * @param vehicleType BeamVehicleType
     * @param reservedFor ReservedFor
-    * @param fuel Double
+    * @param soc State Of Charge In Double
     * @return
     */
   protected def getBeamVehicle(vehicleType: BeamVehicleType, reservedFor: ReservedFor, soc: Double): BeamVehicle = {
