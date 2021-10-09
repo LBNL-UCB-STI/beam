@@ -14,7 +14,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Agentsim
-import beam.utils.{MathUtils, ParkingManagerIdGenerator, VehicleIdGenerator}
+import beam.utils.{MathUtils, VehicleIdGenerator}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
@@ -107,42 +107,36 @@ trait ScaleUpCharging extends {
     chargingDataSummaryMap.par.flatMap { case ((tazId, chargingType), data) =>
       val partialTriggers = (1 to roundUniformly(data.rate * timeStepByHour, rand).toInt)
         .foldLeft((timeBin, Vector.empty[ScheduleTrigger])) { case ((prevStartTime, triggers), i) =>
-          try {
-            val startTime = prevStartTime + roundUniformly(nextTimePoisson(data.rate), rand).toInt
-            val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
-            val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
-            val activityType = getActivityType(chargingType)
-            val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
-            val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-            val vehicleType = getBeamVehicleType()
-            val reservedFor = data.reservedFor.managerType match {
-              case VehicleManager.TypeEnum.Household => VehicleManager.AnyManager
-              case _                                 => data.reservedFor
-            }
-            val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
-            val vehicleId = beamVehicle.id.toString
-            val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[PersonAgent])
-            val parkingInquiry = ParkingInquiry(
-              SpaceTime(destinationUtm, startTime),
-              activityType,
-              reservedFor,
-              Some(beamVehicle),
-              None, // remainingTripData
-              Some(personId),
-              0.0, // valueOfTime
-              duration,
-              triggerId = triggerId
-            )
-            inquiryMap.put(parkingInquiry.requestId, parkingInquiry)
-            (
-              startTime,
-              triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
-            )
-          } catch {
-            case t: Throwable =>
-              log.warning(s"WHAT HAPPENED ?: $t")
-              (0, Vector.empty)
+          val startTime = prevStartTime + roundUniformly(nextTimePoisson(data.rate), rand).toInt
+          val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
+          val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
+          val activityType = getActivityType(chargingType)
+          val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
+          val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+          val vehicleType = getBeamVehicleType()
+          val reservedFor = data.reservedFor.managerType match {
+            case VehicleManager.TypeEnum.Household => VehicleManager.AnyManager
+            case _                                 => data.reservedFor
           }
+          val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
+          val vehicleId = beamVehicle.id.toString
+          val personId = Id.create(vehicleId.replace("VirtualCar", "VirtualPerson"), classOf[PersonAgent])
+          val parkingInquiry = ParkingInquiry(
+            SpaceTime(destinationUtm, startTime),
+            activityType,
+            reservedFor,
+            Some(beamVehicle),
+            None, // remainingTripData
+            Some(personId),
+            0.0, // valueOfTime
+            duration,
+            triggerId = triggerId
+          )
+          inquiryMap.put(parkingInquiry.requestId, parkingInquiry)
+          (
+            startTime,
+            triggers :+ ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
+          )
         }
         ._2
       partialTriggers
