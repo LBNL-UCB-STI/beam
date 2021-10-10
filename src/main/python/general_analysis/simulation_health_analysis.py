@@ -1,6 +1,4 @@
 import os
-import sys
-import json
 import requests
 from glob import glob
 
@@ -47,3 +45,12 @@ with open('RunHealthAnalysis.txt', 'w') as file:
     for detector in detectors:
         file.write(f"{detector},{len(matric_log.get(detector, []))}\n")
 
+token = os.environ.get('SLACK_TOKEN')
+channel = os.environ.get('SLACK_CHANNEL')
+response = requests.post('https://slack.com/api/files.upload',
+                         headers={"Authorization": "Bearer "+token},
+                         data={'initial_comment': 'Beam Health Analysis', 'channels': channel},
+                         files={'file': open('RunHealthAnalysis.txt', 'rb')}
+                         )
+
+print(response.text)
