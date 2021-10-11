@@ -4,9 +4,9 @@ import java.io.{BufferedWriter, Closeable, FileWriter}
 
 import beam.utils.FileUtils
 import beam.utils.scenario.PlanElement
-import beam.utils.scenario.urbansim.censusblock.entities.{InputPlanElement, OutputPlanElement, TripElement}
+import beam.utils.scenario.urbansim.censusblock.entities.{InputPlanElement, OutputPlanElement}
 import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
-import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader, Reader, TripReader}
+import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader, Reader}
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
@@ -18,17 +18,12 @@ object UrbansimConverter {
 
   def main(args: Array[String]): Unit = {
     transform(
-      "/Users/alex/Documents/Projects/Simultion/newCsv/trips.csv",
       "/Users/alex/Documents/Projects/Simultion/newCsv/plans.csv",
       "/Users/alex/Documents/Projects/Simultion/newCsv/plans.out.csv"
     )
   }
 
-  def transform(inputTripPath: String, inputPlanPath: String, outputPlanPath: String): Unit = {
-    logger.info("Reading of the trips...")
-    val tripReader = new TripReader(inputTripPath)
-
-    val modes = getTripModes(tripReader)
+  def transform(inputPlanPath: String, outputPlanPath: String): Unit = {
 
     val modeMap = Map(
       "DRIVEALONEPAY"  -> "car",
@@ -48,7 +43,7 @@ object UrbansimConverter {
 
     try {
       val inputPlans = readPlan(planReader)
-      val outputIter = merge(inputPlans, modes, modeMap)
+      val outputIter = merge(inputPlans, modeMap)
       FileUtils.using(new BufferedWriter(new FileWriter(outputPlanPath))) { outputBuffer =>
         logger.info("Writing output plan...")
         val writer = writePlans(outputBuffer, outputIter)
@@ -57,16 +52,14 @@ object UrbansimConverter {
       logger.info("Finished")
     } finally {
       planReader.close()
-      tripReader.close()
     }
   }
 
   private def merge(
     inputPlans: Iterator[InputPlanElement],
-    modes: Map[(String, Double), String],
     modeMap: Map[String, String]
   ): Iterator[PlanElement] = {
-    val merger = new PlanMerger(modes, modeMap)
+    val merger = new PlanMerger(modeMap)
 
     merger.merge(inputPlans)
   }
@@ -94,11 +87,5 @@ object UrbansimConverter {
       "mode"             -> planElement.legMode.getOrElse("")
     ).asJava
   }
-
-  private def getTripModes(reader: Reader[TripElement]): Map[(String, Double), String] =
-    reader
-      .iterator()
-      .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
-      .toMap
 
 }
