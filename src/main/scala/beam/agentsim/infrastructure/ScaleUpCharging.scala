@@ -32,9 +32,19 @@ trait ScaleUpCharging extends {
   private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
 
-  private lazy val scaleUpFactorMaybe: Option[Double] =
-    if (cnmConfig.scaleUpExpansionFactor <= 1.0) None
-    else Some(cnmConfig.scaleUpExpansionFactor)
+  private lazy val scaleUpFactors: Map[String, Double] =
+    if (cnmConfig.scaleUp.enabled) Map.empty
+    else {
+      Map(
+        cnmConfig.scaleUp.name_chargingType_1 -> cnmConfig.scaleUp.expansionFactor_chargingType_1,
+        cnmConfig.scaleUp.name_chargingType_2 -> cnmConfig.scaleUp.expansionFactor_chargingType_2,
+        cnmConfig.scaleUp.name_chargingType_3 -> cnmConfig.scaleUp.expansionFactor_chargingType_3,
+        cnmConfig.scaleUp.name_chargingType_4 -> cnmConfig.scaleUp.expansionFactor_chargingType_4,
+        cnmConfig.scaleUp.name_chargingType_5 -> cnmConfig.scaleUp.expansionFactor_chargingType_5,
+        cnmConfig.scaleUp.name_chargingType_6 -> cnmConfig.scaleUp.expansionFactor_chargingType_6,
+        cnmConfig.scaleUp.name_chargingType_7 -> cnmConfig.scaleUp.expansionFactor_chargingType_7
+      )
+    }
 
   protected lazy val inquiryMap: TrieMap[Int, ParkingInquiry] = TrieMap()
   protected lazy val simulatedEvents: TrieMap[(Id[TAZ], ChargingPointType), ChargingData] = TrieMap()
@@ -106,7 +116,7 @@ trait ScaleUpCharging extends {
     import MathUtils._
     chargingDataSummaryMap.par.flatMap { case ((tazId, chargingType), data) =>
       val partialTriggers = (1 to roundUniformly(data.rate * timeStepByHour, rand).toInt)
-        .foldLeft((timeBin, Vector.empty[ScheduleTrigger])) { case ((prevStartTime, triggers), i) =>
+        .foldLeft((timeBin, Vector.empty[ScheduleTrigger])) { case ((prevStartTime, triggers), _) =>
           val startTime = prevStartTime + roundUniformly(nextTimePoisson(data.rate), rand).toInt
           val duration = roundUniformly(data.meanDuration + (rand.nextGaussian() * data.sdDuration), rand).toInt
           val soc = data.meanSOC + (rand.nextGaussian() * data.sdSOC)
@@ -200,24 +210,23 @@ trait ScaleUpCharging extends {
     * @return map
     */
   protected def summarizeAndSkimOrGetChargingData(): Map[(Id[TAZ], ChargingPointType), ChargingDataSummary] = {
-    scaleUpFactorMaybe match {
-      case Some(scaleUpFactor) if simulatedEvents.nonEmpty =>
-        val chargingDataSummary = simulatedEvents.par
-          .map { case (key, data) =>
-            val rate = data.durations.size * scaleUpFactor / timeStepByHour
-            // Adding 60 seconds to avoid null duration
-            val meanDur = 60 + (data.durations.sum / data.durations.size)
-            val stdDevDur = Math.sqrt(data.durations.map(_ - meanDur).map(t => t * t).sum / data.durations.size)
-            val meanFuel = data.soc.sum / data.soc.size
-            val stdDevFuel = Math.sqrt(data.soc.map(_ - meanFuel).map(t => t * t).sum / data.soc.size)
-            key -> ChargingDataSummary(rate, meanDur, stdDevDur, meanFuel, stdDevFuel, data.reservedFor)
-          }
-          .seq
-          .toMap
-        simulatedEvents.clear()
-        chargingDataSummary
-      case _ => Map.empty[(Id[TAZ], ChargingPointType), ChargingDataSummary]
-    }
+    if (cnmConfig.scaleUp.enabled && simulatedEvents.nonEmpty) {
+      val chargingDataSummary = simulatedEvents.par
+        .map { case (key, data) =>
+          val scaleUpFactor = Math.max(scaleUpFactors.getOrElse(key._2.toString, 1.0) - 1, 0.0)
+          val rate = data.durations.size * scaleUpFactor / timeStepByHour
+          // Adding 60 seconds to avoid null duration
+          val meanDur = 60 + (data.durations.sum / data.durations.size)
+          val stdDevDur = Math.sqrt(data.durations.map(_ - meanDur).map(t => t * t).sum / data.durations.size)
+          val meanFuel = data.soc.sum / data.soc.size
+          val stdDevFuel = Math.sqrt(data.soc.map(_ - meanFuel).map(t => t * t).sum / data.soc.size)
+          key -> ChargingDataSummary(rate, meanDur, stdDevDur, meanFuel, stdDevFuel, data.reservedFor)
+        }
+        .seq
+        .toMap
+      simulatedEvents.clear()
+      chargingDataSummary
+    } else Map.empty[(Id[TAZ], ChargingPointType), ChargingDataSummary]
   }
 
   /**
@@ -226,17 +235,15 @@ trait ScaleUpCharging extends {
     * @param vehicle Beam Vehicle
     */
   protected def collectChargingData(stall: ParkingStall, vehicle: BeamVehicle): Unit = {
-    scaleUpFactorMaybe match {
-      case Some(_) if !vehicle.id.toString.contains("VirtualCar") =>
-        val key = (stall.tazId, stall.chargingPointType.get)
-        if (!simulatedEvents.contains(key)) {
-          simulatedEvents.put(key, ChargingData(ListBuffer.empty[Int], ListBuffer.empty[Double], stall.reservedFor))
-        }
-        val (duration, _) = vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(stall), None, None, None)
-        simulatedEvents(key).durations.append(duration)
-        val soc = vehicle.primaryFuelLevelInJoules / vehicle.beamVehicleType.primaryFuelCapacityInJoule
-        simulatedEvents(key).soc.append(soc)
-      case _ =>
+    if (cnmConfig.scaleUp.enabled && !vehicle.id.toString.contains("VirtualCar")) {
+      val key = (stall.tazId, stall.chargingPointType.get)
+      if (!simulatedEvents.contains(key)) {
+        simulatedEvents.put(key, ChargingData(ListBuffer.empty[Int], ListBuffer.empty[Double], stall.reservedFor))
+      }
+      val (duration, _) = vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(stall), None, None, None)
+      simulatedEvents(key).durations.append(duration)
+      val soc = vehicle.primaryFuelLevelInJoules / vehicle.beamVehicleType.primaryFuelCapacityInJoule
+      simulatedEvents(key).soc.append(soc)
     }
   }
 }

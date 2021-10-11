@@ -1800,7 +1800,7 @@ object BeamConfig {
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
-        scaleUpExpansionFactor: scala.Double,
+        scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
       )
 
@@ -1840,6 +1840,68 @@ object BeamConfig {
           }
         }
 
+        case class ScaleUp(
+          enabled: scala.Boolean,
+          expansionFactor_chargingType_1: scala.Double,
+          expansionFactor_chargingType_2: scala.Double,
+          expansionFactor_chargingType_3: scala.Double,
+          expansionFactor_chargingType_4: scala.Double,
+          expansionFactor_chargingType_5: scala.Double,
+          expansionFactor_chargingType_6: scala.Double,
+          expansionFactor_chargingType_7: scala.Double,
+          name_chargingType_1: java.lang.String,
+          name_chargingType_2: java.lang.String,
+          name_chargingType_3: java.lang.String,
+          name_chargingType_4: java.lang.String,
+          name_chargingType_5: java.lang.String,
+          name_chargingType_6: java.lang.String,
+          name_chargingType_7: java.lang.String
+        )
+
+        object ScaleUp {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              expansionFactor_chargingType_1 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_1")) c.getDouble("expansionFactor_chargingType_1")
+                else 1.0,
+              expansionFactor_chargingType_2 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_2")) c.getDouble("expansionFactor_chargingType_2")
+                else 1.0,
+              expansionFactor_chargingType_3 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_3")) c.getDouble("expansionFactor_chargingType_3")
+                else 1.0,
+              expansionFactor_chargingType_4 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_4")) c.getDouble("expansionFactor_chargingType_4")
+                else 1.0,
+              expansionFactor_chargingType_5 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_5")) c.getDouble("expansionFactor_chargingType_5")
+                else 1.0,
+              expansionFactor_chargingType_6 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_6")) c.getDouble("expansionFactor_chargingType_6")
+                else 1.0,
+              expansionFactor_chargingType_7 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_7")) c.getDouble("expansionFactor_chargingType_7")
+                else 1.0,
+              name_chargingType_1 =
+                if (c.hasPathOrNull("name_chargingType_1")) c.getString("name_chargingType_1") else "",
+              name_chargingType_2 =
+                if (c.hasPathOrNull("name_chargingType_2")) c.getString("name_chargingType_2") else "",
+              name_chargingType_3 =
+                if (c.hasPathOrNull("name_chargingType_3")) c.getString("name_chargingType_3") else "",
+              name_chargingType_4 =
+                if (c.hasPathOrNull("name_chargingType_4")) c.getString("name_chargingType_4") else "",
+              name_chargingType_5 =
+                if (c.hasPathOrNull("name_chargingType_5")) c.getString("name_chargingType_5") else "",
+              name_chargingType_6 =
+                if (c.hasPathOrNull("name_chargingType_6")) c.getString("name_chargingType_6") else "",
+              name_chargingType_7 =
+                if (c.hasPathOrNull("name_chargingType_7")) c.getString("name_chargingType_7") else ""
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
             chargingPointCostScalingFactor =
@@ -1854,8 +1916,10 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
-            scaleUpExpansionFactor =
-              if (c.hasPathOrNull("scaleUpExpansionFactor")) c.getDouble("scaleUpExpansionFactor") else 1.0,
+            scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
+              else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")
+            ),
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
