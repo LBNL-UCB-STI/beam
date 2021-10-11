@@ -430,10 +430,15 @@ chargingBis <- charging[
   ,c("parkingType","chargingPointType","fuel0_001", "fuel0_010","fuel0_050")]
 
 gather(chargingBis, scenario, fuelDiff, fuel0_001:fuel0_050) %>%
-  ggplot(aes(scenario, fuelDiff, color=chargingPointType)) +
-  geom_line()
+  ggplot(aes(scenario, fuelDiff, fill=chargingPointType)) +
+  geom_bar(stat='identity',position='dodge')
 
 
+chargingBis$rate <- 4.0*((chargingBis$fuel0_010/chargingBis$fuel0_050)/5.0)
+
+113.318472 0.01
+10.675835 0.1
+2.055831 0.5
 
 
 

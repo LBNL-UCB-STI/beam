@@ -33,8 +33,7 @@ trait ScaleUpCharging extends {
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
 
   private lazy val scaleUpFactors: Map[String, Double] =
-    if (cnmConfig.scaleUp.enabled) Map.empty
-    else {
+    if (cnmConfig.scaleUp.enabled)
       Map(
         cnmConfig.scaleUp.name_chargingType_1 -> cnmConfig.scaleUp.expansionFactor_chargingType_1,
         cnmConfig.scaleUp.name_chargingType_2 -> cnmConfig.scaleUp.expansionFactor_chargingType_2,
@@ -44,7 +43,7 @@ trait ScaleUpCharging extends {
         cnmConfig.scaleUp.name_chargingType_6 -> cnmConfig.scaleUp.expansionFactor_chargingType_6,
         cnmConfig.scaleUp.name_chargingType_7 -> cnmConfig.scaleUp.expansionFactor_chargingType_7
       )
-    }
+    else Map.empty
 
   protected lazy val inquiryMap: TrieMap[Int, ParkingInquiry] = TrieMap()
   protected lazy val simulatedEvents: TrieMap[(Id[TAZ], ChargingPointType), ChargingData] = TrieMap()

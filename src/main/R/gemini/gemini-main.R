@@ -37,7 +37,8 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Scenario0', 'Scenario0-001-0', 'Scenario0-010-0', 'Scenario0-050-0')
+scenarioNames <- c('Scenario0', 'Scenario0-010-0', 'Scenario0-025-1', 'Scenario0-025-2', 'Scenario0-050-0')
+#scenarioNames <- c('Scenario2', 'Scenario3')
 scenarioBaselineLabel <- 'Scenario0'
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 
@@ -205,7 +206,7 @@ p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=kw/tot.kw*100,fill=factor(
   labs(x = "", y = "Share of Charging (%)", fill="load severity", title="Public Charging") +
   theme(axis.text.x = element_text(angle = 0, hjust=0.5), strip.text = element_text(size=rel(1.2)))
   #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
-ggsave(pp(plotsDir,'/public-daily-charging-by-scenario.png'),p,width=3,height=3,units='in')
+ggsave(pp(plotsDir,'/public-daily-charging-by-scenario.png'),p,width=5,height=3,units='in')
 
 
 
