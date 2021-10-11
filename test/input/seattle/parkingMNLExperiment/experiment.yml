@@ -1,0 +1,59 @@
+---
+
+# Header
+
+header:
+  title: Parking_Charging-Experiment
+  author: BEAM Developers
+  beamTemplateConfPath: test/input/sf-light/sf-light-25k.conf
+  deployParams:
+    ### ---- run template env variables ---####
+    EXPERIMENT_MAX_RAM: 2g
+    S3_OUTPUT_PATH_SUFFIX: "sf-light"
+    DROP_OUTPUT_ONCOMPLETE: "false"
+
+# Default Params
+
+defaultParams:
+### ---- beam-template.conf param replacement ---####
+#beam.agentsim.tuning.transitCapacity: 0.05
+#beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation: 0.01
+
+# Factors
+
+factors:
+  - title: distanceMultiplier
+    levels:
+      - name: Low
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier: 0.5
+      - name: Base
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier: 1
+      - name: High
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.distance_multiplier: 2
+
+  - title: InstalledCapacityMultiplier
+    levels:
+      - name: Low
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier: 0.000
+      - name: Base
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier: 0.001
+      - name: High
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.installed_capacity_multiplier: 0.002
+
+  - title: ParkingCostsPriceMultiplier
+    levels:
+      - name: Low
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier: 0
+      - name: Base
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier: 4.5
+      - name: High
+        params:
+          beam.agentsim.agents.parking.mulitnomialLogit.params.parking_costs_price_multiplier: 9
