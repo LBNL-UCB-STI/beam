@@ -6,6 +6,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Link
 
 import scala.language.higherKinds
 
@@ -29,7 +30,8 @@ class ParkingZone[GEO](
   val reservedFor: ReservedFor,
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
-  val timeRestrictions: Map[VehicleCategory, Range]
+  val timeRestrictions: Map[VehicleCategory, Range],
+  val link: Option[Link]
 ) {
 
   /**
@@ -61,7 +63,8 @@ class ParkingZone[GEO](
       this.reservedFor,
       this.chargingPointType,
       this.pricingModel,
-      this.timeRestrictions
+      this.timeRestrictions,
+      this.link
     )
   }
 
@@ -100,7 +103,8 @@ object ParkingZone extends LazyLogging {
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
-    timeRestrictions: Map[VehicleCategory, Range] = Map.empty
+    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    link: Option[Link] = None
   ): ParkingZone[GEO] =
     new ParkingZone[GEO](
       parkingZoneId,
@@ -111,7 +115,8 @@ object ParkingZone extends LazyLogging {
       reservedFor,
       chargingPointType,
       pricingModel,
-      timeRestrictions
+      timeRestrictions,
+      link
     )
 
   def defaultInit[GEO](
@@ -136,7 +141,8 @@ object ParkingZone extends LazyLogging {
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
-    timeRestrictions: Map[VehicleCategory, Range] = Map.empty
+    timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
+    link: Option[Link] = None
   ): ParkingZone[GEO] = {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
@@ -152,7 +158,8 @@ object ParkingZone extends LazyLogging {
       maxStalls,
       chargingPointType,
       pricingModel,
-      timeRestrictions
+      timeRestrictions,
+      link
     )
   }
 

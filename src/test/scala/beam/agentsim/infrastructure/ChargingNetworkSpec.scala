@@ -149,6 +149,7 @@ object ChargingNetworkSpec {
       identity[TAZ](_),
       boundingBox,
       beamConfig,
+      None,
       geo.distUTMInMeters(_, _),
       minSearchRadius,
       maxSearchRadius,

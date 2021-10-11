@@ -16,8 +16,10 @@ isConnected = h.helicsBrokerIsConnected(broker)
 if isConnected == 1:
     print("Broker created and connected")
 second = 0
-while h.helicsBrokerIsConnected(broker) == 1 and second < 8*60*60:
+while h.helicsBrokerIsConnected(broker) == 1 and second < 7*24*3600:
     time.sleep(1)
     second += 1
+    if second % 3600 == 0:
+        print("{} hours passed".format(second/3600))
 h.helicsCloseLibrary()
 print("Broker disconnected")
