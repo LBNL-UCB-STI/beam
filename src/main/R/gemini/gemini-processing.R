@@ -248,7 +248,7 @@ sfbay_contrained_parking <- sfbay_contrained_parking[,-c("chargingType")]
 setnames(sfbay_contrained_parking, "ReservedFor", "reservedFor")
 #sfbay_contrained_parking[chargingPointType!="NoCharger",.N,by=.(parkingType,chargingPointType)]
 
-initInfra_1_5 <- readCsv(pp(workDir, "/init1.6_2021_Sep_22_wgs84.csv"))
+initInfra_1_5 <- readCsv(pp(workDir, "/init1.6_2021_Oct_06_wgs84.csv"))
 initInfra_1_5_updated <- initInfra_1_5[,c("subSpace", "pType", "chrgType", "field_1", "household_id", "X", "Y")]
 setnames(initInfra_1_5_updated, "chrgType", "chargingPointType")
 setnames(initInfra_1_5_updated, "pType", "parkingType")
@@ -308,7 +308,7 @@ initInfra_1_5_updated[,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),]
 initInfra_1_5_updated$numStalls <- 1
 write.csv(
   initInfra_1_5_updated,
-  file = pp(workDir, "/init1.6_2021_Sep_22_wgs84_updated.csv"),
+  file = pp(workDir, "/init1.6_2021_Oct_06_wgs84_updated.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
@@ -323,23 +323,23 @@ no_charger_or_non_AlamedaOakland_constrained <- sfbay_contrained_parking[
 initInfra_1_5_updated_constrained_non_AlamedaOakland <- rbind(initInfra_1_5_updated, no_charger_or_non_AlamedaOakland_constrained)
 write.csv(
   initInfra_1_5_updated_constrained_non_AlamedaOakland,
-  file = pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-parking-infra16-and-constrained-nonAO.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 
-infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"))
+infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-infra16-and-constrained-nonAO.csv"))
 infra16_charging <- infra16[chargingPointType!="NoCharger"]
 write.csv(
   infra16_charging,
-  file = pp(workDir, "/gemini-base-scenario-2-charging-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-charging-infra16-and-constrained-nonAO.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 infra16_parking <- infra16[chargingPointType=="NoCharger"]
 write.csv(
   infra16_parking,
-  file = pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-parking-infra16-and-constrained-nonAO.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
@@ -367,32 +367,72 @@ parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
 chargingBehaviorFunc <- function(DT) {
   rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
   rseSum[,fuelShare:=fuel/sum(fuel)]
-  dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
-  publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
-  work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
-  home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
+  #dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
+  #publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
+  #work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
+  #home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
   print("************************")
-  print(pp("DCFC: ",dcfc))
-  print(pp("PublicL2: ",publicL2))
-  print(pp("Work: ",work))
-  print(pp("Home: ",home))
+  print(rseSum)
+  #print(pp("DCFC: ",dcfc," - ",))
+  #print(pp("PublicL2: ",publicL2))
+  #print(pp("Work: ",work))
+  #print(pp("Home: ",home))
 }
-eventsFile1 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1.csv.gz"
-rse1 <- readCsv(pp(workDir, eventsFile1))[type=='RefuelSessionEvent']
-eventsFile11 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1-1.csv.gz"
-rse11 <- readCsv(pp(workDir, eventsFile11))[type=='RefuelSessionEvent']
-eventsFile12 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1-2.csv.gz"
-rse12 <- readCsv(pp(workDir, eventsFile12))[type=='RefuelSessionEvent']
+eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"
+rseSC0 <- readCsv(pp(workDir, eventsFileSC0))[type=='RefuelSessionEvent']
+eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-001-0.csv.gz"
+rseSC001 <- readCsv(pp(workDir, eventsFileSC001))[type=='RefuelSessionEvent']
+eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-0.csv.gz"
+rseSC010 <- readCsv(pp(workDir, eventsFileSC010))[type=='RefuelSessionEvent']
+eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-050-0.csv.gz"
+rseSC050 <- readCsv(pp(workDir, eventsFileSC050))[type=='RefuelSessionEvent']
 
-print("SC1")
-chargingBehaviorFunc(rse1)
-print("SC1-1")
-chargingBehaviorFunc(rse11)
-print("SC1-2")
-chargingBehaviorFunc(rse12)
+print("rseSC0")
+chargingBehaviorFunc(rseSC0)
+print("rseSC001")
+chargingBehaviorFunc(rseSC001)
+print("rseSC010")
+chargingBehaviorFunc(rseSC010)
+print("rseSC050")
+chargingBehaviorFunc(rseSC050)
 #####
 
 events[grepl("Virtual",person)]
+
+charging <- rseSC0[
+  ,.(fuel0=sum(fuel)),by=.(parkingType,chargingPointType)][
+    ,fuelShare0:=fuel0/sum(fuel0)]
+
+chargingSC001 <- rseSC001[
+  ,.(fuel001=sum(fuel)),by=.(parkingType,chargingPointType)][
+    ,fuelShare001:=fuel001/sum(fuel001)]
+chargingSC010 <- rseSC010[
+  ,.(fuel010=sum(fuel)),by=.(parkingType,chargingPointType)][
+    ,fuelShare010:=fuel010/sum(fuel010)]
+chargingSC050 <- rseSC050[
+  ,.(fuel050=sum(fuel)),by=.(parkingType,chargingPointType)][
+    ,fuelShare050:=fuel050/sum(fuel050)]
+
+charging <- charging[chargingSC001, on=c("parkingType","chargingPointType")]
+charging <- charging[chargingSC010, on=c("parkingType","chargingPointType")]
+charging <- charging[chargingSC050, on=c("parkingType","chargingPointType")]
+
+charging[,fuel0_001:=fuel0/fuel001]
+charging[,fuelShare0_001:=fuelShare0/fuelShare001]
+
+charging[,fuel0_010:=fuel0/fuel010]
+charging[,fuelShare0_010:=fuelShare0/fuelShare010]
+
+charging[,fuel0_050:=fuel0/fuel050]
+charging[,fuelShare0_050:=fuelShare0/fuelShare050]
+
+chargingBis <- charging[
+  ,c("parkingType","chargingPointType","fuel0_001", "fuel0_010","fuel0_050")]
+
+gather(chargingBis, scenario, fuelDiff, fuel0_001:fuel0_050) %>%
+  ggplot(aes(scenario, fuelDiff, color=chargingPointType)) +
+  geom_line()
+
 
 
 

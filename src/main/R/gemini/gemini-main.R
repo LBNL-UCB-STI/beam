@@ -37,7 +37,7 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Scenario0', 'Scenario0-001', 'Scenario0-010', 'Scenario0-050')
+scenarioNames <- c('Scenario0', 'Scenario0-001-0', 'Scenario0-010-0', 'Scenario0-050-0')
 scenarioBaselineLabel <- 'Scenario0'
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 
