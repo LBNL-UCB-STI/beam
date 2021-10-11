@@ -55,10 +55,10 @@ class ConsumptionRateFilterStoreImpl(
   //For now, and for load speed the best option seems to be to pre-load in a background thread
   private lazy val log = LoggerFactory.getLogger(this.getClass)
   //Hard-coding can become configurable if necessary
-  private val speedBinHeader = "speed" // TODO: Generalize this to deal with different headers
-  private val gradeBinHeader = "grade"
+  private val speedBinHeader = "speed_mph_float_bins"
+  private val gradeBinHeader = "grade_percent_float_bins"
   private val lanesBinHeader = "num_lanes_int_bins"
-  private val rateHeader = "energy_rate"
+  private val rateHeader = "rate"
   private val conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles = 746.86
   private val conversionRateForJoulesPerMeterConversionFromKwhPer100Miles = 22.37
 
