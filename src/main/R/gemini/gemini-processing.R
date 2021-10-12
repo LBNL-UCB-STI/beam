@@ -378,6 +378,7 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("Work: ",work))
   #print(pp("Home: ",home))
 }
+
 eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"
 rseSC0 <- readCsv(pp(workDir, eventsFileSC0))[type=='RefuelSessionEvent']
 eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-001-0.csv.gz"
@@ -436,10 +437,17 @@ gather(chargingBis, scenario, fuelDiff, fuel0_001:fuel0_050) %>%
 
 chargingBis$rate <- 4.0*((chargingBis$fuel0_010/chargingBis$fuel0_050)/5.0)
 
-113.318472 0.01
-10.675835 0.1
-2.055831 0.5
+###
+
+testFile <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-025-2.csv.gz"
+test <- readCsv(pp(workDir, testFile))[type=='RefuelSessionEvent']
 
 
+###
 
+fooFile <- "/2021Aug22-Oakland/beamLog.out-choiceset.txt"
+  
+  
+  
+  
 
