@@ -16,6 +16,8 @@ EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -Pap
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
+HEALTH_ANALYSIS_SCRIPT = 'python3 src/main/python/general_analysis/simulation_health_analysis.py'
+
 S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
   -    opth="output"
@@ -130,6 +132,12 @@ runcmd:
   -    echo "-------------------running $cf----------------------"
   -    $RUN_SCRIPT
   -  done
+  - echo "-------------------running Health Analysis Script----------------------"
+  - $HEALTH_ANALYSIS_SCRIPT
+  - while IFS="," read -r metric count
+  - do
+  -    export $metric=$count
+  - done < RunHealthAnalysis.txt
   - s3glip=""
   - if [ "$S3_PUBLISH" = "True" ]
   - then
@@ -156,6 +164,10 @@ runcmd:
         \\"max_ram\\":\\"$MAX_RAM\\",
         \\"profiler_type\\":\\"$PROFILER\\",
         \\"config_file\\":\\"$CONFIG\\",
+        \\"stacktrace\\":\\"$stacktrace\\",
+        \\"died_actors\\":\\"$actorDied\\",
+        \\"error\\":\\"$error\\",
+        \\"warning\\":\\"$warn\\",
         \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
       }
