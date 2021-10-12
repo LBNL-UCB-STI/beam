@@ -42,7 +42,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  def loadScenario(withReplacingHOVToTeleportationOrCar: Boolean = true): (Scenario, Boolean) = {
+  def loadScenario(): (Scenario, Boolean) = {
     clear()
 
     val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
@@ -107,11 +107,9 @@ class UrbanSimScenarioLoader(
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
-    val plans = if (withReplacingHOVToTeleportationOrCar) {
+    val plans = {
       HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
       HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
-    } else {
-      mergedPlans
     }
 
     val householdIds = households.map(_.householdId.id).toSet
@@ -137,6 +135,7 @@ class UrbanSimScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
+
     scenario -> plansMerged
   }
 
