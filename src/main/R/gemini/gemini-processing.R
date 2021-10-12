@@ -381,11 +381,11 @@ chargingBehaviorFunc <- function(DT) {
 
 eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"
 rseSC0 <- readCsv(pp(workDir, eventsFileSC0))[type=='RefuelSessionEvent']
-eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-2.csv.gz"
+eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-3.csv.gz"
 rseSC001 <- readCsv(pp(workDir, eventsFileSC001))[type=='RefuelSessionEvent']
-eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-025-2.csv.gz"
+eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-025-3.csv.gz"
 rseSC010 <- readCsv(pp(workDir, eventsFileSC010))[type=='RefuelSessionEvent']
-eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-050-2.csv.gz"
+eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-050-3.csv.gz"
 rseSC050 <- readCsv(pp(workDir, eventsFileSC050))[type=='RefuelSessionEvent']
 
 print("rseSC0")
@@ -417,12 +417,24 @@ chargingSC050 <- rseSC050[
 charging <- charging[chargingSC001, on=c("parkingType","chargingPointType")]
 charging <- charging[chargingSC010, on=c("parkingType","chargingPointType")]
 charging <- charging[chargingSC050, on=c("parkingType","chargingPointType")]
-
-charging[,fuel0_010:=10*fuel0/fuel001]
+# parkingType    chargingPointType    
+# 1:      Public publiclevel2(7.2|AC)
+# 2:      Public   publicfc(150.0|DC)
+# 3:      Public  publicxfc(250.0|DC) 
+# 4:   Workplace   worklevel2(7.2|AC) 
+# 5: Residential   homelevel1(1.8|AC) 
+# 6: Residential   homelevel2(7.2|AC)
+#c(2.45, 1119.77, 739.21, 8.05, 2.35, 171.38)
+charging[,fuel0_010_coef:=c(3.82, 141.68, 112.27, 9.02, 5.64, 64.84)]
+charging[,fuel0_010:=fuel0_010_coef*fuel0/fuel001]
 #charging[,fuelShare0_001:=fuelShare0/fuelShare001]
-charging[,fuel0_025:=4*fuel0/fuel010]
+#c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
+charging[,fuel0_025_coef:=c(1.74, 21.39, 21.28, 3.55, 2.54, 13.11)]
+charging[,fuel0_025:=fuel0_025_coef*fuel0/fuel010]
 #charging[,fuelShare0_010:=fuelShare0/fuelShare010]
-charging[,fuel0_050:=2*fuel0/fuel050]
+c(1.0, 14.34, 14.28, 1.21, 0.70, 5.93)
+charging[,fuel0_050_coef:=c(1.07, 5.58, 5.49, 1.87, 1.42, 3.65)]
+charging[,fuel0_050:=fuel0_050_coef*fuel0/fuel050]
 #charging[,fuelShare0_050:=fuelShare0/fuelShare050]
 
 chargingBis <- charging[
