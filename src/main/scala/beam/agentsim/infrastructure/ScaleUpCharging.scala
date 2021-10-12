@@ -27,6 +27,7 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.language.postfixOps
 import scala.util.Random
+import scala.collection.mutable
 
 trait ScaleUpCharging extends {
   this: ChargingNetworkManager =>
@@ -42,7 +43,7 @@ trait ScaleUpCharging extends {
     else 0.0
 
   protected lazy val inquiryMap: TrieMap[Int, ParkingInquiry] = TrieMap()
-  protected lazy val simulatedEvents: TrieMap[Id[TAZ], TrieMap[ChargingPointType, ChargingData]] = TrieMap()
+  protected lazy val simulatedEvents: mutable.Map[Id[TAZ], mutable.Map[ChargingPointType, ChargingData]] = mutable.Map()
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
@@ -264,15 +265,17 @@ trait ScaleUpCharging extends {
       val chargingPoint = stall.chargingPointType.get
       val (duration, _) = vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(stall), None, None, None)
       val soc = vehicle.primaryFuelLevelInJoules / vehicle.beamVehicleType.primaryFuelCapacityInJoule
-      if (!simulatedEvents.contains(tazId))
-        simulatedEvents.put(tazId, TrieMap())
-      if (!simulatedEvents(tazId).contains(chargingPoint))
-        simulatedEvents(tazId).put(
-          chargingPoint,
-          ChargingData(ListBuffer.empty[Int], ListBuffer.empty[Double], stall.reservedFor)
-        )
-      simulatedEvents(tazId)(chargingPoint).durations.append(duration)
-      simulatedEvents(tazId)(chargingPoint).soc.append(soc)
+      simulatedEvents.synchronized {
+        if (!simulatedEvents.contains(tazId))
+          simulatedEvents.put(tazId, mutable.Map.empty[ChargingPointType, ChargingData])
+        if (!simulatedEvents(tazId).contains(chargingPoint))
+          simulatedEvents(tazId).put(
+            chargingPoint,
+            ChargingData(ListBuffer.empty[Int], ListBuffer.empty[Double], stall.reservedFor)
+          )
+        simulatedEvents(tazId)(chargingPoint).durations.append(duration)
+        simulatedEvents(tazId)(chargingPoint).soc.append(soc)
+      }
     }
   }
 }
