@@ -381,11 +381,11 @@ chargingBehaviorFunc <- function(DT) {
 
 eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"
 rseSC0 <- readCsv(pp(workDir, eventsFileSC0))[type=='RefuelSessionEvent']
-eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-001-0.csv.gz"
+eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-2.csv.gz"
 rseSC001 <- readCsv(pp(workDir, eventsFileSC001))[type=='RefuelSessionEvent']
-eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-0.csv.gz"
+eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-025-2.csv.gz"
 rseSC010 <- readCsv(pp(workDir, eventsFileSC010))[type=='RefuelSessionEvent']
-eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-050-0.csv.gz"
+eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-050-2.csv.gz"
 rseSC050 <- readCsv(pp(workDir, eventsFileSC050))[type=='RefuelSessionEvent']
 
 print("rseSC0")
@@ -418,17 +418,15 @@ charging <- charging[chargingSC001, on=c("parkingType","chargingPointType")]
 charging <- charging[chargingSC010, on=c("parkingType","chargingPointType")]
 charging <- charging[chargingSC050, on=c("parkingType","chargingPointType")]
 
-charging[,fuel0_001:=fuel0/fuel001]
-charging[,fuelShare0_001:=fuelShare0/fuelShare001]
-
-charging[,fuel0_010:=fuel0/fuel010]
-charging[,fuelShare0_010:=fuelShare0/fuelShare010]
-
-charging[,fuel0_050:=fuel0/fuel050]
-charging[,fuelShare0_050:=fuelShare0/fuelShare050]
+charging[,fuel0_010:=10*fuel0/fuel001]
+#charging[,fuelShare0_001:=fuelShare0/fuelShare001]
+charging[,fuel0_025:=4*fuel0/fuel010]
+#charging[,fuelShare0_010:=fuelShare0/fuelShare010]
+charging[,fuel0_050:=2*fuel0/fuel050]
+#charging[,fuelShare0_050:=fuelShare0/fuelShare050]
 
 chargingBis <- charging[
-  ,c("parkingType","chargingPointType","fuel0_001", "fuel0_010","fuel0_050")]
+  ,c("parkingType","chargingPointType","fuel0_010", "fuel0_025","fuel0_050")]
 
 gather(chargingBis, scenario, fuelDiff, fuel0_001:fuel0_050) %>%
   ggplot(aes(scenario, fuelDiff, fill=chargingPointType)) +
@@ -439,7 +437,7 @@ chargingBis$rate <- 4.0*((chargingBis$fuel0_010/chargingBis$fuel0_050)/5.0)
 
 ###
 
-testFile <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-025-2.csv.gz"
+testFile <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-1.csv.gz"
 test <- readCsv(pp(workDir, testFile))[type=='RefuelSessionEvent']
 
 

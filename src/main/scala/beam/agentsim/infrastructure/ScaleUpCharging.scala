@@ -38,9 +38,18 @@ trait ScaleUpCharging extends {
   private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
 
-  private lazy val scaleUpFactor: Double =
-    if (cnmConfig.scaleUp.enabled) Math.max(cnmConfig.scaleUp.expansionFactor - 1.0, 0.0)
-    else 0.0
+  private lazy val scaleUpFactors: Map[String, Double] =
+    if (cnmConfig.scaleUp.enabled)
+      Map(
+        cnmConfig.scaleUp.name_chargingType_1 -> cnmConfig.scaleUp.expansionFactor_chargingType_1,
+        cnmConfig.scaleUp.name_chargingType_2 -> cnmConfig.scaleUp.expansionFactor_chargingType_2,
+        cnmConfig.scaleUp.name_chargingType_3 -> cnmConfig.scaleUp.expansionFactor_chargingType_3,
+        cnmConfig.scaleUp.name_chargingType_4 -> cnmConfig.scaleUp.expansionFactor_chargingType_4,
+        cnmConfig.scaleUp.name_chargingType_5 -> cnmConfig.scaleUp.expansionFactor_chargingType_5,
+        cnmConfig.scaleUp.name_chargingType_6 -> cnmConfig.scaleUp.expansionFactor_chargingType_6,
+        cnmConfig.scaleUp.name_chargingType_7 -> cnmConfig.scaleUp.expansionFactor_chargingType_7
+      )
+    else Map.empty
 
   protected lazy val inquiryMap: TrieMap[Int, ParkingInquiry] = TrieMap()
   protected lazy val simulatedEvents: mutable.Map[Id[TAZ], mutable.Map[ChargingPointType, ChargingData]] = mutable.Map()
@@ -220,13 +229,16 @@ trait ScaleUpCharging extends {
     if (cnmConfig.scaleUp.enabled && simulatedEvents.nonEmpty) {
       val chargingDataSummary = simulatedEvents.par
         .map { case (tazId, chargingPointMap) =>
-          val totEvents = chargingPointMap.map(_._2.durations.size).sum
-          val rate = totEvents * scaleUpFactor / timeStepByHour
+          val scaledUp = chargingPointMap.map { case (chargingPointType, data) =>
+            chargingPointType -> data.durations.size * scaleUpFactors(chargingPointType.toString)
+          }
+          val totEvents = scaledUp.values.sum
+          val rate = totEvents / timeStepByHour
           tazId -> ChargingPointData(
             rate,
             chargingPointMap.flatMap {
               case (chargingPoint, data) if totEvents > 0 =>
-                val prob = data.durations.size / totEvents.toDouble
+                val prob = scaledUp(chargingPoint) / totEvents
                 // Adding 10 seconds to avoid null duration
                 val meanDur = 10 + (data.durations.sum / data.durations.size)
                 val stdDevDur = Math.sqrt(data.durations.map(_ - meanDur).map(t => t * t).sum / data.durations.size)

@@ -1842,7 +1842,20 @@ object BeamConfig {
 
         case class ScaleUp(
           enabled: scala.Boolean,
-          expansionFactor: scala.Double
+          expansionFactor_chargingType_1: scala.Double,
+          expansionFactor_chargingType_2: scala.Double,
+          expansionFactor_chargingType_3: scala.Double,
+          expansionFactor_chargingType_4: scala.Double,
+          expansionFactor_chargingType_5: scala.Double,
+          expansionFactor_chargingType_6: scala.Double,
+          expansionFactor_chargingType_7: scala.Double,
+          name_chargingType_1: java.lang.String,
+          name_chargingType_2: java.lang.String,
+          name_chargingType_3: java.lang.String,
+          name_chargingType_4: java.lang.String,
+          name_chargingType_5: java.lang.String,
+          name_chargingType_6: java.lang.String,
+          name_chargingType_7: java.lang.String
         )
 
         object ScaleUp {
@@ -1850,7 +1863,41 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              expansionFactor = if (c.hasPathOrNull("expansionFactor")) c.getDouble("expansionFactor") else 1.0
+              expansionFactor_chargingType_1 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_1")) c.getDouble("expansionFactor_chargingType_1")
+                else 1.0,
+              expansionFactor_chargingType_2 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_2")) c.getDouble("expansionFactor_chargingType_2")
+                else 1.0,
+              expansionFactor_chargingType_3 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_3")) c.getDouble("expansionFactor_chargingType_3")
+                else 1.0,
+              expansionFactor_chargingType_4 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_4")) c.getDouble("expansionFactor_chargingType_4")
+                else 1.0,
+              expansionFactor_chargingType_5 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_5")) c.getDouble("expansionFactor_chargingType_5")
+                else 1.0,
+              expansionFactor_chargingType_6 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_6")) c.getDouble("expansionFactor_chargingType_6")
+                else 1.0,
+              expansionFactor_chargingType_7 =
+                if (c.hasPathOrNull("expansionFactor_chargingType_7")) c.getDouble("expansionFactor_chargingType_7")
+                else 1.0,
+              name_chargingType_1 =
+                if (c.hasPathOrNull("name_chargingType_1")) c.getString("name_chargingType_1") else "",
+              name_chargingType_2 =
+                if (c.hasPathOrNull("name_chargingType_2")) c.getString("name_chargingType_2") else "",
+              name_chargingType_3 =
+                if (c.hasPathOrNull("name_chargingType_3")) c.getString("name_chargingType_3") else "",
+              name_chargingType_4 =
+                if (c.hasPathOrNull("name_chargingType_4")) c.getString("name_chargingType_4") else "",
+              name_chargingType_5 =
+                if (c.hasPathOrNull("name_chargingType_5")) c.getString("name_chargingType_5") else "",
+              name_chargingType_6 =
+                if (c.hasPathOrNull("name_chargingType_6")) c.getString("name_chargingType_6") else "",
+              name_chargingType_7 =
+                if (c.hasPathOrNull("name_chargingType_7")) c.getString("name_chargingType_7") else ""
             )
           }
         }
