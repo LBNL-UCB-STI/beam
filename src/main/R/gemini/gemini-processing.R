@@ -328,18 +328,18 @@ write.csv(
   quote=FALSE,
   na="")
 
-infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-infra16-and-constrained-nonAO.csv"))
+infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"))
 infra16_charging <- infra16[chargingPointType!="NoCharger"]
 write.csv(
   infra16_charging,
-  file = pp(workDir, "/gemini-base-scenario-3-charging-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-2-charging-infra16-and-constrained-nonAO.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 infra16_parking <- infra16[chargingPointType=="NoCharger"]
 write.csv(
   infra16_parking,
-  file = pp(workDir, "/gemini-base-scenario-3-parking-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
