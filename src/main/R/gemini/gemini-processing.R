@@ -370,14 +370,33 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("Home: ",home))
 }
 
-eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1.csv.gz"
-rseSC0 <- readCsv(pp(workDir, eventsFileSC0))[type=='RefuelSessionEvent']
+eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
+mostEvent <- readCsv(pp(workDir, eventsFileSC0))
+rseSC0 <- mostEvent[type=='RefuelSessionEvent']
 eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010-1.csv.gz"
 rseSC001 <- readCsv(pp(workDir, eventsFileSC001))[type=='RefuelSessionEvent']
 eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025-1.csv.gz"
 rseSC010 <- readCsv(pp(workDir, eventsFileSC010))[type=='RefuelSessionEvent']
 eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050-1.csv.gz"
 rseSC050 <- readCsv(pp(workDir, eventsFileSC050))[type=='RefuelSessionEvent']
+
+
+rseSC0[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
+rseSC0[,fuel2:=(duration/3600.0)*kw*3.6e6]
+sum(rseSC0$fuel2)/sum(rseSC0$fuel)
+
+max(rseSC0$fuel-rseSC0$fuel2)
+rseSC0[,fuelDiff:=fuel2-fuel]
+
+rseSC001[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
+rseSC001[,fuel2:=(duration/3600.0)*kw*3.6e6]
+
+rseSC010[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
+rseSC010[,fuel2:=(duration/3600.0)*kw*3.6e6]
+
+rseSC050[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
+rseSC050[,fuel2:=(duration/3600.0)*kw*3.6e6]
+sum(rseSC050$fuel2)/sum(rseSC050$fuel)
 
 print("rseSC0")
 chargingBehaviorFunc(rseSC0)
