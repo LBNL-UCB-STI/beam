@@ -437,20 +437,20 @@ charging <- charging[chargingSC050, on=c("parkingType","chargingPointType")]
 #c(3.82, 141.68, 112.27, 9.02, 5.64, 64.84)
 charging[,fuel0_010_coef:=c(10.0,10.0,10.0,10.0,10.0,10.0)]
 charging[,fuel0_010:=fuel0/fuel001]
-charging[,fuel0_010_t:=fuel0_010_coef*fuel0/fuel001]
+charging[,fuel0_010_t:=fuel0_010_coef*fuel0_010]
 #charging[,fuelShare0_001:=fuelShare0/fuelShare001]
 #c(1.74, 21.39, 21.28, 3.55, 2.54, 13.11)
 #c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
 #c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
-charging[,fuel0_025_coef:=c(4.0,4.0,4.0,4.0,4.0)]
+charging[,fuel0_025_coef:=c(4.0,4.0,4.0,4.0,4.0,4.0)]
 charging[,fuel0_025:=fuel0/fuel010]
-charging[,fuel0_025_t:=fuel0_025_coef*fuel0/fuel010]
+charging[,fuel0_025_t:=fuel0_025_coef*fuel0_025]
 #charging[,fuelShare0_010:=fuelShare0/fuelShare010]
 #c(1.0, 14.34, 14.28, 1.21, 0.70, 5.93)
 #c(1.07, 5.58, 5.49, 1.87, 1.42, 3.65)
 charging[,fuel0_050_coef:=c(2.0, 2.0, 2.0, 2.0, 2.0, 2.0)]
 charging[,fuel0_050:=fuel0/fuel050]
-charging[,fuel0_050_t:=fuel0_050_coef*fuel0/fuel050]
+charging[,fuel0_050_t:=fuel0_050_coef*fuel0_050]
 #charging[,fuelShare0_050:=fuelShare0/fuelShare050]
 #c(1.0,290.55,325.98,2.64,1.0,53.32)
 #chargingBis <- charging[,c("parkingType","chargingPointType","fuel0_025")]
