@@ -338,8 +338,6 @@ write.csv(
   quote=FALSE,
   na="")
 infra16_charging[startsWith(reservedFor, "household")]$reservedFor <- "Any"
-infra16_charging[startsWith(reservedFor, "household")]$locationX <- ""
-infra16_charging[startsWith(reservedFor, "household")]$locationY <- ""
 write.csv(
   infra16_charging,
   file = pp(workDir, "/gemini-base-scenario-2-charging-no-household-infra16.csv"),
@@ -372,13 +370,13 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("Home: ",home))
 }
 
-eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"
+eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC1.csv.gz"
 rseSC0 <- readCsv(pp(workDir, eventsFileSC0))[type=='RefuelSessionEvent']
-eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-4.csv.gz"
+eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010-1.csv.gz"
 rseSC001 <- readCsv(pp(workDir, eventsFileSC001))[type=='RefuelSessionEvent']
-eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-025-4.csv.gz"
+eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025-1.csv.gz"
 rseSC010 <- readCsv(pp(workDir, eventsFileSC010))[type=='RefuelSessionEvent']
-eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-050-4.csv.gz"
+eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050-1.csv.gz"
 rseSC050 <- readCsv(pp(workDir, eventsFileSC050))[type=='RefuelSessionEvent']
 
 print("rseSC0")
@@ -417,22 +415,30 @@ charging <- charging[chargingSC050, on=c("parkingType","chargingPointType")]
 # 5: Residential   homelevel1(1.8|AC) 
 # 6: Residential   homelevel2(7.2|AC)
 #c(2.45, 1119.77, 739.21, 8.05, 2.35, 171.38)
-charging[,fuel0_010_coef:=c(3.82, 141.68, 112.27, 9.02, 5.64, 64.84)]
-charging[,fuel0_010:=fuel0_010_coef*fuel0/fuel001]
+#c(3.82, 141.68, 112.27, 9.02, 5.64, 64.84)
+charging[,fuel0_010_coef:=c(10.0,10.0,10.0,10.0,10.0,10.0)]
+charging[,fuel0_010:=fuel0/fuel001]
+charging[,fuel0_010_t:=fuel0_010_coef*fuel0/fuel001]
 #charging[,fuelShare0_001:=fuelShare0/fuelShare001]
 #c(1.74, 21.39, 21.28, 3.55, 2.54, 13.11)
 #c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
-charging[,fuel0_025_coef:=c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)]
-charging[,fuel0_025:=fuel0_025_coef*fuel0/fuel010]
+#c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
+charging[,fuel0_025_coef:=c(4.0,4.0,4.0,4.0,4.0)]
+charging[,fuel0_025:=fuel0/fuel010]
+charging[,fuel0_025_t:=fuel0_025_coef*fuel0/fuel010]
 #charging[,fuelShare0_010:=fuelShare0/fuelShare010]
-c(1.0, 14.34, 14.28, 1.21, 0.70, 5.93)
-charging[,fuel0_050_coef:=c(1.07, 5.58, 5.49, 1.87, 1.42, 3.65)]
-charging[,fuel0_050:=fuel0_050_coef*fuel0/fuel050]
+#c(1.0, 14.34, 14.28, 1.21, 0.70, 5.93)
+#c(1.07, 5.58, 5.49, 1.87, 1.42, 3.65)
+charging[,fuel0_050_coef:=c(2.0, 2.0, 2.0, 2.0, 2.0, 2.0)]
+charging[,fuel0_050:=fuel0/fuel050]
+charging[,fuel0_050_t:=fuel0_050_coef*fuel0/fuel050]
 #charging[,fuelShare0_050:=fuelShare0/fuelShare050]
-c(1.0,290.55,325.98,2.64,1.0,53.32)
-chargingBis <- charging[,c("parkingType","chargingPointType","fuel0_025")]
+#c(1.0,290.55,325.98,2.64,1.0,53.32)
+#chargingBis <- charging[,c("parkingType","chargingPointType","fuel0_025")]
 chargingBis <- charging[
   ,c("parkingType","chargingPointType","fuel0_010", "fuel0_025","fuel0_050")]
+chargingBisT <- charging[
+  ,c("parkingType","chargingPointType","fuel0_010_t", "fuel0_025_t","fuel0_050_t")]
 
 gather(chargingBis, scenario, fuelDiff, fuel0_001:fuel0_050) %>%
   ggplot(aes(scenario, fuelDiff, fill=chargingPointType)) +

@@ -24,7 +24,6 @@ library(ggmap)
 scaleup <- FALSE
 #expFactor <- (7.75/0.315) * 27.0 / 21.3
 expFactor <- (6.015/0.6015)
-loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
@@ -37,11 +36,9 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Scenario0', 'Scenario0-010-3', 'Scenario0-010-4',
-                   'Scenario0-025-3', 'Scenario0-025-4',
-                   'Scenario0-050-3', 'Scenario0-050-4')
+scenarioNames <- c('Scenario2', 'Scenario2-010-1', 'Scenario2-025-1', 'Scenario2-050-1')
 #scenarioNames <- c('Scenario2', 'Scenario3')
-scenarioBaselineLabel <- 'Scenario0'
+scenarioBaselineLabel <- 'Scenario2'
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 
 # MAIN
@@ -49,7 +46,7 @@ processEventsFileAndScaleUp(dataDir, scaleup, expFactor)
 
 # PLOTS
 if (!file.exists(pp(resultsDir,'/ready-to-plot.Rdata'))) {
-  generateReadyToPlot(resultsDir, loadTypes, loadInfo, countyNames)
+  generateReadyToPlot(resultsDir, loadTypes, countyNames)
 }
 
 ## Energy Share Per Load Type
@@ -198,7 +195,7 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   facet_wrap(~factor(name,scenarioNames),ncol = 3)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=7,units='in')
 
-
+all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
 toplot <- join.on(all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','name')],all.loads[site=='public'&name%in%scenarioNames][,.(tot.kw=sum(kw)),by=c('name')],'name','name')
 p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=kw/tot.kw*100,fill=factor(loadType, levels = names(chargingTypes.colors))))+
@@ -230,11 +227,10 @@ ggsave(pp(plotsDir,'/xfc-loads-by-scenario.png'),p,width=12,height=7,units='in')
 
 ## Energy charged by scenario
 metrics <- all.loads[!is.na(kw)&name%in%scenarioNames][,.(gw=sum(kw)/1e6,gwh=sum(kw)/4e6),by=.(name,hour.bin2,severity)][,.(gw.peak=max(gw),gwh=sum(gwh)),by=.(name,severity)]
-xfc.metric <- all.loads[!is.na(kw)&name%in%scenarioNames][!grepl('<1MW',severity),.(xfc.hours=.N/4),by=.(name,type,severity,taz)][,.(xfc.hours=mean(xfc.hours)),by=.(name,type,severity)]
 
 toplot <- melt(metrics,id.vars=c('name','severity'))
 toplot[name%in%scenarioNames,panel:=revalue(factor(variable),c('gw.peak'='Regional Charging Peak (GW)','gwh'='Total Energy Charged (GWh)'))]
-p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity, levels=severity_order)))+
+p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity,levels=severity_order)))+
   geom_bar(stat='identity')+
   facet_wrap(~panel,scales='free_y')+
   labs(y='',x='Scenario',fill='Severity')+
@@ -247,6 +243,7 @@ ggsave(pp(plotsDir,'/energy-charged-by-scenario.png'),p,width=8,height=3,units='
 
 
 ## XFC hours per site per day
+xfc.metric <- all.loads[!is.na(kw)&name%in%scenarioNames][!grepl('<1MW',severity),.(xfc.hours=.N/4),by=.(name,type,severity,taz)][,.(xfc.hours=mean(xfc.hours)),by=.(name,type,severity)]
 xfc.metric[,panel:='XFC-Hours per Site per Day']
 p <- ggplot(xfc.metric,aes(x=factor(name,scenarioNames),y=xfc.hours,fill=factor(severity, levels=severity_order)))+
   geom_bar(stat='identity',position='dodge')+
