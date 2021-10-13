@@ -370,84 +370,84 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("Home: ",home))
 }
 
-eventsFileSC0 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
-mostEvent <- readCsv(pp(workDir, eventsFileSC0))
-rseSC0 <- mostEvent[type=='RefuelSessionEvent']
-eventsFileSC001 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010-1.csv.gz"
-rseSC001 <- readCsv(pp(workDir, eventsFileSC001))[type=='RefuelSessionEvent']
-eventsFileSC010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025-1.csv.gz"
-rseSC010 <- readCsv(pp(workDir, eventsFileSC010))[type=='RefuelSessionEvent']
-eventsFileSC050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050-1.csv.gz"
-rseSC050 <- readCsv(pp(workDir, eventsFileSC050))[type=='RefuelSessionEvent']
+events100 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
+rse100 <- readCsv(pp(workDir, events100))[type=='RefuelSessionEvent']
+events010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010-1.csv.gz"
+rse010 <- readCsv(pp(workDir, events010))[type=='RefuelSessionEvent']
+events025 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025-1.csv.gz"
+rse025 <- readCsv(pp(workDir, events025))[type=='RefuelSessionEvent']
+events050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050-1.csv.gz"
+rse050 <- readCsv(pp(workDir, events050))[type=='RefuelSessionEvent']
+
+charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType,chargingPointType)]
+
+charging_100_010 <- data.table(
+  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+  coef_100_010=c(8.02,6.87,9.00,6.41,8.17,10.33))
+charging010 <- rse010[,.(fuel010=sum(fuel)),by=.(parkingType,chargingPointType)][
+  charging,on=c("parkingType","chargingPointType")][
+    charging_100_010,on=c("chargingPointType")][
+      ,fuel_100_010:=fuel100/fuel010][
+        ,fuel_100_010_W:=coef_100_010*fuel_100_010]
 
 
-rseSC0[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
-rseSC0[,fuel2:=(duration/3600.0)*kw*3.6e6]
-sum(rseSC0$fuel2)/sum(rseSC0$fuel)
+charging_100_025 <- data.table(
+  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+  coef_100_025=c(2.95,2.56,3.69,2.65,3.18,4.53))
+charging025 <- rse025[,.(fuel025=sum(fuel)),by=.(parkingType,chargingPointType)][
+  charging,on=c("parkingType","chargingPointType")][
+    charging_100_025,on=c("chargingPointType")][
+      ,fuel_100_025:=fuel100/fuel025][
+        ,fuel_100_025_W:=coef_100_025*fuel_100_025]
 
-max(rseSC0$fuel-rseSC0$fuel2)
-rseSC0[,fuelDiff:=fuel2-fuel]
-rseSC0[duration>=40*3600]
-rseSC001[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
-rseSC001[,fuel2:=(duration/3600.0)*kw*3.6e6]
 
-rseSC010[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
-rseSC010[,fuel2:=(duration/3600.0)*kw*3.6e6]
+charging_100_050 <- data.table(
+  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+  coef_100_050=c(1.33,1.20,1.88,1.35,1.67,2.28))
+charging050 <- rse050[,.(fuel050=sum(fuel)),by=.(parkingType,chargingPointType)][
+  charging,on=c("parkingType","chargingPointType")][
+    charging_100_050,on=c("chargingPointType")][
+      ,fuel_100_050:=fuel100/fuel050][
+        ,fuel_100_050_W:=coef_100_050*fuel_100_050]
 
-rseSC050[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
-rseSC050[,fuel2:=(duration/3600.0)*kw*3.6e6]
-sum(rseSC050$fuel2)/sum(rseSC050$fuel)
 
-print("rseSC0")
-chargingBehaviorFunc(rseSC0)
-print("rseSC001")
-chargingBehaviorFunc(rseSC001)
-print("rseSC010")
-chargingBehaviorFunc(rseSC010)
-print("rseSC050")
-chargingBehaviorFunc(rseSC050)
-#####
-#events[grepl("Virtual",person)]
-
-charging <- rseSC0[
-  ,.(fuel0=sum(fuel)),by=.(parkingType,chargingPointType)][
-    ,fuelShare0:=fuel0/sum(fuel0)]
-
-chargingSC001 <- rseSC001[
-  ,.(fuel001=sum(fuel)),by=.(parkingType,chargingPointType)][
-    ,fuelShare001:=fuel001/sum(fuel001)]
-chargingSC010 <- rseSC010[
-  ,.(fuel010=sum(fuel)),by=.(parkingType,chargingPointType)][
-    ,fuelShare010:=fuel010/sum(fuel010)]
-chargingSC050 <- rseSC050[
-  ,.(fuel050=sum(fuel)),by=.(parkingType,chargingPointType)][
-    ,fuelShare050:=fuel050/sum(fuel050)]
-
-charging <- charging[chargingSC001, on=c("parkingType","chargingPointType")]
-charging <- charging[chargingSC010, on=c("parkingType","chargingPointType")]
-charging <- charging[chargingSC050, on=c("parkingType","chargingPointType")]
-# parkingType    chargingPointType    
-# 1:      Public publiclevel2(7.2|AC)
-# 2:      Public   publicfc(150.0|DC)
-# 3:      Public  publicxfc(250.0|DC) 
-# 4:   Workplace   worklevel2(7.2|AC) 
-# 5: Residential   homelevel1(1.8|AC) 
-# 6: Residential   homelevel2(7.2|AC)
+charging <- charging[charging010, on=c("parkingType","chargingPointType")]
+charging <- charging[charging025, on=c("parkingType","chargingPointType")]
+charging <- charging[charging050, on=c("parkingType","chargingPointType")]
+#   
+# publiclevel2(7.2|AC)
+# publicfc(150.0|DC)
+# worklevel2(7.2|AC)
+# homelevel2(7.2|AC)
+# homelevel1(1.8|AC)
+# publicxfc(250.0|DC)
 #c(2.45, 1119.77, 739.21, 8.05, 2.35, 171.38)
 #c(3.82, 141.68, 112.27, 9.02, 5.64, 64.84)
-charging[,fuel0_010_coef:=c(10.0,10.0,10.0,10.0,10.0,10.0)]
-charging[,fuel0_010:=fuel0/fuel001]
-charging[,fuel0_010_t:=fuel0_010_coef*fuel0_010]
+#c(10.0,10.0,10.0,10.0,10.0,10.0)
+charging_0_010 <- data.table(
+  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+  fuel0_010_coef=c(8.02,6.87,9.00,6.41,8.17,10.33))
+charging <- charging[charging_0_010,on=c("chargingPointType")][,fuel0_010:=fuel0/fuel001][,fuel0_010_t:=fuel0_010_coef*fuel0_010]
 #charging[,fuelShare0_001:=fuelShare0/fuelShare001]
 #c(1.74, 21.39, 21.28, 3.55, 2.54, 13.11)
 #c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
 #c(1.10, 101.73, 91.85, 2.79, 1.30, 32.04)
+#c(4.0,4.0,4.0,4.0,4.0,4.0)
 charging[,fuel0_025_coef:=c(4.0,4.0,4.0,4.0,4.0,4.0)]
 charging[,fuel0_025:=fuel0/fuel010]
 charging[,fuel0_025_t:=fuel0_025_coef*fuel0_025]
 #charging[,fuelShare0_010:=fuelShare0/fuelShare010]
 #c(1.0, 14.34, 14.28, 1.21, 0.70, 5.93)
 #c(1.07, 5.58, 5.49, 1.87, 1.42, 3.65)
+#c(2.0, 2.0, 2.0, 2.0, 2.0, 2.0)
 charging[,fuel0_050_coef:=c(2.0, 2.0, 2.0, 2.0, 2.0, 2.0)]
 charging[,fuel0_050:=fuel0/fuel050]
 charging[,fuel0_050_t:=fuel0_050_coef*fuel0_050]
