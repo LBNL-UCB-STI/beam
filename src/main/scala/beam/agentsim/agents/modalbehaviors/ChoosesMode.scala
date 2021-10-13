@@ -408,14 +408,28 @@ trait ChoosesMode {
                   )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 case _ =>
-                  makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
+                  val defaultVehicle = createLastResortStreetVehicle(currentPersonLocation, mode)
+                  makeRequestWith(
+                    withTransit = false,
+                    Vector(defaultVehicle, bodyStreetVehicle)
+                  )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
               }
             case _ =>
-              makeRequestWith(
-                withTransit = false,
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode) :+ bodyStreetVehicle
-              )
+              val availableVehicles =
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode)
+              if (availableVehicles.isEmpty) {
+                val defaultVehicle = createLastResortStreetVehicle(currentPersonLocation, mode)
+                makeRequestWith(
+                  withTransit = false,
+                  Vector(defaultVehicle, bodyStreetVehicle)
+                )
+              } else {
+                makeRequestWith(
+                  withTransit = false,
+                  availableVehicles :+ bodyStreetVehicle
+                )
+              }
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
@@ -790,6 +804,29 @@ trait ChoosesMode {
       WALK,
       asDriver = true,
       needsToCalculateCost = false
+    )
+  }
+
+  private def createLastResortStreetVehicle(locationUTM: SpaceTime, beamMode: BeamMode): StreetVehicle = {
+    val vehicleTypeId = beamMode match {
+      case CAR  => beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
+      case BIKE => beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId
+      case _ =>
+        throw new NotImplementedError(
+          s"No vehicle available for [${beamMode.toString}] trip in plans, and no default vehicle type for this mode implemented"
+        )
+    }
+    val newVehicleID = beamMode.toString + "-default-" + id
+    logError(
+      s"No vehicles available for mode ${beamMode.toString}, creating a new vehicle $newVehicleID"
+    )
+    StreetVehicle(
+      Id.create(newVehicleID, classOf[BeamVehicle]),
+      Id.create(vehicleTypeId, classOf[BeamVehicleType]),
+      locationUTM,
+      beamMode,
+      asDriver = true,
+      needsToCalculateCost = true
     )
   }
 
