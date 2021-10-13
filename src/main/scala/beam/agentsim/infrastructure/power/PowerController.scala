@@ -88,33 +88,36 @@ class PowerController(
         }
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
-        // unlimited physical bounds for now until we figure out why the simulation gets affected
-        unlimitedPhysicalBounds
-//        gridBounds.flatMap { x =>
-//          val reservedFor = x("reservedFor").asInstanceOf[String] match {
-//            case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
-//            case managerIdString =>
-//              VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
-//          }
-//          chargingNetworkHelper
-//            .get(reservedFor)
-//            .lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
-//            case Some(station) =>
-//              Some(
-//                station -> PhysicalBounds(
-//                  station,
-//                  x("power_limit_upper").asInstanceOf[PowerInKW],
-//                  x("power_limit_lower").asInstanceOf[PowerInKW],
-//                  x("lmp_with_control_signal").asInstanceOf[Double]
-//                )
-//              )
-//            case _ =>
-//              logger.error(
-//                "Cannot find the charging station correspondent to what has been received from the co-simulation"
-//              )
-//              None
-//          }
-//        }.toMap
+        if (beamConfig.beam.agentsim.chargingNetworkManager.helics.feedbackEnabled) {
+          gridBounds.flatMap { x =>
+            val reservedFor = x("reservedFor").asInstanceOf[String] match {
+              case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
+              case managerIdString =>
+                VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
+            }
+            chargingNetworkHelper
+              .get(reservedFor)
+              .lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
+              case Some(station) =>
+                Some(
+                  station -> PhysicalBounds(
+                    station,
+                    x("power_limit_upper").asInstanceOf[PowerInKW],
+                    x("power_limit_lower").asInstanceOf[PowerInKW],
+                    x("lmp_with_control_signal").asInstanceOf[Double]
+                  )
+                )
+              case _ =>
+                logger.error(
+                  "Cannot find the charging station correspondent to what has been received from the co-simulation"
+                )
+                None
+            }
+          }.toMap
+        } else {
+          // unlimited physical bounds for now until we figure out why the simulation gets affected
+          unlimitedPhysicalBounds
+        }
       case _ =>
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
         unlimitedPhysicalBounds

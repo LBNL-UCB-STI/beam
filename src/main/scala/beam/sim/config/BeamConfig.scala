@@ -1814,6 +1814,7 @@ object BeamConfig {
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String,
+          feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
           timeDeltaProperty: scala.Double
         )
@@ -1834,6 +1835,7 @@ object BeamConfig {
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
               federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
