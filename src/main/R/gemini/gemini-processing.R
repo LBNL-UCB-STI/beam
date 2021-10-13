@@ -248,7 +248,7 @@ sfbay_contrained_parking <- sfbay_contrained_parking[,-c("chargingType")]
 setnames(sfbay_contrained_parking, "ReservedFor", "reservedFor")
 #sfbay_contrained_parking[chargingPointType!="NoCharger",.N,by=.(parkingType,chargingPointType)]
 
-initInfra_1_5 <- readCsv(pp(workDir, "/init1.6_2021_Sep_22_wgs84.csv"))
+initInfra_1_5 <- readCsv(pp(workDir, "/init1.6_2021_Oct_06_wgs84.csv"))
 initInfra_1_5_updated <- initInfra_1_5[,c("subSpace", "pType", "chrgType", "field_1", "household_id", "X", "Y")]
 setnames(initInfra_1_5_updated, "chrgType", "chargingPointType")
 setnames(initInfra_1_5_updated, "pType", "parkingType")
@@ -308,7 +308,7 @@ initInfra_1_5_updated[,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),]
 initInfra_1_5_updated$numStalls <- 1
 write.csv(
   initInfra_1_5_updated,
-  file = pp(workDir, "/init1.6_2021_Sep_22_wgs84_updated.csv"),
+  file = pp(workDir, "/init1.6_2021_Oct_06_wgs84_updated.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
@@ -323,24 +323,24 @@ no_charger_or_non_AlamedaOakland_constrained <- sfbay_contrained_parking[
 initInfra_1_5_updated_constrained_non_AlamedaOakland <- rbind(initInfra_1_5_updated, no_charger_or_non_AlamedaOakland_constrained)
 write.csv(
   initInfra_1_5_updated_constrained_non_AlamedaOakland,
-  file = pp(workDir, "/gemini-base-scenario-2-parking-charging-infra16.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 
 
-infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-2-parking-charging-infra16.csv"))
+infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"))
 infra16_charging <- infra16[chargingPointType!="NoCharger"]
 write.csv(
   infra16_charging,
-  file = pp(workDir, "/gemini-base-scenario-2-charging-with-household-infra16.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-charging-with-household-infra16.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 infra16_charging[startsWith(reservedFor, "household")]$reservedFor <- "Any"
 write.csv(
   infra16_charging,
-  file = pp(workDir, "/gemini-base-scenario-2-charging-no-household-infra16.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-charging-no-household-infra16.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
@@ -348,7 +348,7 @@ write.csv(
 infra16_parking <- infra16[chargingPointType=="NoCharger"]
 write.csv(
   infra16_parking,
-  file = pp(workDir, "/gemini-base-scenario-2-parking-infra16.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-parking-infra16.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
@@ -387,7 +387,7 @@ sum(rseSC0$fuel2)/sum(rseSC0$fuel)
 
 max(rseSC0$fuel-rseSC0$fuel2)
 rseSC0[,fuelDiff:=fuel2-fuel]
-
+rseSC0[duration>=40*3600]
 rseSC001[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
 rseSC001[,fuel2:=(duration/3600.0)*kw*3.6e6]
 
