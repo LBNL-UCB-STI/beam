@@ -370,13 +370,15 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("Home: ",home))
 }
 
+events100_3 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC3.csv.gz"
+rse100_3 <- readCsv(pp(workDir, events100_3))[type=='RefuelSessionEvent']
 events100 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
 rse100 <- readCsv(pp(workDir, events100))[type=='RefuelSessionEvent']
-events010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010-1.csv.gz"
+events010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010.csv.gz"
 rse010 <- readCsv(pp(workDir, events010))[type=='RefuelSessionEvent']
-events025 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025-1.csv.gz"
+events025 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025.csv.gz"
 rse025 <- readCsv(pp(workDir, events025))[type=='RefuelSessionEvent']
-events050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050-1.csv.gz"
+events050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050.csv.gz"
 rse050 <- readCsv(pp(workDir, events050))[type=='RefuelSessionEvent']
 
 charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType,chargingPointType)]

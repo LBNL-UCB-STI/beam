@@ -39,7 +39,6 @@ dir.create(plotsDir, showWarnings = FALSE)
 # MAIN
 processEventsFileAndScaleUp(dataDir, scaleup, expFactor)
 
-#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
 countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 # PLOTS
 if (!file.exists(pp(resultsDir,'/ready-to-plot.Rdata'))) {
@@ -61,7 +60,8 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
 #####
-scenarioNames <- c('Scenario2', 'Scenario3')
+scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+#scenarioNames <- c('Scenario2', 'Scenario3')
 scenarioBaselineLabel <- 'Scenario2'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
