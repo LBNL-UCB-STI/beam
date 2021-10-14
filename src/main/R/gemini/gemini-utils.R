@@ -7,12 +7,12 @@ time.bins <- data.table(time=seq(0,61,by=0.25)*3600,quarter.hour=seq(0,61,by=0.2
 
 loadTypes <- data.table::data.table(
   chargingPointType = c(
-    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)", "publiclevel2(7.2|AC)",
+    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)", "publiclevel2(7.2|AC)", 
     "worklevel2(7.2|AC)", "custom(7.2|AC)",
     "publicfc(150.0|DC)", "custom(150.0|DC)", "publicxfc(250.0|DC)", "custom(250.0|DC)"),
   loadType = c(
-    "Home-L1", "Home-L2", "Public-L2",
-    "Work-L2", "Work-L2",
+    "Home-L1", "Home-L2", "Public-L2", 
+    "Work-L2", "Work-L2", 
     "DCFC", "DCFC", "XFC", "XFC"))
 
 

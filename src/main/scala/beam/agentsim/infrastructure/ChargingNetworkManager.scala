@@ -161,7 +161,7 @@ class ChargingNetworkManager(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
               s"with {} vehicles connected and {} in grace period and {} in waiting line",
               chargingVehicle.chargingStation.howManyVehiclesAreCharging,
-              chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
+              chargingVehicle.chargingStation.howManyVehiclesAreGraced,
               chargingVehicle.chargingStation.howManyVehiclesAreWaiting
             )
             sender() ! WaitingToCharge(tick, vehicle.id, triggerId)

@@ -1,6 +1,5 @@
 package beam.physsim.jdeqsim
 
-import beam.physsim.PickUpDropOffCollector
 import beam.router.r5.R5Parameters
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
@@ -28,8 +27,7 @@ class PhysSim(
   beamConfigChangesObservable: BeamConfigChangesObservable,
   agentSimIterationNumber: Int,
   shouldWritePhysSimEvents: Boolean,
-  javaRnd: java.util.Random,
-  maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
+  javaRnd: java.util.Random
 ) extends StrictLogging {
 
   val rnd: Random = new Random(javaRnd)
@@ -99,8 +97,7 @@ class PhysSim(
         controllerIO,
         isCACCVehicle,
         beamConfigChangesObservable,
-        agentSimIterationNumber,
-        maybePickUpDropOffCollector
+        agentSimIterationNumber
       )
       val simulationResult =
         ProfilingUtils.timed(s"Physsim simulation $agentSimIterationNumber.$currentIter", x => logger.info(x)) {

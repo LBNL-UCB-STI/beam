@@ -402,15 +402,7 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     //    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     passengerScheduleStatus.rideHailAgent
-      .tell(
-        Interrupt(
-          passengerScheduleStatus.interruptId,
-          passengerScheduleStatus.tick,
-          triggerId,
-          passengerScheduleStatus.vehicleId
-        ),
-        rideHailManagerRef
-      )
+      .tell(Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick, triggerId), rideHailManagerRef)
   }
 
   def doesPendingReservationContainPassSchedule(

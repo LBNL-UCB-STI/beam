@@ -663,6 +663,7 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     copyFile("resources", "resources")
     copyFile("classes", "classes")
     // Test scenarios
+    copyFile("production", "production")
     copyFile("test/input/common", "test/input/common")
     copyFile("test/input/dtd", "test/input/dtd")
     copyFile("test/input/beamville", "test/input/beamville")
@@ -678,13 +679,16 @@ task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) 
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
     repository = "beammodel/beam"
-    tag = version
+    tag = 'production-gemini-develop-4'
     targetImageId buildImageWithoutTags.getImageId()
 }
 
 dockerSyncBuildContext {
     from('src/main/python') {
         into('src/main/python')
+    }
+    from('production') {
+        into('production')
     }
     from('test/input/common') {
         into('test/input/common')

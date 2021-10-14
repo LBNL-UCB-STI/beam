@@ -212,7 +212,7 @@ class PersonAgentSpec
         requestId = request1.requestId,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        triggerId = request1.triggerId
+        request1.triggerId
       )
 
       // This is the regular routing request.
@@ -249,7 +249,7 @@ class PersonAgentSpec
         requestId = request2.requestId,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        triggerId = request2.triggerId
+        request2.triggerId
       )
 
       expectMsgType[ModeChoiceEvent]
@@ -464,7 +464,7 @@ class PersonAgentSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        triggerId = request3.triggerId
+        request3.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -761,7 +761,7 @@ class PersonAgentSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        triggerId = routingRequest4.triggerId
+        routingRequest4.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -821,7 +821,7 @@ class PersonAgentSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        triggerId = routingRequest5.triggerId
+        routingRequest5.triggerId
       )
       events.expectMsgType[ModeChoiceEvent]
 

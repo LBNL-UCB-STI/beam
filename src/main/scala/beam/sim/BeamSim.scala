@@ -7,7 +7,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
@@ -22,8 +21,6 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis._
-import beam.physsim.PickUpDropOffCollector
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter.ODSkimmerReady
 import beam.router.BeamRouter.UpdateTravelTimeLocal
@@ -39,6 +36,7 @@ import org.matsim.core.router.util.TravelTime
 
 import scala.util.Try
 import scala.concurrent.duration._
+
 import scala.util.control.NonFatal
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
@@ -164,13 +162,6 @@ class BeamSim @Inject() (
     beamServices.matsimServices.getControlerIO
   )
 
-  val maybePickUpDropOffCollector =
-    if (beamServices.beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled) {
-      Some(new PickUpDropOffCollector(beamServices.beamScenario.vehicleTypes))
-    } else {
-      None
-    }
-
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
   beamServices.modeChoiceCalculatorFactory = ModeChoiceCalculator(
@@ -204,7 +195,6 @@ class BeamSim @Inject() (
       eventsManager.addHandler(transitOccupancyByStop)
       eventsManager.addHandler(modeChoiceAlternativesCollector)
       eventsManager.addHandler(rideHailUtilizationCollector)
-      maybePickUpDropOffCollector.foreach(eventsManager.addHandler(_))
       carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     }
 
@@ -221,8 +211,7 @@ class BeamSim @Inject() (
         beamServices.geo,
         beamServices.fareCalculator,
         tollCalculator,
-        eventsManager,
-        event.getServices.getControlerIO
+        eventsManager
       ),
       "router"
     )
@@ -243,8 +232,7 @@ class BeamSim @Inject() (
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamConfigChangesObservable,
-        maybePickUpDropOffCollector
+        beamConfigChangesObservable
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -387,8 +375,6 @@ class BeamSim @Inject() (
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
 
-    maybePickUpDropOffCollector.foreach(_.notifyIterationStarts(event))
-
     if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
       rideHailUtilizationCollector.reset(event.getIteration)
     }
@@ -435,7 +421,6 @@ class BeamSim @Inject() (
     }
 
     maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
-    val routerFinished = beamServices.beamRouter ? BeamRouter.IterationEndsMessage(event.getIteration)
 
     val outputGraphsFuture = Future {
       if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
@@ -487,15 +472,16 @@ class BeamSim @Inject() (
       }
     }
 
-    val physsimFuture = Future {
-      if (!beamConfig.beam.physsim.skipPhysSim) {
+    if (beamConfig.beam.physsim.skipPhysSim) {
+      Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
+    } else {
+      val physsimFuture = Future {
         agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
-    }
-    val futuresToWait = List(outputGraphsFuture, routerFinished, physsimFuture)
 
-    // executing code blocks parallel
-    Await.result(Future.sequence(futuresToWait), Duration.Inf)
+      // executing code blocks parallel
+      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
+    }
 
     if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.end (after GC): "))

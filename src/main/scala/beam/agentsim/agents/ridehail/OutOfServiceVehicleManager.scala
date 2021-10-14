@@ -41,12 +41,7 @@ class OutOfServiceVehicleManager(
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
       .tell(
-        Interrupt(
-          RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId,
-          tick,
-          triggerId,
-          vehicleId
-        ),
+        Interrupt(RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId, tick, triggerId),
         rideHailManagerActor
       )
   }

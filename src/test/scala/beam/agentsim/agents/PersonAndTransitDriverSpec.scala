@@ -362,7 +362,7 @@ class PersonAndTransitDriverSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        triggerId = routingRequest.triggerId
+        routingRequest.triggerId
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]
