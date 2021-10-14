@@ -1844,20 +1844,11 @@ object BeamConfig {
 
         case class ScaleUp(
           enabled: scala.Boolean,
-          expansionFactor_chargingType_1: scala.Double,
-          expansionFactor_chargingType_2: scala.Double,
-          expansionFactor_chargingType_3: scala.Double,
-          expansionFactor_chargingType_4: scala.Double,
-          expansionFactor_chargingType_5: scala.Double,
-          expansionFactor_chargingType_6: scala.Double,
-          expansionFactor_chargingType_7: scala.Double,
-          name_chargingType_1: java.lang.String,
-          name_chargingType_2: java.lang.String,
-          name_chargingType_3: java.lang.String,
-          name_chargingType_4: java.lang.String,
-          name_chargingType_5: java.lang.String,
-          name_chargingType_6: java.lang.String,
-          name_chargingType_7: java.lang.String
+          expansionFactor_charge_activity: scala.Double,
+          expansionFactor_home_activity: scala.Double,
+          expansionFactor_init_activity: scala.Double,
+          expansionFactor_wherever_activity: scala.Double,
+          expansionFactor_work_activity: scala.Double
         )
 
         object ScaleUp {
@@ -1865,41 +1856,22 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              expansionFactor_chargingType_1 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_1")) c.getDouble("expansionFactor_chargingType_1")
+              expansionFactor_charge_activity =
+                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
                 else 1.0,
-              expansionFactor_chargingType_2 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_2")) c.getDouble("expansionFactor_chargingType_2")
+              expansionFactor_home_activity =
+                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
                 else 1.0,
-              expansionFactor_chargingType_3 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_3")) c.getDouble("expansionFactor_chargingType_3")
+              expansionFactor_init_activity =
+                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
                 else 1.0,
-              expansionFactor_chargingType_4 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_4")) c.getDouble("expansionFactor_chargingType_4")
+              expansionFactor_wherever_activity =
+                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
+                  c.getDouble("expansionFactor_wherever_activity")
                 else 1.0,
-              expansionFactor_chargingType_5 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_5")) c.getDouble("expansionFactor_chargingType_5")
-                else 1.0,
-              expansionFactor_chargingType_6 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_6")) c.getDouble("expansionFactor_chargingType_6")
-                else 1.0,
-              expansionFactor_chargingType_7 =
-                if (c.hasPathOrNull("expansionFactor_chargingType_7")) c.getDouble("expansionFactor_chargingType_7")
-                else 1.0,
-              name_chargingType_1 =
-                if (c.hasPathOrNull("name_chargingType_1")) c.getString("name_chargingType_1") else "",
-              name_chargingType_2 =
-                if (c.hasPathOrNull("name_chargingType_2")) c.getString("name_chargingType_2") else "",
-              name_chargingType_3 =
-                if (c.hasPathOrNull("name_chargingType_3")) c.getString("name_chargingType_3") else "",
-              name_chargingType_4 =
-                if (c.hasPathOrNull("name_chargingType_4")) c.getString("name_chargingType_4") else "",
-              name_chargingType_5 =
-                if (c.hasPathOrNull("name_chargingType_5")) c.getString("name_chargingType_5") else "",
-              name_chargingType_6 =
-                if (c.hasPathOrNull("name_chargingType_6")) c.getString("name_chargingType_6") else "",
-              name_chargingType_7 =
-                if (c.hasPathOrNull("name_chargingType_7")) c.getString("name_chargingType_7") else ""
+              expansionFactor_work_activity =
+                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
+                else 1.0
             )
           }
         }
