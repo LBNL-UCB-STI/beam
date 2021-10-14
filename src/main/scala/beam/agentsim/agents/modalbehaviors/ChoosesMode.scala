@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
@@ -155,14 +156,14 @@ trait ChoosesMode {
             _
           ) =>
         self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
-      // Only need to get available street vehicles if our mode requires such a vehicle
+      // If we don't know the mode in advance we'll see what's out there
       case ChoosesModeData(
             BasePersonData(
               currentActivityIndex,
               _,
               _,
               _,
-              None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
+              None,
               _,
               _,
               _,
@@ -198,6 +199,55 @@ trait ChoosesMode {
           currentLocation,
           _experiencedBeamPlan.activities(currentActivityIndex)
         ) pipeTo self
+      // If we know the mode in advance we need to make sure a vehicle exists
+      case ChoosesModeData(
+            BasePersonData(
+              currentActivityIndex,
+              _,
+              _,
+              _,
+              Some(mode),
+              _,
+              _,
+              _,
+              _,
+              _,
+              _,
+              _
+            ),
+            currentLocation,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+          ) if mode.in(List(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)) =>
+        implicit val executionContext: ExecutionContext = context.system.dispatcher
+        val maybeForceAvailability = mode match {
+          case CAR | DRIVE_TRANSIT => Some(VehicleCategory.Car)
+          case BIKE_TRANSIT | BIKE => Some(VehicleCategory.Bike)
+          case _                   => None
+        }
+        requestAvailableVehicles(
+          vehicleFleets,
+          currentLocation,
+          _experiencedBeamPlan.activities(currentActivityIndex),
+          maybeForceAvailability
+        ) pipeTo self
       // Otherwise, send empty list to self
       case _ =>
         self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
@@ -207,7 +257,8 @@ trait ChoosesMode {
   private def requestAvailableVehicles(
     vehicleFleets: Seq[ActorRef],
     location: SpaceTime,
-    activity: Activity
+    activity: Activity,
+    maybeForceAvailability: Option[VehicleCategory] = None
   ): Future[MobilityStatusResponse] = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
     Future
@@ -217,7 +268,8 @@ trait ChoosesMode {
             id,
             location,
             activity,
-            getCurrentTriggerIdOrGenerate
+            getCurrentTriggerIdOrGenerate,
+            maybeForceAvailability
           )
         )
       )

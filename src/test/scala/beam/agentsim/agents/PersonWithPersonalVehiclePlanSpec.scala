@@ -624,7 +624,7 @@ class PersonWithPersonalVehiclePlanSpec
           Map(car1.id -> car1),
           new Coord(0.0, 0.0),
           Vector(),
-          Set.empty,
+          Set(vehicleType),
           new RouteHistory(beamConfig),
           boundingBox
         )
