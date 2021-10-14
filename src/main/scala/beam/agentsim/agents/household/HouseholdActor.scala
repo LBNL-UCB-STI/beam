@@ -17,6 +17,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.{
   BeamVehicle,
   BeamVehicleType,
@@ -30,6 +31,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
@@ -111,7 +113,8 @@ object HouseholdActor {
     personId: Id[Person],
     whereWhen: SpaceTime,
     originActivity: Activity,
-    triggerId: Long
+    triggerId: Long,
+    maybeForceAvailability: Option[VehicleCategory] = None
   ) extends HasTriggerId
   case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
@@ -194,9 +197,18 @@ object HouseholdActor {
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
         val fleetManagers = vehiclesByCategory.map { case (category, vs) =>
+          val maybeDefaultVehicleType = possibleSharedVehicleTypes.find(_.vehicleCategory == category)
           val fleetManager =
             context.actorOf(
-              Props(new HouseholdFleetManager(parkingManager, vs, homeCoord, beamServices.beamConfig.beam.debug)),
+              Props(
+                new HouseholdFleetManager(
+                  parkingManager,
+                  vs,
+                  homeCoord,
+                  maybeDefaultVehicleType,
+                  beamServices.beamConfig.beam.debug
+                )
+              ),
               category.toString
             )
           context.watch(fleetManager)
