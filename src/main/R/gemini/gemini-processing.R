@@ -470,9 +470,30 @@ chargingBis$rate <- 4.0*((chargingBis$fuel0_010/chargingBis$fuel0_050)/5.0)
 
 ###
 
-testFile <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0-010-1.csv.gz"
-test <- readCsv(pp(workDir, testFile))[type=='RefuelSessionEvent']
+testFile <- "/2021Aug22-Oakland/BATCH3/events-raw/0.events.SC2.csv.gz"
+test <- readCsv(pp(workDir, testFile))
+test2 <- test[type=='RefuelSessionEvent' & time >= 41400 & time <= 45000]
+person2 <- unique(test2$person)
+test3 <- test[person%in%person2][actType!=""]
+test4 <- test3[time >= 41400 & time <= 45000]
+test4[actType!="",.N,by=.(actType)][order(N)]
 
+test3$actType2 <- "discr"
+test3[actType=="work"]$actType2 <- "work"
+test3[actType=="Work"]$actType2 <- "work"
+test3[actType=="atwork"]$actType2 <- "work"
+test3[actType=="Home"]$actType2 <- "home"
+test3$time2 <- test3$time%%(24*3600)
+#time<=14*3600&time>=10*3600,
+test3[time2<=16*3600&time2>=8*3600,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time2),"15 min")), actType2)] %>%
+  ggplot(aes(timeBin, N, colour=actType2)) +
+  geom_line() + 
+  scale_x_datetime("time", 
+                   breaks=scales::date_breaks("2 hour"), 
+                   labels=scales::date_format("%H", tz = dateTZ)) +
+  scale_y_continuous(breaks = scales::pretty_breaks()) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 ###
 

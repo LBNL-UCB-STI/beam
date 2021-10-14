@@ -60,8 +60,8 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
 #####
-scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-#scenarioNames <- c('Scenario2', 'Scenario3')
+#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+scenarioNames <- c('Scenario2', 'Scenario3')
 scenarioBaselineLabel <- 'Scenario2'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
@@ -81,7 +81,7 @@ p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   theme(strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=12,height=4,units='in')
 
-
+test <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')][hour.bin2 >= 11.5 & hour.bin2 <= 12.5]
 ## Baseline public charging
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
@@ -90,7 +90,8 @@ p <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
-  theme(strip.text = element_text(size=rel(1.2)))
+  theme(strip.text = element_text(size=rel(1.2))) +
+  xlim(11.5, 12.5)
 ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in')
 
 
