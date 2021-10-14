@@ -155,10 +155,7 @@ class ChargingNetworkManager(
       if (vehicle.isBEV || vehicle.isPHEV) {
         // connecting the current vehicle
         val activityType =
-          vehicle2InquiryMap.get(vehicle.id).map(_.activityType).getOrElse {
-            log.warning(s"Vehicle ${vehicle.id} does not have a record of parking inquiry")
-            ParkingActivityType.Wherever
-          }
+          vehicle2InquiryMap.get(vehicle.id).map(_.activityType).getOrElse(ParkingActivityType.Wherever)
         chargingNetworkHelper
           .get(stall.reservedFor.managerId)
           .processChargingPlugRequest(request, activityType, sender()) map {
