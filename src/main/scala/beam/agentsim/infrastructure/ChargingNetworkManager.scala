@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -24,6 +25,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.TimeUnit
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -59,8 +61,8 @@ class ChargingNetworkManager(
   }
 
   protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
-
   protected val sitePowerManager = new SitePowerManager(chargingNetworkHelper, beamServices)
+  protected val vehicle2InquiryMap: TrieMap[Id[BeamVehicle], ParkingInquiry] = TrieMap()
 
   protected val powerController =
     new PowerController(chargingNetworkHelper, beamConfig, sitePowerManager.unlimitedPhysicalBounds)
@@ -85,7 +87,7 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
+      inquiry.beamVehicle.filter(v => !isVirtualCar(v.id)) foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
       chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
         case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
@@ -151,11 +153,15 @@ class ChargingNetworkManager(
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
-        collectChargingData(stall, vehicle)
         // connecting the current vehicle
+        val activityType =
+          vehicle2InquiryMap.get(vehicle.id).map(_.activityType).getOrElse {
+            log.warning(s"Vehicle ${vehicle.id} does not have a record of parking inquiry")
+            ParkingActivityType.Wherever
+          }
         chargingNetworkHelper
           .get(stall.reservedFor.managerId)
-          .processChargingPlugRequest(request, vehicle2InquiryMap(vehicle.id).activityType, sender()) map {
+          .processChargingPlugRequest(request, activityType, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
@@ -167,6 +173,8 @@ class ChargingNetworkManager(
             sender() ! WaitingToCharge(tick, vehicle.id, triggerId)
           case chargingVehicle =>
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
+            collectChargingData(stall, vehicle, chargingVehicle.activityType)
+            vehicle2InquiryMap.remove(vehicle.id)
         }
       } else {
         sender() ! Failure(
@@ -190,7 +198,6 @@ class ChargingNetworkManager(
               }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
               sender ! UnpluggingVehicle(tick, totEnergy, triggerId)
-              vehicle2InquiryMap.remove(vehicle.id)
               chargingNetwork
                 .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
