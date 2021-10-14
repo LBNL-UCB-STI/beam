@@ -228,6 +228,7 @@ trait ChargingNetworkManagerHelper extends {
       vehicle.id,
       vehicle.beamVehicleType,
       chargingVehicle.personId,
+      chargingVehicle.activityType,
       chargingVehicle.shiftStatus
     )
     log.debug(s"RefuelSessionEvent: $refuelSessionEvent")

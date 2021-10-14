@@ -153,7 +153,9 @@ class ChargingNetworkManager(
       if (vehicle.isBEV || vehicle.isPHEV) {
         collectChargingData(stall, vehicle)
         // connecting the current vehicle
-        chargingNetworkHelper.get(stall.reservedFor.managerId).processChargingPlugRequest(request, sender()) map {
+        chargingNetworkHelper
+          .get(stall.reservedFor.managerId)
+          .processChargingPlugRequest(request, vehicle2InquiryMap(vehicle.id).activityType, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
@@ -178,7 +180,7 @@ class ChargingNetworkManager(
       vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
-            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, status, sessions)) =>
+            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, status, sessions)) =>
               if (sessions.nonEmpty && !status.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
                 val unplugTime = currentTimeBin(tick)
