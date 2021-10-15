@@ -13,6 +13,7 @@ import beam.utils.{FileUtils, MathUtils}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
+import org.apache.commons.lang3.StringUtils.isBlank
 
 import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
@@ -482,24 +483,19 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
         else Some(ParkingZone.createId(parkingZoneIdString))
-      val linkMaybe =
-        (if (locationXString == null || locationXString.isEmpty || locationYString == null || locationYString.isEmpty)
-           None
-         else
-           Some(new Coord(locationXString.toDouble, locationYString.toDouble))) match {
-          case Some(coord) if beamServices.isDefined =>
-            Some(
-              NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord))
+      val linkMaybe = (!isBlank(locationXString) && !isBlank(locationYString)) match {
+        case true if beamServices.isDefined =>
+          val coord = new Coord(locationXString.toDouble, locationYString.toDouble)
+          Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
+        case false if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
+          getHouseholdLocation(beamServices.get, reservedFor.managerId.toString) map { homeCoord =>
+            NetworkUtils.getNearestLink(
+              beamServices.get.beamScenario.network,
+              homeCoord
             )
-          case None if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
-            getHouseholdLocation(beamServices.get, reservedFor.managerId.toString) map { homeCoord =>
-              NetworkUtils.getNearestLink(
-                beamServices.get.beamScenario.network,
-                homeCoord
-              )
-            }
-          case _ => None
-        }
+          }
+        case _ => None
+      }
       val parkingZone =
         ParkingZone.init(
           parkingZoneIdMaybe,
@@ -512,9 +508,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           timeRestrictions,
           linkMaybe
         )
-
       ParkingLoadingDataRow(taz, parkingType, parkingZone)
-
     } match {
       case Success(updatedAccumulator) =>
         Some { updatedAccumulator }

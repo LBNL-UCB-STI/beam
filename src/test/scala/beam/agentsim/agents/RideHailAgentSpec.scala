@@ -130,7 +130,7 @@ class RideHailAgentSpec
             )
           )
         )
-      rideHailAgent ! Interrupt(1, 30000, 0)
+      rideHailAgent ! Interrupt(1, 30000, 0, BeamVehicle.createId("Empty", None))
       expectMsgType[InterruptedWhileIdle]
       rideHailAgent ! ModifyPassengerSchedule(passengerSchedule, 30000, 0)
       rideHailAgent ! Resume(0)
@@ -193,7 +193,7 @@ class RideHailAgentSpec
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailAgent ! Interrupt(1, 30000, 0)
+      rideHailAgent ! Interrupt(1, 30000, 0, BeamVehicle.createId("Empty", None))
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
@@ -279,7 +279,7 @@ class RideHailAgentSpec
       // Now I want to interrupt the agent, and it will say that for any point in time after 28800,
       // I can tell it whatever I want. Even though it is already 30000 for me.
 
-      rideHailAgent ! Interrupt(1, 30000, 0)
+      rideHailAgent ! Interrupt(1, 30000, 0, BeamVehicle.createId("Empty", None))
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 0) // I know this agent hasn't picked up the passenger yet
       assert(rideHailAgent.stateName == DrivingInterrupted)
@@ -368,7 +368,7 @@ class RideHailAgentSpec
         t
       }
 
-      rideHailAgent ! Interrupt(1, 30000, 0)
+      rideHailAgent ! Interrupt(1, 30000, 0, BeamVehicle.createId("Empty", None))
       val interruptedAt = expectMsgType[InterruptedWhileDriving]
       assert(interruptedAt.currentPassengerScheduleIndex == 1) // I know this agent has now picked up the passenger
       assert(rideHailAgent.stateName == DrivingInterrupted)

@@ -64,9 +64,6 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
 
-#####
-
-all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
 ##########################################

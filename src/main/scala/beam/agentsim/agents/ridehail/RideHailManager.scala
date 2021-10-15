@@ -1800,7 +1800,7 @@ class RideHailManager(
             rideHailAgent2CustomerResponse.requestId,
             None,
             isEmbodyWithCurrentTravelTime = false,
-            triggerId
+            triggerId = triggerId
           )
 
         ridehailManagerCustomizationAPI.processVehicleLocationUpdateAtEndOfContinueRepositioningHook(
