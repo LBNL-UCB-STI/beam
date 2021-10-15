@@ -81,7 +81,13 @@ class HouseholdFleetManager(
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-      vehiclesInternal(vehId).spaceTime = whenWhere
+      vehiclesInternal.get(vehId) match {
+        case Some(vehicle) =>
+          vehicle.spaceTime = whenWhere
+          logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
+        case _ =>
+          logger.error("WHY ISN'T THIS VEHICLE HERE")
+      }
       logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
     case ReleaseVehicle(vehicle, _) =>
@@ -106,49 +112,68 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(_, whenWhere, _, triggerId, maybeForceAvailability) =>
-      maybeDefaultBeamVehicleType match {
-        case Some(defaultBeamVehicleType) =>
-          maybeForceAvailability match {
-            case Some(category) if (defaultBeamVehicleType.vehicleCategory == category) & availableVehicles.isEmpty =>
-              // Create a vehicle out of thin air
-              val vehicle = new BeamVehicle(
-                Id.createVehicleId(self.path.name + "-" + nextVehicleIndex),
-                new Powertrain(defaultBeamVehicleType.primaryFuelConsumptionInJoulePerMeter),
-                defaultBeamVehicleType
-              )
-              nextVehicleIndex += 1
-              vehicle.setManager(Some(self))
-              vehicle.spaceTime = whenWhere
-              // Park it and forward it to the customer
-              (parkingManager ? ParkingInquiry.init(
-                whenWhere,
-                "wherever",
-                triggerId = triggerId
-              ))
-                .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
-                  vehicle.useParkingStall(stall)
-                  MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-                } pipeTo sender
-              vehiclesInternal(vehicle.id) = vehicle
-              availableVehicles = List(vehicle)
-              logger.warn(
-                s"No vehicles available for category ${defaultBeamVehicleType.vehicleCategory}, creating a new vehicle with id ${vehicle.id.toString}"
-              )
-            case _ =>
+    case MobilityStatusInquiry(personId, whenWhere, _, triggerId, maybeForceAvailability) =>
+      (maybeDefaultBeamVehicleType, maybeForceAvailability) match {
+        case (Some(defaultBeamVehicleType), Some(neededVehicleCategory))
+            if defaultBeamVehicleType.vehicleCategory == neededVehicleCategory =>
+          if (availableVehicles.isEmpty) {
+            // Create a vehicle out of thin air
+            val vehicle = new BeamVehicle(
+              Id.createVehicleId(personId.toString + "-emergency-" + nextVehicleIndex),
+              new Powertrain(defaultBeamVehicleType.primaryFuelConsumptionInJoulePerMeter),
+              defaultBeamVehicleType
+            )
+            nextVehicleIndex += 1
+            vehicle.setManager(Some(self))
+            vehicle.spaceTime = whenWhere
+            val mobilityRequester = sender()
+            vehiclesInternal(vehicle.id) = vehicle
+
+            // Pipe my car through the parking manager
+            // and complete initialization only when I got them all.
+            val responseFuture = parkingManager ? ParkingInquiry.init(
+              whenWhere,
+              "wherever",
+              triggerId = triggerId
+            )
+            logger.warn(
+              s"No vehicles available for category ${defaultBeamVehicleType.vehicleCategory} available for person ${personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+            )
+
+            responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+              vehicle.useParkingStall(stall)
+              logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
+              vehicle.becomeDriver(mobilityRequester)
+//              mobilityRequester ! MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+              availableVehicles = List[BeamVehicle]()
+//              sender() ! CompletionNotice(triggerId, Vector())
+//              triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
+               MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+            } pipeTo mobilityRequester
+          } else {
+            availableVehicles = availableVehicles match {
+              case firstVehicle :: rest =>
+                logger.debug("Vehicle {} is now taken", firstVehicle.id)
+                firstVehicle.becomeDriver(sender)
+                sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
+                rest
+              case _ =>
+                logger.error(s"THE LIST OF VEHICLES SHOULDN'T BE EMPTY")
+                Nil
+            }
           }
         case _ =>
-      }
-
-      availableVehicles = availableVehicles match {
-        case firstVehicle :: rest =>
-          logger.debug("Vehicle {} is now taken", firstVehicle.id)
-          firstVehicle.becomeDriver(sender)
-          sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
-          rest
-        case Nil =>
-          sender() ! MobilityStatusResponse(Vector(), triggerId)
-          Nil
+          availableVehicles = availableVehicles match {
+            case firstVehicle :: rest =>
+              logger.debug("Vehicle {} is now taken", firstVehicle.id)
+              firstVehicle.becomeDriver(sender)
+              sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
+              rest
+            case Nil =>
+              logger.debug(s"Not returning vehicle because no default is defined")
+              sender() ! MobilityStatusResponse(Vector(), triggerId)
+              Nil
+          }
       }
 
     case Finish =>

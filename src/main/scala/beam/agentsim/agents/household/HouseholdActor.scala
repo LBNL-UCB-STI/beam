@@ -17,12 +17,13 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car, VehicleCategory}
 import beam.agentsim.agents.vehicles.{
   BeamVehicle,
   BeamVehicleType,
   PassengerSchedule,
   PersonIdWithActorRef,
+  VehicleCategory,
   VehicleManager
 }
 import beam.agentsim.events.SpaceTime
@@ -196,8 +197,29 @@ object HouseholdActor {
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
-        val fleetManagers = vehiclesByCategory.map { case (category, vs) =>
-          val maybeDefaultVehicleType = possibleSharedVehicleTypes.find(_.vehicleCategory == category)
+        //WE NEED TO MAKE  A FLEET MANAGER EVEN IF THERE ARE NO CARSs
+
+        val vehiclesByAllCategories = List(Car, Bike)
+          .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
+          .toMap
+        val fleetManagers = vehiclesByAllCategories.map { case (category, vs) =>
+          val maybeDefaultVehicleType = category match {
+            case VehicleCategory.Car =>
+              beamServices.beamScenario.vehicleTypes.get(
+                Id.create(
+                  beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+                  classOf[BeamVehicleType]
+                )
+              )
+            case VehicleCategory.Bike =>
+              beamServices.beamScenario.vehicleTypes.get(
+                Id.create(
+                  beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
+                  classOf[BeamVehicleType]
+                )
+              )
+            case _ => None
+          }
           val fleetManager =
             context.actorOf(
               Props(
