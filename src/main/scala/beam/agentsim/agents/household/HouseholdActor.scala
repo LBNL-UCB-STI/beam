@@ -114,8 +114,8 @@ object HouseholdActor {
     personId: Id[Person],
     whereWhen: SpaceTime,
     originActivity: Activity,
-    triggerId: Long,
-    maybeForceAvailability: Option[VehicleCategory] = None
+    requireVehicleCategoryAvailable: Option[VehicleCategory],
+    triggerId: Long
   ) extends HasTriggerId
   case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
