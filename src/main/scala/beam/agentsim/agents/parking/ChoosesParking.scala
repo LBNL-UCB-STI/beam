@@ -157,8 +157,15 @@ trait ChoosesParking extends {
       goto(WaitingToDrive) using data
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      val energyMaybe = Some(energyCharged)
-      handleReleasingParkingSpot(tick, currentBeamVehicle, energyMaybe, id, parkingManager, eventsManager, triggerId)
+      handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        Some(energyCharged),
+        id,
+        parkingManager,
+        eventsManager,
+        triggerId
+      )
       goto(WaitingToDrive) using data
   }
 

@@ -26,7 +26,7 @@ class PowerController(
       logger.warn("ChargingNetworkManager should be connected to a grid via Helics...")
       val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.helics
       Try {
-        logger.debug("Init PowerController resources...")
+        logger.info("Init PowerController resources...")
         getFederate(
           helicsConfig.federateName,
           helicsConfig.coreType,
