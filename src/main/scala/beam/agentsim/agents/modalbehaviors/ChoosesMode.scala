@@ -206,7 +206,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              Some(mode),
+              Some(mode @ (CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
               _,
               _,
               _,
@@ -235,9 +235,9 @@ trait ChoosesMode {
             _,
             _,
             _
-          ) if mode.in(List(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)) =>
+          ) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        val maybeForceAvailability = mode match {
+        val requireVehicleCategoryAvailable = mode match {
           case CAR | DRIVE_TRANSIT => Some(VehicleCategory.Car)
           case BIKE_TRANSIT | BIKE => Some(VehicleCategory.Bike)
           case _                   => None
@@ -246,7 +246,7 @@ trait ChoosesMode {
           vehicleFleets,
           currentLocation,
           _experiencedBeamPlan.activities(currentActivityIndex),
-          maybeForceAvailability
+          requireVehicleCategoryAvailable
         ) pipeTo self
       // Otherwise, send empty list to self
       case _ =>
@@ -258,7 +258,7 @@ trait ChoosesMode {
     vehicleFleets: Seq[ActorRef],
     location: SpaceTime,
     activity: Activity,
-    maybeForceAvailability: Option[VehicleCategory] = None
+    requireVehicleCategoryAvailable: Option[VehicleCategory] = None
   ): Future[MobilityStatusResponse] = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
     Future
@@ -268,8 +268,8 @@ trait ChoosesMode {
             id,
             location,
             activity,
-            getCurrentTriggerIdOrGenerate,
-            maybeForceAvailability
+            requireVehicleCategoryAvailable,
+            getCurrentTriggerIdOrGenerate
           )
         )
       )
@@ -464,14 +464,14 @@ trait ChoosesMode {
                     withTransit = false,
                     Vector(bodyStreetVehicle)
                   )
-                  logger.error("SHOULDN'T NOT HAVE A VEHICLE  AVAILABLE")
+                  logger.error("If the agent has this trip in their plans, we should have created a vehicle for them")
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
               }
             case _ =>
               val availableVehicles =
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode)
               if (availableVehicles.isEmpty) {
-                logger.error("SHOULDN'T NOT HAVE A VEHICLE  AVAILABLE")
+                logger.error("If the agent has this trip in their plans, we should have created a vehicle for them")
                 makeRequestWith(
                   withTransit = false,
                   Vector(bodyStreetVehicle)
@@ -856,29 +856,6 @@ trait ChoosesMode {
       WALK,
       asDriver = true,
       needsToCalculateCost = false
-    )
-  }
-
-  private def createLastResortStreetVehicle(locationUTM: SpaceTime, beamMode: BeamMode): StreetVehicle = {
-    val vehicleTypeId = beamMode match {
-      case CAR  => beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
-      case BIKE => beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId
-      case _ =>
-        throw new NotImplementedError(
-          s"No vehicle available for [${beamMode.toString}] trip in plans, and no default vehicle type for this mode implemented"
-        )
-    }
-    val newVehicleID = beamMode.toString + "-default-" + id
-    logError(
-      s"No vehicles available for mode ${beamMode.toString}, creating a new vehicle $newVehicleID"
-    )
-    StreetVehicle(
-      Id.create(newVehicleID, classOf[BeamVehicle]),
-      Id.create(vehicleTypeId, classOf[BeamVehicleType]),
-      locationUTM,
-      beamMode,
-      asDriver = true,
-      needsToCalculateCost = true
     )
   }
 

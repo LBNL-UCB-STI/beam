@@ -112,8 +112,8 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(personId, whenWhere, _, triggerId, maybeForceAvailability) =>
-      (maybeDefaultBeamVehicleType, maybeForceAvailability) match {
+    case MobilityStatusInquiry(personId, whenWhere, _, requireVehicleCategoryAvailable, triggerId) =>
+      (maybeDefaultBeamVehicleType, requireVehicleCategoryAvailable) match {
         case (Some(defaultBeamVehicleType), Some(neededVehicleCategory))
             if defaultBeamVehicleType.vehicleCategory == neededVehicleCategory =>
           if (availableVehicles.isEmpty) {
