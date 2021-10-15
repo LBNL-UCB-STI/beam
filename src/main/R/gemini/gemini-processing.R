@@ -387,47 +387,66 @@ rse050 <- readCsv(pp(workDir, events050))[type=='RefuelSessionEvent']
 10.01*sum(rse100$fuel)/sum(rse025$fuel)
 5.8*sum(rse100$fuel)/sum(rse050$fuel)
 
-charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType,chargingPointType)]
+charging_coef <- data.table(
+  actType=c("Home", "Work", "Charge", "Wherever", "Init"),
+  coef=c(0, 0, 0, 0, 0)
+)
 
-charging_100_010 <- data.table(
-  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
-                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
-  coef_100_010=c(8.02,6.87,9.00,6.41,8.17,10.33))
-charging010 <- rse010[,.(fuel010=sum(fuel)),by=.(parkingType,chargingPointType)][
-  charging,on=c("parkingType","chargingPointType")][
-    charging_100_010,on=c("chargingPointType")][
-      ,fuel_100_010:=fuel100/fuel010][
-        ,fuel_100_010_W:=coef_100_010*fuel_100_010]
+charging100 <- rse100[,.(fuel100=sum(fuel)),by=.(actType)]
+charging010 <- rse010[,.(fuel010=sum(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
+charging025 <- rse025[,.(fuel025=sum(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
+charging050 <- rse050[,.(fuel050=sum(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
 
+charging010$coef <- c(16, 50, 50, 50)
+charging010 <- charging010[,fuel_100_010:=fuel100/fuel010][,fuel_100_010_W:=coef*fuel_100_010]
 
-charging_100_025 <- data.table(
-  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
-                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
-  coef_100_025=c(2.95,2.56,3.69,2.65,3.18,4.53))
-charging025 <- rse025[,.(fuel025=sum(fuel)),by=.(parkingType,chargingPointType)][
-  charging,on=c("parkingType","chargingPointType")][
-    charging_100_025,on=c("chargingPointType")][
-      ,fuel_100_025:=fuel100/fuel025][
-        ,fuel_100_025_W:=coef_100_025*fuel_100_025]
+charging025$coef <- c(9.5, 35, 35, 35)
+charging025 <- charging025[,fuel_100_025:=fuel100/fuel025][,fuel_100_025_W:=coef*fuel_100_025]
 
+charging050$coef <- c(6, 20, 20, 20)
+charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef*fuel_100_050]
 
-charging_100_050 <- data.table(
-  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
-                      "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
-  coef_100_050=c(1.33,1.20,1.88,1.35,1.67,2.28))
-charging050 <- rse050[,.(fuel050=sum(fuel)),by=.(parkingType,chargingPointType)][
-  charging,on=c("parkingType","chargingPointType")][
-    charging_100_050,on=c("chargingPointType")][
-      ,fuel_100_050:=fuel100/fuel050][
-        ,fuel_100_050_W:=coef_100_050*fuel_100_050]
+# charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType, chargingPointType)]
 
-
-charging <- charging[charging010, on=c("parkingType","chargingPointType")]
-charging <- charging[charging025, on=c("parkingType","chargingPointType")]
-charging <- charging[charging050, on=c("parkingType","chargingPointType")]
+# charging_100_010 <- data.table(
+#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+#                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+#   coef_100_010=c(8.02,6.87,9.00,6.41,8.17,10.33))
+# charging010 <- rse010[,.(fuel010=sum(fuel)),by=.(parkingType,chargingPointType)][
+#   charging,on=c("parkingType","chargingPointType")][
+#     charging_100_010,on=c("chargingPointType")][
+#       ,fuel_100_010:=fuel100/fuel010][
+#         ,fuel_100_010_W:=coef_100_010*fuel_100_010]
+# 
+# 
+# charging_100_025 <- data.table(
+#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+#                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+#   coef_100_025=c(2.95,2.56,3.69,2.65,3.18,4.53))
+# charging025 <- rse025[,.(fuel025=sum(fuel)),by=.(parkingType,chargingPointType)][
+#   charging,on=c("parkingType","chargingPointType")][
+#     charging_100_025,on=c("chargingPointType")][
+#       ,fuel_100_025:=fuel100/fuel025][
+#         ,fuel_100_025_W:=coef_100_025*fuel_100_025]
+# 
+# 
+# charging_100_050 <- data.table(
+#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
+#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+#                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
+#   coef_100_050=c(1.33,1.20,1.88,1.35,1.67,2.28))
+# charging050 <- rse050[,.(fuel050=sum(fuel)),by=.(parkingType,chargingPointType)][
+#   charging,on=c("parkingType","chargingPointType")][
+#     charging_100_050,on=c("chargingPointType")][
+#       ,fuel_100_050:=fuel100/fuel050][
+#         ,fuel_100_050_W:=coef_100_050*fuel_100_050]
+# 
+# 
+# charging <- charging[charging010, on=c("parkingType","chargingPointType")]
+# charging <- charging[charging025, on=c("parkingType","chargingPointType")]
+# charging <- charging[charging050, on=c("parkingType","chargingPointType")]
 #   
 # publiclevel2(7.2|AC)
 # publicfc(150.0|DC)
