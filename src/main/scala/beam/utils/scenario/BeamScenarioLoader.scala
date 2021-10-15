@@ -205,9 +205,9 @@ class BeamScenarioLoader(
           }
 
           listOfElementsGroupedByPlan.foreach { planElement =>
-            if (planElement.planElementType.equalsIgnoreCase("leg")) {
+            if (planElement.planElementType == PlanElement.Leg) {
               buildAndAddLegToPlan(currentPlan, planElement)
-            } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
+            } else if (planElement.planElementType == PlanElement.Activity) {
               buildAndAddActivityToPlan(currentPlan, planElement)
             }
           }
