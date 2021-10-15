@@ -460,21 +460,21 @@ trait ChoosesMode {
                   )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 case _ =>
-                  val defaultVehicle = createLastResortStreetVehicle(currentPersonLocation, mode)
                   makeRequestWith(
                     withTransit = false,
-                    Vector(defaultVehicle, bodyStreetVehicle)
+                    Vector(bodyStreetVehicle)
                   )
+                  logger.error("SHOULDN'T NOT HAVE A VEHICLE  AVAILABLE")
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
               }
             case _ =>
               val availableVehicles =
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode)
               if (availableVehicles.isEmpty) {
-                val defaultVehicle = createLastResortStreetVehicle(currentPersonLocation, mode)
+                logger.error("SHOULDN'T NOT HAVE A VEHICLE  AVAILABLE")
                 makeRequestWith(
                   withTransit = false,
-                  Vector(defaultVehicle, bodyStreetVehicle)
+                  Vector(bodyStreetVehicle)
                 )
               } else {
                 makeRequestWith(
