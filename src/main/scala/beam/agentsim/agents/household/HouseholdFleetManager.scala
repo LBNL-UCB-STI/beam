@@ -19,20 +19,17 @@ import beam.agentsim.agents.household.HouseholdActor.{
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.HasTriggerId
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.{Coord, Id}
 
-import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.{ExecutionContext, Future}
 
 class HouseholdFleetManager(
@@ -144,11 +141,8 @@ class HouseholdFleetManager(
               vehicle.useParkingStall(stall)
               logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
               vehicle.becomeDriver(mobilityRequester)
-//              mobilityRequester ! MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
               availableVehicles = List[BeamVehicle]()
-//              sender() ! CompletionNotice(triggerId, Vector())
-//              triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
-               MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+              MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
             } pipeTo mobilityRequester
           } else {
             availableVehicles = availableVehicles match {
