@@ -381,6 +381,10 @@ rse025 <- readCsv(pp(workDir, events025))[type=='RefuelSessionEvent']
 events050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050.csv.gz"
 rse050 <- readCsv(pp(workDir, events050))[type=='RefuelSessionEvent']
 
+20.03*sum(rse100$fuel)/sum(rse010$fuel)
+10.01*sum(rse100$fuel)/sum(rse025$fuel)
+5.8*sum(rse100$fuel)/sum(rse050$fuel)
+
 charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType,chargingPointType)]
 
 charging_100_010 <- data.table(
