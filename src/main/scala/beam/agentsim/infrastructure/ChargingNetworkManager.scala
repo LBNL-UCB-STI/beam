@@ -87,10 +87,11 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      inquiry.beamVehicle.filter(v => !isVirtualCar(v.id)) foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
       chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
-        case Some(parkingResponse) => sender() ! parkingResponse
-        case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
+        case Some(parkingResponse) =>
+          inquiry.beamVehicle.filter(v => !isVirtualCar(v.id)) foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
+          sender() ! parkingResponse
+        case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -143,7 +144,8 @@ class ChargingNetworkManager(
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) match {
             case Some(_) =>
               handleEndCharging(tick, _, triggerId, false)
-              self ! ChargingUnplugRequest(tick, vehicle, triggerId)
+              if (isEndOfSimulation(tick))
+                self ! ChargingUnplugRequest(tick, vehicle, triggerId)
             case _ => log.debug(s"Vehicle ${vehicle.id} has already ended charging")
           }
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")

@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -49,7 +48,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     timeInterval: Int,
     chargingVehicle: ChargingVehicle,
     physicalBounds: Map[ChargingStation, PhysicalBounds]
-  ): (ChargingDurationInSec, EnergyInJoules) = {
+  ): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules) = {
     val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).powerLimitUpper
@@ -62,12 +61,18 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       stateOfChargeLimit = None,
       chargingPowerLimit = Some(chargingPowerLimit)
     )
+    val (_, energyToChargeIfUnconstrained) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = Some(timeInterval),
+      stateOfChargeLimit = None,
+      chargingPowerLimit = None
+    )
     if ((chargingDuration > 0 && energyToCharge == 0) || chargingDuration == 0 && energyToCharge > 0) {
       logger.debug(
-        s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
+        s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. " +
+        s"Something is broken or due to physical bounds!!"
       )
     }
-    (chargingDuration, energyToCharge)
+    (chargingDuration, energyToCharge, energyToChargeIfUnconstrained)
   }
 
   /**
@@ -80,16 +85,10 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   def collectObservedLoadInKW(
     time: Int,
     duration: Int,
-    vehicle: BeamVehicle,
+    energyToChargeIfUnconstrained: Double,
     station: ChargingStation
   ): Unit = {
-    // Collect data on load demand
-    val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(
-      sessionDurationLimit = Some(duration),
-      stateOfChargeLimit = None,
-      chargingPowerLimit = None
-    )
-    val requiredLoad = if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0)
+    val requiredLoad = if (duration == 0) 0.0 else (energyToChargeIfUnconstrained / 3.6e+6) / (duration / 3600.0)
     temporaryLoadEstimate.synchronized {
       val requiredLoadAcc = temporaryLoadEstimate.getOrElse(station, 0.0) + requiredLoad
       temporaryLoadEstimate.put(station, requiredLoadAcc)

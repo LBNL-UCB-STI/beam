@@ -470,7 +470,7 @@ chargingBis$rate <- 4.0*((chargingBis$fuel0_010/chargingBis$fuel0_050)/5.0)
 
 ###
 
-testFile <- "/2021Aug22-Oakland/BATCH3/events-raw/0.events.SC2.csv.gz"
+testFile <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
 test <- readCsv(pp(workDir, testFile))
 test2 <- test[type=='RefuelSessionEvent' & time >= 41400 & time <= 45000]
 person2 <- unique(test2$person)
@@ -478,14 +478,16 @@ test3 <- test[person%in%person2][actType!=""]
 test4 <- test3[time >= 41400 & time <= 45000]
 test4[actType!="",.N,by=.(actType)][order(N)]
 
-test3$actType2 <- "discr"
-test3[actType=="work"]$actType2 <- "work"
-test3[actType=="Work"]$actType2 <- "work"
-test3[actType=="atwork"]$actType2 <- "work"
-test3[actType=="Home"]$actType2 <- "home"
-test3$time2 <- test3$time%%(24*3600)
+test3All <- test[type=="actend"][time<=16*3600&time>=8*3600][sample(.N,234768)]
+
+test3All$actType2 <- "discr"
+test3All[actType=="work"]$actType2 <- "work"
+test3All[actType=="Work"]$actType2 <- "work"
+test3All[actType=="atwork"]$actType2 <- "work"
+test3All[actType=="Home"]$actType2 <- "home"
+test3All$time2 <- test3All$time%%(24*3600)
 #time<=14*3600&time>=10*3600,
-test3[time2<=16*3600&time2>=8*3600,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time2),"15 min")), actType2)] %>%
+test3All[,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time),"15 min")), actType2)] %>%
   ggplot(aes(timeBin, N, colour=actType2)) +
   geom_line() + 
   scale_x_datetime("time", 
@@ -495,6 +497,26 @@ test3[time2<=16*3600&time2>=8*3600,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(tim
   theme_classic() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
+####
+
+looFile <- "/activitysim-plans-base-2010-cut-718k-by-shapefile/plans.csv.gz"
+looTest <- readCsv(pp(activitySimDir, looFile))
+#looTest2 <- looTest[ActivityElement=="activity"&person_id%in%person2]
+looTest2 <- looTest[ActivityElement=="activity"]
+looTest2$actType2 <- "discr"
+looTest2[ActivityType=="work"]$actType2 <- "work"
+looTest2[ActivityType=="Work"]$actType2 <- "work"
+looTest2[ActivityType=="atwork"]$actType2 <- "work"
+looTest2[ActivityType=="Home"]$actType2 <- "home"
+looTest2[departure_time<=16&departure_time>=8,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(departure_time*3600),"1 hour")), actType2)] %>%
+  ggplot(aes(timeBin, N, colour=actType2)) +
+  geom_line() + 
+  scale_x_datetime("time", 
+                   breaks=scales::date_breaks("2 hour"), 
+                   labels=scales::date_format("%H", tz = dateTZ)) +
+  scale_y_continuous(breaks = scales::pretty_breaks()) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ###
 
 fooFile <- "/2021Aug22-Oakland/beamLog.out-choiceset.txt"

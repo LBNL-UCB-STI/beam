@@ -376,7 +376,13 @@ object ChargingNetwork extends LazyLogging {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, endTime: Int, energyToCharge: Double, maxDuration: Int) {
+  final case class ChargingCycle(
+    startTime: Int,
+    endTime: Int,
+    energyToCharge: Double,
+    energyToChargeIfUnconstrained: Double,
+    maxDuration: Int
+  ) {
     var refueled: Boolean = false
   }
 
@@ -425,7 +431,7 @@ object ChargingNetwork extends LazyLogging {
       */
     def refuel: Option[ChargingCycle] = {
       chargingSessions.lastOption match {
-        case Some(cycle @ ChargingCycle(_, _, energy, _)) if !cycle.refueled =>
+        case Some(cycle @ ChargingCycle(_, _, energy, _, _)) if !cycle.refueled =>
           vehicle.addFuel(energy)
           cycle.refueled = true
           logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
@@ -457,7 +463,13 @@ object ChargingNetwork extends LazyLogging {
       * @param endTime endTime of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
+    def processCycle(
+      startTime: Int,
+      endTime: Int,
+      energy: Double,
+      energyToChargeIfUnconstrained: Double,
+      maxDuration: Int
+    ): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
         case None =>
           // first charging cycle
@@ -484,7 +496,7 @@ object ChargingNetwork extends LazyLogging {
           false
       }
       if (addNewChargingCycle) {
-        val newCycle = ChargingCycle(startTime, endTime, energy, maxDuration)
+        val newCycle = ChargingCycle(startTime, endTime, energy, energyToChargeIfUnconstrained, maxDuration)
         chargingSessions.append(newCycle)
         Some(newCycle)
       } else None
