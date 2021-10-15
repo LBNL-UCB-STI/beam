@@ -383,27 +383,27 @@ rse025 <- readCsv(pp(workDir, events025))[type=='RefuelSessionEvent']
 events050 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-050.csv.gz"
 rse050 <- readCsv(pp(workDir, events050))[type=='RefuelSessionEvent']
 
-20.03*sum(rse100$fuel)/sum(rse010$fuel)
-10.01*sum(rse100$fuel)/sum(rse025$fuel)
-5.8*sum(rse100$fuel)/sum(rse050$fuel)
+# 20.03*sum(rse100$fuel)/sum(rse010$fuel)
+# 10.01*sum(rse100$fuel)/sum(rse025$fuel)
+# 5.8*sum(rse100$fuel)/sum(rse050$fuel)
 
 charging_coef <- data.table(
   actType=c("Home", "Work", "Charge", "Wherever", "Init"),
   coef=c(0, 0, 0, 0, 0)
 )
 
-charging100 <- rse100[,.(fuel100=sum(fuel)),by=.(actType)]
-charging010 <- rse010[,.(fuel010=sum(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
-charging025 <- rse025[,.(fuel025=sum(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
-charging050 <- rse050[,.(fuel050=sum(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
+charging100 <- rse100[,.(fuel100=mean(fuel)),by=.(actType)]
+charging010 <- rse010[,.(fuel010=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
+charging025 <- rse025[,.(fuel025=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
+charging050 <- rse050[,.(fuel050=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
 
-charging010$coef <- c(16, 50, 50, 50)
+charging010$coef <- c(10, 10, 10, 10)
 charging010 <- charging010[,fuel_100_010:=fuel100/fuel010][,fuel_100_010_W:=coef*fuel_100_010]
 
-charging025$coef <- c(9.5, 35, 35, 35)
+charging025$coef <- c(4, 4, 4, 4)
 charging025 <- charging025[,fuel_100_025:=fuel100/fuel025][,fuel_100_025_W:=coef*fuel_100_025]
 
-charging050$coef <- c(6, 20, 20, 20)
+charging050$coef <- c(2, 2, 2, 2)
 charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef*fuel_100_050]
 
 # charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType, chargingPointType)]
