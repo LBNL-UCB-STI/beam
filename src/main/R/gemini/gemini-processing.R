@@ -372,8 +372,10 @@ chargingBehaviorFunc <- function(DT) {
 
 events100_3 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC3.csv.gz"
 rse100_3 <- readCsv(pp(workDir, events100_3))[type=='RefuelSessionEvent']
+
 events100 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
 rse100 <- readCsv(pp(workDir, events100))[type=='RefuelSessionEvent']
+
 events010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010.csv.gz"
 rse010 <- readCsv(pp(workDir, events010))[type=='RefuelSessionEvent']
 events025 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-025.csv.gz"

@@ -141,13 +141,9 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       vehicle.stall match {
         case Some(stall) =>
-          chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) match {
-            case Some(_) =>
-              handleEndCharging(tick, _, triggerId, false)
-              if (isEndOfSimulation(tick))
-                self ! ChargingUnplugRequest(tick, vehicle, triggerId)
-            case _ => log.debug(s"Vehicle ${vehicle.id} has already ended charging")
-          }
+          chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
+            handleEndCharging(tick, _, triggerId, false)
+          } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
       sender ! CompletionNotice(triggerId)
