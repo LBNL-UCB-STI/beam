@@ -1,23 +1,42 @@
 package beam.agentsim.infrastructure.power
 
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.power.PowerController._
 import beam.router.skim.event
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
-class SitePowerManager(unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds], beamServices: BeamServices)
-    extends LazyLogging {
+class SitePowerManager(
+  chargingNetworkHelper: ChargingNetworkHelper,
+  unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds],
+  beamServices: BeamServices
+) extends LazyLogging {
 
+  private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
 
-  private lazy val cnmConfig: Agentsim.ChargingNetworkManager =
-    beamServices.beamConfig.beam.agentsim.chargingNetworkManager
+  /**
+    * Get required power for electrical vehicles
+    *
+    * @param tick current time
+    * @return power (in Kilo Watt) over planning horizon
+    */
+  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
+    val plans = chargingNetworkHelper.allChargingStations.par
+      .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
+      .seq
+      .toMap
+    temporaryLoadEstimate.clear()
+    if (plans.isEmpty) {
+      logger.debug(s"Charging Replan did not produce allocations on tick: [$tick]")
+    }
+    plans
+  }
 
   /**
     * @param chargingVehicle the vehicle being charging
@@ -85,15 +104,5 @@ class SitePowerManager(unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBou
         geoIdMaybe = Some(station.zone.geoId.toString)
       )
     )
-  }
-
-  /**
-    * getThenClearObservedChargingData
-    * @return
-    */
-  def getLoadEstimate: Map[ChargingStation, Double] = {
-    val data = temporaryLoadEstimate.toMap
-    temporaryLoadEstimate.clear()
-    data
   }
 }

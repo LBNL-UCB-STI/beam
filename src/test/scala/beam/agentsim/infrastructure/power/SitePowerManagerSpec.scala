@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingNetworkHelper, ChargingPlugRequest}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
@@ -143,7 +143,8 @@ class SitePowerManagerSpec
 
     val dummyStation = ChargingStation(dummyChargingZone)
     val unlimitedBounds = PowerController.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-    val sitePowerManager = new SitePowerManager(unlimitedBounds, beamServices)
+    val sitePowerManager =
+      new SitePowerManager(ChargingNetworkHelper(chargingNetwork, rideHailNetwork), unlimitedBounds, beamServices)
 
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { case (v, person) =>

@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.ChargingVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -109,134 +109,153 @@ trait ScaleUpCharging extends {
   private def nextTimePoisson(rate: Double): Double = 3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate)
 
   /**
-    * @param observedChargingData ObservedChargingData
     * @param timeBin current time bin
     * @param triggerId trigger di for the scheduler
     * @return
     */
-  protected def simulateEvents(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
-    vehicleRequests
-      .groupBy(_._1._1)
-      .par
-      .mapValues(_.map { case ((_, activityType), dataList) =>
-        val durationList = dataList.map(_.durationToChargeInSec)
-        val socList = dataList.map(x => x.remainingFuelInJoule / x.fuelCapacityInJoule)
-        val energyList = dataList.map(_.energyToChargeInJoule)
-        val fuelCapacityList = dataList.map(_.fuelCapacityInJoule)
-        val meanDur = durationList.sum / dataList.size
-        val meanSOC = socList.sum / dataList.size
-        val meanEnergy = energyList.sum / energyList.size
-        val meanFuelCapacity = fuelCapacityList.sum / fuelCapacityList.size
-        val vehicleInfoSummary = VehicleInfoSummary(
-          meanDur = meanDur,
-          meanSOC = meanSOC,
-          meanEnergy = meanEnergy,
-          meanFuelCapacity = meanFuelCapacity,
-          stdDevDur = Math.sqrt(durationList.map(_ - meanDur).map(t => t * t).sum / dataList.size),
-          stdDevSOC = Math.sqrt(socList.map(_ - meanSOC).map(t => t * t).sum / dataList.size),
-          stdDevEnergy = Math.sqrt(energyList.map(_ - meanEnergy).map(t => t * t).sum / dataList.size),
-          stdFuelCapacity = Math.sqrt(fuelCapacityList.map(_ - meanFuelCapacity).map(t => t * t).sum / dataList.size)
-        )
-        activityType -> (dataList, vehicleInfoSummary)
-      })
-      .flatMap { case (tazId, activityType2chargingDataList) =>
-        val pmf = activityType2chargingDataList
-          .map { case (activityType, chargingDataList) =>
+  protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
+    if (beamConfig.beam.agentsim.chargingNetworkManager.scaleUp.enabled) {
+      vehicleRequests
+        .groupBy(_._1._1)
+        .par
+        .mapValues(_.map { case ((_, activityType), dataList) =>
+          val durationList = dataList.map(_.durationToChargeInSec)
+          val socList = dataList.map(x => x.remainingFuelInJoule / x.fuelCapacityInJoule)
+          val energyList = dataList.map(_.energyToChargeInJoule)
+          val fuelCapacityList = dataList.map(_.fuelCapacityInJoule)
+          val meanDur = durationList.sum / dataList.size
+          val meanSOC = socList.sum / dataList.size
+          val meanEnergy = energyList.sum / energyList.size
+          val meanFuelCapacity = fuelCapacityList.sum / fuelCapacityList.size
+          val vehicleInfoSummary = VehicleInfoSummary(
+            meanDur = meanDur,
+            meanSOC = meanSOC,
+            meanEnergy = meanEnergy,
+            meanFuelCapacity = meanFuelCapacity,
+            stdDevDur = Math.sqrt(durationList.map(_ - meanDur).map(t => t * t).sum / dataList.size),
+            stdDevSOC = Math.sqrt(socList.map(_ - meanSOC).map(t => t * t).sum / dataList.size),
+            stdDevEnergy = Math.sqrt(energyList.map(_ - meanEnergy).map(t => t * t).sum / dataList.size),
+            stdFuelCapacity = Math.sqrt(fuelCapacityList.map(_ - meanFuelCapacity).map(t => t * t).sum / dataList.size)
+          )
+          activityType -> (dataList, vehicleInfoSummary)
+        })
+        .flatMap { case (tazId, activityType2chargingDataList) =>
+          val powerAndEventScaledUp = activityType2chargingDataList.map { case (activityType, chargingDataList) =>
             val powerInKW = chargingDataList._1.map {
-              case VehicleRequestInfo(energyToChargeInJoule, 0.0, _, _) => 0.0
               case VehicleRequestInfo(energyToChargeInJoule, durationToChargeInSec, _, _) =>
-                (energyToChargeInJoule / 3.6e+6) / (durationToChargeInSec / 3600.0)
+                toPowerInKW(energyToChargeInJoule, durationToChargeInSec)
             }.sum
-            new CPair[ParkingActivityType, java.lang.Double](activityType, powerInKW * scaleUpFactor(activityType))
-          }
-          .toVector
-          .asJava
-        val partialTriggers = Vector.newBuilder[ScheduleTrigger]
-        val totPowerInKWToSimulate = pmf.asScala.map(_.getValue.doubleValue()).sum
-        if (totPowerInKWToSimulate > 0.0) {
-          val distribution = new EnumeratedDistribution[ParkingActivityType](mersenne, pmf)
-          val totObservation = activityType2chargingDataList.values.size
-          val rate = totObservation / timeStepByHour
-          var currentTotPowerInKWToSimulate: Double = 0
-          var startTime = timeBin
-          while (currentTotPowerInKWToSimulate <= totPowerInKWToSimulate) {
-            startTime = startTime + MathUtils.roundUniformly(nextTimePoisson(rate), rand).toInt
-            val activityType = distribution.sample()
-            val (
-              _,
-              VehicleInfoSummary(
-                meanDur,
-                meanSOC,
-                meanEnergy,
-                meanFuelCapacity,
-                stdDevDur,
-                stdDevSOC,
-                stdDevEnergy,
-                stdFuelCapacity
-              )
-            ) = activityType2chargingDataList(activityType)
-            val randNumber = rand.nextGaussian()
-            val duration = MathUtils.roundUniformly(meanDur + (randNumber * stdDevDur), rand).toInt
-            val soc = meanSOC + (randNumber * stdDevSOC)
-            val energyToCharge = MathUtils.roundUniformly(meanEnergy + (randNumber * stdDevEnergy), rand).toInt
-            val fuelCapacity = MathUtils
-              .roundUniformly(
-                Math.max(
-                  meanFuelCapacity + (randNumber * stdFuelCapacity),
-                  if (soc == 1) energyToCharge
-                  else energyToCharge / (1 - soc)
-                ),
-                rand
-              )
-              .toInt
-            val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
-            val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-            val vehicleType = getBeamVehicleType(fuelCapacity)
-            val reservedFor = VehicleManager.AnyManager
-            val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
-            val vehicleId = beamVehicle.id.toString
-            val personId = Id.create(vehicleId.replace(VIRTUAL_CAR_ALIAS, "VirtualPerson"), classOf[PersonAgent])
-            val parkingInquiry = ParkingInquiry(
-              SpaceTime(destinationUtm, startTime),
-              activityType,
-              reservedFor,
-              Some(beamVehicle),
-              None, // remainingTripData
-              Some(personId),
-              0.0, // valueOfTime
-              duration,
-              triggerId = triggerId
+            (
+              new CPair[ParkingActivityType, java.lang.Double](activityType, powerInKW * scaleUpFactor(activityType)),
+              chargingDataList._1.size * scaleUpFactor(activityType)
             )
-            inquiryMap.put(parkingInquiry.requestId, parkingInquiry)
-            partialTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
-            currentTotPowerInKWToSimulate += (if (duration == 0) 0.0
-                                              else (energyToCharge / 3.6e+6) / (duration / 3600.0))
+          }.toVector
+          val partialTriggers = Vector.newBuilder[ScheduleTrigger]
+          val pmf = powerAndEventScaledUp.map(_._1).asJava
+          val totPowerInKWToSimulate = pmf.asScala.map(_.getValue.doubleValue()).sum
+          val totNumberOfEvents = powerAndEventScaledUp.map(_._2).sum
+          if (totPowerInKWToSimulate > 0.0) {
+            val distribution = new EnumeratedDistribution[ParkingActivityType](mersenne, pmf)
+            val rate = totNumberOfEvents / timeStepByHour
+            var currentTotPowerInKWToSimulate: Double = 0
+            var currentNumberOfEvents: Double = 0
+            var timeStep = 0
+            while (currentTotPowerInKWToSimulate <= totPowerInKWToSimulate && timeStep <= timeStepByHour * 3600) {
+              timeStep = timeStep + MathUtils.roundUniformly(nextTimePoisson(rate), rand).toInt
+              val startTime = timeBin + timeStep
+              val activityType = distribution.sample()
+              val (
+                _,
+                VehicleInfoSummary(
+                  meanDur,
+                  meanSOC,
+                  meanEnergy,
+                  meanFuelCapacity,
+                  stdDevDur,
+                  stdDevSOC,
+                  stdDevEnergy,
+                  stdFuelCapacity
+                )
+              ) = activityType2chargingDataList(activityType)
+              val randNumber = rand.nextGaussian()
+              val duration = Math.max(MathUtils.roundUniformly(meanDur + (randNumber * stdDevDur), rand).toInt, 0)
+              val soc = Math.max(meanSOC + (randNumber * stdDevSOC), 0.0)
+              val energyToCharge =
+                Math.max(MathUtils.roundUniformly(meanEnergy + (randNumber * stdDevEnergy), rand).toInt, 0)
+              val fuelCapacity = MathUtils
+                .roundUniformly(
+                  Math.max(
+                    meanFuelCapacity + (randNumber * stdFuelCapacity),
+                    if (soc == 1) energyToCharge
+                    else energyToCharge / (1 - soc)
+                  ),
+                  rand
+                )
+                .toInt
+              val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
+              val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+              val vehicleType = getBeamVehicleType(fuelCapacity)
+              val reservedFor = VehicleManager.AnyManager
+              val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
+              val vehicleId = beamVehicle.id.toString
+              val personId = Id.create(vehicleId.replace(VIRTUAL_CAR_ALIAS, "VirtualPerson"), classOf[PersonAgent])
+              val parkingInquiry = ParkingInquiry(
+                SpaceTime(destinationUtm, startTime),
+                activityType,
+                reservedFor,
+                Some(beamVehicle),
+                None, // remainingTripData
+                Some(personId),
+                0.0, // valueOfTime
+                duration,
+                triggerId = triggerId
+              )
+              inquiryMap.put(parkingInquiry.requestId, parkingInquiry)
+              partialTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
+              currentTotPowerInKWToSimulate = currentTotPowerInKWToSimulate + toPowerInKW(energyToCharge, duration)
+              currentNumberOfEvents = currentNumberOfEvents + 1
+            }
           }
+          partialTriggers.result()
         }
-        partialTriggers.result()
-      }
-      .seq
-      .toVector
+        .seq
+        .toVector
+    } else Vector.empty
   }
 
   /**
     * @param chargingVehicle the vehicle that just plugged in
     */
-  def collectVehicleRequestInfo(chargingVehicle: ChargingVehicle): Unit = {
-    val (durationToCharge, energyToCharge) = chargingVehicle.vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
-      Some(chargingVehicle.stall),
-      sessionDurationLimit = None,
-      stateOfChargeLimit = None,
-      chargingPowerLimit = None
-    )
-    val requestInfo = VehicleRequestInfo(
-      energyToCharge,
-      durationToCharge,
-      chargingVehicle.vehicle.primaryFuelLevelInJoules,
-      chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
-    )
-    val key = (chargingVehicle.stall.tazId, chargingVehicle.activityType)
-    vehicleRequests.synchronized { vehicleRequests.put(key, vehicleRequests.getOrElse(key, List.empty) :+ requestInfo) }
+  protected def collectVehicleRequestInfo(chargingVehicle: ChargingVehicle): Unit = {
+    if (cnmConfig.scaleUp.enabled && !isVirtualCar(chargingVehicle.vehicle.id)) {
+      val (durationToCharge, energyToCharge) =
+        chargingVehicle.vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+          Some(chargingVehicle.stall),
+          sessionDurationLimit = None,
+          stateOfChargeLimit = None,
+          chargingPowerLimit = None
+        )
+      val requestInfo = VehicleRequestInfo(
+        energyToCharge,
+        durationToCharge,
+        Math.max(chargingVehicle.vehicle.primaryFuelLevelInJoules, 0.0),
+        chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
+      )
+      val key = (chargingVehicle.stall.tazId, chargingVehicle.activityType)
+      vehicleRequests.synchronized {
+        vehicleRequests.put(key, vehicleRequests.getOrElse(key, List.empty) :+ requestInfo)
+      }
+    }
+  }
+
+  /**
+    * @param energy Joules
+    * @param duration Seconds
+    * @return
+    */
+  private def toPowerInKW(energy: Double, duration: Int): Double = {
+    if (duration > 0 && energy >= 0) (energy / 3.6e+6) / (duration / 3600.0)
+    else 0
   }
 
   /**
@@ -289,6 +308,13 @@ object ScaleUpCharging {
   private val VIRTUAL_CAR_ALIAS: String = "VirtualCar"
   case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
   case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
+
+  case class VehicleRequestInfo(
+    energyToChargeInJoule: Double,
+    durationToChargeInSec: Int,
+    remainingFuelInJoule: Double,
+    fuelCapacityInJoule: Double
+  )
 
   case class VehicleInfoSummary(
     meanDur: Double,

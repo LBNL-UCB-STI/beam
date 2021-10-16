@@ -61,7 +61,9 @@ class ChargingNetworkManager(
 
   protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
   protected val powerController = new PowerController(chargingNetworkHelper, beamConfig)
-  protected val sitePowerManager = new SitePowerManager(powerController.unlimitedPhysicalBounds, beamServices)
+
+  protected val sitePowerManager =
+    new SitePowerManager(chargingNetworkHelper, powerController.unlimitedPhysicalBounds, beamServices)
 
   override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
@@ -99,7 +101,10 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      val loadEstimate = sitePowerManager.getLoadEstimate
+      val loadEstimate = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
+      log.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
+      val simulatedParkingInquiries = simulateEventsIfScalingEnabled(timeBin, triggerId)
+      log.debug("number of simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
       // obtaining physical bounds
       val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(loadEstimate))
       val allConnectedVehicles = chargingNetwork.connectedVehicles ++ rideHailNetwork.connectedVehicles
@@ -116,22 +121,20 @@ class ChargingNetworkManager(
           interruptCharging = false
         )
       }
-      val simulatedParkingInquiries =
-        if (beamConfig.beam.agentsim.chargingNetworkManager.scaleUp.enabled)
-          simulateEvents(timeBin, triggerId)
-        else Vector.empty
-      log.debug("number of simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
+      val nextStepPlanningTriggers =
+        if (!isEndOfSimulation(timeBin))
+          Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
+        else
+          Vector()
       val e = System.currentTimeMillis()
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
-      log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
+      log.debug(
+        s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger / 1000}sec. tick: $timeBin"
+      )
       sender ! CompletionNotice(
         triggerId,
-        triggers.toIndexedSeq ++ simulatedParkingInquiries ++
-        (if (!isEndOfSimulation(timeBin))
-           Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
-         else
-           Vector())
+        triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries
       )
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle), triggerId) =>
@@ -294,19 +297,4 @@ object ChargingNetworkManager extends LazyLogging {
       }
     }
   }
-
-  case class ObservedChargingDataKey(chargingStation: ChargingStation, activityType: ParkingActivityType)
-
-  case class VehicleRequestInfo(
-    energyToChargeInJoule: Double,
-    durationToChargeInSec: Int,
-    remainingFuelInJoule: Double,
-    fuelCapacityInJoule: Double
-  )
-
-  case class ObservedChargingDataInternal(
-    timeStepPowerInKW: Double,
-    vehicleRequest: Option[VehicleRequestInfo]
-  )
-
 }

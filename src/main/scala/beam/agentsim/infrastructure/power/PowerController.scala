@@ -57,32 +57,26 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
     * Obtains physical bounds from the grid
     *
     * @param currentTime current time
-    * @param chargingData observed charging data
+    *  @param estimatedLoad map required power per zone
     * @return tuple of PhysicalBounds and Int (next time)
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    chargingData: Option[Map[ChargingStation, Double]] = None
+    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)
-          if isConnectedToHelics && chargingData.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
+          if isConnectedToHelics && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
-        // EXTRACT LOAD
-        val msgToPublish: List[Map[String, Any]] = chargingNetworkHelper.allChargingStations.par
-          .map(station => station -> chargingData.getOrElse(station, 0.0))
-          .map { case (station, powerInKW) =>
-            Map(
-              "reservedFor"   -> station.zone.reservedFor,
-              "parkingZoneId" -> station.zone.parkingZoneId,
-              "estimatedLoad" -> powerInKW
-            )
-          }
-          .seq
-          .toList
-
         // PUBLISH
-        beamFederate.publishJSON(msgToPublish)
+        val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
+          Map(
+            "reservedFor"   -> station.zone.reservedFor,
+            "parkingZoneId" -> station.zone.parkingZoneId,
+            "estimatedLoad" -> powerInKW
+          )
+        }
+        beamFederate.publishJSON(msgToPublish.toList)
 
         var gridBounds = List.empty[Map[String, Any]]
         while (gridBounds.isEmpty) {
