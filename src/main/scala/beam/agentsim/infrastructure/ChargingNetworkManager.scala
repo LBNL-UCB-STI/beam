@@ -9,7 +9,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -25,7 +25,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.TimeUnit
-import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -61,11 +60,8 @@ class ChargingNetworkManager(
   }
 
   protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
-  protected val sitePowerManager = new SitePowerManager(chargingNetworkHelper, beamServices)
-  protected val vehicle2InquiryMap: TrieMap[Id[BeamVehicle], ParkingInquiry] = TrieMap()
-
-  protected val powerController =
-    new PowerController(chargingNetworkHelper, beamConfig, sitePowerManager.unlimitedPhysicalBounds)
+  protected val powerController = new PowerController(chargingNetworkHelper, beamConfig)
+  protected val sitePowerManager = new SitePowerManager(powerController.unlimitedPhysicalBounds, beamServices)
 
   override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
@@ -103,12 +99,9 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      val estimatedLoad = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
-      log.debug("Total Load estimated is {} at tick {}", estimatedLoad.values.sum, timeBin)
-      val simulatedParkingInquiries = simulateEvents(summarizeAndSkimOrGetChargingData(), timeBin, triggerId)
-      log.debug("simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
+      val loadEstimate = sitePowerManager.getLoadEstimate
       // obtaining physical bounds
-      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(estimatedLoad))
+      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(loadEstimate))
       val allConnectedVehicles = chargingNetwork.connectedVehicles ++ rideHailNetwork.connectedVehicles
       val triggers = allConnectedVehicles.par.flatMap { case (_, chargingVehicle) =>
         // Refuel
@@ -120,21 +113,25 @@ class ChargingNetworkManager(
           timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
           physicalBounds,
           triggerId,
-          false
+          interruptCharging = false
         )
       }
-      val nextStepPlanningTriggers =
-        if (!isEndOfSimulation(timeBin))
-          Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
-        else
-          Vector()
+      val simulatedParkingInquiries =
+        if (beamConfig.beam.agentsim.chargingNetworkManager.scaleUp.enabled)
+          simulateEvents(timeBin, triggerId)
+        else Vector.empty
+      log.debug("number of simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
       val e = System.currentTimeMillis()
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
       log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
       sender ! CompletionNotice(
         triggerId,
-        triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries
+        triggers.toIndexedSeq ++ simulatedParkingInquiries ++
+        (if (!isEndOfSimulation(timeBin))
+           Vector(ScheduleTrigger(PlanEnergyDispatchTrigger(nextTimeBin(timeBin)), self))
+         else
+           Vector())
       )
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle), triggerId) =>
@@ -142,7 +139,7 @@ class ChargingNetworkManager(
       vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
-            handleEndCharging(tick, _, triggerId, false)
+            handleEndCharging(tick, _, triggerId, chargingInterrupted = false)
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
@@ -168,7 +165,7 @@ class ChargingNetworkManager(
             sender() ! WaitingToCharge(tick, vehicle.id, triggerId)
           case chargingVehicle =>
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
-            collectChargingData(stall, vehicle, chargingVehicle.activityType)
+            collectVehicleRequestInfo(chargingVehicle)
             vehicle2InquiryMap.remove(vehicle.id)
         }
       } else {
@@ -189,7 +186,14 @@ class ChargingNetworkManager(
                 val unplugTime = currentTimeBin(tick)
                 val index = sessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTime && x.startTime <= tick)
                 val (startTime, endTime) = if (index == -1) (unplugTime, tick) else (sessions(index).startTime, tick)
-                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, triggerId, true)
+                dispatchEnergyAndProcessChargingCycle(
+                  chargingVehicle,
+                  startTime,
+                  endTime,
+                  bounds,
+                  triggerId,
+                  interruptCharging = true
+                )
               }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
               sender ! UnpluggingVehicle(tick, totEnergy, triggerId)
@@ -268,6 +272,9 @@ object ChargingNetworkManager extends LazyLogging {
 
   case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork[_], rideHailNetwork: ChargingNetwork[_]) {
 
+    lazy val allChargingStations: List[ChargingStation] =
+      chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
+
     /**
       * @param managerId vehicle manager id
       * @return
@@ -287,4 +294,19 @@ object ChargingNetworkManager extends LazyLogging {
       }
     }
   }
+
+  case class ObservedChargingDataKey(chargingStation: ChargingStation, activityType: ParkingActivityType)
+
+  case class VehicleRequestInfo(
+    energyToChargeInJoule: Double,
+    durationToChargeInSec: Int,
+    remainingFuelInJoule: Double,
+    fuelCapacityInJoule: Double
+  )
+
+  case class ObservedChargingDataInternal(
+    timeStepPowerInKW: Double,
+    vehicleRequest: Option[VehicleRequestInfo]
+  )
+
 }

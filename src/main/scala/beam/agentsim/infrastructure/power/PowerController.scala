@@ -3,23 +3,24 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.createId
-import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
+import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(
-  chargingNetworkHelper: ChargingNetworkHelper,
-  beamConfig: BeamConfig,
-  unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
-) extends LazyLogging {
-  import SitePowerManager._
+class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: BeamConfig) extends LazyLogging {
+  import PowerController._
   private val timeStep = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
   private val isConnectedToHelics = beamConfig.beam.agentsim.chargingNetworkManager.helics.connectionEnabled
+
+  private[infrastructure] lazy val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
+    chargingNetworkHelper.allChargingStations
+  ).value
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] =
     if (isConnectedToHelics) {
@@ -56,26 +57,32 @@ class PowerController(
     * Obtains physical bounds from the grid
     *
     * @param currentTime current time
-    *  @param estimatedLoad map required power per zone
+    * @param chargingData observed charging data
     * @return tuple of PhysicalBounds and Int (next time)
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+    chargingData: Option[Map[ChargingStation, Double]] = None
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)
-          if isConnectedToHelics && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
+          if isConnectedToHelics && chargingData.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
+        // EXTRACT LOAD
+        val msgToPublish: List[Map[String, Any]] = chargingNetworkHelper.allChargingStations.par
+          .map(station => station -> chargingData.getOrElse(station, 0.0))
+          .map { case (station, powerInKW) =>
+            Map(
+              "reservedFor"   -> station.zone.reservedFor,
+              "parkingZoneId" -> station.zone.parkingZoneId,
+              "estimatedLoad" -> powerInKW
+            )
+          }
+          .seq
+          .toList
+
         // PUBLISH
-        val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
-          Map(
-            "reservedFor"   -> station.zone.reservedFor,
-            "parkingZoneId" -> station.zone.parkingZoneId,
-            "estimatedLoad" -> powerInKW
-          )
-        }
-        beamFederate.publishJSON(msgToPublish.toList)
+        beamFederate.publishJSON(msgToPublish)
 
         var gridBounds = List.empty[Map[String, Any]]
         while (gridBounds.isEmpty) {
@@ -142,5 +149,36 @@ class PowerController(
             logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
         }
       }
+  }
+}
+
+object PowerController {
+  type PowerInKW = Double
+  type EnergyInJoules = Double
+  type ChargingDurationInSec = Int
+
+  case class PhysicalBounds(
+    station: ChargingStation,
+    powerLimitUpper: PowerInKW,
+    powerLimitLower: PowerInKW,
+    lpmWithControlSignal: Double
+  )
+
+  /**
+    * create unlimited physical bounds
+    * @param stations sequence of stations for which to produce physical bounds
+    * @return map of physical bounds
+    */
+  def getUnlimitedPhysicalBounds(stations: Seq[ChargingStation]): Eval[Map[ChargingStation, PhysicalBounds]] = {
+    Eval.later {
+      stations.map { case station @ ChargingStation(zone) =>
+        station -> PhysicalBounds(
+          station,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
+          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
+          0.0
+        )
+      }.toMap
+    }
   }
 }
