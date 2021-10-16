@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalbehaviors
 import akka.actor.{ActorRef, FSM}
 import akka.pattern.pipe
 import beam.agentsim.agents.BeamAgent._
-import beam.agentsim.agents.PersonAgent.{ChoosingMode, _}
+import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
@@ -13,28 +13,29 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
+import beam.agentsim.infrastructure.parking.GeoLevel
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.sim.{BeamServices, Geofence}
+import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
+import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import beam.agentsim.infrastructure.parking.GeoLevel
-import beam.router.{Modes, RoutingWorker}
 
 /**
   * BEAM
@@ -99,6 +100,34 @@ trait ChoosesMode {
       needsToCalculateCost = needsToCalculateCost
     )
 
+  private var teleportationVehiclesCount = 0
+
+  private lazy val teleportationVehicleBeamType: BeamVehicleType = {
+    val sharedVehicleType = beamScenario.vehicleTypes(
+      Id.create(
+        beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+        classOf[BeamVehicleType]
+      )
+    )
+
+    sharedVehicleType
+  }
+
+  private def createSharedTeleportationVehicle(location: SpaceTime): BeamVehicle = {
+    teleportationVehiclesCount += 1
+
+    val stringId = s"${BeamVehicle.idPrefixSharedTeleportationVehicle}-$teleportationVehiclesCount"
+    val vehicle = new BeamVehicle(
+      BeamVehicle.createId(id, Some(stringId)),
+      new Powertrain(0.0),
+      beamVehicleType = teleportationVehicleBeamType,
+      vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
+    )
+    vehicle.spaceTime = location
+
+    vehicle
+  }
+
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   def boundingBox: Envelope
@@ -158,6 +187,46 @@ trait ChoosesMode {
           ) =>
         self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
       // If we don't know the mode in advance we'll see what's out there
+      case ChoosesModeData(
+            BasePersonData(
+              _,
+              _,
+              _,
+              _,
+              Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
+              _,
+              _,
+              _,
+              _,
+              _,
+              _,
+              _
+            ),
+            currentLocation,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+          ) =>
+        val teleportationVehicle = createSharedTeleportationVehicle(currentLocation)
+        val vehicles = Vector(ActualVehicle(teleportationVehicle))
+        self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
+      // Only need to get available street vehicles if our mode requires such a vehicle
       case ChoosesModeData(
             BasePersonData(
               currentActivityIndex,
@@ -295,20 +364,16 @@ trait ChoosesMode {
         matsimPlan.getPerson
       ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
       // Make sure the current mode is allowable
+      val replanningIsAvailable =
+        choosesModeData.personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts
       val correctedCurrentTourMode = choosesModeData.personData.currentTourMode match {
-        case Some(mode)
-            if availableModes
-              .contains(
-                mode
-              ) && choosesModeData.personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
+        case Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION))
+            if availableModes.contains(CAR) && replanningIsAvailable =>
           Some(mode)
-        case Some(mode) if availableModes.contains(mode) =>
-          Some(WALK)
-        case None
-            if choosesModeData.personData.numberOfReplanningAttempts >= beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts =>
-          Some(WALK)
-        case _ =>
-          None
+        case Some(mode) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
+        case Some(mode) if availableModes.contains(mode)                          => Some(WALK)
+        case None if !replanningIsAvailable                                       => Some(WALK)
+        case _                                                                    => None
       }
 
       val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
@@ -317,7 +382,7 @@ trait ChoosesMode {
 
       var availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
-          case None | Some(CAR | BIKE) =>
+          case None | Some(CAR | BIKE | HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
             // In these cases, a personal vehicle will be involved
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
@@ -437,23 +502,33 @@ trait ChoosesMode {
           // Request from household the trip legs to put into trip
           householdRef ! CavTripLegsRequest(bodyVehiclePersonId, currentActivity(choosesModeData.personData))
           responsePlaceholders = makeResponsePlaceholders(withPrivateCAV = true)
-        case Some(mode @ (CAR | BIKE)) =>
+        case Some(HOV2_TELEPORTATION) =>
+          val vehicles = filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR)
+            .map(car_vehicle => car_vehicle.copy(mode = CAR_HOV2))
+          makeRequestWith(withTransit = false, vehicles :+ bodyStreetVehicle)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+        case Some(HOV3_TELEPORTATION) =>
+          val vehicles = filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), CAR)
+            .map(car_vehicle => car_vehicle.copy(mode = CAR_HOV3))
+          makeRequestWith(withTransit = false, vehicles :+ bodyStreetVehicle)
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+        case Some(tourMode @ (CAR | BIKE)) =>
           val maybeLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
             case l: Leg => Some(l)
             case _      => None
           }
           maybeLeg.map(_.getRoute) match {
-            case Some(r: NetworkRoute) =>
+            case Some(networkRoute: NetworkRoute) =>
               val maybeVehicle =
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode).headOption
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tourMode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
                   router ! matsimLegToEmbodyRequest(
-                    r,
+                    networkRoute,
                     vehicle,
                     departTime,
-                    mode,
+                    tourMode,
                     beamServices,
                     choosesModeData.currentLocation.loc,
                     nextAct.getCoord,
@@ -674,8 +749,19 @@ trait ChoosesMode {
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
-      val parkingRequestIds = makeParkingInquiries(choosesModeData, response.itineraries)
-      val newParkingRequestIds = choosesModeData.parkingRequestIds ++ parkingRequestIds
+      val thereAreTeleportationItineraries = response.itineraries.foldLeft(false) { (thereAreTeleportations, trip) =>
+        val thereAreTeleportationVehicles = trip.legs.foldLeft(false) { (accum, leg) =>
+          accum || BeamVehicle.isSharedTeleportationVehicle(leg.beamVehicleId)
+        }
+        thereAreTeleportations || thereAreTeleportationVehicles
+      }
+      val newParkingRequestIds = if (thereAreTeleportationItineraries) {
+        choosesModeData.parkingRequestIds
+      } else {
+        val parkingRequestIds: Seq[(Int, VehicleOnTrip)] = makeParkingInquiries(choosesModeData, response.itineraries)
+        choosesModeData.parkingRequestIds ++ parkingRequestIds
+      }
+
       val dummyVehiclesPresented = makeVehicleRequestsForDummySharedVehicles(response.itineraries)
       val newData = if (dummyVehiclesPresented) {
         choosesModeData.copy(
@@ -901,10 +987,15 @@ trait ChoosesMode {
     responseCopy
   }
 
-  private def legVehicleHasParkingBehavior(embodiedLeg: EmbodiedBeamLeg) = {
+  private def legVehicleHasParkingBehavior(embodiedLeg: EmbodiedBeamLeg): Boolean = {
     /* we need to park cars and any shared vehicles */
-    embodiedLeg.beamLeg.mode == CAR && dummyRHVehicle.id != embodiedLeg.beamVehicleId ||
-    (embodiedLeg.beamLeg.mode == BIKE && beamVehicles.get(embodiedLeg.beamVehicleId).forall(_.isInstanceOf[Token]))
+    /* teleportation vehicles are not actual vehicles, so, they do not require parking */
+    val isTeleportationVehicle = BeamVehicle.isSharedTeleportationVehicle(embodiedLeg.beamVehicleId)
+    val isRealCar = embodiedLeg.beamLeg.mode == CAR && dummyRHVehicle.id != embodiedLeg.beamVehicleId
+    !isTeleportationVehicle && (
+      isRealCar
+      || (embodiedLeg.beamLeg.mode == BIKE && beamVehicles.get(embodiedLeg.beamVehicleId).forall(_.isInstanceOf[Token]))
+    )
   }
 
   private def dummyWalkLeg(time: Int, location: Location, unbecomeDriverOnCompletion: Boolean) = {
