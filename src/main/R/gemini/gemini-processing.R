@@ -546,7 +546,27 @@ looTest2[departure_time<=16&departure_time>=8,.N,by=.(timeBin=as.POSIXct(cut(toD
 
 fooFile <- "/2021Aug22-Oakland/beamLog.out-choiceset.txt"
   
-  
-  
-  
+##
+
+sc2 <- readCsv(pp(workDir, "/gemini-base-scenario-2-parking-charging-infra16.csv"))
+sc3 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"))
+
+sc2Stalls <- sc2[startsWith(reservedFor, "household")]$parkingZoneId
+sc3Stalls <- sc3[startsWith(reservedFor, "household")]$parkingZoneId
+sum(sc2[startsWith(reservedFor, "household")]$numStalls)
+sum(sc3[startsWith(reservedFor, "household")]$numStalls)
+
+a <- sum(rse100_3[startsWith(parkingZoneId, "AO")]$fuel)
+b <- sum(rse100[startsWith(parkingZoneId, "AO")]$fuel)
+
+b <- rse100_3[startsWith(parkingZoneId, "AO"),.(fuel3=mean(fuel)),by=.(chargingPointType)]
+a <- rse100[startsWith(parkingZoneId, "AO"),.(fuel2=mean(fuel)),by=.(chargingPointType)]
+
+
+c <- a[b, on="chargingPointType"][,fuelShare:=fuel3/fuel2]
+
+
+rse100_3[startsWith(parkingZoneId, "AO")&actType=="Home"]
+rse100[startsWith(parkingZoneId, "AO")&actType=="Home"]
+
 

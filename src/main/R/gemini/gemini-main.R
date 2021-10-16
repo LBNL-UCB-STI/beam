@@ -60,9 +60,9 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
 #####
-scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-#scenarioNames <- c('Scenario0', 'Scenario2', 'Scenario3')
-scenarioBaselineLabel <- 'Scenario2'
+#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+scenarioNames <- c('Scenario2', 'Scenario3')
+scenarioBaselineLabel <- 'Scenario0'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -162,10 +162,11 @@ ggmap(oakland_map) +
     plot.title = element_text(colour = "orange"),
     panel.border = element_rect(colour = "grey", fill=NA, size=2)
   )
-toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% c(6, 9, 18, 0)]
+hours_to_show <- c(0, 8, 12, 18)
+toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% hours_to_show]
 toplot$hour.bin2.label <- "12am"
-toplot[hour.bin2==6]$hour.bin2.label <- "6am"
-toplot[hour.bin2==9]$hour.bin2.label <- "9am"
+toplot[hour.bin2==8]$hour.bin2.label <- "8am"
+toplot[hour.bin2==12]$hour.bin2.label <- "12pm"
 toplot[hour.bin2==18]$hour.bin2.label <- "6pm"
 counties <- data.table(urbnmapr::counties)[county_name%in%countyNames]
 setkey(toplot,xfc)
@@ -173,7 +174,7 @@ p <- ggmap(oakland_map) +
   theme_marain() +
   geom_polygon(data = counties, mapping = aes(x = long, y = lat, group = group), fill="white", size=.2) +
   coord_map(projection = 'albers', lat0 = 39, lat1 = 45,xlim=c(-122.2890,-122.2447),ylim=c(37.7915,37.8170))+
-  geom_point(dat=toplot[hour.bin2 %in% c(6, 9, 18, 0)],aes(x=x2,y=y2,size=kw,stroke=0.5,group=grp,colour=factor(extreme.lab, levels=extreme_lab_order)),alpha=.3)+
+  geom_point(dat=toplot[hour.bin2 %in% hours_to_show],aes(x=x2,y=y2,size=kw,stroke=0.5,group=grp,colour=factor(extreme.lab, levels=extreme_lab_order)),alpha=.3)+
   scale_colour_manual(values=c('darkgrey','orange','red'))+
   scale_size_continuous(range=c(0.5,35),breaks=c(500,1000,2000,4000))+
   labs(title="EV Charging Loads in Downtown Oakland",colour='Load Severity',size='Charging Site Power (kW)')+
@@ -192,7 +193,7 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
   facet_wrap(~factor(name,scenarioNames),ncol = 3)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=7,units='in')
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=5,units='in')
 
 all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
