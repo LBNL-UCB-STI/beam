@@ -197,29 +197,36 @@ object HouseholdActor {
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
-        //WE NEED TO MAKE  A FLEET MANAGER EVEN IF THERE ARE NO CARSs
+
+        //We should create a vehicle manager for cars and bikes for all households in case they are generated during the simulation
 
         val vehiclesByAllCategories = List(Car, Bike)
           .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
           .toMap
         val fleetManagers = vehiclesByAllCategories.map { case (category, vs) =>
-          val maybeDefaultVehicleType = category match {
-            case VehicleCategory.Car =>
-              beamServices.beamScenario.vehicleTypes.get(
-                Id.create(
-                  beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
-                  classOf[BeamVehicleType]
-                )
-              )
-            case VehicleCategory.Bike =>
-              beamServices.beamScenario.vehicleTypes.get(
-                Id.create(
-                  beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
-                  classOf[BeamVehicleType]
-                )
-              )
-            case _ => None
-          }
+          val maybeDefaultVehicleType =
+            if (
+              beamServices.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
+            ) {
+              category match {
+                case VehicleCategory.Car =>
+                  beamServices.beamScenario.vehicleTypes.get(
+                    Id.create(
+                      beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+                      classOf[BeamVehicleType]
+                    )
+                  )
+                case VehicleCategory.Bike =>
+                  beamServices.beamScenario.vehicleTypes.get(
+                    Id.create(
+                      beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
+                      classOf[BeamVehicleType]
+                    )
+                  )
+                case _ => None
+              }
+            } else None
+
           val fleetManager =
             context.actorOf(
               Props(
