@@ -262,7 +262,8 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 ##########################################
 
 events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
-pt <- events[type=="PathTraversal",name:='Scenario2']
+pt <- events[type=="PathTraversal"]
+pt$name <- 'Scenario2'
 write.csv(
   pt,
   file = paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""),
