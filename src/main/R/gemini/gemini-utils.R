@@ -69,6 +69,7 @@ scaleUpAllSessions <- function(DT, expansion.factor) {
 }
 filterEvents <- function(dataDir, filename, eventsList) {
   outputFilepath <- paste(dataDir,"/events/filtered.",filename, sep="")
+  outputFilepath2 <- paste(dataDir,"/events/paths.",filename, sep="")
   if(!file.exists(outputFilepath)) {
     events <- readCsv(paste(dataDir, "/events-raw", "/", filename, sep=""))
     filteredEvents <- events[type %in% eventsList][
@@ -195,3 +196,5 @@ generateReadyToPlot <- function(resultsDirName, loadTypes, countyNames) {
   all.loads[,severity:=paste(type,extreme.lab, sep=" ")]
   save(all.sessions,all.loads,chargingTypes.colors,file=pp(resultsDirName,'/ready-to-plot.Rdata'))
 }
+
+extractPathTraversals()

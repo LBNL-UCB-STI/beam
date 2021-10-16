@@ -261,6 +261,15 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 # MOBILITY
 ##########################################
 
+events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
+pt <- events[type=="PathTraversal",name:='Scenario2']
+write.csv(
+  pt,
+  file = paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""),
+  row.names=FALSE,
+  quote=FALSE,
+  na="0")
+
 factor.remap <- c('walk'='Walk','bike'='Bike','rh'='Ridehail Solo','rhp'='Ridehail Pooled','rh_empty'='Ridehail (Empty)','cav'='Personal AV','cav_empty'='Personal AV (Empty)','car'='Car','transit'='Public Transit')
 factor.colors <- c('walk'='#669900','bike'='#FFB164','rh'='#B30C0C','rhp'='#660099','rh_empty'=marain.light.grey,'cav'='#FFE664','cav_empty'=marain.dark.grey,'car'='#8A8A8A','transit'='#0066CC')
 factor.colors.remapped <- factor.colors
