@@ -160,7 +160,9 @@ trait ScaleUpCharging extends {
             var currentTotPowerInKWToSimulate: Double = 0
             var currentNumberOfEvents: Double = 0
             var timeStep = 0
-            while (currentTotPowerInKWToSimulate <= totPowerInKWToSimulate && timeStep <= timeStepByHour * 3600) {
+            while (
+              currentTotPowerInKWToSimulate <= totPowerInKWToSimulate && timeStep <= timeStepByHour * 3600 && currentNumberOfEvents <= totNumberOfEvents
+            ) {
               timeStep = timeStep + MathUtils.roundUniformly(nextTimePoisson(rate), rand).toInt
               val startTime = timeBin + timeStep
               val activityType = distribution.sample()
