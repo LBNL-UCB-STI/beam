@@ -11,6 +11,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, 
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, _}
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
@@ -206,7 +207,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              Some(mode @ (CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
+              Some(mode @ (CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT | CAR_HOV2 | CAR_HOV3)),
               _,
               _,
               _,
@@ -238,9 +239,9 @@ trait ChoosesMode {
           ) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         val requireVehicleCategoryAvailable = mode match {
-          case CAR | DRIVE_TRANSIT => Some(VehicleCategory.Car)
-          case BIKE_TRANSIT | BIKE => Some(VehicleCategory.Bike)
-          case _                   => None
+          case CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3 => Some(VehicleCategory.Car)
+          case BIKE_TRANSIT | BIKE                       => Some(VehicleCategory.Bike)
+          case _                                         => None
         }
         requestAvailableVehicles(
           vehicleFleets,
@@ -469,7 +470,12 @@ trait ChoosesMode {
               }
             case _ =>
               val availableVehicles =
-                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode)
+                filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tourMode).map(vehicle => {
+                  vehicle.mode match {
+                    case CAR => vehicle.copy(mode = tourMode)
+                    case _   => vehicle
+                  }
+                })
               if (availableVehicles.isEmpty) {
                 logger.error("If the agent has this trip in their plans, we should have created a vehicle for them")
                 makeRequestWith(

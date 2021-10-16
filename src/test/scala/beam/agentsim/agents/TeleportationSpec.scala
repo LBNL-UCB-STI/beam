@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.ActorSystem
-import beam.agentsim.events.{PathTraversalEvent, TeleportationEvent}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, TeleportationEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
@@ -48,9 +48,9 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
 
     describe("Run with multiple persons") {
       var teleportationEvents = 0
-      val carHov3passengers = mutable.Set[Int]()
-      val carHov2passengers = mutable.Set[Int]()
-      val activities = ListBuffer[(String, Double, String)]()
+      val carHov3passengers = mutable.Set.empty[Int]
+      val carHov2passengers = mutable.Set.empty[Int]
+      val activitiesOfPerson2 = ListBuffer[(String, Double, String)]()
       runWithConfig(
         "test/input/beamville/beam-urbansimv2.conf",
         {
@@ -61,7 +61,7 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
           case e: PathTraversalEvent if e.currentTourMode.contains("car_hov2") && e.mode == BeamMode.CAR =>
             carHov2passengers.add(e.numberOfPassengers)
           case e: ActivityStartEvent if e.getPersonId.toString == "2" =>
-            activities.append((e.getLinkId.toString, e.getTime, e.getActType))
+            activitiesOfPerson2.append((e.getLinkId.toString, e.getTime, e.getActType))
           case _ =>
         }
       )
@@ -76,7 +76,7 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
       }
 
       it("should check if activities happen at expected location with expected duration") {
-        val activitiesList = activities.toList
+        val activitiesList = activitiesOfPerson2.toList
         // links
         activitiesList.map(_._1) shouldBe List("300", "142", "300", "142", "300", "142")
         // times

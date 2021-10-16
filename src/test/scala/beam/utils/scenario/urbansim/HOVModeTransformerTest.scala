@@ -4,7 +4,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.utils.scenario._
 import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
-import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader, TripReader}
+import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -148,15 +148,8 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
     )
 
     val pathToPlans = "test/test-resources/plans-transformation-test-data/plans.csv.gz"
-    val pathToTrips = "test/test-resources/plans-transformation-test-data/trips.csv.gz"
 
-    val tripReader = new TripReader(pathToTrips)
-    val modes = tripReader
-      .iterator()
-      .map(tripElement => PlanMerger.tripKey(tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
-      .toMap
-
-    val merger = new PlanMerger(modes, modeMap)
+    val merger = new PlanMerger(modeMap)
     val planReader = new PlanReader(pathToPlans)
 
     val originalPlans: Iterable[PlanElement] =
@@ -166,7 +159,6 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
           .toList
       } finally {
         planReader.close()
-        tripReader.close()
       }
 
     HOVModeTransformer.reseedRandomGenerator(42)
