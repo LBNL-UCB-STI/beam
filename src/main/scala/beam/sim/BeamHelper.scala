@@ -899,7 +899,6 @@ trait BeamHelper extends LazyLogging {
     val errors = InputConsistencyCheck.checkConsistency(beamConfig)
     if (errors.nonEmpty) {
       logger.error("Input consistency check failed:\n" + errors.mkString("\n"))
-      throw new RuntimeException("Input consistency check failed")
     }
 
     level = beamConfig.beam.metrics.level
