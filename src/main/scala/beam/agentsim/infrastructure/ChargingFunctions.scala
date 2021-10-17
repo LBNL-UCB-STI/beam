@@ -37,7 +37,7 @@ class ChargingFunctions[GEO: GeoLevel](
   /**
     * function that verifies if RideHail Then Fast Charging Only
     * @param zone ParkingZone
-    * @param activityTypeLowerCased a String expressing activity Type in lower case
+    * @param inquiry ParkingInquiry
     * @return
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
@@ -87,18 +87,15 @@ class ChargingFunctions[GEO: GeoLevel](
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
 
-//    val beamVehicleType = inquiry.beamVehicle.map(_.beamVehicleType.id.toString).getOrElse("")
-//    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
-//    val chargingType = zone.chargingPointType.getOrElse("")
-//    val pricingModel = zone.pricingModel.map(_.costInDollars).getOrElse("")
-//    val person = inquiry.personId.getOrElse("")
-//    logger.info(
-//      s"CHOICE-SET:${beamVehicleId}-${beamVehicleType}-${inquiry.parkingDuration}-${inquiry.activityType.toString}-${person}" +
-//      s"-${zone.geoId}-${zone.parkingType.toString}-${chargingType}-${zone.geoId.toString}-" +
-//      s"${zone.parkingZoneId.toString}-${pricingModel}-${zone.stallsAvailable}"
-//    )
+    val result = isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
 
-    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
+    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
+    val person = inquiry.personId.getOrElse("")
+    logger.info(
+      s"CHOICE-SET:ChargingFunctions,${inquiry.requestId},,,${person},${beamVehicleId},,${zone.parkingZoneId.toString},,${result},,"
+    )
+
+    result
   }
 
   /**
