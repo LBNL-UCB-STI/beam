@@ -143,73 +143,57 @@ trait ScaleUpCharging extends {
         activityType -> (data, vehicleInfoSummary)
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
-        val scaledUpEvents = activityType2vehicleInfo.map { case (activityType, (_, dataSummary)) =>
-          val scaledUPPower = dataSummary.totPowerInKW * scaleUpFactor(activityType)
-          val scaledUpNbEvents = dataSummary.numObservation * scaleUpFactor(activityType)
-          (
-            new CPair[ParkingActivityType, java.lang.Double](activityType, scaledUPPower),
-            scaledUPPower,
-            scaledUpNbEvents
-          )
-        }.toVector
-        val partialTriggersAndInquiries = Vector.newBuilder[(ScheduleTrigger, ParkingInquiry, Double, Double)]
-        val totNumberOfEvents = scaledUpEvents.map(_._3).sum
-        val totPowerInKWToSimulate = scaledUpEvents.map(_._2).sum
-        val rate = totNumberOfEvents / timeStepByHour
-        val pmf = scaledUpEvents.map(_._1).asJava
-        if (totPowerInKWToSimulate > 0.0) {
-          val distribution = new EnumeratedDistribution[ParkingActivityType](mersenne, pmf)
-          val numEventsToSimulate = roundUniformly(rate * timeStepByHour, rand).toInt
-          (1 to numEventsToSimulate).foldLeft(timeBin) { case (prevStartTime, _) =>
-            val activityType = distribution.sample()
-            val (_, summary) = activityType2vehicleInfo(activityType)
-            val startTime = prevStartTime + roundUniformly(nextTimePoisson(rate), rand).toInt
-            val duration = summary.getDuration(rand)
-            val soc = summary.getSOC(rand)
-            val energyToCharge = MathUtils.roundUniformly(summary.getEnergy(rand), rand).toInt
-            val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
-            val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-            val vehicleType = getBeamVehicleType(summary.getFuelCapacity(rand, energyToCharge, soc))
-            val reservedFor = VehicleManager.AnyManager
-            val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
-            val personId = getPerson(beamVehicle.id)
-            val parkingInquiry = ParkingInquiry(
-              SpaceTime(destinationUtm, startTime),
-              activityType,
-              reservedFor,
-              Some(beamVehicle),
-              None, // remainingTripData
-              Some(personId),
-              0.0, // valueOfTime
-              duration,
-              triggerId = triggerId
-            )
-            val trigger = ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
-            val simulatedPower = toPowerInKW(energyToCharge, duration)
-            val expectedPower = totPowerInKWToSimulate / numEventsToSimulate
-            partialTriggersAndInquiries += ((trigger, parkingInquiry, simulatedPower, expectedPower))
-            startTime
-          }
+        val partialTriggersAndInquiries = Vector.newBuilder[(ScheduleTrigger, ParkingInquiry)]
+        activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
+          case ((powerAcc, numEventsAcc, pmfAcc), (activityType, (_, dataSummary))) =>
+            val power = scaleUpFactor(activityType) * dataSummary.totPowerInKW
+            val pmf = new CPair[ParkingActivityType, java.lang.Double](activityType, power)
+            val numEvents = scaleUpFactor(activityType) * dataSummary.numObservation
+            (powerAcc + power, numEventsAcc + numEvents, pmfAcc :+ pmf)
+        } match {
+          case (totPowerInKWToSimulate, totNumberOfEvents, pmf) if totPowerInKWToSimulate > 0 =>
+            val distribution = new EnumeratedDistribution[ParkingActivityType](mersenne, pmf.asJava)
+            val rate = totNumberOfEvents / timeStepByHour
+            var cumulatedSimulatedPower = 0.0
+            var timeStep = 0
+            while (cumulatedSimulatedPower < totPowerInKWToSimulate && timeStep < timeStepByHour * 3600) {
+              timeStep += roundUniformly(nextTimePoisson(rate), rand).toInt
+              val activityType = distribution.sample()
+              val (_, summary) = activityType2vehicleInfo(activityType)
+              val duration = summary.getDuration(rand)
+              val soc = summary.getSOC(rand)
+              val energyToCharge = summary.getEnergy(rand)
+              val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
+              val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+              val vehicleType = getBeamVehicleType(summary.getFuelCapacity(rand, energyToCharge, soc))
+              val reservedFor = VehicleManager.AnyManager
+              val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
+              val personId = getPerson(beamVehicle.id)
+              val startTime = timeBin + timeStep
+              val parkingInquiry = ParkingInquiry(
+                SpaceTime(destinationUtm, startTime),
+                activityType,
+                reservedFor,
+                Some(beamVehicle),
+                None, // remainingTripData
+                Some(personId),
+                0.0, // valueOfTime
+                duration,
+                triggerId = triggerId
+              )
+              val trigger = ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
+              cumulatedSimulatedPower += toPowerInKW(energyToCharge, duration)
+              partialTriggersAndInquiries += ((trigger, parkingInquiry))
+            }
+          case _ =>
+            log.warning("The observed load is null. Most likely due to vehicles not needing to charge!")
         }
         partialTriggersAndInquiries.result()
       }
       .seq
       .toVector
     results.foreach(x => virtualParkingInquiries.put(x._2.requestId, x._2))
-    val totPowerInKW = results.map(_._3).sum
-    val expectedPowerInKW = results.map(_._4).sum
     val triggers = results.map(_._1)
-    if (totPowerInKW < expectedPowerInKW * 0.9) {
-      log.warning(
-        s"We are not generating enough power at time $timeBin. " +
-        s"totPowerInKWToSimulate = $expectedPowerInKW and actually simulated power is $totPowerInKW of that."
-      )
-    } else if (totPowerInKW > expectedPowerInKW * 1.1) {
-      log.warning(
-        s"We are not generating more power than expected at time $timeBin. " +
-        s"totPowerInKWToSimulate = $expectedPowerInKW and simulated power is $totPowerInKW of that."
-      )
-    }
     vehicleRequests.clear()
     triggers
   }
