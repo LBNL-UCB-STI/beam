@@ -89,11 +89,11 @@ class ChargingFunctions[GEO: GeoLevel](
 
     val result = isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
 
-    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
-    val person = inquiry.personId.getOrElse("")
-    logger.info(
-      s"CHOICE-SET:ChargingFunctions,${inquiry.requestId},,,${person},${beamVehicleId},,${zone.parkingZoneId.toString},,${result},,"
-    )
+//    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
+//    val person = inquiry.personId.getOrElse("")
+//    logger.info(
+//      s"CHOICE-SET:ChargingFunctions,${inquiry.requestId},,,${person},${beamVehicleId},,${zone.parkingZoneId.toString},,${result},,"
+//    )
 
     result
   }

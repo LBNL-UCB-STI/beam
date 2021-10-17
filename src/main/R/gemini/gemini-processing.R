@@ -370,11 +370,11 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("Home: ",home))
 }
 
-events100_3 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC3.csv.gz"
-rse100_3 <- readCsv(pp(workDir, events100_3))[type=='RefuelSessionEvent']
+events100_SC3 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC3.csv.gz"
+rse100_SC3 <- readCsv(pp(workDir, events100_SC3))[type=='RefuelSessionEvent']
 
-events100 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
-rse100 <- readCsv(pp(workDir, events100))[type=='RefuelSessionEvent']
+events100_SC2 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
+rse100_SC2 <- readCsv(pp(workDir, events100_SC2))[type=='RefuelSessionEvent']
 
 events010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010.csv.gz"
 rse010 <- readCsv(pp(workDir, events010))[type=='RefuelSessionEvent']
@@ -392,7 +392,7 @@ charging_coef <- data.table(
   coef=c(0, 0, 0, 0, 0)
 )
 
-charging100 <- rse100[,.(fuel100=mean(fuel)),by=.(actType)]
+charging100 <- rse100_SC2[,.(fuel100=mean(fuel)),by=.(actType)]
 charging010 <- rse010[,.(fuel010=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
 charging025 <- rse025[,.(fuel025=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
 charging050 <- rse050[,.(fuel050=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
