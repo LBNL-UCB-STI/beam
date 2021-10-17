@@ -397,10 +397,10 @@ charging010 <- rse010[,.(fuel010=mean(fuel)),by=.(actType)][charging_coef,on=c("
 charging025 <- rse025[,.(fuel025=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
 charging050 <- rse050[,.(fuel050=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
 
-charging010$coef <- c(10, 10, 10, 10)
+charging010$coef <- c(10.54, 10.06, 10.09, 6.42)
 charging010 <- charging010[,fuel_100_010:=fuel100/fuel010][,fuel_100_010_W:=coef*fuel_100_010]
 
-charging025$coef <- c(4, 4, 4, 4)
+charging025$coef <- c(3.99, 4.02, 3.98, 2.52)
 charging025 <- charging025[,fuel_100_025:=fuel100/fuel025][,fuel_100_025_W:=coef*fuel_100_025]
 
 charging050$coef <- c(2, 2, 2, 2)

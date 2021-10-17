@@ -61,7 +61,7 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 #####
 scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-#scenarioNames <- c('Scenario0', 'Scenario2', 'Scenario3')
+#scenarioNames <- c('Scenario2', 'Scenario3')
 scenarioBaselineLabel <- 'Scenario0'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
@@ -193,7 +193,7 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
   facet_wrap(~factor(name,scenarioNames),ncol = 3)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=5,units='in')
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=4,units='in')
 
 all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
@@ -261,35 +261,40 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 # MOBILITY
 ##########################################
 
-events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
+# events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
+# pt <- events[type=="PathTraversal"]
+# pt2 <- pt[,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
+#              "primaryFuelLevel","driver","mode","seatingCapacity","startX",
+#              "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
+#              "secondaryFuel", "secondaryFuelType", "primaryFuelType",
+#              "numPassengers", "length", "primaryFuel")]
+# pt2$name <- 'Scenario2'
+# pt2$mode2 <- "Transit"
+# pt2[mode=="car"]$mode2 <- "Car"
+# pt2[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
+# pt2[mode=="walk"]$mode2 <- "Walk"
+# pt2[mode=="bike"]$mode2 <- "Bike"
+# write.csv(
+#   pt2,
+#   file = paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""),
+#   row.names=FALSE,
+#   quote=FALSE,
+#   na="0")
+pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
+pt3 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""))
 
-pt <- events[type=="PathTraversal"]
-pt$name <- 'Scenario2'
-pt$mode2 <- "Transit"
-pt[mode=="car"]$mode2 <- "Car"
-pt[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
-pt[mode=="walk"]$mode2 <- "Walk"
-pt[mode=="bike"]$mode2 <- "Bike"
-modesplit <- pt[,.(VMT=sum(length)/1609.34, count=.N),by=.(mode2,name)]
+modesplit <- pt[,.(VMT=sum(length)/1609.34, count=.N, energy=),by=.(mode2,name)]
 modesplit$countShare <- modesplit$count/sum(modesplit$count)
+
 
 mc <- events[type=="ModeChoice"]
 mc$name <- 'Scenario2'
 modesplit2 <- mc[,.(count=.N),by=.(mode,name)]
 modesplit2$countShare <- round(modesplit2$count/sum(modesplit2$count), 2)
 
-mc$mode2 <- "Car"
-mc[mode%in%c()]$mode2 <- "Car"
-mc[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
-mc[mode=="walk"]$mode2 <- "Walk"
-mc[mode=="bike"]$mode2 <- "Bike"
 
-write.csv(
-  pt,
-  file = paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""),
-  row.names=FALSE,
-  quote=FALSE,
-  na="0")
+
+
 # pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
 # pt3 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""))
 
