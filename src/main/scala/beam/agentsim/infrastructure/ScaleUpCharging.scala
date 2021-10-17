@@ -199,17 +199,18 @@ trait ScaleUpCharging extends {
     val totPowerInKW = results.map(_._3).sum
     val expectedPowerInKW = results.map(_._4).sum
     val triggers = results.map(_._1)
-    if (totPowerInKW <= expectedPowerInKW * 0.9) {
+    if (totPowerInKW < expectedPowerInKW * 0.9) {
       log.warning(
-        s"We are not generating enough power at time $timeBin. totPowerInKWToSimulate = $expectedPowerInKW " +
-        s"and actually simulated power is ${totPowerInKW / expectedPowerInKW} of that."
+        s"We are not generating enough power at time $timeBin. " +
+        s"totPowerInKWToSimulate = $expectedPowerInKW and actually simulated power is $totPowerInKW of that."
       )
-    } else if (totPowerInKW >= expectedPowerInKW * 1.1) {
+    } else if (totPowerInKW > expectedPowerInKW * 1.1) {
       log.warning(
-        s"We are not generating more power than expected at time $timeBin. totPowerInKWToSimulate = $expectedPowerInKW " +
-        s"and simulated power is ${totPowerInKW / expectedPowerInKW} of that."
+        s"We are not generating more power than expected at time $timeBin. " +
+        s"totPowerInKWToSimulate = $expectedPowerInKW and simulated power is $totPowerInKW of that."
       )
     }
+    vehicleRequests.clear()
     triggers
   }
 
@@ -225,15 +226,17 @@ trait ScaleUpCharging extends {
           stateOfChargeLimit = None,
           chargingPowerLimit = None
         )
-      val requestInfo = VehicleRequestInfo(
-        energyToCharge,
-        durationToCharge,
-        Math.max(chargingVehicle.vehicle.primaryFuelLevelInJoules, 0.0),
-        chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
-      )
-      val key = (chargingVehicle.stall.tazId, chargingVehicle.activityType)
       vehicleRequests.synchronized {
-        vehicleRequests.put(key, vehicleRequests.getOrElse(key, List.empty) :+ requestInfo)
+        val key = (chargingVehicle.stall.tazId, chargingVehicle.activityType)
+        vehicleRequests.put(
+          key,
+          vehicleRequests.getOrElse(key, List.empty) :+ VehicleRequestInfo(
+            energyToCharge,
+            durationToCharge,
+            Math.max(chargingVehicle.vehicle.primaryFuelLevelInJoules, 0.0),
+            chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
+          )
+        )
       }
     }
   }
@@ -259,7 +262,7 @@ trait ScaleUpCharging extends {
       standingRoomCapacity = 0,
       lengthInMeter = 4.1,
       primaryFuelType = FuelType.Electricity,
-      primaryFuelConsumptionInJoulePerMeter = 1,
+      primaryFuelConsumptionInJoulePerMeter = 626,
       primaryFuelCapacityInJoule = fuelCapacityInJoule,
       vehicleCategory = VehicleCategory.Car
     )
@@ -286,6 +289,10 @@ trait ScaleUpCharging extends {
     beamVehicle
   }
 
+  /**
+    * @param vehicleId vehicle Id
+    * @return
+    */
   protected def getPerson(vehicleId: Id[BeamVehicle]): Id[Person] = {
     Id.create(vehicleId.toString.replace(VIRTUAL_CAR_ALIAS, "VirtualPerson"), classOf[Person])
   }

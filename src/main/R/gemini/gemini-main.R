@@ -262,14 +262,36 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 ##########################################
 
 events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
+
 pt <- events[type=="PathTraversal"]
 pt$name <- 'Scenario2'
+pt$mode2 <- "Transit"
+pt[mode=="car"]$mode2 <- "Car"
+pt[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
+pt[mode=="walk"]$mode2 <- "Walk"
+pt[mode=="bike"]$mode2 <- "Bike"
+modesplit <- pt[,.(VMT=sum(length)/1609.34, count=.N),by=.(mode2,name)]
+modesplit$countShare <- modesplit$count/sum(modesplit$count)
+
+mc <- events[type=="ModeChoice"]
+mc$name <- 'Scenario2'
+modesplit2 <- mc[,.(count=.N),by=.(mode,name)]
+modesplit2$countShare <- round(modesplit2$count/sum(modesplit2$count), 2)
+
+mc$mode2 <- "Car"
+mc[mode%in%c()]$mode2 <- "Car"
+mc[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
+mc[mode=="walk"]$mode2 <- "Walk"
+mc[mode=="bike"]$mode2 <- "Bike"
+
 write.csv(
   pt,
-  file = paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""),
+  file = paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""),
   row.names=FALSE,
   quote=FALSE,
   na="0")
+# pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
+# pt3 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""))
 
 factor.remap <- c('walk'='Walk','bike'='Bike','rh'='Ridehail Solo','rhp'='Ridehail Pooled','rh_empty'='Ridehail (Empty)','cav'='Personal AV','cav_empty'='Personal AV (Empty)','car'='Car','transit'='Public Transit')
 factor.colors <- c('walk'='#669900','bike'='#FFB164','rh'='#B30C0C','rhp'='#660099','rh_empty'=marain.light.grey,'cav'='#FFE664','cav_empty'=marain.dark.grey,'car'='#8A8A8A','transit'='#0066CC')

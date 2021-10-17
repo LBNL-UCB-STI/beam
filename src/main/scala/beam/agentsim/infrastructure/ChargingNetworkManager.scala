@@ -129,7 +129,7 @@ class ChargingNetworkManager(
       val e = System.currentTimeMillis()
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
-      log.debug(
+      log.info(
         s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger / 1000}sec. tick: $timeBin"
       )
       sender ! CompletionNotice(
