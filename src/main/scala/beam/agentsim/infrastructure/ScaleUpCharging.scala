@@ -177,7 +177,7 @@ trait ScaleUpCharging extends {
                 Some(beamVehicle),
                 None, // remainingTripData
                 Some(personId),
-                0.0, // valueOfTime
+                1.0, // valueOfTime
                 duration,
                 triggerId = triggerId
               )
