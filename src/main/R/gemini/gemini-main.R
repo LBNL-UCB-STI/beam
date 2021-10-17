@@ -185,6 +185,7 @@ ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p
 
 ## **************************************
 ##  public charging by scenario
+thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
 p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
@@ -192,8 +193,8 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 3)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=4,units='in')
+  facet_wrap(~factor(name,scenarioNames),ncol = 3,labeller = labeller(.cols = thelabeller))
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=5,units='in')
 
 all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
@@ -282,8 +283,32 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 #   na="0")
 pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
 pt3 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""))
+pt3$name <- 'Scenario3'
+pt <- rbind(pt2, pt3)
+pt$fuelType <- "Diesel"
+pt[startsWith(vehicleType,"conv-")]$fuelType <- "Gasoline"
+pt[startsWith(vehicleType,"hev-")]$fuelType <- "Gasoline"
+pt[startsWith(vehicleType,"ev-")]$fuelType <- "Electric"
+pt[startsWith(vehicleType,"phev-")]$fuelType <- "Electric"
 
-modesplit <- pt[,.(VMT=sum(length)/1609.34, count=.N, energy=),by=.(mode2,name)]
+
+
+summary <- pt[mode2%in%c("Car","Ridehail","Transit"),.(VMT=1e-6*sum(length)/1609.34,energy=(sum(primaryFuel+secondaryFuel))*2.77778e-13),by=.(fuelType,name)]
+# factor.remap <- c('Walk'='Walk','Bike'='Bike','Ridehail'='Ridehail','Car'='Car','Transit'='Public Transit')
+# factor.colors <- c('Walk'='#669900','Bike'='#FFB164','Ridehail'='#B30C0C','Car'='#8A8A8A','Transit'='#0066CC')
+factor.colors <- c('Diesel'=marain.dark.grey,'Gasoline'='#8A8A8A','Electric'='#8A8A8A')
+factor.remap <- c('Diesel'='Diesel','Gasoline'='Gasoline','Electric'='Electricity')
+factor.colors.remapped <- factor.colors
+names(factor.colors.remapped) <- factor.remap[names(factor.colors)]
+p <- summary[fuelType=="Electric"] %>% ggplot(aes(x=name,y=energy,fill=fuelType))+
+  geom_bar(stat='identity')+
+  labs(y='',x='Scenario',fill='Mode',title='Mobility Metrics')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values = factor.colors.remapped)
+ggsave(pp(plotsDir,'/metric-mobility.png'),p,width=8,height=3,units='in')
+
+
 modesplit$countShare <- modesplit$count/sum(modesplit$count)
 
 
@@ -292,7 +317,7 @@ mc$name <- 'Scenario2'
 modesplit2 <- mc[,.(count=.N),by=.(mode,name)]
 modesplit2$countShare <- round(modesplit2$count/sum(modesplit2$count), 2)
 
-
+pt3[,.N,by=.(name,mode2)]
 
 
 # pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
