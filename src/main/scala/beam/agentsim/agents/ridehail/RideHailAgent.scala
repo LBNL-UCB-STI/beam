@@ -1002,6 +1002,13 @@ class RideHailAgent(
       } else {
         goto(Offline)
       }
+    case ev @ Event(StartingRefuelSession(_, _), _) =>
+      log.debug(
+        "state(RideHailingAgent.Refueling.StartingRefuelSession): {}, Vehicle ID: {}",
+        ev,
+        vehicle.id
+      )
+      stay
   }
   when(RefuelingInterrupted) {
     case Event(Resume(_), _) =>

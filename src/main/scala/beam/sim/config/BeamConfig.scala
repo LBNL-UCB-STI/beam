@@ -1800,7 +1800,7 @@ object BeamConfig {
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
-        scaleUpExpansionFactor: scala.Double,
+        scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
       )
 
@@ -1814,6 +1814,7 @@ object BeamConfig {
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String,
+          feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
           timeDeltaProperty: scala.Double
         )
@@ -1834,8 +1835,43 @@ object BeamConfig {
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
               federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
+            )
+          }
+        }
+
+        case class ScaleUp(
+          enabled: scala.Boolean,
+          expansionFactor_charge_activity: scala.Double,
+          expansionFactor_home_activity: scala.Double,
+          expansionFactor_init_activity: scala.Double,
+          expansionFactor_wherever_activity: scala.Double,
+          expansionFactor_work_activity: scala.Double
+        )
+
+        object ScaleUp {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              expansionFactor_charge_activity =
+                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
+                else 1.0,
+              expansionFactor_home_activity =
+                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
+                else 1.0,
+              expansionFactor_init_activity =
+                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
+                else 1.0,
+              expansionFactor_wherever_activity =
+                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
+                  c.getDouble("expansionFactor_wherever_activity")
+                else 1.0,
+              expansionFactor_work_activity =
+                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
+                else 1.0
             )
           }
         }
@@ -1854,8 +1890,10 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
-            scaleUpExpansionFactor =
-              if (c.hasPathOrNull("scaleUpExpansionFactor")) c.getDouble("scaleUpExpansionFactor") else 1.0,
+            scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
+              else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")
+            ),
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
