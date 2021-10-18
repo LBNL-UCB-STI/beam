@@ -53,7 +53,7 @@ trait ScaleUpCharging extends {
       case ParkingActivityType.Wherever    => cnmConfig.scaleUp.expansionFactor_wherever_activity
       case _                               => cnmConfig.scaleUp.expansionFactor_wherever_activity
     }
-    factor - 1.0
+    Math.max(factor - 1.0, 0.0)
   }
 
   override def loggedReceive: Receive = {
