@@ -1,6 +1,6 @@
 import os
 
-basefolder = "/Users/haitamlaarabi/Data/GEMINI"
+basefolder = "/Users/haitamlaarabi/Data/GEMINI/2021Aug22-Oakland"
 beamLog_out = "{}/beamLog.out".format(basefolder)
 beamLog_out_csv = "{}/beamLog.csv".format(basefolder)
 file1 = open(beamLog_out, 'r')

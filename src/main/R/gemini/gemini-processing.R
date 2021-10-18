@@ -571,7 +571,7 @@ rse100[startsWith(parkingZoneId, "AO")&actType=="Home"]
 
 ##
 
-# mnl <- readCsv(pp(workDir, "/beamLog.csv"))
+mnl <- readCsv(pp(workDir, "/2021Aug22-Oakland/beamLog.csv"))
 # mnl$chargingType <- "NoCharger"
 # mnl[grepl("publicfc",parkingZoneId)]$chargingType <- "publicfc"
 # mnl[grepl("publiclevel2",parkingZoneId)]$chargingType <- "publiclevel2"
