@@ -1,5 +1,6 @@
 package beam.cosim.helics
 
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.scheduler.Trigger
 import com.github.beam.HelicsLoader
 import com.java.helics._
@@ -91,6 +92,7 @@ object BeamHelicsInterface {
   implicit object AnyJsonFormat extends JsonFormat[Any] {
 
     def write(x: Any): JsValue = x match {
+      case rf: ReservedFor  => JsString(rf.toString)
       case n: Double        => JsNumber(n)
       case n: Int           => JsNumber(n)
       case b: Boolean if b  => JsTrue

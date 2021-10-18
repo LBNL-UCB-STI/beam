@@ -80,7 +80,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
       new PowerController(
         chargingNetwork,
         rideHailNetwork,
-        beamConfig.beam.agentsim.chargingNetworkManager,
+        beamConfig,
         SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
       ) {
         override private[power] lazy val beamFederateOption = Some(beamFederateMock)
@@ -102,7 +102,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
       new PowerController(
         chargingNetwork,
         rideHailNetwork,
-        beamConfig.beam.agentsim.chargingNetworkManager,
+        beamConfig,
         SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
       ) {
         override private[power] lazy val beamFederateOption = None

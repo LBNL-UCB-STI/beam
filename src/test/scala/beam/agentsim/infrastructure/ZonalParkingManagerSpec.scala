@@ -328,7 +328,8 @@ class ZonalParkingManagerSpec
         maxSearchRadius,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-        beamConfig
+        beamConfig,
+        None
       )
 
       assertParkingResponse(
@@ -387,7 +388,8 @@ class ZonalParkingManagerSpec
         maxSearchRadius,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-        beamConfig
+        beamConfig,
+        None
       )
 
       assertParkingResponse(
@@ -425,7 +427,8 @@ class ZonalParkingManagerSpec
         1.0,
         1.0,
         randomSeed,
-        beamConfig
+        beamConfig,
+        None
       )
       val parkingZones = InfrastructureUtils.buildParkingZones(stalls)
       val zonesMap = ZonalParkingManager[TAZ](
@@ -553,7 +556,8 @@ object ZonalParkingManagerSpec {
       maxSearchRadius,
       seed,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-      beamConfig
+      beamConfig,
+      None
     )
   }
 
