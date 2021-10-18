@@ -44,7 +44,7 @@ trait ScaleUpCharging extends {
     * @return
     */
   private def scaleUpFactor(activityType: ParkingActivityType): Double = {
-    activityType match {
+    val factor = activityType match {
       case _ if !cnmConfig.scaleUp.enabled => 1.0
       case ParkingActivityType.Home        => cnmConfig.scaleUp.expansionFactor_home_activity
       case ParkingActivityType.Init        => cnmConfig.scaleUp.expansionFactor_init_activity
@@ -53,6 +53,7 @@ trait ScaleUpCharging extends {
       case ParkingActivityType.Wherever    => cnmConfig.scaleUp.expansionFactor_wherever_activity
       case _                               => cnmConfig.scaleUp.expansionFactor_wherever_activity
     }
+    factor - 1.0
   }
 
   override def loggedReceive: Receive = {
