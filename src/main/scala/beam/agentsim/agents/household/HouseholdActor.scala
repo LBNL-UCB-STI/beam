@@ -55,6 +55,7 @@ import org.matsim.households.Household
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 object HouseholdActor {
 
@@ -153,7 +154,7 @@ object HouseholdActor {
     val population: org.matsim.api.core.v01.population.Population,
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord,
+    fallbackHomeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
@@ -195,6 +196,16 @@ object HouseholdActor {
     override def loggedReceive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+        val homeCoordFromPlans = household.members
+          .flatMap(per =>
+            per.getSelectedPlan.getPlanElements.asScala.flatMap {
+              case act: Activity if act.getType == "Home" => Some(act.getCoord)
+              case _                                      => None
+            }
+          )
+          .headOption
+          .getOrElse(fallbackHomeCoord)
+
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
 
@@ -233,7 +244,7 @@ object HouseholdActor {
                 new HouseholdFleetManager(
                   parkingManager,
                   vs,
-                  homeCoord,
+                  homeCoordFromPlans,
                   maybeDefaultVehicleType,
                   beamServices.beamConfig.beam.debug
                 )
@@ -270,7 +281,7 @@ object HouseholdActor {
               s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
             )
             context.watch(cavDriverRef)
-            cav.spaceTime = SpaceTime(homeCoord, 0)
+            cav.spaceTime = SpaceTime(homeCoordFromPlans, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
             cav.setManager(Some(self))
             cav.becomeDriver(cavDriverRef)
@@ -523,12 +534,12 @@ object HouseholdActor {
       Future
         .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
           veh.setManager(Some(self))
-          veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
             ParkingInquiryResponse(stall, _, _) <- parkingManager ? ParkingInquiry
               .init(veh.spaceTime, "init", triggerId = triggerId)
           } {
             veh.useParkingStall(stall)
+            veh.spaceTime = SpaceTime(stall.locationUTM.getX, stall.locationUTM.getY, 0)
           }
           Future.successful(())
         })
