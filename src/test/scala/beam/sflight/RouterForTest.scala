@@ -26,7 +26,8 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
         new GeoUtilsImpl(beamScenario.beamConfig),
         services.fareCalculator,
         services.tollCalculator,
-        eventsManager
+        eventsManager,
+        services.matsimServices.getControlerIO
       )
     )
     services.beamRouter = router // :-(
