@@ -585,10 +585,10 @@ rse100[startsWith(parkingZoneId, "AO")&actType=="Home"]
 # parkingZoneSearchResult <- mnl[label=="ParkingZoneSearchResult"]
 # parkingZonesSampled <- mnl[label=="ParkingZonesSampled"]
 
-write.csv(parkingFunctions,file = pp(workDir, "/parkingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
-write.csv(chargingFunctions,file = pp(workDir, "/chargingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
-write.csv(parkingZoneSearchResult,file = pp(workDir, "/parkingZoneSearchResult.csv.gz"),row.names=FALSE,quote=FALSE,na="")
-write.csv(parkingZonesSampled,file = pp(workDir, "/parkingZonesSampled.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+# write.csv(parkingFunctions,file = pp(workDir, "/parkingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+# write.csv(chargingFunctions,file = pp(workDir, "/chargingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+# write.csv(parkingZoneSearchResult,file = pp(workDir, "/parkingZoneSearchResult.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+# write.csv(parkingZonesSampled,file = pp(workDir, "/parkingZonesSampled.csv.gz"),row.names=FALSE,quote=FALSE,na="")
 
 parkingFunctions <- readCsv(pp(workDir, "/parkingFunctions.csv.gz"))
 chargingFunctions <- readCsv(pp(workDir, "/chargingFunctions.csv.gz"))
@@ -596,6 +596,8 @@ parkingZoneSearchResult <- readCsv(pp(workDir, "/parkingZoneSearchResult.csv.gz"
 parkingZonesSampled <- readCsv(pp(workDir, "/parkingZonesSampled.csv.gz"))
 
 chargingFunctions[,.N,by=.(chargingType)]
+parkingZoneSearchResult[,.N,by=.(chargingType)]
+parkingFunctions[,.N,by=.(chargingType)]
 
 
 chargingFunctions[grepl("homelevel1(1.8|AC)",parkingZoneId)]
