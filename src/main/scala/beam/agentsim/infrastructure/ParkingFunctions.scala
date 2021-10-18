@@ -117,7 +117,7 @@ class ParkingFunctions[GEO: GeoLevel](
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _ =>
-        val result = inquiry.activityType match {
+        inquiry.activityType match {
           case ParkingActivityType.Init | ParkingActivityType.Home =>
             val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
@@ -137,18 +137,19 @@ class ParkingFunctions[GEO: GeoLevel](
             )
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
         }
-//        val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
-//        val person = inquiry.personId.getOrElse("")
-//        val zone = result.parkingZone
-//        logger.info(
-//          s"CHOICE-SET:ParkingZoneSearchResult,${inquiry.requestId},,,${person},${beamVehicleId},,${zone.parkingZoneId.toString},,,${result.parkingStall.tazId},"
-//        )
-//        result.parkingZonesSampled.foreach { case (zoneId, _, _, theValue) =>
-//          logger.info(
-//            s"CHOICE-SET:ParkingZonesSampled,${inquiry.requestId},,,${person},${beamVehicleId},,${zoneId.toString},,,,$theValue"
-//          )
-//        }
-        result
+    }
+    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
+    val person = inquiry.personId.getOrElse("")
+    val zone = output.parkingZone
+    val beamVehicleType = inquiry.beamVehicle.map(_.beamVehicleType.id.toString).getOrElse("")
+    logger.info(
+      s"CHOICE-SET:ParkingZoneSearchResult,${inquiry.requestId},${inquiry.parkingDuration},${inquiry.activityType.toString}," +
+      s"${person},${beamVehicleId},${beamVehicleType},${zone.parkingZoneId.toString},${zone.stallsAvailable},${output.parkingStall.tazId},"
+    )
+    output.parkingZonesSampled.foreach { case (zoneId, _, _, theValue) =>
+      logger.info(
+        s"CHOICE-SET:ParkingZonesSampled,${inquiry.requestId},,,${person},${beamVehicleId},,${zoneId.toString},,,$theValue"
+      )
     }
     Some(output)
   }

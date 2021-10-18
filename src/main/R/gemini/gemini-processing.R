@@ -569,4 +569,33 @@ c <- a[b, on="chargingPointType"][,fuelShare:=fuel3/fuel2]
 rse100_3[startsWith(parkingZoneId, "AO")&actType=="Home"]
 rse100[startsWith(parkingZoneId, "AO")&actType=="Home"]
 
+##
 
+# mnl <- readCsv(pp(workDir, "/beamLog.csv"))
+# mnl$chargingType <- "NoCharger"
+# mnl[grepl("publicfc",parkingZoneId)]$chargingType <- "publicfc"
+# mnl[grepl("publiclevel2",parkingZoneId)]$chargingType <- "publiclevel2"
+# mnl[grepl("homelevel1",parkingZoneId)]$chargingType <- "homelevel1"
+# mnl[grepl("homelevel2",parkingZoneId)]$chargingType <- "homelevel2"
+# mnl[grepl("worklevel2",parkingZoneId)]$chargingType <- "worklevel2"
+# mnl[grepl("publicxfc",parkingZoneId)]$chargingType <- "publicxfc"
+# 
+# parkingFunctions <- mnl[label=="ParkingFunctions"]
+# chargingFunctions <- mnl[label=="ChargingFunctions"]
+# parkingZoneSearchResult <- mnl[label=="ParkingZoneSearchResult"]
+# parkingZonesSampled <- mnl[label=="ParkingZonesSampled"]
+
+write.csv(parkingFunctions,file = pp(workDir, "/parkingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+write.csv(chargingFunctions,file = pp(workDir, "/chargingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+write.csv(parkingZoneSearchResult,file = pp(workDir, "/parkingZoneSearchResult.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+write.csv(parkingZonesSampled,file = pp(workDir, "/parkingZonesSampled.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+
+parkingFunctions <- readCsv(pp(workDir, "/parkingFunctions.csv.gz"))
+chargingFunctions <- readCsv(pp(workDir, "/chargingFunctions.csv.gz"))
+parkingZoneSearchResult <- readCsv(pp(workDir, "/parkingZoneSearchResult.csv.gz"))
+parkingZonesSampled <- readCsv(pp(workDir, "/parkingZonesSampled.csv.gz"))
+
+chargingFunctions[,.N,by=.(chargingType)]
+
+
+chargingFunctions[grepl("homelevel1(1.8|AC)",parkingZoneId)]

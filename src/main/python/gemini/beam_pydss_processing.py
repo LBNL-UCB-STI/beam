@@ -1,7 +1,7 @@
 import os
 
 basefolder = "/Users/haitamlaarabi/Data/GEMINI"
-beamLog_out = "{}/beamLog.out.txt".format(basefolder)
+beamLog_out = "{}/beamLog.out".format(basefolder)
 beamLog_out_csv = "{}/beamLog.csv".format(basefolder)
 file1 = open(beamLog_out, 'r')
 Lines = file1.readlines()
