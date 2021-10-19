@@ -1375,6 +1375,10 @@ trait ChoosesMode {
           combinedItinerariesForChoice.filter(trip =>
             trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
           )
+        case Some(HOV2_TELEPORTATION) =>
+          combinedItinerariesForChoice.filter(_.tripClassifier == HOV2_TELEPORTATION)
+        case Some(HOV3_TELEPORTATION) =>
+          combinedItinerariesForChoice.filter(_.tripClassifier == HOV3_TELEPORTATION)
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
@@ -1433,10 +1437,11 @@ trait ChoosesMode {
                   body.toStreetVehicle,
                   geo
                 )
-                goto(FinishingModeChoice) using choosesModeData.copy(
+                val dataForNextStep = choosesModeData.copy(
                   pendingChosenTrip = Some(bushwhackingTrip),
                   availableAlternatives = availableAlts
                 )
+                goto(FinishingModeChoice) using dataForNextStep
               }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
@@ -1525,63 +1530,83 @@ trait ChoosesMode {
           )
         )
     }
-
-    eventsManager.processEvent(
-      new ModeChoiceEvent(
-        tick,
-        id,
-        chosenTrip.tripClassifier.value,
-        data.personData.currentTourMode.map(_.value).getOrElse(""),
-        data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex)
-          .getLinkId
-          .toString,
-        data.availableAlternatives.get,
-        data.availablePersonalStreetVehicles.nonEmpty,
-        chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
-        _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
-        chosenTrip
-      )
+    val chosenMode = chosenTrip.tripClassifier.value
+    val modeChoiceEvent = new ModeChoiceEvent(
+      tick,
+      id,
+      chosenMode,
+      data.personData.currentTourMode.map(_.value).getOrElse(""),
+      data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
+      _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex)
+        .getLinkId
+        .toString,
+      data.availableAlternatives.get,
+      data.availablePersonalStreetVehicles.nonEmpty,
+      chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
+      _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
+      chosenTrip
     )
 
-    val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
-      .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
+    eventsManager.processEvent(modeChoiceEvent)
 
-    var isCurrentPersonalVehicleVoided = false
-    vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
-      data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
-        if (currentVehicle == vehicle.id) {
-          logError(
-            s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
+    data.personData.currentTourMode match {
+      case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(
+            ScheduleTrigger(
+              PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)),
+              self
+            )
           )
-          isCurrentPersonalVehicleVoided = true
-        }
-      }
-      beamVehicles.remove(vehicle.id)
-      vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
-    }
-    scheduler ! CompletionNotice(
-      triggerId,
-      Vector(
-        ScheduleTrigger(
-          PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)),
-          self
         )
-      )
-    )
-    goto(WaitingForDeparture) using data.personData.copy(
-      currentTrip = Some(chosenTrip),
-      restOfCurrentTrip = chosenTrip.legs.toList,
-      currentTourMode = data.personData.currentTourMode
-        .orElse(Some(chosenTrip.tripClassifier)),
-      currentTourPersonalVehicle =
-        if (isCurrentPersonalVehicleVoided)
-          vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
-        else
-          data.personData.currentTourPersonalVehicle
-            .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
-    )
+
+        goto(Teleporting) using data.personData.copy(
+          currentTrip = Some(chosenTrip),
+          restOfCurrentTrip = List()
+        )
+
+      case _ =>
+        val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
+          .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
+
+        var isCurrentPersonalVehicleVoided = false
+        vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
+          data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
+            if (currentVehicle == vehicle.id) {
+              logError(
+                s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
+              )
+              isCurrentPersonalVehicleVoided = true
+            }
+          }
+          beamVehicles.remove(vehicle.id)
+          vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
+        }
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(
+            ScheduleTrigger(
+              PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)),
+              self
+            )
+          )
+        )
+        goto(WaitingForDeparture) using data.personData.copy(
+          currentTrip = Some(chosenTrip),
+          restOfCurrentTrip = chosenTrip.legs.toList,
+          currentTourMode = data.personData.currentTourMode
+            .orElse(Some(chosenTrip.tripClassifier)),
+          currentTourPersonalVehicle =
+            if (isCurrentPersonalVehicleVoided)
+              vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
+            else
+              data.personData.currentTourPersonalVehicle
+                .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
+        )
+    }
+
   }
 }
 
