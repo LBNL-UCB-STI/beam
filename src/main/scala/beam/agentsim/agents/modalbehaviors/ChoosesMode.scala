@@ -512,7 +512,7 @@ trait ChoosesMode {
             .map(car_vehicle => car_vehicle.copy(mode = CAR_HOV3))
           makeRequestWith(withTransit = false, vehicles :+ bodyStreetVehicle)
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-        case Some(tourMode @ (CAR | BIKE)) =>
+        case Some(tourMode @ (CAR | BIKE | CAR_HOV2 | CAR_HOV3)) =>
           val maybeLeg = _experiencedBeamPlan.getPlanElements
             .get(_experiencedBeamPlan.getPlanElements.indexOf(nextAct) - 1) match {
             case l: Leg => Some(l)
