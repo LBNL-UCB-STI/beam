@@ -60,9 +60,9 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
 #####
-scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-#scenarioNames <- c('Scenario2', 'Scenario3')
-scenarioBaselineLabel <- 'Scenario0'
+#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+scenarioNames <- c('Scenario2', 'Scenario3')
+scenarioBaselineLabel <- 'Scenario2'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -79,8 +79,7 @@ p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   facet_wrap(~panel) +
   scale_fill_manual(values = c(brewer.pal(3, "Blues"), brewer.pal(3, "Reds"))) +
   theme(strip.text = element_text(size=rel(1.2)))
-ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=12,height=4,units='in')
-
+ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=4,height=4,units='in')
 
 ## Baseline public charging
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
@@ -182,17 +181,30 @@ p <- ggmap(oakland_map) +
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p,width=16,height=8,units='in')
 
 
+
 ## **************************************
-##  public charging by scenario
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 3)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=7,units='in')
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
+
+## **************************************
+##  public charging by scenario
+thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
+p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+  theme_marain() +
+  geom_area(colour="black", size=0.3) +
+  scale_fill_manual(values = chargingTypes.colors, name = "") +
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
+  theme(strip.text = element_text(size=rel(1.2))) +
+  facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
 
 ## public  daily charging by scenario
@@ -259,6 +271,54 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 ##########################################
 # MOBILITY
 ##########################################
+
+# events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
+# pt <- events[type=="PathTraversal"]
+# pt2 <- pt[,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
+#              "primaryFuelLevel","driver","mode","seatingCapacity","startX",
+#              "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
+#              "secondaryFuel", "secondaryFuelType", "primaryFuelType",
+#              "numPassengers", "length", "primaryFuel")]
+# pt2$name <- 'Scenario2'
+# pt2$mode2 <- "Transit"
+# pt2[mode=="car"]$mode2 <- "Car"
+# pt2[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
+# pt2[mode=="walk"]$mode2 <- "Walk"
+# pt2[mode=="bike"]$mode2 <- "Bike"
+# write.csv(
+#   pt2,
+#   file = paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""),
+#   row.names=FALSE,
+#   quote=FALSE,
+#   na="0")
+pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
+pt3 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""))
+pt3$name <- 'Scenario3'
+pt <- rbind(pt2, pt3)
+pt$fuelType <- "Diesel"
+pt[startsWith(vehicleType,"conv-")]$fuelType <- "Gasoline"
+pt[startsWith(vehicleType,"hev-")]$fuelType <- "Gasoline"
+pt[startsWith(vehicleType,"ev-")]$fuelType <- "Electric"
+pt[startsWith(vehicleType,"phev-")]$fuelType <- "Electric"
+
+
+
+summary <- pt[mode2%in%c("Car","Ridehail","Transit"),.(VMT=1e-6*sum(length)/1609.34,energy=(sum(primaryFuel+secondaryFuel))*2.77778e-13),by=.(fuelType,name)]
+# factor.remap <- c('Walk'='Walk','Bike'='Bike','Ridehail'='Ridehail','Car'='Car','Transit'='Public Transit')
+# factor.colors <- c('Walk'='#669900','Bike'='#FFB164','Ridehail'='#B30C0C','Car'='#8A8A8A','Transit'='#0066CC')
+factor.colors <- c('Diesel'=marain.dark.grey,'Gasoline'='#8A8A8A','Electric'='#8A8A8A')
+factor.remap <- c('Diesel'='Diesel','Gasoline'='Gasoline','Electric'='Electricity')
+factor.colors.remapped <- factor.colors
+names(factor.colors.remapped) <- factor.remap[names(factor.colors)]
+p <- summary[fuelType=="Electric"] %>% ggplot(aes(x=name,y=energy,fill=fuelType))+
+  geom_bar(stat='identity')+
+  labs(y='',x='Scenario',fill='Mode',title='Mobility Metrics')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values = factor.colors.remapped)
+ggsave(pp(plotsDir,'/metric-mobility.png'),p,width=8,height=3,units='in')
+
+#################################################
 
 factor.remap <- c('walk'='Walk','bike'='Bike','rh'='Ridehail Solo','rhp'='Ridehail Pooled','rh_empty'='Ridehail (Empty)','cav'='Personal AV','cav_empty'='Personal AV (Empty)','car'='Car','transit'='Public Transit')
 factor.colors <- c('walk'='#669900','bike'='#FFB164','rh'='#B30C0C','rhp'='#660099','rh_empty'=marain.light.grey,'cav'='#FFE664','cav_empty'=marain.dark.grey,'car'='#8A8A8A','transit'='#0066CC')

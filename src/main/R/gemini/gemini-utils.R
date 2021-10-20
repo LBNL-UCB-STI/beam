@@ -14,10 +14,7 @@ loadTypes <- data.table::data.table(
     "homelevel1(1.8|AC)", "homelevel2(7.2|AC)", "publiclevel2(7.2|AC)",
     "worklevel2(7.2|AC)", "custom(7.2|AC)",
     "publicfc(150.0|DC)", "custom(150.0|DC)", "publicxfc(250.0|DC)", "custom(250.0|DC)"),
-  loadType = c(
-    "Home-L1", "Home-L2", "Public-L2",
-    "Work-L2", "Work-L2",
-    "DCFC", "DCFC", "XFC", "XFC"))
+  loadType = c("Home-L1", "Home-L2", "Public-L2", "Work-L2", "Work-L2", "DCFC", "DCFC", "XFC", "XFC"))
 
 nextTimePoisson <- function(rate) {
   return(-log(1.0 - runif(1)) / rate)
@@ -139,7 +136,7 @@ processEventsFileAndScaleUp <- function(dataDir, scaleUpFlag, expFactor) {
 extractLoads <- function(sessions, loadTypes, countyNames) {
   # here we expand each session into the appropriate number of X-minute bins, so each row here is 1 X-minute slice of a session
   sessions[,plug.xfc:=grepl("xfc", chargingPointType)]
-  loads <- sessions[,.(chargingPointType,depot,plug.xfc,taz,kw=c(rep(kw,length(seq(0,duration,by=binsInterval))-1),kw*(duration-max(seq(0,duration,by=binsInterval)))/binsInterval),x,y,duration,hour.bin=start.time.bin+seq(0,duration,by=binsInterval)),by='row']
+  loads <- sessions[,.(parkingZoneId,chargingPointType,depot,plug.xfc,taz,kw=c(rep(kw,length(seq(0,duration,by=binsInterval))-1),kw*(duration-max(seq(0,duration,by=binsInterval)))/binsInterval),x,y,duration,hour.bin=start.time.bin+seq(0,duration,by=binsInterval)),by='row']
   loads[,site.xfc:=(sum(kw)>=siteXFCInKW),by=c('depot','taz','hour.bin')]
   loads[,xfc:=site.xfc|plug.xfc]
   loads[,fuel:=kw*binsInterval*3.6e6] # the binsInterval converts avg. power in X-minutes to kwh, then 3.6e6 converts to Joules

@@ -9,6 +9,7 @@ library(rapport)
 library(sjmisc)
 library(ggmap)
 library(sf)
+library(stringr)
 
 workDir <- normalizePath("~/Data/GEMINI")
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -323,27 +324,35 @@ no_charger_or_non_AlamedaOakland_constrained <- sfbay_contrained_parking[
 initInfra_1_5_updated_constrained_non_AlamedaOakland <- rbind(initInfra_1_5_updated, no_charger_or_non_AlamedaOakland_constrained)
 write.csv(
   initInfra_1_5_updated_constrained_non_AlamedaOakland,
-  file = pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 
 
-logs <- readCsv(pp(workDir, "/beam_to_pydss_federate.csv"))
+infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"))
+infra16_charging <- infra16[chargingPointType!="NoCharger"]
+write.csv(
+  infra16_charging,
+  file = pp(workDir, "/gemini-base-scenario-3-charging-with-household-infra16.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
+infra16_charging[startsWith(reservedFor, "household")]$reservedFor <- "Any"
+write.csv(
+  infra16_charging,
+  file = pp(workDir, "/gemini-base-scenario-3-charging-no-household-infra16.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
 
-logs[,.(estimatedLoad=sum(estimatedLoad)),by=.(currentTime)] %>%
-  ggplot(aes(currentTime/3600.,estimatedLoad/1000)) +
-  geom_bar(stat="identity")
-ggplot(logs) + geom_histogram(aes(estimatedLoad))
-
-
-####
-
-
-parking <- readCsv(pp(workDir, "/gemini_taz_parking_plugs_power_150kw.csv"))
-
-parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
-
+infra16_parking <- infra16[chargingPointType=="NoCharger"]
+write.csv(
+  infra16_parking,
+  file = pp(workDir, "/gemini-base-scenario-3-parking-infra16.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
 
 
 #####
