@@ -58,11 +58,15 @@ for(j in 1:nrow(publicLoads)){
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
+# sc2 <- all.sessions[code=="SC2"&!startsWith(parkingZoneId,"X")]
+# sc3 <- all.sessions[code=="SC3"&!startsWith(parkingZoneId,"X")]
+# nrow(sc2)*900/3600
+# nrow(sc3)*900/3600
 
 #####
-scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-#scenarioNames <- c('Scenario2', 'Scenario3')
-scenarioBaselineLabel <- 'Scenario0'
+#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+scenarioNames <- c('Scenario2', 'Scenario3')
+scenarioBaselineLabel <- 'Scenario2'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -79,9 +83,8 @@ p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   facet_wrap(~panel) +
   scale_fill_manual(values = c(brewer.pal(3, "Blues"), brewer.pal(3, "Reds"))) +
   theme(strip.text = element_text(size=rel(1.2)))
-ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=12,height=4,units='in')
+ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=4,height=4,units='in')
 
-test <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')][hour.bin2 >= 11.5 & hour.bin2 <= 12.5]
 ## Baseline public charging
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
@@ -90,8 +93,7 @@ p <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
-  theme(strip.text = element_text(size=rel(1.2))) +
-  xlim(11.5, 12.5)
+  theme(strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/baseline-public-charging.png'),p,width=6,height=4,units='in')
 
 
@@ -183,18 +185,30 @@ p <- ggmap(oakland_map) +
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p,width=16,height=8,units='in')
 
 
+
 ## **************************************
-##  public charging by scenario
-thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 3,labeller = labeller(.cols = thelabeller))
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=5,units='in')
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
+
+## **************************************
+##  public charging by scenario
+thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
+p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+  theme_marain() +
+  geom_area(colour="black", size=0.3) +
+  scale_fill_manual(values = chargingTypes.colors, name = "") +
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
+  theme(strip.text = element_text(size=rel(1.2))) +
+  facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
 all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
@@ -227,7 +241,7 @@ ggsave(pp(plotsDir,'/xfc-loads-by-scenario.png'),p,width=12,height=7,units='in')
 
 
 ## Energy charged by scenario
-metrics <- all.loads[!is.na(kw)&name%in%scenarioNames][,.(gw=sum(kw)/1e6,gwh=sum(kw)/4e6),by=.(name,hour.bin2,severity)][,.(gw.peak=max(gw),gwh=sum(gwh)),by=.(name,severity)]
+metrics <- all.loads[region=="Oakland-Alameda"&!is.na(kw)&name%in%scenarioNames][,.(gw=sum(kw)/1e6,gwh=sum(kw)/4e6),by=.(name,hour.bin2,severity)][,.(gw.peak=max(gw),gwh=sum(gwh)),by=.(name,severity)]
 
 toplot <- melt(metrics,id.vars=c('name','severity'))
 toplot[name%in%scenarioNames,panel:=revalue(factor(variable),c('gw.peak'='Regional Charging Peak (GW)','gwh'='Total Energy Charged (GWh)'))]
@@ -244,7 +258,7 @@ ggsave(pp(plotsDir,'/energy-charged-by-scenario.png'),p,width=8,height=3,units='
 
 
 ## XFC hours per site per day
-xfc.metric <- all.loads[!is.na(kw)&name%in%scenarioNames][!grepl('<1MW',severity),.(xfc.hours=.N/4),by=.(name,type,severity,taz)][,.(xfc.hours=mean(xfc.hours)),by=.(name,type,severity)]
+xfc.metric <- all.loads[region=="Oakland-Alameda"&!is.na(kw)&name%in%scenarioNames][!grepl('<1MW',severity),.(xfc.hours=.N/4),by=.(name,type,severity,taz)][,.(xfc.hours=mean(xfc.hours)),by=.(name,type,severity)]
 xfc.metric[,panel:='XFC-Hours per Site per Day']
 p <- ggplot(xfc.metric,aes(x=factor(name,scenarioNames),y=xfc.hours,fill=factor(severity, levels=severity_order)))+
   geom_bar(stat='identity',position='dodge')+

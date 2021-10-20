@@ -9,6 +9,7 @@ library(rapport)
 library(sjmisc)
 library(ggmap)
 library(sf)
+library(stringr)
 
 workDir <- normalizePath("~/Data/GEMINI")
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -371,10 +372,28 @@ chargingBehaviorFunc <- function(DT) {
 }
 
 events100_SC3 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC3.csv.gz"
-rse100_SC3 <- readCsv(pp(workDir, events100_SC3))[type=='RefuelSessionEvent']
+rse100_SC3_a <- readCsv(pp(workDir, events100_SC3))
+rse100_SC3_c <- rse100_SC3_a[type=='RefuelSessionEvent']
+rse100_SC3_d <- rse100_SC3_a[type=='ChargingPlugInEvent']
 
 events100_SC2 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2.csv.gz"
-rse100_SC2 <- readCsv(pp(workDir, events100_SC2))[type=='RefuelSessionEvent']
+rse100_SC2_a <- readCsv(pp(workDir, events100_SC2))
+rse100_SC2_c <- rse100_SC2_a[type=='RefuelSessionEvent']
+rse100_SC2_d <- rse100_SC2_a[type=='ChargingPlugInEvent']
+
+vehicles <- se100_SC3_c[startsWith(parkingZoneId,"AO-")]$vehicle
+nrow(se100_SC3_c[startsWith(parkingZoneId,"AO-")])
+nrow(rse100_SC3_d[vehicle%in%vehicles])
+
+
+ev1 <- rse100_SC3_a[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+ev2 <- rse100_SC3_a[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+ev <- ev1[ev2, on=c("vehicle", "IDX")]
+
+ev1 <- rse100_SC2_a[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+ev2 <- rse100_SC2_a[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+ev <- ev1[ev2, on=c("vehicle", "IDX")]
+
 
 events010 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC2-010.csv.gz"
 rse010 <- readCsv(pp(workDir, events010))[type=='RefuelSessionEvent']
@@ -391,6 +410,10 @@ charging_coef <- data.table(
   actType=c("Home", "Work", "Charge", "Wherever", "Init"),
   coef=c(0, 0, 0, 0, 0)
 )
+
+sum(rse100_SC3_a[type %in% c("RefuelSessionEvent")]$fuel)/sum(rse100_SC2_a[type %in% c("RefuelSessionEvent")]$fuel)
+sum(rse100_SC3_a[type %in% c("RefuelSessionEvent")&!startsWith(parkingZoneId,"X-")&chargingPointType%in%homelevel]$fuel)/sum(rse100_SC2_a[type %in% c("RefuelSessionEvent")&!startsWith(parkingZoneId,"X-")&chargingPointType%in%homelevel]$fuel)
+
 
 charging100 <- rse100_SC2[,.(fuel100=mean(fuel)),by=.(actType)]
 charging010 <- rse010[,.(fuel010=mean(fuel)),by=.(actType)][charging_coef,on=c("actType")][charging100,on=c("actType")]
@@ -570,36 +593,124 @@ rse100_3[startsWith(parkingZoneId, "AO")&actType=="Home"]
 rse100[startsWith(parkingZoneId, "AO")&actType=="Home"]
 
 ##
+beamLogDir <- pp(workDir, "/2021Aug22-Oakland")
+park2 <- readCsv(pp(workDir, "/gemini-base-scenario-2-parking-charging-infra16.csv"))[,c("parkingZoneId","chargingPointType","numStalls")]
+park3 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"))[,c("parkingZoneId","chargingPointType","numStalls")]
 
-mnl <- readCsv(pp(workDir, "/2021Aug22-Oakland/beamLog.csv"))
-mnl$chargingType <- "NoCharger"
-mnl[grepl("publicfc",parkingZoneId)]$chargingType <- "publicfc"
-mnl[grepl("publiclevel2",parkingZoneId)]$chargingType <- "publiclevel2"
-mnl[grepl("homelevel1",parkingZoneId)]$chargingType <- "homelevel1"
-mnl[grepl("homelevel2",parkingZoneId)]$chargingType <- "homelevel2"
-mnl[grepl("worklevel2",parkingZoneId)]$chargingType <- "worklevel2"
-mnl[grepl("publicxfc",parkingZoneId)]$chargingType <- "publicxfc"
-# 
-parkingFunctions <- mnl[label=="ParkingFunctions"]
-chargingFunctions <- mnl[label=="ChargingFunctions"]
-parkingZoneSearchResult <- mnl[label=="ParkingZoneSearchResult"]
-parkingZonesSampled <- mnl[label=="ParkingZonesSampled"]
 
+header <- "time,label,requestId,parkingDuration,activityType,person,beamVehicleId,beamVehicleType,parkingZoneId,stallsAvailable,parkingStallTazId,theValue"
+mnl <- data.table::fread(pp(beamLogDir, "/3/beamLog.csv"), header=FALSE, sep=",") 
+setnames(mnl, str_split(header, ",")[[1]])
+# mnl$chargingType <- "NoCharger"
+# mnl[grepl("publicfc",parkingZoneId)]$chargingType <- "publicfc"
+# mnl[grepl("publiclevel2",parkingZoneId)]$chargingType <- "publiclevel2"
+# mnl[grepl("homelevel1",parkingZoneId)]$chargingType <- "homelevel1"
+# mnl[grepl("homelevel2",parkingZoneId)]$chargingType <- "homelevel2"
+# mnl[grepl("worklevel2",parkingZoneId)]$chargingType <- "worklevel2"
+# mnl[grepl("publicxfc",parkingZoneId)]$chargingType <- "publicxfc"
 # write.csv(parkingFunctions,file = pp(workDir, "/parkingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
 # write.csv(chargingFunctions,file = pp(workDir, "/chargingFunctions.csv.gz"),row.names=FALSE,quote=FALSE,na="")
-write.csv(parkingZoneSearchResult,file = pp(workDir, "/parkingZoneSearchResult.csv.gz"),row.names=FALSE,quote=FALSE,na="")
-write.csv(parkingZonesSampled,file = pp(workDir, "/parkingZonesSampled.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+parkingZoneSearchResult <- mnl[label=="ParkingZoneSearchResult"]
+parkingZonesSampled <- mnl[label=="ParkingZonesSampled"]
+write.csv(parkingZoneSearchResult,file = pp(beamLogDir, "/3/parkingZoneSearchResult.csv.gz"),row.names=FALSE,quote=FALSE,na="")
+write.csv(parkingZonesSampled,file = pp(beamLogDir, "/3/parkingZonesSampled.csv.gz"),row.names=FALSE,quote=FALSE,na="")
 
-parkingFunctions <- readCsv(pp(workDir, "/parkingFunctions.csv.gz"))
-chargingFunctions <- readCsv(pp(workDir, "/chargingFunctions.csv.gz"))
-parkingZoneSearchResult <- readCsv(pp(workDir, "/parkingZoneSearchResult.csv.gz"))
-parkingZonesSampled <- readCsv(pp(workDir, "/parkingZonesSampled.csv.gz"))
+parkingZoneSearchResult_2 <- readCsv(pp(beamLogDir, "/2/parkingZoneSearchResult.csv.gz"))
+parkingZonesSampled_2 <- readCsv(pp(beamLogDir, "/2/parkingZonesSampled.csv.gz"))
+parkingZoneSearchResult_3 <- readCsv(pp(beamLogDir, "/3/parkingZoneSearchResult.csv.gz"))
+parkingZonesSampled_3 <- readCsv(pp(beamLogDir, "/3/parkingZonesSampled.csv.gz"))
 
-chargingFunctions[,.N,by=.(chargingType)]
+parkingZoneSearchResult_2[,activityType2:=activityType]
+parkingZonesSampled_2[,activityType2:=activityType]
+parkingZoneSearchResult_3[,activityType2:=activityType]
+parkingZonesSampled_3[,activityType2:=activityType]
 
-parkingFunctions[,.N,by=.(chargingType)]
+parkingZoneSearchResult_2[parkingStallTazId=="default",activityType2:=pp(activityType,"-default")] 
+parkingZonesSampled_2[parkingStallTazId=="default",activityType2:=pp(activityType,"-default")] 
+parkingZoneSearchResult_3[parkingStallTazId=="default",activityType2:=pp(activityType,"-default")] 
+parkingZonesSampled_3[parkingStallTazId=="default",activityType2:=pp(activityType,"-default")] 
+
+parkingZoneSearchResult_2[,.N,.(activityType2)][order(activityType2)]
+parkingZoneSearchResult_3[,.N,.(activityType2)][order(activityType2)]
+
+parkingZoneSearchResult_2[,.N,by=.(activityType)]
+parkingZoneSearchResult_3[,.N,by=.(activityType)]
+parkingZonesSampled_2[,.N,by=.(activityType)]
+parkingZonesSampled_3[,.N,by=.(activityType)]
+
+result_2 <- parkingZoneSearchResult_2[park2, on="parkingZoneId"]
+sampled_2 <- parkingZonesSampled_2[park2, on="parkingZoneId"]
+result_3 <- parkingZoneSearchResult_3[park3, on="parkingZoneId"]
+sampled_3 <- parkingZonesSampled_3[park3, on="parkingZoneId"]
+
+sampled_3[,.N,by=.(chargingPointType)]
+sampled_2[,.N,by=.(chargingPointType)]
+
+result_3[,.N,by=.(activityType)]
+result_2[,.N,by=.(activityType)]
+
+result_3[,.N,by=.(chargingPointType)][order(chargingPointType)]
+result_2[,.N,by=.(chargingPointType)][order(chargingPointType)]
+rse100_SC3[,.N,.(chargingPointType)][order(chargingPointType)]
+rse100_SC2[,.N,.(chargingPointType)][order(chargingPointType)]
+
+homelevel <- c("homelevel1(1.8|AC)","homelevel2(7.2|AC)")
+a3 <- rse100_SC3[chargingPointType%in%homelevel&!startsWith(parkingZoneId,"X-"),,]
+a2 <- rse100_SC2[chargingPointType%in%homelevel&!startsWith(parkingZoneId,"X-"),,]
+b3 <- rse100_SC3[chargingPointType%in%homelevel&startsWith(parkingZoneId,"X-"),,]
+b2 <- rse100_SC2[chargingPointType%in%homelevel&startsWith(parkingZoneId,"X-"),,]
+
+nrow(a3[,.N,.(parkingZoneId)])/nrow(a2[,.N,.(parkingZoneId)])
+nrow(a3[,.(sum(fuel)),.(parkingZoneId)])/nrow(a2[,.(sum(fuel)),.(parkingZoneId)])
+nrow(a3[,.(sum(duration)),.(parkingZoneId)])/nrow(a2[,.(sum(duration)),.(parkingZoneId)])
+
+nrow(a3[startsWith(parkingZoneId,"X-")])
+nrow(a2[startsWith(parkingZoneId,"X-")])
+
+nrow(a3[!startsWith(parkingZoneId,"X-")])/nrow(a2[!startsWith(parkingZoneId,"X-")])
+
+
+
+
+
+
+parkingZoneSearchResult_2[,.N,.(activityType)][order(activityType)]
+
+hometype <- c("homelevel1(1.8|AC)","homelevel2(7.2|AC)")
+xfcReq <- unique(parkingZoneSearchResult_2[chargingPointType%in%hometype]$requestId)
+sampleXfcReq <- parkingZonesSampled_2[requestId%in%xfcReq]
+sampleXfcReq[,.(mean(theValue,na.rm=TRUE),.N),.(chargingPointType)]
+
+xfcReq <- unique(parkingZoneSearchResult_3[chargingPointType%in%hometype]$requestId)
+sampleXfcReq <- parkingZonesSampled_3[requestId%in%xfcReq]
+sampleXfcReq[,.(mean(theValue,na.rm=TRUE),.N),.(chargingPointType)]
+
+
+parkingZoneSearchResult_3[,.N,.(chargingPointType)]
+parkingZoneSearchResult_2[,.N,.(chargingPointType)]
+
+parkingZoneSearchResult_3[,.N,.(activityType)][order(activityType)]
+parkingZoneSearchResult_2[,.N,.(activityType)][order(activityType)]
+
+parkingZoneSearchResult_3[parkingZoneId=="default"]
+
 
 parkingZoneSearchResult[,.N,by=.(chargingType)]
-parkingZonesSampled[,.N,by=.(chargingType)]
+parkingZonesSampled[,.(mean(theValue)),by=.(chargingType)]
+
 
 chargingFunctions[grepl("homelevel1(1.8|AC)",parkingZoneId)]
+
+sc2[,.(mean(feeInCents)),.(chargingPointType)]
+sc3[,.(mean(feeInCents)),.(chargingPointType)]
+
+sc2[,.N,.(chargingPointType)]
+sc3[,.N,.(chargingPointType)]
+
+test2 <- readCsv(pp(beamLogDir, "/BATCH3/sim/events.sim.SC2.csv.gz"))
+test3 <- readCsv(pp(beamLogDir, "/BATCH3/sim/events.sim.SC3.csv.gz"))
+
+
+nrow(test3[startsWith(parkingZoneId,"AO-")])/nrow(test2[startsWith(parkingZoneId,"AO-")])
+
+
