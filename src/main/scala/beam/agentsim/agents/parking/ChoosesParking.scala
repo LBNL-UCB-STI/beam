@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -90,6 +91,53 @@ object ChoosesParking {
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
+
+  private def createRegularParkingInquiry(data: BasePersonData): ParkingInquiry = {
+    val firstLeg = data.restOfCurrentTrip.head
+    val lastLeg = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last.beamLeg
+    val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
+    val activityType = nextActivity(data).get.getType
+    val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get
+    val remainingTripData = calculateRemainingTripData(data)
+    val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
+    ParkingInquiry.init(
+      destinationUtm,
+      activityType,
+      reservedFor,
+      Some(currentBeamVehicle),
+      remainingTripData,
+      attributes.valueOfTime,
+      parkingDuration,
+      triggerId = getCurrentTriggerIdOrGenerate
+    )
+  }
+
+  private def createEnRouteChargingInquiry(data: BasePersonData): ParkingInquiry = {
+    val firstLeg = data.restOfCurrentTrip.head
+    val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
+    val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
+    val refuelRequiredThresholdInMeters =
+      totalDistance * (1 + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.refuelRequiredThresholdInPercent)
+    val noRefuelThresholdInMeters =
+      totalDistance * (1 + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.noRefuelThresholdInPercent)
+
+    if (currentBeamVehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)) {
+      val (rangeInMeters, _) = currentBeamVehicle.getRemainingRange
+    }
+
+    val middleLeg = vehicleTrip(vehicleTrip.length / 2).beamLeg
+    val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(middleLeg.travelPath.endPoint.loc), middleLeg.endTime)
+
+    ParkingInquiry(
+      destinationUtm = destinationUtm,
+      activityType = ParkingActivityType.FastCharge,
+      reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get,
+      beamVehicle = Some(currentBeamVehicle),
+      valueOfTime = attributes.valueOfTime,
+      triggerId = getCurrentTriggerIdOrGenerate
+    )
+  }
+
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
     val personData = stateData.asInstanceOf[BasePersonData]
 
