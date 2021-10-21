@@ -227,16 +227,6 @@ trait ScaleUpCharging extends {
   }
 
   /**
-    * @param energy Joules
-    * @param duration Seconds
-    * @return
-    */
-  private def toPowerInKW(energy: Double, duration: Int): Double = {
-    if (duration > 0 && energy >= 0) (energy / 3.6e+6) / (duration / 3600.0)
-    else 0
-  }
-
-  /**
     * get Beam Vehicle Type
     * @return BeamVehicleType
     */
@@ -291,7 +281,7 @@ trait ScaleUpCharging extends {
 }
 
 object ScaleUpCharging {
-  private val VIRTUAL_CAR_ALIAS: String = "VirtualCar"
+  val VIRTUAL_CAR_ALIAS: String = "VirtualCar"
   case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
   case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
 
@@ -326,5 +316,15 @@ object ScaleUpCharging {
     def getFuelCapacity(rand: Random, energy: Double, soc: Double): Double = {
       Math.max(meanFuelCapacity + (rand.nextGaussian() * stdFuelCapacity), if (soc == 1) energy else energy / (1 - soc))
     }
+  }
+
+  /**
+    * @param energy Joules
+    * @param duration Seconds
+    * @return
+    */
+  def toPowerInKW(energy: Double, duration: Int): Double = {
+    if (duration > 0 && energy >= 0) (energy / 3.6e+6) / (duration / 3600.0)
+    else 0
   }
 }
