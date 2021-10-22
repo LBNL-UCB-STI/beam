@@ -27,6 +27,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  minDistanceToFociInPercent: Double,
+  maxDistanceToFociInPercent: Double,
   boundingBox: Envelope,
   seed: Int
 ) extends StrictLogging {
@@ -88,6 +90,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZoneSearchConfiguration(
       minSearchRadius,
       maxSearchRadius,
+      minDistanceToFociInPercent,
+      maxDistanceToFociInPercent,
       boundingBox,
       distanceFunction
     )

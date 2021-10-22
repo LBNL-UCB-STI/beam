@@ -35,13 +35,14 @@ case class ParkingInquiry(
   reserveStall: Boolean = true,
   requestId: Int =
     ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  originUtm: Option[SpaceTime] = None,
   triggerId: Long
 ) extends HasTriggerId {
 
   def isChargingRequestOrEV: Boolean = {
     beamVehicle match {
       case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
-      case _             => activityType == ParkingActivityType.Charge
+      case _             => activityType == ParkingActivityType.Charge || activityType == ParkingActivityType.EnRouteCharge
     }
   }
 }
@@ -85,6 +86,7 @@ object ParkingInquiry extends LazyLogging {
     parkingDuration: Double = 0,
     reserveStall: Boolean = true,
     requestId: Int = ParkingManagerIdGenerator.nextId,
+    originUtm: Option[SpaceTime] = None,
     triggerId: Long
   ): ParkingInquiry =
     ParkingInquiry(
@@ -97,6 +99,7 @@ object ParkingInquiry extends LazyLogging {
       parkingDuration,
       reserveStall,
       requestId,
+      originUtm,
       triggerId = triggerId
     )
 }

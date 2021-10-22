@@ -1,34 +1,27 @@
 package beam.agentsim.agents.household
 
-import java.util.concurrent.TimeUnit
-import akka.actor.Status.{Failure, Success}
 import akka.actor.ActorRef
+import akka.actor.Status.{Failure, Success}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  GetVehicleTypes,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply,
-  VehicleTypesResponse
-}
+import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
-import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.HasTriggerId
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug
-import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.logging.pattern.ask
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import org.matsim.api.core.v01.{Coord, Id}
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.{ExecutionContext, Future}
 
 class HouseholdFleetManager(
@@ -61,7 +54,11 @@ class HouseholdFleetManager(
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
-        (parkingManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), "init", triggerId = triggerId))
+        (parkingManager ? ParkingInquiry.init(
+          SpaceTime(homeCoord, 0),
+          "init",
+          triggerId = triggerId
+        ))
           .mapTo[ParkingInquiryResponse]
           .map { r =>
             (id, r)

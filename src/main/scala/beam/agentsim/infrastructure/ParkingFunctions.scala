@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -21,6 +22,8 @@ class ParkingFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  minDistanceToRadiiInPercent: Double,
+  maxDistanceToRadiiInPercent: Double,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
@@ -32,6 +35,8 @@ class ParkingFunctions[GEO: GeoLevel](
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      minDistanceToRadiiInPercent,
+      maxDistanceToRadiiInPercent,
       boundingBox,
       seed
     ) {
@@ -48,6 +53,9 @@ class ParkingFunctions[GEO: GeoLevel](
     ),
     ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(
       mnlParkingConfig.params.homeActivityPrefersResidentialParkingMultiplier
+    ),
+    ParkingMNL.Parameters.EnrouteDetourCost -> UtilityFunctionOperation.Multiplier(
+      mnlParkingConfig.params.enrouteDetourMultiplier
     )
   )
 
@@ -74,15 +82,43 @@ class ParkingFunctions[GEO: GeoLevel](
 
     val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
 
-    val params: Map[ParkingMNL.Parameters, Double] = new Map.Map4(
-      key1 = ParkingMNL.Parameters.RangeAnxietyCost,
-      value1 = 0.0,
-      key2 = ParkingMNL.Parameters.WalkingEgressCost,
-      value2 = distanceFactor,
-      key3 = ParkingMNL.Parameters.ParkingTicketCost,
-      value3 = parkingCostsPriceFactor,
-      key4 = ParkingMNL.Parameters.HomeActivityPrefersResidentialParking,
-      value4 = homeActivityPrefersResidentialFactor
+    // end-of-day parking durations are set to zero, which will be mis-interpreted here
+    val parkingDuration: Option[Int] =
+      if (inquiry.parkingDuration <= 0) None
+      else Some(inquiry.parkingDuration.toInt)
+
+    val addedEnergy: Double =
+      inquiry.beamVehicle match {
+        case Some(beamVehicle) =>
+          parkingAlternative.parkingZone.chargingPointType match {
+            case Some(chargingPoint) =>
+              val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+                chargingPoint,
+                beamVehicle.primaryFuelLevelInJoules,
+                beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                1e6,
+                1e6,
+                parkingDuration
+              )
+              addedEnergy
+            case None => 0.0 // no charger here
+          }
+        case None => 0.0 // no beamVehicle, assume agent has range
+      }
+
+    val rangeAnxietyFactor: Double =
+      inquiry.remainingTripData
+        .map {
+          _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+        }
+        .getOrElse(0.0) // default no anxiety if no remaining trip data provided
+
+    val params: Map[ParkingMNL.Parameters, Double] = Map(
+      ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
+      ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
+      ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
+      ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor,
+      ParkingMNL.Parameters.EnrouteDetourCost                     -> 0.0
     )
 
     params
@@ -206,26 +242,4 @@ class ParkingFunctions[GEO: GeoLevel](
     }
   }
 
-}
-
-object ParkingFunctions {
-
-  def mnlMultiplierParametersFromConfig(
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
-  ): Map[ParkingMNL.Parameters, UtilityFunctionOperation] = {
-    Map(
-      ParkingMNL.Parameters.RangeAnxietyCost -> UtilityFunctionOperation.Multiplier(
-        mnlParkingConfig.params.rangeAnxietyMultiplier
-      ),
-      ParkingMNL.Parameters.WalkingEgressCost -> UtilityFunctionOperation.Multiplier(
-        mnlParkingConfig.params.distanceMultiplier
-      ),
-      ParkingMNL.Parameters.ParkingTicketCost -> UtilityFunctionOperation.Multiplier(
-        mnlParkingConfig.params.parkingPriceMultiplier
-      ),
-      ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(
-        mnlParkingConfig.params.homeActivityPrefersResidentialParkingMultiplier
-      )
-    )
-  }
 }

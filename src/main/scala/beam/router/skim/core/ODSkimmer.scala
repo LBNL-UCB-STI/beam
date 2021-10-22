@@ -23,7 +23,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
   import ODSkimmer._
 
-  override lazy val readOnlySkim: AbstractSkimmerReadOnly = readonly.ODSkims(beamConfig, beamScenario)
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = new readonly.ODSkims(beamConfig, beamScenario)
 
   override protected val skimName: String = config.origin_destination_skimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.OD_SKIMMER

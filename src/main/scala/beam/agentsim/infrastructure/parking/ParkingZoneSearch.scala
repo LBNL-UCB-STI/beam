@@ -34,15 +34,17 @@ object ParkingZoneSearch {
   /**
     * static configuration for all parking zone searches in this simulation
     *
-    * @param searchStartDistance radius of the first concentric ring search or sum distance from both radii of an ellipse
-    * @param searchMaxDistance maximum distance for the search
+    * @param searchStartRadius radius of the first concentric ring search or sum distance from both radii of an ellipse
+    * @param searchMaxRadius maximum distance for the search
     * @param boundingBox limiting coordinate bounds for simulation area
     * @param distanceFunction function which computes distance (based on underlying coordinate system)
     * @param searchExpansionFactor factor by which the radius is expanded
     */
   case class ParkingZoneSearchConfiguration(
-    searchStartDistance: Double, // HERE add two separate configurarion for ellipse and ring..
-    searchMaxDistance: Double,
+    searchStartRadius: Double,
+    searchMaxRadius: Double,
+    searchStartDistanceToRadiiInPercent: Double,
+    searchMaxDistanceToRadiiInPercent: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     searchExpansionFactor: Double = 2.0
@@ -251,8 +253,8 @@ object ParkingZoneSearch {
       searchMaxRadius: Double,
       expansionFactor: Double
     ) extends SearchMode[GEO] {
-      var thisInnerRadius: Double = 0.0
-      var thisOuterRadius: Double = searchStartRadius
+      private var thisInnerRadius: Double = 0.0
+      private var thisOuterRadius: Double = searchStartRadius
 
       override def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]] = {
         if (thisInnerRadius > searchMaxRadius) None
@@ -271,23 +273,27 @@ object ParkingZoneSearch {
     case class EllipticalSearch[GEO: GeoLevel](
       originUTM: Location,
       destinationUTM: Location,
-      searchStartDistanceToRadii: Double,
-      searchMaxDistanceToRadii: Double,
-      expansionFactor: Double
+      searchStartDistanceToRadiiInPercent: Double,
+      searchMaxDistanceToRadiiInPercent: Double,
+      expansionFactor: Double,
+      distanceFunction: (Coord, Coord) => Double
     ) extends SearchMode[GEO] {
-      var thisInnerDistance: Double = 0.0
+      private val minDistance: Double = distanceFunction(originUTM, destinationUTM)
+      private val startDistance: Double = minDistance * searchStartDistanceToRadiiInPercent
+      private val maxDistance: Double = minDistance * searchMaxDistanceToRadiiInPercent
+      private var thisInnerExpansionFactor: Double = searchStartDistanceToRadiiInPercent - 1.0
 
       override def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]] = {
-        if (thisInnerDistance > searchMaxDistanceToRadii) None
+        val currentDistance = startDistance * (1 + thisInnerExpansionFactor)
+        if (currentDistance > maxDistance) None
         else {
           val result = zoneQuadTree
-            .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, thisInnerDistance)
+            .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, currentDistance)
             .asScala
             .toList
-          thisInnerDistance = thisInnerDistance * expansionFactor
+          thisInnerExpansionFactor = thisInnerExpansionFactor * expansionFactor
           Some(result)
         }
-
       }
     }
 
@@ -300,15 +306,16 @@ object ParkingZoneSearch {
           EllipticalSearch(
             params.originUTM,
             params.destinationUTM,
-            config.searchStartDistance,
-            config.searchMaxDistance,
-            config.searchExpansionFactor
+            config.searchStartDistanceToRadiiInPercent,
+            config.searchStartDistanceToRadiiInPercent,
+            config.searchExpansionFactor,
+            config.distanceFunction
           )
         case _ =>
           RingSearch(
             params.destinationUTM,
-            config.searchStartDistance,
-            config.searchMaxDistance,
+            config.searchStartRadius,
+            config.searchMaxRadius,
             config.searchExpansionFactor
           )
       }

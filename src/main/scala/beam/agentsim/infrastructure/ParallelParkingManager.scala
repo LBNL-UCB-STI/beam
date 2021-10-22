@@ -48,7 +48,7 @@ class ParallelParkingManager(
     createWorker(cluster)
   }
 
-  protected val emergencyWorker = createWorker(
+  protected val emergencyWorker: Worker = createWorker(
     ParkingCluster(
       Vector.empty,
       new Coord(Double.PositiveInfinity, Double.PositiveInfinity),
