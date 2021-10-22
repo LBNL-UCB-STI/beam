@@ -8,12 +8,11 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternativ
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
-import beam.router.skim.Skims
+import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.vehicles.EngineInformation.FuelType
 
 class ChargingFunctions[GEO: GeoLevel](
   geoQuadTree: QuadTree[GEO],
@@ -28,7 +27,7 @@ class ChargingFunctions[GEO: GeoLevel](
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-  skims: Skims,
+  skims: Option[Skims],
   fuelPrice: Map[FuelType, Double]
 ) extends ParkingFunctions[GEO](
       geoQuadTree,
@@ -164,16 +163,18 @@ class ChargingFunctions[GEO: GeoLevel](
   ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, geoArea)
 
   private def getTravelTime(origin: Coord, dest: Coord, depTime: Int, beamVehicleType: BeamVehicleType): Int = {
-    skims.od_skimmer
-      .getTimeDistanceAndCost(
-        origin,
-        dest,
-        depTime,
-        BeamMode.CAR,
-        beamVehicleType.id,
-        beamVehicleType,
-        fuelPrice(beamVehicleType.primaryFuelType)
-      )
-      .time
+    skims map { skim =>
+      skim.od_skimmer
+        .getTimeDistanceAndCost(
+          origin,
+          dest,
+          depTime,
+          BeamMode.CAR,
+          beamVehicleType.id,
+          beamVehicleType,
+          fuelPrice.getOrElse(beamVehicleType.primaryFuelType, 0.0)
+        )
+        .time
+    } getOrElse SkimsUtils.distanceAndTime(BeamMode.CAR, origin, dest)._2
   }
 }

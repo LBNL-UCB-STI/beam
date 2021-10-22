@@ -63,6 +63,8 @@ object ZonalParkingManager extends LazyLogging {
           distanceFunction,
           minSearchRadius,
           maxSearchRadius,
+          0.0,
+          0.0,
           boundingBox,
           seed,
           mnlParkingConfig

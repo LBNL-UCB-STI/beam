@@ -247,7 +247,7 @@ object ParkingZoneSearch {
 
   object SearchMode {
 
-    case class RingSearch[GEO: GeoLevel](
+    case class RingSearch[GEO](
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
@@ -270,7 +270,7 @@ object ParkingZoneSearch {
       }
     }
 
-    case class EllipticalSearch[GEO: GeoLevel](
+    case class EllipticalSearch[GEO](
       originUTM: Location,
       destinationUTM: Location,
       searchStartDistanceToRadiiInPercent: Double,
@@ -297,7 +297,7 @@ object ParkingZoneSearch {
       }
     }
 
-    def getInstance[GEO: GeoLevel](
+    def getInstance[GEO](
       config: ParkingZoneSearchConfiguration,
       params: ParkingZoneSearchParams[GEO]
     ): SearchMode[GEO] = {

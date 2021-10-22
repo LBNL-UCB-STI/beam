@@ -142,6 +142,8 @@ object ChargingNetworkSpec {
   ): ChargingNetwork[TAZ] = {
     val minSearchRadius = 1000.0
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
+    val minDistanceToFociInPercent = 1.05
+    val maxDistanceToFociInPercent = 1.5
     ChargingNetwork[TAZ](
       parkingDescription,
       tazTreeMap.tazQuadTree,
@@ -153,6 +155,8 @@ object ChargingNetworkSpec {
       geo.distUTMInMeters(_, _),
       minSearchRadius,
       maxSearchRadius,
+      minDistanceToFociInPercent,
+      maxDistanceToFociInPercent,
       seed
     )
   }
