@@ -83,6 +83,7 @@ class ChangeModeForTour(
               timeDist._2,
               numTransfers = rng.nextInt(4) + 1
             )
+//            println("dedededede_gogogog")
           } else {
             modeChoiceCalculator.utilityOf(alt, timeDist._1, timeDist._2)
           }
