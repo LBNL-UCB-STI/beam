@@ -190,19 +190,15 @@ case class AttributesOfIndividual(
   }
 
   private def getSituationMultiplierBike(
-    linkID: Int,
-    travelTime: Double,
-    isWorkTrip: Boolean = true,
-    situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType), Double],
-    beamServices: BeamServices
-  ): Double = {
-    val sensitivity: timeSensitivity = if (isWorkTrip) {
+
+    isHomeTrip: Boolean = true,
+    isWorkTrip: Boolean = true
+  ): Unit = {
+    val sensitivity: timeSensitivity = if (isWorkTrip || isHomeTrip) {
       highSensitivity
     } else {
       lowSensitivity
     }
-    val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
-    situationMultipliers.getOrElse((sensitivity, congestion, roadway), 1.0)
   }
 
   private def getSituationMultiplier(
