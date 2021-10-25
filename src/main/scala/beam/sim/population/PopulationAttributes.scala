@@ -32,6 +32,7 @@ case class AttributesOfIndividual(
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
 
+
   def getGeneralizedTimeOfLinkForMNL(
     IdAndTT: (LinkId, Int),
     beamMode: BeamMode,
@@ -48,6 +49,13 @@ case class AttributesOfIndividual(
         false
       case Some(activity) =>
         activity.getType().equalsIgnoreCase("work")
+    }
+    // define the boolean to check whether it is home trips or not
+    val isHomeTrip = destinationActivity match {
+      case None =>
+        false
+      case Some(activity)   =>
+        activity.getType().equalsIgnoreCase("home")
     }
 
     val multiplier = beamMode match {
@@ -70,6 +78,16 @@ case class AttributesOfIndividual(
             beamServices
           ) * getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)
         }
+      //create multiplier for BIKE
+      case BIKE =>
+        getSituationMultiplierBike(
+          IdAndTT._1,
+          IdAndTT._2,
+          isHomeTrip,
+          isWorkTrip,
+          modeChoiceModel.situationMultipliersBIKE,
+          beamServices
+        ) * getModeVotMultiplier(Option(BIKE), modeChoiceModel.modeMultipliers)
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
     }
@@ -171,6 +189,23 @@ case class AttributesOfIndividual(
         (lowCongestion, nonHighway)
       }
     }
+  }
+  // creating getSituationMultiplier for bike
+  private def getSituationMultiplierBike(
+    linkID: Int,
+    travelTime: Double,
+    isHomeTrip: Boolean = true,
+    isWorkTrip: Boolean = true,
+    situationMultipliersBIKE: mutable.Map[(timeSensitivity, congestionLevel, roadwayType), Double],
+    beamServices: BeamServices
+  ): Double = {
+    val sensitivity: timeSensitivity = if (isWorkTrip || isHomeTrip) {
+      highSensitivity
+    } else {
+      lowSensitivity
+    }
+    val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
+    situationMultipliersBIKE.getOrElse((sensitivity, congestion, roadway), 1.0)
   }
 
   private def getSituationMultiplier(
