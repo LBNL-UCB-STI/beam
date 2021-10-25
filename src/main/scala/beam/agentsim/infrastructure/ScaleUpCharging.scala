@@ -39,31 +39,33 @@ trait ScaleUpCharging extends {
   private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
   private lazy val vehicleRequests = mutable.HashMap.empty[(Id[TAZ], ParkingActivityType), List[VehicleRequestInfo]]
 
-  /**
-    * @param activityType ParkingActivityType
-    * @return
-    */
-  private def scaleUpFactor(activityType: ParkingActivityType): Double = {
-    val factor = activityType match {
-      case _ if !cnmConfig.scaleUp.enabled => 1.0
-      case ParkingActivityType.Home        => cnmConfig.scaleUp.expansionFactor_home_activity
-      case ParkingActivityType.Init        => cnmConfig.scaleUp.expansionFactor_init_activity
-      case ParkingActivityType.Work        => cnmConfig.scaleUp.expansionFactor_work_activity
-      case ParkingActivityType.Charge      => cnmConfig.scaleUp.expansionFactor_charge_activity
-      case ParkingActivityType.Wherever    => cnmConfig.scaleUp.expansionFactor_wherever_activity
-      case _                               => cnmConfig.scaleUp.expansionFactor_wherever_activity
+  private val scaleUpFactors: Map[ParkingActivityType, Double] = {
+    if (!cnmConfig.scaleUp.enabled) Map()
+    else {
+      Map(
+        ParkingActivityType.Home     -> cnmConfig.scaleUp.expansionFactor_home_activity,
+        ParkingActivityType.Init     -> cnmConfig.scaleUp.expansionFactor_init_activity,
+        ParkingActivityType.Work     -> cnmConfig.scaleUp.expansionFactor_work_activity,
+        ParkingActivityType.Charge   -> cnmConfig.scaleUp.expansionFactor_charge_activity,
+        ParkingActivityType.Wherever -> cnmConfig.scaleUp.expansionFactor_wherever_activity
+      )
     }
-    Math.max(factor - 1.0, 0.0)
   }
+
+  private val defaultScaleUpFactor: Double =
+    if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
-      sender ! CompletionNotice(triggerId)
-      self ! virtualParkingInquiries(requestId)
+      self ! virtualParkingInquiries.getOrElse(
+        requestId,
+        log.error(
+          s"Something is broken in ScaleUpCharging. Request $requestId is not present in virtualParkingInquiries"
+        )
+      )
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
-      sender ! CompletionNotice(triggerId)
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
       virtualParkingInquiries.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
@@ -81,9 +83,11 @@ trait ScaleUpCharging extends {
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          getScheduler ! ScheduleTrigger(
-            PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
-            self
+          getScheduler ! CompletionNotice(
+            triggerId,
+            Vector(
+              ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId), self)
+            )
           )
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
@@ -96,10 +100,12 @@ trait ScaleUpCharging extends {
       log.debug(s"Received parking response: $reply")
     case reply @ WaitingToCharge(_, _, _) =>
       log.debug(s"Received parking response: $reply")
-    case reply @ UnhandledVehicle(_, _, _) =>
+    case reply @ UnhandledVehicle(_, _, triggerId) =>
       log.debug(s"Received parking response: $reply")
-    case reply @ UnpluggingVehicle(_, _, _) =>
+      sender ! CompletionNotice(triggerId)
+    case reply @ UnpluggingVehicle(_, _, triggerId) =>
       log.debug(s"Received parking response: $reply")
+      sender ! CompletionNotice(triggerId)
   }
 
   /**
@@ -107,7 +113,8 @@ trait ScaleUpCharging extends {
     * @param rate rate of charging event
     * @return
     */
-  private def nextTimePoisson(rate: Double): Double = 3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate)
+  private def nextTimeStepUsingPoissonProcess(rate: Double): Double =
+    3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate)
 
   /**
     * @param timeBin current time bin
@@ -147,9 +154,10 @@ trait ScaleUpCharging extends {
         val partialTriggersAndInquiries = Vector.newBuilder[(ScheduleTrigger, ParkingInquiry)]
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
           case ((powerAcc, numEventsAcc, pmfAcc), (activityType, (_, dataSummary))) =>
-            val power = scaleUpFactor(activityType) * dataSummary.totPowerInKW
+            val power = (scaleUpFactors.getOrElse(activityType, defaultScaleUpFactor) - 1) * dataSummary.totPowerInKW
             val pmf = new CPair[ParkingActivityType, java.lang.Double](activityType, power)
-            val numEvents = scaleUpFactor(activityType) * dataSummary.numObservation
+            val numEvents =
+              (scaleUpFactors.getOrElse(activityType, defaultScaleUpFactor) - 1) * dataSummary.numObservation
             (powerAcc + power, numEventsAcc + numEvents, pmfAcc :+ pmf)
         } match {
           case (totPowerInKWToSimulate, totNumberOfEvents, pmf) if totPowerInKWToSimulate > 0 =>
@@ -158,7 +166,7 @@ trait ScaleUpCharging extends {
             var cumulatedSimulatedPower = 0.0
             var timeStep = 0
             while (cumulatedSimulatedPower < totPowerInKWToSimulate && timeStep < timeStepByHour * 3600) {
-              timeStep += roundUniformly(nextTimePoisson(rate), rand).toInt
+              timeStep += roundUniformly(nextTimeStepUsingPoissonProcess(rate), rand).toInt
               val activityType = distribution.sample()
               val (_, summary) = activityType2vehicleInfo(activityType)
               val duration = summary.getDuration(rand)
