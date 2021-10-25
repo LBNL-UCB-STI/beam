@@ -140,9 +140,7 @@ extractLoads <- function(sessions, loadTypes, countyNames) {
   loads[,site.xfc:=(sum(kw)>=siteXFCInKW),by=c('depot','taz','hour.bin')]
   loads[,xfc:=site.xfc|plug.xfc]
   loads[,fuel:=kw*binsInterval*3.6e6] # the binsInterval converts avg. power in X-minutes to kwh, then 3.6e6 converts to Joules
-  loads$region <- "SFBay"
-  loads[startsWith(parkingZoneId,"AO-")]$region <- "Oakland-Alameda"
-  loads <- loads[,.(x=x[1],y=y[1],fuel=sum(fuel),kw=sum(kw,na.rm=T),site.xfc=site.xfc[1]),by=c('depot','taz','hour.bin','xfc','chargingPointType','region')]
+  loads <- loads[,.(x=x[1],y=y[1],fuel=sum(fuel),kw=sum(kw,na.rm=T),site.xfc=site.xfc[1]),by=c('depot','taz','hour.bin','xfc','chargingPointType')]
   taz <- loads[,.(x2=mean(x),y2=mean(y)),by='taz']
   loads <- merge(loads,taz,by='taz')
   loads[,grp:=paste(depot,'-',taz)]
