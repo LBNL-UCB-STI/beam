@@ -9,6 +9,8 @@ import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
 import enumeratum.{Enum, EnumEntry}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 import scala.collection.immutable
 
@@ -30,6 +32,7 @@ case class ParkingInquiry(
   reservedFor: ReservedFor = VehicleManager.AnyManager,
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
+  personId: Option[Id[Person]] = None,
   valueOfTime: Double = 0.0,
   parkingDuration: Double = 0,
   reserveStall: Boolean = true,
@@ -60,14 +63,13 @@ object ParkingInquiry extends LazyLogging {
     case object Secondary extends ParkingActivityType
   }
 
-  private def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
+  def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
     activityType.toLowerCase match {
-      case "home"      => ParkingActivityType.Home
-      case "init"      => ParkingActivityType.Init
-      case "work"      => ParkingActivityType.Work
-      case "secondary" => ParkingActivityType.Secondary
-      case "charge"    => ParkingActivityType.Charge
-      case "wherever"  => ParkingActivityType.Wherever
+      case "home"     => ParkingActivityType.Home
+      case "init"     => ParkingActivityType.Init
+      case "work"     => ParkingActivityType.Work
+      case "charge"   => ParkingActivityType.Charge
+      case "wherever" => ParkingActivityType.Wherever
       case otherType =>
         logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever
@@ -80,6 +82,7 @@ object ParkingInquiry extends LazyLogging {
     reservedFor: ReservedFor = VehicleManager.AnyManager,
     beamVehicle: Option[BeamVehicle] = None,
     remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
+    personId: Option[Id[Person]] = None,
     valueOfTime: Double = 0.0,
     parkingDuration: Double = 0,
     reserveStall: Boolean = true,
@@ -92,6 +95,7 @@ object ParkingInquiry extends LazyLogging {
       reservedFor,
       beamVehicle,
       remainingTripData,
+      personId,
       valueOfTime,
       parkingDuration,
       reserveStall,

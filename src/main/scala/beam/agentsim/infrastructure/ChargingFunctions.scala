@@ -37,7 +37,7 @@ class ChargingFunctions[GEO: GeoLevel](
   /**
     * function that verifies if RideHail Then Fast Charging Only
     * @param zone ParkingZone
-    * @param activityTypeLowerCased a String expressing activity Type in lower case
+    * @param inquiry ParkingInquiry
     * @return
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
@@ -87,7 +87,15 @@ class ChargingFunctions[GEO: GeoLevel](
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
 
-    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
+    val result = isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
+
+//    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
+//    val person = inquiry.personId.getOrElse("")
+//    logger.info(
+//      s"CHOICE-SET:ChargingFunctions,${inquiry.requestId},,,${person},${beamVehicleId},,${zone.parkingZoneId.toString},,${result},,"
+//    )
+
+    result
   }
 
   /**
@@ -149,7 +157,24 @@ class ChargingFunctions[GEO: GeoLevel](
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult
+  ): Option[ParkingZoneSearchResult[GEO]] = {
+    parkingZoneSearchResult map { output =>
+//      val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
+//      val person = inquiry.personId.getOrElse("")
+//      val zone = output.parkingZone
+//      val beamVehicleType = inquiry.beamVehicle.map(_.beamVehicleType.id.toString).getOrElse("")
+//      logger.info(
+//        s"CHOICE-SET:ParkingZoneSearchResult,${inquiry.requestId},${inquiry.parkingDuration},${inquiry.activityType.toString}," +
+//        s"${person},${beamVehicleId},${beamVehicleType},${zone.parkingZoneId.toString},${zone.stallsAvailable},${output.parkingStall.tazId},"
+//      )
+//      output.parkingZonesSampled.foreach { case (zoneId, _, _, theValue) =>
+//        logger.info(
+//          s"CHOICE-SET:ParkingZonesSampled,${inquiry.requestId},,,${person},${beamVehicleId},,${zoneId.toString},,,$theValue"
+//        )
+//      }
+      output
+    }
+  }
 
   /**
     * sample location of a parking stall with a GEO area
