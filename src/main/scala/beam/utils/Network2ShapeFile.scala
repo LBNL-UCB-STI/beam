@@ -13,7 +13,7 @@ import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
-import scala.util.Try;
+import scala.util.Try
 
 object Network2ShapeFile extends LazyLogging {
   /* Link attributes to be written into SHP file */
@@ -129,7 +129,7 @@ object Network2ShapeFile extends LazyLogging {
     new SimpleFeatureBuilder(typeBuilder.buildFeatureType())
   }
 
-  /* the main function to convert matsim network file to shapefile with filtering of links */
+  /* the main function to convert matSim network file to shapefile with filtering of links */
   def networkToShapeFile(
     matsimNetworkPath: String,
     outputShapeFilePath: String,
@@ -156,10 +156,7 @@ object Network2ShapeFile extends LazyLogging {
     logger.info("Done");
   }
 
-  /* the main method to run transformation from matsim network into SHP file */
-  def main(args: Array[String]): Unit = {
-    val matsimNetworkPath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/physsim-network.xml"
-    val outputShapeFilePath = "/mnt/data/work/beam/beam/test/input/sf-light/r5/output-physsim-network.shp"
+  def runConversionWithFiltering(matsimNetworkFilePath: String, outputShapeFilePath: String): Unit = {
     val crsString = "epsg:26910"
     val crs = MGC.getCRS(crsString)
 
@@ -174,6 +171,19 @@ object Network2ShapeFile extends LazyLogging {
       envelopeUTM.contains(networkLink.vividCoordTo) || envelopeUTM.contains(networkLink.vividCoordFrom)
     }
 
-    networkToShapeFile(matsimNetworkPath, outputShapeFilePath, crs, filter)
+    networkToShapeFile(matsimNetworkFilePath, outputShapeFilePath, crs, filter)
+  }
+
+  /* the main method to run transformation from matSim network into SHP file */
+  def main(args: Array[String]): Unit = {
+    if (args.length != 2) {
+      throw new IllegalArgumentException(
+        s"Got ${args.length} arguments, but expected two: <1:path to input physSim network file> <2:path to output shapefile>"
+      )
+    } else {
+      val matsimNetworkPath = args(0)
+      val outputShapeFilePath = args(1)
+      runConversionWithFiltering(matsimNetworkPath, outputShapeFilePath)
+    }
   }
 }
