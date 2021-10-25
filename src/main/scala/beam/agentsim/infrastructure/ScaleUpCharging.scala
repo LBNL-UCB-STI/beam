@@ -39,7 +39,7 @@ trait ScaleUpCharging extends {
   private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
   private lazy val vehicleRequests = mutable.HashMap.empty[(Id[TAZ], ParkingActivityType), List[VehicleRequestInfo]]
 
-  private val scaleUpFactors: Map[ParkingActivityType, Double] = {
+  private lazy val scaleUpFactors: Map[ParkingActivityType, Double] = {
     if (!cnmConfig.scaleUp.enabled) Map()
     else {
       Map(
@@ -52,7 +52,7 @@ trait ScaleUpCharging extends {
     }
   }
 
-  private val defaultScaleUpFactor: Double =
+  private lazy val defaultScaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
@@ -64,6 +64,7 @@ trait ScaleUpCharging extends {
           s"Something is broken in ScaleUpCharging. Request $requestId is not present in virtualParkingInquiries"
         )
       )
+      sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
@@ -83,11 +84,9 @@ trait ScaleUpCharging extends {
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          getScheduler ! CompletionNotice(
-            triggerId,
-            Vector(
-              ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId), self)
-            )
+          getScheduler ! ScheduleTrigger(
+            PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
+            self
           )
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
@@ -102,10 +101,10 @@ trait ScaleUpCharging extends {
       log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(_, _, triggerId) =>
       log.debug(s"Received parking response: $reply")
-      sender ! CompletionNotice(triggerId)
+      getScheduler ! CompletionNotice(triggerId)
     case reply @ UnpluggingVehicle(_, _, triggerId) =>
       log.debug(s"Received parking response: $reply")
-      sender ! CompletionNotice(triggerId)
+      getScheduler ! CompletionNotice(triggerId)
   }
 
   /**
