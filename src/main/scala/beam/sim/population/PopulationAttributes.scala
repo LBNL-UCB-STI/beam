@@ -50,13 +50,6 @@ case class AttributesOfIndividual(
         activity.getType().equalsIgnoreCase("work")
     }
 
-    val isHomeTrip = destinationActivity match {
-      case None =>
-        false
-      case Some(activity) =>
-        activity.getType().equalsIgnoreCase("home")
-    }
-
     val multiplier = beamMode match {
       case CAR =>
         val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
