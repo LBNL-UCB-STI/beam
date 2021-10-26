@@ -150,6 +150,7 @@ object BeamConfig {
         }
 
         case class ModalBehaviors(
+          bikeMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier
           defaultValueOfTime: scala.Double,
           highTimeSensitivity: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity,
           lccm: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm,
@@ -165,6 +166,60 @@ object BeamConfig {
         )
 
         object ModalBehaviors {
+          case class BikeMultiplier(
+                                     commute: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute,
+                                     noncommute: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute
+                                   )
+
+          object BikeMultiplier {
+
+            case class Commute(
+                                ageGT50: scala.Double,
+                                ageLE50: scala.Double
+                              )
+
+            object Commute {
+
+              def apply(
+                         c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute(
+                  ageGT50 = if (c.hasPathOrNull("ageGT50")) c.getDouble("ageGT50") else 1.0,
+                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0
+                )
+              }
+            }
+
+            case class Noncommute(
+                                   ageGT50: scala.Double,
+                                   ageLE50: scala.Double
+                                 )
+
+            object Noncommute {
+
+              def apply(
+                         c: com.typesafe.config.Config
+                       ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute(
+                  ageGT50 = if (c.hasPathOrNull("ageGT50")) c.getDouble("ageGT50") else 1.0,
+                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier = {
+              BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier(
+                commute = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute(
+                  if (c.hasPathOrNull("commute")) c.getConfig("commute")
+                  else com.typesafe.config.ConfigFactory.parseString("commute{}")
+                ),
+                noncommute = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute(
+                  if (c.hasPathOrNull("noncommute")) c.getConfig("noncommute")
+                  else com.typesafe.config.ConfigFactory.parseString("noncommute{}")
+                )
+              )
+            }
+          }
 
           case class HighTimeSensitivity(
             highCongestion: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion,
@@ -618,6 +673,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(
+              bikeMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier(
+                if (c.hasPathOrNull("bikeMultiplier")) c.getConfig("bikeMultiplier")
+                else com.typesafe.config.ConfigFactory.parseString("bikeMultiplier{}")
+              ),
               defaultValueOfTime =
                 if (c.hasPathOrNull("defaultValueOfTime")) c.getDouble("defaultValueOfTime") else 8.0,
               highTimeSensitivity = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity(
