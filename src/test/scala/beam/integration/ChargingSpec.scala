@@ -57,6 +57,9 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |    expansionFactor_wherever_activity = 2.0
             |    expansionFactor_init_activity = 2.0
             |  }
+            |  helics {
+            |    connectionEnabled = false
+            |  }
             |}
             |
       """.stripMargin
