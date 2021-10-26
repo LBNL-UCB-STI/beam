@@ -70,16 +70,7 @@ case class AttributesOfIndividual(
             beamServices
           ) * getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)
         }
-      case BIKE => getSituationMultiplierBike(
-        IdAndTT._1,
-        IdAndTT._2,
-        isWorkTrip,
-        modeChoiceModel.situationMultipliersBike,
-        beamServices
-      ) * getModeVotMultiplier(Option(BIKE), modeChoiceModel.modeMultipliers)
-
       case _ =>
-        // This is the place we need to change to reflect the value of time
         getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
     }
     multiplier * IdAndTT._2 / 3600
@@ -180,22 +171,6 @@ case class AttributesOfIndividual(
         (lowCongestion, nonHighway)
       }
     }
-  }
-
-  private def getSituationMultiplierBike(
-    linkID: Int,
-    travelTime: Double,
-    isWorkTrip: Boolean = true,
-    situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType), Double],
-    beamServices: BeamServices
-  ): Double = {
-    val sensitivity: timeSensitivity = if (isWorkTrip) {
-      highSensitivity
-    } else {
-      lowSensitivity
-    }
-    val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
-    situationMultipliers.getOrElse((sensitivity, congestion, roadway), 1.0)
   }
 
   private def getSituationMultiplier(
