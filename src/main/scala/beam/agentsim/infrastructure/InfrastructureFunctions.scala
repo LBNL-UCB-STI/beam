@@ -29,6 +29,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   minDistanceToFociInPercent: Double,
   maxDistanceToFociInPercent: Double,
+  enrouteDuration: Double,
   boundingBox: Envelope,
   seed: Int
 ) extends StrictLogging {
@@ -93,7 +94,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       minDistanceToFociInPercent,
       maxDistanceToFociInPercent,
       boundingBox,
-      distanceFunction
+      distanceFunction,
+      enrouteDuration
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {
@@ -116,7 +118,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         inquiry.beamVehicle.map(_.spaceTime.loc).getOrElse(inquiry.destinationUtm.loc),
         inquiry.destinationUtm.loc,
         inquiry.parkingDuration,
-        inquiry.activityType,
+        inquiry.searchMode,
         mnlMultiplierParameters,
         zoneSearchTree,
         parkingZones,

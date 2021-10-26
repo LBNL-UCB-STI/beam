@@ -161,11 +161,6 @@ object ChargingNetwork extends LazyLogging {
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    minDistanceToFociInPercent: Double,
-    maxDistanceToFociInPercent: Double,
-    seed: Int,
     skims: Option[Skims],
     fuelPrice: Map[FuelType, Double]
   ): ChargingNetwork[GEO] = {
@@ -177,12 +172,13 @@ object ChargingNetwork extends LazyLogging {
           geoToTAZ,
           chargingZones,
           distanceFunction,
-          minSearchRadius,
-          maxSearchRadius,
-          minDistanceToFociInPercent,
-          maxDistanceToFociInPercent,
+          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.minDistanceToFociInPercent,
+          beamConfig.beam.agentsim.agents.parking.maxDistanceToFociInPercent,
+          beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds,
           envelopeInUTM,
-          seed,
+          beamConfig.matsim.modules.global.randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
           skims,
           fuelPrice
@@ -200,11 +196,6 @@ object ChargingNetwork extends LazyLogging {
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices],
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    minDistanceToFociInPercent: Double,
-    maxDistanceToFociInPercent: Double,
-    seed: Int,
     skims: Option[Skims] = None,
     fuelPrice: Map[FuelType, Double] = Map()
   ): ChargingNetwork[GEO] = {
@@ -225,11 +216,6 @@ object ChargingNetwork extends LazyLogging {
       envelopeInUTM,
       beamConfig,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      minDistanceToFociInPercent,
-      maxDistanceToFociInPercent,
-      seed,
       skims,
       fuelPrice
     )
@@ -245,14 +231,9 @@ object ChargingNetwork extends LazyLogging {
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
       identity[TAZ](_),
-      envelopeInUTM: Envelope,
+      envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
-      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.minDistanceToFociInPercent,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxDistanceToFociInPercent,
-      beamServices.beamConfig.matsim.modules.global.randomSeed,
       Some(beamServices.skims),
       beamServices.beamScenario.fuelTypePrices
     )
@@ -274,11 +255,6 @@ object ChargingNetwork extends LazyLogging {
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
-      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.minDistanceToFociInPercent,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxDistanceToFociInPercent,
-      beamServices.beamConfig.matsim.modules.global.randomSeed,
       Some(beamServices.skims),
       beamServices.beamScenario.fuelTypePrices
     )

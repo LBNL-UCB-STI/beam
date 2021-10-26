@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -95,7 +96,9 @@ class ChargingNetworkManager(
       log.debug(s"Received parking inquiry: $inquiry")
       getAppropriateChargingNetwork(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) => sender() ! parkingResponse
-        case _                     => (parkingNetworkManager ? inquiry).pipeTo(sender())
+        case _ if inquiry.searchMode == ParkingSearchMode.EnRoute =>
+          (parkingNetworkManager ? inquiry.copy(searchMode = ParkingSearchMode.Destination)).pipeTo(sender())
+        case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>

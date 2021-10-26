@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -22,8 +22,9 @@ class ChargingFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
-  minDistanceToRadiiInPercent: Double,
-  maxDistanceToRadiiInPercent: Double,
+  minDistanceToFociInPercent: Double,
+  maxDistanceToFociInPercent: Double,
+  enrouteDuration: Double,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
@@ -37,8 +38,9 @@ class ChargingFunctions[GEO: GeoLevel](
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
-      minDistanceToRadiiInPercent,
-      maxDistanceToRadiiInPercent,
+      minDistanceToFociInPercent,
+      maxDistanceToFociInPercent,
+      enrouteDuration,
       boundingBox,
       seed,
       mnlParkingConfig
@@ -66,8 +68,8 @@ class ChargingFunctions[GEO: GeoLevel](
     * @return
     */
   def ifEnrouteChargingTheFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    inquiry.activityType match {
-      case ParkingActivityType.EnRouteCharge =>
+    inquiry.searchMode match {
+      case ParkingSearchMode.EnRoute =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
       case _ =>
         true // if it is not Enroute charging then it does not matter
@@ -121,10 +123,12 @@ class ChargingFunctions[GEO: GeoLevel](
     parkingAlternative: ParkingAlternative[GEO],
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
-    val parkingParameters = inquiry.activityType match {
-      case ParkingActivityType.EnRouteCharge =>
+    val parkingParameters = inquiry.searchMode match {
+      case ParkingSearchMode.EnRoute =>
         val beamVehicle = inquiry.beamVehicle.get
-        val origin = inquiry.originUtm.get
+        val origin = inquiry.originUtm.getOrElse(
+          throw new RuntimeException(s"Enroute requires an origin location in parking inquiry $inquiry")
+        )
         val travelTime1 = getTravelTime(origin.loc, parkingAlternative.coord, origin.time, beamVehicle.beamVehicleType)
         val travelTime2 = getTravelTime(
           parkingAlternative.coord,
@@ -162,6 +166,14 @@ class ChargingFunctions[GEO: GeoLevel](
     geoArea: GEO
   ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, geoArea)
 
+  /**
+    * getTravelTime
+    * @param origin Coord
+    * @param dest Coord
+    * @param depTime Integer
+    * @param beamVehicleType BeamVehicleType
+    * @return
+    */
   private def getTravelTime(origin: Coord, dest: Coord, depTime: Int, beamVehicleType: BeamVehicleType): Int = {
     skims map { skim =>
       skim.od_skimmer

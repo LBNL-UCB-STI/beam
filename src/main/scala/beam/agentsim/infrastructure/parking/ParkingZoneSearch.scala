@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -34,8 +34,10 @@ object ParkingZoneSearch {
   /**
     * static configuration for all parking zone searches in this simulation
     *
-    * @param searchStartRadius radius of the first concentric ring search or sum distance from both radii of an ellipse
+    * @param searchStartRadius radius of the first concentric ring search
     * @param searchMaxRadius maximum distance for the search
+    * @param searchStartDistanceToFociInPercent start distance to both foci of an ellipse
+    * @param searchMaxDistanceToFociInPercent max distance to both foci of an ellipse
     * @param boundingBox limiting coordinate bounds for simulation area
     * @param distanceFunction function which computes distance (based on underlying coordinate system)
     * @param searchExpansionFactor factor by which the radius is expanded
@@ -43,10 +45,11 @@ object ParkingZoneSearch {
   case class ParkingZoneSearchConfiguration(
     searchStartRadius: Double,
     searchMaxRadius: Double,
-    searchStartDistanceToRadiiInPercent: Double,
-    searchMaxDistanceToRadiiInPercent: Double,
+    searchStartDistanceToFociInPercent: Double,
+    searchMaxDistanceToFociInPercent: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
+    enrouteDuration: Double,
     searchExpansionFactor: Double = 2.0
   )
 
@@ -66,7 +69,7 @@ object ParkingZoneSearch {
     originUTM: Location,
     destinationUTM: Location,
     parkingDuration: Double,
-    activityType: ParkingActivityType,
+    searchMode: ParkingSearchMode,
     parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
     zoneSearchTree: ZoneSearchTree[GEO],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
@@ -166,6 +169,8 @@ object ParkingZoneSearch {
               val stallPriceInDollars: Double =
                 parkingZone.pricingModel match {
                   case None => 0
+                  case Some(pricingModel) if params.searchMode == ParkingSearchMode.EnRoute =>
+                    PricingModel.evaluateParkingTicket(pricingModel, config.enrouteDuration.toInt)
                   case Some(pricingModel) =>
                     PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
                 }
@@ -247,7 +252,7 @@ object ParkingZoneSearch {
 
   object SearchMode {
 
-    case class RingSearch[GEO](
+    case class DestinationSearch[GEO](
       destinationUTM: Location,
       searchStartRadius: Double,
       searchMaxRadius: Double,
@@ -270,18 +275,18 @@ object ParkingZoneSearch {
       }
     }
 
-    case class EllipticalSearch[GEO](
+    case class EnrouteSearch[GEO](
       originUTM: Location,
       destinationUTM: Location,
-      searchStartDistanceToRadiiInPercent: Double,
-      searchMaxDistanceToRadiiInPercent: Double,
+      searchStartDistanceToFociInPercent: Double,
+      searchMaxDistanceToFociInPercent: Double,
       expansionFactor: Double,
       distanceFunction: (Coord, Coord) => Double
     ) extends SearchMode[GEO] {
       private val minDistance: Double = distanceFunction(originUTM, destinationUTM)
-      private val startDistance: Double = minDistance * searchStartDistanceToRadiiInPercent
-      private val maxDistance: Double = minDistance * searchMaxDistanceToRadiiInPercent
-      private var thisInnerExpansionFactor: Double = searchStartDistanceToRadiiInPercent - 1.0
+      private val startDistance: Double = minDistance * searchStartDistanceToFociInPercent
+      private val maxDistance: Double = minDistance * searchMaxDistanceToFociInPercent
+      private var thisInnerExpansionFactor: Double = searchStartDistanceToFociInPercent - 1.0
 
       override def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]] = {
         val currentDistance = startDistance * (1 + thisInnerExpansionFactor)
@@ -301,18 +306,18 @@ object ParkingZoneSearch {
       config: ParkingZoneSearchConfiguration,
       params: ParkingZoneSearchParams[GEO]
     ): SearchMode[GEO] = {
-      params.activityType match {
-        case ParkingActivityType.EnRouteCharge =>
-          EllipticalSearch(
+      params.searchMode match {
+        case ParkingSearchMode.EnRoute =>
+          EnrouteSearch(
             params.originUTM,
             params.destinationUTM,
-            config.searchStartDistanceToRadiiInPercent,
-            config.searchStartDistanceToRadiiInPercent,
+            config.searchStartDistanceToFociInPercent,
+            config.searchStartDistanceToFociInPercent,
             config.searchExpansionFactor,
             config.distanceFunction
           )
         case _ =>
-          RingSearch(
+          DestinationSearch(
             params.destinationUTM,
             config.searchStartRadius,
             config.searchMaxRadius,

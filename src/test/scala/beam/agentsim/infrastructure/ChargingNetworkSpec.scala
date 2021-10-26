@@ -39,6 +39,11 @@ class ChargingNetworkSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
+        beam.agentsim.agents.parking.minSearchRadius = 1000.0
+        beam.agentsim.agents.parking.maxSearchRadius = 16093.4
+        beam.agentsim.agents.parking.minDistanceToFociInPercent = 1.05
+        beam.agentsim.agents.parking.maxDistanceToFociInPercent = 1.5
+        matsim.modules.global.randomSeed = 0
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -48,8 +53,6 @@ class ChargingNetworkSpec
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-
-  val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
@@ -80,8 +83,7 @@ class ChargingNetworkSpec
           tazTreeMap,
           geo,
           oneParkingOption,
-          boundingBox,
-          randomSeed
+          boundingBox
         )
       } {
         val vehicleType1 = beamScenario.vehicleTypes(Id.create("BEV_XFC", classOf[BeamVehicleType]))
@@ -137,13 +139,8 @@ object ChargingNetworkSpec {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     parkingDescription: Iterator[String],
-    boundingBox: Envelope,
-    seed: Int
+    boundingBox: Envelope
   ): ChargingNetwork[TAZ] = {
-    val minSearchRadius = 1000.0
-    val maxSearchRadius = 16093.4 // meters, aka 10 miles
-    val minDistanceToFociInPercent = 1.05
-    val maxDistanceToFociInPercent = 1.5
     ChargingNetwork[TAZ](
       parkingDescription,
       tazTreeMap.tazQuadTree,
@@ -152,12 +149,7 @@ object ChargingNetworkSpec {
       boundingBox,
       beamConfig,
       None,
-      geo.distUTMInMeters(_, _),
-      minSearchRadius,
-      maxSearchRadius,
-      minDistanceToFociInPercent,
-      maxDistanceToFociInPercent,
-      seed
+      geo.distUTMInMeters(_, _)
     )
   }
 }

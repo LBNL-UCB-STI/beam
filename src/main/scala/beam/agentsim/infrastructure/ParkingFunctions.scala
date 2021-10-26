@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -22,8 +22,9 @@ class ParkingFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
-  minDistanceToRadiiInPercent: Double,
-  maxDistanceToRadiiInPercent: Double,
+  minDistanceToFociInPercent: Double,
+  maxDistanceToFociInPercent: Double,
+  enrouteDuration: Double,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
@@ -35,8 +36,9 @@ class ParkingFunctions[GEO: GeoLevel](
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
-      minDistanceToRadiiInPercent,
-      maxDistanceToRadiiInPercent,
+      minDistanceToFociInPercent,
+      maxDistanceToFociInPercent,
+      enrouteDuration,
       boundingBox,
       seed
     ) {
@@ -83,9 +85,11 @@ class ParkingFunctions[GEO: GeoLevel](
     val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
 
     // end-of-day parking durations are set to zero, which will be mis-interpreted here
-    val parkingDuration: Option[Int] =
-      if (inquiry.parkingDuration <= 0) None
-      else Some(inquiry.parkingDuration.toInt)
+    val tempParkingDuration = inquiry.searchMode match {
+      case ParkingSearchMode.EnRoute => enrouteDuration.toInt
+      case _                         => inquiry.parkingDuration.toInt
+    }
+    val parkingDuration: Option[Int] = if (tempParkingDuration <= 0) None else Some(tempParkingDuration)
 
     val addedEnergy: Double =
       inquiry.beamVehicle match {

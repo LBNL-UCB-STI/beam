@@ -44,6 +44,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
       maxSearchRadius,
       0.0,
       0.0,
+      0.0,
       boundingBox,
       seed
     ) {

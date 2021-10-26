@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -104,6 +104,7 @@ trait ChoosesParking extends {
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     val remainingTripData = calculateRemainingTripData(data)
     val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get
+    val activityType = nextActivity(data).get.getType
     val enrouteInquiryMaybe: Option[ParkingInquiry] = if (currentBeamVehicle.isEV) {
       // Calculate thresholds for Enroute charging
       val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
@@ -112,14 +113,15 @@ trait ChoosesParking extends {
       if (currentBeamVehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)) {
         // Build Enroute charging inquiry
         Some(
-          ParkingInquiry(
-            destinationUtm = destinationUtm,
-            activityType = ParkingActivityType.EnRouteCharge,
-            reservedFor = reservedFor,
-            beamVehicle = Some(currentBeamVehicle),
-            remainingTripData = remainingTripData,
-            valueOfTime = attributes.valueOfTime,
-            parkingDuration = enrouteConfig.maxDurationInSeconds,
+          ParkingInquiry.init(
+            destinationUtm,
+            activityType,
+            reservedFor,
+            Some(currentBeamVehicle),
+            remainingTripData,
+            attributes.valueOfTime,
+            nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0),
+            searchMode = ParkingSearchMode.EnRoute,
             originUtm = Some(currentBeamVehicle.spaceTime),
             triggerId = getCurrentTriggerIdOrGenerate
           )
@@ -128,7 +130,6 @@ trait ChoosesParking extends {
     } else None
     enrouteInquiryMaybe.getOrElse {
       // build destination parking/charging inquiry
-      val activityType = nextActivity(data).get.getType
       ParkingInquiry.init(
         destinationUtm,
         activityType,
@@ -281,7 +282,7 @@ trait ChoosesParking extends {
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
         // if is specifically Enroute charging
-        val isEnroute = latestParkingInquiry.exists(_.activityType == ParkingActivityType.EnRouteCharge)
+        val isEnroute = latestParkingInquiry.exists(_.searchMode == ParkingSearchMode.EnRoute)
         // or distance is greater than threshold
         // and parking duration is much greater than enrouteMaxDuration TODO: consider a buffer period later on
         // and stall has a fast charger
