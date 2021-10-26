@@ -56,7 +56,7 @@ case class AttributesOfIndividual(
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel) *
-            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
+              getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
           } else {
             getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel)
           }
@@ -183,7 +183,7 @@ case class AttributesOfIndividual(
 
   private def getPooledFactor(
     vehicleAutomationLevel: AutomationLevel,
-    poolingMultipliers: mutable.Map[AutomationLevel, Double]
+    poolingMultipliers: Map[AutomationLevel, Double]
   ): Double = {
     poolingMultipliers.getOrElse(vehicleAutomationLevel, 1.0)
   }

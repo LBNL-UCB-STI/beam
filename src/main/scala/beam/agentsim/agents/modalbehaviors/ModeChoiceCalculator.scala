@@ -199,21 +199,4 @@ object ModeChoiceCalculator {
   case object level3 extends AutomationLevel
   case object level4 extends AutomationLevel
   case object level5 extends AutomationLevel
-
-
-
-  sealed trait timeSensitivity
-  case object highSensitivity extends timeSensitivity
-  case object lowSensitivity extends timeSensitivity
-  sealed trait congestionLevel
-  case object highCongestion extends congestionLevel
-  case object lowCongestion extends congestionLevel
-  sealed trait roadwayType
-  case object highway extends roadwayType
-  case object nonHighway extends roadwayType
-  sealed trait automationLevel
-  case object levelLE2 extends automationLevel
-  case object level3 extends automationLevel
-  case object level4 extends automationLevel
-  case object level5 extends automationLevel
 }

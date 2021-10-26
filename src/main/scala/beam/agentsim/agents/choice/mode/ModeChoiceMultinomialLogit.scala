@@ -54,7 +54,8 @@ class ModeChoiceMultinomialLogit(
     if (alternatives.isEmpty) {
       None
     } else {
-      val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
+      val modeCostTimeTransfers =
+        altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity, originActivity)
 
       val bestInGroup = modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map { case (_, group) =>
         findBestIn(group)
