@@ -326,49 +326,48 @@ class ModeChoiceMultinomialLogit(
       level5   -> modalBehaviors.poolingMultiplier.Level5
     )
 
-  // What should we replace this Double here?
   lazy val situationMultipliersBike: mutable.Map[(timeSensitivity, congestionLevel, roadwayType), Double] =
     mutable.Map[(timeSensitivity, congestionLevel, roadwayType), Double](
       (
         highSensitivity,
         highCongestion,
         highway
-      ) -> 1,
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
       (
         highSensitivity,
         highCongestion,
         nonHighway
-      ) -> 1,
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
       (
         highSensitivity,
         lowCongestion,
         highway
-      ) -> 1,
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
       (
         highSensitivity,
         lowCongestion,
         nonHighway
-      ) -> 1,
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
       (
         lowSensitivity,
         highCongestion,
         highway
-      ) -> 1,
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
       (
         lowSensitivity,
         highCongestion,
         nonHighway
-      ) -> 1,
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
       (
         lowSensitivity,
         lowCongestion,
         highway
-      ) -> 1,
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
       (
         lowSensitivity,
         lowCongestion,
         nonHighway
-      ) -> 1
+      )
     )
 
   lazy val situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double] =
