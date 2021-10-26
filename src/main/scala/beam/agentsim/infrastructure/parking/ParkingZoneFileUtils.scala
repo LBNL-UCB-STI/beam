@@ -138,7 +138,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val parkingZone = stalls(parkingZoneId)
         val (pricingModel, feeInCents) = parkingZone.pricingModel match {
           case None     => ("", "")
-          case Some(pm) => (s"$pm", s"${pm.costInDollars / 100.0}")
+          case Some(pm) => (s"$pm", s"${pm.costInDollars * 100.0}")
         }
         val chargingPoint = parkingZone.chargingPointType match {
           case None     => "NoCharger"

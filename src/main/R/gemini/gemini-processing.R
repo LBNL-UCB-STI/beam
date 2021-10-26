@@ -356,6 +356,9 @@ write.csv(
   na="")
 
 
+test <- readCsv(pp(workDir, "/gemini-base-scenario-2-charging-with-household-infra16.csv"))
+
+
 #####
 chargingBehaviorFunc <- function(DT) {
   rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]

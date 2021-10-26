@@ -138,19 +138,6 @@ class ParkingFunctions[GEO: GeoLevel](
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
         }
     }
-//    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
-//    val person = inquiry.personId.getOrElse("")
-//    val zone = output.parkingZone
-//    val beamVehicleType = inquiry.beamVehicle.map(_.beamVehicleType.id.toString).getOrElse("")
-//    logger.info(
-//      s"CHOICE-SET:ParkingZoneSearchResult,${inquiry.requestId},${inquiry.parkingDuration},${inquiry.activityType.toString}," +
-//      s"${person},${beamVehicleId},${beamVehicleType},${zone.parkingZoneId.toString},${zone.stallsAvailable},${output.parkingStall.tazId},"
-//    )
-//    output.parkingZonesSampled.foreach { case (zoneId, _, _, theValue) =>
-//      logger.info(
-//        s"CHOICE-SET:ParkingZonesSampled,${inquiry.requestId},,,${person},${beamVehicleId},,${zoneId.toString},,,$theValue"
-//      )
-//    }
     Some(output)
   }
 
@@ -200,17 +187,7 @@ class ParkingFunctions[GEO: GeoLevel](
       zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor.managerId == vehicle.vehicleManagerId.get
     }
 
-    val result = hasAvailability & validParkingType & isValidTime & isValidVehicleManager
-
-//    val beamVehicleType = inquiry.beamVehicle.map(_.beamVehicleType.id.toString).getOrElse("")
-//    val beamVehicleId = inquiry.beamVehicle.map(_.id.toString).getOrElse("")
-//    val person = inquiry.personId.getOrElse("")
-//    logger.info(
-//      s"CHOICE-SET:ParkingFunctions,${inquiry.requestId},${inquiry.parkingDuration},${inquiry.activityType.toString}," +
-//      s"${person},${beamVehicleId},${beamVehicleType},${zone.parkingZoneId.toString},${zone.stallsAvailable},${result},,"
-//    )
-
-    result
+    hasAvailability & validParkingType & isValidTime & isValidVehicleManager
   }
 
   /**
