@@ -183,8 +183,11 @@ object ModeChoiceCalculator {
   case object commuteTrip extends TripType
   case object nonCommuteTrip extends TripType
   sealed trait AgeGroup extends SituationMultiplier
-  case object ageGT50 extends AgeGroup
-  case object ageLE50 extends AgeGroup
+  case object ageGT60 extends AgeGroup
+  case object ageLE60 extends AgeGroup
+  sealed trait IncomeGroup extends SituationMultiplier
+  case object incomeGT50k extends IncomeGroup
+  case object incomeLE50k extends IncomeGroup
   sealed trait TimeSensitivity extends SituationMultiplier
   case object highSensitivity extends TimeSensitivity
   case object lowSensitivity extends TimeSensitivity

@@ -118,15 +118,15 @@ case class AttributesOfIndividual(
                                   destinationActivity: Option[Activity],
                                   originActivity: Option[Activity]
                                 ): Set[SituationMultiplier] = {
-    (destinationActivity, originActivity, age) match {
-      case (Some(origin), Some(destination), Some(travelerAge)) =>
-        val ageBin =
-          if (travelerAge > 50) { ageGT50 }
-          else { ageLE50 }
+    (destinationActivity, originActivity, age, income) match {
+      case (Some(origin), Some(destination), Some(travelerAge), Some(traverlerIncome)) =>
+        val ageBin = if (travelerAge > 60) { ageGT60 } else { ageLE60 }
+        val incomeBin = if (traverlerIncome > 50000) { incomeGT50k } else { incomeLE50k }
+
         if (isCommute(destination, origin)) {
-          Set[SituationMultiplier](commuteTrip, ageBin)
+          Set[SituationMultiplier](commuteTrip, ageBin, incomeBin)
         } else {
-          Set[SituationMultiplier](nonCommuteTrip, ageBin)
+          Set[SituationMultiplier](nonCommuteTrip, ageBin, incomeBin)
         }
       case _ =>
         Set[SituationMultiplier]()

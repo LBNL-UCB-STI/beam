@@ -2,6 +2,7 @@
 
 package beam.sim.config
 
+
 case class BeamConfig(
   beam: BeamConfig.Beam,
   matsim: BeamConfig.Matsim
@@ -168,14 +169,16 @@ object BeamConfig {
         object ModalBehaviors {
           case class BikeMultiplier(
                                      commute: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute,
-                                     noncommute: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute
+                                     noncommute: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute,
                                    )
 
           object BikeMultiplier {
 
             case class Commute(
-                                ageGT50: scala.Double,
-                                ageLE50: scala.Double
+                                ageGT60: scala.Double,
+                                ageLE60: scala.Double,
+                                incomeGT50k: scala.Double,
+                                incomeLE50k: scala.Double
                               )
 
             object Commute {
@@ -184,15 +187,18 @@ object BeamConfig {
                          c: com.typesafe.config.Config
                        ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute(
-                  ageGT50 = if (c.hasPathOrNull("ageGT50")) c.getDouble("ageGT50") else 1.0,
-                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0
+                  ageGT60 = if (c.hasPathOrNull("ageGT60")) c.getDouble("ageGT60") else 1.0,
+                  ageLE60 = if (c.hasPathOrNull("ageLE60")) c.getDouble("ageLE60") else 1.0,
+                  incomeGT50k = if (c.hasPathOrNull("incomeGT50k")) c.getDouble("incomeGT50k") else 1.0,
+                  incomeLE50k = if (c.hasPathOrNull("incomeLE50k")) c.getDouble("incomeLE50k") else 1.0
                 )
               }
             }
-
             case class Noncommute(
-                                   ageGT50: scala.Double,
-                                   ageLE50: scala.Double
+                                   ageGT60: scala.Double,
+                                   ageLE60: scala.Double,
+                                   incomeGT50k: scala.Double,
+                                   incomeLE50k: scala.Double
                                  )
 
             object Noncommute {
@@ -201,14 +207,21 @@ object BeamConfig {
                          c: com.typesafe.config.Config
                        ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute(
-                  ageGT50 = if (c.hasPathOrNull("ageGT50")) c.getDouble("ageGT50") else 1.0,
-                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0
+                  ageGT60 = if (c.hasPathOrNull("ageGT60")) c.getDouble("ageGT60") else 1.0,
+                  ageLE60 = if (c.hasPathOrNull("ageLE60")) c.getDouble("ageLE60") else 1.0,
+                  incomeGT50k = if (c.hasPathOrNull("incomeGT50k")) c.getDouble("incomeGT50k") else 1.0,
+                  incomeLE50k = if (c.hasPathOrNull("incomeLE50k")) c.getDouble("incomeLE50k") else 1.0
+
                 )
               }
             }
 
+
+
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier(
+
                 commute = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute(
                   if (c.hasPathOrNull("commute")) c.getConfig("commute")
                   else com.typesafe.config.ConfigFactory.parseString("commute{}")
