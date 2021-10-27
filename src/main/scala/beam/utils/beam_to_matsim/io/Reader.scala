@@ -59,7 +59,7 @@ object Reader {
     vehiclesTrips.foreach { vehicleTrip =>
       progress.step()
       vehicleTrip match {
-        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip.toSeq)
         case _                          =>
       }
     }
@@ -67,7 +67,7 @@ object Reader {
     personsTrips.foreach { vehicleTrip =>
       progress.step()
       vehicleTrip match {
-        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip.toSeq)
         case _                          =>
       }
     }
@@ -82,9 +82,9 @@ object Reader {
 
   def transformActivities(
     personsEvents: Traversable[PersonEvents]
-  ): (mutable.MutableList[ViaEvent], mutable.HashMap[String, Int]) = {
+  ): (mutable.ListBuffer[ViaEvent], mutable.HashMap[String, Int]) = {
 
-    val viaEvents = mutable.MutableList.empty[ViaEvent]
+    val viaEvents = mutable.ListBuffer.empty[ViaEvent]
     val actTypes = mutable.HashMap.empty[String, Int]
 
     def getActType(acttivityType: String) = "activity_" + acttivityType
@@ -122,9 +122,9 @@ object Reader {
   def transformModeChoices(
     personsEvents: Traversable[PersonEvents],
     modeChoiceDuration: Int = 50
-  ): (mutable.MutableList[ViaEvent], mutable.HashMap[String, Int]) = {
+  ): (mutable.ListBuffer[ViaEvent], mutable.HashMap[String, Int]) = {
 
-    val viaEvents = mutable.MutableList.empty[ViaEvent]
+    val viaEvents = mutable.ListBuffer.empty[ViaEvent]
     val modes = mutable.HashMap.empty[String, Int]
 
     personsEvents.foreach(_.events.foldLeft(viaEvents) {
@@ -233,7 +233,7 @@ object Reader {
     val viaEventsCollector =
       vehiclesTrips.foldLeft(ViaEventsCollector(vehicleId, vehicleType))((acc, trip) => {
         progress.step()
-        acc.collectVehicleTrip(trip.trip)
+        acc.collectVehicleTrip(trip.trip.toSeq)
         acc
       })
 

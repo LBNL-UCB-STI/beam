@@ -14,6 +14,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.CollectionConverters._
 
 case class EventStatus(start: Double, end: Double, eventType: String, nextType: Option[String] = None)
 
@@ -175,7 +176,7 @@ class RideHailFleetAnalysisInternal(
     }
   }
 
-  private def processVehicleStates() {
+  private def processVehicleStates() = {
     processEvents(rideHailEvCav, isRH = true, isCAV = true, "rh-ev-cav")
     processEvents(ridehailEvNonCav, isRH = true, isCAV = false, "rh-ev-nocav")
     processEvents(rideHailNonEvCav, isRH = true, isCAV = true, "rh-noev-cav")
@@ -187,7 +188,7 @@ class RideHailFleetAnalysisInternal(
     isRH: Boolean,
     isCAV: Boolean,
     graphName: String
-  ) {
+  ) = {
     class Utilization(
     ) {
       // DoubleAdder here allows for effective adding values into the array during parallel computation.

@@ -10,7 +10,7 @@ import beam.utils.logging.ExponentialLazyLogging
 case class PythonProcess(processOption: Option[Process]) {
 
   def isRunning: Boolean = processOption match {
-    case Some(process) => process.isAlive
+    case Some(process) => process.isAlive()
     case None          => false
   }
 
@@ -19,11 +19,11 @@ case class PythonProcess(processOption: Option[Process]) {
       case Some(process) =>
         try {
           Await.result(
-            Future(blocking(process.exitValue)),
+            Future(blocking(process.exitValue())),
             duration.Duration(timeLength, timeUnit)
           )
         } catch {
-          case _: TimeoutException => process.destroy
+          case _: TimeoutException => process.destroy()
         }
       case None =>
     }

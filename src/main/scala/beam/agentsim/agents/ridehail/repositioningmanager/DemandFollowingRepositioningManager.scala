@@ -213,7 +213,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
                 coords += new Coord(arr(0), arr(1))
                 iter.advance()
               }
-              ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
+              ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords.toIndexedSeq)
             }.toArray
           } catch {
             case ex: Exception =>

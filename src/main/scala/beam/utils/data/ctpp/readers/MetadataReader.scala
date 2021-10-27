@@ -89,7 +89,7 @@ object MetadataReader {
 
   def main(args: Array[String]): Unit = {
     val metaRdr = new MetadataReader("D:/Work/beam/Austin/2012-2016 CTPP documentation/")
-    metaRdr.readShellTable.filter(x => x.tblId == "B302101").foreach(println)
+    metaRdr.readShellTable().filter(x => x.tblId == "B302101").foreach(println)
 
     metaRdr.showTable("B302101")
   }

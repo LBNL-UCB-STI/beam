@@ -69,7 +69,7 @@ abstract class RideHailDepotParkingManager[GEO: GeoLevel](parkingZones: Map[Id[P
     *
     * @param vehicleIdToGeofenceMap
     */
-  def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]])
+  def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]): Unit
 
   /**
     * Is the [[vehicleId]] currently on the way to a refueling depot to charge or actively charging?

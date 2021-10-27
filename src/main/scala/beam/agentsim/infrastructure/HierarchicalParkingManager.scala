@@ -351,7 +351,7 @@ object HierarchicalParkingManager {
     val linkZoneToTazZoneMap = tazZones
       .zip(tazZoneDescriptions.map { case (_, _, linkZones) => linkZones })
       .flatMap { case ((parkingZoneId, _), linkZones) => linkZones.map(_.parkingZoneId -> parkingZoneId) }
-    (tazZones, linkZoneToTazZoneMap)
+    (tazZones, linkZoneToTazZoneMap.toMap)
   }
 
   private def createLinkZoneSearchMap(
@@ -373,7 +373,7 @@ object HierarchicalParkingManager {
   }
 
   private def invertMap(linkToTAZMapping: Map[Link, TAZ]): Map[TAZ, Set[Link]] = {
-    linkToTAZMapping.groupBy(_._2).mapValues(_.keys.toSet)
+    linkToTAZMapping.groupBy(_._2).view.mapValues(_.keys.toSet).toMap
   }
 
   /**

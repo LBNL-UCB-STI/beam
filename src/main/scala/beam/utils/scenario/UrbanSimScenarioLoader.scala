@@ -228,7 +228,7 @@ class UrbanSimScenarioLoader(
           bvId,
           powerTrain,
           beamVehicleType,
-          randomSeed = rand.nextInt
+          randomSeed = rand.nextInt()
         )
         beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
         vehicleCounter = vehicleCounter + 1

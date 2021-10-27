@@ -968,7 +968,7 @@ trait BeamHelper extends LazyLogging {
     result
   }
 
-  def run(beamServices: BeamServices) {
+  def run(beamServices: BeamServices) = {
     beamServices.controler.run()
   }
 

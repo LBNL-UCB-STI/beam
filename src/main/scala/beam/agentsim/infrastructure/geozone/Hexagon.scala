@@ -44,11 +44,12 @@ private[geozone] case class HexagonLeaf(
       .groupBy { case (geoIndex: H3Index, _) =>
         geoIndex
       }
+      .view
       .mapValues { sequenceOfPairs =>
         sequenceOfPairs.map { case (_, coordinate) =>
           coordinate
         }.toSet
-      }
+      }.toMap
     resultIndex.toSeq.map { index =>
       val leaf: HexagonLeaf = HexagonLeaf(index, pointsAndNewIndexes.getOrElse(index, Set.empty))
       HexagonBranch(index, IndexedSeq(leaf))

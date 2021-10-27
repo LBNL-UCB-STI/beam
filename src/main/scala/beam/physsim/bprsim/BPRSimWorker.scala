@@ -68,7 +68,7 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
       events.clear()
     }
     processQueuedEvents(workers, tillTime, 0)
-    (eventBuffer, otherWorkerEvents)
+    (eventBuffer.toSeq, otherWorkerEvents.view.mapValues(_.toSeq).toMap)
   }
 
   private def acceptSimEvent(simEvent: SimEvent): Unit = {

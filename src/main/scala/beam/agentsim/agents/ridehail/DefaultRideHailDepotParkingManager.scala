@@ -156,7 +156,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     if (chargingQueue.isEmpty) {
       None
     } else {
-      val ChargingQueueEntry(beamVehicle, parkingStall, _) = chargingQueue.dequeue
+      val ChargingQueueEntry(beamVehicle, parkingStall, _) = chargingQueue.dequeue()
       logger.debug("Dequeueing vehicle {} to charge at depot {}", beamVehicle, parkingStall.parkingZoneId)
       putNewTickAndObservation(beamVehicle.id, (tick, "DequeueToCharge"))
       vehiclesInQueueToParkingZoneId.remove(beamVehicle.id)

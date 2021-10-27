@@ -2,8 +2,8 @@ package beam.agentsim.agents.ridehail
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.PriorityQueue
 import scala.collection.parallel.{ParIterable, ParSeq}
+import scala.collection.parallel.CollectionConverters._
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailManagerHelper._

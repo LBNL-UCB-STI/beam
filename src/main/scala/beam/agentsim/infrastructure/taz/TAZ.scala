@@ -17,7 +17,7 @@ import scala.collection.JavaConverters._
   * @param areaInSquareMeters area of TAZ
   */
 class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) {
-  def this(tazIdString: String, coord: Coord, area: Double) {
+  def this(tazIdString: String, coord: Coord, area: Double) = {
     this(Id.create(tazIdString, classOf[TAZ]), coord, area)
   }
 }

@@ -97,7 +97,7 @@ object TncToday {
     statsOut: String,
     statsTotalsOut: String
   ): Unit = {
-    val (outData, outDataTotalsJson) = statsAndTotalsToJson(data.asScala)
+    val (outData, outDataTotalsJson) = statsAndTotalsToJson(data.asScala.toSeq)
 
     saveTo(statsOut, outData)
     saveTo(statsTotalsOut, outDataTotalsJson)

@@ -37,13 +37,12 @@ class RideHailNetworkAPI {
             null,
             null
           )
-          .toLong
       case None =>
         val edge = r5Network.get.streetLayer.edgeStore.getCursor(linkId)
-        (edge.getLengthM / edge.calculateSpeed(
+        edge.getLengthM / edge.calculateSpeed(
           new ProfileRequest,
           StreetMode.valueOf(StreetMode.CAR.toString)
-        )).toLong
+        )
     }
   }
 

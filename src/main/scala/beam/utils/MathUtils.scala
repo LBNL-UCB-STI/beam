@@ -76,7 +76,7 @@ object MathUtils {
   def logSumExp(iter: Iterator[Double], max: Double): Double = {
     var accum = 0.0
     while (iter.hasNext) {
-      val b = iter.next
+      val b = iter.next()
       if (!b.isNegInfinity)
         accum += math.exp(b - max)
     }

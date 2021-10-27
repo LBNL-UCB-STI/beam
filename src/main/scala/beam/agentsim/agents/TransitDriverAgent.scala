@@ -120,9 +120,9 @@ class TransitDriverAgent(
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Finish, _) =>
-      stop
+      stop()
     case Event(StopEvent, _) =>
-      stop
+      stop()
   }
 
   override def logDepth: Int = beamScenario.beamConfig.beam.debug.actor.logDepth
@@ -162,10 +162,10 @@ class TransitDriverAgent(
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! ScheduleKillTrigger(self, triggerId)
       scheduler ! CompletionNotice(triggerId)
-      stay
+      stay()
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
       scheduler ! CompletionNotice(triggerId)
-      stop
+      stop()
   }
 
   override def logPrefix(): String = s"TransitDriverAgent:$id "

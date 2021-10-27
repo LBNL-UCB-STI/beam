@@ -54,7 +54,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
   }
 
   def buildDocument(descriptor: OutputDataDescriptor, ioController: OutputDirectoryHierarchy): String = {
-    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions(ioController).asScala
+    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions(ioController).asScala.toSeq
 
     val columns: Seq[String] = Seq("field", "description")
     val columnsSize: Map[String, Int] = calculateColumnSize(allValues, columns)

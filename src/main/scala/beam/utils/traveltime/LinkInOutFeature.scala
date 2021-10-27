@@ -11,6 +11,7 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 
 import scala.collection.JavaConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.collection.mutable
 
 class LinkInOutFeature(

@@ -563,7 +563,7 @@ trait ChoosesMode {
             driveTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
-              makeRideHailRequestFromBeamLeg(accessSegment)
+              makeRideHailRequestFromBeamLeg(accessSegment.toSeq)
             } else {
               None
             }
@@ -634,9 +634,9 @@ trait ChoosesMode {
         parkingResponses = choosesModeData.parkingResponses +
           (choosesModeData.parkingRequestIds(parkingInquiryResponse.requestId) -> parkingInquiryResponse)
       )
-      stay using newPersonData
+      stay() using newPersonData
     case Event(cavTripLegsResponse: CavTripLegsResponse, choosesModeData: ChoosesModeData) =>
-      stay using choosesModeData.copy(cavTripLegs = Some(cavTripLegsResponse))
+      stay() using choosesModeData.copy(cavTripLegs = Some(cavTripLegsResponse))
     //handling response with the shared vehicle nearby the egress legs
     case Event(mobStatuses: MobilityStatusWithLegs, choosesModeData: ChoosesModeData) =>
       val mobilityStatuses = mobStatuses.responses.map { case (trip, leg, response) =>
@@ -685,7 +685,7 @@ trait ChoosesMode {
       //issue parking request for the shared vehicle
       val parkingRequestIds = makeParkingInquiries(choosesModeData, newTrips)
       //correct routing response if routing is finished (no appropriate vehicles available)
-      stay using choosesModeData
+      stay() using choosesModeData
         .copy(
           routingResponse =
             Some(if (routingRequestMap.isEmpty) correctRoutingResponse(newRoutingResponse) else newRoutingResponse),

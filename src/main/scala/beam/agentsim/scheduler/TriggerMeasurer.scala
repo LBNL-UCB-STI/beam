@@ -81,7 +81,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     val sb = new mutable.StringBuilder()
     val nl = System.lineSeparator()
     triggerTypeToOccurrence.foreach { case (clazz, buf) =>
-      val s = Statistics(buf.map(_.toDouble))
+      val s = Statistics(buf.map(_.toDouble).toSeq)
       sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
     }
     sb.append(s"$nl Max number of trigger messages per actor type$nl")

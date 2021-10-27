@@ -62,8 +62,8 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
   }
 
   override def resetStats(): Unit = {
-    humanChargingStatsPerDriver.clear
-    cavChargingStatsPerDriver.clear
+    humanChargingStatsPerDriver.clear()
+    cavChargingStatsPerDriver.clear()
   }
 
   def getSummaryStats(): util.Map[String, lang.Double] = {

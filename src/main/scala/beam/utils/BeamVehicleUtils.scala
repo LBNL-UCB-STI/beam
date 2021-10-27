@@ -37,7 +37,7 @@ object BeamVehicleUtils {
           powerTrain,
           vehicleType,
           new AtomicReference(vehicleManagerId),
-          randomSeed = rand.nextInt
+          randomSeed = rand.nextInt()
         )
       acc += ((vehicleId, beamVehicle))
       acc

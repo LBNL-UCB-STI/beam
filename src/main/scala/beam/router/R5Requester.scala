@@ -58,22 +58,22 @@ object R5Requester extends BeamHelper {
     )
     val threeModesResp = r5Wrapper.calcRoute(threeModesReq)
     showRouteResponse("Three Modes in one shot", threeModesResp)
-    println
+    println()
 
     val carReq = baseRoutingRequest.copy(streetVehicles = Vector(carStreetVehicle), withTransit = false)
     val carResp = r5Wrapper.calcRoute(carReq)
     showRouteResponse("Only CAR mode", carResp)
-    println
+    println()
 
     val bikeReq = baseRoutingRequest.copy(streetVehicles = Vector(bikeStreetVehicle), withTransit = false)
     val bikeResp = r5Wrapper.calcRoute(bikeReq)
     showRouteResponse("Only BIKE mode", bikeResp)
-    println
+    println()
 
     val walkReq = baseRoutingRequest.copy(streetVehicles = Vector(walkStreetVehicle), withTransit = true)
     val walkResp = r5Wrapper.calcRoute(walkReq)
     showRouteResponse("Only WALK mode with transit", walkResp)
-    println
+    println()
   }
 
   private def showRouteResponse(name: String, threeModesResp: BeamRouter.RoutingResponse): Unit = {

@@ -31,8 +31,10 @@ object OsmSpeedConverter {
         } yield HighwayTypeSpeed(highwayType, maxSpeedKph)
       }
       .groupBy(_.highwayType)
+      .view
       .mapValues(values => averageValue(values.map(_.maxSpeedKph), inferenceType))
       .mapValues(_.doubleValue)
+      .toMap
 
   private[osm] def averageValue(values: List[BigDecimal], inferenceType: String): BigDecimal = inferenceType match {
     case "MEAN"   => values.mean

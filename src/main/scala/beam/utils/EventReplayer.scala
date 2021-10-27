@@ -66,6 +66,6 @@ object EventReplayer extends BeamHelper {
     })
     new MatsimEventsReader(eventsManager).readFile(path)
     println(s"Read $numOfEvents from '$path'")
-    buf
+    buf.toIndexedSeq
   }
 }

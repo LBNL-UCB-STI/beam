@@ -88,7 +88,7 @@ class HouseholdFleetManager(
     case ReleaseVehicleAndReply(vehicle, _, _) =>
       vehicle.unsetDriver()
       if (availableVehicles.contains(vehicle)) {
-        sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
+        sender() ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
       } else {
         availableVehicles = vehicle :: availableVehicles
         logger.debug("Vehicle {} is now available", vehicle.id)
@@ -102,7 +102,7 @@ class HouseholdFleetManager(
       availableVehicles = availableVehicles match {
         case firstVehicle :: rest =>
           logger.debug("Vehicle {} is now taken", firstVehicle.id)
-          firstVehicle.becomeDriver(sender)
+          firstVehicle.becomeDriver(sender())
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
           rest
         case Nil =>

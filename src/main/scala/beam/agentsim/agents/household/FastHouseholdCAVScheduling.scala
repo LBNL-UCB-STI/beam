@@ -10,7 +10,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
-import beam.router.skim.Skims
 import beam.router.{BeamRouter, Modes, RouteHistory}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl
@@ -108,7 +107,7 @@ class FastHouseholdCAVScheduling(
             householdSchedules.--=(HouseholdSchedulesToDelete)
             householdSchedules.appendAll(HouseholdSchedulesToAppend)
             if (householdSchedules.size >= stopSearchAfterXSolutions) {
-              break
+              break()
             }
           }
         }
@@ -133,7 +132,7 @@ class FastHouseholdCAVScheduling(
           getScheduleOrNone(cav, cavSchedule, requests) match {
             case Some(s) =>
               outHouseholdSchedule.append(s)
-              break
+              break()
             case None => // try the next cav
           }
         }
@@ -218,7 +217,7 @@ class FastHouseholdCAVScheduling(
       }
       Some(
         HouseholdSchedule(
-          this.schedulesMap.filterKeys(_ != cav) + (cav -> CAVSchedule(newHouseholdSchedule.toList, cav, newOccupancy)),
+          (this.schedulesMap.view.filterKeys(_ != cav) + (cav -> CAVSchedule(newHouseholdSchedule.toList, cav, newOccupancy))).toMap,
           newHouseholdScheduleCost
         )
       )
@@ -264,7 +263,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
       .map { wayPoints =>
         val orig = wayPoints(0)
         val dest = wayPoints(1)
-        val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.baselineNonPooledTime))
+        val origin = SpaceTime(orig.activity.getCoord, Math.round(orig.baselineNonPooledTime.toFloat))
         if (
           beamServices.geo.distUTMInMeters(
             orig.activity.getCoord,
@@ -494,12 +493,12 @@ object HouseholdTripsHelper {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
-      break
+      break()
     } else if (!nextTripStartTime.isNegInfinity && arrivalTime > nextTripStartTime.toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )
-      break
+      break()
     }
 
     val vehiclePersonId =

@@ -39,6 +39,7 @@ import org.opengis.referencing.crs.CoordinateReferenceSystem
 
 import scala.collection.JavaConverters._
 import scala.collection.{immutable, mutable, JavaConverters}
+import scala.collection.parallel.CollectionConverters._
 import scala.util.control.Breaks._
 import scala.util.{Random, Try}
 
@@ -468,7 +469,7 @@ object PlansSampler {
     AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
-  def filterPopulationActivities() {
+  def filterPopulationActivities() = {
     val factory = newPop.getFactory
     newPop.getPersons.asScala.values.foreach { person =>
       @SuppressWarnings(Array("UnsafeTraversableMethods"))

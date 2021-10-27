@@ -67,7 +67,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
   private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
     val source = Source.fromFile(tazFilePath)
-    val lines = source.getLines.toVector
+    val lines = source.getLines().toVector
     source.close()
     lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
   }

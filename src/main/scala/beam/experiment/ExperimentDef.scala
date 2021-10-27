@@ -29,7 +29,7 @@ case class ExperimentDef(
 
   def combinationsOfLevels(): List[ExperimentRun] = {
 
-    val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor))).toArray
+    val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor)).toSeq).toSeq
     val runs = cartesian(values).toList
     runs.map { levels =>
       ExperimentRun(this, levels)

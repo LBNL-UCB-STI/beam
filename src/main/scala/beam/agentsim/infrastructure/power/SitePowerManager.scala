@@ -11,6 +11,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
+import scala.collection.parallel.CollectionConverters._
 
 class SitePowerManager(
   chargingNetwork: ChargingNetwork[_],

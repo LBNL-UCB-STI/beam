@@ -34,6 +34,7 @@ import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
+import scala.collection.parallel.CollectionConverters._
 import scala.util.{Random, Try}
 
 trait ScenarioGenerator {

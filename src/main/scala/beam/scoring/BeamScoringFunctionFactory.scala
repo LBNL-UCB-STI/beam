@@ -158,7 +158,7 @@ class BeamScoringFunctionFactory @Inject() (
         //write generalized link stats to file
 
         modeChoiceCalculator match {
-          case logit: ModeChoiceMultinomialLogit => registerLinkCosts(this.trips, attributes, logit)
+          case logit: ModeChoiceMultinomialLogit => registerLinkCosts(this.trips.toSeq, attributes, logit)
           case _                                 =>
         }
       }

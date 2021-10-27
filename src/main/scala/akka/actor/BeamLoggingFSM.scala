@@ -36,7 +36,7 @@ trait BeamLoggingFSM[S, D] extends FSM[S, D] { this: Actor =>
   if (debugMessages) {
     onTransition { case x -> y =>
       val (tick, triggerId) = currentTickAndTriggerId
-      val msg = BeamStateTransition(context.sender, context.self, x, y, tick, triggerId)
+      val msg = BeamStateTransition(context.sender(), context.self, x, y, tick, triggerId)
       context.system.eventStream.publish(msg)
     }
   }

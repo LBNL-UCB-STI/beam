@@ -31,18 +31,18 @@ trait RidehailManagerCustomizationAPI {
     * @param msg
     * @param sender
     */
-  def receiveMessageHook(msg: Any, sender: ActorRef)
+  def receiveMessageHook(msg: Any, sender: ActorRef): Unit
 
   /**
     * This method is called when a [[Finish]] message is received by the [[RideHailManager]].
     */
-  def receiveFinishMessageHook()
+  def receiveFinishMessageHook(): Unit
 
   /**
     * This method is called immediately at the start of continueRepositioning(tick: Int) in the [[RideHailManager]].
     * @param tick
     */
-  def beforeContinueRepositioningHook(tick: Int)
+  def beforeContinueRepositioningHook(tick: Int): Unit
 
   /**
     * This method is called in continueRepositioning(tick: Int) and is part of the [[RideHailManager]] and allows the
@@ -73,7 +73,7 @@ trait RidehailManagerCustomizationAPI {
   def processVehicleLocationUpdateAtEndOfContinueRepositioningHook(
     vehicleId: Id[Vehicle],
     destination: Coord
-  )
+  ): Unit
 
   /**
     * This method is called during initializeRideHailFleet() and as such can be used to extend operations related to
@@ -86,7 +86,7 @@ trait RidehailManagerCustomizationAPI {
     beamServices: BeamServices,
     rideHailAgentInitializers: scala.IndexedSeq[RideHailFleetInitializer.RideHailAgentInitializer],
     maxTime: Int
-  )
+  ): Unit
 
   /**
     * This method is called as part of createTravelProposal(alloc: VehicleMatchedToCustomers) and can be used to update the [[PassengerSchedule]].
@@ -107,7 +107,7 @@ trait RidehailManagerCustomizationAPI {
     * @param vehicleId
     * @param passengerSchedule
     */
-  def sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(vehicleId: Id[Vehicle], passengerSchedule: PassengerSchedule)
+  def sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(vehicleId: Id[Vehicle], passengerSchedule: PassengerSchedule): Unit
 
   /**
     * This method gives back the KPI registry, from which all known KPIs can be accessed.

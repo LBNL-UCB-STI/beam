@@ -10,7 +10,7 @@ class DeadLetterReplayer extends Actor with ActorLogging {
       d.message match {
         case r: RoutingResponse =>
           log.debug("Retrying {}", r)
-          d.recipient.tell(d.message, sender)
+          d.recipient.tell(d.message, sender())
         case beam.router.BeamRouter.GimmeWork => //Do not retry GimmeWork - resiliency is built in
         case _ =>
           log.error(s"DeadLetter. Don't know what to do with: $d")

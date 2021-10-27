@@ -49,7 +49,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       .filter(x => x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))
       .toList
 
-    val newElements = elements.foldLeft(mutable.MutableList[Activity]())((listOfAct, currentAct) =>
+    val newElements = elements.foldLeft(mutable.ListBuffer[Activity]())((listOfAct, currentAct) =>
       listOfAct.lastOption match {
         case Some(lastAct) =>
           if (lastAct.getType == currentAct.getType) {
@@ -60,7 +60,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
           } else {
             listOfAct += currentAct
           }
-        case None => mutable.MutableList[Activity](currentAct)
+        case None => mutable.ListBuffer[Activity](currentAct)
       }
     )
 

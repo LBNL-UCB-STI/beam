@@ -414,7 +414,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId,
         data
       )
-      stay replying CompletionNotice(triggerId, Vector())
+      stay() replying CompletionNotice(triggerId, Vector())
 
     case ev @ Event(Interrupt(interruptId, _, triggerId, _), data) =>
       log.debug("state(DrivesVehicle.Driving): {}", ev)
@@ -528,14 +528,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(TriggerWithId(EndLegTrigger(_), _), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
-      stay
+      stay()
     case ev @ Event(Interrupt(_, _, _, _), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
-      stay
+      stay()
     case ev @ Event(StartingRefuelSession(_, _), _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
-      stay
+      stay()
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
       log.debug(s"state(DrivesVehicle.DrivingInterrupted): LastLegPassengerSchedule with $triggerId for $id")
       self ! PassengerScheduleEmptyMessage(
@@ -675,10 +675,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), _), _) =>
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
-      stay
+      stay()
     case _ @Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
       stash()
-      stay
+      stay()
 
   }
 
@@ -695,14 +695,14 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(req: ReservationRequest, data) =>
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       val legs = data.passengerSchedule.schedule
-        .from(req.departFrom)
-        .to(req.arriveAt)
+        .rangeFrom(req.departFrom)
+        .rangeTo(req.arriveAt)
         .keys
         .toSeq
       val legsInThePast = data.passengerSchedule.schedule
         .take(data.currentLegPassengerScheduleIndex)
-        .from(req.departFrom)
-        .to(req.arriveAt)
+        .rangeFrom(req.departFrom)
+        .rangeTo(req.arriveAt)
         .keys
         .toSeq
       if (legsInThePast.nonEmpty)

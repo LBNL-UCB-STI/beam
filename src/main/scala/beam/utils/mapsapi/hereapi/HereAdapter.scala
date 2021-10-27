@@ -65,7 +65,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
     val firstRoute = (jsObject \ "routes").as[JsArray].value.head
     val firstSection = (firstRoute \ "sections").as[JsArray].value.head
     val polyLines: Seq[WgsCoordinate] = toPolyLines((firstSection \ "polyline").as[String])
-    val spans = (firstSection \ "spans").as[JsArray].value.map(toSpan)
+    val spans = (firstSection \ "spans").as[JsArray].value.map(toSpan).toSeq
     HerePath(coordinates = polyLines, spans = spans)
   }
 
@@ -79,7 +79,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
   }
 
   override def close(): Unit = {
-    Http().shutdownAllConnectionPools
+    Http().shutdownAllConnectionPools()
       .andThen { case _ =>
         system.terminate()
       }

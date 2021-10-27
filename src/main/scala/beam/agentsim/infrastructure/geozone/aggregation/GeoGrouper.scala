@@ -63,8 +63,9 @@ object GeoGrouper {
     }
     allPairs
       .groupBy(_._1)
+      .view
       .mapValues { x: Seq[(H3IndexParkingEntryGroup, ParkingEntryValues)] =>
         x.map(_._2)
-      }
+      }.toMap
   }
 }

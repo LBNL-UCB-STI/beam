@@ -88,7 +88,7 @@ class BeamConfigChangesObservable @Inject() (beamConfig: BeamConfig) {
     }
   }
 
-  def notifyChangeToSubscribers() {
+  def notifyChangeToSubscribers() = {
     observable.setChanged()
     val updatedBeamConfig = getUpdatedBeamConfig
     lastBeamConfig = updatedBeamConfig

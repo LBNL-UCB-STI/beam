@@ -567,7 +567,7 @@ class BeamSim @Inject() (
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
-          dumpHouseholdAttributes
+          dumpHouseholdAttributes()
 
         case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
       }

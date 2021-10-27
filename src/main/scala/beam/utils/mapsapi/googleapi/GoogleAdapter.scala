@@ -64,8 +64,8 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
         case (Failure(throwable), rr) => Future.successful(Left(throwable), rr.userObject)
       }
       .toMat(Sink.collection)(Keep.right)
-      .run
-    results
+      .run()
+    results.map(_.toIndexedSeq)
   }
 
   private def call(url: String): Future[JsObject] = {
@@ -112,11 +112,11 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
         }
       case _: JsUndefined =>
     }
-    parseRoutes((jsObject \ "routes").as[JsArray].value)
+    parseRoutes((jsObject \ "routes").as[JsArray].value.toSeq)
   }
 
   private def parseRoute(jsObject: JsObject): Route = {
-    val segments = parseSegments((jsObject \ "steps").as[JsArray].value)
+    val segments = parseSegments((jsObject \ "steps").as[JsArray].value.toSeq)
     val distanceInMeter = (jsObject \ "distance" \ "value").as[Int]
     val durationInSeconds = (jsObject \ "duration" \ "value").as[Int]
     // https://developers.google.com/maps/documentation/directions/overview?_gac=1.187038170.1596465170.Cj0KCQjw6575BRCQARIsAMp-ksPk0sK6Ztey7UXWPBRyjP0slBRVw3msLAYU6PPEZRHdAQUQGbsDrI0aAgxvEALw_wcB&_ga=2.204378384.1892646518.1596465112-448741100.1596465112#optional-parameters
@@ -158,7 +158,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       Try(Await.result(closed, timeOut.duration))
       ref ! PoisonPill
     }
-    Http().shutdownAllConnectionPools
+    Http().shutdownAllConnectionPools()
       .andThen { case _ =>
         if (actorSystem.isEmpty) system.terminate()
       }

@@ -4,6 +4,7 @@ import java.util.{List => JList}
 import java.util
 
 import scala.collection.parallel.ParSet
+import scala.collection.parallel.CollectionConverters._
 
 import com.uber.h3core.util.GeoCoord
 

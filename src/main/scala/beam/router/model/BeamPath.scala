@@ -22,7 +22,7 @@ case class BeamPath(
   checkCoordinates(startPoint)
   checkCoordinates(endPoint)
 
-  private def checkCoordinates(point: SpaceTime) {
+  private def checkCoordinates(point: SpaceTime) = {
     if (point != null) {
       assert(
         point.loc == null || (point.loc.getX > -180 && point.loc.getX < 180 && point.loc.getY > -90 && point.loc.getY < 90),

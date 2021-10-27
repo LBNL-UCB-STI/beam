@@ -39,7 +39,7 @@ import beam.utils.logging.LoggingMessagePublisher
 import beam.utils.{DateUtils, IdGeneratorImpl, NetworkHelper}
 import com.conveyal.r5.api.util.LegMode
 import com.conveyal.r5.transit.TransportNetwork
-import com.romix.akka.serialization.kryo.KryoSerializer
+import io.altoo.akka.serialization.kryo.KryoSerializer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
@@ -192,11 +192,11 @@ class BeamRouter(
         }
       }
     case GetMatSimNetwork =>
-      sender ! MATSimNetwork(network)
+      sender() ! MATSimNetwork(network)
     case GetTravelTime =>
       traveTimeOpt match {
-        case Some(travelTime) => sender ! UpdateTravelTimeLocal(travelTime)
-        case None             => sender ! R5Network(transportNetwork)
+        case Some(travelTime) => sender() ! UpdateTravelTimeLocal(travelTime)
+        case None             => sender() ! R5Network(transportNetwork)
       }
     case state: CurrentClusterState =>
       log.info("CurrentClusterState: {}", state)
@@ -229,7 +229,7 @@ class BeamRouter(
         receivePath = "ReachableMember[compute]"
       )
     case GimmeWork =>
-      val worker = context.sender
+      val worker = context.sender()
       if (!isWorkAvailable)
         availableWorkers.add(
           worker
@@ -263,7 +263,7 @@ class BeamRouter(
     case work =>
       processByEventsManagerIfNeeded(work)
       publishMessage(work)
-      val originalSender = context.sender
+      val originalSender = context.sender()
       if (!isWorkAvailable) { //No existing work
         if (!isWorkerAvailable) {
           notifyWorkersOfAvailableWork()
@@ -333,7 +333,7 @@ class BeamRouter(
     member: Member
   ): Unit = {
     try {
-      val worker = Await.result(workerFrom(member.address).resolveOne, 60.seconds)
+      val worker = Await.result(workerFrom(member.address).resolveOne(), 60.seconds)
       if (availableWorkers.contains(worker)) {
         availableWorkers.remove(worker)
       }
@@ -637,7 +637,7 @@ object BeamRouter {
       mode,
       1,
       BeamPath(
-        linkIds,
+        linkIds.toIndexedSeq,
         Vector.empty,
         None,
         beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),

@@ -128,7 +128,7 @@ case class ChainBasedTourVehicleAllocator(
         if (homeLoc.isEmpty) homeLoc = anchor
         else if (!(homeLoc == anchor)) { // invalid
           returnVal = Some(Seq[SubtourRecord]())
-          break
+          break()
         }
       }
     }

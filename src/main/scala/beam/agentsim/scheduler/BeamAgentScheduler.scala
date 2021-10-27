@@ -408,7 +408,7 @@ class BeamAgentScheduler(
       nowInSeconds = newNow
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
-        stuckAgentChecker.foreach(_.cancel)
+        stuckAgentChecker.foreach(_.cancel())
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )

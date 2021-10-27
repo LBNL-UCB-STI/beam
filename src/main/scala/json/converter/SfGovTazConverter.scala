@@ -60,11 +60,11 @@ object SfGovTazConverter extends App with LazyLogging {
           Coordinates(lat, lon)
         }
 
-        val geometry = Geometry(_type, coordinates)
+        val geometry = Geometry(_type, coordinates.toSeq)
 
         Features(properties, geometry)
       }
-      JsSuccess(features)
+      JsSuccess(features.toSeq)
     } catch {
       case e: Exception =>
         logger.error("exception occurred due to ", e)

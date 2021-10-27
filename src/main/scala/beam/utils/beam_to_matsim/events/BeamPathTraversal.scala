@@ -130,7 +130,7 @@ case class BeamPathTraversal(
     }
 
     val (_, times) =
-      linkTravelTime.foldLeft((time, mutable.MutableList.empty[(Double, Double)])) {
+      linkTravelTime.foldLeft((time, mutable.ListBuffer.empty[(Double, Double)])) {
         case ((lastTime, timeList), travelTime) =>
           val linkTime = lastTime + Math.round(travelTime * onePiece)
           timeList += Tuple2(lastTime, linkTime)

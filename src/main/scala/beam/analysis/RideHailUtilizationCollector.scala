@@ -15,6 +15,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.math.Ordering.Implicits.seqOrdering
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -198,8 +199,8 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       logger.error(s"writeUtilization failed with: ${ex.getMessage}", ex)
     }
 
-    val movedWithoutPassenger = RideHailUtilizationCollector.getMovedWithoutPassenger(rides)
-    val movedWithPassengers = RideHailUtilizationCollector.getRidesWithPassengers(rides)
+    val movedWithoutPassenger = RideHailUtilizationCollector.getMovedWithoutPassenger(rides.toIndexedSeq)
+    val movedWithPassengers = RideHailUtilizationCollector.getRidesWithPassengers(rides.toIndexedSeq)
     val movedVehicleIds = movedWithPassengers.map(_.vehicleId).toSet
 
     logger.info(s"""|movedWithoutPassenger: ${movedWithoutPassenger.size}
@@ -249,8 +250,8 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   def writeUtilization(): Unit = {
     val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv")
 
-    val allRides = SortedSet(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys): _*)
-    val allPassengers = SortedSet(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys): _*)
+    val allRides = SortedSet(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys))
+    val allPassengers = SortedSet(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys))
     val rideHeaders = allRides.map(rideNumber => s"numberOfVehiclesServed${rideNumber}Rides")
     val passengerHeaders = allPassengers.map(passengers => s"${passengers}PassengersToTheNumberOfRides")
 

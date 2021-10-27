@@ -27,6 +27,7 @@ import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
+import scala.collection.parallel.CollectionConverters._
 import scala.language.postfixOps
 
 /**
@@ -138,7 +139,7 @@ class ChargingNetworkManager(
       timeSpentToPlanEnergyDispatchTrigger += e - s
       log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
 
-      sender ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
+      sender() ! CompletionNotice(triggerId, triggers.toIndexedSeq ++ nextStepPlanningTriggers)
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
@@ -149,7 +150,7 @@ class ChargingNetworkManager(
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
-      sender ! CompletionNotice(triggerId)
+      sender() ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
@@ -170,7 +171,7 @@ class ChargingNetworkManager(
         }
       } else {
         sender() ! Failure(
-          new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name}")
+          new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender().path.name}")
         )
       }
 
@@ -189,7 +190,7 @@ class ChargingNetworkManager(
                 dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, triggerId, true)
               }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
-              sender ! UnpluggingVehicle(tick + parallelismWindow, totEnergy, triggerId)
+              sender() ! UnpluggingVehicle(tick + parallelismWindow, totEnergy, triggerId)
               chargingNetwork
                 .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
@@ -205,11 +206,11 @@ class ChargingNetworkManager(
                 }
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")
-              sender ! UnhandledVehicle(tick + parallelismWindow, vehicle.id, triggerId)
+              sender() ! UnhandledVehicle(tick + parallelismWindow, vehicle.id, triggerId)
           }
         case _ =>
           log.debug(s"Cannot unplug $vehicle as it doesn't have a stall at $tick")
-          sender ! UnhandledVehicle(tick + parallelismWindow, vehicle.id, triggerId)
+          sender() ! UnhandledVehicle(tick + parallelismWindow, vehicle.id, triggerId)
       }
 
     case Finish =>
@@ -459,7 +460,7 @@ object ChargingNetworkManager extends LazyLogging {
       stall.copy(locationUTM = beamServices.geo.utm2Wgs(stall.locationUTM)),
       totEnergy,
       vehicle.primaryFuelLevelInJoules - totEnergy,
-      totDuration,
+      totDuration.toDouble,
       vehicle.id,
       vehicle.beamVehicleType,
       chargingVehicle.personId,

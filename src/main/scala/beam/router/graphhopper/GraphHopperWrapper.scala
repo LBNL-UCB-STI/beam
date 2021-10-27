@@ -43,7 +43,7 @@ abstract class GraphHopperWrapper(
 
   protected def createGraphHopper(): GraphHopper
   protected def getProfile(): Profile
-  protected def prepareRequest(request: GHRequest)
+  protected def prepareRequest(request: GHRequest): Unit
   protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double]
   protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double
 
@@ -90,7 +90,7 @@ abstract class GraphHopperWrapper(
         .map(_.get)
     }
     RoutingResponse(
-      alternatives,
+      alternatives.toSeq,
       routingRequest.requestId,
       Some(routingRequest),
       isEmbodyWithCurrentTravelTime = false,

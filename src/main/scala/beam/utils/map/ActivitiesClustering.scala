@@ -96,7 +96,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
         coords += CoordWithLabel(coord, labels.get(iter))
         iter.advance()
       }
-      ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords)
+      ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords.toIndexedSeq)
     }.toArray
   }
 

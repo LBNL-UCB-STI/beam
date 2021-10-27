@@ -77,7 +77,7 @@ class TravelTimeGoogleStatistic(
       }
       val events = byHour
         .flatMap { case (_, events) =>
-          getAppropriateEvents(events, numEventsPerHour)
+          getAppropriateEvents(events.toSeq, numEventsPerHour)
         }
       logger.info("Number of events: {}", events.size)
 

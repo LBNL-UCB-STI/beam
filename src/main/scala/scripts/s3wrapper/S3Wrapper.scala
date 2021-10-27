@@ -14,6 +14,7 @@ import java.nio.file.{Files, Path}
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.parallel.CollectionConverters._
 
 class S3Wrapper(accessKey: String, secretKey: String) extends AutoCloseable with StrictLogging {
   validateNotBlank("accessKey", accessKey)

@@ -17,6 +17,7 @@ import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
 import scala.collection.JavaConverters._
 import scala.collection._
+import scala.collection.parallel.CollectionConverters._
 
 case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfig) extends StrictLogging {
 

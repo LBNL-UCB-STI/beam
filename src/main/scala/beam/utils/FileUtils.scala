@@ -389,7 +389,7 @@ object FileUtils extends LazyLogging {
     * @tparam M the container type
     * @return all the loaded records as an Iterable
     */
-  def flatParRead[X, M[X] <: TraversableOnce[X]](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
+  def flatParRead[X, M[X] <: IterableOnce[X]](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
     loader: (Path, BufferedReader) => M[X]
   ): Iterable[X] =
     parRead(dir, fileNamePattern, atMost) { (path: Path, reader: BufferedReader) =>

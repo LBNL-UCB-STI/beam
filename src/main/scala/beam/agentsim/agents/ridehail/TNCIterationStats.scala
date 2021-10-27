@@ -125,7 +125,7 @@ case class TNCIterationStats(
             getRideHailStatsInfo(tazInRadius.tazId, _) match {
               case Some(statsEntry) =>
                 val waitingTimeScore = waitingTimeWeight * Math
-                  .pow(statsEntry.sumOfWaitingTimes, 2) /
+                  .pow(statsEntry.sumOfWaitingTimes.toDouble, 2) /
                   Math.pow(statsEntry.sumOfWaitingTimes + 1000.0, 2)
 
                 val demandScore = demandWeight * Math
@@ -282,7 +282,7 @@ case class TNCIterationStats(
           idleScore = idleScore + idleTAZs(taz.tazId.toString).sumOfIdlingVehicles
         }
       }
-      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
+      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore.toDouble))
     }
 
     priorityQueue = priorityQueue.filter(vehicleLocationScores =>
@@ -362,7 +362,7 @@ case class TNCIterationStats(
         )
         .sum
 
-      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
+      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore.toDouble))
     }
 
     /*

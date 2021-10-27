@@ -23,10 +23,10 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
   val classMembershipModelMaps: Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] =
     LatentClassChoiceModel.extractClassMembershipModels(lccmData)
 
-  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = classMembershipModelMaps.mapValues {
+  val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = classMembershipModelMaps.view.mapValues {
     modelMap =>
       MultinomialLogit(modelMap)
-  }
+  }.toMap
 
   val modeChoiceModels
     : Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
@@ -49,7 +49,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
         result += row.clone().asInstanceOf[LccmData]
       row = newEmptyRow()
     }
-    result
+    result.toSeq
   }
 
   private def newEmptyRow(): LccmData = new LccmData()

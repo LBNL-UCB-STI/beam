@@ -2,6 +2,7 @@ package beam.physsim.jdeqsim
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.util.Try
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain

@@ -143,7 +143,7 @@ trait ChoosesParking extends {
   when(ReleasingChargingPoint) {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
-      stay using data
+      stay() using data
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data) =>
       assume(
         vehicleId == currentBeamVehicle.id,
@@ -172,7 +172,7 @@ trait ChoosesParking extends {
   when(ReleasingParkingSpot, stateTimeout = Duration.Zero) {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
-      stay using data
+      stay() using data
     case Event(StateTimeout, data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
@@ -281,7 +281,7 @@ trait ChoosesParking extends {
         } yield (vehicle2StallResponse, stall2DestinationResponse)
 
         responses pipeTo self
-        stay using data
+        stay() using data
       }
     case Event((routingResponse1: RoutingResponse, routingResponse2: RoutingResponse), data: BasePersonData) =>
       val (tick, triggerId) = releaseTickAndTriggerId()

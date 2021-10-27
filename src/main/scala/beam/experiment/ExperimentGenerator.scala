@@ -40,7 +40,7 @@ object ExperimentGenerator extends ExperimentApp {
   }
 
   def getExperimentPath: Path = {
-    Paths.get(experimentDef.header.experimentOutputRoot, "scenarios", experimentDef.getHeader.experimentId)
+    Paths.get(experimentDef.header.experimentOutputRoot, "scenarios", experimentDef.getHeader().experimentId)
   }
 
   val baseConfig = ConfigFactory.parseFile(Paths.get(experimentDef.header.beamTemplateConfPath).toFile)

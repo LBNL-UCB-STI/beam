@@ -144,7 +144,7 @@ class BeamEventsWriterParquet(
         }
     }
 
-    attributes
+    attributes.toSeq
   }
 
   def getFieldNameToTypeMap: Map[String, ParquetType] = Map(

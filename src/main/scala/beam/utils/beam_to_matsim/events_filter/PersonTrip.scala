@@ -7,7 +7,7 @@ import scala.collection.mutable
 object PersonTrip {
 
   def apply(personId: String, pte: BeamPathTraversal): PersonTrip =
-    new PersonTrip(personId, mutable.MutableList(pte))
+    new PersonTrip(personId, mutable.ListBuffer(pte))
 }
 
-case class PersonTrip(personId: String, trip: mutable.MutableList[BeamPathTraversal]) {}
+case class PersonTrip(personId: String, trip: mutable.ListBuffer[BeamPathTraversal]) {}
