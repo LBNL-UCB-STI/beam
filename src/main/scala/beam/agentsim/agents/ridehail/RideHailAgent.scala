@@ -977,7 +977,7 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
       holdTickAndTriggerId(tick, triggerId)
       chargingNetworkManager ! ChargingUnplugRequest(
-        tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+        tick,
         currentBeamVehicle,
         triggerId
       )

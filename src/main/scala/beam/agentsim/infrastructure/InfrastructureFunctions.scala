@@ -27,8 +27,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
-  minDistanceToFociInPercent: Double,
-  maxDistanceToFociInPercent: Double,
+  searchMaxDistanceRelativeToEllipseFoci: Double,
   enrouteDuration: Double,
   boundingBox: Envelope,
   seed: Int
@@ -91,8 +90,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZoneSearchConfiguration(
       minSearchRadius,
       maxSearchRadius,
-      minDistanceToFociInPercent,
-      maxDistanceToFociInPercent,
+      searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
       enrouteDuration

@@ -674,12 +674,11 @@ object BeamConfig {
         }
 
         case class Parking(
-          maxDistanceToFociInPercent: scala.Double,
           maxSearchRadius: scala.Double,
-          minDistanceToFociInPercent: scala.Double,
           minSearchRadius: scala.Double,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-          rangeAnxietyBuffer: scala.Double
+          rangeAnxietyBuffer: scala.Double,
+          searchMaxDistanceRelativeToEllipseFoci: scala.Double
         )
 
         object Parking {
@@ -732,18 +731,18 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
-              maxDistanceToFociInPercent =
-                if (c.hasPathOrNull("maxDistanceToFociInPercent")) c.getDouble("maxDistanceToFociInPercent") else 1.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
-              minDistanceToFociInPercent =
-                if (c.hasPathOrNull("minDistanceToFociInPercent")) c.getDouble("minDistanceToFociInPercent") else 1.05,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
               ),
               rangeAnxietyBuffer =
-                if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0
+                if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
+              searchMaxDistanceRelativeToEllipseFoci =
+                if (c.hasPathOrNull("searchMaxDistanceRelativeToEllipseFoci"))
+                  c.getDouble("searchMaxDistanceRelativeToEllipseFoci")
+                else 2.0
             )
           }
         }

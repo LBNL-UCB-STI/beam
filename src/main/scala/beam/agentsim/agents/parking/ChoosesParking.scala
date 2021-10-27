@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -202,7 +202,7 @@ trait ChoosesParking extends {
       if (currentBeamVehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
         chargingNetworkManager ! ChargingUnplugRequest(
-          tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+          tick,
           currentBeamVehicle,
           triggerId
         )
@@ -334,43 +334,56 @@ trait ChoosesParking extends {
         responses pipeTo self
         stay using data
       }
-    case Event((routingResponse1: RoutingResponse, routingResponse2: RoutingResponse), data: BasePersonData) =>
+    case Event(
+          (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
+          data: BasePersonData
+        ) =>
       // TODO IF ENROUTE CHARGE (which can be identifitied from second routingResponse2, if it has car then enroute, if walk then not)
       // TODO keep in mind that routingResponse2 can have walk or (car + walk).
       // TODO CREATE AN ACTIVITY AT PARKING STALL AND CALL IT CHARGING
       // TODO CREATE A LEG ROUTE VEHICLE TO CHARGING ACTIVITY AND A LEG ROUTE FROM CHARGING TO DESTINATION
       // TODO UPDATE PERSON DATA WITH NEW LEGS AND ACTIVITY
 
+      isEnrouteRefueling = false
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val nextLeg =
-        data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
+      val nextLeg = data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
 
       val vehicleMode = currentBeamVehicle.toStreetVehicle.mode
       // If no vehicle leg returned, use previous route to destination (i.e. assume parking is at dest)
-      var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == vehicleMode)) {
+      val leg1 = if (!vehicle2StallResponse.itineraries.exists(_.tripClassifier == vehicleMode)) {
         logDebug(s"no vehicle leg ($vehicleMode) returned by router, assuming parking spot is at destination")
-        (
-          EmbodiedBeamLeg(
-            nextLeg,
-            data.currentVehicle.head,
-            body.beamVehicleType.id,
-            asDriver = true,
-            0.0,
-            unbecomeDriverOnCompletion = true
-          ),
-          routingResponse2.itineraries.head.legs.head
+        EmbodiedBeamLeg(
+          nextLeg,
+          data.currentVehicle.head,
+          body.beamVehicleType.id,
+          asDriver = true,
+          0.0,
+          unbecomeDriverOnCompletion = true
         )
       } else {
-        (
-          routingResponse1.itineraries.view
-            .filter(_.tripClassifier == vehicleMode)
-            .head
-            .legs
-            .view
-            .filter(_.beamLeg.mode == vehicleMode)
-            .head,
-          routingResponse2.itineraries.head.legs.head
-        )
+        isEnrouteRefueling = true
+        vehicle2StallResponse.itineraries.view
+          .filter(_.tripClassifier == vehicleMode)
+          .head
+          .legs
+          .view
+          .filter(_.beamLeg.mode == vehicleMode)
+          .head
+      }
+
+      var leg2 = if (!stall2DestinationResponse.itineraries.exists(_.tripClassifier == vehicleMode)) {
+        logDebug(s"no vehicle leg ($vehicleMode) returned by router, assuming parking spot is at destination")
+        isEnrouteRefueling = false
+        stall2DestinationResponse.itineraries.head.legs.head
+      } else {
+        isEnrouteRefueling = true
+        stall2DestinationResponse.itineraries.view
+          .filter(_.tripClassifier == vehicleMode)
+          .head
+          .legs
+          .view
+          .filter(_.beamLeg.mode == vehicleMode)
+          .head
       }
       // Update start time of the second leg
       leg2 = leg2.copy(beamLeg = leg2.beamLeg.updateStartTime(leg1.beamLeg.endTime))
@@ -382,8 +395,7 @@ trait ChoosesParking extends {
       val newRestOfTrip = leg1 +: (leg2 +: data.restOfCurrentTrip.filter { leg =>
         !legsToDrop.exists(dropLeg => dropLeg.beamLeg == leg.beamLeg)
       }).toVector
-      val newCurrentTripLegs = data.currentTrip.get.legs
-        .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
+      val newCurrentTripLegs = data.currentTrip.get.legs.takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
       val newVehicle = if (leg1.beamLeg.mode == vehicleMode || currentBeamVehicle.id == body.id) {
@@ -413,5 +425,18 @@ trait ChoosesParking extends {
         currentLegPassengerScheduleIndex = 0,
         currentVehicle = newVehicle
       )
+
+//      if (
+//        stall2DestinationResponse.itineraries.headOption.exists(_.tripClassifier == CAR) && data.enrouteCharging.isEmpty
+//      ) {
+//        val path = stall2DestinationResponse.itineraries.head.beamLegs.find(_.mode == CAR).get.travelPath
+//        val linkId = Id.createLinkId(path.linkIds.head)
+//        val coord = beamServices.geo.wgs2Utm(path.startPoint.loc)
+//        val activity = PopulationUtils.createActivityFromCoordAndLinkId("charging", coord, linkId)
+//        val leg = PopulationUtils.createLeg("car")
+//        _experiencedBeamPlan.updatePlanAfter(activity, leg, data.currentActivityIndex)
+//        updatedData = updatedData.copy(enrouteCharging = Some(()))
+//      }
+
   }
 }

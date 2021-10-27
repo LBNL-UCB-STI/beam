@@ -41,8 +41,7 @@ class ChargingNetworkSpec
         akka.test.timefactor = 2
         beam.agentsim.agents.parking.minSearchRadius = 1000.0
         beam.agentsim.agents.parking.maxSearchRadius = 16093.4
-        beam.agentsim.agents.parking.minDistanceToFociInPercent = 1.05
-        beam.agentsim.agents.parking.maxDistanceToFociInPercent = 1.5
+        beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci = 4.0
         matsim.modules.global.randomSeed = 0
         """
     )

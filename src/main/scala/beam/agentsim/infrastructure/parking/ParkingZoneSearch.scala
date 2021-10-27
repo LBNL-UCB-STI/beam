@@ -36,8 +36,7 @@ object ParkingZoneSearch {
     *
     * @param searchStartRadius radius of the first concentric ring search
     * @param searchMaxRadius maximum distance for the search
-    * @param searchStartDistanceToFociInPercent start distance to both foci of an ellipse
-    * @param searchMaxDistanceToFociInPercent max distance to both foci of an ellipse
+    * @param searchMaxDistanceRelativeToEllipseFoci max distance to both foci of an ellipse
     * @param boundingBox limiting coordinate bounds for simulation area
     * @param distanceFunction function which computes distance (based on underlying coordinate system)
     * @param searchExpansionFactor factor by which the radius is expanded
@@ -45,8 +44,7 @@ object ParkingZoneSearch {
   case class ParkingZoneSearchConfiguration(
     searchStartRadius: Double,
     searchMaxRadius: Double,
-    searchStartDistanceToFociInPercent: Double,
-    searchMaxDistanceToFociInPercent: Double,
+    searchMaxDistanceRelativeToEllipseFoci: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     enrouteDuration: Double,
@@ -269,7 +267,7 @@ object ParkingZoneSearch {
             .asScala
             .toList
           thisInnerRadius = thisOuterRadius
-          thisOuterRadius = thisOuterRadius + expansionFactor
+          thisOuterRadius = thisOuterRadius * expansionFactor
           Some(result)
         }
       }
@@ -278,25 +276,22 @@ object ParkingZoneSearch {
     case class EnrouteSearch[GEO](
       originUTM: Location,
       destinationUTM: Location,
-      searchStartDistanceToFociInPercent: Double,
       searchMaxDistanceToFociInPercent: Double,
       expansionFactor: Double,
       distanceFunction: (Coord, Coord) => Double
     ) extends SearchMode[GEO] {
-      private val minDistance: Double = distanceFunction(originUTM, destinationUTM)
-      private val startDistance: Double = minDistance * searchStartDistanceToFociInPercent
-      private val maxDistance: Double = minDistance * searchMaxDistanceToFociInPercent
-      private var thisInnerExpansionFactor: Double = searchStartDistanceToFociInPercent - 1.0
+      private val startDistance: Double = distanceFunction(originUTM, destinationUTM) * 1.01
+      private val maxDistance: Double = startDistance * searchMaxDistanceToFociInPercent
+      private var thisInnerDistance: Double = startDistance
 
       override def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]] = {
-        val currentDistance = startDistance * (1 + thisInnerExpansionFactor)
-        if (currentDistance > maxDistance) None
+        if (thisInnerDistance > maxDistance) None
         else {
           val result = zoneQuadTree
-            .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, currentDistance)
+            .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, thisInnerDistance)
             .asScala
             .toList
-          thisInnerExpansionFactor = thisInnerExpansionFactor * expansionFactor
+          thisInnerDistance = thisInnerDistance * expansionFactor
           Some(result)
         }
       }
@@ -311,8 +306,7 @@ object ParkingZoneSearch {
           EnrouteSearch(
             params.originUTM,
             params.destinationUTM,
-            config.searchStartDistanceToFociInPercent,
-            config.searchStartDistanceToFociInPercent,
+            config.searchMaxDistanceRelativeToEllipseFoci,
             config.searchExpansionFactor,
             config.distanceFunction
           )

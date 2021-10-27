@@ -11,7 +11,11 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
-import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
+import beam.agentsim.agents.parking.ChoosesParking.{
+  handleReleasingParkingSpot,
+  ChoosingParkingSpot,
+  ReleasingParkingSpot
+}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -21,12 +25,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  WaitingToCharge
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -219,6 +218,10 @@ object PersonAgent {
 
   case object DrivingInterrupted extends Traveling
 
+  case object EnrouteRefueling extends Traveling
+
+  case class EnrouteRefuelingTrigger(tick: Int) extends Trigger
+
   def correctTripEndTime(
     trip: EmbodiedBeamTrip,
     endTime: Int,
@@ -302,6 +305,8 @@ class PersonAgent(
 
   var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+
+  var isEnrouteRefueling: Boolean = false
 
   def updateFuelConsumed(fuelOption: Option[FuelConsumed]): Unit = {
     val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
@@ -769,8 +774,17 @@ class PersonAgent(
       )
   }
 
-  onTransition { case _ -> _ =>
-    unstashAll()
+  onTransition {
+    case ProcessingNextLegOrStartActivity -> EnrouteRefueling =>
+      chargingNetworkManager ! ChargingPlugRequest(
+        _currentTick.get,
+        currentBeamVehicle,
+        currentBeamVehicle.reservedStall.get,
+        Id.createPersonId(id),
+        _currentTriggerId.get
+      )
+    case _ -> _ =>
+      unstashAll()
   }
 
   when(TryingToBoardVehicle) {
@@ -797,7 +811,72 @@ class PersonAgent(
       )
   }
 
+  when(EnrouteRefueling) {
+    case _ @Event(StartingRefuelSession(tick, _), _) =>
+      val endEnrouteRefuelingTime =
+        tick +
+        beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds +
+        beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+      scheduler ! ScheduleTrigger(EnrouteRefuelingTrigger(endEnrouteRefuelingTime), self)
+      stay
+    case _ @Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
+      chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
+      stay
+    case _ @Event(WaitingToCharge(_, _, _), _) =>
+      stay
+    case _ @Event(EndingRefuelSession(tick, _, triggerId), _) =>
+      updateLatestObservedTick(tick)
+      holdTickAndTriggerId(tick, triggerId)
+      if (currentBeamVehicle.stall.isDefined) {
+        chargingNetworkManager ! ChargingUnplugRequest(
+          tick,
+          currentBeamVehicle,
+          triggerId
+        )
+      }
+      stay
+    case _ @Event(UnpluggingVehicle(tick, energyCharged, triggerId), _) =>
+      log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
+      handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        Some(energyCharged),
+        id,
+        parkingManager,
+        eventsManager,
+        triggerId
+      )
+      isEnrouteRefueling = false
+      goto(ProcessingNextLegOrStartActivity)
+    case _ @Event(UnhandledVehicle(_, _, _), _) =>
+      isEnrouteRefueling = false
+      goto(ProcessingNextLegOrStartActivity)
+    case Event(_, _) =>
+      stash()
+      stay
+  }
+
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
+    case Event(
+          StateTimeout,
+          data @ BasePersonData(
+            _,
+            _,
+            nextLeg :: nextNextLeg :: _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+            _
+          )
+        ) if nextLeg.asDriver && isEnrouteRefueling && nextLeg.beamVehicleId != nextNextLeg.beamVehicleId =>
+      stash()
+      goto(EnrouteRefueling) using data
+
     case Event(
           StateTimeout,
           data @ BasePersonData(
@@ -890,9 +969,7 @@ class PersonAgent(
       log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
-      eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
-      )
+      eventsManager.processEvent(new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason))
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
           .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
