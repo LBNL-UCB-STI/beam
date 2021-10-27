@@ -25,8 +25,14 @@ object PlanElement {
         case "leg"      => Leg
       }
   }
-  object Activity extends PlanElementType
-  object Leg extends PlanElementType
+
+  case object Activity extends PlanElementType {
+    override def toString: String = "activity"
+  }
+
+  case object Leg extends PlanElementType {
+    override def toString: String = "leg"
+  }
 }
 
 case class PlanElement(
