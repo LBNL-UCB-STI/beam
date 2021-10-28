@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.sim.config.BeamConfig
 import org.matsim.api.core.v01.Id
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -52,7 +53,7 @@ object BeamVehicleUtils {
     }
   }
 
-  def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
+  private[utils] def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
         val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
@@ -112,6 +113,27 @@ object BeamVehicleUtils {
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
+  }
+
+  def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val rideHailTypeId = beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
+    val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
+    val vehicleTypeString = vehicleTypes.keySet.map(_.toString())
+    val defaultVehicleType = vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+
+    if (!vehicleTypeString.contains(rideHailTypeId) && !vehicleTypeString.contains(dummySharedCarId)) {
+      vehicleTypes + (
+        Id.create(rideHailTypeId, classOf[BeamVehicleType])   -> defaultVehicleType,
+        Id.create(dummySharedCarId, classOf[BeamVehicleType]) -> defaultVehicleType
+      )
+    } else if (!vehicleTypeString.contains(dummySharedCarId)) {
+      vehicleTypes + (Id.create(dummySharedCarId, classOf[BeamVehicleType]) -> defaultVehicleType)
+    } else if (!vehicleTypeString.contains(rideHailTypeId)) {
+      vehicleTypes + (Id.create(rideHailTypeId, classOf[BeamVehicleType]) -> defaultVehicleType)
+    } else {
+      vehicleTypes
+    }
   }
 
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {

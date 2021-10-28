@@ -258,10 +258,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   def loadScenario(beamConfig: BeamConfig): BeamScenario = {
-    val vehicleTypes = maybeScaleTransit(
-      beamConfig,
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    )
+    val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
 
