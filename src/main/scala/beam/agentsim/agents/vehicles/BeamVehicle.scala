@@ -132,6 +132,12 @@ class BeamVehicle(
     }
   }
 
+  def unsetReservedParkingStall(): Unit = {
+    stallRWLock.write {
+      reservedStallInternal = None
+    }
+  }
+
   def useParkingStall(newStall: ParkingStall): Unit = {
     stallRWLock.write {
       stallInternal = Some(newStall)
