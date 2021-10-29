@@ -226,7 +226,7 @@ class FastHouseholdCAVScheduling(
     private def computeSharedTravelTime(requestsSeq: mutable.ListBuffer[MobilityRequest]): Int = {
       val waitTime = requestsSeq.head.serviceTime - requestsSeq.head.baselineNonPooledTime
       requestsSeq.filter(x => x.isPickup || x.isDropoff).sliding(2).foldLeft(waitTime) {
-        case (acc, Seq(prevReq, nextReq)) =>
+        case (acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest)) =>
           acc + ((nextReq.serviceTime - prevReq.serviceTime) / prevReq.vehicleOccupancy.getOrElse(1))
       }
     }

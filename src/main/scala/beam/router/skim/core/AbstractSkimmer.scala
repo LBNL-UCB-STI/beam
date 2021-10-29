@@ -124,9 +124,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
         FileUtils
           .flatParRead(Paths.get(file.path), filePattern, awaitSkimLoading) { (path, reader) =>
-            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader)
-          }
-          .toMap
+            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader).toSeq
+          }.toMap
       }
     }
   }

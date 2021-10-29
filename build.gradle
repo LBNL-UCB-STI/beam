@@ -217,7 +217,7 @@ dependencies {
 
     // CORE Scala //
     implementation "org.scala-lang:scala-library:2.12.13"
-    implementation group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
+    implementation group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '2.0.1'
     implementation group: 'org.scala-lang.modules', name: "scala-parallel-collections_${scalaBinaryVersion}", version: '1.0.4'
 
     // NEEDED FOR USING REPL //

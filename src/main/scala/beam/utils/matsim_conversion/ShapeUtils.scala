@@ -150,7 +150,7 @@ object ShapeUtils {
   }
 
   private def clearRepeatedTaz(groupedRepeatedTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
-    groupedRepeatedTaz.flatMap(i => addSuffix(i._1, i._2)).toArray
+    groupedRepeatedTaz.flatMap[CsvTaz](i => addSuffix(i._1, i._2)).toArray
   }
 
   private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {

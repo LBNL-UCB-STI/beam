@@ -164,7 +164,7 @@ class UrbanSimScenarioSource(
         val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
         !isCorrupted
       }
-      .flatMap { case (_, v) => v.sortBy(x => x.planElementIndex) }
+      .flatMap[DataExchange.PlanElement] { case (_, v) => v.sortBy(x => x.planElementIndex) }
       .toArray
     correctPlanElements
   }

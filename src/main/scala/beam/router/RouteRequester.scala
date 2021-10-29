@@ -99,7 +99,7 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
     val carWeightCalculator = new CarWeightCalculator(workerParams)
     val graphHopperInstances = noOfTimeBins
 
-    val futures = (0 until graphHopperInstances).map { i =>
+    val futures: IndexedSeq[Future[(Int, CarGraphHopperWrapper)]] = (0 until graphHopperInstances).map { i =>
       Future {
         val ghDir = Paths.get(carGraphHopperDir, i.toString).toString
 

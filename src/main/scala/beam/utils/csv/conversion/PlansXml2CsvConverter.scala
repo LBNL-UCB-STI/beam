@@ -72,7 +72,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
           .filter(elem => elem.head.label == "activity" || elem.head.label == "leg")
           .zipWithIndex
       }
-      .getOrElse(Seq.empty)
+      .getOrElse(Seq.empty).toSeq
 
     childWithIndex
       .map(pair => toActivity(pair._1, pair._2 + 1))

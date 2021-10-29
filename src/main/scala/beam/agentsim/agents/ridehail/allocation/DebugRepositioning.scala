@@ -34,7 +34,7 @@ object DebugRepositioning {
             PointToPlot(
               tazEntry._1,
               Color.RED,
-              10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
+              10 + Math.log(tazEntry._2.sumOfRequestedRides.toDouble).toInt
             )
           )
         }
