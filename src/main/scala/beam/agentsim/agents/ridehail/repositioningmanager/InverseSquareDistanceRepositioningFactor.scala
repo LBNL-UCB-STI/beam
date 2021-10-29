@@ -173,7 +173,7 @@ class InverseSquareDistanceRepositioningFactor(
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
     // Build clusters for every time bin. Number of clusters is configured
-    getTimeBins(tick).flatMap(timeBinToActivities.get).flatMap { acts =>
+    getTimeBins(tick).view.flatMap(timeBinToActivities.get).flatMap { acts =>
       if (acts.isEmpty)
         Array.empty[ClusterInfo]
       else {
@@ -188,7 +188,7 @@ class InverseSquareDistanceRepositioningFactor(
             ClusterInfo(group.size, centroid, group.toIndexedSeq)
           }
       }
-    }
+    }.toArray
   }
 
   private def getTimeBins(tick: Int): Array[Int] = {

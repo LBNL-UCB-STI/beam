@@ -24,7 +24,7 @@ object H3Wrapper {
   }
 
   def round(value: Double, places: Int): Double = {
-    BigDecimal.valueOf(value).setScale(places, BigDecimal.RoundingMode.HALF_UP).doubleValue()
+    BigDecimal.valueOf(value).setScale(places, BigDecimal.RoundingMode.HALF_UP).doubleValue
   }
 
   def getChildren(index: H3Index): Set[H3Index] = {

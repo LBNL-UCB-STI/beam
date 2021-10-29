@@ -764,12 +764,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
 
     case ev @ Event(RemovePassengerFromTrip(id), data) =>
+      implicit val orderingForCollect = beam.agentsim.agents.vehicles.BeamLegOrdering
       log.debug("state(DrivesVehicle.drivingBehavior): {}", ev)
       stay() using data
         .withPassengerSchedule(
           PassengerSchedule(
             data.passengerSchedule.schedule ++ data.passengerSchedule.schedule
-              .unsorted
               .collect { case (leg: BeamLeg, manifest: PassengerSchedule.Manifest) =>
                 (
                   leg,
