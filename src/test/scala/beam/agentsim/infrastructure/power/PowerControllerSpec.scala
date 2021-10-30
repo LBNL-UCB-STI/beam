@@ -25,7 +25,9 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
       .parseString(s"""
         |beam.agentsim.chargingNetworkManager {
         |  timeStepInSeconds = 300
-        |
+        |  scaleUp {
+        |    enabled = false
+        |  }
         |  helics {
         |    connectionEnabled = false
         |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"

@@ -356,7 +356,7 @@ write.csv(
   na="")
 
 
-test <- readCsv(pp(workDir, "/gemini-base-scenario-2-charging-with-household-infra16.csv"))
+test <- readCsv(pp(workDir, "/2021Aug22-Oakland/stations/gemini-base-scenario-2-charging-with-household-infra16.csv"))
 
 
 #####

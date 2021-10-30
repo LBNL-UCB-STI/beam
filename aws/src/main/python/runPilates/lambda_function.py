@@ -225,7 +225,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.12xlarge', 'r5.24xlarge',
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
-                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge']
+                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
+                  'x2gd.16xlarge', 'x2gd.metal']
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']

@@ -306,16 +306,16 @@ class ModeChoiceMultinomialLogit(
 
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
     mutable.Map[Option[BeamMode], Double](
+      // Some(WAITING)        -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
       Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
       Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,
       Some(RIDE_HAIL_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
       Some(CAV)               -> modalBehaviors.modeVotMultiplier.CAV,
-//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
-      Some(BIKE) -> modalBehaviors.modeVotMultiplier.bike,
-      Some(WALK) -> modalBehaviors.modeVotMultiplier.walk,
-      Some(CAR)  -> modalBehaviors.modeVotMultiplier.drive,
-      None       -> modalBehaviors.modeVotMultiplier.waiting
+      Some(BIKE)              -> modalBehaviors.modeVotMultiplier.bike,
+      Some(WALK)              -> modalBehaviors.modeVotMultiplier.walk,
+      Some(CAR)               -> modalBehaviors.modeVotMultiplier.drive,
+      None                    -> modalBehaviors.modeVotMultiplier.waiting
     )
 
   lazy val poolingMultipliers: mutable.Map[automationLevel, Double] =
@@ -576,7 +576,15 @@ object ModeChoiceMultinomialLogit {
     val scale_factor: Double =
       configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "car" -> Map(
+      BeamMode.CAR.value -> Map(
+        "intercept" ->
+        UtilityFunctionOperation("intercept", params.car_intercept)
+      ),
+      BeamMode.CAR_HOV2.value -> Map(
+        "intercept" ->
+        UtilityFunctionOperation("intercept", params.car_intercept)
+      ),
+      BeamMode.CAR_HOV3.value -> Map(
         "intercept" ->
         UtilityFunctionOperation("intercept", params.car_intercept)
       ),

@@ -200,7 +200,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', 'r5.12xlarge', 'r5.24xlarge',
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
-                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge']
+                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
+                  'x2gd.16xlarge', 'x2gd.metal']
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
@@ -320,7 +321,9 @@ spot_specs = [
     #AWS_Instance_Spec('i3en.24xlarge',96,768),
     AWS_Instance_Spec('m5dn.24xlarge',96,384),
     #AWS_Instance_Spec('i3en.metal',96,768),
-    AWS_Instance_Spec('m5ad.24xlarge',96,384)
+    AWS_Instance_Spec('m5ad.24xlarge',96,384),
+    AWS_Instance_Spec('x2gd.16xlarge',64,1024),
+    AWS_Instance_Spec('x2gd.metal',64,1024)
 ]
 
 def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, preferred_instance_type):

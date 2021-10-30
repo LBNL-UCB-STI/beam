@@ -79,7 +79,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,
       planSelected = getIfNotNull(rec, "planSelected", "false").toBoolean,
-      planElementType = planElementType,
+      planElementType = PlanElement.PlanElementType(planElementType),
       planElementIndex = planElementIndex,
       activityType = activityType,
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),

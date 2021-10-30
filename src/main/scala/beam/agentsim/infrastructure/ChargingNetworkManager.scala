@@ -93,7 +93,7 @@ class ChargingNetworkManager(
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      log.debug("ChargingNetworkManager is Starting!")
+      log.info("ChargingNetworkManager is Starting!")
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
@@ -129,9 +129,7 @@ class ChargingNetworkManager(
       val e = System.currentTimeMillis()
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
-      log.info(
-        s"timeSpentToPlanEnergyDispatchTrigger: ${timeSpentToPlanEnergyDispatchTrigger / 1000}sec. tick: $timeBin"
-      )
+      log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
       sender ! CompletionNotice(
         triggerId,
         triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries

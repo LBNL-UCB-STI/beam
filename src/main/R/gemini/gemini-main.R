@@ -27,7 +27,7 @@ expFactor <- (6.015/0.6015)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2021Aug22-Oakland/BATCH3")
+dataDir <- normalizePath("~/Data/GEMINI/2021Oct29/BATCH1")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -65,8 +65,8 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 #####
 #scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-scenarioNames <- c('Scenario2', 'Scenario3')
-scenarioBaselineLabel <- 'Scenario2'
+scenarioNames <- c('Scenario4')
+scenarioBaselineLabel <- 'Scenario4'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -157,13 +157,6 @@ register_google(key = google_api_key_1)
 oakland_map <- ggmap::get_googlemap("oakland california", zoom = 14, maptype = "roadmap")
 
 # Plot it
-ggmap(oakland_map) +
-  theme_void() +
-  ggtitle("terrain") +
-  theme(
-    plot.title = element_text(colour = "orange"),
-    panel.border = element_rect(colour = "grey", fill=NA, size=2)
-  )
 hours_to_show <- c(0, 8, 12, 18)
 toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% hours_to_show]
 toplot$hour.bin2.label <- "12am"

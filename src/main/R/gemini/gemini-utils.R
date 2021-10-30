@@ -11,10 +11,16 @@ chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#FFCC3
 names(chargingTypes.colors) <- c("XFC", "DCFC", "Public-L2", "Work-L2", "Work-L1", "Home-L2", "Home-L1")
 loadTypes <- data.table::data.table(
   chargingPointType = c(
-    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)", "publiclevel2(7.2|AC)",
-    "worklevel2(7.2|AC)", "custom(7.2|AC)",
-    "publicfc(150.0|DC)", "custom(150.0|DC)", "publicxfc(250.0|DC)", "custom(250.0|DC)"),
-  loadType = c("Home-L1", "Home-L2", "Public-L2", "Work-L2", "Work-L2", "DCFC", "DCFC", "XFC", "XFC"))
+    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
+    "worklevel2(7.2|AC)",
+    "publiclevel2(7.2|AC)",
+    "publicfc(50.0|DC)", "publicfc(150.0|DC)", "depotfc(150.0|DC)",
+    "publicxfc(250.0|DC)", "publicxfc(400.0|DC)", "depotfc(250.0|DC)", "depotfc(400.0|DC)"),
+  loadType = c("Home-L1", "Home-L2",
+               "Work-L2",
+               "Public-L2",
+               "DCFC", "DCFC", "DCFC",
+               "XFC", "XFC", "XFC", "XFC"))
 
 nextTimePoisson <- function(rate) {
   return(-log(1.0 - runif(1)) / rate)

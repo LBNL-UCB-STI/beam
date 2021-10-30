@@ -923,8 +923,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
     }
+
     val beamLeg: BeamLeg =
-      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds)
+      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds, Some(vehicle.mode))
     val toll = if (segment.mode == LegMode.CAR) {
       val osm = segment.streetEdges.asScala
         .map(e =>
@@ -959,7 +960,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     startPoint: SpaceTime,
     endCoord: Coord,
     legMode: LegMode,
-    activeLinkIds: IndexedSeq[Int]
+    activeLinkIds: IndexedSeq[Int],
+    maybeVehicleMode: Option[BeamMode] = None
   ): BeamLeg = {
     val tripStartTime: Int = startPoint.time
     // During routing `travelTimeByLinkCalculator` is used with shouldAddNoise = true (if it is not transit)
@@ -981,9 +983,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       endPoint = SpaceTime(endCoord, startPoint.time + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)),
       distanceInM = distance
     )
+
+    val newLegMode = maybeVehicleMode match {
+      case Some(vehicleMode @ CAR) => vehicleMode
+      case _                       => mapLegMode(legMode)
+    }
+
     val beamLeg = BeamLeg(
       tripStartTime,
-      mapLegMode(legMode),
+      newLegMode,
       theTravelPath.duration,
       travelPath = theTravelPath
     )

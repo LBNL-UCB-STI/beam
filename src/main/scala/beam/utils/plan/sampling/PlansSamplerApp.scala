@@ -1,8 +1,8 @@
 package beam.utils.plan.sampling
 
-import java.util
+import beam.router.Modes.BeamMode
 
-import beam.router.Modes.BeamMode.CAR
+import java.util
 import beam.utils.matsim_conversion.{MatsimConversionTool, ShapeUtils}
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -464,7 +464,7 @@ object PlansSampler {
     val filteredPermissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-      .filterNot(pm => PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
+      .filterNot(pm => PersonUtils.getAge(person) < 16 && BeamMode.isCar(pm))
     AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
