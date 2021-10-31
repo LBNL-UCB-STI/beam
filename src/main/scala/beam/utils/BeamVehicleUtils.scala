@@ -120,20 +120,25 @@ object BeamVehicleUtils {
     val rideHailTypeId = beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
     val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
     val vehicleTypeString = vehicleTypes.keySet.map(_.toString())
-    val defaultVehicleType = vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+    val defaultVehicleType = BeamVehicleType(
+      id = Id.create("beamVilleCar", classOf[BeamVehicleType]),
+      seatingCapacity = 4,
+      standingRoomCapacity = 0,
+      lengthInMeter = 4.5,
+      primaryFuelType = FuelType.Gasoline,
+      primaryFuelConsumptionInJoulePerMeter = 3655.98,
+      primaryFuelCapacityInJoule = 3655980000.0,
+      vehicleCategory = VehicleCategory.Car
+    )
 
-    if (!vehicleTypeString.contains(rideHailTypeId) && !vehicleTypeString.contains(dummySharedCarId)) {
-      vehicleTypes + (
-        Id.create(rideHailTypeId, classOf[BeamVehicleType])   -> defaultVehicleType,
-        Id.create(dummySharedCarId, classOf[BeamVehicleType]) -> defaultVehicleType
-      )
-    } else if (!vehicleTypeString.contains(dummySharedCarId)) {
-      vehicleTypes + (Id.create(dummySharedCarId, classOf[BeamVehicleType]) -> defaultVehicleType)
-    } else if (!vehicleTypeString.contains(rideHailTypeId)) {
-      vehicleTypes + (Id.create(rideHailTypeId, classOf[BeamVehicleType]) -> defaultVehicleType)
-    } else {
-      vehicleTypes
+    val missingTypes = scala.collection.mutable.HashMap.empty[Id[BeamVehicleType], BeamVehicleType]
+    if (!vehicleTypeString.contains(dummySharedCarId)) {
+      missingTypes.put(Id.create(dummySharedCarId, classOf[BeamVehicleType]), defaultVehicleType)
     }
+    if (!vehicleTypeString.contains(rideHailTypeId)) {
+      missingTypes.put(Id.create(rideHailTypeId, classOf[BeamVehicleType]), defaultVehicleType)
+    }
+    vehicleTypes ++ missingTypes
   }
 
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
