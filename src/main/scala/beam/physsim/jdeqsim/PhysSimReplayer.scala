@@ -28,7 +28,7 @@ object PhysSimReplayer extends StrictLogging {
   def main(args: Array[String]): Unit = {
     assert(
       args.length == 2,
-      "Expected two args: first arg is the to beam.conf, second args is the path to warmstart zip archive, third arg is the path to events file"
+      "Expected two args: first arg is the path to beam.conf, second arg is the path to the events file"
     )
     val pathToBeamConfig: String = args(0)
     val rootFile = new File(pathToBeamConfig).getParentFile
