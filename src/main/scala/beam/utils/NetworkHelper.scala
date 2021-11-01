@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import javax.inject.Inject
 import org.matsim.api.core.v01.network.{Link, Network}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait NetworkHelper {
   def allLinks: Array[Link]

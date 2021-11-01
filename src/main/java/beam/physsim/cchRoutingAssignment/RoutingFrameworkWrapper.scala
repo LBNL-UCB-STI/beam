@@ -1,6 +1,6 @@
 package beam.physsim.cchRoutingAssignment
 
-import java.io.{BufferedWriter, File, FileWriter}
+import java.io.File
 import java.nio.file.{Path, Paths}
 
 import beam.sim.BeamServices
@@ -38,7 +38,7 @@ trait RoutingFrameworkWrapper {
     * @param hour hour
     * @param ods stream of od pairs
     */
-  def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit
+  def writeOds(iteration: Int, hour: Int, ods: LazyList[OD]): Unit
 
   /**
     * Assign traffic and get results of last iteration
@@ -114,7 +114,7 @@ class DockerRoutingFrameworkWrapper(
     val convertGraphOutput = Process(command)
     logger.info("Docker command for graph generation: {}", command)
 
-    convertGraphOutput.lineStream.foreach(v => logger.info(v))
+    convertGraphOutput.lazyLines.foreach(v => logger.info(v))
 
     graphReader.read(graphPathInTempDir.toFile)
   }
@@ -130,10 +130,10 @@ class DockerRoutingFrameworkWrapper(
                                          | -o ${odPairsFileInContainer(0, 0)} -d 10 15 20 25 30 -geom
       """.stripMargin.replace("\n", ""))
 
-    createODPairsOutput.lineStream.foreach(v => logger.info(v))
+    createODPairsOutput.lazyLines.foreach(v => logger.info(v))
   }
 
-  def writeOds(iteration: Int, hour: Int, ods: Stream[OD]): Unit = {
+  def writeOds(iteration: Int, hour: Int, ods: LazyList[OD]): Unit = {
     itHourRelatedPath(tempDirPath, iteration, hour, "").toFile.mkdirs()
     val odPairsFile = odPairsFileInTempDir(iteration, hour).toString
 
@@ -175,7 +175,7 @@ class DockerRoutingFrameworkWrapper(
 
     val assignTrafficOutput = Process(query)
 
-    assignTrafficOutput.lineStream.foreach(v => logger.info(v))
+    assignTrafficOutput.lazyLines.foreach(v => logger.info(v))
 
     val flowFile = itHourRelatedPath(tempDirPath, iteration, hour, "flow.csv").toString
     FileUtils.gzipFile(flowFile, deleteSourceFile = true)

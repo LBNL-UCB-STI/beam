@@ -10,7 +10,7 @@ trait HouseholdInfoWriter {
 }
 
 object CsvHouseholdInfoWriter extends HouseholdInfoWriter {
-  private val headers: Array[String] = Array("householdId", "cars", "incomeValue", "locationX", "locationY")
+  private val headers: Seq[String] = Seq("householdId", "cars", "incomeValue", "locationX", "locationY")
 
   override def write(path: String, xs: Iterable[HouseholdInfo]): Unit = {
     val csvWriter = new CsvWriter(path, headers)

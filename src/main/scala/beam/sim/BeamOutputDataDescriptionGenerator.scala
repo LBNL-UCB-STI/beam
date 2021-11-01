@@ -9,7 +9,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.ControlerEvent
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Generate data descriptions table for all output file generating classes.

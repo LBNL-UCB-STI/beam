@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.geozone
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import java.util.{Collections => JCollections}
 
 import com.uber.h3core.AreaUnit

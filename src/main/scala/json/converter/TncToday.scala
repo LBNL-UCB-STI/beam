@@ -5,7 +5,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 import json.converter.TazOutput._
 import play.api.libs.json.Json
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object TncToday {
 

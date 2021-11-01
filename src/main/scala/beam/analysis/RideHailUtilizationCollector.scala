@@ -250,8 +250,9 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   def writeUtilization(): Unit = {
     val filePath = beamSvc.matsimServices.getControlerIO.getOutputFilename("rideHailRideUtilization.csv")
 
-    val allRides = SortedSet(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys))
-    val allPassengers = SortedSet(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys))
+    //import scala.math.Ordering.Implicits._
+    val allRides = SortedSet.from(utilizations.flatMap(_.numberOfRidesServedByNumberOfVehicles.keys))
+    val allPassengers = SortedSet.from(utilizations.flatMap(_.numOfPassengersToTheNumberOfRides.keys))
     val rideHeaders = allRides.map(rideNumber => s"numberOfVehiclesServed${rideNumber}Rides")
     val passengerHeaders = allPassengers.map(passengers => s"${passengers}PassengersToTheNumberOfRides")
 

@@ -1,6 +1,6 @@
 package beam.utils.csv.writers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.utils.scenario.{PersonId, PlanElement}
 import ScenarioCsvWriter._

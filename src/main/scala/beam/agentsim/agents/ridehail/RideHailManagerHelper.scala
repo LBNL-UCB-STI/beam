@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.parallel.{ParIterable, ParSeq}
 import scala.collection.parallel.CollectionConverters._

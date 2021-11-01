@@ -7,7 +7,7 @@ import org.matsim.core.api.internal.MatsimParameters
 import org.matsim.core.config
 import org.matsim.core.config.{ConfigGroup, ConfigUtils}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 /**

@@ -409,7 +409,7 @@ object FileUtils extends LazyLogging {
   def parRead[Key, Value](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
     loader: (Path, BufferedReader) => (Key, Value)
   ): Map[Key, Value] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     import scala.concurrent.ExecutionContext.Implicits._
     val directoryStream = Files.newDirectoryStream(dir, fileNamePattern)
     val fileList = directoryStream.iterator().asScala.toList

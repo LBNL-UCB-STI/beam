@@ -20,7 +20,7 @@ import com.graphhopper.util.{PMap, Parameters, PointList}
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 abstract class GraphHopperWrapper(
   graphDir: String,

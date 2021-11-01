@@ -6,7 +6,8 @@ import org.matsim.households.{Household, Households}
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 case class HouseholdMembershipAllocator(
   households: Households,
@@ -33,8 +34,7 @@ case class HouseholdMembershipAllocator(
             mutable.Map()
 
           val householdVehicles =
-            JavaConverters
-              .collectionAsScalaIterable(household.getVehicleIds)
+            household.getVehicleIds.asScala
               .toIndexedSeq
           for (i <- householdVehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
             if (i < householdVehicles.size & i < household.rankedMembers.size) {
@@ -50,11 +50,9 @@ case class HouseholdMembershipAllocator(
   }
 
   private def allocateMembership(): Map[Id[Person], Household] = {
-    JavaConverters
-      .mapAsScalaMap(households.getHouseholds)
+    households.getHouseholds.asScala
       .flatMap({ case (_, hh) =>
-        JavaConverters
-          .asScalaBuffer(hh.getMemberIds)
+        hh.getMemberIds.asScala
           .map(personId => personId -> hh)
       })
       .toMap

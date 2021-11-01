@@ -198,9 +198,9 @@ class MutableVehiclesFilter(selectNewVehicle: MutableVehiclesFilter.SelectNewVeh
     case _ =>
   }
 
-  override def vehiclesTrips: Traversable[VehicleTrip] = vehicleTrips.values
+  override def vehiclesTrips: Iterable[VehicleTrip] = vehicleTrips.values
 
-  override def personsTrips: Traversable[PersonTrip] = Seq.empty[PersonTrip]
+  override def personsTrips: Iterable[PersonTrip] = Seq.empty[PersonTrip]
 
-  override def personsEvents: Traversable[PersonEvents] = Seq.empty[PersonEvents]
+  override def personsEvents: Iterable[PersonEvents] = Seq.empty[PersonEvents]
 }

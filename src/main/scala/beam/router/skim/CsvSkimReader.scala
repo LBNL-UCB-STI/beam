@@ -9,8 +9,7 @@ import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.core.utils.io.IOUtils
 
-import scala.collection.JavaConverters._
-import scala.collection.immutable
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**

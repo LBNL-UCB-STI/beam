@@ -95,6 +95,6 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
     val parser = ConstructingParser.fromFile(sourceFile, preserveWS = true)
     val doc = parser.document().docElem
     val peopleNodes: NodeSeq = doc \\ "population" \\ "person"
-    peopleNodes.toIterator.flatMap(toPlans).map(_.toString + LineSeparator)
+    peopleNodes.iterator.flatMap(toPlans).map(_.toString + LineSeparator)
   }
 }

@@ -1,13 +1,11 @@
 package beam.utils.csv.writers
 
-import java.io.File
-
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
@@ -41,7 +39,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
 
     val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
 
-    scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
+    scenario.getPopulation.getPersons.values().asScala.iterator.map { person =>
       val personId: Id[Person] = person.getId
 
       val excludedModes: Seq[String] = Option(

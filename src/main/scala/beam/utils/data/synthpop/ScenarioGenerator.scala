@@ -496,7 +496,7 @@ class SimpleScenarioGenerator(
 
   def writeTazCenters(pathToFolder: String): Unit = {
     val pathToFile = pathToFolder + "/taz-centers.csv.gz"
-    val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
+    val csvWriter = new CsvWriter(pathToFile, Seq("taz", "coord-x", "coord-y", "area"))
     try {
       geoSvc.tazGeoIdToGeom.foreach { case (taz, geo) =>
         val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
@@ -527,7 +527,7 @@ class SimpleScenarioGenerator(
     val h3Indexes = summary.items.sortBy(x => -x.size)
 
     val pathToFile = pathToFolder + "/h3-centers.csv.gz"
-    val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
+    val csvWriter = new CsvWriter(pathToFile, Seq("taz", "coord-x", "coord-y", "area"))
     try {
       h3Indexes.foreach { case GeoZoneSummaryItem(h3Index: H3Index, _) =>
         val utmCoord = geoUtils.wgs2Utm(H3Wrapper.wgsCoordinate(h3Index).coord)

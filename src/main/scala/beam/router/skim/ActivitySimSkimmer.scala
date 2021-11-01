@@ -279,7 +279,7 @@ object ActivitySimSkimmer extends LazyLogging {
 
   case class ActivitySimSkimmerKey(hour: Int, pathType: ActivitySimPathType, origin: String, destination: String)
       extends AbstractSkimmerKey {
-    override def toCsv: String = hour + "," + pathType + "," + origin + "," + destination
+    override def toCsv: String = s"$hour,$pathType,$origin,$destination"
   }
 
   case class ActivitySimSkimmerInternal(
@@ -304,8 +304,7 @@ object ActivitySimSkimmer extends LazyLogging {
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
-      travelTimeInMinutes + "," + generalizedTimeInMinutes + "," + cost + "," + generalizedCost + "," +
-      distanceInMeters + "," + energy + "," + observations + "," + iterations
+      s"$travelTimeInMinutes,$generalizedTimeInMinutes,$cost,$generalizedCost,$distanceInMeters,$energy,$observations,$iterations"
   }
 
   object ActivitySimSkimmerInternal {

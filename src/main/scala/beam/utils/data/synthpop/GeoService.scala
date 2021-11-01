@@ -154,7 +154,7 @@ object GeoService {
     filter: SimpleFeature => Boolean,
     mapper: (MathTransform, SimpleFeature) => T
   ): Seq[T] = {
-    ShapefileReader.read(crsCode, pathToTazShapeFile, filter, mapper)
+    ShapefileReader.read(crsCode, pathToTazShapeFile, filter, mapper).toSeq
   }
 
   def getBoundingBoxOfOsmMap(path: String): Envelope = {
@@ -193,7 +193,7 @@ object GeoService {
       foundFiles.nonEmpty,
       s"Could not find Shape files under folder '$folderPath'. Please, make sure input is correct"
     )
-    foundFiles.toArray.sorted
+    foundFiles.toIndexedSeq.sorted
   }
 
   def main(args: Array[String]): Unit = {

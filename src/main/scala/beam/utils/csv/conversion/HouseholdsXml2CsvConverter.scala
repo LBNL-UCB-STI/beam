@@ -58,7 +58,7 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
     val parser = ConstructingParser.fromFile(householdAttributesXml, preserveWS = true)
     val doc = parser.document()
     val householdNodes: NodeSeq = doc.docElem \\ "objectattributes" \ "object"
-    householdNodes.toIterator
+    householdNodes.iterator
       .map(node => toHouseholdAttributes(node))
       .map(hha => (hha.householdId, hha))
       .toMap
@@ -89,7 +89,7 @@ class HouseholdsXml2CsvConverter(householdAttributesXml: File) extends Xml2CsvFi
     val doc = parser.document()
     val householdNodes: NodeSeq = doc.docElem \\ "households" \ "household"
     val householdIdsToAttributes = readHouseHoldIdToAttributes()
-    householdNodes.toIterator.map(node => toHousehold(node, householdIdsToAttributes).toString + LineSeparator)
+    householdNodes.iterator.map(node => toHousehold(node, householdIdsToAttributes).toString + LineSeparator)
   }
 
 }

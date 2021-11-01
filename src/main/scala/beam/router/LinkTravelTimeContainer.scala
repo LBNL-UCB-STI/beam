@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class LinkTravelTimeContainer(fileName: String, timeBinSizeInSeconds: Int, maxHour: Int)

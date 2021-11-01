@@ -6,7 +6,7 @@ import java.util
 import java.util.Collections
 import javax.inject.Inject
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
 
@@ -153,7 +153,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     charge
       .split(";")
       .flatMap(c => {
-        c.split(" ")
+        c.split(" ").toSeq
           .headOption
           .flatMap(token =>
             try { Some(token.toDouble) }

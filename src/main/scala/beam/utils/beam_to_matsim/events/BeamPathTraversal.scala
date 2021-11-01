@@ -4,7 +4,7 @@ import beam.router.Modes.BeamMode
 import beam.utils.beam_to_matsim.via_event.ViaTraverseLinkEvent
 import org.matsim.api.core.v01.events.Event
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object BeamPathTraversal {
@@ -55,7 +55,7 @@ object BeamPathTraversal {
     val linkIdsAsStr = Option(attr.getOrElse(ATTRIBUTE_LINK_IDS, ""))
     val linkIds: Seq[Int] = linkIdsAsStr match {
       case None | Some("") => Seq.empty
-      case Some(v)         => v.split(",").map(_.toInt)
+      case Some(v)         => v.split(",").map(_.toInt).toSeq
     }
 
     val linkTravelTimeStr = Option(attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, ""))
@@ -73,7 +73,7 @@ object BeamPathTraversal {
           Seq.empty
 
       case Some(v) =>
-        val travelTimes = v.split(",").map(_.toDouble)
+        val travelTimes = v.split(",").map(_.toDouble).toSeq
         arrivalTime = (time + travelTimes.sum).toInt
         travelTimes
     }

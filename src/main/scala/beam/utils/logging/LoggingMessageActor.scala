@@ -24,7 +24,7 @@ trait LoggingMessageActor extends Actor {
 }
 
 object LoggingMessageActor {
-  import scala.collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
 
   def messageLoggingEnabled(config: Config): Boolean =
     config

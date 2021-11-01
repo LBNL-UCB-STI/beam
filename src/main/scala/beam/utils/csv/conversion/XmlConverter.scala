@@ -46,7 +46,7 @@ object XmlConverter extends App {
     convert(
       populationXml,
       new PopulationXml2CsvConverter(householdsXml, populationAttributesXml).toCsv,
-      Some(new File(allFiles.head.getParentFile + "/population"))
+      Some(new File(s"${allFiles.head.getParentFile}/population"))
     )
   }
 
@@ -60,7 +60,7 @@ object XmlConverter extends App {
     convert(
       householdsXml,
       new HouseholdsXml2CsvConverter(houseHoldAttributesXml).toCsv,
-      Some(new File(allFiles.head.getParentFile + "/households"))
+      Some(new File(s"${allFiles.head.getParentFile}/households"))
     )
   }
 
@@ -69,14 +69,14 @@ object XmlConverter extends App {
     convert(
       populationXml,
       PlansXml2CsvConverter.toCsv,
-      Some(new File(allFiles.head.getParentFile + "/plans"))
+      Some(new File(s"${allFiles.head.getParentFile}/plans"))
     )
   }
 
   def generateVehiclesCsv(beamConfig: BeamConfig, allFiles: Seq[File]): File = {
     val file = new File(beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath)
     val stream = new FileInputStream(file)
-    val newFile = new File(allFiles.headOption.get.getParentFile + "/vehicles.csv")
+    val newFile = new File(s"${allFiles.headOption.get.getParentFile}/vehicles.csv")
     println(s"Generating file $newFile")
     Files.copy(stream, newFile.toPath)
     stream.close()

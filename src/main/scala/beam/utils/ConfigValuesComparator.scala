@@ -3,7 +3,7 @@ package beam.utils
 import com.typesafe.config.ConfigRenderOptions
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /*
 Application expects to get two config files as input

@@ -15,7 +15,7 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection._
 import scala.collection.parallel.CollectionConverters._
 

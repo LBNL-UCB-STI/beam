@@ -18,7 +18,7 @@ import org.matsim.core.utils.misc.Time
 import java.io.{File, FileOutputStream}
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class CchWrapper(workerParams: R5Parameters) extends Router {
 

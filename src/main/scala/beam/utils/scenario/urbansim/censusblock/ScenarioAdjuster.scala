@@ -5,7 +5,7 @@ import beam.sim.config.BeamConfig.Beam
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class ScenarioAdjuster(val urbansim: Beam.Urbansim, val population: Population, val seed: Int) extends StrictLogging {

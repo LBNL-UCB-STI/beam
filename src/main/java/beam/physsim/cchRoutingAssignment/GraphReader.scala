@@ -26,7 +26,7 @@ class RoutingFrameworkGraphReaderImpl extends RoutingFrameworkGraphReader {
     Files.asByteSource(graph).openStream().use { source =>
       def readString(): String = {
         val b = mutable.ArrayBuffer[Byte]()
-        Stream
+        LazyList
           .continually(source.read())
           .takeWhile(_ != -1)
           .map(_.toByte)

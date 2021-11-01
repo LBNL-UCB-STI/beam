@@ -11,7 +11,7 @@ import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
 
 import java.util.Random
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**

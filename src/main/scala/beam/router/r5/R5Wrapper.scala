@@ -29,7 +29,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
 import java.util.{Collections, Optional}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps

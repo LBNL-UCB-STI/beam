@@ -33,9 +33,9 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     logger.info(s"countyWithGeom: ${countyWithGeom.length}")
 
     // You can use QGis to see how does the result geometry look
-    writeWktForDebuggingPurpose(pathToOutputFolder, countyWithGeom)
+    writeWktForDebuggingPurpose(pathToOutputFolder, countyWithGeom.toSeq)
 
-    createOsmosisPolygonFilterFile(pathToOutputFolder, countyWithGeom)
+    createOsmosisPolygonFilterFile(pathToOutputFolder, countyWithGeom.toSeq)
   }
 
   private def createOsmosisPolygonFilterFile(
@@ -90,7 +90,7 @@ object OsmosisPolygonFilterGenerator extends StrictLogging {
     countyToGeom: Seq[(String, Geometry)]
   ): Unit = {
     val resultGeomFilePath = pathToOutputPolygonFilterFile + "/wkt.csv"
-    val writer = new CsvWriter(resultGeomFilePath, Array("county", "wkt"))
+    val writer = new CsvWriter(resultGeomFilePath, Seq("county", "wkt"))
     try {
       countyToGeom.foreach { case (county, geom) =>
         writer.write(county, "\"" + geom.toText + "\"")

@@ -363,17 +363,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   def createZoneSearchTree[GEO](zones: Seq[ParkingZone[GEO]]): ZoneSearchTree[GEO] = {
 
     zones.foldLeft(Map.empty: ZoneSearchTree[GEO]) { (accumulator, zone) =>
-      val parkingTypes = accumulator.getOrElse(zone.geoId, Map())
+      val parkingTypes: Map[ParkingType, Vector[Id[ParkingZoneId]]] = accumulator.getOrElse(zone.geoId, Map())
       val parkingZoneIds: Vector[Id[ParkingZoneId]] =
         parkingTypes.getOrElse(zone.parkingType, Vector.empty[Id[ParkingZoneId]])
 
-      accumulator.updated(
-        zone.geoId,
-        parkingTypes.updated(
-          zone.parkingType,
-          (parkingZoneIds :+ zone.parkingZoneId).sorted
-        )
-      )
+      accumulator ++ Map(zone.geoId ->
+        (parkingTypes ++ Map(zone.parkingType ->
+          (parkingZoneIds :+ zone.parkingZoneId).sorted)))
     }
   }
 

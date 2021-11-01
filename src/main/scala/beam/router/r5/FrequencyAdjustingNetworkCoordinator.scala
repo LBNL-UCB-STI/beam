@@ -5,7 +5,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.util
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils

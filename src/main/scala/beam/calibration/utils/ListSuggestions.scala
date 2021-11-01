@@ -4,7 +4,7 @@ import beam.utils.DebugLib
 import com.sigopt.Sigopt
 import com.sigopt.model.{Experiment, Pagination, Suggestion}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ListSuggestions extends App {
 

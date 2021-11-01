@@ -88,7 +88,7 @@ object TazTravelTimeAnalyzer extends LazyLogging {
         .flatMap { case (_, xs) =>
           // sliding 2 by 2 because every trip must have two path traversal events (1 + parking)
           xs.sortBy(x => x.departureTime).sliding(2, 2).map { legs =>
-            Trip(legs)
+            Trip(legs.toIndexedSeq)
           }
         }
         .toArray

@@ -36,7 +36,6 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.immutable.TreeMap
 import scala.collection.mutable
 import scala.language.postfixOps
 
@@ -55,7 +54,7 @@ object DrivesVehicle {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
-    val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
+    val startingLeg = updatedLegsInSchedule.findLast(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(leg) =>
         leg
       case None =>
@@ -70,7 +69,7 @@ object DrivesVehicle {
             .min
             ._2
         )
-        updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
+        updatedLegsInSchedule.findLast(_.travelPath.linkIds.contains(startingLink)).get
     }
     val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
     val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
@@ -586,7 +585,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           case Some(currentVehicleUnderControl) =>
             assert(
               currentBeamVehicle.id == currentVehicleUnderControl,
-              currentBeamVehicle.id + " " + currentVehicleUnderControl
+              s"${currentBeamVehicle.id} $currentVehicleUnderControl"
             )
             currentBeamVehicle.stall match {
               case Some(theStall) if !currentBeamVehicle.isCAV =>
@@ -824,7 +823,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   ) = {
     //    val vehicleCap = vehicle.getType
     val fullCap = vehicle.beamVehicleType.seatingCapacity + vehicle.beamVehicleType.standingRoomCapacity
-    passengerSchedule.schedule.from(req.departFrom).to(req.arriveAt).forall { entry =>
+    passengerSchedule.schedule.rangeFrom(req.departFrom).rangeTo(req.arriveAt).forall { entry =>
       entry._2.riders.size < fullCap
     }
   }

@@ -51,7 +51,7 @@ import org.matsim.vehicles.Vehicle
 
 import java.time.{ZoneOffset, ZonedDateTime}
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.duration._

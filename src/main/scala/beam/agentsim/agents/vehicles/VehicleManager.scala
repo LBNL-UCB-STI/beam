@@ -38,7 +38,7 @@ object VehicleManager extends LazyLogging {
     override def toString: String = {
       managerType match {
         case TypeEnum.NoManager => NoManager.toString
-        case _                  => managerType + s"($managerId)"
+        case _                  => s"$managerType($managerId)"
       }
     }
   }

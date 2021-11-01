@@ -13,7 +13,7 @@ import com.graphhopper.config.Profile
 import com.graphhopper.util.Parameters
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class CarGraphHopperWrapper(
   carRouter: String,

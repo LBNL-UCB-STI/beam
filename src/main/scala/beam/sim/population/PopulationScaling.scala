@@ -13,9 +13,9 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdImpl}
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
 import scala.util.Random
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import beam.utils.CloseableUtil.RichCloseable
 
 class PopulationScaling extends LazyLogging {
@@ -43,7 +43,7 @@ class PopulationScaling extends LazyLogging {
     val existingHouseHolds = scenario.getHouseholds.getHouseholds.asScala.toSeq
     for (i <- 0 to repetitions) {
       // generate new households
-      existingHouseHolds.toStream
+      existingHouseHolds.to(LazyList)
         .takeWhile(_ => populationCounter < totalPopulationRequired)
         .map { case (houseHoldId, houseHold) =>
           // proceed only if the required population is not yet reached

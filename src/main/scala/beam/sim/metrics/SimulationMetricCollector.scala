@@ -11,7 +11,7 @@ import javax.inject.Inject
 import org.influxdb.{BatchOptions, InfluxDB, InfluxDBFactory}
 import org.influxdb.dto.Point
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.{immutable, mutable}
 import scala.util.Try
 import scala.util.control.NonFatal
@@ -198,7 +198,7 @@ class InfluxDbSimulationMetricCollector @Inject() (beamCfg: BeamConfig)
       .split(',')
       .map(entry => entry.trim)
       .collect {
-        case metricName if metricName.length > 0 => metricName
+        case metricName if metricName.nonEmpty => metricName
       }
 
     val enabled = scala.collection.immutable.HashSet(metrics: _*)

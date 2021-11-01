@@ -1,6 +1,6 @@
 package beam.utils.csv.writers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 import beam.agentsim.agents.vehicles.BeamVehicle

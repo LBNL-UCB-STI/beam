@@ -2,7 +2,7 @@ package beam.analysis
 
 import java.{lang, util}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.agentsim.events._
 import org.matsim.api.core.v01.Id

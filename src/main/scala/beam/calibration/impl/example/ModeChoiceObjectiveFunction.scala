@@ -1,6 +1,5 @@
 package beam.calibration.impl.example
 
-import java.io.File
 import java.net.URI
 
 import scala.util.Try
@@ -154,7 +153,7 @@ class ModeChoiceObjectiveFunction(benchmarkDataFileLoc: String) {
 
   def jsonToModechoiceStats(modechoiceJson: Json): Try[List[ModeChoiceStats]] = {
     Try {
-      modechoiceJson.as[List[ModeChoiceStats]].right.getOrElse(List.empty[ModeChoiceStats])
+      modechoiceJson.as[List[ModeChoiceStats]].getOrElse(List.empty[ModeChoiceStats])
     }
   }
 

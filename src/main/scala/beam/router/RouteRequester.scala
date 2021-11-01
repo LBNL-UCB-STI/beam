@@ -133,7 +133,7 @@ class GHRouteRequester(workerParams: R5Parameters, travelTime: TravelTime) exten
         )
       }(executionContext)
     }
-
-    Await.result(Future.sequence(futures)(implicitly, executionContext), 20.minutes).toMap
+    
+    Await.result(Future.sequence(futures)(implicitly, executionContext): Future[IndexedSeq[(Int, CarGraphHopperWrapper)]], 20.minutes).toMap
   }
 }

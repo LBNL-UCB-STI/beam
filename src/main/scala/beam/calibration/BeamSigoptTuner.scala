@@ -8,7 +8,7 @@ import com.sigopt.Sigopt
 import com.sigopt.exception.SigoptException
 import com.sigopt.model._
 
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters._
 
 object BeamSigoptTuner {
 
@@ -41,9 +41,9 @@ object BeamSigoptTuner {
   def createExperiment(implicit experimentDef: ExperimentDef): Experiment = {
     val header = experimentDef.getHeader()
     val experimentId = header.getTitle()
-    val factors = JavaConverters.asScalaIterator(experimentDef.factors.iterator()).seq
+    val factors = experimentDef.factors.iterator().asScala
     val parameters =
-      Lists.newArrayList(JavaConverters.asJavaIterator(factors.flatMap(factorToParameters)))
+      Lists.newArrayList(factors.flatMap(factorToParameters).asJava)
     val experiment: Experiment = new Experiment.Builder().name(experimentId).parameters(parameters).build
     val expCall = Experiment.create.data(experiment)
     expCall.call()
@@ -66,7 +66,7 @@ object BeamSigoptTuner {
     val highLevel = getLevel("High", levels)
 
     val paramNames: Vector[String] =
-      JavaConverters.asScalaIterator(highLevel.params.keySet().iterator()).toVector
+      highLevel.params.keySet().iterator().asScala.toVector
 
     paramNames.map { paramName =>
       val maxValue = highLevel.params.get(paramName)
@@ -96,8 +96,7 @@ object BeamSigoptTuner {
   }
 
   private def getLevel(levelName: String, levels: java.util.List[Level]): Level =
-    JavaConverters
-      .collectionAsScalaIterable(levels)
+    levels.asScala
       .find(l => {
         l.name.equals(levelName)
       })

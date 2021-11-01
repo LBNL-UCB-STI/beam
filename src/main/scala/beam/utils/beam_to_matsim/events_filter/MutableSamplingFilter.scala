@@ -4,7 +4,7 @@ import beam.utils.beam_to_matsim.events.BeamEvent
 
 trait MutableSamplingFilter {
   def filter(event: BeamEvent): Unit
-  def vehiclesTrips: Traversable[VehicleTrip]
-  def personsTrips: Traversable[PersonTrip]
-  def personsEvents: Traversable[PersonEvents]
+  def vehiclesTrips: Iterable[VehicleTrip]
+  def personsTrips: Iterable[PersonTrip]
+  def personsEvents: Iterable[PersonEvents]
 }

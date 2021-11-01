@@ -15,7 +15,7 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.misc.Time
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Random, Try}
 
 class PhysSim(
@@ -51,12 +51,12 @@ class PhysSim(
     assert(nIterations >= 1)
     val carTravelTimeWriter: CsvWriter = {
       val fileName = controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
-      new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
+      new CsvWriter(fileName, Seq("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     val reroutedTravelTimeWriter: CsvWriter = {
       val fileName =
         controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
-      new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
+      new CsvWriter(fileName, Seq("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     try {
       logger.info(s"Running PhysSim with nIterations = $nIterations and reroutePerIterPct = $reroutePerIterPct")
@@ -207,7 +207,7 @@ class PhysSim(
       val toReroute = rnd.shuffle(rightPeopleToReplan).take(takeN)
       rerouter.reroutePeople(travelTime, toReroute)
     } else
-      Statistics(Array.empty[Double])
+      Statistics(Seq.empty[Double])
   }
 
   private def initScenario = {

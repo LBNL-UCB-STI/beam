@@ -5,7 +5,7 @@ import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Id, Scenario}
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 

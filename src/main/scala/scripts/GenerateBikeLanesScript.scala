@@ -3,7 +3,7 @@ package scripts
 import java.io.File
 import java.nio.file.Path
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 import beam.agentsim.infrastructure.geozone.{WgsBoundingBox, WgsCoordinate}

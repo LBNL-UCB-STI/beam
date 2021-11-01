@@ -121,7 +121,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   def prepareJsonConfig(maxPerActorType: Map[String, Map[String, Int]]): String = {
     val temp = maxPerActorType.toSeq.flatMap { case (actorType, map) =>
-      map.toIterator.map { case (triggerType, count) =>
+      map.iterator.map { case (triggerType, count) =>
         (triggerType, (actorType, count))
       }
     }

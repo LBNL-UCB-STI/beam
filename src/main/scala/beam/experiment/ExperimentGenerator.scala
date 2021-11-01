@@ -8,9 +8,8 @@ import com.google.common.io.Resources
 import com.hubspot.jinjava.Jinjava
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import org.apache.commons.io.IOUtils
-import org.apache.commons.lang.SystemUtils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable
 
 /**
@@ -22,8 +21,6 @@ import scala.collection.immutable
   * This generator will create sub-directories relatively to experiments.yml
   */
 object ExperimentGenerator extends ExperimentApp {
-  import beam.experiment.ExperimentApp
-
   override def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(

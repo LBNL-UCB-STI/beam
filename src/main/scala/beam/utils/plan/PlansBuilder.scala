@@ -21,8 +21,8 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
-import scala.collection.JavaConverters._
-import scala.collection.{immutable, JavaConverters}
+import scala.jdk.CollectionConverters._
+import scala.collection.immutable
 import scala.util.Random
 
 object PlansBuilder {
@@ -76,8 +76,7 @@ object PlansBuilder {
     val srcCSR = if (args.length > 5) args(5) else "epsg:4326"
     val tgtCSR = if (args.length > 6) args(6) else "epsg:26910"
     utmConverter = UTMConverter(srcCSR, tgtCSR)
-    pop ++= scala.collection.JavaConverters
-      .mapAsScalaMap(sc.getPopulation.getPersons)
+    pop ++= sc.getPopulation.getPersons.asScala
       .values
       .toVector
 
@@ -133,8 +132,7 @@ object PlansBuilder {
     out.newLine()
 
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
-    val carVehicleType = JavaConverters
-      .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
+    val carVehicleType = sc.getVehicles.getVehicleTypes.values().asScala
       .head
     carVehicleType.setFlowEfficiencyFactor(1069)
     carVehicleType.getEngineInformation.setGasConsumption(1069)

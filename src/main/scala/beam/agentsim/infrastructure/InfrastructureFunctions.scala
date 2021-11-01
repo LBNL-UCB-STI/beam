@@ -210,7 +210,7 @@ object InfrastructureFunctions {
         }
       )
       .groupBy(identity)
-      .mapValues(_.size)
+      .view.mapValues(_.size).toMap
       .map(x => x._1.toString + ": " + x._2)
       .mkString(", ")
   }
@@ -221,7 +221,7 @@ object InfrastructureFunctions {
     parkingZonesSampled
       .map(triple => triple._3)
       .groupBy(identity)
-      .mapValues(_.size)
+      .view.mapValues(_.size).toMap
       .map(x => x._1.toString + ": " + x._2)
       .mkString(", ")
   }
@@ -232,7 +232,7 @@ object InfrastructureFunctions {
     parkingZonesSampled
       .map(triple => triple._4)
       .groupBy(identity)
-      .mapValues(_.size)
+      .view.mapValues(_.size).toMap
       .map(x => x._1.toString + ": " + x._2)
       .mkString(", ")
   }

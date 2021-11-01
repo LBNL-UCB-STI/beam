@@ -6,7 +6,7 @@ import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHail
 import beam.sim.BeamServices
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer

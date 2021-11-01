@@ -4,7 +4,7 @@ import org.matsim.api.core.v01.network.Link
 
 import scala.collection.mutable
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object NetworkUtil {
   sealed trait Direction

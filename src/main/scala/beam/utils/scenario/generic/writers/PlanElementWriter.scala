@@ -11,7 +11,7 @@ trait PlanElementWriter {
 
 object CsvPlanElementWriter extends PlanElementWriter {
 
-  private val headers: Array[String] = Array(
+  private val headers: Seq[String] = Seq(
     "personId",
     "planIndex",
     "planScore",

@@ -127,7 +127,7 @@ object RouteHistory {
   private val Eol: String = "\n"
 
   private[router] def toCsv(routeHistory: RouteHistoryADT): Iterator[String] = {
-    val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.toIterator.flatMap {
+    val flattenedRouteHistory: Iterator[(TimeBin, OriginLinkId, DestLinkId, String)] = routeHistory.iterator.flatMap {
       case (timeBin: TimeBin, origins: TrieMap[OriginLinkId, TrieMap[DestLinkId, Route]]) =>
         origins.flatMap { case (originLinkId: OriginLinkId, destinations: TrieMap[DestLinkId, Route]) =>
           destinations.flatMap { case (destLinkId: DestLinkId, path: Route) =>
@@ -157,7 +157,7 @@ object RouteHistory {
         val route: IndexedSeq[Int] = line
           .get("route")
           .split(":")
-          .map(_.toInt)
+          .map(_.toInt).toIndexedSeq
 
         val timeBinReference = result.getOrElseUpdate(
           timeBin,

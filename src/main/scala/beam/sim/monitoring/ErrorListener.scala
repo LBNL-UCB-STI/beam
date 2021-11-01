@@ -5,7 +5,7 @@ import beam.agentsim.agents.BeamAgent
 import beam.agentsim.agents.ridehail.RideHailAgent.{Interrupt, InterruptedWhileOffline}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.DriverNotFoundError
 import beam.agentsim.agents.vehicles.VehicleProtocol.RemovePassengerFromTrip
-import beam.agentsim.agents.vehicles.{BeamVehicle, ReservationRequest, ReservationResponse}
+import beam.agentsim.agents.vehicles.{ReservationRequest, ReservationResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, WorkAvailable}
@@ -74,11 +74,11 @@ class ErrorListener() extends Actor with ActorLogging {
 
     val msgCounts = terminatedPrematurelyEvents
       .groupBy(_ => "ALL")
-      .mapValues(eventsPerReason =>
+      .view.mapValues(eventsPerReason =>
         eventsPerReason
           .groupBy(event => hourOrMinus1(event))
-          .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
-      )
+          .view.mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size).toMap
+      ).toMap
     msgCounts
       .map { case (msg, cntByHour) =>
         val sortedCounts = cntByHour.toSeq.sortBy { case (hr, _) => hr }

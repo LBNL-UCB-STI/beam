@@ -2,7 +2,7 @@ package beam.utils.beam_to_matsim.events
 
 import org.matsim.api.core.v01.events.Event
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object BeamPersonEntersVehicle {

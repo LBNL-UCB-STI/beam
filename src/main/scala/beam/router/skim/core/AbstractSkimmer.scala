@@ -19,8 +19,7 @@ import java.io.BufferedWriter
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
-import scala.collection.JavaConverters._
-import scala.collection.parallel.CollectionConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal

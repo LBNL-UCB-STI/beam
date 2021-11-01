@@ -31,7 +31,7 @@ class WgsCoordinateH3IndexMapper(
   }
 
   def findIndex(coordinate: WgsCoordinate): Option[H3Index] = {
-    resolutionsDescendingOrdered.toIterator
+    resolutionsDescendingOrdered.iterator
       .map(resolution => H3Wrapper.getIndex(coordinate, resolution))
       .find(targetIndexes.contains)
   }

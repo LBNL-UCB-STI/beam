@@ -4,7 +4,7 @@ import beam.sim.metrics.Metrics._
 import kamon.Kamon
 import kamon.tag.TagSet
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait MetricsSupport {
 

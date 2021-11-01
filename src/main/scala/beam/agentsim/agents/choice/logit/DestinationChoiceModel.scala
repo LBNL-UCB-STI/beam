@@ -7,7 +7,7 @@ import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.utils.io.IOUtils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 object DestinationChoiceModel {

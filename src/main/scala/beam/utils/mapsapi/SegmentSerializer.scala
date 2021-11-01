@@ -19,7 +19,7 @@ object SegmentSerializer {
   }
 
   private def deserializeCoordinates(str: String): Seq[WgsCoordinate] = {
-    val arr: Array[String] = str.split('|')
+    val arr: IndexedSeq[String] = str.split('|').toIndexedSeq
     arr.map { eachElement =>
       val arr = eachElement.split("/")
       WgsCoordinate(arr(0).toDouble, arr(1).toDouble)

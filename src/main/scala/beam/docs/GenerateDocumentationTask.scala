@@ -3,7 +3,7 @@ package beam.docs
 import java.io.{FileOutputStream, PrintWriter}
 import java.nio.file.{FileSystems, Path, Paths}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription}
 import beam.utils.OutputDataDescriptor

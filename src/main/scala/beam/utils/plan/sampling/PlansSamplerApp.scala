@@ -37,8 +37,8 @@ import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
-import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable, JavaConverters}
+import scala.jdk.CollectionConverters._
+import scala.collection.{immutable, mutable}
 import scala.collection.parallel.CollectionConverters._
 import scala.util.control.Breaks._
 import scala.util.{Random, Try}
@@ -241,7 +241,6 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     sourceCRS: CoordinateReferenceSystem
   ): Geometry = {
 
-    import scala.collection.JavaConverters._
     val targetCRS = CRS.decode(wgsConverter.targetCRS)
     val transform = CRS.findMathTransform(sourceCRS, targetCRS, false)
     val outGeoms = new util.ArrayList[Geometry]()
@@ -312,7 +311,7 @@ class SpatialSampler(sampleShape: String) {
       distributionList += new Pair[SimpleFeature, java.lang.Double](feature, popPct)
     }
     //    if(distributionList.map(_.getValue).sum > 0) {}
-    new EnumeratedDistribution[SimpleFeature](rng, JavaConverters.bufferAsJavaList(distributionList))
+    new EnumeratedDistribution[SimpleFeature](rng, distributionList.asJava)
   }
 
   def getSample: SimpleFeature = distribution.sample()
@@ -359,8 +358,7 @@ object PlansSampler {
     val sourceCrs = MGC.getCRS(args(7))
 
     wgsConverter = Some(WGSConverter(args(7), args(8)))
-    pop ++= scala.collection.JavaConverters
-      .mapAsScalaMap(sc.getPopulation.getPersons)
+    pop ++= sc.getPopulation.getPersons.asScala
       .values
       .toVector
 
@@ -402,9 +400,7 @@ object PlansSampler {
 
     while (col.size < n) {
       radius += 1
-      val candidates = JavaConverters.collectionAsScalaIterable(
-        planQt.get.getDisk(spCoord.getX, spCoord.getY, radius)
-      )
+      val candidates = planQt.get.getDisk(spCoord.getX, spCoord.getY, radius).asScala
       for (plan <- candidates) {
         if (!col.contains(plan) && (!withoutWork || hasNoWorkAct(plan))) {
           col ++= Vector(plan)

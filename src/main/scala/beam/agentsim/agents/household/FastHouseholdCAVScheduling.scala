@@ -18,7 +18,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person}
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 import scala.util.control.Breaks._
@@ -40,6 +40,7 @@ class FastHouseholdCAVScheduling(
     getAllFeasibleSchedules
       .sortBy(_.householdScheduleCost.sumOfDelays.foldLeft(0)(_ + _._2))
       .groupBy(_.householdScheduleCost.sumOfDelays.foldLeft(0)(_ + _._2))
+      .view
       .mapValues(_.maxBy(_.schedulesMap.foldLeft(0)((a, b) => a + b._2.schedule.size)))
       .toList
       .sortBy(_._1)
@@ -53,6 +54,7 @@ class FastHouseholdCAVScheduling(
     getAllFeasibleSchedules
       .sortBy(_.householdScheduleCost.totalTravelTime)
       .groupBy(_.householdScheduleCost.totalTravelTime)
+      .view
       .mapValues(_.maxBy(_.schedulesMap.foldLeft(0)((a, b) => a + b._2.schedule.size)))
       .toList
       .sortBy(_._1)

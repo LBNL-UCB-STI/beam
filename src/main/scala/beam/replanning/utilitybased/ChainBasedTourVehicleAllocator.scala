@@ -14,7 +14,8 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.collection.{mutable, JavaConverters}
+import scala.jdk.CollectionConverters._
+import scala.collection.mutable
 import scala.util.Try
 
 case class ChainBasedTourVehicleAllocator(
@@ -68,7 +69,7 @@ case class ChainBasedTourVehicleAllocator(
     val household = householdMemberships(memberId)
 
     val householdPlans: Seq[Plan] =
-      household.members.flatMap(member => JavaConverters.collectionAsScalaIterable(member.getPlans))
+      household.members.flatMap(member => member.getPlans.asScala)
 
     val vehicularTours: Option[SubtourRecord] =
       getVehicularToursSortedByStartTime(householdPlans).find(rec => rec.subtour == subtour)
@@ -102,11 +103,9 @@ case class ChainBasedTourVehicleAllocator(
     val vehicularTours =
       (for {
         plan: Plan <- householdPlans
-        subtour: Subtour <- JavaConverters.collectionAsScalaIterable(
-          getSubtours(plan, stageActivitytypes)
-        )
+        subtour: Subtour <- getSubtours(plan, stageActivitytypes).asScala
       } yield {
-        for { _ <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
+        for { _ <- subtour.getTrips.asScala } yield {
           val usableVehicles = identifyVehiclesUsableForAgent(plan.getPerson.getId)
           val vehicleRecords = vehicleRecordFactory.getRecords(usableVehicles)
           SubtourRecord(vehicleRecords, subtour)
@@ -163,7 +162,7 @@ object ChainBasedTourVehicleAllocator {
   object SubtourRecord {
 
     def apply(possibleVehicles: Vector[VehicleRecord], subtour: Subtour): SubtourRecord = {
-      val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
+      val trips = subtour.getTrips.asScala
 
       val tripOriginActivityOption = trips.headOption.map(_.getOriginActivity)
       val startTime = tripOriginActivityOption
@@ -172,8 +171,7 @@ object ChainBasedTourVehicleAllocator {
 
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
-      val endTime = lastTrip.getOriginActivity.getEndTime + JavaConverters
-        .collectionAsScalaIterable(lastTrip.getTripElements)
+      val endTime = lastTrip.getOriginActivity.getEndTime + lastTrip.getTripElements.asScala
         .map({
           case act: Activity =>
             Option(act.getEndTime).getOrElse(

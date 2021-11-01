@@ -3,7 +3,7 @@ package beam.sim.config
 import java.io.{File, PrintWriter}
 
 import com.typesafe.config.{ConfigRenderOptions, ConfigResolveOptions, ConfigFactory, Config => TypesafeConfig}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ConfigHelper {
 

@@ -4,7 +4,7 @@ import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import com.google.maps.internal.PolylineEncoding
 import com.google.maps.model.LatLng
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object GooglePolylineDecoder {
 

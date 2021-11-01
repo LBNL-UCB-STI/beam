@@ -7,7 +7,6 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
@@ -22,7 +21,6 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis._
 import beam.physsim.PickUpDropOffCollector
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
 import beam.router.BeamRouter.ODSkimmerReady
@@ -64,7 +62,7 @@ import org.matsim.core.controler.listener.{
   StartupListener
 }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -325,7 +323,7 @@ class BeamSim @Inject() (
         geoClustering,
         abstractSkimmer,
         new FreeFlowTravelTime,
-        Array(BeamMode.WALK),
+        IndexedSeq(BeamMode.WALK),
         withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
         buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
         buildDirectCarRoute = false,
@@ -644,7 +642,7 @@ class BeamSim @Inject() (
 
     if (rootFilesName.nonEmpty) {
       val rootFiles = for {
-        fileName <- rootFilesName.split(",")
+        fileName <- rootFilesName.split(",").toSeq
       } yield Paths.get(beamServices.matsimServices.getControlerIO.getOutputFilename(fileName))
       tryDelete("root files: ", rootFiles)
     }
@@ -654,7 +652,7 @@ class BeamSim @Inject() (
         fileName        <- iterationFilesName.split(",")
         iterationNumber <- 0 to lastIterationNumber
       } yield Paths.get(beamServices.matsimServices.getControlerIO.getIterationFilename(iterationNumber, fileName))
-      tryDelete("iteration files: ", iterationFiles)
+      tryDelete("iteration files: ", iterationFiles.toSeq)
     }
   }
 
@@ -822,7 +820,7 @@ class BeamSim @Inject() (
           skimCreator.ODs,
           abstractSkimmer,
           currentTravelTime,
-          Array(BeamMode.CAR, BeamMode.WALK),
+          Seq(BeamMode.CAR, BeamMode.WALK),
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
           buildDirectWalkRoute = false,
           buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,

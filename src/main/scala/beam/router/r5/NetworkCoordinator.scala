@@ -15,7 +15,7 @@ import org.matsim.api.core.v01.network.{Link, Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
 case class LinkParam(

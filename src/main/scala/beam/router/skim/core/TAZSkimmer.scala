@@ -79,11 +79,11 @@ class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSc
 object TAZSkimmer extends LazyLogging {
 
   case class TAZSkimmerKey(time: Int, geoId: String, actor: String, key: String) extends AbstractSkimmerKey {
-    override def toCsv: String = time + "," + geoId + "," + actor + "," + key
+    override def toCsv: String = s"$time,$geoId,$actor,$key"
   }
 
   case class TAZSkimmerInternal(value: Double, observations: Int = 0, iterations: Int = 0)
       extends AbstractSkimmerInternal {
-    override def toCsv: String = value + "," + observations + "," + iterations
+    override def toCsv: String = s"$value,$observations,$iterations"
   }
 }

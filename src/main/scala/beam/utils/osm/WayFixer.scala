@@ -5,7 +5,7 @@ import com.conveyal.osmlib.Way
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.Function.tupled
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object WayFixer extends LazyLogging {

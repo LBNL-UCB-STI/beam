@@ -9,7 +9,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging

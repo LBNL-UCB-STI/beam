@@ -9,7 +9,7 @@ import scala.collection.mutable
 
 object Writer {
 
-  def writeSeq[T](seq: Traversable[T], transform: T => String, outputPath: String): Unit = {
+  def writeSeq[T](seq: Iterable[T], transform: T => String, outputPath: String): Unit = {
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
       seq.foreach(seqItem => pw.println(transform(seqItem)))
     }
@@ -35,13 +35,13 @@ object Writer {
     Console.println("via events written into " + outputPath)
   }
 
-  def writeSeqOfString(script: Traversable[String], outputPath: String): Unit = {
+  def writeSeqOfString(script: Iterable[String], outputPath: String): Unit = {
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
       script.foreach(pw.println)
     }
   }
 
-  def writeViaEvents(pathLinkEvents: Traversable[ViaEvent], outputPath: String): Unit = {
+  def writeViaEvents(pathLinkEvents: Iterable[ViaEvent], outputPath: String): Unit = {
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
       pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
       pathLinkEvents.foreach(event => pw.println(event.toXml.toString()))

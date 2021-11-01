@@ -370,7 +370,7 @@ object HouseholdActor {
             }
             val passengerSchedule =
               PassengerSchedule().addLegs(BeamLeg.makeVectorLegsConsistentAsOrderdStandAloneLegs(theLegs.toVector))
-            val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
+            val updatedLegsIterator = passengerSchedule.schedule.keys.iterator
             var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
             var passengersToAdd = Set[PersonIdWithActorRef]()
             cavSchedule.schedule.foreach { serviceRequest =>

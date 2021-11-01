@@ -1,6 +1,6 @@
 package beam.utils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 /**
@@ -144,7 +144,7 @@ object MathUtils {
   }
 
   def formatBytes(v: Long): String = {
-    if (v < 1024) return v + " B"
+    if (v < 1024) return s"$v B"
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }

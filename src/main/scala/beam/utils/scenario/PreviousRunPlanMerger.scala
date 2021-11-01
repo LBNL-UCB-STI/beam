@@ -108,7 +108,7 @@ object LastRunOutputSource extends LazyLogging {
     } yield itDirAndNumber
   }
 
-  import collection.JavaConverters._
+  import scala.jdk.CollectionConverters._
 
   private def findDirs(parentDir: Path, prefix: String) =
     Try {

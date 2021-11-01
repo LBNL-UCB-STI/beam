@@ -46,7 +46,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
   }
 
   private def toPolyLines(encodedPolyLines: String): Seq[WgsCoordinate] = {
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     val points = PolylineEncoderDecoder.decode(encodedPolyLines).asScala
     points

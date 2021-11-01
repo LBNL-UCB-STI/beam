@@ -54,8 +54,8 @@ class CarTripStatsFromPathTraversalEventHandler(
   private val averageCarSpeedPerIterationByType: collection.mutable.ListBuffer[Map[CarType, Double]] =
     collection.mutable.ListBuffer.empty
 
-  private val statsHeader: Array[String] =
-    Array("iteration", "carType", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
+  private val statsHeader: Seq[String] =
+    Seq("iteration", "carType", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
 
   private val travelTimeStatsWriter = {
     val fileName = controllerIO.getOutputFilename(s"${prefix}CarTravelTime.csv")

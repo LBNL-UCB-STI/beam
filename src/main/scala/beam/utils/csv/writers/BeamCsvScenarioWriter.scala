@@ -26,7 +26,7 @@ object BeamCsvScenarioWriter {
   implicit class PopulationWriter(arr: Array[PersonInfo]) {
 
     def writeCsvPersonsFile(outputFileStr: String): Array[PersonInfo] = {
-      PopulationCsvWriter.toCsv(arr.toIterator, outputFileStr)
+      PopulationCsvWriter.toCsv(arr.iterator, outputFileStr)
       arr
     }
   }
@@ -38,7 +38,7 @@ object BeamCsvScenarioWriter {
   implicit class VehicleWriter(arr: Array[VehicleInfo]) {
 
     def writeCsvVehiclesFile(outputFileStr: String): Array[VehicleInfo] = {
-      VehiclesCsvWriter(arr.toIterable).toCsv(arr.toIterator, outputFileStr)
+      VehiclesCsvWriter(arr.toIterable).toCsv(arr.iterator, outputFileStr)
       arr
     }
   }
@@ -50,7 +50,7 @@ object BeamCsvScenarioWriter {
   implicit class HouseholdWriter(arr: Array[HouseholdInfo]) {
 
     def writeCsvHouseholdsFile(outputFileStr: String): Array[HouseholdInfo] = {
-      PopulationCsvWriter.toCsv(arr.toIterator, outputFileStr)
+      PopulationCsvWriter.toCsv(arr.iterator, outputFileStr)
       arr
     }
   }

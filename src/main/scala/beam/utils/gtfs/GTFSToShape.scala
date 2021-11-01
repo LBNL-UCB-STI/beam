@@ -11,12 +11,12 @@ import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}
 import org.opengis.feature.simple.SimpleFeature
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 object GTFSToShape extends LazyLogging {
 
-  def coordsToShapefile(coords: Traversable[WgsCoordinate], shapeFileOutputPath: String): Unit = {
+  def coordsToShapefile(coords: Iterable[WgsCoordinate], shapeFileOutputPath: String): Unit = {
     val features = mutable.ArrayBuffer[SimpleFeature]()
     val pointf: PointFeatureFactory = new PointFeatureFactory.Builder()
       .setCrs(MGC.getCRS("EPSG:4326"))

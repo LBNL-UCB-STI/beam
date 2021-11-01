@@ -21,8 +21,8 @@ import org.matsim.core.population.algorithms.PlanAlgorithm
 import org.matsim.core.router.TripStructureUtils.Subtour
 import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
 
-import scala.collection.JavaConverters._
-import scala.collection.{mutable, JavaConverters}
+import scala.jdk.CollectionConverters._
+import scala.collection.mutable
 import scala.util.Random
 
 class ChangeModeForTour(
@@ -37,14 +37,12 @@ class ChangeModeForTour(
 
   val weightedRandom = new EnumeratedDistribution[BeamMode](
     rng,
-    JavaConverters.bufferAsJavaList(
-      mutable.Buffer[Pair[BeamMode, java.lang.Double]](
-        new Pair[BeamMode, java.lang.Double](BUS, 0.8),
-        new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15),
-        new Pair[BeamMode, java.lang.Double](FERRY, 0.005),
-        new Pair[BeamMode, java.lang.Double](RAIL, 0.045)
-      )
-    )
+    mutable.Buffer[Pair[BeamMode, java.lang.Double]](
+      new Pair[BeamMode, java.lang.Double](BUS, 0.8),
+      new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15),
+      new Pair[BeamMode, java.lang.Double](FERRY, 0.005),
+      new Pair[BeamMode, java.lang.Double](RAIL, 0.045)
+    ).asJava
   )
 
   private val rideHailConfig =
@@ -70,8 +68,7 @@ class ChangeModeForTour(
   ): Map[BeamMode, Double] = {
     val alternativesForTour = findAlternativesForTour(person)
     (for { alt <- alternativesForTour } yield {
-      alt -> JavaConverters
-        .collectionAsScalaIterable(tour.getTrips)
+      alt -> tour.getTrips.asScala
         .map(trip => {
           val timeDist =
             getCostAndTimeForMode(alt, trip.getOriginActivity, trip.getDestinationActivity)
@@ -141,9 +138,7 @@ class ChangeModeForTour(
   ): Map[Int, Map[BeamMode, Double]] = {
     val modeChoiceCalculator =
       beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
-    val subTours = JavaConverters.collectionAsScalaIterable(
-      TripStructureUtils.getSubtours(plan, stageActivityTypes)
-    )
+    val subTours = TripStructureUtils.getSubtours(plan, stageActivityTypes).asScala
     subTours.zipWithIndex
       .map({ case (tour, idx) =>
         idx -> scoreTour(tour, plan.getPerson, modeChoiceCalculator)
@@ -152,12 +147,9 @@ class ChangeModeForTour(
   }
 
   def changeModeForTour(subtour: Subtour, plan: Plan, mode: BeamMode): Unit = {
-    val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
+    val trips = subtour.getTrips.asScala
 
-    val legs = trips.flatMap(trip =>
-      JavaConverters
-        .collectionAsScalaIterable(trip.getLegsOnly)
-    )
+    val legs = trips.flatMap(trip => trip.getLegsOnly.asScala)
 
     if (legs.isEmpty) {
       for { trip <- trips } yield {
@@ -201,8 +193,7 @@ class ChangeModeForTour(
   }
 
   def addTripsBetweenActivities(plan: Plan): Unit = {
-    val activities = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils.getActivities(plan, stageActivityTypes))
+    val activities = TripStructureUtils.getActivities(plan, stageActivityTypes).asScala
       .toIndexedSeq
     activities
       .sliding(2)
@@ -266,8 +257,7 @@ class ChangeModeForTour(
 
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
 
-    val tours: Seq[Subtour] = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
+    val tours: Seq[Subtour] = TripStructureUtils.getSubtours(plan, stageActivityTypes).asScala
       .toIndexedSeq
 
     rankedAlternatives.foreach({ case (tourIdx, alts) =>
@@ -277,7 +267,7 @@ class ChangeModeForTour(
       }
       val dist = new EnumeratedDistribution[BeamMode](
         rng,
-        JavaConverters.bufferAsJavaList(altIter.toBuffer)
+        altIter.toBuffer.asJava
       )
       val choice = dist.sample()
       val subtour: Subtour = tours(tourIdx)
@@ -289,11 +279,7 @@ class ChangeModeForTour(
   }
 
   private def maybeFixPlans(plan: Plan): Unit = {
-    if (
-      JavaConverters
-        .collectionAsScalaIterable(TripStructureUtils.getLegs(plan))
-        .isEmpty
-    ) {
+    if (TripStructureUtils.getLegs(plan).asScala.isEmpty) {
       addTripsBetweenActivities(plan)
     }
     plan.getPlanElements.asScala.foreach {

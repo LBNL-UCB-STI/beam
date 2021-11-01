@@ -94,7 +94,7 @@ class TransitSystem(
           chargingNetworkManager,
           transitDriverId,
           vehicle,
-          legs,
+          legs.toSeq,
           geo,
           networkHelper
         )

@@ -19,7 +19,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class BeamScenarioLoader(

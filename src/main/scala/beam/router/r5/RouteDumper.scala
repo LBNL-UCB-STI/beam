@@ -15,7 +15,7 @@ import org.apache.parquet.hadoop.ParquetWriter
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.events.handler.BasicEventHandler
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}

@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Activity, Population}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 trait GeoClustering
 

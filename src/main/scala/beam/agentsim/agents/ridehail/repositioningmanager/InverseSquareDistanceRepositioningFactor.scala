@@ -6,7 +6,6 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.H3TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -16,7 +15,7 @@ import org.apache.commons.math3.util.{Pair => CPair}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class InverseSquareDistanceRepositioningFactor(

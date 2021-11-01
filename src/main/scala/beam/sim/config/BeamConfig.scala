@@ -1730,7 +1730,7 @@ object BeamConfig {
           private def $_LBeamConfig_Beam_Agentsim_Agents_Vehicles_SharedFleets$Elm(
             cl: com.typesafe.config.ConfigList
           ): scala.List[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm] = {
-            import scala.collection.JavaConverters._
+            import scala.jdk.CollectionConverters._
             cl.asScala
               .map(cv =>
                 BeamConfig.Beam.Agentsim.Agents.Vehicles
@@ -2351,7 +2351,7 @@ object BeamConfig {
         private def $_LBeamConfig_Beam_Debug_StuckAgentDetection_Thresholds$Elm(
           cl: com.typesafe.config.ConfigList
         ): scala.List[BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm] = {
-          import scala.collection.JavaConverters._
+          import scala.jdk.CollectionConverters._
           cl.asScala
             .map(cv =>
               BeamConfig.Beam.Debug.StuckAgentDetection
@@ -4176,7 +4176,7 @@ object BeamConfig {
       private def $_LBeamConfig_Beam_WarmStart_SkimsFilePaths$Elm(
         cl: com.typesafe.config.ConfigList
       ): scala.List[BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm] = {
-        import scala.collection.JavaConverters._
+        import scala.jdk.CollectionConverters._
         cl.asScala
           .map(cv =>
             BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
@@ -4580,7 +4580,7 @@ object BeamConfig {
         private def $_LBeamConfig_Matsim_Modules_PlanCalcScore_Parameterset$Elm(
           cl: com.typesafe.config.ConfigList
         ): scala.List[BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm] = {
-          import scala.collection.JavaConverters._
+          import scala.jdk.CollectionConverters._
           cl.asScala
             .map(cv =>
               BeamConfig.Matsim.Modules.PlanCalcScore
@@ -4689,7 +4689,7 @@ object BeamConfig {
         private def $_LBeamConfig_Matsim_Modules_Strategy_Parameterset$Elm(
           cl: com.typesafe.config.ConfigList
         ): scala.List[BeamConfig.Matsim.Modules.Strategy.Parameterset$Elm] = {
-          import scala.collection.JavaConverters._
+          import scala.jdk.CollectionConverters._
           cl.asScala
             .map(cv =>
               BeamConfig.Matsim.Modules.Strategy
@@ -4818,12 +4818,12 @@ object BeamConfig {
   }
 
   private def $_L$_dbl(cl: com.typesafe.config.ConfigList): scala.List[scala.Double] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     cl.asScala.map(cv => $_dbl(cv)).toList
   }
 
   private def $_L$_str(cl: com.typesafe.config.ConfigList): scala.List[java.lang.String] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     cl.asScala.map(cv => $_str(cv)).toList
   }
 

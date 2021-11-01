@@ -5,7 +5,7 @@ import com.sigopt.Sigopt
 import com.sigopt.model.{Experiment, Pagination, Suggestion}
 import com.typesafe.scalalogging.LazyLogging
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object DeleteSuggestion extends LazyLogging {
   val deleteSuggestionId: String = "21226774"

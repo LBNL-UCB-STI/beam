@@ -33,7 +33,7 @@ object RoutingModel {
         events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
         events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
       }
-      events.toIterator
+      events.iterator
     } else {
       Iterator.empty
     }

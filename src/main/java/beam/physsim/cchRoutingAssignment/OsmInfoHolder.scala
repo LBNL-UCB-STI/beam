@@ -4,7 +4,7 @@ import beam.sim.BeamServices
 import com.conveyal.osmlib.OSM
 import com.vividsolutions.jts.geom.Coordinate
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * Cache for OSM nodes and ways
