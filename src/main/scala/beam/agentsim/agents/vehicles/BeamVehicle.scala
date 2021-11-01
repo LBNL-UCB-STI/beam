@@ -396,9 +396,9 @@ class BeamVehicle(
     val mode = beamVehicleType.vehicleCategory match {
       case Bike =>
         BIKE
-      case Car | LightDutyTruck | HeavyDutyTruck if isCAV =>
+      case Car | LightDutyTruck | MediumDutyPassenger | HeavyDutyTruck if isCAV =>
         CAV
-      case Car | LightDutyTruck | HeavyDutyTruck =>
+      case Car | LightDutyTruck | MediumDutyPassenger | HeavyDutyTruck =>
         CAR
       case Body =>
         WALK

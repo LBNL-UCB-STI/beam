@@ -113,6 +113,7 @@ class MatSimBeamConfigBuilder(beamConf: Config) extends LazyLogging {
           case None =>
             logger.warn(s"MATSim module '$moduleName' not found")
         }
+      case(moduleSplit, value) => logger.warn(s"Unexpected module split $moduleSplit in MatsimBeamConfigBuilder. Value is $value")
       }
     matSimConfig
   }

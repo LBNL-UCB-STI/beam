@@ -397,6 +397,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         case (Seq(), Some(r5Resp)) =>
           r5Resp
         case (Seq(), None) => r5.calcRoute(request)
+        case (_, _) => ???//temporarily in place to appease the 2.13 compiler - Possibly https://github.com/scala/bug/issues/12144
       }
     }
   }
