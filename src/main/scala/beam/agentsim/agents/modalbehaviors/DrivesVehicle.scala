@@ -688,6 +688,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
   val drivingBehavior: StateFunction = {
+    case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
+      log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
+      stay() replying CompletionNotice(triggerId)
     case ev @ Event(req: ReservationRequest, data)
         if !hasRoomFor(
           data.passengerSchedule,
