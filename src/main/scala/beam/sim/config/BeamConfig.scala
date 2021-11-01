@@ -4839,9 +4839,7 @@ object BeamConfig {
   private def $_expE(cv: com.typesafe.config.ConfigValue, exp: java.lang.String) = {
     val u: Any = cv.unwrapped
     new java.lang.RuntimeException(
-      cv.origin.lineNumber +
-      ": expecting: " + exp + " got: " +
-      (if (u.isInstanceOf[java.lang.String]) "\"" + u + "\"" else u)
+      s"${cv.origin.lineNumber}: expecting: $exp got: ${if (u.isInstanceOf[java.lang.String]) "\"" + u + "\"" else u}"
     )
   }
 

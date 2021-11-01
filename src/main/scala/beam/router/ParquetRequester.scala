@@ -7,6 +7,8 @@ import beam.utils.ParquetReader
 import beam.utils.json.AllNeededFormats._
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
+import io.circe.Decoder.Result
+import io.circe.Json
 import org.apache.avro.util.Utf8
 
 import java.io.File
@@ -83,7 +85,7 @@ object ParquetRequester extends BeamHelper with LazyLogging {
 
     val requests = requestRecords.map { req =>
       val reqJsonStr = new String(req.get("requestAsJson").asInstanceOf[Utf8].getBytes, StandardCharsets.UTF_8)
-      io.circe.parser.parse(reqJsonStr).right.get.as[RoutingRequest].right.get
+      io.circe.parser.parse(reqJsonStr).getOrElse(throw new NoSuchElementException("Either.right.get on Left")).as[RoutingRequest].getOrElse(throw new NoSuchElementException("Either.right.get on Left"))
     }
     logger.info(s"requests: ${requests.length}")
     requests

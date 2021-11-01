@@ -219,7 +219,7 @@ class FastHouseholdCAVScheduling(
       }
       Some(
         HouseholdSchedule(
-          (this.schedulesMap.view.filterKeys(_ != cav) + (cav -> CAVSchedule(newHouseholdSchedule.toList, cav, newOccupancy))).toMap,
+          this.schedulesMap.view.filterKeys(_ != cav).concat(Map(cav -> CAVSchedule(newHouseholdSchedule.toList, cav, newOccupancy))).toMap,
           newHouseholdScheduleCost
         )
       )

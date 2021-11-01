@@ -85,7 +85,7 @@ object R5RoutingApp extends BeamHelper {
     val port = 9000
     val routingHandler = new RoutingHandler(workerRouter)
     val boostedRoute = handleExceptions(CustomExceptionHandling.handler)(routingHandler.route)
-    Http().bindAndHandle(boostedRoute, interface, port)
+    Http().newServerAt(interface, port).bindFlow(boostedRoute)
     logger.info(s"Http server is ready and bound to $interface:$port")
   }
 

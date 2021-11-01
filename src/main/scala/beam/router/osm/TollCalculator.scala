@@ -151,7 +151,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 
   private def parseTolls(charge: String): Seq[Toll] = {
     charge
-      .split(";")
+      .split(";").toSeq
       .flatMap(c => {
         c.split(" ").toSeq
           .headOption

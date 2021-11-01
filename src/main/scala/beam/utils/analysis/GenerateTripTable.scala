@@ -115,13 +115,13 @@ object GenerateTripTable {
         case "PersonEntersVehicle" if !(personId.contains("rideHail") || personId.contains("Driver")) =>
           personStates(personId) = person.copy(lastTimePersonEnteredVehicle = time, currentVehicle = vehicleId)
           val persons = vehicles.getOrElse(vehicleId, mutable.Set())
-          vehicles(vehicleId) = persons + personId
+          vehicles(vehicleId) = persons.union(Set(personId))
 
         case "PersonLeavesVehicle" =>
           personStates(personId) = person.copy(lastTimePersonEnteredVehicle = time.toInt, currentVehicle = "")
           val persons = vehicles.getOrElse(vehicleId, mutable.Set())
           if (persons.contains(personId)) {
-            vehicles(vehicleId) = persons - personId
+            vehicles(vehicleId) = persons.diff(Set(personId))
           }
 
         case "PathTraversal" =>

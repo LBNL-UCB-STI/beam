@@ -59,8 +59,8 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
           val t = RideHailTrip(List(r), schedule, Some(v))
           finalRequestsList append t
           if (!vertices.contains(v)) vertices append v
-          vertices append (r, t)
-          edges append ((r, t), (t, v))
+          vertices appendAll (Seq(r, t))
+          edges appendAll Seq((r, t), (t, v))
         }
     )
     if (finalRequestsList.nonEmpty) {

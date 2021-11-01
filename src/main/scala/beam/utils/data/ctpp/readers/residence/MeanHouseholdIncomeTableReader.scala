@@ -30,6 +30,8 @@ object MeanHouseholdIncomeTableReader {
 
     override def iterator: Iterator[(String, Double)] = map.iterator
 
-    override def -(key: String): Map[String, Double] = map.-(key)
+    override def removed(key: String): Map[String, Double] = map.removed(key)
+
+    override def updated[V1 >: Double](key: String, value: V1): Map[String, V1] = map.updated(key, value)
   }
 }
