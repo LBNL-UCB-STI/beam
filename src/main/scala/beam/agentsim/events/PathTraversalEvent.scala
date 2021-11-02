@@ -233,7 +233,8 @@ object PathTraversalEvent {
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
     val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
-    val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt).toIndexedSeq
+    val linkIds: IndexedSeq[Int] =
+      if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt).toIndexedSeq
     val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
     val linkTravelTime: IndexedSeq[Double] =
       if (linkTravelTimeStr == null || linkTravelTimeStr == "") IndexedSeq.empty

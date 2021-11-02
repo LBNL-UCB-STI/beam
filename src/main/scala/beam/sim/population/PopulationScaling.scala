@@ -37,13 +37,15 @@ class PopulationScaling extends LazyLogging {
     // check the additional population required to be generated (excluding the existing population)
     val additionalPopulationRequired: Long = totalPopulationRequired - scenario.getPopulation.getPersons.size()
     // check the repetitions(of existing population) required to clone the additional population
-    val repetitions = math.floor(additionalPopulationRequired.toDouble / scenario.getPopulation.getPersons.size().toDouble).toInt
+    val repetitions =
+      math.floor(additionalPopulationRequired.toDouble / scenario.getPopulation.getPersons.size().toDouble).toInt
     // A counter that tracks the number of population in the current scenario (stop as soon as this counter hits the required total population)
     var populationCounter = scenario.getPopulation.getPersons.size()
     val existingHouseHolds = scenario.getHouseholds.getHouseholds.asScala.toSeq
     for (i <- 0 to repetitions) {
       // generate new households
-      existingHouseHolds.to(LazyList)
+      existingHouseHolds
+        .to(LazyList)
         .takeWhile(_ => populationCounter < totalPopulationRequired)
         .map { case (houseHoldId, houseHold) =>
           // proceed only if the required population is not yet reached

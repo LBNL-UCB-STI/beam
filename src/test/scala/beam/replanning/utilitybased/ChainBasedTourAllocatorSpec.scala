@@ -138,7 +138,9 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
 
     And("if the person requests a tour-based vehicle,")
     val plan = f.pop.getPersons.get(personWithAnyRank).getPlans.get(0)
-    val subtour = TripStructureUtils.getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes).asScala
+    val subtour = TripStructureUtils
+      .getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
+      .asScala
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithAnyRank,
@@ -191,7 +193,8 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
     And("it should be allocated to the high-ranking person,")
     val highRankPlan = f.pop.getPersons.get(personWithHighRank).getPlans.get(0)
     val highRankSubtour = TripStructureUtils
-          .getSubtours(highRankPlan, f.chainBasedTourVehicleAllocator.stageActivitytypes).asScala
+      .getSubtours(highRankPlan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
+      .asScala
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithHighRank,

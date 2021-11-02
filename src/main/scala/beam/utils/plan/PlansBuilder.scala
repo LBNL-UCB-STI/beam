@@ -76,9 +76,7 @@ object PlansBuilder {
     val srcCSR = if (args.length > 5) args(5) else "epsg:4326"
     val tgtCSR = if (args.length > 6) args(6) else "epsg:26910"
     utmConverter = UTMConverter(srcCSR, tgtCSR)
-    pop ++= sc.getPopulation.getPersons.asScala
-      .values
-      .toVector
+    pop ++= sc.getPopulation.getPersons.asScala.values.toVector
 
     val households = new SynthHouseholdParser(utmConverter) {
       override def parseFile(synthFileName: String): Vector[SynthHousehold] = {
@@ -132,8 +130,7 @@ object PlansBuilder {
     out.newLine()
 
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
-    val carVehicleType = sc.getVehicles.getVehicleTypes.values().asScala
-      .head
+    val carVehicleType = sc.getVehicles.getVehicleTypes.values().asScala.head
     carVehicleType.setFlowEfficiencyFactor(1069)
     carVehicleType.getEngineInformation.setGasConsumption(1069)
     newVehicles.addVehicleType(carVehicleType)

@@ -302,7 +302,8 @@ class ModeChoiceLCCM(
         )
       }
       .toMap
-      .view.mapValues(modeChoiceCalculatorForStyle =>
+      .view
+      .mapValues(modeChoiceCalculatorForStyle =>
         trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None)).sum
       )
       .toArray

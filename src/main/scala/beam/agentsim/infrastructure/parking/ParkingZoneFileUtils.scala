@@ -367,9 +367,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val parkingZoneIds: Vector[Id[ParkingZoneId]] =
         parkingTypes.getOrElse(zone.parkingType, Vector.empty[Id[ParkingZoneId]])
 
-      accumulator ++ Map(zone.geoId ->
-        (parkingTypes ++ Map(zone.parkingType ->
-          (parkingZoneIds :+ zone.parkingZoneId).sorted)))
+      accumulator ++ Map(
+        zone.geoId ->
+        (parkingTypes ++ Map(
+          zone.parkingType ->
+          (parkingZoneIds :+ zone.parkingZoneId).sorted
+        ))
+      )
     }
   }
 

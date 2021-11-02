@@ -482,7 +482,8 @@ class UrbanSimScenarioLoader(
       s"Currently $currentTotalCars are left, $numberOfWorkVehiclesToBeRemoved work vehicles are yet to be removed"
     )
 
-    numberOfCars2HouseholdIds.keys.to(LazyList)
+    numberOfCars2HouseholdIds.keys
+      .to(LazyList)
       .sorted(Ordering[Int].reverse)
       .takeWhile(currentNumberOfCars => currentNumberOfCars > 0 && currentTotalCars > goalCarTotal)
       .filter(numberOfCars2HouseholdIds.contains)

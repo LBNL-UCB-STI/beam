@@ -158,7 +158,8 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
       Try(Await.result(closed, timeOut.duration))
       ref ! PoisonPill
     }
-    Http().shutdownAllConnectionPools()
+    Http()
+      .shutdownAllConnectionPools()
       .andThen { case _ =>
         if (actorSystem.isEmpty) system.terminate()
       }

@@ -49,7 +49,8 @@ private[geozone] case class HexagonLeaf(
         sequenceOfPairs.map { case (_, coordinate) =>
           coordinate
         }.toSet
-      }.toMap
+      }
+      .toMap
     resultIndex.toSeq.map { index =>
       val leaf: HexagonLeaf = HexagonLeaf(index, pointsAndNewIndexes.getOrElse(index, Set.empty))
       HexagonBranch(index, IndexedSeq(leaf))

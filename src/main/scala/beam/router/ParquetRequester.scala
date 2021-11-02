@@ -85,7 +85,11 @@ object ParquetRequester extends BeamHelper with LazyLogging {
 
     val requests = requestRecords.map { req =>
       val reqJsonStr = new String(req.get("requestAsJson").asInstanceOf[Utf8].getBytes, StandardCharsets.UTF_8)
-      io.circe.parser.parse(reqJsonStr).getOrElse(throw new NoSuchElementException("Either.right.get on Left")).as[RoutingRequest].getOrElse(throw new NoSuchElementException("Either.right.get on Left"))
+      io.circe.parser
+        .parse(reqJsonStr)
+        .getOrElse(throw new NoSuchElementException("Either.right.get on Left"))
+        .as[RoutingRequest]
+        .getOrElse(throw new NoSuchElementException("Either.right.get on Left"))
     }
     logger.info(s"requests: ${requests.length}")
     requests

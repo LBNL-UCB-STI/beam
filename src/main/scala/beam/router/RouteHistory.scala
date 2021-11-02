@@ -157,7 +157,8 @@ object RouteHistory {
         val route: IndexedSeq[Int] = line
           .get("route")
           .split(":")
-          .map(_.toInt).toIndexedSeq
+          .map(_.toInt)
+          .toIndexedSeq
 
         val timeBinReference = result.getOrElseUpdate(
           timeBin,

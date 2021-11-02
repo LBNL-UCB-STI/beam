@@ -66,6 +66,7 @@ object GeoGrouper {
       .view
       .mapValues { x: Seq[(H3IndexParkingEntryGroup, ParkingEntryValues)] =>
         x.map(_._2)
-      }.toMap
+      }
+      .toMap
   }
 }

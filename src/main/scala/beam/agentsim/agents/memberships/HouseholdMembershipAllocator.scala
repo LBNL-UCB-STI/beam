@@ -34,8 +34,7 @@ case class HouseholdMembershipAllocator(
             mutable.Map()
 
           val householdVehicles =
-            household.getVehicleIds.asScala
-              .toIndexedSeq
+            household.getVehicleIds.asScala.toIndexedSeq
           for (i <- householdVehicles.indices.toSet ++ household.rankedMembers.indices.toSet) {
             if (i < householdVehicles.size & i < household.rankedMembers.size) {
               vehicleRes += (household

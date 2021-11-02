@@ -115,15 +115,13 @@ class Population(
           .asInstanceOf[Double]
       )
 
-      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala
-        .map { vid =>
-          val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
-          val reservedFor =
-            VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
-          bv.vehicleManagerId.set(reservedFor.managerId)
-          bv.id -> bv
-        }
-        .toMap
+      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala.map { vid =>
+        val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
+        val reservedFor =
+          VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
+        bv.vehicleManagerId.set(reservedFor.managerId)
+        bv.id -> bv
+      }.toMap
       val householdActor = context.actorOf(
         HouseholdActor.props(
           beamServices,

@@ -118,12 +118,18 @@ class BeamPathTest extends AnyWordSpec with Matchers {
       }
 
       "the first has more elements in linkIds than the second" in {
-        BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(1)), beamPath.copy(linkIds = IndexedSeq.empty[Int])) shouldBe 1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq(1)),
+          beamPath.copy(linkIds = IndexedSeq.empty[Int])
+        ) shouldBe 1
       }
 
       "linkIds have the same size, but the first contains element larger than the second one" in {
         BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(2)), beamPath.copy(linkIds = IndexedSeq(1))) shouldBe 1
-        BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(1, 2)), beamPath.copy(linkIds = IndexedSeq(1, 1))) shouldBe 1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq(1, 2)),
+          beamPath.copy(linkIds = IndexedSeq(1, 1))
+        ) shouldBe 1
       }
 
       "linkTravelTime have the same size, but the first contains element larger than the second one" in {
@@ -192,12 +198,18 @@ class BeamPathTest extends AnyWordSpec with Matchers {
       }
 
       "the first has less elements in linkIds than the second" in {
-        BeamPath.compare(beamPath.copy(linkIds = IndexedSeq.empty[Int]), beamPath.copy(linkIds = IndexedSeq(1))) shouldBe -1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq.empty[Int]),
+          beamPath.copy(linkIds = IndexedSeq(1))
+        ) shouldBe -1
       }
 
       "linkIds have the same size, but the first contains element smaller than the second one" in {
         BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(1)), beamPath.copy(linkIds = IndexedSeq(2))) shouldBe -1
-        BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(1, 1)), beamPath.copy(linkIds = IndexedSeq(1, 2))) shouldBe -1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq(1, 1)),
+          beamPath.copy(linkIds = IndexedSeq(1, 2))
+        ) shouldBe -1
       }
 
       "linkTravelTime have the same size, but the first contains element smaller than the second one" in {

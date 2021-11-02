@@ -36,12 +36,14 @@ class ChangeModeForTour(
 
   val weightedRandom = new EnumeratedDistribution[BeamMode](
     rng,
-    mutable.Buffer[Pair[BeamMode, java.lang.Double]](
-      new Pair[BeamMode, java.lang.Double](BUS, 0.8),
-      new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15),
-      new Pair[BeamMode, java.lang.Double](FERRY, 0.005),
-      new Pair[BeamMode, java.lang.Double](RAIL, 0.045)
-    ).asJava
+    mutable
+      .Buffer[Pair[BeamMode, java.lang.Double]](
+        new Pair[BeamMode, java.lang.Double](BUS, 0.8),
+        new Pair[BeamMode, java.lang.Double](SUBWAY, 0.15),
+        new Pair[BeamMode, java.lang.Double](FERRY, 0.005),
+        new Pair[BeamMode, java.lang.Double](RAIL, 0.045)
+      )
+      .asJava
   )
 
   private val rideHailConfig =
@@ -194,8 +196,7 @@ class ChangeModeForTour(
   }
 
   def addTripsBetweenActivities(plan: Plan): Unit = {
-    val activities = TripStructureUtils.getActivities(plan, stageActivityTypes).asScala
-      .toIndexedSeq
+    val activities = TripStructureUtils.getActivities(plan, stageActivityTypes).asScala.toIndexedSeq
     activities
       .sliding(2)
       .foreach(acts =>
@@ -258,8 +259,7 @@ class ChangeModeForTour(
 
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
 
-    val tours: Seq[Subtour] = TripStructureUtils.getSubtours(plan, stageActivityTypes).asScala
-      .toIndexedSeq
+    val tours: Seq[Subtour] = TripStructureUtils.getSubtours(plan, stageActivityTypes).asScala.toIndexedSeq
 
     rankedAlternatives.foreach({ case (tourIdx, alts) =>
       val denom = Math.abs(alts.values.map(Math.exp).sum)

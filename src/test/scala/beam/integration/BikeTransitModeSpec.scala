@@ -15,11 +15,7 @@ import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.junit.Assert
-import org.matsim.api.core.v01.events.{
-  Event,
-  PersonArrivalEvent,
-  PersonDepartureEvent
-}
+import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest.matchers.should.Matchers

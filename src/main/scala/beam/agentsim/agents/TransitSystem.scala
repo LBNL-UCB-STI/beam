@@ -173,7 +173,8 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
       .filter(_.length > 2)
       .groupBy(_(0))
       .view
-      .mapValues(_.groupBy(_(1)).view.mapValues(_.head(2)).toMap).toMap
+      .mapValues(_.groupBy(_(1)).view.mapValues(_.head(2)).toMap)
+      .toMap
   }
 
 }

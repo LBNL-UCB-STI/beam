@@ -37,7 +37,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   override def loggedReceive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      sender ()! CompletionNotice(triggerId)
+      sender() ! CompletionNotice(triggerId)
 
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(Set(vehicleType), triggerId)

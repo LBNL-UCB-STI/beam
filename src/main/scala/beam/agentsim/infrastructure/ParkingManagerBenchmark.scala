@@ -176,7 +176,7 @@ object ParkingManagerBenchmark extends StrictLogging {
             linkToTAZMapping,
             boundingBox,
             beamConfig,
-            geoUtils.distUTMInMeters(_,_)
+            geoUtils.distUTMInMeters(_, _)
           )
           parkingNetwork
         } else {
@@ -188,7 +188,7 @@ object ParkingManagerBenchmark extends StrictLogging {
             identity[TAZ](_),
             boundingBox,
             beamConfig,
-            geoUtils.distUTMInMeters(_,_)
+            geoUtils.distUTMInMeters(_, _)
           )
           parkingNetwork
         }

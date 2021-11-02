@@ -172,22 +172,25 @@ class InverseSquareDistanceRepositioningFactor(
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
     // Build clusters for every time bin. Number of clusters is configured
-    getTimeBins(tick).view.flatMap(timeBinToActivities.get).flatMap { acts =>
-      if (acts.isEmpty)
-        Array.empty[ClusterInfo]
-      else {
-        acts
-          .map(_.getCoord)
-          .groupBy(beamServices.beamScenario.h3taz.getIndex)
-          .map { case (hex, group) =>
-            val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
-            logger.debug(s"HexIndex: $hex")
-            logger.debug(s"Size: ${group.size}")
-            logger.debug(s"Center: $centroid")
-            ClusterInfo(group.size, centroid, group.toIndexedSeq)
-          }
+    getTimeBins(tick).view
+      .flatMap(timeBinToActivities.get)
+      .flatMap { acts =>
+        if (acts.isEmpty)
+          Array.empty[ClusterInfo]
+        else {
+          acts
+            .map(_.getCoord)
+            .groupBy(beamServices.beamScenario.h3taz.getIndex)
+            .map { case (hex, group) =>
+              val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
+              logger.debug(s"HexIndex: $hex")
+              logger.debug(s"Size: ${group.size}")
+              logger.debug(s"Center: $centroid")
+              ClusterInfo(group.size, centroid, group.toIndexedSeq)
+            }
+        }
       }
-    }.toArray
+      .toArray
   }
 
   private def getTimeBins(tick: Int): Array[Int] = {

@@ -396,7 +396,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
       .groupBy(_.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")))
-      .view.mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0))).toMap
+      .view
+      .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
+      .toMap
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)

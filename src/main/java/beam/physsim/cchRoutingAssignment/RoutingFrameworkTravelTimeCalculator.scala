@@ -158,7 +158,8 @@ class RoutingFrameworkTravelTimeCalculator(
     events: Seq[TravelInfo],
     id2Link: Map[Int, Link]
   ): LazyList[OD] = {
-    events.to(LazyList)
+    events
+      .to(LazyList)
       .map { event =>
         for {
           firstLinkId <- event.linkIds.headOption

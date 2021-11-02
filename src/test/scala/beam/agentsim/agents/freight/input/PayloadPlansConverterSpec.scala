@@ -64,10 +64,10 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       carrier1.tourMap should contain key Id.createVehicleId("freight-2")
       carrier1.tourMap(Id.createVehicleId("freight-2")) should have size 1
       carrier1.tourMap(Id.createVehicleId("freight-2")).head should have(
-        Symbol("tourId") ("tour-1".createId[FreightTour]),
-        Symbol("departureTimeInSec") (1000),
-        Symbol("warehouseLocation") (new Coord(169637.3661199976, 3030.52756066406)),
-        Symbol("maxTourDurationInSec") (36000)
+        Symbol("tourId")("tour-1".createId[FreightTour]),
+        Symbol("departureTimeInSec")(1000),
+        Symbol("warehouseLocation")(new Coord(169637.3661199976, 3030.52756066406)),
+        Symbol("maxTourDurationInSec")(36000)
       )
       carrier1.plansPerTour should have size 3
       carrier1.plansPerTour("tour-1".createId) should have size 2

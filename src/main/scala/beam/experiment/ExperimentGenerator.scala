@@ -21,6 +21,7 @@ import scala.collection.immutable
   * This generator will create sub-directories relatively to experiments.yml
   */
 object ExperimentGenerator extends ExperimentApp {
+
   override def validateExperimentConfig(experiment: ExperimentDef): Unit = {
     if (!Files.exists(Paths.get(experiment.header.beamTemplateConfPath))) {
       throw new IllegalArgumentException(

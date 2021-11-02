@@ -162,7 +162,9 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
 
     val configParams: mutable.Map[String, Object] =
       experimentData.experimentDef.defaultParams.asScala ++
-      assignments.entrySet().asScala
+      assignments
+        .entrySet()
+        .asScala
         .map { e =>
           e.getKey -> e.getValue
         }

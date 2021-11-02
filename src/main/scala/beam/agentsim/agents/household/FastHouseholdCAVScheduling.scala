@@ -219,7 +219,10 @@ class FastHouseholdCAVScheduling(
       }
       Some(
         HouseholdSchedule(
-          this.schedulesMap.view.filterKeys(_ != cav).concat(Map(cav -> CAVSchedule(newHouseholdSchedule.toList, cav, newOccupancy))).toMap,
+          this.schedulesMap.view
+            .filterKeys(_ != cav)
+            .concat(Map(cav -> CAVSchedule(newHouseholdSchedule.toList, cav, newOccupancy)))
+            .toMap,
           newHouseholdScheduleCost
         )
       )
@@ -430,31 +433,32 @@ object HouseholdTripsHelper {
     var firstPickupOfTheDay: Option[MobilityRequest] = None
     breakable {
       householdPlans.foldLeft(householdNbOfVehicles) { case (counter, plan) =>
-        val usedCarOut = plan.trips.sliding(2).map(slide => (slide.head, slide.last)).foldLeft(false) { case (usedCar, (prevTrip, curTrip)) =>
-          val (pickup, dropoff, travelTime) =
-            getPickupAndDropoff(
-              plan,
-              curTrip,
-              prevTrip,
-              counter,
-              beamVehicleType,
-              waitingTimeInSec,
-              delayToArrivalInSec,
-              beamServices
+        val usedCarOut = plan.trips.sliding(2).map(slide => (slide.head, slide.last)).foldLeft(false) {
+          case (usedCar, (prevTrip, curTrip)) =>
+            val (pickup, dropoff, travelTime) =
+              getPickupAndDropoff(
+                plan,
+                curTrip,
+                prevTrip,
+                counter,
+                beamVehicleType,
+                waitingTimeInSec,
+                delayToArrivalInSec,
+                beamServices
+              )
+            if (
+              firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.baselineNonPooledTime > pickup.baselineNonPooledTime
             )
-          if (
-            firstPickupOfTheDay.isEmpty || firstPickupOfTheDay.get.baselineNonPooledTime > pickup.baselineNonPooledTime
-          )
-            firstPickupOfTheDay = Some(pickup)
-          tours.append(pickup)
-          tours.append(dropoff)
-          if (!Modes.isChainBasedMode(pickup.defaultMode) || tours.head.trip.parentTour != pickup.trip.parentTour) {
-            requests.append(tours.toList)
-            tours.clear()
-          }
-          tripTravelTime(curTrip) = travelTime
-          totTravelTime += travelTime
-          if (pickup.defaultMode == BeamMode.CAR) true else usedCar
+              firstPickupOfTheDay = Some(pickup)
+            tours.append(pickup)
+            tours.append(dropoff)
+            if (!Modes.isChainBasedMode(pickup.defaultMode) || tours.head.trip.parentTour != pickup.trip.parentTour) {
+              requests.append(tours.toList)
+              tours.clear()
+            }
+            tripTravelTime(curTrip) = travelTime
+            totTravelTime += travelTime
+            if (pickup.defaultMode == BeamMode.CAR) true else usedCar
         }
         requests.append(tours.toList)
         tours.clear()

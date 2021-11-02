@@ -107,7 +107,10 @@ trait RidehailManagerCustomizationAPI {
     * @param vehicleId
     * @param passengerSchedule
     */
-  def sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(vehicleId: Id[Vehicle], passengerSchedule: PassengerSchedule): Unit
+  def sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(
+    vehicleId: Id[Vehicle],
+    passengerSchedule: PassengerSchedule
+  ): Unit
 
   /**
     * This method gives back the KPI registry, from which all known KPIs can be accessed.

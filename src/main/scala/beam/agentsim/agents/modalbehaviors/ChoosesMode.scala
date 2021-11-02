@@ -560,7 +560,12 @@ trait ChoosesMode {
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
           val egressSegment =
-            driveTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).toIndexedSeq.view.reverse.map(_.beamLeg)
+            driveTransitTrip.get.legs.view.reverse
+              .takeWhile(!_.beamLeg.mode.isTransit)
+              .toIndexedSeq
+              .view
+              .reverse
+              .map(_.beamLeg)
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
               makeRideHailRequestFromBeamLeg(accessSegment.toSeq)

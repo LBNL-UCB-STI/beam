@@ -102,7 +102,7 @@ case class ChainBasedTourVehicleAllocator(
     val vehicleRecordFactory = new VehicleRecordFactory()
     val vehicularTours =
       (for {
-        plan: Plan <- householdPlans
+        plan: Plan       <- householdPlans
         subtour: Subtour <- getSubtours(plan, stageActivitytypes).asScala
       } yield {
         for { _ <- subtour.getTrips.asScala } yield {

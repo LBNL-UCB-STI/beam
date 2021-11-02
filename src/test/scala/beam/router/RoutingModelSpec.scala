@@ -133,7 +133,9 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
       cost = 0,
       unbecomeDriverOnCompletion = true
     )
-    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime).to(LazyList) should be(Symbol("empty"))
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime).to(LazyList) should be(
+      Symbol("empty")
+    )
   }
 
 }

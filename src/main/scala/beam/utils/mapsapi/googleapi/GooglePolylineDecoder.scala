@@ -9,9 +9,13 @@ import scala.jdk.CollectionConverters._
 object GooglePolylineDecoder {
 
   def decode(polyline: String): Seq[WgsCoordinate] = {
-    PolylineEncoding.decode(polyline).asScala.map { point: LatLng =>
-      WgsCoordinate(latitude = point.lat, longitude = point.lng)
-    }.toSeq
+    PolylineEncoding
+      .decode(polyline)
+      .asScala
+      .map { point: LatLng =>
+        WgsCoordinate(latitude = point.lat, longitude = point.lng)
+      }
+      .toSeq
   }
 
 }

@@ -74,11 +74,15 @@ class ErrorListener() extends Actor with ActorLogging {
 
     val msgCounts = terminatedPrematurelyEvents
       .groupBy(_ => "ALL")
-      .view.mapValues(eventsPerReason =>
+      .view
+      .mapValues(eventsPerReason =>
         eventsPerReason
           .groupBy(event => hourOrMinus1(event))
-          .view.mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size).toMap
-      ).toMap
+          .view
+          .mapValues(eventsPerReasonPerHour => eventsPerReasonPerHour.size)
+          .toMap
+      )
+      .toMap
     msgCounts
       .map { case (msg, cntByHour) =>
         val sortedCounts = cntByHour.toSeq.sortBy { case (hr, _) => hr }

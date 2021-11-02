@@ -72,7 +72,8 @@ class BingAdapter(apiKey: String, actorSystem: Option[ActorSystem] = None) exten
 
   override def close(): Unit = {
     implicit val timeOut: Timeout = new Timeout(20L, TimeUnit.SECONDS)
-    Http().shutdownAllConnectionPools()
+    Http()
+      .shutdownAllConnectionPools()
       .andThen { case _ =>
         if (actorSystem.isEmpty) system.terminate()
       }

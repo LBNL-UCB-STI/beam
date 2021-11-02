@@ -358,9 +358,7 @@ object PlansSampler {
     val sourceCrs = MGC.getCRS(args(7))
 
     wgsConverter = Some(WGSConverter(args(7), args(8)))
-    pop ++= sc.getPopulation.getPersons.asScala
-      .values
-      .toVector
+    pop ++= sc.getPopulation.getPersons.asScala.values.toVector
 
     synthHouseholds ++=
       filterSynthHouseholds(
