@@ -7,11 +7,12 @@ import org.matsim.core.network.io.NetworkReaderMatsimV2
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
-class Network2ShapeFileTest extends WordSpecLike with Matchers {
+class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
   "Network2ShapeFile transformation" should {
     "generate the same number of features" in {
       val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
@@ -28,6 +29,7 @@ class Network2ShapeFileTest extends WordSpecLike with Matchers {
       val reader = new NetworkReaderMatsimV2(network)
       reader.readFile(beamvilleNetwork)
 
+      @SuppressWarnings(Array("UnusedMethodParameter"))
       def mapToID2AllProperties(mathTransform: MathTransform, feature: SimpleFeature): (String, Map[String, AnyRef]) = {
         val featureId = feature.getAttribute("ID").toString
         val allProps =
