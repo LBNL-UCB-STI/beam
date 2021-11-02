@@ -54,7 +54,7 @@ def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.13.0"
 def slf4jVersion = "1.7.25"
 def kamonVersion = "2.0.3"
-def tscfgVersion = "0.9.4"
+def tscfgVersion = "0.9.993"
 
 
 sourceSets.main.scala.srcDirs = ["src/main/scala", "src/main/java"]
