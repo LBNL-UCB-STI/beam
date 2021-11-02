@@ -121,7 +121,7 @@ object BeamVehicleUtils {
     val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
     val vehicleTypeString = vehicleTypes.keySet.map(_.toString())
     val defaultVehicleType = BeamVehicleType(
-      id = Id.create("beamVilleCar", classOf[BeamVehicleType]),
+      id = Id.create("DefaultVehicleType", classOf[BeamVehicleType]),
       seatingCapacity = 4,
       standingRoomCapacity = 0,
       lengthInMeter = 4.5,
