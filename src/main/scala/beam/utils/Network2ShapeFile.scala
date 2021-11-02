@@ -16,6 +16,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 
 object Network2ShapeFile extends LazyLogging {
+
   /* Link attributes to be written into SHP file */
   case class NetworkLink(
     fromNode: Node,
@@ -121,9 +122,8 @@ object Network2ShapeFile extends LazyLogging {
     typeBuilder.setCRS(crs)
 
     typeBuilder.add("the_geom", classOf[LineString])
-    NetworkLink.nameToType.foreach {
-      case (name, memberType) =>
-        typeBuilder.add(name, memberType)
+    NetworkLink.nameToType.foreach { case (name, memberType) =>
+      typeBuilder.add(name, memberType)
     }
 
     new SimpleFeatureBuilder(typeBuilder.buildFeatureType())
