@@ -83,7 +83,7 @@ object AgentsimWithMaximallyBadRouterSpec {
           sender ! Failure(new RuntimeException("No idea how to route."))
         }
       }))
-      services.beamRouter = router
+      services.beamRouterActor = router
     }
 
     override def afterAll(): Unit = {

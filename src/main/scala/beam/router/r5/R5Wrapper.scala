@@ -59,6 +59,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val carWeightCalculator = new CarWeightCalculator(workerParams, travelTimeNoiseFraction)
   private val bikeLanesAdjustment = BikeLanesAdjustment(beamConfig)
 
+  override def embodyWithCurrentTravelTime(request: EmbodyWithCurrentTravelTime): RoutingResponse =
+    embodyWithCurrentTravelTime(
+      request.leg,
+      request.vehicleId,
+      request.vehicleTypeId,
+      request.requestId,
+      request.triggerId
+    )
+
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],

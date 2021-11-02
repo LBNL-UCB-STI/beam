@@ -252,35 +252,32 @@ trait ChoosesParking extends {
           Some(attributes),
           triggerId = getCurrentTriggerIdOrGenerate
         )
-        val futureVehicle2StallResponse = router ? veh2StallRequest
+        val vehicle2StallResponse = router.calcRoute(veh2StallRequest)
 
         // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
-        val futureStall2DestinationResponse = router ? RoutingRequest(
-          stall.locationUTM,
-          beamServices.geo.wgs2Utm(finalPoint.loc),
-          currentPoint.time,
-          withTransit = false,
-          Some(id),
-          Vector(
-            StreetVehicle(
-              body.id,
-              body.beamVehicleType.id,
-              SpaceTime(stall.locationUTM, currentPoint.time),
-              WALK,
-              asDriver = true,
-              needsToCalculateCost = false
-            )
-          ),
-          Some(attributes),
-          triggerId = getCurrentTriggerIdOrGenerate
+        val stall2DestinationResponse = router.calcRoute(
+          RoutingRequest(
+            stall.locationUTM,
+            beamServices.geo.wgs2Utm(finalPoint.loc),
+            currentPoint.time,
+            withTransit = false,
+            Some(id),
+            Vector(
+              StreetVehicle(
+                body.id,
+                body.beamVehicleType.id,
+                SpaceTime(stall.locationUTM, currentPoint.time),
+                WALK,
+                asDriver = true,
+                needsToCalculateCost = false
+              )
+            ),
+            Some(attributes),
+            triggerId = getCurrentTriggerIdOrGenerate
+          )
         )
 
-        val responses = for {
-          vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
-          stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
-        } yield (vehicle2StallResponse, stall2DestinationResponse)
-
-        responses pipeTo self
+        self ! (vehicle2StallResponse, stall2DestinationResponse)
         stay using data
       }
     case Event((routingResponse1: RoutingResponse, routingResponse2: RoutingResponse), data: BasePersonData) =>

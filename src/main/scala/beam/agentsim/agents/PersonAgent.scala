@@ -34,7 +34,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
-import beam.router.RouteHistory
+import beam.router.{RouteHistory, Router}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.ActivitySimSkimmerEvent
@@ -70,7 +70,7 @@ object PersonAgent {
     modeChoiceCalculator: ModeChoiceCalculator,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
-    router: ActorRef,
+    router: Router,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
     chargingNetworkManager: ActorRef,
@@ -252,7 +252,7 @@ class PersonAgent(
   val beamScenario: BeamScenario,
   val modeChoiceCalculator: ModeChoiceCalculator,
   val transportNetwork: TransportNetwork,
-  val router: ActorRef,
+  val router: Router,
   val rideHailManager: ActorRef,
   val eventsManager: EventsManager,
   override val id: Id[PersonAgent],

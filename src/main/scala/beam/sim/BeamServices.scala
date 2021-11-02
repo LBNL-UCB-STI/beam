@@ -3,6 +3,7 @@ package beam.sim
 import akka.actor.ActorRef
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.ModeChoiceCalculatorFactory
 import beam.api.BeamCustomizationAPI
+import beam.router.Router
 import beam.router.gtfs.FareCalculator
 import beam.router.osm.TollCalculator
 import beam.router.r5.BikeLanesAdjustment
@@ -65,7 +66,8 @@ trait BeamServices {
   val geo: GeoUtils
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory
 
-  var beamRouter: ActorRef
+  var beamRouterActor: ActorRef
+  var router: Router
   var eventBuilderActor: ActorRef
 
   def matsimServices: MatsimServices
@@ -94,7 +96,8 @@ class BeamServicesImpl @Inject() (val injector: Injector) extends BeamServices {
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])
 
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
-  var beamRouter: ActorRef = _
+  var beamRouterActor: ActorRef = _
+  var router: Router = _
   var eventBuilderActor: ActorRef = _
 
   override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])

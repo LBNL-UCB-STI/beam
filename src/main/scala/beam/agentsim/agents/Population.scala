@@ -9,7 +9,7 @@ import beam.agentsim.agents.household.HouseholdActor.{GetVehicleTypes, VehicleTy
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.RouteHistory
+import beam.router.{RouteHistory, Router}
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessageActor
@@ -30,7 +30,7 @@ class Population(
   val scheduler: ActorRef,
   val transportNetwork: TransportNetwork,
   val tollCalculator: TollCalculator,
-  val router: ActorRef,
+  val router: Router,
   val rideHailManager: ActorRef,
   val parkingManager: ActorRef,
   val chargingNetworkManager: ActorRef,
@@ -183,7 +183,7 @@ object Population {
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
-    router: ActorRef,
+    router: Router,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
     chargingNetworkManager: ActorRef,

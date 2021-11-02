@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 
 trait Router {
 
@@ -9,4 +9,7 @@ trait Router {
     buildDirectCarRoute: Boolean = true,
     buildDirectWalkRoute: Boolean = true
   ): RoutingResponse
+
+  def embodyWithCurrentTravelTime(request: EmbodyWithCurrentTravelTime): RoutingResponse = ???
+
 }

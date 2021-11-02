@@ -31,7 +31,7 @@ import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.RoutingResponse
 import beam.router.Modes.BeamMode.CAV
-import beam.router.RouteHistory
+import beam.router.{RouteHistory, Router}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.config.BeamConfig.Beam
@@ -68,7 +68,7 @@ object HouseholdActor {
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
-    router: ActorRef,
+    router: Router,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
     chargingNetworkManager: ActorRef,
@@ -141,7 +141,7 @@ object HouseholdActor {
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
-    router: ActorRef,
+    router: Router,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
     chargingNetworkManager: ActorRef,
@@ -280,19 +280,12 @@ object HouseholdActor {
             }
             holdTickAndTriggerId(tick, triggerId)
             //            log.debug("Household {} is done planning", household.getId)
-            Future
-              .sequence(
-                routingRequests.map(req =>
-                  beam.utils.logging.pattern
-                    .ask(
-                      router,
-                      if (req.routeReq.isDefined) { req.routeReq.get }
-                      else { req.embodyReq.get }
-                    )
-                    .mapTo[RoutingResponse]
-                )
+            val routingResponses = routingRequests
+              .map(req =>
+                if (req.routeReq.isDefined) router.calcRoute(req.routeReq.get)
+                else router.embodyWithCurrentTravelTime(req.embodyReq.get)
               )
-              .map(RoutingResponses(tick, _, triggerId)) pipeTo self
+            self ! RoutingResponses(tick, routingResponses, triggerId)
           }
         }
         household.members.foreach { person =>

@@ -35,7 +35,7 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector.TAZSkimsCollectionTrigger
 import beam.router.skim.event.TAZSkimmerEvent
-import beam.router.{BeamRouter, RouteHistory}
+import beam.router.{BeamRouter, RouteHistory, Router}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
 import beam.sim.config.BeamConfig.Beam.Debug
@@ -222,7 +222,7 @@ class RideHailManager(
   val scenario: Scenario,
   val eventsManager: EventsManager,
   val scheduler: ActorRef,
-  val router: ActorRef,
+  val router: Router,
   val parkingManager: ActorRef,
   val chargingNetworkManager: ActorRef,
   val boundingBox: Envelope,
@@ -303,8 +303,8 @@ class RideHailManager(
   beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI.init(this)
   val ridehailManagerCustomizationAPI = beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI
 
-  beamServices.beamRouter ! GetTravelTime
-  beamServices.beamRouter ! GetMatSimNetwork
+  beamServices.beamRouterActor ! GetTravelTime
+  beamServices.beamRouterActor ! GetMatSimNetwork
   //TODO improve search to take into account time when available
   private val pendingModifyPassengerScheduleAcks = mutable.HashMap[Int, RideHailResponse]()
   private var numPendingRoutingRequestsForReservations = 0
@@ -793,35 +793,30 @@ class RideHailManager(
         streetVehicles = Vector(agentLocation.toStreetVehicle),
         triggerId = triggerId
       )
-      val futureRideHail2ParkingRouteRequest = router ? routingRequest
+      val futureRideHail2ParkingRouteRespones = router.calcRoute(routingRequest)
 
-      for {
-        futureRideHail2ParkingRouteRespones <- futureRideHail2ParkingRouteRequest
-          .mapTo[RoutingResponse]
-      } {
-        val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
-          .find(x => x.tripClassifier.equals(RIDE_HAIL))
+      val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
+        .find(x => x.tripClassifier.equals(RIDE_HAIL))
 
-        itinOpt match {
-          case Some(itin) =>
-            val passengerSchedule = PassengerSchedule().addLegs(
-              itin.toBeamTrip.legs
-            )
-            self ! MoveOutOfServiceVehicleToDepotParking(
-              passengerSchedule,
-              itin.legs.head.beamLeg.startTime,
-              agentLocation.vehicleId,
-              triggerId: Long
-            )
-          case None =>
-            //log.error(
-            //  "No route to parking stall found, ride hail agent {} stranded",
-            //  agentLocation.vehicleId
-            //)
+      itinOpt match {
+        case Some(itin) =>
+          val passengerSchedule = PassengerSchedule().addLegs(
+            itin.toBeamTrip.legs
+          )
+          self ! MoveOutOfServiceVehicleToDepotParking(
+            passengerSchedule,
+            itin.legs.head.beamLeg.startTime,
+            agentLocation.vehicleId,
+            triggerId: Long
+          )
+        case None =>
+          //log.error(
+          //  "No route to parking stall found, ride hail agent {} stranded",
+          //  agentLocation.vehicleId
+          //)
 
-            // release trigger if no parking depot found so that simulation can continue
-            self ! ReleaseAgentTrigger(agentLocation.vehicleId)
-        }
+          // release trigger if no parking depot found so that simulation can continue
+          self ! ReleaseAgentTrigger(agentLocation.vehicleId)
       }
 
     case ReleaseAgentTrigger(vehicleId) =>
@@ -1112,22 +1107,14 @@ class RideHailManager(
           RouteOrEmbodyRequest(Some(rReq), None)
       }
     }
-    Future
-      .sequence(
-        routeOrEmbodyReqs.map(req =>
-          beam.utils.logging.pattern
-            .ask(
-              router,
-              if (req.routeReq.isDefined) {
-                req.routeReq.get
-              } else {
-                req.embodyReq.get
-              }
-            )
-            .mapTo[RoutingResponse]
-        )
-      )
-      .map(RoutingResponses(tick, _, triggerId)) pipeTo self
+    val routingResponses = routeOrEmbodyReqs.map(req =>
+      if (req.routeReq.isDefined) {
+        router.calcRoute(req.routeReq.get)
+      } else {
+        router.embodyWithCurrentTravelTime(req.embodyReq.get)
+      }
+    )
+    self ! RoutingResponses(tick, routingResponses, triggerId)
   }
 
   private def handleReservation(request: RideHailRequest, tick: Int, travelProposal: TravelProposal): Unit = {
@@ -1744,7 +1731,7 @@ class RideHailManager(
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
-    val futureRepoRoutingMap = mutable.Map[Id[BeamVehicle], Future[RoutingRequest]]()
+    val repoRoutingMap = mutable.Map[Id[BeamVehicle], RoutingResponse]()
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
       rideHailManagerHelper.getServiceStatusOf(vehicleId) match {
@@ -1768,14 +1755,13 @@ class RideHailManager(
             streetVehicles = Vector(rideHailVehicleAtOrigin),
             triggerId = triggerId
           )
-          val futureRideHailAgent2CustomerResponse = router ? routingRequest
-          futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
+          val rideHailAgent2CustomerResponse = router.calcRoute(routingRequest)
+          repoRoutingMap.put(vehicleId, rideHailAgent2CustomerResponse)
 
       }
     }
     for {
-      (vehicleId, futureRoutingRequest) <- futureRepoRoutingMap
-      rideHailAgent2CustomerResponse    <- futureRoutingRequest.mapTo[RoutingResponse]
+      (vehicleId, rideHailAgent2CustomerResponse) <- repoRoutingMap
     } {
       val itins2Cust = rideHailAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
 

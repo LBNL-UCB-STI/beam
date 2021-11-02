@@ -30,7 +30,7 @@ trait RouterForTest extends BeforeAndAfterAll with ImplicitSender {
         services.matsimServices.getControlerIO
       )
     )
-    services.beamRouter = router // :-(
+    services.beamRouterActor = router // :-(
   }
 
   override def afterAll(): Unit = {

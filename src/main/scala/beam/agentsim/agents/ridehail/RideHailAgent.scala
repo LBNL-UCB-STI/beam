@@ -404,7 +404,7 @@ class RideHailAgent(
         triggerId = triggerId
       )
       isOnWayToParkAtStall = Some(stall)
-      beamServices.beamRouter ! veh2StallRequest
+      beamServices.beamRouterActor ! veh2StallRequest
       stay
     case Event(resp @ RoutingResponse(itineraries, _, _, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")

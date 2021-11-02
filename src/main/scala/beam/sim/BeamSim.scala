@@ -29,7 +29,7 @@ import beam.router.BeamRouter.ODSkimmerReady
 import beam.router.BeamRouter.UpdateTravelTimeLocal
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
-import beam.router.r5.RouteDumper
+import beam.router.r5.{R5Parameters, R5Wrapper, RouteDumper}
 import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clustering, TAZClustering}
 import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
@@ -212,7 +212,7 @@ class BeamSim @Inject() (
     startAndEndEventListeners.foreach(eventsManager.addHandler)
     maybeRealizedModeChoiceWriter.foreach(eventsManager.addHandler(_))
 
-    beamServices.beamRouter = actorSystem.actorOf(
+    beamServices.beamRouterActor = actorSystem.actorOf(
       BeamRouter.props(
         beamServices.beamScenario,
         transportNetwork,
@@ -228,10 +228,32 @@ class BeamSim @Inject() (
     )
     initialTravelTime = BeamWarmStart.warmStartTravelTime(
       beamServices.beamConfig,
-      beamServices.beamRouter,
+      beamServices.beamRouterActor,
       scenario
     )
-    Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
+    Await.result(beamServices.beamRouterActor ? Identify(0), timeout.duration)
+
+    {
+      val workerParams =
+        R5Parameters(
+          beamScenario.beamConfig,
+          transportNetwork,
+          beamScenario.vehicleTypes,
+          beamScenario.fuelTypePrices,
+          beamScenario.ptFares,
+          beamServices.geo,
+          beamScenario.dates,
+          networkHelper,
+          beamServices.fareCalculator,
+          tollCalculator
+        )
+      val r5Wrapper: R5Wrapper = new R5Wrapper(
+        workerParams,
+        new FreeFlowTravelTime,
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+      )
+      beamServices.router = r5Wrapper
+    }
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
@@ -337,7 +359,7 @@ class BeamSim @Inject() (
 
     FailFast.run(beamServices)
     if (beamServices.beamConfig.beam.routing.overrideNetworkTravelTimesUsingSkims) {
-      beamServices.beamRouter ! ODSkimmerReady(beamServices.skims.od_skimmer)
+      beamServices.beamRouterActor ! ODSkimmerReady(beamServices.skims.od_skimmer)
     }
   }
 
@@ -356,7 +378,7 @@ class BeamSim @Inject() (
       }
     }
 
-    beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
+    beamServices.beamRouterActor ! BeamRouter.IterationStartsMessage(event.getIteration)
 
     beamConfigChangesObservable.notifyChangeToSubscribers()
 
@@ -435,7 +457,7 @@ class BeamSim @Inject() (
     }
 
     maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
-    val routerFinished = beamServices.beamRouter ? BeamRouter.IterationEndsMessage(event.getIteration)
+    val routerFinished = beamServices.beamRouterActor ? BeamRouter.IterationEndsMessage(event.getIteration)
 
     val outputGraphsFuture = Future {
       if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
@@ -811,7 +833,7 @@ class BeamSim @Inject() (
         val abstractSkimmer = Await.result(skimCreator.getResult, timeoutForSkimmer).abstractSkimmer
         skimCreator.stop()
         val currentTravelTime = Await
-          .result(beamServices.beamRouter.ask(BeamRouter.GetTravelTime), 100.seconds)
+          .result(beamServices.beamRouterActor.ask(BeamRouter.GetTravelTime), 100.seconds)
           .asInstanceOf[UpdateTravelTimeLocal]
           .travelTime
 

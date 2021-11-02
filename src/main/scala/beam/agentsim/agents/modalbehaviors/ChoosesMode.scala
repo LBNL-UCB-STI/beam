@@ -287,18 +287,21 @@ trait ChoosesMode {
         streetVehiclesIntermodalUse: IntermodalUse = Access,
         possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty
       ): Unit = {
-        router ! RoutingRequest(
-          currentPersonLocation.loc,
-          nextAct.getCoord,
-          departTime,
-          withTransit,
-          Some(id),
-          vehicles,
-          Some(attributes),
-          streetVehiclesIntermodalUse,
-          possibleEgressVehicles = possibleEgressVehicles,
-          triggerId = getCurrentTriggerIdOrGenerate
+        val routingResponse = router.calcRoute(
+          RoutingRequest(
+            currentPersonLocation.loc,
+            nextAct.getCoord,
+            departTime,
+            withTransit,
+            Some(id),
+            vehicles,
+            Some(attributes),
+            streetVehiclesIntermodalUse,
+            possibleEgressVehicles = possibleEgressVehicles,
+            triggerId = getCurrentTriggerIdOrGenerate
+          )
         )
+        self ! routingResponse
       }
 
       def makeRideHailRequest(): Unit = {
@@ -329,7 +332,8 @@ trait ChoosesMode {
           streetVehiclesUseIntermodalUse = AccessAndEgress,
           triggerId = getCurrentTriggerIdOrGenerate
         )
-        router ! theRequest
+        val routingResponse = router.calcRoute(theRequest)
+        self ! routingResponse
         Some(theRequest.requestId)
       }
 
@@ -396,16 +400,19 @@ trait ChoosesMode {
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), mode).headOption
               maybeVehicle match {
                 case Some(vehicle) =>
-                  router ! matsimLegToEmbodyRequest(
-                    r,
-                    vehicle,
-                    departTime,
-                    mode,
-                    beamServices,
-                    choosesModeData.currentLocation.loc,
-                    nextAct.getCoord,
-                    triggerId
+                  val routingResponse = router.embodyWithCurrentTravelTime(
+                    matsimLegToEmbodyRequest(
+                      r,
+                      vehicle,
+                      departTime,
+                      mode,
+                      beamServices,
+                      choosesModeData.currentLocation.loc,
+                      nextAct.getCoord,
+                      triggerId
+                    )
                   )
+                  self ! routingResponse
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
@@ -680,7 +687,7 @@ trait ChoosesMode {
       //issue routing request for egress legs:
       // final transit stop -> destination
       val routingRequestMap = generateRoutingRequestsForEgress(newTrips)
-      routingRequestMap.keys.foreach(routingRequest => router ! routingRequest)
+      routingRequestMap.keys.foreach(routingRequest => self ! router.calcRoute(routingRequest))
       val newRoutingResponse = rr.copy(itineraries = newTrips)
       //issue parking request for the shared vehicle
       val parkingRequestIds = makeParkingInquiries(choosesModeData, newTrips)
