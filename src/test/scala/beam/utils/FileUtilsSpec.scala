@@ -7,7 +7,7 @@ import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.wordspec.AnyWordSpecLike
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * @author Dmitry Openkov
@@ -48,9 +48,11 @@ class FileUtilsSpec extends AnyWordSpecLike with Matchers {
     "write data to files in parallel" in {
       val data = Array.ofDim[String](111)
       for (i <- data.indices) {
-        data(i) = i + (",CAR,101241,101241,153,153.0,0.128873295,0.468873295," +
-        "1175.0,0.0,0,0,CAR,101241,101241,153,153.0,0.128873295,0.468873295,1175.0,0.0,0,0CAR,101241,101241,153," +
-        "153.0,0.128873295,0.468873295,1175.0,0.0,0,0")
+        data(i) = s"$i${
+          ",CAR,101241,101241,153,153.0,0.128873295,0.468873295," +
+            "1175.0,0.0,0,0,CAR,101241,101241,153,153.0,0.128873295,0.468873295,1175.0,0.0,0,0CAR,101241,101241,153," +
+            "153.0,0.128873295,0.468873295,1175.0,0.0,0,0"
+        }"
       }
       val numberOfParts = 4
       FileUtils.usingTemporaryDirectory { tmpDir =>
@@ -58,7 +60,7 @@ class FileUtilsSpec extends AnyWordSpecLike with Matchers {
           val n = data.length / numberOfParts
           val from = (i - 1) * n
           val until = if (i < numberOfParts) from + n else data.length
-          val mySlice = data.view(from, until)
+          val mySlice = data.view.slice(from, until)
           writer.write("a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,x,y,z,a1,a2,a3,a4,a5,a6,a7,a8,a9")
           mySlice.foreach { x =>
             writer.newLine()

@@ -49,7 +49,7 @@ class GeoZoneSpec extends AnyWordSpec with Matchers {
   }
 
   def addExtension(file: Path, extension: String): Path = {
-    file.resolveSibling(file.getFileName + extension)
+    file.resolveSibling(s"${file.getFileName}$extension")
   }
 
 }

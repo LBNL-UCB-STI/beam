@@ -6,13 +6,13 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import akka.util.Timeout
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServicesImpl}
 import beam.utils.TestConfigUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
+import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.population.PopulationUtils
@@ -23,7 +23,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.funspec.AnyFunSpecLike
 
 import scala.collection.immutable.List
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 
 class FastHouseholdCAVSchedulingSpec
@@ -156,7 +157,7 @@ class FastHouseholdCAVSchedulingSpec
     val hoseHoldDummyId = Id.create("dummy1", classOf[Household])
     val household = householdsFactory.createHousehold(hoseHoldDummyId)
 
-    val p: Person = population.getFactory.createPerson(Id.createPersonId(household.getId + "_P1"))
+    val p: Person = population.getFactory.createPerson(Id.createPersonId(s"${household.getId}_P1"))
     val homeCoord = new Coord(0, 0)
     val H11: Activity = population.getFactory.createActivityFromCoord("home", homeCoord)
     H11.setEndTime(8 * 3600 + 30 * 60)
@@ -171,9 +172,9 @@ class FastHouseholdCAVSchedulingSpec
     p.addPlan(plan)
     population.addPerson(p)
 
-    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(p.getId)))
+    household.setMemberIds(mutable.Buffer(p.getId).asJava)
     household.setVehicleIds(
-      JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
+      vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])).asJava
     )
     household
   }
@@ -184,7 +185,7 @@ class FastHouseholdCAVSchedulingSpec
     val hoseHoldDummyId = Id.create("dummy2", classOf[Household])
     val household = householdsFactory.createHousehold(hoseHoldDummyId)
 
-    val P1: Person = population.getFactory.createPerson(Id.createPersonId(household.getId + "_P1"))
+    val P1: Person = population.getFactory.createPerson(Id.createPersonId(s"${household.getId}_P1"))
     val H11: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H11.setEndTime(9 * 3600)
     val W1: Activity = PopulationUtils.createActivityFromCoord("work1", new Coord(24166, 13820))
@@ -198,7 +199,7 @@ class FastHouseholdCAVSchedulingSpec
     P1.addPlan(plan1)
     population.addPerson(P1)
 
-    val P2: Person = population.getFactory.createPerson(Id.createPersonId(household.getId + "_P2"))
+    val P2: Person = population.getFactory.createPerson(Id.createPersonId(s"${household.getId}_P2"))
     val H21: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H21.setEndTime(9 * 3600 + 5 * 60)
     val W2: Activity = PopulationUtils.createActivityFromCoord("work2", new Coord(20835, 0))
@@ -212,9 +213,9 @@ class FastHouseholdCAVSchedulingSpec
     P2.addPlan(plan2)
     population.addPerson(P2)
 
-    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(P1.getId, P2.getId)))
+    household.setMemberIds(mutable.Buffer(P1.getId, P2.getId).asJava)
     household.setVehicleIds(
-      JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
+      vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])).asJava
     )
     household
   }
@@ -225,7 +226,7 @@ class FastHouseholdCAVSchedulingSpec
     val hoseHoldDummyId = Id.create("dummy3", classOf[Household])
     val household = householdsFactory.createHousehold(hoseHoldDummyId)
 
-    val P1: Person = population.getFactory.createPerson(Id.createPersonId(household.getId + "_P1"))
+    val P1: Person = population.getFactory.createPerson(Id.createPersonId(s"${household.getId}_P1"))
     val H11: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H11.setEndTime(9 * 3600)
     val W1: Activity = PopulationUtils.createActivityFromCoord("work1", new Coord(24166, 13820))
@@ -239,7 +240,7 @@ class FastHouseholdCAVSchedulingSpec
     P1.addPlan(plan1)
     population.addPerson(P1)
 
-    val P2: Person = population.getFactory.createPerson(Id.createPersonId(household.getId + "_P2"))
+    val P2: Person = population.getFactory.createPerson(Id.createPersonId(s"${household.getId}_P2"))
     val H21: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
     H21.setEndTime(9 * 3600 + 5 * 60)
     val W2: Activity = PopulationUtils.createActivityFromCoord("work2", new Coord(20835, 0))
@@ -253,9 +254,9 @@ class FastHouseholdCAVSchedulingSpec
     P2.addPlan(plan2)
     population.addPerson(P2)
 
-    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(P1.getId, P2.getId)))
+    household.setMemberIds(mutable.Buffer(P1.getId, P2.getId).asJava)
     household.setVehicleIds(
-      JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
+      vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])).asJava
     )
     household
   }

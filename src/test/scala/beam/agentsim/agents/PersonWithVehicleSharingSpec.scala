@@ -44,7 +44,8 @@ import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 
 class PersonWithVehicleSharingSpec
@@ -101,7 +102,7 @@ class PersonWithVehicleSharingSpec
       val person: Person = createTestPerson(Id.createPersonId("dummyAgent"))
       population.addPerson(person)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -258,7 +259,7 @@ class PersonWithVehicleSharingSpec
         createTestPerson(Id.createPersonId("dummyAgent"), withRoute = false, returnTrip = true)
       population.addPerson(person)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -522,7 +523,7 @@ class PersonWithVehicleSharingSpec
       )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person1.getId, person2.getId)))
+      household.setMemberIds(mutable.Buffer(person1.getId, person2.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(

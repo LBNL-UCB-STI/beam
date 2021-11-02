@@ -154,7 +154,7 @@ class ParallelParkingManagerSpec
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
             |1,Workplace,FlatFee,None,1,1234,
             |
-          """.stripMargin.split("\n").toIterator
+          """.stripMargin.split("\n").iterator
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
@@ -218,7 +218,7 @@ class ParallelParkingManagerSpec
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
           |1,Workplace,FlatFee,None,1,1234,
           |
-          """.stripMargin.split("\n").toIterator
+          """.stripMargin.split("\n").iterator
         random = new Random(randomSeed)
         parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(

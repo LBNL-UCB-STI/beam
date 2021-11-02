@@ -18,7 +18,7 @@ import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.List
 
 class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with BeamHelper {
@@ -97,7 +97,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
     )
     implicit val services: BeamServices = injector.getInstance(classOf[BeamServices])
     implicit val actorRef: ActorRef = ActorRef.noSender
-    val sc = MatchingAlgorithmsForRideHailSpec.scenario1
+    val sc = MatchingAlgorithmsForRideHailSpec.scenario1()
     val alg: AlonsoMoraMatchingWithMIPAssignment =
       new AlonsoMoraMatchingWithMIPAssignment(
         MatchingAlgorithmsForRideHailSpec.demandSpatialIndex(sc._2),

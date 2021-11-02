@@ -4,7 +4,7 @@ import akka.actor._
 import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.agentsim.events.ModeChoiceEvent
 import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
@@ -16,19 +16,16 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.junit.Assert
 import org.matsim.api.core.v01.events.{
-  ActivityEndEvent,
   Event,
   PersonArrivalEvent,
-  PersonDepartureEvent,
-  PersonEntersVehicleEvent
+  PersonDepartureEvent
 }
-import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 

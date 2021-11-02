@@ -6,7 +6,7 @@ import org.apache.avro.generic.GenericRecord
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class GenericRecordMock(val map: java.util.Map[String, AnyRef]) extends GenericRecord {
   override def put(key: String, v: Any): Unit = ???

@@ -32,7 +32,7 @@ class VehicleMilesTraveledAnalysisSpec extends GenericAnalysisSpec with Matchers
 
       val defaultHumanBodyBeamVehicleTypeId = Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType])
 
-      import scala.collection.JavaConverters._
+      import scala.jdk.CollectionConverters._
       summaryStats.asScala
         .filterNot(_._1.equalsIgnoreCase("motorizedVehicleMilesTraveled_total"))
         .filterNot(

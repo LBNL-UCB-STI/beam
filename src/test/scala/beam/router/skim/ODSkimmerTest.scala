@@ -47,7 +47,7 @@ object ODSkimmerTest {
     inputFilePath: String,
     constructor: BeamServices => S
   ): S = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     val beamConfig = BeamConfig(
       testConfig("test/input/beamville/beam.conf")
         .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))

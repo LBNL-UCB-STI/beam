@@ -8,6 +8,7 @@ import org.matsim.api.core.v01.events.Event
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.parallel.CollectionConverters._
 import scala.collection.mutable
 import scala.util.Try
 

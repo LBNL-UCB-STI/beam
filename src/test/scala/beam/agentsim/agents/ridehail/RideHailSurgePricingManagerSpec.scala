@@ -10,7 +10,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 import com.google.inject.Injector
 import org.matsim.core.scenario.MutableScenario
@@ -44,7 +44,7 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
     "correctly update SurgePriceLevels" in {
       //First iteration random returns true
       val mockRandom = Mockito.mock(classOf[Random])
-      when(mockRandom.nextBoolean) thenReturn true
+      when(mockRandom.nextBoolean()) thenReturn true
 
       var rhspm = new RideHailSurgePricingManager(beamServices) {
         override val rand: Random = mockRandom
@@ -88,7 +88,7 @@ class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with
       expectedValue2 shouldBe rhspm.surgePriceBins
 
       //First iteration random returns false
-      when(mockRandom.nextBoolean) thenReturn false
+      when(mockRandom.nextBoolean()) thenReturn false
 //      random = new Random(){
 //        override def nextBoolean(): Boolean = false
 //      }

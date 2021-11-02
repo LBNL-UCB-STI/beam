@@ -17,7 +17,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
-import scala.collection.{immutable, JavaConverters}
+import scala.collection.immutable
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHelper with GivenWhenThen {
@@ -41,7 +42,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
       .asInstanceOf[HouseholdImpl]
     var chainBasedTourVehicleAllocator: ChainBasedTourVehicleAllocator = _
 
-    def init() {
+    def init() = {
       // Create and add people
       personList.foreach(id => {
         val person = popFact.createPerson(id)
@@ -64,8 +65,8 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
       }
 
       // Add people and vehicles to household
-      hh.setMemberIds(JavaConverters.seqAsJavaList(personList))
-      hh.setVehicleIds(JavaConverters.seqAsJavaList(vehicleList.map(Id.createVehicleId(_))))
+      hh.setMemberIds(personList.asJava)
+      hh.setVehicleIds(vehicleList.map(Id.createVehicleId(_)).asJava)
       hhs.addHousehold(hh)
 
       chainBasedTourVehicleAllocator = ChainBasedTourVehicleAllocator(
@@ -118,7 +119,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
     val f = createHouseholdWithEnoughVehicles
 
     And("enough chain-based vehicles in the household for everyone")
-    val vehicles = JavaConverters.mapAsScalaMap(f.vehs.getVehicles)
+    val vehicles = f.vehs.getVehicles.asScala
     vehicles.size shouldEqual f.hh.getMemberIds.size()
 
     And("a household member of any rank that is a member of the household")
@@ -137,10 +138,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
 
     And("if the person requests a tour-based vehicle,")
     val plan = f.pop.getPersons.get(personWithAnyRank).getPlans.get(0)
-    val subtour = JavaConverters
-      .collectionAsScalaIterable(
-        TripStructureUtils.getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
-      )
+    val subtour = TripStructureUtils.getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes).asScala
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithAnyRank,
@@ -192,11 +190,8 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
 
     And("it should be allocated to the high-ranking person,")
     val highRankPlan = f.pop.getPersons.get(personWithHighRank).getPlans.get(0)
-    val highRankSubtour = JavaConverters
-      .collectionAsScalaIterable(
-        TripStructureUtils
-          .getSubtours(highRankPlan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
-      )
+    val highRankSubtour = TripStructureUtils
+          .getSubtours(highRankPlan, f.chainBasedTourVehicleAllocator.stageActivitytypes).asScala
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithHighRank,

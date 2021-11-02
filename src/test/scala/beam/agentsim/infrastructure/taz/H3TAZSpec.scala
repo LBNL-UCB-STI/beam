@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}

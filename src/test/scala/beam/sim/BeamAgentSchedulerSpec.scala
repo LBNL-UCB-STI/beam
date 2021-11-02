@@ -127,9 +127,9 @@ object BeamAgentSchedulerSpec {
     }
     whenUnhandled {
       case Event(IllegalTriggerGoToError(_), _) =>
-        stop
+        stop()
       case Event(Finish, _) =>
-        stop
+        stop()
     }
 
   }

@@ -201,7 +201,7 @@ class InfluxDbSimulationMetricCollector @Inject() (beamCfg: BeamConfig)
         case metricName if metricName.nonEmpty => metricName
       }
 
-    val enabled = scala.collection.immutable.HashSet(metrics: _*)
+    val enabled = scala.collection.immutable.HashSet(metrics.toIndexedSeq: _*)
     if (enabled.nonEmpty)
       logger.info(s"Enabled metrics: ${metrics.mkString(",")}")
     else

@@ -2,7 +2,6 @@ package beam.utils.scenario.urbansim.censusblock
 
 import java.util.UUID
 import beam.router.Modes.BeamMode
-import beam.sim.config.BeamConfig.Beam
 import beam.sim.config.BeamConfig.Beam.Urbansim
 import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator
 import beam.sim.config.BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator.{MaxTravelDistanceInMeters, ModesToBuild}
@@ -13,7 +12,7 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class ScenarioAdjusterTest extends AnyFunSuite with Matchers {
 

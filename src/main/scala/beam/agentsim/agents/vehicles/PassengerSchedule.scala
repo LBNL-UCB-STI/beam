@@ -116,7 +116,7 @@ object PassengerSchedule {
     new PassengerSchedule(TreeMap[BeamLeg, Manifest]()(BeamLegOrdering))
 
   def newFromMap(beamLegToManifest: Map[BeamLeg, Manifest]): PassengerSchedule = {
-    new PassengerSchedule(TreeMap(beamLegToManifest.toArray: _*)(BeamLegOrdering))
+    new PassengerSchedule(TreeMap(beamLegToManifest.toIndexedSeq: _*)(BeamLegOrdering))
   }
 
   case class Manifest(

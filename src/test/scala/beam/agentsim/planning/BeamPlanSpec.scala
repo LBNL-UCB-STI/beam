@@ -10,7 +10,7 @@ import org.matsim.core.population.PopulationUtils
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * BeamPlanSpec

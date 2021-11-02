@@ -234,7 +234,7 @@ object SkimmerSpec extends LazyLogging {
         val header = mapReader.getHeader(true)
         var line: java.util.Map[String, String] = mapReader.read(header: _*)
         while (null != line) {
-          import scala.collection.JavaConverters._
+          import scala.jdk.CollectionConverters._
           val (key, value) = skimType match {
             case SkimType.OD_SKIMMER  => getODSkimPair(line.asScala.toMap)
             case SkimType.TAZ_SKIMMER => getCountSkimPair(line.asScala.toMap)

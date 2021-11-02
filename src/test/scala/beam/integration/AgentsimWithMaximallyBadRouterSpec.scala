@@ -80,7 +80,7 @@ object AgentsimWithMaximallyBadRouterSpec {
       super.beforeAll()
       router = TestActorRef(Props(new Actor {
         override def receive: Receive = { case _ =>
-          sender ! Failure(new RuntimeException("No idea how to route."))
+          sender() ! Failure(new RuntimeException("No idea how to route."))
         }
       }))
       services.beamRouter = router

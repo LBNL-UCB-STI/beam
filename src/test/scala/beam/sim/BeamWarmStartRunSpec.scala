@@ -1,11 +1,11 @@
 package beam.sim
 
 import java.util.concurrent.TimeUnit
-
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.scalactic.TripleEqualsSupport
 import org.scalatest.BeforeAndAfterAllConfigMap
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
@@ -51,7 +51,7 @@ object BeamWarmStartRunSpec {
     try {
       val travelTimes = rdr.toArray
       val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
-      TimeUnit.SECONDS.toMinutes(avg.toLong)
+      TimeUnit.SECONDS.toMinutes(avg.toLong).toDouble
     } finally {
       toClose.close()
     }

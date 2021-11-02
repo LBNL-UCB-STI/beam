@@ -18,7 +18,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.io.Source
 
@@ -158,7 +158,7 @@ class SecondaryActivitiesSpec
     val (iter: Iterator[mutable.Map[String, Double]], toClose: Closeable) =
       GenericCsvReader.readAs[mutable.Map[String, Double]](s"$outputDir/$fileName", toActivityMap, _ => true)
     try {
-      iter.next() - "iterations"
+      iter.next().clone() -= "iterations"
     } finally {
       toClose.close()
     }

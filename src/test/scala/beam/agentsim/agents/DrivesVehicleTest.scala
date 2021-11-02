@@ -25,8 +25,8 @@ class DummyEventsHandler extends BasicEventHandler {
 
 class DrivesVehicleTest extends AnyFunSuite {
   test("processLinkEvents should work properly") {
-    val linkIds = Array(1, 2, 3, 4)
-    val linkTravelTime = Array(1.0, 2.0, 3.0, 4.0)
+    val linkIds = IndexedSeq(1, 2, 3, 4)
+    val linkTravelTime = IndexedSeq(1.0, 2.0, 3.0, 4.0)
     val vehicleId = 1L
 
     val beamLeg = BeamLeg(

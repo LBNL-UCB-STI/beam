@@ -2,7 +2,6 @@ package beam.replanning.utilitybased
 
 import java.util
 import java.util.Collections
-
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -113,6 +112,7 @@ class ChangeModeForTour(
         distance * DefaultRideHailCostPerMile * (1 / 1609.34) // 1 mile = 1609.34
       case a: BeamMode if a.isTransit =>
         TransitFareDefaults.faresByMode(beamMode)
+      case x => throw new IllegalStateException(s"Unhandled beamMode in ChangeModeForTour.distanceScaling - $x")
     }
   }
 
@@ -129,6 +129,7 @@ class ChangeModeForTour(
         tripDistanceInMeters / (transitSpeedDefault * transit2AutoRatio) * DefaultRideHailCostPerMinute
       case a: BeamMode if a.isTransit =>
         tripDistanceInMeters / transitSpeedDefault
+      case x => throw new IllegalStateException(s"Unhandled beamMode in ChangeModeForTour.distanceScaling - $x")
     }
   }
 
