@@ -358,6 +358,7 @@ tasks.withType(ScalaCompile) {
                                 "-P:scapegoat:reports:html:xml",
                                 "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:SuspiciousMatchOnClassObject:VarClosure:RepeatedIfElseBody:LooksLikeInterpolatedString",
                                 "-P:scapegoat:verbose:false",
+                                "-P:scapegoat:ignoredFiles:.*BeamConfig.scala",
                                 "-P:scapegoat:consoleOutput:true"]
     def minimumCompilationParameters = ["-unchecked", "-deprecation", "-feature"]
     if (project.hasProperty("report")) {
