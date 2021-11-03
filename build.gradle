@@ -227,7 +227,7 @@ dependencies {
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
     testImplementation group: 'org.scalatestplus', name: 'junit-4-13_2.13', version: '3.2.10.0'
     testRuntimeOnly "org.pegdown:pegdown:1.6.0"
-    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
+    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.62.2' // HTML report for scalatest
 
     // 3rd Party Scala //
 
