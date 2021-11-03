@@ -164,7 +164,8 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     val sortedByTriggerType = thresholds.sortBy(x => x.triggerType)
     // To get default values that's why we create it from empty configuration
     val dummyCfg = ConfigFactory.parseString("thresholds = []")
-    val stuckAgentDetection = StuckAgentDetection.apply(dummyCfg, "beam.debug", null).copy(thresholds = sortedByTriggerType, enabled = true)
+    val stuckAgentDetection =
+      StuckAgentDetection.apply(dummyCfg, "beam.debug", null).copy(thresholds = sortedByTriggerType, enabled = true)
     Printer.spaces2.print(stuckAgentDetection.asJson)
   }
 
