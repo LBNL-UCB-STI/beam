@@ -134,6 +134,7 @@ runcmd:
   -  done
   - echo "-------------------running Health Analysis Script----------------------"
   - $HEALTH_ANALYSIS_SCRIPT
+  - curl -H "Authorization: Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels=$SLACK_CHANNEL https://slack.com/api/files.upload
   - while IFS="," read -r metric count
   - do
   -    export $metric=$count
