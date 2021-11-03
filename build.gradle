@@ -204,7 +204,7 @@ dependencies {
     implementation("com.uber:h3:3.4.1")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
 
-    testImplementation group: 'junit', name: 'junit', version: '4.8'
+    testImplementation group: 'junit', name: 'junit', version: '4.13'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
     testImplementation group: "org.mockito", name: "mockito-core", version: "2.+"
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
@@ -225,7 +225,7 @@ dependencies {
 
     // TEST Scala //
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
-    testImplementation group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
+    testImplementation group: 'org.scalatestplus', name: 'junit-4-13_2.13', version: '3.2.10.0'
     testRuntimeOnly "org.pegdown:pegdown:1.6.0"
     testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
 
