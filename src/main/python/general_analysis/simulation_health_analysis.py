@@ -43,4 +43,4 @@ for line in file:
 
 with open('RunHealthAnalysis.txt', 'w') as file:
     for detector in detectors:
-        file.write(f"{detector},{len(matric_log.get(detector, []))}\n")
+        file.write(detector+","+str(len(matric_log.get(detector, [])))+"\n")
