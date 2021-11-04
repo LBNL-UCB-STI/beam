@@ -37,8 +37,6 @@ EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -Pap
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
 
-HEALTH_ANALYSIS_SCRIPT = 'python3 src/main/python/general_analysis/simulation_health_analysis.py'
-
 S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
   -    opth="output"
@@ -95,8 +93,8 @@ write_files:
       path: /tmp/slack_notification
     - content: |
             #!/bin/bash
-            pip install helics
-            pip install helics-apps
+            pip install helics==2.7.1
+            pip install helics-apps==2.7.1
             cd /home/ubuntu/git/beam/src/main/python
             sudo chown ubuntu:ubuntu -R gemini
             cd -
@@ -161,7 +159,7 @@ runcmd:
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-  
+
   - production_data_submodules=$(git submodule | awk '{ print $2 }')
   - for i in $production_data_submodules
   -  do
@@ -194,12 +192,13 @@ runcmd:
   -    $RUN_SCRIPT
   -  done
   - echo "-------------------running Health Analysis Script----------------------"
-  - $HEALTH_ANALYSIS_SCRIPT
-  - curl -H "Authorization: Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels=$SLACK_CHANNEL https://slack.com/api/files.upload
+  - python3 src/main/python/general_analysis/simulation_health_analysis.py
   - while IFS="," read -r metric count
   - do
   -    export $metric=$count
   - done < RunHealthAnalysis.txt
+  
+  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   - s3glip=""
   - if [ "$S3_PUBLISH" = "True" ]
   - then
@@ -263,7 +262,8 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', 'r5.12xlarge', 'r5.24xlarge',
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
-                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge']
+                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
+                  'x2gd.metal', 'x2gd.16xlarge']
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
@@ -383,7 +383,9 @@ spot_specs = [
     #AWS_Instance_Spec('i3en.24xlarge',96,768),
     AWS_Instance_Spec('m5dn.24xlarge',96,384),
     #AWS_Instance_Spec('i3en.metal',96,768),
-    AWS_Instance_Spec('m5ad.24xlarge',96,384)
+    AWS_Instance_Spec('m5ad.24xlarge',96,384),
+    AWS_Instance_Spec('x2gd.16xlarge',64,1024),
+    AWS_Instance_Spec('x2gd.metal',64,1024)
 ]
 
 def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, preferred_instance_type):
@@ -712,6 +714,8 @@ def deploy_handler(event, context):
                 .replace('$PROFILER', profiler_type) \
                 .replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
+                .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
+                .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
             if is_spot:
                 min_cores = event.get('min_cores', 0)
