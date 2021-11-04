@@ -334,25 +334,22 @@ trait ChoosesParking extends {
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
           data: BasePersonData
         ) if data.enrouteStates.nonEmpty =>
-      // calculate travel and parking leg from vehicle location to charging stall
-      val vehicle2StallCarLegs: Vector[EmbodiedBeamLeg] =
-        vehicle2StallResponse.itineraries.head.legs
+      // find car leg and split it for parking
+      def createCarLegs(legs: IndexedSeq[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
+        legs
           .find(_.beamLeg.mode == CAR)
           .map { beamLeg =>
             EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
           }
           .getOrElse {
-            log.error("EnRoute: car leg not found in routing response from current location to charging stall.")
+            log.error("EnRoute: car leg not found in routing response.")
             Vector()
           }
+      }
 
-      val stall2DestinationCarLegs: Vector[EmbodiedBeamLeg] =
-        stall2DestinationResponse.itineraries.head.legs.find(_.beamLeg.mode == CAR).map { beamLeg =>
-          EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
-        } getOrElse {
-          log.error("EnRoute: car leg not found in routing response from charging stall to original destination.")
-          Vector()
-        }
+      // calculate travel and parking leg from vehicle location to charging stall
+      val vehicle2StallCarLegs = createCarLegs(vehicle2StallResponse.itineraries.head.legs)
+      val stall2DestinationCarLegs = createCarLegs(stall2DestinationResponse.itineraries.head.legs)
 
       // create new legs to travel to the charging stall
       val (_, triggerId) = releaseTickAndTriggerId()
