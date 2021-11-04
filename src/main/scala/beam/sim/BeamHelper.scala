@@ -16,7 +16,7 @@ import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.Modes.BeamMode
 import beam.router._
-import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.{FareCalculator, GTFSUtils}
 import beam.router.osm.TollCalculator
 import beam.router.r5._
 import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
@@ -281,6 +281,8 @@ trait BeamHelper extends LazyLogging {
     )
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
+    val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
+    val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
     val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(TAZTreeMap.getTazTreeMap)
     val linkQuadTree: QuadTree[Link] =
@@ -314,6 +316,7 @@ trait BeamHelper extends LazyLogging {
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
       networkCoordinator.network,
+      trainStopQuadTree,
       tazMap,
       exchangeGeo,
       linkQuadTree,
