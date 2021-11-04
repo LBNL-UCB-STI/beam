@@ -1,6 +1,5 @@
 package beam.sim.metrics
 
-import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
@@ -98,6 +97,7 @@ object BeamStaticMetricsWriter {
               chargingDepotsFilePath,
               rand,
               Some(beamScenario.beamConfig),
+              Some(beamServices),
               parkingStallCountScalingFactor
             )
 
@@ -121,6 +121,7 @@ object BeamStaticMetricsWriter {
                 publicFastChargerFilePath,
                 rand,
                 Some(beamConfig),
+                Some(beamServices),
                 parkingStallCountScalingFactor
               )
 

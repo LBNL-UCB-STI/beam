@@ -60,9 +60,12 @@ object PreviousRunPlanMerger extends LazyLogging {
     val matchedPersons = persons & mergePersons
     val numberToReplace = (persons.size * fraction).round.toInt
     val personIdsToReplace = random.shuffle(matchedPersons.toSeq).take(numberToReplace).toSet
-    logger.info("Replacing {} people plans", personIdsToReplace.size)
+    logger.info("Adding new plans to {} people", personIdsToReplace.size)
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
-    plans.filterNot(shouldReplace) ++ plansToMerge.filter(shouldReplace)
+    val (oldToBeReplaced, oldElements) = plans.partition(shouldReplace)
+    val newElements = plansToMerge.filter(shouldReplace)
+    val unselectedPlanElements = oldToBeReplaced.map(_.copy(planSelected = false))
+    oldElements ++ unselectedPlanElements ++ newElements
   }
 }
 
