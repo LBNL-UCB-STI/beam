@@ -69,7 +69,7 @@ task deployToNersc {
     }
 
     doLast {
-
+        println "Using data branch ${dataBranch}"
         ssh.run {
             session(remotes.nerscLoginNode) {
                 put from: "${project.rootDir}/nersc/src/main/bash/run_beam_on_nersc.sh", into: "run_beam.sh"
