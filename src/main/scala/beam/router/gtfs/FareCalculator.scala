@@ -26,7 +26,9 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyL
           .asInstanceOf[Map[String, Vector[BeamFareRule]]]
       } catch {
         case ex: InvalidClassException =>
-          logger.error(s"Could not deserialize cached Beam Fare file from $cacheFile - was it created before the scala 2.13 migration?")
+          logger.error(
+            s"Could not deserialize cached Beam Fare file from $cacheFile - was it created before the scala 2.13 migration?"
+          )
           Map.empty[String, Vector[BeamFareRule]]
       }
     } else {
