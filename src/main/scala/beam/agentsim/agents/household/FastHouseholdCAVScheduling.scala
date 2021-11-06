@@ -201,7 +201,8 @@ class FastHouseholdCAVScheduling(
               .copy(serviceTime = serviceTime, pickupRequest = Some(pickupReq), vehicleOccupancy = Some(newOccupancy))
           )
           // it includes the waiting time
-          val cavTripTravelTime = computeSharedTravelTime(newHouseholdSchedule.slice(index, newHouseholdSchedule.size))
+          val cavTripTravelTime =
+            computeSharedTravelTime(newHouseholdSchedule.slice(index, newHouseholdSchedule.size).toSeq)
           val newTotalTravelTime = newHouseholdScheduleCost.totalTravelTime -
             newHouseholdScheduleCost.tripTravelTime(curReq.trip) + cavTripTravelTime
           if (newTotalTravelTime > newHouseholdScheduleCost.baseTotalTravelTime)
@@ -228,7 +229,7 @@ class FastHouseholdCAVScheduling(
       )
     }
 
-    private def computeSharedTravelTime(requestsSeq: mutable.ListBuffer[MobilityRequest]): Int = {
+    private def computeSharedTravelTime(requestsSeq: Seq[MobilityRequest]): Int = {
       val waitTime = requestsSeq.head.serviceTime - requestsSeq.head.baselineNonPooledTime
       requestsSeq.filter(x => x.isPickup || x.isDropoff).sliding(2).foldLeft(waitTime) {
         case (acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest)) =>
