@@ -233,7 +233,9 @@ class FastHouseholdCAVScheduling(
       requestsSeq.filter(x => x.isPickup || x.isDropoff).sliding(2).foldLeft(waitTime) {
         case (acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest)) =>
           acc + ((nextReq.serviceTime - prevReq.serviceTime) / prevReq.vehicleOccupancy.getOrElse(1))
-        case x => logger.error(s"$x is not a match to a Tuple2(acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest))"); ???
+        case x =>
+          logger.error(s"$x is not a match to a Tuple2(acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest))");
+          ???
       }
     }
 
