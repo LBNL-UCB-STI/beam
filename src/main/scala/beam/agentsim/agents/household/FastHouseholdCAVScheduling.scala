@@ -12,7 +12,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
 import beam.router.{BeamRouter, Modes, RouteHistory}
 import beam.sim.BeamServices
-import beam.utils.logging.ExponentialLoggerWrapperImpl
+import beam.utils.logging.{ExponentialLazyLogging, ExponentialLoggerWrapperImpl}
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person}
@@ -27,7 +27,7 @@ class FastHouseholdCAVScheduling(
   val household: Household,
   val householdVehicles: List[BeamVehicle],
   val beamServices: BeamServices
-) {
+) extends ExponentialLazyLogging {
 
   implicit val population: org.matsim.api.core.v01.population.Population =
     beamServices.matsimServices.getScenario.getPopulation
@@ -233,6 +233,7 @@ class FastHouseholdCAVScheduling(
       requestsSeq.filter(x => x.isPickup || x.isDropoff).sliding(2).foldLeft(waitTime) {
         case (acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest)) =>
           acc + ((nextReq.serviceTime - prevReq.serviceTime) / prevReq.vehicleOccupancy.getOrElse(1))
+        case x => logger.error(s"$x is not a match to a Tuple2(acc, Seq(prevReq: MobilityRequest, nextReq: MobilityRequest))"); ???
       }
     }
 
