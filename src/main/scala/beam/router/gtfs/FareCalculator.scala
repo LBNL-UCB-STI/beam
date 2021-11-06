@@ -3,13 +3,14 @@ package beam.router.gtfs
 import beam.router.gtfs.FareCalculator._
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.gtfs.GTFSFeed
 
 import java.io._
 import java.nio.file.{Files, Path, Paths}
 import javax.inject.Inject
 
-class FareCalculator @Inject() (beamConfig: BeamConfig) {
+class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyLogging {
 
   private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
@@ -19,9 +20,15 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
 
   private def loadBeamFares: Map[AgencyId, Vector[BeamFareRule]] = {
     if (cacheFile.isFile) {
-      new ObjectInputStream(new FileInputStream(cacheFile))
-        .readObject()
-        .asInstanceOf[Map[String, Vector[BeamFareRule]]]
+      try {
+        new ObjectInputStream(new FileInputStream(cacheFile))
+          .readObject()
+          .asInstanceOf[Map[String, Vector[BeamFareRule]]]
+      } catch {
+        case ex: InvalidClassException =>
+          logger.error(s"Could not deserialize cached Beam Fare file from $cacheFile - was it created before the scala 2.13 migration?")
+          Map.empty[String, Vector[BeamFareRule]]
+      }
     } else {
       val agencies = fromDirectory(dataDirectory)
       FileUtils.using(new ObjectOutputStream(new FileOutputStream(cacheFile))) { stream =>
