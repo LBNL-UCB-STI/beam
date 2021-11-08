@@ -27,6 +27,7 @@ import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 import scala.language.postfixOps
 
 /**
@@ -96,26 +97,39 @@ trait ChoosesParking extends {
   // TODO This might be a violation of Actor framework. Need to verify
   var latestParkingInquiry: Option[ParkingInquiry] = None
 
+  private def calculateMidpointUtm(vehicleTrip: List[EmbodiedBeamLeg]): Option[SpaceTime] = {
+    // we skip the first link during calculating path travel time
+    val linkIds = vehicleTrip.flatMap(_.beamLeg.travelPath.linkIds.drop(1))
+    val linkTravelTimes = vehicleTrip.flatMap(_.beamLeg.travelPath.linkTravelTime.drop(1))
+    val middleIdx = linkIds.size / 2
+    val middleLinkId = linkIds(middleIdx)
+    val middleLinkTravelTime = linkTravelTimes.take(middleIdx).sum.toInt
+    beamScenario.linkIdCoordMap
+      .get(Id.createLinkId(middleLinkId))
+      .map(SpaceTime(_, vehicleTrip.head.beamLeg.startTime + middleLinkTravelTime))
+  }
+
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head
     val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
     val lastLeg = vehicleTrip.last.beamLeg
-    val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
+    val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
+    val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteStates.nonEmpty) {
       // enroute means actual travelling has not started yet,
       // so vehicle can be found in first leg of rest of the trip.
       val vehicle = beamVehicles(firstLeg.beamVehicleId).vehicle
       val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get
       ParkingInquiry.init(
-        destinationUtm,
+        calculateMidpointUtm(vehicleTrip).getOrElse(destinationUtm),
         activityType,
         reservedFor,
         Some(vehicle),
         remainingTripData,
         attributes.valueOfTime,
-        nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0),
+        parkingDuration,
         searchMode = ParkingSearchMode.EnRoute,
         originUtm = Some(vehicle.spaceTime),
         triggerId = getCurrentTriggerIdOrGenerate
@@ -130,7 +144,7 @@ trait ChoosesParking extends {
         Some(currentBeamVehicle),
         remainingTripData,
         attributes.valueOfTime,
-        nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0),
+        parkingDuration,
         triggerId = getCurrentTriggerIdOrGenerate
       )
     }

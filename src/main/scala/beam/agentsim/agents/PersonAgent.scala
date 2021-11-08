@@ -949,11 +949,7 @@ class PersonAgent(
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
         val isRefuelNeeded = vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
-        // charge level should be lower than 80% of battery capacity
-        // see, `beam.agentsim.infrastructure.charging.ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule`
-        val thresholdReached =
-          vehicle.primaryFuelLevelInJoules < vehicle.beamVehicleType.primaryFuelCapacityInJoule * 0.8
-        val inEnroute = asDriver && isElectric && isRefuelNeeded && data.enrouteStates.isEmpty && thresholdReached
+        val inEnroute = asDriver && isElectric && isRefuelNeeded && data.enrouteStates.isEmpty
 
         // Really? Also in the ReleasingParkingSpot case? How can it be that only one case releases the trigger,
         // but both of them send a CompletionNotice?

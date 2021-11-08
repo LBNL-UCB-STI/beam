@@ -10,11 +10,12 @@ import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.DateUtils
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.concurrent.TrieMap
+import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 /**
   * This holds together a couple of containers of simulation data, all of which are immutable.
@@ -62,4 +63,6 @@ case class BeamScenario(
         .toSeq
         .flatten
     }
+
+  lazy val linkIdCoordMap: collection.Map[Id[Link], Coord] = network.getLinks.asScala.mapValues(_.getCoord)
 }
