@@ -137,8 +137,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
-            new RouteHistory(beamConfig),
-            boundingBox
+            new RouteHistory(beamConfig)
           )
         )
       )
@@ -294,8 +293,7 @@ class PersonWithVehicleSharingSpec
             new Coord(0.0, 0.0),
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
-            new RouteHistory(beamConfig),
-            boundingBox
+            new RouteHistory(beamConfig)
           )
         )
       )
@@ -557,8 +555,7 @@ class PersonWithVehicleSharingSpec
           new Coord(0.0, 0.0),
           Vector(mockSharedVehicleFleet.ref),
           Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
-          new RouteHistory(beamConfig),
-          boundingBox
+          new RouteHistory(beamConfig)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

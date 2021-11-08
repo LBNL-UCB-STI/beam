@@ -99,8 +99,6 @@ trait ChoosesMode {
 
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
-  def boundingBox: Envelope
-
   def currentTourBeamVehicle: Option[BeamVehicle] = {
     stateData match {
       case data: ChoosesModeData =>

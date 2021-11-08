@@ -73,8 +73,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
-    routeHistory: RouteHistory,
-    boundingBox: Envelope
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new HouseholdActor(
@@ -95,8 +94,7 @@ object HouseholdActor {
         homeCoord,
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
-        routeHistory,
-        boundingBox
+        routeHistory
       )
     )
   }
@@ -146,8 +144,7 @@ object HouseholdActor {
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
-    routeHistory: RouteHistory,
-    boundingBox: Envelope
+    routeHistory: RouteHistory
   ) extends LoggingMessageActor
       with HasTickAndTrigger
       with ActorLogging {
@@ -321,8 +318,7 @@ object HouseholdActor {
               fleetManagers.toSeq,
               sharedVehicleFleets,
               possibleSharedVehicleTypes,
-              routeHistory,
-              boundingBox
+              routeHistory
             ),
             person.getId.toString
           )

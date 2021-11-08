@@ -123,8 +123,7 @@ class PersonAgentSpec
           self,
           services.tollCalculator,
           self,
-          routeHistory = new RouteHistory(beamConfig),
-          boundingBox = boundingBox
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -191,8 +190,7 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig),
-          boundingBox
+          new RouteHistory(beamConfig)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -403,8 +401,7 @@ class PersonAgentSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig),
-          boundingBox
+          new RouteHistory(beamConfig)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -690,8 +687,7 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig),
-          boundingBox
+          new RouteHistory(beamConfig)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

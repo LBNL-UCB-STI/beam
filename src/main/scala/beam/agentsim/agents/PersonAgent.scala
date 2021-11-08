@@ -80,8 +80,7 @@ object PersonAgent {
     fleetManagers: Seq[ActorRef],
     sharedVehicleFleets: Seq[ActorRef],
     possibleSharedVehicleTypes: Set[BeamVehicleType],
-    routeHistory: RouteHistory,
-    boundingBox: Envelope
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new PersonAgent(
@@ -102,8 +101,7 @@ object PersonAgent {
         fleetManagers,
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
-        routeHistory,
-        boundingBox
+        routeHistory
       )
     )
   }
@@ -272,8 +270,7 @@ class PersonAgent(
   val fleetManagers: Seq[ActorRef] = Vector(),
   val sharedVehicleFleets: Seq[ActorRef] = Vector(),
   val possibleSharedVehicleTypes: Set[BeamVehicleType] = Set.empty,
-  val routeHistory: RouteHistory,
-  val boundingBox: Envelope
+  val routeHistory: RouteHistory
 ) extends DrivesVehicle[PersonData]
     with ChoosesMode
     with ChoosesParking

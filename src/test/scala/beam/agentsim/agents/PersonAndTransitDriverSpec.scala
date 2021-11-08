@@ -301,8 +301,7 @@ class PersonAndTransitDriverSpec
           homeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig),
-          boundingBox
+          new RouteHistory(beamConfig)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
