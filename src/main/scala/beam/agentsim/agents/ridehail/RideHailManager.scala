@@ -793,30 +793,35 @@ class RideHailManager(
         streetVehicles = Vector(agentLocation.toStreetVehicle),
         triggerId = triggerId
       )
-      val futureRideHail2ParkingRouteRespones = router.calcRoute(routingRequest)
+      val futureRideHail2ParkingRouteRequest = beamServices.beamRouterActor ? routingRequest
 
-      val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
-        .find(x => x.tripClassifier.equals(RIDE_HAIL))
+      for {
+        futureRideHail2ParkingRouteRespones <- futureRideHail2ParkingRouteRequest
+          .mapTo[RoutingResponse]
+      } {
+        val itinOpt = futureRideHail2ParkingRouteRespones.itineraries
+          .find(x => x.tripClassifier.equals(RIDE_HAIL))
 
-      itinOpt match {
-        case Some(itin) =>
-          val passengerSchedule = PassengerSchedule().addLegs(
-            itin.toBeamTrip.legs
-          )
-          self ! MoveOutOfServiceVehicleToDepotParking(
-            passengerSchedule,
-            itin.legs.head.beamLeg.startTime,
-            agentLocation.vehicleId,
-            triggerId: Long
-          )
-        case None =>
-          //log.error(
-          //  "No route to parking stall found, ride hail agent {} stranded",
-          //  agentLocation.vehicleId
-          //)
+        itinOpt match {
+          case Some(itin) =>
+            val passengerSchedule = PassengerSchedule().addLegs(
+              itin.toBeamTrip.legs
+            )
+            self ! MoveOutOfServiceVehicleToDepotParking(
+              passengerSchedule,
+              itin.legs.head.beamLeg.startTime,
+              agentLocation.vehicleId,
+              triggerId: Long
+            )
+          case None =>
+            //log.error(
+            //  "No route to parking stall found, ride hail agent {} stranded",
+            //  agentLocation.vehicleId
+            //)
 
-          // release trigger if no parking depot found so that simulation can continue
-          self ! ReleaseAgentTrigger(agentLocation.vehicleId)
+            // release trigger if no parking depot found so that simulation can continue
+            self ! ReleaseAgentTrigger(agentLocation.vehicleId)
+        }
       }
 
     case ReleaseAgentTrigger(vehicleId) =>
@@ -1107,14 +1112,22 @@ class RideHailManager(
           RouteOrEmbodyRequest(Some(rReq), None)
       }
     }
-    val routingResponses = routeOrEmbodyReqs.map(req =>
-      if (req.routeReq.isDefined) {
-        router.calcRoute(req.routeReq.get)
-      } else {
-        router.embodyWithCurrentTravelTime(req.embodyReq.get)
-      }
-    )
-    self ! RoutingResponses(tick, routingResponses, triggerId)
+    Future
+      .sequence(
+        routeOrEmbodyReqs.map(req =>
+          beam.utils.logging.pattern
+            .ask(
+              beamServices.beamRouterActor,
+              if (req.routeReq.isDefined) {
+                req.routeReq.get
+              } else {
+                req.embodyReq.get
+              }
+            )
+            .mapTo[RoutingResponse]
+        )
+      )
+      .map(RoutingResponses(tick, _, triggerId)) pipeTo self
   }
 
   private def handleReservation(request: RideHailRequest, tick: Int, travelProposal: TravelProposal): Unit = {
@@ -1731,7 +1744,7 @@ class RideHailManager(
       modifyPassengerScheduleManager.setRepositioningsToProcess(toReposition)
     }
 
-    val repoRoutingMap = mutable.Map[Id[BeamVehicle], RoutingResponse]()
+    val futureRepoRoutingMap = mutable.Map[Id[BeamVehicle], Future[RoutingRequest]]()
 
     for ((vehicleId, destinationLocation) <- repositionVehicles) {
       rideHailManagerHelper.getServiceStatusOf(vehicleId) match {
@@ -1755,13 +1768,14 @@ class RideHailManager(
             streetVehicles = Vector(rideHailVehicleAtOrigin),
             triggerId = triggerId
           )
-          val rideHailAgent2CustomerResponse = router.calcRoute(routingRequest)
-          repoRoutingMap.put(vehicleId, rideHailAgent2CustomerResponse)
+          val futureRideHailAgent2CustomerResponse = beamServices.beamRouterActor ? routingRequest
+          futureRepoRoutingMap.put(vehicleId, futureRideHailAgent2CustomerResponse.asInstanceOf[Future[RoutingRequest]])
 
       }
     }
     for {
-      (vehicleId, rideHailAgent2CustomerResponse) <- repoRoutingMap
+      (vehicleId, futureRoutingRequest) <- futureRepoRoutingMap
+      rideHailAgent2CustomerResponse    <- futureRoutingRequest.mapTo[RoutingResponse]
     } {
       val itins2Cust = rideHailAgent2CustomerResponse.itineraries.filter(x => x.tripClassifier.equals(RIDE_HAIL))
 
