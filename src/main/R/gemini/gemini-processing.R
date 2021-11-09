@@ -65,10 +65,14 @@ refuel_actstart$person <- as.character(refuel_actstart$person)
 # refuel_actstart <- readCsv(pp(workDir, "/2021Aug17-SFBay/BASE0/refuel_actstart.csv"))
 
 
-# trips <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/trips.csv.gz"))
+plans <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010/plans.csv.gz"))
+trips <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010/trips.csv.gz"))
 # persons <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/persons.csv.gz"))
 # households <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/households.csv.gz"))
 # blocks <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/blocks.csv.gz"))
+
+
+
 refueling_person_ids <- unique(refuel_actstart$person)
 plans <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/plans.csv.gz"))
 plans$person_id <- as.character(plans$person_id)
