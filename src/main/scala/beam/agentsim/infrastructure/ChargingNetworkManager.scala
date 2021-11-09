@@ -10,7 +10,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -150,8 +149,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
         // connecting the current vehicle
-        val activityType =
-          vehicle2InquiryMap.get(vehicle.id).map(_.activityType).getOrElse(ParkingActivityType.Wherever)
+        val activityType = vehicle2InquiryMap.get(vehicle.id).map(_.activityType).getOrElse("")
         chargingNetworkHelper
           .get(stall.reservedFor.managerId)
           .processChargingPlugRequest(request, activityType, sender()) map {

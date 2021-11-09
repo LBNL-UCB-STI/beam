@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
@@ -28,7 +28,7 @@ import scala.collection.immutable
   */
 case class ParkingInquiry(
   destinationUtm: SpaceTime,
-  activityType: ParkingActivityType,
+  activityType: String,
   reservedFor: ReservedFor = VehicleManager.AnyManager,
   beamVehicle: Option[BeamVehicle] = None,
   remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
@@ -40,11 +40,12 @@ case class ParkingInquiry(
     ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
   triggerId: Long
 ) extends HasTriggerId {
+  val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
 
   def isChargingRequestOrEV: Boolean = {
     beamVehicle match {
       case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
-      case _             => activityType == ParkingActivityType.Charge
+      case _             => parkingActivityType == ParkingActivityType.Charge
     }
   }
 }
@@ -91,7 +92,7 @@ object ParkingInquiry extends LazyLogging {
   ): ParkingInquiry =
     ParkingInquiry(
       destinationUtm,
-      activityTypeStringToEnum(activityType),
+      activityType,
       reservedFor,
       beamVehicle,
       remainingTripData,
