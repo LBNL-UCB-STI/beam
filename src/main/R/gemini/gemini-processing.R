@@ -22,7 +22,7 @@ oaklandCbg <- st_read(shpFile)
 
 ###
 #eventsraw <- readCsv(pp(workDir, "/2021Aug22-Oakland/BASE0/events-raw/2.events.BASE0.csv.gz"))
-events <- readCsv(pp(workDir, "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"))
+events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4.csv.gz"))
 
 
 #################### REV
@@ -47,7 +47,7 @@ write.csv(
   na="0")
 
 #################### PEV
-refuel <- events[type%in%c("RefuelSessionEvent")&!startsWith(person,"rideHail")][
+refuel <- events[type%in%c("RefuelSessionEvent")][
   ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
      pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration)]
 actstart <- events[type%in%c("actstart")&!startsWith(person,"rideHail")][
@@ -588,3 +588,53 @@ b <- sum(rse100[startsWith(parkingZoneId, "AO")]$fuel)
 
 b <- rse100_3[startsWith(parkingZoneId, "AO"),.(fuel3=mean(fuel)),by=.(chargingPointType)]
 a <- rse100[startsWith(parkingZoneId, "AO"),.(fuel2=mean(fuel)),by=.(chargingPointType)]
+
+#####
+
+sc4 <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4.csv.gz"))
+sc4Bis <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4Bis.csv.gz"))
+
+ref4 <- sc4[type=="RefuelSessionEvent"]
+ref4Bis <- sc4[type=="RefuelSessionEvent"]
+
+mean(ref4[time >= 0 && time < 7 * 3600]$fuel)
+mean(ref4[time > 22]$fuel)
+
+test1 <- ref4[grepl("emergency", vehicle)]
+test2 <- ref4Bis[grepl("emergency", vehicle)]
+
+
+###
+
+
+events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4.csv.gz"))
+
+chargingEvents <- events.sim[,-c("type", "IDX")]
+
+events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4.csv.gz"))
+
+ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+ev2 <- events[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+setnames(ev2, "time", "start.time")
+ev <- ev1[ev2, on=c("vehicle", "IDX")]
+
+ev[startsWith(vehicle,"Virtual")]
+
+
+ev1[vehicle=="VirtualCar-7561574"]
+ev2[vehicle=="VirtualCar-7561574"]
+
+events[vehicle=="VirtualCar-7561574"]
+
+
+write.csv(
+  chargingEvents,
+  file = pp(workDir, "/2021Oct29/BATCH1/chargingEventsFullBayArea.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="0")
+
+
+
+
+

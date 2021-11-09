@@ -65,7 +65,7 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 #####
 #scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-scenarioNames <- c('Scenario4')
+scenarioNames <- c('Scenario4', 'Scenario4Bis')
 scenarioBaselineLabel <- 'Scenario4'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
@@ -193,15 +193,14 @@ ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units=
 
 ## **************************************
 ##  public charging by scenario
-thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
-p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
 all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]

@@ -39,7 +39,8 @@ extractChargingSessions <- function(events) {
   ## replace everything by chargingPointType, when develop problem is solved
   ## c("vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType", "locationY", "locationX", "duration", "vehicleType")
   ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-  ev2 <- events[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+  ev1.vehicles <- unique(ev1$vehicle)
+  ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
   setnames(ev2, "time", "start.time")
   ev <- ev1[ev2, on=c("vehicle", "IDX")]
   return(ev)
