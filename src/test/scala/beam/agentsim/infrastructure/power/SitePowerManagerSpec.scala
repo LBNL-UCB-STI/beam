@@ -7,7 +7,6 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManag
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingNetworkHelper, ChargingPlugRequest}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
@@ -152,8 +151,7 @@ class SitePowerManagerSpec
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
         val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
-        val Some(chargingVehicle) =
-          chargingNetwork.processChargingPlugRequest(request, ParkingActivityType.Wherever, ActorRef.noSender)
+        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, "", ActorRef.noSender)
         chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,
@@ -161,7 +159,7 @@ class SitePowerManagerSpec
           dummyStation,
           0,
           person,
-          ParkingActivityType.Wherever,
+          "",
           NotApplicable,
           None,
           ActorRef.noSender,

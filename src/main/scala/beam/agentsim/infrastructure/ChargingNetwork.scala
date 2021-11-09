@@ -4,7 +4,6 @@ import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
@@ -83,7 +82,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
     */
   def processChargingPlugRequest(
     request: ChargingPlugRequest,
-    activityType: ParkingActivityType,
+    activityType: String,
     theSender: ActorRef
   ): Option[ChargingVehicle] = {
     lookupStation(request.stall.parkingZoneId)
@@ -303,7 +302,7 @@ object ChargingNetwork extends LazyLogging {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       personId: Id[Person],
-      activityType: ParkingActivityType,
+      activityType: String,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
       theSender: ActorRef
@@ -392,7 +391,7 @@ object ChargingNetwork extends LazyLogging {
     chargingStation: ChargingStation,
     arrivalTime: Int,
     personId: Id[Person],
-    activityType: ParkingActivityType,
+    activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],
     theSender: ActorRef,

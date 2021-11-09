@@ -2,7 +2,6 @@ package beam.agentsim.events
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.ParkingStall
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -21,7 +20,7 @@ case class RefuelSessionEvent(
   vehId: Id[Vehicle],
   vehicleType: BeamVehicleType,
   personId: Id[Person],
-  activityType: ParkingActivityType,
+  activityType: String,
   shiftStatus: ShiftStatus = NotApplicable
 ) extends Event(tick)
     with HasPersonId
