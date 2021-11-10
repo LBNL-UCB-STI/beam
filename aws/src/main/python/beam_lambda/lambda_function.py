@@ -61,6 +61,8 @@ END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
 BRANCH_DEFAULT = 'master'
 
+DATA_BRANCH_DEFAULT = 'develop'
+
 COMMIT_DEFAULT = 'HEAD'
 
 MAXRAM_DEFAULT = '2g'
@@ -130,6 +132,7 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"commit\\":\\"$COMMIT\\",
@@ -156,7 +159,7 @@ runcmd:
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-  
+
   - production_data_submodules=$(git submodule | awk '{ print $2 }')
   - for i in $production_data_submodules
   -  do
@@ -165,6 +168,7 @@ runcmd:
   -        case $cf in
   -         '*$i*)'
   -            echo "Loading remote production data for $i"
+  -            git config submodule.$i.branch $DATA_BRANCH
   -            git submodule update --init --remote $i
   -        esac
   -      done
@@ -214,6 +218,7 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"commit\\":\\"$COMMIT\\",
@@ -616,6 +621,7 @@ def deploy_handler(event, context):
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
+    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
     deploy_mode = event.get('deploy_mode', 'config')
     configs = event.get('configs', CONFIG_DEFAULT)
@@ -700,7 +706,7 @@ def deploy_handler(event, context):
             if len(params) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
+                .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
