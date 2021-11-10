@@ -136,6 +136,19 @@ or::
 
 to remove all production data.
 
+Note that if you locally fetch the submodule then it will update the submodule pointer to the latest submodule commit.
+That will result in a git change.
+
+for example, the output of `git status` will be something like that::
+
+  Changes not staged for commit:
+    (use "git add <file>..." to update what will be committed)
+    (use "git restore <file>..." to discard changes in working directory)
+	  modified:   production/sfbay (new commits)
+
+It is safe to either add this change with `git add` and commit it or drop it with `git reset`. It doesn't matter since we
+always fetch the latest commit in submodule.
+
 Using old production data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
