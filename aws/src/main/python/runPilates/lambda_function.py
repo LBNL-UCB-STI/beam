@@ -37,6 +37,7 @@ PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursi
 # "data_region": s3 data region which is used when copying from s3 and writing to s3 buckets;
 # "branch": git branch;
 # "commit": git commit;
+# "data_branch": data branch;
 # "s3_path": s3 path to output folder started with double slash;
 # "title": used as instance name only;
 # "start_year": pilates simulation start year;
@@ -93,6 +94,7 @@ runcmd:
         \\"data_region\\":\\"$S3_DATA_REGION\\",
         \\"branch\\":\\"$BRANCH\\",
         \\"commit\\":\\"$COMMIT\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"title\\":\\"$TITLED\\",
         \\"start_year\\":\\"$START_YEAR\\",
         \\"count_of_years\\":\\"$COUNT_OF_YEARS\\",
@@ -143,6 +145,21 @@ runcmd:
   - git fetch
   - echo "git checkout for branch $BRANCH ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
+  
+  - production_data_submodules=$(git submodule | awk '{ print $2 }')
+  - for i in $production_data_submodules
+  -  do
+  -    for cf in $CONFIG
+  -      do
+  -        case $cf in
+  -         '*$i*)'
+  -            echo "Loading remote production data for $i"
+  -            git config submodule.$i.branch $DATA_BRANCH
+  -            git submodule update --init --remote $i
+  -        esac
+  -      done
+  -  done
+  
   - sudo git pull
   - sudo git lfs pull
   - echo "git checkout -qf for commit $COMMIT ..."
@@ -318,6 +335,7 @@ def lambda_handler(event, context):
     initial_urbansim_input = get_param('initialS3UrbansimInput')
     branch = get_param('beamBranch')
     commit_id = get_param('beamCommit')
+    data_branch = get_param('dataBranch')
 
     start_year = get_param('startYear')
     count_of_years = get_param('countOfYears')
@@ -405,6 +423,7 @@ def lambda_handler(event, context):
         .replace('$IN_YEAR_OUTPUT', in_year_output) \
         .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
         .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', config) \
+        .replace('$DATA_BRANCH', data_branch) \
         .replace('$SHUTDOWN_WAIT', shutdown_wait) \
         .replace('$SHUTDOWN_BEHAVIOUR', shutdown_behaviour) \
         .replace('$STORAGE_SIZE', str(volume_size)) \
