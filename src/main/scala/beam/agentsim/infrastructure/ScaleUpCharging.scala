@@ -124,7 +124,7 @@ trait ScaleUpCharging extends {
     val results = vehicleRequests
       .groupBy(_._1._1)
       .par
-      .mapValues(_.map { case ((_, activityType), data) =>
+      .mapValues(_.map { case ((_, parkingActivityType), data) =>
         val numObservation = data.size
         val totPowerInKW = data.map(x => toPowerInKW(x.energyToChargeInJoule, x.durationToChargeInSec)).sum
         val durationList = data.map(_.durationToChargeInSec)
@@ -135,9 +135,13 @@ trait ScaleUpCharging extends {
         val meanSOC = socList.sum / numObservation
         val meanEnergy = energyList.sum / energyList.size
         val meanFuelCapacity = fuelCapacityList.sum / numObservation
-        val pmfActivityType = data.groupBy(_.activityType) map { case (activityType, elems) =>
-          new CPair[String, java.lang.Double](activityType, elems.size)
-        } toVector
+        val pmfActivityType =
+          data
+            .groupBy(_.activityType)
+            .map { case (activityType, elems) =>
+              new CPair[String, java.lang.Double](activityType, elems.size.toDouble)
+            }
+            .toVector
         val vehicleInfoSummary = VehicleInfoSummary(
           numObservation = numObservation,
           totPowerInKW = totPowerInKW,
@@ -151,7 +155,7 @@ trait ScaleUpCharging extends {
           stdFuelCapacity = Math.sqrt(fuelCapacityList.map(_ - meanFuelCapacity).map(t => t * t).sum / numObservation),
           new EnumeratedDistribution[String](mersenne, pmfActivityType.asJava)
         )
-        activityType -> (data, vehicleInfoSummary)
+        parkingActivityType -> (data, vehicleInfoSummary)
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
         val partialTriggersAndInquiries = Vector.newBuilder[(ScheduleTrigger, ParkingInquiry)]

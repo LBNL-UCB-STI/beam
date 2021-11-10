@@ -615,7 +615,7 @@ events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4.csv.gz")
 
 chargingEvents <- events.sim[,-c("type", "IDX")]
 
-events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4.csv.gz"))
+events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.0.events.SC4.csv.gz"))
 
 ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
 ev2 <- events[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
