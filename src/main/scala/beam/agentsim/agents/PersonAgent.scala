@@ -504,6 +504,8 @@ class PersonAgent(
     }
   }
   private def canUseCars(currentCoord: Coord, nextCoord: Coord): Boolean = {
+    val stopsNearOrigin = beamScenario.trainStopQuadTree.getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
+    val stopsNearDestination = beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop)
     beamScenario.trainStopQuadTree
       .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
       .isEmpty || beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
