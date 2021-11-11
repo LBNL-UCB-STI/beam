@@ -614,29 +614,34 @@ test2 <- ref4Bis[grepl("emergency", vehicle)]
 events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4.csv.gz"))
 
 chargingEvents <- events.sim[,-c("type", "IDX")]
-
-events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.0.events.SC4.csv.gz"))
-
-ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-ev2 <- events[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-setnames(ev2, "time", "start.time")
-ev <- ev1[ev2, on=c("vehicle", "IDX")]
-
-ev[startsWith(vehicle,"Virtual")]
-
-
-ev1[vehicle=="VirtualCar-7561574"]
-ev2[vehicle=="VirtualCar-7561574"]
-
-events[vehicle=="VirtualCar-7561574"]
-
-
 write.csv(
   chargingEvents,
   file = pp(workDir, "/2021Oct29/BATCH1/chargingEventsFullBayArea.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="0")
+
+
+events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.0.events.SC4.csv.gz"))
+
+
+ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+ev1.vehicles <- unique(ev1$vehicle)
+ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+setnames(ev2, "time", "start.time")
+ev <- ev1[ev2, on=c("vehicle", "IDX")][!is.na(parkingTaz)]
+
+ev[startsWith(vehicle,"Virtual")]
+
+
+ev1[vehicle=="6126367"]
+ev2[vehicle=="6126367"]
+
+events[vehicle=="VirtualCar-7561574"]
+
+events[parkingTaz=="0"]
+
+
 
 
 

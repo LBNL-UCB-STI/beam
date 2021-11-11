@@ -42,7 +42,7 @@ extractChargingSessions <- function(events) {
   ev1.vehicles <- unique(ev1$vehicle)
   ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
   setnames(ev2, "time", "start.time")
-  ev <- ev1[ev2, on=c("vehicle", "IDX")]
+  ev <- ev1[ev2, on=c("vehicle", "IDX")][!is.na(parkingTaz)]
   return(ev)
 }
 spreadChargingSessionsIntoPowerIntervals <- function(ev) {
