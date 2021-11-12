@@ -838,6 +838,7 @@ class PersonAgent(
         tick +
         beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds +
         beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+
       scheduler ! ScheduleTrigger(EnrouteRefuelingTrigger(endEnrouteRefuelingTime), self)
       stay
     case _ @Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>

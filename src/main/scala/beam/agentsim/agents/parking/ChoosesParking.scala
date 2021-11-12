@@ -246,7 +246,6 @@ trait ChoosesParking extends {
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
         )
-
         goto(WaitingToDrive) using data
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
@@ -365,32 +364,57 @@ trait ChoosesParking extends {
       val vehicle2StallCarLegs = createCarLegs(vehicle2StallResponse.itineraries.head.legs)
       val stall2DestinationCarLegs = createCarLegs(stall2DestinationResponse.itineraries.head.legs)
 
-      // create new legs to travel to the charging stall
-      val (_, triggerId) = releaseTickAndTriggerId()
-      val walk1 = data.currentTrip.head.legs.head
-      val walk4 = data.currentTrip.head.legs.last
-      val newCurrentTripLegs: Vector[EmbodiedBeamLeg] = walk1 +: (vehicle2StallCarLegs :+ walk4)
-      val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
-      // set two car legs in schedule
-      val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
+      // calculate battery level after removing the charge required to reach the stall
+      val fuelRequiredToReachTheStall =
+        BeamVehicle.fuelConsumptionInJoules(currentBeamVehicle, vehicle2StallCarLegs)
+      val fuelLevelAfterReachingStall = {
+        (currentBeamVehicle.primaryFuelLevelInJoules + currentBeamVehicle.secondaryFuelLevelInJoules) -
+        fuelRequiredToReachTheStall
+      }
+      // TODO here we only compare primary storage level, do we need to consider secondary storage?
+      // none of the secondary storage has 'electricity' as fuel type.
+      if (fuelLevelAfterReachingStall >= currentBeamVehicle.beamVehicleType.primaryFuelCapacityInJoule * 0.8) {
+        // if its greater than or equal to 80%, skill the enroute
+        // unset enrouteStates and continue normal workflow
+        val (tick, triggerId) = releaseTickAndTriggerId()
 
-      scheduler ! CompletionNotice(
-        triggerId,
-        Vector(
-          ScheduleTrigger(
-            StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
-            self
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(ScheduleTrigger(StartLegTrigger(tick, data.restOfCurrentTrip.head.beamLeg), self))
+        )
+        currentBeamVehicle.unsetReservedParkingStall()
+
+        handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
+        goto(WaitingToDrive) using data.copy(enrouteStates = None)
+      } else {
+        // create new legs to travel to the charging stall
+        val (tick, triggerId) = releaseTickAndTriggerId()
+        val walk1 = data.currentTrip.head.legs.head
+        val walk4 = data.currentTrip.head.legs.last
+        val newCurrentTripLegs: Vector[EmbodiedBeamLeg] = walk1 +: (vehicle2StallCarLegs :+ walk4)
+        val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
+        // set two car legs in schedule
+        val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
+
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(
+            ScheduleTrigger(
+              StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
+              self
+            )
           )
         )
-      )
 
-      goto(WaitingToDrive) using data.copy(
-        currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
-        restOfCurrentTrip = newRestOfTrip.toList,
-        passengerSchedule = newPassengerSchedule,
-        currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
-        enrouteStates = Some(EnrouteStates(stall2DestinationCarLegs))
-      )
+        handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
+        goto(WaitingToDrive) using data.copy(
+          currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+          restOfCurrentTrip = newRestOfTrip.toList,
+          passengerSchedule = newPassengerSchedule,
+          currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
+          enrouteStates = Some(EnrouteStates(stall2DestinationCarLegs))
+        )
+      }
 
     case Event(
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),

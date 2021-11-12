@@ -13,7 +13,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.api.agentsim.agents.vehicles.BeamVehicleAfterUseFuelHook
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
-import beam.router.model.BeamLeg
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
@@ -658,6 +658,25 @@ object BeamVehicle {
         val minimumSOC = 2.0 * meanSOC - 1
         minimumSOC + (1.0 - minimumSOC) * rand.nextDouble()
       case _ => 1.0
+    }
+  }
+
+  def fuelConsumptionInJoules(beamVehicle: BeamVehicle, legs: Vector[EmbodiedBeamLeg]): Double = {
+    val distanceInM = legs.map(_.beamLeg.travelPath.distanceInM).sum // distance needs to cover
+
+    val primaryFuelLevelInJoules = beamVehicle.primaryFuelLevelInJoules
+    val primaryFuelConsumptionInJoulePerMeter = beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter
+    val secondaryFuelConsumptionInJoulePerMeter = beamVehicle.beamVehicleType.secondaryFuelConsumptionInJoulePerMeter
+    val (primaryRange, _) = beamVehicle.getRemainingRange
+
+    if (distanceInM > primaryRange && secondaryFuelConsumptionInJoulePerMeter.nonEmpty) {
+      // distance remains after using all the fuel of primary storage
+      val remainingDistanceInM = Math.abs(primaryRange - distanceInM)
+      val secondaryConsumptionInJoules = secondaryFuelConsumptionInJoulePerMeter.get * remainingDistanceInM
+      primaryFuelLevelInJoules + secondaryConsumptionInJoules
+    } else {
+      val primaryConsumptionInJoules = primaryFuelConsumptionInJoulePerMeter * distanceInM
+      Math.max(primaryConsumptionInJoules, 0)
     }
   }
 }
