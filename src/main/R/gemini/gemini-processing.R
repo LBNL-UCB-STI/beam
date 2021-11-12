@@ -611,9 +611,24 @@ test2 <- ref4Bis[grepl("emergency", vehicle)]
 ###
 
 
-events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4.csv.gz"))
+events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4Bis2.csv.gz"))
 
 chargingEvents <- events.sim[,-c("type", "IDX")]
+nrow(chargingEvents[duration==0])
+nrow(chargingEvents[duration>0])
+
+chargingEvents[duration<1800&duration>0] %>% ggplot(aes(duration)) + 
+  theme_classic() +
+  geom_histogram(bins = 30)
+
+test <- chargingEvents[duration==0] 
+test$kindOfVehicle <- "real"
+test[startsWith(vehicle,"VirtualCar")]$kindOfVehicle <- "virtual"
+
+
+
+
+
 write.csv(
   chargingEvents,
   file = pp(workDir, "/2021Oct29/BATCH1/chargingEventsFullBayArea.csv"),

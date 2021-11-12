@@ -41,13 +41,6 @@ case class ParkingInquiry(
   triggerId: Long
 ) extends HasTriggerId {
   val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
-
-  def isChargingRequestOrEV: Boolean = {
-    beamVehicle match {
-      case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
-      case _             => parkingActivityType == ParkingActivityType.Charge
-    }
-  }
 }
 
 object ParkingInquiry extends LazyLogging {

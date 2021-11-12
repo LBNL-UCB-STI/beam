@@ -200,5 +200,3 @@ generateReadyToPlot <- function(resultsDirName, loadTypes, countyNames) {
   all.loads[,severity:=paste(type,extreme.lab, sep=" ")]
   save(all.sessions,all.loads,chargingTypes.colors,file=pp(resultsDirName,'/ready-to-plot.Rdata'))
 }
-
-extractPathTraversals()

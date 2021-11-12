@@ -533,15 +533,9 @@ class RideHailAgent(
       val tickToUse = Math.max(tick, latestObservedTick)
       updateLatestObservedTick(tick)
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
-      if (vehicle.isCAV) {
-        if (debugEnabled) outgoingMessages += ev
-        startRefueling(tickToUse, triggerId, Vector())
-        goto(Refueling)
-      } else {
-        holdTickAndTriggerId(tickToUse, triggerId)
-        requestParkingStall()
-        stay
-      }
+      if (debugEnabled) outgoingMessages += ev
+      startRefueling(tickToUse, triggerId, Vector())
+      goto(Refueling)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
         "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
@@ -1151,7 +1145,7 @@ class RideHailAgent(
       parkingDuration = parkingDuration,
       triggerId = getCurrentTriggerIdOrGenerate
     )
-    chargingNetworkManager ! inquiry
+    park(inquiry)
   }
 
   def handleStartRefuel(triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
