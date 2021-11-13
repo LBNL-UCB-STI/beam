@@ -65,7 +65,7 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 #####
 #scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2')
+scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3')
 scenarioBaselineLabel <- 'Scenario4'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
