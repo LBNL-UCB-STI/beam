@@ -891,22 +891,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
   protected def park(parkingInquiry: ParkingInquiry): Unit = {
-    val preferredChargingLocation = List(ParkingActivityType.Home, ParkingActivityType.Work)
     val isRefuelNeeded: Boolean = parkingInquiry.beamVehicle match {
-      case _ if parkingInquiry.parkingActivityType == ParkingActivityType.Charge => true
-      case Some(vehicle) if vehicle.isPHEV || vehicle.isBEV =>
-        if (preferredChargingLocation.contains(parkingInquiry.parkingActivityType)) true
-        else if (vehicle.isCAV) {
-          currentBeamVehicle.isRefuelNeeded(
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters,
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters
-          )
-        } else {
-          currentBeamVehicle.isRefuelNeeded(
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
-            beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
-          )
-        }
+      case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
+      case _             => parkingInquiry.parkingActivityType == ParkingActivityType.Charge
     }
     if (isRefuelNeeded)
       chargingNetworkManager ! parkingInquiry
