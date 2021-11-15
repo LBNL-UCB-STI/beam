@@ -367,11 +367,12 @@ trait ChoosesParking extends {
       // calculate battery level after removing the charge required to reach the stall
       val fuelRequiredToReachTheStall =
         BeamVehicle.fuelConsumptionInJoules(currentBeamVehicle, vehicle2StallCarLegs)
-      val fuelLevelAfterReachingStall = {
-        (currentBeamVehicle.primaryFuelLevelInJoules + currentBeamVehicle.secondaryFuelLevelInJoules) -
-        fuelRequiredToReachTheStall
-      }
-      // TODO here we only compare primary storage level, do we need to consider secondary storage?
+      // because `fuelConsumptionInJoules` considers both primary and secondary fuel storage,
+      // and we only want to use primary (electricity) storage to find out level after reaching the stall,
+      // we are storing 0 if remaining fuel level is negative. (this shouldn't be the case, btw)
+      val fuelLevelAfterReachingStall =
+        Math.max(currentBeamVehicle.primaryFuelLevelInJoules - fuelRequiredToReachTheStall, 0)
+
       // none of the secondary storage has 'electricity' as fuel type.
       if (fuelLevelAfterReachingStall >= currentBeamVehicle.beamVehicleType.primaryFuelCapacityInJoule * 0.8) {
         // if its greater than or equal to 80%, skill the enroute
@@ -382,8 +383,8 @@ trait ChoosesParking extends {
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(tick, data.restOfCurrentTrip.head.beamLeg), self))
         )
-        currentBeamVehicle.unsetReservedParkingStall()
 
+        currentBeamVehicle.unsetReservedParkingStall()
         handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
         goto(WaitingToDrive) using data.copy(enrouteStates = None)
       } else {
