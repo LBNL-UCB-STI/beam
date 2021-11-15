@@ -233,8 +233,10 @@ class InfluxDbSimulationMetricCollector @Inject() (beamCfg: BeamConfig)
       try {
         val db = InfluxDBFactory.connect(cfg.connectionString)
         db.setDatabase(cfg.database)
-        db.enableBatch(BatchOptions.DEFAULTS)
         db.ping()
+        // enableBatch creates a ScheduledExecutorService which can leak if we don't close the client, so
+        // we only should enable batching in case ping was ok
+        db.enableBatch(BatchOptions.DEFAULTS)
         logger.info(s"Connected to InfluxDB at ${cfg.connectionString}, database: ${cfg.database}")
         Some(db)
       } catch {

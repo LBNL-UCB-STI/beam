@@ -635,7 +635,7 @@ class BeamSim @Inject() (
       })
 
     beamServices.simMetricCollector.close()
-
+    eventsManager.finishProcessing()
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {
