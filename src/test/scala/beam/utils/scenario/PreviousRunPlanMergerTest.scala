@@ -75,11 +75,10 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("5", 0, 49518), //new added
           createPlanElement("8", 0, 49515), //new added
           createPlanElement("8", 1, 49516), //new added
-          createPlanElement("8", 2, 49517), //new added
+          createPlanElement("8", 2, 49517) //new added
         )
       )
     }
-
 
     "should return half of plans merged and half of new plans when fraction = 0.5 and sample = 0.5" in {
       val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 0.5, 0.5, new Random(1))
@@ -108,7 +107,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("4", 0, 49515),
           createPlanElement("4", 1, 49516),
           createPlanElement("4", 2, 49517), //new merged
-          createPlanElement("5", 0, 49518), //new added
+          createPlanElement("5", 0, 49518) //new added
         )
       )
 
@@ -145,7 +144,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("5", 0, 49518), //new added
           createPlanElement("8", 0, 49515), //new added
           createPlanElement("8", 1, 49516), //new added
-          createPlanElement("8", 2, 49517), //new added
+          createPlanElement("8", 2, 49517) //new added
         )
       )
     }
@@ -219,7 +218,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       createPlanElement("5", 0, 49518),
       createPlanElement("8", 0, 49515),
       createPlanElement("8", 1, 49516),
-      createPlanElement("8", 2, 49517),
+      createPlanElement("8", 2, 49517)
     )
   }
 
