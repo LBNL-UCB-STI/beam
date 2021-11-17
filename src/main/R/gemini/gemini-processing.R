@@ -610,9 +610,9 @@ test2 <- ref4Bis[grepl("emergency", vehicle)]
 
 ###
 
-events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.0.events.SC4Bis2.csv.gz"))
-events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4Bis3.csv.gz"))
-temp <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4Bis2.csv.gz"))
+events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.0.events.SC4Bis5.csv.gz"))
+events.sim <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4Bis5.csv.gz"))
+#temp <- readCsv(pp(workDir, "/2021Oct29/BATCH1/sim/events.sim.SC4Bis2.csv.gz"))
 
 chargingEvents <- events.sim[,-c("type", "IDX")]
 nrow(chargingEvents[duration==0])
@@ -626,40 +626,13 @@ test <- chargingEvents[duration==0]
 test$kindOfVehicle <- "real"
 test[startsWith(vehicle,"VirtualCar")]$kindOfVehicle <- "virtual"
 
-test[,.N,by=.(chargingPointType)]
-test[chargingPointType=="worklevel2(7.2|AC)"]
-events[vehicle=="997177"]
-
-
-
 
 write.csv(
-  chargingEvents,
-  file = pp(workDir, "/2021Oct29/BATCH1/chargingEventsFullBayArea.csv"),
+  chargingEvents[duration>0],
+  file = pp(workDir, "/2021Oct29/BATCH1/chargingEventsFullBayArea.csv.gz"),
   row.names=FALSE,
   quote=FALSE,
   na="0")
-
-
-
-
-
-ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-ev1.vehicles <- unique(ev1$vehicle)
-ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-setnames(ev2, "time", "start.time")
-ev <- ev1[ev2, on=c("vehicle", "IDX")][!is.na(parkingTaz)]
-
-ev[startsWith(vehicle,"Virtual")]
-
-
-ev1[vehicle=="6126367"]
-ev2[vehicle=="6126367"]
-
-events[vehicle=="VirtualCar-7561574"]
-
-events[parkingTaz=="0"]
-
 
 
 
