@@ -27,7 +27,7 @@ expFactor <- (6.015/0.6015)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2021Aug22-Oakland/BATCH3")
+dataDir <- normalizePath("~/Data/GEMINI/2021Oct29/BATCH1")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -181,18 +181,6 @@ p <- ggmap(oakland_map) +
 ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p,width=16,height=8,units='in')
 
 
-
-## **************************************
-p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
-  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
-  theme_marain() +
-  geom_area(colour="black", size=0.3) +
-  scale_fill_manual(values = chargingTypes.colors, name = "") +
-  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
-  theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 2)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
-
 ## **************************************
 ##  public charging by scenario
 thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
@@ -204,6 +192,18 @@ p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
   facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
+
+## **************************************
+##  public charging by scenario
+p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+  theme_marain() +
+  geom_area(colour="black", size=0.3) +
+  scale_fill_manual(values = chargingTypes.colors, name = "") +
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
+  theme(strip.text = element_text(size=rel(1.2))) +
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
 
@@ -238,7 +238,6 @@ ggsave(pp(plotsDir,'/xfc-loads-by-scenario.png'),p,width=12,height=7,units='in')
 
 ## Energy charged by scenario
 metrics <- all.loads[!is.na(kw)&name%in%scenarioNames][,.(gw=sum(kw)/1e6,gwh=sum(kw)/4e6),by=.(name,hour.bin2,severity)][,.(gw.peak=max(gw),gwh=sum(gwh)),by=.(name,severity)]
-
 toplot <- melt(metrics,id.vars=c('name','severity'))
 toplot[name%in%scenarioNames,panel:=revalue(factor(variable),c('gw.peak'='Regional Charging Peak (GW)','gwh'='Total Energy Charged (GWh)'))]
 p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity,levels=severity_order)))+
@@ -318,8 +317,8 @@ p <- summary[fuelType=="Electric"] %>% ggplot(aes(x=name,y=energy,fill=fuelType)
   scale_fill_manual(values = factor.colors.remapped)
 ggsave(pp(plotsDir,'/metric-mobility.png'),p,width=8,height=3,units='in')
 
-#################################################
 
+#################################################
 factor.remap <- c('walk'='Walk','bike'='Bike','rh'='Ridehail Solo','rhp'='Ridehail Pooled','rh_empty'='Ridehail (Empty)','cav'='Personal AV','cav_empty'='Personal AV (Empty)','car'='Car','transit'='Public Transit')
 factor.colors <- c('walk'='#669900','bike'='#FFB164','rh'='#B30C0C','rhp'='#660099','rh_empty'=marain.light.grey,'cav'='#FFE664','cav_empty'=marain.dark.grey,'car'='#8A8A8A','transit'='#0066CC')
 factor.colors.remapped <- factor.colors

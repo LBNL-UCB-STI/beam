@@ -738,11 +738,8 @@ trait ChoosesMode {
           }
       }
 
-    parkingInquiries.foreach { case (_, inquiry) =>
-      if (inquiry.isChargingRequestOrEV) chargingNetworkManager ! inquiry
-      else parkingManager ! inquiry
-    }
     parkingInquiries.map { case (vehicleOnTrip, inquiry) =>
+      park(inquiry)
       inquiry.requestId -> vehicleOnTrip
     }
   }

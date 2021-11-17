@@ -51,11 +51,14 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |  chargingPointFilePath =  ""
             |  scaleUp {
             |    enabled = true
-            |    expansionFactor_home_activity = 2.0
-            |    expansionFactor_work_activity = 2.0
-            |    expansionFactor_charge_activity = 2.0
-            |    expansionFactor_wherever_activity = 2.0
-            |    expansionFactor_init_activity = 2.0
+            |    expansionFactor_home_activity = 3.0
+            |    expansionFactor_work_activity = 3.0
+            |    expansionFactor_charge_activity = 3.0
+            |    expansionFactor_wherever_activity = 3.0
+            |    expansionFactor_init_activity = 3.0
+            |  }
+            |  helics {
+            |    connectionEnabled = false
             |  }
             |  helics {
             |    connectionEnabled = false

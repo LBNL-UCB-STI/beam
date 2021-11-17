@@ -86,7 +86,7 @@ class ChargingNetworkManager(
       log.debug(s"Received parking inquiry: $inquiry")
       chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) =>
-          inquiry.beamVehicle.filter(v => !isVirtualCar(v.id)) foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
+          inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
           sender() ! parkingResponse
         case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }

@@ -122,10 +122,7 @@ trait ChoosesParking extends {
       triggerId = getCurrentTriggerIdOrGenerate
     )
 
-    if (parkingInquiry.isChargingRequestOrEV)
-      chargingNetworkManager ! parkingInquiry
-    else
-      parkingManager ! parkingInquiry
+    park(parkingInquiry)
   }
 
   when(ConnectingToChargingPoint) {
