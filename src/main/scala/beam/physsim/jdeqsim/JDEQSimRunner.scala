@@ -333,6 +333,7 @@ object JDEQSimRunner {
                 val alpha = beamConfig.beam.physsim.jdeqsim.parameters.alpha
                 val beta = beamConfig.beam.physsim.jdeqsim.parameters.beta
                 val tmp = volume / (capacity * 3600)
+                // TODO: find a way so that we can read the parameter from each link 1. maybe matsim link 2. maybe some map
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
