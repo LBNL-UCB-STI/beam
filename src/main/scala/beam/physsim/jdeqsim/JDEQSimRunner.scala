@@ -330,9 +330,10 @@ object JDEQSimRunner {
                   caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+                val alpha = beamConfig.beam.physsim.jdeqsim.parameters.alpha
+                val beta = beamConfig.beam.physsim.jdeqsim.parameters.beta
                 val tmp = volume / (capacity * 3600)
-                val result = ftt * (1 + tmp * tmp)
-
+                val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
                 originalTravelTime + additionalTravelTime(link, time)
@@ -345,9 +346,7 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val alpha = beamConfig.beam.physsim.jdeqsim.parameters.alpha
-                val beta = beamConfig.beam.physsim.jdeqsim.parameters.beta
-                val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
+                val originalTravelTime = ftt * ftt * (1 + tmp * tmp)
                 originalTravelTime + additionalTravelTime(link, time)
               } else {
                 ftt + additionalTravelTime(link, time)
