@@ -25,7 +25,7 @@ case class LinkParam(
   length: Option[Double],
   lanes: Option[Int],
   alpha: Option[Double],
-  beta: Option[Double],
+  beta: Option[Double]
 ) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
@@ -316,8 +316,8 @@ object NetworkCoordinator {
   }
 
   private[r5] def getAlphas(
-                             highwayType: Physsim.Network.OverwriteRoadTypeProperties
-                           ): java.util.HashMap[HighwayType, java.lang.Double] = {
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Double] = {
     val map = new java.util.HashMap[HighwayType, java.lang.Double]()
     highwayType.motorway.alpha.foreach(alpha => map.put(HighwayType.Motorway, alpha))
     highwayType.motorwayLink.alpha.foreach(alpha => map.put(HighwayType.MotorwayLink, alpha))
@@ -342,8 +342,8 @@ object NetworkCoordinator {
   }
 
   private[r5] def getBetas(
-                             highwayType: Physsim.Network.OverwriteRoadTypeProperties
-                           ): java.util.HashMap[HighwayType, java.lang.Double] = {
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Double] = {
     val map = new java.util.HashMap[HighwayType, java.lang.Double]()
     highwayType.motorway.beta.foreach(beta => map.put(HighwayType.Motorway, beta))
     highwayType.motorwayLink.beta.foreach(beta => map.put(HighwayType.MotorwayLink, beta))
@@ -366,6 +366,5 @@ object NetworkCoordinator {
     highwayType.unclassified.beta.foreach(beta => map.put(HighwayType.Unclassified, beta))
     map
   }
-
 
 }
