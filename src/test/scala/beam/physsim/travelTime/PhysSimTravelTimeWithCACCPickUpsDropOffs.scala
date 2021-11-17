@@ -77,7 +77,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
 
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean] = beamvilleAllVehiclesFromSimulation
     .map { vehId =>
-      vehId.toString -> new java.lang.Boolean(true)
+      var boolean = Boolean.box(true)
+      vehId.toString -> boolean
     }
     .toMap
     .asJava

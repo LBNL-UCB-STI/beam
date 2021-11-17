@@ -332,8 +332,6 @@ object JDEQSimRunner {
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
 
-//                val alpha = beamConfig.beam.physsim.jdeqsim.parameters.alpha // for all of the links
-//                val beta = beamConfig.beam.physsim.jdeqsim.parameters.beta  // for all of the links
                 val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
                 val beta = link.getAttributes.getAttribute("beta").toString.toDouble
                 val tmp = volume / (capacity * 3600)
@@ -350,7 +348,9 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val originalTravelTime = ftt * ftt * (1 + tmp * tmp)
+                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
+                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
+                val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
                 originalTravelTime + additionalTravelTime(link, time)
               } else {
                 ftt + additionalTravelTime(link, time)
