@@ -2859,7 +2859,6 @@ object BeamConfig {
           }
         }
 
-
         case class Cacc(
           adjustedMinimumRoadSpeedInMetersPerSecond: scala.Double,
           capacityPlansWriteInterval: scala.Int,
