@@ -299,6 +299,8 @@ class JDEQSimRunner(
 
 object JDEQSimRunner {
 
+  def getLinkRankType()
+
   def getTravelTimeFunction(
     functionName: String,
     flowCapacityFactor: Double,
@@ -331,10 +333,13 @@ object JDEQSimRunner {
                   caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+
                 val alpha = beamConfig.beam.physsim.jdeqsim.parameters.alpha
                 val beta = beamConfig.beam.physsim.jdeqsim.parameters.beta
                 val tmp = volume / (capacity * 3600)
                 // TODO: find a way so that we can read the parameter from each link
+
+
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)

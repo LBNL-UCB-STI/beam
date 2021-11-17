@@ -32,6 +32,7 @@ case class LinkParam(
       // !!! The speed for R5 is rounded (m/s * 100) (2 decimal places)
       cursor.setSpeed((value * 100).toShort)
       link.setFreespeed(value)
+
     }
     length.foreach { value =>
       // Provided length is in meters, convert them to millimeters
@@ -255,6 +256,7 @@ object NetworkCoordinator {
     val map = new java.util.HashMap[HighwayType, java.lang.Integer]()
     highwayType.motorway.capacity.foreach(capacity => map.put(HighwayType.Motorway, capacity))
     highwayType.motorwayLink.capacity.foreach(capacity => map.put(HighwayType.MotorwayLink, capacity))
+
 
     highwayType.primary.capacity.foreach(capacity => map.put(HighwayType.Primary, capacity))
     highwayType.primaryLink.capacity.foreach(capacity => map.put(HighwayType.PrimaryLink, capacity))
