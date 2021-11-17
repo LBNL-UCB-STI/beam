@@ -7,6 +7,27 @@ import glob
 import base64
 from botocore.errorfactory import ClientError
 
+HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
+  -    cd /home/ubuntu/git/beam
+  -    '''
+
+HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
+  -    opth="output"
+  -    echo $opth
+  -    finalPath=""
+  -    for file in $opth/*; do
+  -       for path2 in $file/*; do
+  -         finalPath="$path2";
+  -       done;
+  -    done;
+  -    finalPath="${finalPath}/helics_output" 
+  -    mkdir "$finalPath"
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/*.log "$finalPath"
+  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"
+  -    cd "$finalPath"
+  -    sudo gzip -9 *
+  -    cd - '''
+
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
@@ -15,8 +36,6 @@ CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
 EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
-
-HEALTH_ANALYSIS_SCRIPT = 'python3 src/main/python/general_analysis/simulation_health_analysis.py'
 
 S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
@@ -41,6 +60,8 @@ S3_PUBLISH_SCRIPT = '''
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
 BRANCH_DEFAULT = 'master'
+
+DATA_BRANCH_DEFAULT = 'develop'
 
 COMMIT_DEFAULT = 'HEAD'
 
@@ -70,6 +91,28 @@ write_files:
     - content: |
           0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
       path: /tmp/slack_notification
+    - content: |
+            #!/bin/bash
+            pip install helics==2.7.1
+            pip install helics-apps==2.7.1
+            cd /home/ubuntu/git/beam/src/main/python
+            sudo chown ubuntu:ubuntu -R gemini
+            cd -
+            cd /home/ubuntu/git/beam/src/main/python/gemini
+            now="$(date +"%Y_%m_%d_%I_%M_%p")"
+            python beam_pydss_broker.py > output_${now}_broker.log &
+            echo "broker started"
+            sleep 5s
+            python beam_to_pydss_federate.py > output_${now}_federate.log &
+            echo "federate started"
+            sleep 5s
+            helics_recorder beam_recorder.txt --output=recording_output.txt > output_${now}_recorder.log &
+            echo "recorder started"
+            sleep 5s
+            cd -
+      path: /home/ubuntu/install-and-run-helics-scripts.sh
+
+    
 runcmd:
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Starting Beam Sim----------------------"
@@ -89,6 +132,7 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"commit\\":\\"$COMMIT\\",
@@ -102,6 +146,7 @@ runcmd:
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - echo $start_json
   - chmod +x /tmp/slack.sh
+  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - echo "notification sent..."
   - echo "notification saved..."
   - crontab /tmp/slack_notification
@@ -114,6 +159,20 @@ runcmd:
   - sudo git lfs pull
   - echo "git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
+
+  - production_data_submodules=$(git submodule | awk '{ print $2 }')
+  - for i in $production_data_submodules
+  -  do
+  -    for cf in $CONFIG
+  -      do
+  -        case $cf in
+  -         '*$i*)'
+  -            echo "Loading remote production data for $i"
+  -            git config submodule.$i.branch $DATA_BRANCH
+  -            git submodule update --init --remote $i
+  -        esac
+  -      done
+  -  done
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
@@ -133,11 +192,13 @@ runcmd:
   -    $RUN_SCRIPT
   -  done
   - echo "-------------------running Health Analysis Script----------------------"
-  - $HEALTH_ANALYSIS_SCRIPT
+  - python3 src/main/python/general_analysis/simulation_health_analysis.py
   - while IFS="," read -r metric count
   - do
   -    export $metric=$count
   - done < RunHealthAnalysis.txt
+  
+  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   - s3glip=""
   - if [ "$S3_PUBLISH" = "True" ]
   - then
@@ -157,6 +218,7 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"commit\\":\\"$COMMIT\\",
@@ -201,7 +263,7 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
-                  'x2gd.16xlarge', 'x2gd.metal']
+                  'x2gd.metal', 'x2gd.16xlarge']
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
@@ -559,6 +621,7 @@ def deploy_handler(event, context):
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
+    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
     deploy_mode = event.get('deploy_mode', 'config')
     configs = event.get('configs', CONFIG_DEFAULT)
@@ -575,6 +638,7 @@ def deploy_handler(event, context):
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
+    run_helics = event.get('run_helics', False)
     profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
@@ -603,11 +667,12 @@ def deploy_handler(event, context):
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
 
-    selected_script = ""
+    selected_script = CONFIG_SCRIPT
     if run_grafana:
         selected_script = CONFIG_SCRIPT_WITH_GRAFANA
-    else:
-        selected_script = CONFIG_SCRIPT
+
+    if run_helics:
+        selected_script = HELICS_RUN + selected_script + HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT
 
     params = configs
     if s3_publish:
@@ -641,7 +706,7 @@ def deploy_handler(event, context):
             if len(params) > 1:
                 runName += "-" + `runNum`
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH',branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
+                .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName).replace('$MAX_RAM', max_ram).replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
@@ -649,6 +714,8 @@ def deploy_handler(event, context):
                 .replace('$PROFILER', profiler_type) \
                 .replace('$END_SCRIPT', end_script) \
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
+                .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
+                .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID'])
             if is_spot:
                 min_cores = event.get('min_cores', 0)
@@ -659,10 +726,13 @@ def deploy_handler(event, context):
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
             host = get_dns(instance_id)
-            txt = txt + 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+            txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
             if run_grafana:
-                txt = txt + 'Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view'.format(dns=host)
+                txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(dns=host)
+
+            if run_helics:
+                txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
 
             runNum += 1
     else:
