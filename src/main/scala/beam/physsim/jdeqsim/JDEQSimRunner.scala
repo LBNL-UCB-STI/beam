@@ -299,8 +299,6 @@ class JDEQSimRunner(
 
 object JDEQSimRunner {
 
-  def getLinkRankType()
-
   def getTravelTimeFunction(
     functionName: String,
     flowCapacityFactor: Double,
