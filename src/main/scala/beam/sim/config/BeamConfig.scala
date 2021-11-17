@@ -2841,8 +2841,7 @@ object BeamConfig {
 
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger: BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
-        cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc,
-        parameters: BeamConfig.Beam.Physsim.Jdeqsim.Parameters
+        cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc
       )
 
       object Jdeqsim {
@@ -2860,26 +2859,6 @@ object BeamConfig {
           }
         }
 
-        case class Parameters(
-          alpha: scala.Double,
-          beta: scala.Double
-        )
-
-        object Parameters {
-
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Parameters = {
-            BeamConfig.Beam.Physsim.Jdeqsim.Parameters(
-              alpha =
-                if (c.hasPathOrNull("alpha"))
-                  c.getDouble("alpha")
-                else 1.0,
-              beta =
-                if (c.hasPathOrNull("beta"))
-                  c.getDouble("beta")
-                else 2.0
-            )
-          }
-        }
 
         case class Cacc(
           adjustedMinimumRoadSpeedInMetersPerSecond: scala.Double,
@@ -2919,10 +2898,6 @@ object BeamConfig {
             cacc = BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
               if (c.hasPathOrNull("cacc")) c.getConfig("cacc")
               else com.typesafe.config.ConfigFactory.parseString("cacc{}")
-            ),
-            parameters = BeamConfig.Beam.Physsim.Jdeqsim.Parameters(
-              if (c.hasPathOrNull("parameters")) c.getConfig("parameters")
-              else com.typesafe.config.ConfigFactory.parseString("parameters{}")
             )
           )
         }
