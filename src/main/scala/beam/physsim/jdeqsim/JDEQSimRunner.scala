@@ -339,7 +339,6 @@ object JDEQSimRunner {
                 val tmp = volume / (capacity * 3600)
                 // TODO: find a way so that we can read the parameter from each link
 
-
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)

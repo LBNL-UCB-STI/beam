@@ -24,7 +24,6 @@ class NetworkCoordinatorTest extends AnyFunSuite with Matchers {
     trunk = Trunk(capacity = Some(34), lanes = Some(35), speed = Some(36)),
     trunkLink = TrunkLink(capacity = Some(37), lanes = Some(38), speed = Some(39)),
     unclassified = Unclassified(capacity = Some(40), lanes = Some(41), speed = Some(42))
-
   )
 
   test("getSpeeds should work properly") {

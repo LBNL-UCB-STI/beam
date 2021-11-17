@@ -257,7 +257,6 @@ object NetworkCoordinator {
     highwayType.motorway.capacity.foreach(capacity => map.put(HighwayType.Motorway, capacity))
     highwayType.motorwayLink.capacity.foreach(capacity => map.put(HighwayType.MotorwayLink, capacity))
 
-
     highwayType.primary.capacity.foreach(capacity => map.put(HighwayType.Primary, capacity))
     highwayType.primaryLink.capacity.foreach(capacity => map.put(HighwayType.PrimaryLink, capacity))
 

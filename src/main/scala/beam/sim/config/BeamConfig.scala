@@ -2919,6 +2919,10 @@ object BeamConfig {
             cacc = BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
               if (c.hasPathOrNull("cacc")) c.getConfig("cacc")
               else com.typesafe.config.ConfigFactory.parseString("cacc{}")
+            ),
+            parameters = BeamConfig.Beam.Physsim.Jdeqsim.Parameters(
+              if (c.hasPathOrNull("parameters")) c.getConfig("parameters")
+              else com.typesafe.config.ConfigFactory.parseString("parameters{}")
             )
           )
         }
@@ -2971,7 +2975,7 @@ object BeamConfig {
             lanes: scala.Option[scala.Int],
             speed: scala.Option[scala.Double],
             alpha: scala.Option[scala.Double],
-            beta:  scala.Option[scala.Double]
+            beta: scala.Option[scala.Double]
           )
 
           object LivingStreet {
@@ -2984,18 +2988,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Minor(
-                            capacity: scala.Option[scala.Int],
-                            lanes: scala.Option[scala.Int],
-                            speed: scala.Option[scala.Double],
-                            alpha: scala.Option[scala.Double],
-                            beta:  scala.Option[scala.Double]
-
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Minor {
@@ -3008,17 +3011,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Motorway(
-               capacity: scala.Option[scala.Int],
-               lanes: scala.Option[scala.Int],
-               speed: scala.Option[scala.Double],
-               alpha: scala.Option[scala.Double],
-               beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Motorway {
@@ -3031,17 +3034,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class MotorwayLink(
-                                   capacity: scala.Option[scala.Int],
-                                   lanes: scala.Option[scala.Int],
-                                   speed: scala.Option[scala.Double],
-                                   alpha: scala.Option[scala.Double],
-                                   beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object MotorwayLink {
@@ -3054,17 +3057,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Primary(
-                              capacity: scala.Option[scala.Int],
-                              lanes: scala.Option[scala.Int],
-                              speed: scala.Option[scala.Double],
-                              alpha: scala.Option[scala.Double],
-                              beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Primary {
@@ -3077,17 +3080,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class PrimaryLink(
-                                  capacity: scala.Option[scala.Int],
-                                  lanes: scala.Option[scala.Int],
-                                  speed: scala.Option[scala.Double],
-                                  alpha: scala.Option[scala.Double],
-                                  beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object PrimaryLink {
@@ -3100,17 +3103,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Residential(
-                                  capacity: scala.Option[scala.Int],
-                                  lanes: scala.Option[scala.Int],
-                                  speed: scala.Option[scala.Double],
-                                  alpha: scala.Option[scala.Double],
-                                  beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Residential {
@@ -3123,17 +3126,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Secondary(
-                                capacity: scala.Option[scala.Int],
-                                lanes: scala.Option[scala.Int],
-                                speed: scala.Option[scala.Double],
-                                alpha: scala.Option[scala.Double],
-                                beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Secondary {
@@ -3146,17 +3149,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class SecondaryLink(
-                                    capacity: scala.Option[scala.Int],
-                                    lanes: scala.Option[scala.Int],
-                                    speed: scala.Option[scala.Double],
-                                    alpha: scala.Option[scala.Double],
-                                    beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object SecondaryLink {
@@ -3169,17 +3172,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Tertiary(
-                               capacity: scala.Option[scala.Int],
-                               lanes: scala.Option[scala.Int],
-                               speed: scala.Option[scala.Double],
-                               alpha: scala.Option[scala.Double],
-                               beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Tertiary {
@@ -3192,17 +3195,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class TertiaryLink(
-                                   capacity: scala.Option[scala.Int],
-                                   lanes: scala.Option[scala.Int],
-                                   speed: scala.Option[scala.Double],
-                                   alpha: scala.Option[scala.Double],
-                                   beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object TertiaryLink {
@@ -3215,17 +3218,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Trunk(
-                            capacity: scala.Option[scala.Int],
-                            lanes: scala.Option[scala.Int],
-                            speed: scala.Option[scala.Double],
-                            alpha: scala.Option[scala.Double],
-                            beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Trunk {
@@ -3238,17 +3241,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class TrunkLink(
-                                capacity: scala.Option[scala.Int],
-                                lanes: scala.Option[scala.Int],
-                                speed: scala.Option[scala.Double],
-                                alpha: scala.Option[scala.Double],
-                                beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object TrunkLink {
@@ -3261,17 +3264,17 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
 
           case class Unclassified(
-                                   capacity: scala.Option[scala.Int],
-                                   lanes: scala.Option[scala.Int],
-                                   speed: scala.Option[scala.Double],
-                                   alpha: scala.Option[scala.Double],
-                                   beta:  scala.Option[scala.Double]
+            capacity: scala.Option[scala.Int],
+            lanes: scala.Option[scala.Int],
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Unclassified {
@@ -3284,7 +3287,7 @@ object BeamConfig {
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
                 speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
                 alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
-                beta  = if (c.hasPathOrNull("beta"))  Some(c.getDouble("beta"))  else None
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
