@@ -4,15 +4,13 @@ import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
+import beam.utils.NetworkEdgeOutputGenerator.beamConfig
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
@@ -29,7 +27,6 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
 import scala.concurrent.ExecutionContext
-
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -345,7 +342,9 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val originalTravelTime = ftt * (1 + tmp * tmp)
+                val alpha = beamConfig.beam.physsim.jdeqsim.parameters.alpha
+                val beta = beamConfig.beam.physsim.jdeqsim.parameters.beta
+                val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
                 originalTravelTime + additionalTravelTime(link, time)
               } else {
                 ftt + additionalTravelTime(link, time)

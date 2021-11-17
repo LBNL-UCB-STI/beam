@@ -2841,7 +2841,8 @@ object BeamConfig {
 
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger: BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
-        cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc
+        cacc: BeamConfig.Beam.Physsim.Jdeqsim.Cacc,
+        parameters: BeamConfig.Beam.Physsim.Jdeqsim.Parameters
       )
 
       object Jdeqsim {
@@ -2855,6 +2856,26 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger = {
             BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger(
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled")
+            )
+          }
+        }
+
+        case class Parameters(
+                         alpha: scala.Double,
+                         beta: scala.Double
+                       )
+        object Parameters {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Parameters = {
+            BeamConfig.Beam.Physsim.Jdeqsim.Parameters(
+              alpha =
+                if (c.hasPathOrNull("alpha"))
+                  c.getDouble("alpha")
+                else 1.0,
+              beta =
+                if (c.hasPathOrNull("beta"))
+                  c.getDouble("beta")
+                else 2.0
             )
           }
         }
