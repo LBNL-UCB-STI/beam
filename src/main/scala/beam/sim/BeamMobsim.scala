@@ -63,6 +63,7 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
+  private val initTimeout: Timeout = Timeout(5, TimeUnit.SECONDS)
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
 
   import beamServices._
@@ -143,6 +144,7 @@ class BeamMobsim @Inject() (
       fillInSecondaryActivities(matsimServices.getScenario.getHouseholds)
     }
 
+    // TODO if iteration dies simulation should die too (supervisor)
     val iteration = actorSystem.actorOf(
       Props(
         new BeamMobsimIteration(
@@ -156,6 +158,7 @@ class BeamMobsim @Inject() (
       ),
       "BeamMobsim.iteration"
     )
+    Await.result(iteration ? "Init", initTimeout.duration)
     Await.result(iteration ? "Run!", timeout.duration)
 
     logger.info("Agentsim finished.")
@@ -572,6 +575,10 @@ class BeamMobsimIteration(
     case EventBuilderActorCompleted =>
       runSender ! Success("Ran.")
       context.stop(self)
+
+    case "Init" =>
+      log.info("BeamMobsimIteration initialization completed")
+      sender() ! "OK"
 
     case "Run!" =>
       runSender = sender
