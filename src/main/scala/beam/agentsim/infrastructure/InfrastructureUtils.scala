@@ -303,9 +303,13 @@ object InfrastructureUtils extends LazyLogging {
     stalls: Map[Id[ParkingZoneId], ParkingZone[GEO]]
   ): Map[Id[VehicleManager], Map[Id[ParkingZoneId], ParkingZone[GEO]]] = {
     import VehicleManager._
-    stalls
+    val res = stalls
       .filter(x => x._2.chargingPointType.nonEmpty && x._2.reservedFor.managerType == TypeEnum.RideHail)
       .groupBy(_._2.reservedFor.managerId)
+    if (res.isEmpty) {
+      throw new RuntimeException("RideHail charging zones are empty")
+    }
+    res
   }
 
   /**
