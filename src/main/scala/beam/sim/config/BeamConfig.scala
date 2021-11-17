@@ -2861,9 +2861,10 @@ object BeamConfig {
         }
 
         case class Parameters(
-                         alpha: scala.Double,
-                         beta: scala.Double
-                       )
+          alpha: scala.Double,
+          beta: scala.Double
+        )
+
         object Parameters {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Parameters = {
