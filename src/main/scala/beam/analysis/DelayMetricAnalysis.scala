@@ -1,10 +1,9 @@
 package beam.analysis
 
 import java.util
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.google.inject.Inject
@@ -65,9 +64,7 @@ class DelayMetricAnalysis @Inject() (
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
         calculateNetworkUtilization(pathTraversalEvent)
-
-        val mode = pathTraversalEvent.mode
-        if (mode.value.equalsIgnoreCase(CAR.value)) {
+        if (pathTraversalEvent.mode == BeamMode.CAR) {
           val linkIds = pathTraversalEvent.linkIds
           val linkTravelTimes = pathTraversalEvent.linkTravelTime
           assert(linkIds.length == linkTravelTimes.length)

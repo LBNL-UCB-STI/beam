@@ -1,7 +1,6 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
@@ -300,8 +299,6 @@ class BeamVehicle(
     )
   }
 
-  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
-
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal + fuelInJoules
@@ -541,6 +538,17 @@ object BeamVehicle {
                           primaryLoggingData: IndexedSeq[LoggingData],
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
   )
+
+  val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
+  val idPrefixRideHail = "rideHailVehicle"
+
+  def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixRideHail)
+  }
+
+  def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
+  }
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")

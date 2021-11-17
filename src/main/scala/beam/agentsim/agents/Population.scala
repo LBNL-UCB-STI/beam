@@ -11,6 +11,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
@@ -88,6 +89,7 @@ class Population(
   }
 
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
+    val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
       if (
@@ -145,7 +147,8 @@ class Population(
           sharedVehicleFleets,
           sharedVehicleTypes,
           routeHistory,
-          boundingBox
+          boundingBox,
+          vehicleAdjustment
         ),
         household.getId.toString
       )

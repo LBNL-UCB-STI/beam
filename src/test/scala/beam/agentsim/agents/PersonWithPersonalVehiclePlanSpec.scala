@@ -17,6 +17,7 @@ import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -131,7 +132,8 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            boundingBox
+            boundingBox,
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
       )
@@ -368,7 +370,8 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            boundingBox
+            boundingBox,
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
       )
@@ -518,7 +521,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          boundingBox,
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -555,6 +559,123 @@ class PersonWithPersonalVehiclePlanSpec
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+
+      expectMsgType[CompletionNotice]
+    }
+
+    it("should create a last resort car if told to drive but no cars are available") {
+      val modeChoiceEvents = new TestProbe(system)
+      val personEntersVehicleEvents = new TestProbe(system)
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            event match {
+              case _: AbstractSkimmerEvent     => // ignore
+              case _: ModeChoiceEvent          => modeChoiceEvents.ref ! event
+              case _: PersonEntersVehicleEvent => personEntersVehicleEvents.ref ! event
+              case _                           => // ignore
+            }
+          }
+        }
+      )
+      val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+      val car1 = new BeamVehicle(
+        Id.createVehicleId("car-1"),
+        new Powertrain(0.0),
+        vehicleType
+      )
+
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
+      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id, CAR)
+      population.addPerson(person)
+      val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, CAR)
+      population.addPerson(otherPerson)
+
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 24 * 60 * 60,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+      val parkingManager = system.actorOf(Props(new TrivialParkingManager))
+      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
+
+      val householdActor = TestActorRef[HouseholdActor](
+        new HouseholdActor(
+          services,
+          beamScenario,
+          _ => modeChoiceCalculator,
+          scheduler,
+          beamScenario.transportNetwork,
+          services.tollCalculator,
+          self,
+          self,
+          parkingManager,
+          self,
+          eventsManager,
+          population,
+          household,
+          Map(car1.id -> car1),
+          new Coord(0.0, 0.0),
+          Vector(),
+          Set(vehicleType),
+          new RouteHistory(beamConfig),
+          boundingBox,
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+        )
+      )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+
+      scheduler ! StartSchedule(0)
+
+      for (_ <- 0 to 1) {
+        expectMsgPF() {
+          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
+            val embodiedLeg = EmbodiedBeamLeg(
+              beamLeg = leg.copy(
+                duration = 500,
+                travelPath = leg.travelPath.copy(
+                  linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                  endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+                )
+              ),
+              beamVehicleId = vehicleId,
+              Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+              asDriver = true,
+              cost = 0.0,
+              unbecomeDriverOnCompletion = true
+            )
+            lastSender ! RoutingResponse(
+              itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+              requestId = 1,
+              request = None,
+              isEmbodyWithCurrentTravelTime = false,
+              triggerId = triggerId
+            )
+          case RoutingRequest(_, _, _, _, _, _, _, _, _, _, triggerId) =>
+            lastSender ! RoutingResponse(
+              itineraries = Vector(),
+              requestId = 1,
+              request = None,
+              isEmbodyWithCurrentTravelTime = false,
+              triggerId = triggerId
+            )
+        }
+      }
+
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
@@ -617,7 +738,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          boundingBox,
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

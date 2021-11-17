@@ -70,7 +70,7 @@ class ParkingFunctions[GEO: GeoLevel](
     val parkingCostsPriceFactor: Double = parkingAlternative.costInDollars
 
     val goingHome: Boolean =
-      inquiry.activityType == ParkingActivityType.Home && parkingAlternative.parkingType == ParkingType.Residential
+      inquiry.parkingActivityType == ParkingActivityType.Home && parkingAlternative.parkingType == ParkingType.Residential
 
     val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
 
@@ -117,7 +117,7 @@ class ParkingFunctions[GEO: GeoLevel](
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _ =>
-        inquiry.activityType match {
+        inquiry.parkingActivityType match {
           case ParkingActivityType.Init | ParkingActivityType.Home =>
             val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
@@ -197,7 +197,7 @@ class ParkingFunctions[GEO: GeoLevel](
     */
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
-    inquiry.activityType match {
+    inquiry.parkingActivityType match {
       case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
       case ParkingActivityType.Init   => Set(ParkingType.Residential, ParkingType.Public)
       case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)

@@ -1,7 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
-import beam.utils.scenario.urbansim.censusblock.entities.{InputHousehold}
+import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
@@ -60,7 +60,7 @@ class UrbansimReaderV2(
       merger
         .merge(planReader.iterator())
         .map { plan: PlanElement =>
-          if (plan.planElementType.equalsIgnoreCase("activity") && shouldConvertWgs2Utm) {
+          if (plan.planElementType == PlanElement.Activity && shouldConvertWgs2Utm) {
             val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
             plan.copy(activityLocationX = Some(utmCoord.getX), activityLocationY = Some(utmCoord.getY))
           } else {
