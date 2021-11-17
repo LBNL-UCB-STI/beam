@@ -99,4 +99,50 @@ class NetworkCoordinatorTest extends AnyFunSuite with Matchers {
     lanes.get(HighwayType.TrunkLink) shouldBe 38
     lanes.get(HighwayType.Unclassified) shouldBe 41
   }
+
+  test("getAlphas should work properly") {
+    // Check that in case when value is not provided
+    val whenMissing =
+      NetworkCoordinator.getAlphas(highwayType.copy(livingStreet = highwayType.livingStreet.copy(alpha = None)))
+    assert(Option(whenMissing.get(HighwayType.LivingStreet)).isEmpty)
+
+    val alpha = NetworkCoordinator.getAlphas(highwayType)
+    alpha.get(HighwayType.LivingStreet) shouldBe 1
+    alpha.get(HighwayType.Minor) shouldBe 1
+    alpha.get(HighwayType.Motorway) shouldBe 1
+    alpha.get(HighwayType.MotorwayLink) shouldBe 1
+    alpha.get(HighwayType.Primary) shouldBe 1
+    alpha.get(HighwayType.PrimaryLink) shouldBe 1
+    alpha.get(HighwayType.Residential) shouldBe 1
+    alpha.get(HighwayType.Secondary) shouldBe 1
+    alpha.get(HighwayType.SecondaryLink) shouldBe 1
+    alpha.get(HighwayType.Tertiary) shouldBe 1
+    alpha.get(HighwayType.TertiaryLink) shouldBe 1
+    alpha.get(HighwayType.Trunk) shouldBe 1
+    alpha.get(HighwayType.TrunkLink) shouldBe 1
+    alpha.get(HighwayType.Unclassified) shouldBe 1
+  }
+
+  test("getBetas should work properly") {
+    // Check that in case when value is not provided
+    val whenMissing =
+      NetworkCoordinator.getBetas(highwayType.copy(livingStreet = highwayType.livingStreet.copy(beta = None)))
+    assert(Option(whenMissing.get(HighwayType.LivingStreet)).isEmpty)
+
+    val beta = NetworkCoordinator.getBetas(highwayType)
+    beta.get(HighwayType.LivingStreet) shouldBe 2
+    beta.get(HighwayType.Minor) shouldBe 2
+    beta.get(HighwayType.Motorway) shouldBe 2
+    beta.get(HighwayType.MotorwayLink) shouldBe 2
+    beta.get(HighwayType.Primary) shouldBe 2
+    beta.get(HighwayType.PrimaryLink) shouldBe 2
+    beta.get(HighwayType.Residential) shouldBe 2
+    beta.get(HighwayType.Secondary) shouldBe 2
+    beta.get(HighwayType.SecondaryLink) shouldBe 2
+    beta.get(HighwayType.Tertiary) shouldBe 2
+    beta.get(HighwayType.TertiaryLink) shouldBe 2
+    beta.get(HighwayType.Trunk) shouldBe 2
+    beta.get(HighwayType.TrunkLink) shouldBe 2
+    beta.get(HighwayType.Unclassified) shouldBe 2
+  }
 }
