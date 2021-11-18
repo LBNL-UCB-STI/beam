@@ -231,7 +231,9 @@ object NetworkCoordinator {
       val speeds = getSpeeds(highwayType)
       val capacities = getCapacities(highwayType)
       val lanes = getLanes(highwayType)
-      new HighwaySetting(speeds, capacities, lanes)
+      val alphas = getAlphas(highwayType)
+      val betas = getBetas(highwayType)
+      new HighwaySetting(speeds, capacities, lanes, alphas, betas)
     }
   }
 
