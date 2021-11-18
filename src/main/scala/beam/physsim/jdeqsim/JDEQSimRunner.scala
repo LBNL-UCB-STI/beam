@@ -348,8 +348,8 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
-                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
+                val alpha = link.getAttributes.getAttribute("alpha").asInstanceOf[Double]
+                val beta = link.getAttributes.getAttribute("beta").asInstanceOf[Double]
                 val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
                 originalTravelTime + additionalTravelTime(link, time)
               } else {
