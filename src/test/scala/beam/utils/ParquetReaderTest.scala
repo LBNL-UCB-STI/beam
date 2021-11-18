@@ -1,7 +1,9 @@
 package beam.utils
-import org.scalatest.{Matchers, WordSpec}
 
-class ParquetReaderTest extends WordSpec with Matchers {
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
+
+class ParquetReaderTest extends AnyWordSpec with Matchers {
   "ParquetReader" should {
     "be able to read parquet file" in {
       val (iter, toClose) = ParquetReader.read("test/test-resources/test.parquet")

@@ -18,7 +18,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
   import GenericCsvReader._
 
   override def read(path: String): Array[PersonInfo] = {
-    val (it, toClose) = readAs[PersonInfo](path, toPersonInfo, x => true)
+    val (it, toClose) = readAs[PersonInfo](path, toPersonInfo, _ => true)
     try {
       it.toArray
     } finally {
@@ -38,7 +38,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
     val rank = getIfNotNull(rec, "householdRank").toInt
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
     val industry = Option(rec.get("industry"))
-    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime")).getOrElse("0"), 0D)
+    val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime")).getOrElse("0"), 0d)
     PersonInfo(
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),

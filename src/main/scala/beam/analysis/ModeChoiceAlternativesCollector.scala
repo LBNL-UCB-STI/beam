@@ -82,7 +82,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
     tripDuration: Int,
     tripType: String,
     leg: EmbodiedBeamLeg,
-    tripCategory: Int,
+    tripCategory: Int
   ): Unit = {
     val beamLegType = if (leg.beamVehicleTypeId != null) leg.beamVehicleTypeId.toString else "DEFAULT"
     val vehicleType = if (leg.isRideHail) "RH_" + beamLegType else beamLegType

@@ -131,7 +131,7 @@ case class AttributesOfIndividual(
 
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers) *
-        embodiedBeamLeg.beamLeg.duration.toDouble / 3600
+          embodiedBeamLeg.beamLeg.duration / 3600
     }
   }
 
@@ -141,7 +141,7 @@ case class AttributesOfIndividual(
 
   private def getAutomationLevel(
     beamVehicleTypeId: Id[BeamVehicleType],
-    beamServices: BeamServices,
+    beamServices: BeamServices
   ): automationLevel = {
     val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
@@ -185,7 +185,8 @@ case class AttributesOfIndividual(
     // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
     val currentLink = beamServices.networkHelper.getLink(linkID).get
     val freeSpeed: Double = currentLink.getFreespeed()
-    val currentSpeed: Double = if (travelTime == 0) { freeSpeed } else { currentLink.getLength() / travelTime }
+    val currentSpeed: Double = if (travelTime == 0) { freeSpeed }
+    else { currentLink.getLength() / travelTime }
     if (currentSpeed < 0.67 * freeSpeed) {
       if (freeSpeed > 20) {
         (highCongestion, highway)

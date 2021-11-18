@@ -24,10 +24,12 @@ class CsvPersonInfoWriter(val path: String) extends AutoCloseable {
 }
 
 object CsvPersonInfoWriter extends PersonInfoWriter {
+
   private val headers: Array[String] =
-    Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime", "industry")
+    Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime")
+
   override def write(path: String, xs: Iterator[PersonInfo]): Unit = {
-    val csvWriter: CsvWriter = new CsvWriter(path, headers)
+    val csvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
     } finally {

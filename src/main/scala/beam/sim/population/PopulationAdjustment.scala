@@ -1,17 +1,16 @@
 package beam.sim.population
 
-import java.util.Random
-
-import beam.{agentsim, sim}
 import beam.router.Modes.BeamMode
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.{agentsim, sim}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
 
+import java.util.Random
 import scala.collection.JavaConverters._
 
 /**
@@ -37,10 +36,9 @@ trait PopulationAdjustment extends LazyLogging {
       .toMap
 
     //Iterate over each person in the population
-    population.getPersons.asScala.foreach {
-      case (_, person) =>
-        val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
-        person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
+    population.getPersons.asScala.foreach { case (_, person) =>
+      val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
+      person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
   }
@@ -197,7 +195,7 @@ object PopulationAdjustment extends LazyLogging {
       case DIFFUSION_POTENTIAL_ADJUSTMENT =>
         new DiffusionPotentialPopulationAdjustment(beamServices)
       case CAR_RIDE_HAIL_ONLY =>
-        new CarRideHailOnly(beamServices)
+        CarRideHailOnly(beamServices)
       case adjClass =>
         try {
           Class
@@ -236,27 +234,21 @@ object PopulationAdjustment extends LazyLogging {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
     val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
-    val initialAvailableModes = person.getCustomAttributes.isEmpty match {
-      case true =>
-        BeamMode.allModes
-      case false =>
-        person.getCustomAttributes.containsKey("beam-attributes") match {
-          case true =>
-            person.getCustomAttributes
-              .get("beam-attributes")
-              .asInstanceOf[sim.population.AttributesOfIndividual]
-              .availableModes
-          case false =>
-            BeamMode.allModes
-        }
-    }
+    val initialAvailableModes: Seq[BeamMode] =
+      if (person.getCustomAttributes.isEmpty) BeamMode.allModes
+      else if (person.getCustomAttributes.containsKey("beam-attributes")) {
+        person.getCustomAttributes
+          .get("beam-attributes")
+          .asInstanceOf[sim.population.AttributesOfIndividual]
+          .availableModes
+      } else BeamMode.allModes
     val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
     // Read person attribute "income" and default it to 0 if not set
     val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
       .map(_.asInstanceOf[Double])
-      .getOrElse(0D)
+      .getOrElse(0d)
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -292,7 +284,8 @@ object PopulationAdjustment extends LazyLogging {
   }
 
   def incomeToValueOfTime(income: Double, minimumValueOfTime: Double = 7.25): Option[Double] = {
-    val workHoursPerYear = 51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
+    val workHoursPerYear =
+      51 * 40 // TODO: Make nonlinear--eg https://ac.els-cdn.com/S0965856411001613/1-s2.0-S0965856411001613-main.pdf
     val wageFactor = 0.5
     if (income > 0) {
       Some(math.max(income / workHoursPerYear * wageFactor, minimumValueOfTime))

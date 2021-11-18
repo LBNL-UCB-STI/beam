@@ -12,13 +12,13 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
 
-trait BeamScenarioForTest extends MockitoSugar {
+trait BeamScenarioForTest extends AnyFlatSpec {
 
   def getBeamScenario(pathToConfig: String, skimTravelTimesScalingFactor: Double): BeamScenario = {
     val beamConfig = BeamConfig(
@@ -42,7 +42,7 @@ trait BeamScenarioForTest extends MockitoSugar {
     )
     val vehicleTypes = Map(vehicleType.id                -> vehicleType)
     val fuelTypePrices = Map(vehicleType.primaryFuelType -> 10.0)
-    val tazMap = mock[TAZTreeMap]
+    val tazMap = mock(classOf[TAZTreeMap])
     when(tazMap.getTAZ(any[java.lang.Double](), any[java.lang.Double]()))
       .thenReturn(TAZ.DefaultTAZ)
 
@@ -50,22 +50,24 @@ trait BeamScenarioForTest extends MockitoSugar {
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
       TrieMap.empty,
-      vehicleEnergy = mock[VehicleEnergy],
+      vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
         ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
       ),
       ptFares = PtFares(List.empty),
-      transportNetwork = mock[TransportNetwork],
-      network = mock[Network],
+      transportNetwork = mock(classOf[TransportNetwork]),
       networks2 = None,
+      network = mock(classOf[Network]),
       tazTreeMap = tazMap,
+      exchangeGeoMap = None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
-      h3taz = null
+      h3taz = null,
+      freightCarriers = null
     )
   }
 }

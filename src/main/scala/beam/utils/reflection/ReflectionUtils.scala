@@ -16,7 +16,6 @@ import scala.reflect.ClassTag
 trait ReflectionUtils {
 
   /**
-    *
     * @return package name to scan in
     */
   def packageName: String
@@ -83,9 +82,9 @@ object ReflectionUtils {
               log.info(indent + s"\t$name: $value")
             }
           }
-
         } catch {
-          case e: Exception =>
+          case error: Exception =>
+            log.debug("Error on logField", error)
         }
 
         if (level > 0) {

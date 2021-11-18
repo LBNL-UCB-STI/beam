@@ -23,7 +23,7 @@ class AgeOfWorkerTableReader(
   )
   require(
     allowedGeos.contains(residenceToWorkplaceFlowGeography),
-    s"Can't find '${residenceToWorkplaceFlowGeography}' in allowedGeos: ${allowedGeos}"
+    s"Can't find '$residenceToWorkplaceFlowGeography' in allowedGeos: $allowedGeos"
   )
 
   private val lineNumberToAge: Map[Int, AgeRange] = Map(

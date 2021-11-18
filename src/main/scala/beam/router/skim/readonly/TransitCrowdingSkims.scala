@@ -12,7 +12,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.vehicles.Vehicle
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) extends AbstractSkimmerReadOnly {
@@ -96,6 +95,7 @@ class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleTyp
     )
   }
 
+  @SuppressWarnings(Array("RepeatedCaseBody")) //todo: maybe remove in the future
   private def average(
     first: Option[TransitCrowdingSkimmerInternal],
     second: Option[TransitCrowdingSkimmerInternal],
@@ -109,7 +109,6 @@ class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleTyp
         iterations = 2
       )
     }
-
     (first, second) match {
       case (Some(x), None) =>
         TransitCrowdingSkimmerInternal(IntMath.divide(x.numberOfPassengers, 2, RoundingMode.HALF_UP), x.capacity, 2)

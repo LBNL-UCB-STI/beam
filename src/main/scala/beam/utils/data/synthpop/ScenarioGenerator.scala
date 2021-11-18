@@ -111,8 +111,10 @@ class SimpleScenarioGenerator(
 
   private val rndWorkDestinationGenerator: RandomWorkDestinationGenerator =
     new RandomWorkDestinationGenerator(dbInfo)
+
   private val workedDurationGeneratorImpl: WorkedDurationGeneratorImpl =
     new WorkedDurationGeneratorImpl(pathToWorkedHours, new MersenneTwister(randomSeed))
+
   private val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography =
     ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`
 
@@ -194,16 +196,14 @@ class SimpleScenarioGenerator(
     val allWorkingDestinations = blockGroupGeoIdToHouseholds.values.flatMap { x =>
       x.flatMap { case (_, xs) => xs.map(_.workDest) }
     }
-    val tazGeoIdToOccurrences = allWorkingDestinations.foldLeft(Map[TazGeoId, Int]()) {
-      case (acc, c) =>
-        val occur = acc.getOrElse(c, 0) + 1
-        acc.updated(c, occur)
+    val tazGeoIdToOccurrences = allWorkingDestinations.foldLeft(Map[TazGeoId, Int]()) { case (acc, c) =>
+      val occur = acc.getOrElse(c, 0) + 1
+      acc.updated(c, occur)
     }
     logger.info(s"allWorkingDestinations: ${allWorkingDestinations.size}")
     logger.info(s"tazGeoIdToOccurrences: ${tazGeoIdToOccurrences.size}")
-    tazGeoIdToOccurrences.foreach {
-      case (tazGeoId, cnt) =>
-        logger.info(s"$tazGeoId => $cnt")
+    tazGeoIdToOccurrences.foreach { case (tazGeoId, cnt) =>
+      logger.info(s"$tazGeoId => $cnt")
     }
     logger.info(s"Generating TAZ geo id to working locations...")
 
@@ -212,45 +212,43 @@ class SimpleScenarioGenerator(
     // Generate all work destinations which will be later assigned to people
     val tazGeoIdToWorkingLocations =
       ProfilingUtils.timed("Generated TAZ geo id to working locations", x => logger.info(x)) {
-        tazGeoIdToOccurrences.par.map {
-          case (tazGeoId: TazGeoId, nWorkingPlaces) =>
-            val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
-              case Some(geom) =>
-                ProfilingUtils.timed(s"Generate ${nWorkingPlaces} geo points in ${tazGeoId}", x => logger.info(x)) {
-                  val initLocations = pointsGenerator.generate(geom, (nPointsMultiplier * nWorkingPlaces).toInt)
-                  val withinMapConstrains = initLocations.filter(
-                    c => geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
-                  )
-                  val finalLocations = withinMapConstrains.take(nWorkingPlaces)
-                  logger.info(
-                    s"${tazGeoId}: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
-                  )
-                  finalLocations
-                }
-              case None =>
-                logger.warn(s"Can't find ${tazGeoId} in `tazGeoIdToGeom`")
-                Seq.empty
-            }
-            tazGeoId -> workingGeos
+        tazGeoIdToOccurrences.par.map { case (tazGeoId: TazGeoId, nWorkingPlaces) =>
+          val workingGeos = geoSvc.tazGeoIdToGeom.get(tazGeoId) match {
+            case Some(geom) =>
+              ProfilingUtils.timed(s"Generate $nWorkingPlaces geo points in $tazGeoId", x => logger.info(x)) {
+                val initLocations = pointsGenerator.generate(geom, (nPointsMultiplier * nWorkingPlaces).toInt)
+                val withinMapConstrains = initLocations.filter(c =>
+                  geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
+                )
+                val finalLocations = withinMapConstrains.take(nWorkingPlaces)
+                logger.info(
+                  s"$tazGeoId: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
+                )
+                finalLocations
+              }
+            case None =>
+              logger.warn(s"Can't find $tazGeoId in `tazGeoIdToGeom`")
+              Seq.empty
+          }
+          tazGeoId -> workingGeos
         }.seq
       }
 
     logger.info(s"Generating BlockGroup geo id to household locations...")
     val blockGroupGeoIdToHouseholdsLocations =
       ProfilingUtils.timed(s"Generate ${households.size} household locations", x => logger.info(x)) {
-        blockGroupGeoIdToHouseholds.par.map {
-          case (blockGroupGeoId, householdsWithPersonData) =>
-            val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
-            val initLocations =
-              pointsGenerator.generate(blockGeomOfHousehold, (nPointsMultiplier * householdsWithPersonData.size).toInt)
-            val withinMapConstrains = initLocations.filter(
-              c => geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
-            )
-            val finalLocations = withinMapConstrains.take(householdsWithPersonData.size)
-            logger.info(
-              s"${blockGroupGeoId}: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
-            )
-            blockGroupGeoId -> finalLocations
+        blockGroupGeoIdToHouseholds.par.map { case (blockGroupGeoId, householdsWithPersonData) =>
+          val blockGeomOfHousehold = geoSvc.blockGroupGeoIdToGeom(blockGroupGeoId)
+          val initLocations =
+            pointsGenerator.generate(blockGeomOfHousehold, (nPointsMultiplier * householdsWithPersonData.size).toInt)
+          val withinMapConstrains = initLocations.filter(c =>
+            geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
+          )
+          val finalLocations = withinMapConstrains.take(householdsWithPersonData.size)
+          logger.info(
+            s"$blockGroupGeoId: Generated ${initLocations.length} initial locations and ${withinMapConstrains.length} are within map, finalLocations: ${finalLocations.length}"
+          )
+          blockGroupGeoId -> finalLocations
         }.seq
       }
 
@@ -298,8 +296,8 @@ class SimpleScenarioGenerator(
               val (personsAndPlans, lastPersonId) =
                 personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
                   case (
-                      (xs, nextPersonId: Int),
-                      PersonWithExtraInfo(person, homeLocGeoId, workTazGeoId, timeLeavingHomeRange)
+                        (xs, nextPersonId: Int),
+                        PersonWithExtraInfo(person, homeLocGeoId, workTazGeoId, timeLeavingHomeRange)
                       ) =>
                     val workLocations = tazGeoIdToWorkingLocations(workTazGeoId)
                     val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
@@ -316,7 +314,7 @@ class SimpleScenarioGenerator(
                           excludedModes = Seq.empty,
                           isFemale = person.gender == Gender.Female,
                           valueOfTime = valueOfTime,
-                          industry = person.industry,
+                          industry = person.industry
                         )
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
@@ -418,6 +416,27 @@ class SimpleScenarioGenerator(
     )
   }
 
+  private def getBlockGroupToTazs(
+    blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry],
+    tazGeoIdToGeom: Map[TazGeoId, Geometry]
+  ): Map[BlockGroupGeoId, List[(TazGeoId, Double)]] = {
+    // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
+    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map {
+      case (blockGroupGeoId, blockGroupGeom) =>
+        // Intersect with all TAZ
+        val allIntersections = tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
+          val intersection = blockGroupGeom.intersection(tazGeo)
+          if (intersection.isEmpty)
+            None
+          else {
+            Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
+          }
+        }
+        blockGroupGeoId -> allIntersections.map(_._3).toList
+      }.seq
+    blockGroupToTazs
+  }
+
   def findWorkingLocation(
     tazGeoId: TazGeoId,
     households: Seq[Models.Household],
@@ -466,7 +485,10 @@ class SimpleScenarioGenerator(
       geoIdToHouseholds.toSeq.par // Process in parallel!
         .map { // We process it in parallel, but there is no shared state
           case (blockGroupGeoId, households) =>
-            val rndGen = new MersenneTwister(randomSeed) // It is important to create random generator here because `MersenneTwister` is not thread-safe
+            val rndGen =
+              new MersenneTwister(
+                randomSeed
+              ) // It is important to create random generator here because `MersenneTwister` is not thread-safe
             val tazes = blockGroupToToTazs(blockGroupGeoId)
             // It is one to many relation
             // BlockGroupGeoId1 -> TAZ1
@@ -480,12 +502,12 @@ class SimpleScenarioGenerator(
 
             val householdWithPersons = uniquePersons
               .map(p => (personIdToHousehold(p.person), p))
-              .groupBy { case (hh, xs) => hh }
+              .groupBy { case (hh, _) => hh }
               .map { case (hh, xs) => (hh, xs.map(_._2)) }
               .toSeq
             val processed = numberOfProcessed.incrementAndGet()
             logger.info(
-              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, ${processed} out of ${geoIdToHouseholds.size}"
+              s"$blockGroupGeoId associated ${householdWithPersons.size} households with ${uniquePersons.size} people, $processed out of ${geoIdToHouseholds.size}"
             )
             blockGroupGeoId -> householdWithPersons
         }
@@ -501,10 +523,8 @@ class SimpleScenarioGenerator(
       .groupBy { p =>
         p.person
       }
-      .map {
-        case (p, xs) =>
-          new Random(randomSeed).shuffle(xs).head
-      }
+      .values
+      .map(xs => new Random(randomSeed).shuffle(xs).head)
       .toList
   }
 
@@ -530,10 +550,9 @@ class SimpleScenarioGenerator(
     val pathToFile = pathToFolder + "/taz-centers.csv.gz"
     val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
     try {
-      geoSvc.tazGeoIdToGeomWithExtraDetails.foreach {
-        case (taz, (geo, area)) =>
-          val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
-          csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, area)
+      geoSvc.tazGeoIdToGeomWithExtraDetails.foreach { case (taz, (geo, area)) =>
+        val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
+        csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, area)
       }
     } finally {
       Try(csvWriter.close())
@@ -554,20 +573,18 @@ class SimpleScenarioGenerator(
       .toSeq
       .map { case (res, xs) => res -> xs.map(_._2).sum }
       .sortBy { case (_, size) => -size }
-    resolutionToPoints.foreach {
-      case (res, size) =>
-        logger.info(s"Resolution: $res, number of points: $size")
+    resolutionToPoints.foreach { case (res, size) =>
+      logger.info(s"Resolution: $res, number of points: $size")
     }
     val h3Indexes = summary.items.sortBy(x => -x.size)
 
     val pathToFile = pathToFolder + "/h3-centers.csv.gz"
     val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
     try {
-      h3Indexes.foreach {
-        case GeoZoneSummaryItem(h3Index: H3Index, _) =>
-          val utmCoord = geoUtils.wgs2Utm(H3Wrapper.wgsCoordinate(h3Index).coord)
-          val area = H3Wrapper.areaInM2(h3Index)
-          csvWriter.write(h3Index.value, utmCoord.getX, utmCoord.getY, area)
+      h3Indexes.foreach { case GeoZoneSummaryItem(h3Index: H3Index, _) =>
+        val utmCoord = geoUtils.wgs2Utm(H3Wrapper.wgsCoordinate(h3Index).coord)
+        val area = H3Wrapper.areaInM2(h3Index)
+        csvWriter.write(h3Index.value, utmCoord.getX, utmCoord.getY, area)
       }
     } finally {
       Try(csvWriter.close())
@@ -585,6 +602,7 @@ class SimpleScenarioGenerator(
 }
 
 object SimpleScenarioGenerator extends StrictLogging {
+
   case class Arguments(
     sythpopDataFolder: String,
     ctppFolder: String,
@@ -609,19 +627,17 @@ object SimpleScenarioGenerator extends StrictLogging {
     blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry],
     tazGeoIdToGeom: Map[TazGeoId, Geometry]
   ): Map[BlockGroupGeoId, List[(TazGeoId, Double)]] = {
-    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map {
-      case (blockGroupGeoId, blockGroupGeom) =>
-        // Intersect with all TAZ
-        val allIntersections = tazGeoIdToGeom.flatMap {
-          case (tazGeoId, tazGeo) =>
-            val intersection: Geometry = blockGroupGeom.intersection(tazGeo)
-            if (intersection.isEmpty) // Should we consider the area?  && intersection.getArea == 0
-              None
-            else {
-              Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
-            }
+    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map { case (blockGroupGeoId, blockGroupGeom) =>
+      // Intersect with all TAZ
+      val allIntersections = tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
+        val intersection: Geometry = blockGroupGeom.intersection(tazGeo)
+        if (intersection.isEmpty) // Should we consider the area?  && intersection.getArea == 0
+          None
+        else {
+          Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
         }
-        blockGroupGeoId -> allIntersections.map(_._3).toList
+      }
+      blockGroupGeoId -> allIntersections.map(_._3).toList
     }.seq
     blockGroupToTazs
   }
@@ -629,7 +645,7 @@ object SimpleScenarioGenerator extends StrictLogging {
   def run(parsedArgs: Arguments): Unit = {
     val pathToOutput = parsedArgs.outputFolder + "_" + getCurrentDateTime
     val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
-    require(new File(pathToOutput).mkdirs(), s"${pathToOutput} exists, stopping...")
+    require(new File(pathToOutput).mkdirs(), s"$pathToOutput exists, stopping...")
 
     val gen =
       new SimpleScenarioGenerator(

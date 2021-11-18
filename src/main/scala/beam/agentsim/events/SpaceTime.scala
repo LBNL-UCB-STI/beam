@@ -5,6 +5,7 @@ import io.circe.{Encoder, Json}
 import org.matsim.api.core.v01.Coord
 
 case class SpaceTime(loc: Coord, time: Int) extends Ordered[SpaceTime] {
+
   override def compare(that: SpaceTime): Int = {
     var r = loc.getX.compare(that.loc.getX)
     if (r != 0) r

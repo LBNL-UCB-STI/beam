@@ -1,7 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
-import beam.utils.scenario.urbansim.censusblock.entities.{InputHousehold, TripElement}
+import beam.utils.scenario.urbansim.censusblock.entities.{InputHousehold}
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
@@ -15,7 +15,8 @@ class UrbansimReaderV2(
   val inputTripsPath: String,
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
-  val shouldConvertWgs2Utm: Boolean
+  val shouldConvertWgs2Utm: Boolean,
+  val modeMap: Map[String, String]
 ) extends ScenarioSource {
 
   private val logger = LoggerFactory.getLogger(getClass)
@@ -49,13 +50,7 @@ class UrbansimReaderV2(
   }
 
   override def getPlans: Iterable[PlanElement] = {
-    logger.info("Reading of the trips...")
-    val tripReader = new TripReader(inputTripsPath)
-    val modes = tripReader
-      .iterator()
-      .map(tripElement => (tripElement.personId, tripElement.depart) -> tripElement.trip_mode)
-      .toMap
-    val merger = new PlanMerger(modes)
+    val merger = new PlanMerger(modeMap)
 
     logger.info("Merging modes into plan...")
 
@@ -76,7 +71,6 @@ class UrbansimReaderV2(
     } finally {
       logger.info("Modes merged successfully into plan.")
       planReader.close()
-      tripReader.close()
     }
   }
 

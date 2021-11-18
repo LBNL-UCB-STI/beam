@@ -22,16 +22,14 @@ class TimeLeavingHomeGeneratorImpl(
   private val srcDstToTimeLeavingOD: Map[(String, String), Seq[OD[Range]]] =
     ProfilingUtils.timed("Created `srcDstToTimeLeavingOD` map", x => logger.info(x)) {
       sourceToTimeLeavingOD.toSeq
-        .flatMap {
-          case (source, xs) =>
-            xs.map { od =>
-              (source, od.destination) -> od
-            }
+        .flatMap { case (source, xs) =>
+          xs.map { od =>
+            (source, od.destination) -> od
+          }
         }
         .groupBy { case ((src, dst), _) => (src, dst) }
-        .map {
-          case (srcDst, xs) =>
-            srcDst -> xs.map(_._2).sortBy(x => x.attribute.start)
+        .map { case (srcDst, xs) =>
+          srcDst -> xs.map(_._2).sortBy(x => x.attribute.start)
         }
     }
 

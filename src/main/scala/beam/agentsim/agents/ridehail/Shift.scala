@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.Coord
   * @param startLocation an optional coordinate for the starting location of the shift
   */
 case class Shift(range: Range, startLocation: Option[Coord]) {
+
   override def toString(): String = {
     val locationStr = startLocation
       .map { location =>
@@ -24,7 +25,7 @@ object Shift {
 
   def apply(shiftStr: String) = {
     if (shiftStr.charAt(0).equals('|')) {
-      val coordAndRange = shiftStr.split("\\|")
+      val coordAndRange = shiftStr.split('|')
       if (coordAndRange.size != 3) {
         throw new NumberFormatException(
           s"Shift string malformed, if string begins with | then expecting a second | to enclose the coordinate portion of the shift, but instead found: $shiftStr"

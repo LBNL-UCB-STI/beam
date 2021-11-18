@@ -1,6 +1,5 @@
 package beam.api.sim.termination
 
-import beam.api.agentsim.agents.ridehail.charging.StallAssignmentStrategyFactory
 import beam.sim.config.BeamConfigHolder
 import beam.sim.termination.{
   CustomTerminateAtFixedIterationNumber,
@@ -34,6 +33,7 @@ trait TerminationCriterionFactory {
   * Default implementation of [[TerminationCriterionFactory]].
   */
 class DefaultTerminationCriterionFactory extends TerminationCriterionFactory {
+
   override def create(
     controlerConfigGroup: ControlerConfigGroup,
     beamConfigHolder: BeamConfigHolder,

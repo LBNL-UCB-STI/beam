@@ -42,30 +42,26 @@ object CompareLogs extends App with StrictLogging {
         .flatMap(extractPersonContent)
         .groupBy(_.personId)
 
-    xml.foreach {
-      case (id: String, lines: Seq[PersonContent]) =>
-        val obj: PersonLineLog = map.getOrElseUpdate(id, PersonLineLog(id, Seq.empty, Seq.empty))
-        map.update(id, obj.copy(xmlContent = obj.xmlContent ++ lines.map(_.content)))
+    xml.foreach { case (id: String, lines: Seq[PersonContent]) =>
+      val obj: PersonLineLog = map.getOrElseUpdate(id, PersonLineLog(id, Seq.empty, Seq.empty))
+      map.update(id, obj.copy(xmlContent = obj.xmlContent ++ lines.map(_.content)))
     }
 
-    csv.foreach {
-      case (id: String, lines: Seq[PersonContent]) =>
-        val obj = map.getOrElseUpdate(id, PersonLineLog(id, Seq.empty, Seq.empty))
-        map.update(id, obj.copy(csvContent = obj.csvContent ++ lines.map(_.content)))
+    csv.foreach { case (id: String, lines: Seq[PersonContent]) =>
+      val obj = map.getOrElseUpdate(id, PersonLineLog(id, Seq.empty, Seq.empty))
+      map.update(id, obj.copy(csvContent = obj.csvContent ++ lines.map(_.content)))
     }
 
     map.toList
       .sortBy(_._1)
-      .foreach {
-        case (id: String, log: PersonLineLog) =>
-          val xml = log.xmlContent.zip(log.csvContent).filterNot(v => v._1 == v._2)
-          val csv = log.csvContent.zip(log.xmlContent).filterNot(v => v._1 == v._2)
-          val full = if (xml.size > csv.size) xml else csv
-          val outputDiff: Seq[String] = full.map {
-            case (a, b) =>
-              s"[$id] Xml:$a\n[$id] Csv:$b"
-          }
-          logger.warn(outputDiff.mkString("\n", "\n", "\n"))
+      .foreach { case (id: String, log: PersonLineLog) =>
+        val xml = log.xmlContent.zip(log.csvContent).filterNot(v => v._1 == v._2)
+        val csv = log.csvContent.zip(log.xmlContent).filterNot(v => v._1 == v._2)
+        val full = if (xml.size > csv.size) xml else csv
+        val outputDiff: Seq[String] = full.map { case (a, b) =>
+          s"[$id] Xml:$a\n[$id] Csv:$b"
+        }
+        logger.warn(outputDiff.mkString("\n", "\n", "\n"))
       }
   }
 

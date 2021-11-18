@@ -2,7 +2,7 @@ package beam.analysis
 
 import beam.router.model.EmbodiedBeamLeg
 import beam.sim.common.GeoUtils
-import beam.sim.{BeamServices, CircularGeofence, Geofence, RideHailFleetInitializer, TAZGeofence}
+import beam.sim.{BeamServices, CircularGeofence, RideHailFleetInitializer}
 import beam.utils.Statistics
 import beam.utils.map.PointInfo
 import com.typesafe.scalalogging.LazyLogging
@@ -56,49 +56,46 @@ class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with Ite
 
   def handle(routingResponseEvent: RoutingResponseEvent, rideHailLegs: Seq[EmbodiedBeamLeg]): Unit = {
     rideHailLegs.foreach { rhl =>
-      rideHail2Geofence.get(rhl.beamVehicleId.toString).foreach { geofenceTmp =>
-        geofenceTmp match {
-          case geofence: CircularGeofence =>
-            val geofenceCoord = new Coord(geofence.geofenceX, geofence.geofenceY)
-            val startUtm = beamSvc.geo.wgs2Utm(rhl.beamLeg.travelPath.startPoint.loc)
-            val endUtm = beamSvc.geo.wgs2Utm(rhl.beamLeg.travelPath.endPoint.loc)
-            val diffStart = GeoUtils.distFormula(geofenceCoord, startUtm) - geofence.geofenceRadius
-            val diffEnd = GeoUtils.distFormula(geofenceCoord, endUtm) - geofence.geofenceRadius
-            if (diffStart > 0) {
-              val req =
-                routingResponseEvent.routingResponse.request
-                  .map(r => r.asJson.toString())
-                  .getOrElse("### NO REQUEST ###")
-              val resp = routingResponseEvent.routingResponse.copy(request = None).asJson.toString()
-              logger.info(
-                s"""Geofence is broken at start point. diffStart: $diffStart.
+      rideHail2Geofence.get(rhl.beamVehicleId.toString).foreach {
+        case geofence: CircularGeofence =>
+          val geofenceCoord = new Coord(geofence.geofenceX, geofence.geofenceY)
+          val startUtm = beamSvc.geo.wgs2Utm(rhl.beamLeg.travelPath.startPoint.loc)
+          val endUtm = beamSvc.geo.wgs2Utm(rhl.beamLeg.travelPath.endPoint.loc)
+          val diffStart = GeoUtils.distFormula(geofenceCoord, startUtm) - geofence.geofenceRadius
+          val diffEnd = GeoUtils.distFormula(geofenceCoord, endUtm) - geofence.geofenceRadius
+          if (diffStart > 0) {
+            val req =
+              routingResponseEvent.routingResponse.request
+                .map(r => r.asJson.toString())
+                .getOrElse("### NO REQUEST ###")
+            val resp = routingResponseEvent.routingResponse.copy(request = None).asJson.toString()
+            logger.info(
+              s"""Geofence is broken at start point. diffStart: $diffStart.
                    |  travelPath => startUtm: $startUtm, endUtm: $endUtm
                    |  geofenceCoord => $geofenceCoord
                    |  Routing request originated by ${routingResponseEvent.routingResponse.request
-                     .map(_.initiatedFrom)}: ${req}
+                .map(_.initiatedFrom)}: $req
                    |  Resp: $resp""".stripMargin
-              )
-              errors += PointInfo(diffStart, geofence.geofenceRadius)
-            }
-            if (diffEnd > 0) {
-              val req =
-                routingResponseEvent.routingResponse.request
-                  .map(r => r.asJson.toString())
-                  .getOrElse("### NO REQUEST ###")
-              val resp = routingResponseEvent.routingResponse.copy(request = None).asJson.toString()
-              logger.info(
-                s"""Geofence is broken at end point. diffEnd: $diffEnd.
+            )
+            errors += PointInfo(diffStart, geofence.geofenceRadius)
+          }
+          if (diffEnd > 0) {
+            val req =
+              routingResponseEvent.routingResponse.request
+                .map(r => r.asJson.toString())
+                .getOrElse("### NO REQUEST ###")
+            val resp = routingResponseEvent.routingResponse.copy(request = None).asJson.toString()
+            logger.info(
+              s"""Geofence is broken at end point. diffEnd: $diffEnd.
                    |  travelPath => startUtm: $startUtm, endUtm: $endUtm
                    |  geofenceCoord => $geofenceCoord
                    |  Routing request originated by ${routingResponseEvent.routingResponse.request
-                     .map(_.initiatedFrom)}: ${req}
+                .map(_.initiatedFrom)}: $req
                    |  Resp: $resp""".stripMargin
-              )
-              errors += PointInfo(diffEnd, geofence.geofenceRadius)
-            }
-          case x => logger.info(s"These cases are not implemented yet: ${x.getClass}")
-        }
-
+            )
+            errors += PointInfo(diffEnd, geofence.geofenceRadius)
+          }
+        case x => logger.info(s"These cases are not implemented yet: ${x.getClass}")
       }
     }
   }

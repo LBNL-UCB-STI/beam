@@ -112,7 +112,7 @@ object TimeLeavingHomeTableReader {
       new TimeLeavingHomeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
     val readData = timeLeavingHomeReader.read()
 
-    val nonZeros = readData.filterNot(x => x.value.equals(0D))
+    val nonZeros = readData.filterNot(x => x.value.equals(0d))
     val sum = readData.map(_.value).sum.toInt
     println(s"Read ${readData.size} OD pairs. ${nonZeros.size} is non-zero")
     println(s"Sum: $sum")

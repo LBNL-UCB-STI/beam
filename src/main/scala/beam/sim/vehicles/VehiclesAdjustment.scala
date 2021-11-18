@@ -1,4 +1,5 @@
 package beam.sim.vehicles
+
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory

@@ -37,7 +37,7 @@ object EventReader {
           s
         }
       }
-      new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
+      FileUtils.readerFromStream(stream)
     } else {
       FileUtils.readerFromFile(filePath)
     }
@@ -48,8 +48,10 @@ object EventReader {
     readAs[Event](rdr, x => new DummyEvent(x), filterPredicate)
   }
 
-  private def readAs[T](rdr: Reader, mapper: java.util.Map[String, String] => T, filterPredicate: T => Boolean)(
-    implicit ct: ClassTag[T]
+  private def readAs[T](
+    rdr: Reader,
+    mapper: java.util.Map[String, String] => T,
+    filterPredicate: T => Boolean
   ): (Iterator[T], Closeable) = {
     val csvRdr = new CsvMapReader(rdr, CsvPreference.STANDARD_PREFERENCE)
     val header = csvRdr.getHeader(true)

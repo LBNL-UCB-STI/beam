@@ -1,7 +1,8 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 
 case class BeamVehicleType(
@@ -26,12 +27,10 @@ case class BeamVehicleType(
   primaryVehicleEnergyFile: Option[String] = None,
   secondaryVehicleEnergyFile: Option[String] = None,
   sampleProbabilityWithinCategory: Double = 1.0,
-  sampleProbabilityString: Option[String] = None
+  sampleProbabilityString: Option[String] = None,
+  chargingCapability: Option[ChargingPointType] = None,
+  payloadCapacityInKg: Option[Double] = None
 ) {
-
-  def isEV: Boolean = {
-    primaryFuelType == Electricity || secondaryFuelType.contains(Electricity)
-  }
 
   def isCaccEnabled: Boolean = {
     automationLevel >= 3
@@ -65,9 +64,10 @@ object VehicleCategory {
   case object LightDutyTruck extends VehicleCategory
   case object HeavyDutyTruck extends VehicleCategory
 
-  def fromString(value: String): VehicleCategory = {
+  def fromString(value: String): VehicleCategory = fromStringOptional(value).get
+
+  def fromStringOptional(value: String): Option[VehicleCategory] = {
     Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
       .find(_.toString.equalsIgnoreCase(value))
-      .get
   }
 }

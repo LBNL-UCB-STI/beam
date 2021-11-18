@@ -22,6 +22,7 @@ class CsvPlanElementWriter(val path: String) extends AutoCloseable {
 }
 
 object CsvPlanElementWriter extends PlanElementWriter {
+
   private val headers: Array[String] = Array(
     "personId",
     "planIndex",

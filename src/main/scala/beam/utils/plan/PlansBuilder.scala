@@ -1,11 +1,7 @@
 package beam.utils.plan
 
-import java.io.{BufferedWriter, File, FileWriter}
-import java.nio.file.{Files, Paths}
-
 import beam.utils.plan.sampling.AvailableModeUtils.AllowAllModes
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
-import beam.utils.plan.sampling.PlansSampler.newPop
 import beam.utils.plan.sampling.PopulationAttrib.Rank
 import beam.utils.plan.sampling._
 import beam.utils.scripts.PopulationWriterCSV
@@ -23,6 +19,8 @@ import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 
+import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.{Files, Paths}
 import scala.collection.JavaConverters._
 import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
@@ -34,6 +32,7 @@ object PlansBuilder {
   val conf: Config = ConfigUtils.createConfig()
 
   private val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
+
   private val newPop: Population =
     PopulationUtils.createPopulation(ConfigUtils.createConfig())
   val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
@@ -49,7 +48,7 @@ object PlansBuilder {
   private var pop = Vector[Person]()
   var outDir: String = ""
   var sampleNumber: Int = 0
-  val rand = new Random(4175l) // should this Random use a fixed seed from beamConfig ?
+  val rand = new Random(4175L) // should this Random use a fixed seed from beamConfig ?
 
   case class UTMConverter(sourceCRS: String, targetCRS: String) extends GeoConverter {
 
@@ -133,10 +132,10 @@ object PlansBuilder {
     out.write("vehicleId,vehicleTypeId")
     out.newLine()
 
-    val carVehicleType =
-      JavaConverters
-        .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
-        .head
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
+    val carVehicleType = JavaConverters
+      .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
+      .head
     carVehicleType.setFlowEfficiencyFactor(1069)
     carVehicleType.getEngineInformation.setGasConsumption(1069)
     newVehicles.addVehicleType(carVehicleType)
@@ -204,7 +203,8 @@ object PlansBuilder {
         }
 
         PersonUtils.setAge(newPerson, synthPerson.age)
-        val sex = if (synthPerson.sex == 0) { "M" } else { "F" }
+        val sex = if (synthPerson.sex == 0) { "M" }
+        else { "F" }
         // TODO: Include non-binary gender if data available
         PersonUtils.setSex(newPerson, sex)
         newPopAttributes
@@ -243,7 +243,7 @@ object PlansBuilder {
     *
     * $> gradle :execute -PmainClass=beam.utils.plan.PlansBuilder
     *   -PappArgs="['test/input/beamville/population.xml',
-    *   'test/input/beamville/physsim-network.xml',
+    *   'test/input/beamville/r5/physsim-network.xml',
     *   'test/input/beamville/vehicles.xml', '2000',
     *   'test/input/beamville/samples', 'epsg:4326', 'epsg:26910']"
     */

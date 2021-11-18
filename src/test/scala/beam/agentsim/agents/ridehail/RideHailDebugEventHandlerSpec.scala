@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.GenericEventsSpec
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 class RideHailDebugEventHandlerSpec extends GenericEventsSpec with Matchers {
 

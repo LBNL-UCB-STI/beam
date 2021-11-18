@@ -2,35 +2,42 @@ package beam.utils.data.ctpp.models
 
 sealed trait ResidenceToWorkplaceFlowGeography {
 
-  /** From Residence Geography
+  /**
+    * From Residence Geography
     */
   def from: String
 
-  /** To Residence Geography
+  /**
+    * To Residence Geography
     */
   def to: String
 
-  /** CTPP Summary Level
+  /**
+    * CTPP Summary Level
     */
   def level: String
 }
 
 object ResidenceToWorkplaceFlowGeography {
+
   case object `State To State` extends ResidenceToWorkplaceFlowGeography {
     override def from: String = "State"
     override def to: String = "State"
     override def level: String = "C42"
   }
+
   case object `State-County To State-County` extends ResidenceToWorkplaceFlowGeography {
     override def from: String = "State-County"
     override def to: String = "State-County"
     override def level: String = "C43"
   }
+
   case object `State-County-MCD To State-County-MCD` extends ResidenceToWorkplaceFlowGeography {
     override def from: String = "State-County-MCD"
     override def to: String = "State-County-MCD"
     override def level: String = "C44"
   }
+
   case object `State-Place To State-Place` extends ResidenceToWorkplaceFlowGeography {
     override def from: String = "State-Place"
     override def to: String = "State-Place"

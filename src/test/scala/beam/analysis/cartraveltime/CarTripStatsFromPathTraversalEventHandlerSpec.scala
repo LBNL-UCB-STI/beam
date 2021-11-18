@@ -1,8 +1,8 @@
 package beam.analysis.cartraveltime
+
 import beam.agentsim.agents.GenericEventsSpec
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.scalatest.Assertion
-import org.scalatest.Matchers._
 
 import scala.reflect.io.File
 
@@ -48,14 +48,14 @@ class CarTripStatsFromPathTraversalEventHandlerSpec extends GenericEventsSpec {
 
   private def checkFileExistenceInRoot(file: String): Unit = {
     val path = beamServices.matsimServices.getControlerIO.getOutputFilename(file)
-    require(File(path).isFile, s"${file} with full path ${path} does not exist or it is not a file")
+    require(File(path).isFile, s"$file with full path $path does not exist or it is not a file")
   }
 
   private def checkFileExistenceInIterFolder(file: String, iteration: Int): Unit = {
     val path = beamServices.matsimServices.getControlerIO.getIterationFilename(iteration, file)
     require(
       File(path).isFile,
-      s"${file} for iteration $iteration with full path ${path} does not exist or it is not a file"
+      s"$file for iteration $iteration with full path $path does not exist or it is not a file"
     )
   }
 }

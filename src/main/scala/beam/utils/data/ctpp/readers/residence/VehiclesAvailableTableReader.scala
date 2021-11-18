@@ -12,20 +12,19 @@ class VehiclesAvailableTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeogra
   def read(): Map[String, Map[Vehicles, Double]] = {
     val vehiclesAvailableMap = readRaw()
       .groupBy(x => x.geoId)
-      .map {
-        case (geoId, xs) =>
-          // One geoId contains multiple vehicles range
-          val vehicles = xs.flatMap { entry =>
-            val maybeAge = Vehicles(entry.lineNumber) match {
-              case Failure(ex) =>
-                logger.warn(s"Could not represent $entry as vehicle: ${ex.getMessage}", ex)
-                None
-              case Success(value) =>
-                Some(value -> entry.estimate)
-            }
-            maybeAge
+      .map { case (geoId, xs) =>
+        // One geoId contains multiple vehicles range
+        val vehicles = xs.flatMap { entry =>
+          val maybeAge = Vehicles(entry.lineNumber) match {
+            case Failure(ex) =>
+              logger.warn(s"Could not represent $entry as vehicle: ${ex.getMessage}", ex)
+              None
+            case Success(value) =>
+              Some(value -> entry.estimate)
           }
-          geoId -> vehicles.toMap
+          maybeAge
+        }
+        geoId -> vehicles.toMap
       }
     vehiclesAvailableMap
   }

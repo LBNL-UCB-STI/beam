@@ -1,8 +1,9 @@
 package beam.router
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.choice.mode.PtFares
+import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory, VehicleEnergy}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.{Location, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
@@ -10,17 +11,25 @@ import beam.router.skim.core.ODSkimmer.Skim
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
-import beam.utils.BeamScenarioForTest
+import beam.sim.config.BeamConfig
+import beam.utils.{BeamScenarioForTest, DateUtils}
+import beam.utils.TestConfigUtils.testConfig
+import com.conveyal.r5.transit.TransportNetwork
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.core.utils.collections.QuadTree
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
-import org.scalatest.FlatSpec
-import org.scalatestplus.mockito.MockitoSugar
+import org.mockito.Mockito.{mock, when}
+import org.scalatest.flatspec.AnyFlatSpec
+
+import java.time.ZonedDateTime
+import scala.collection.concurrent.TrieMap
 
 /**
   * Specs for BeamRouter
   */
-class BeamRouterSpec extends FlatSpec with MockitoSugar with BeamScenarioForTest {
+class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
   it should "use odSkim travel times for car" in {
     val beamScenario = getBeamScenario("test/input/sf-light/sf-light-0.5k.conf", 1.0)
 
@@ -64,12 +73,64 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar with BeamScenarioForTest
       BeamRouter.replaceTravelTimeForCarModeWithODSkims(
         walkRoutingResponse,
         odSkims,
-        mock[BeamScenario],
-        mock[GeoUtils]
+        mock(classOf[BeamScenario]),
+        mock(classOf[GeoUtils])
       )
     assert(
       updatedRoutingResponse.itineraries.head.beamLegs.head.duration != updatedDuration,
       "walk travel times should not be replaced"
+    )
+  }
+
+  def getBeamScenario(skimTravelTimesScalingFactor: Double): BeamScenario = {
+    val beamConfig = BeamConfig(
+      ConfigFactory
+        .parseString(s"""
+           |beam.routing.skimTravelTimesScalingFactor =  $skimTravelTimesScalingFactor
+        """.stripMargin)
+        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
+        .resolve()
+    )
+
+    val vehicleType = BeamVehicleType(
+      id = Id.create("car", classOf[BeamVehicleType]),
+      seatingCapacity = 1,
+      standingRoomCapacity = 1,
+      lengthInMeter = 3,
+      primaryFuelType = FuelType.Gasoline,
+      primaryFuelConsumptionInJoulePerMeter = 0.1,
+      primaryFuelCapacityInJoule = 0.1,
+      vehicleCategory = VehicleCategory.Car
+    )
+    val vehicleTypes = Map(vehicleType.id -> vehicleType)
+    val fuelTypePrices = Map(vehicleType.primaryFuelType -> 10.0)
+    val tazMap = mock(classOf[TAZTreeMap])
+    when(tazMap.getTAZ(any[java.lang.Double](), any[java.lang.Double]()))
+      .thenReturn(TAZ.DefaultTAZ)
+
+    BeamScenario(
+      fuelTypePrices = fuelTypePrices,
+      vehicleTypes = vehicleTypes,
+      TrieMap.empty,
+      vehicleEnergy = mock(classOf[VehicleEnergy]),
+      beamConfig = beamConfig,
+      dates = DateUtils(
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
+        ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
+      ),
+      ptFares = PtFares(List.empty),
+      transportNetwork = mock(classOf[TransportNetwork]),
+      //todo: this is a quick fix for merging develop, MUST investigate
+      networks2 = None,
+      network = mock(classOf[Network]),
+      tazTreeMap = tazMap,
+      None,
+      linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
+      linkIdMapping = Map.empty,
+      linkToTAZMapping = Map.empty,
+      modeIncentives = null,
+      h3taz = null,
+      freightCarriers = IndexedSeq.empty
     )
   }
 
@@ -89,7 +150,7 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar with BeamScenarioForTest
                   transitStops = None,
                   startPoint = SpaceTime(0.0, 0.0, 28800),
                   endPoint = SpaceTime(1.0, 1.0, 28850),
-                  distanceInM = 1000D
+                  distanceInM = 1000d
                 )
               ),
               beamVehicleId = Id.createVehicleId("car"),
@@ -103,12 +164,13 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar with BeamScenarioForTest
       ),
       requestId = 1,
       None,
-      true
+      true,
+      triggerId = 37373L
     )
   }
 
   private def getSkimMock(skim: Skim): ODSkims = {
-    val odSkims = mock[ODSkims]
+    val odSkims = mock(classOf[ODSkims])
     when(
       odSkims.getTimeDistanceAndCost(
         any[Location],
@@ -118,7 +180,6 @@ class BeamRouterSpec extends FlatSpec with MockitoSugar with BeamScenarioForTest
         any[Id[BeamVehicleType]],
         any[BeamVehicleType],
         any[Double],
-        any[BeamScenario],
         any[Option[Id[TAZ]]],
         any[Option[Id[TAZ]]]
       )

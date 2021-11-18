@@ -2,7 +2,6 @@ package beam.replanning
 
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
-import org.slf4j.LoggerFactory
 
 /**
   * A dummy PlanStrategyAdopter that will keep modes from changing one iteration to the next IF the
@@ -15,9 +14,7 @@ import org.slf4j.LoggerFactory
   * beam.replanning.ModuleProbability_3 = 0.0
   * beam.replanning.ModuleProbability_4 = 0.0
   */
-class StaticModes @Inject()() extends PlansStrategyAdopter {
-
-  private val log = LoggerFactory.getLogger(classOf[StaticModes])
+class StaticModes @Inject() () extends PlansStrategyAdopter {
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     // To keep modes static, simply do nothing here and set config parameters as shown above

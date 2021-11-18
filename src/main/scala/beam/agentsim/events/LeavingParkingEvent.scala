@@ -1,18 +1,15 @@
 package beam.agentsim.events
 
-import java.util
-
-import scala.collection.JavaConverters._
-
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.api.internal.HasPersonId
 import org.matsim.vehicles.Vehicle
+
+import java.util
+import scala.collection.JavaConverters._
 
 case class LeavingParkingEvent(
   time: Double,
@@ -24,7 +21,6 @@ case class LeavingParkingEvent(
   pricingModel: Option[PricingModel],
   ChargingPointType: Option[ChargingPointType]
 ) extends Event(time)
-//    with HasPersonId (removed to support Id[Person] and Id[RideHailAgent] parking events)
     with ScalaEvent {
   import LeavingParkingEvent._
 
@@ -57,7 +53,7 @@ object LeavingParkingEvent {
   val ATTRIBUTE_SCORE: String = "score"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
   val ATTRIBUTE_DRIVER_ID: String = "driver"
@@ -89,9 +85,11 @@ object LeavingParkingEvent {
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
-    val pricingModel
-      : Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), "0") // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
-    val chargingType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
-    LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingType)
+    val pricingModel: Option[PricingModel] = PricingModel(
+      attr(ATTRIBUTE_PRICING_MODEL),
+      "0"
+    ) // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
+    val chargingPointType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
+    LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingPointType)
   }
 }

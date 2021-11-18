@@ -102,11 +102,10 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
   ): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
 
-    classToIterationValues.foreach {
-      case (className, sizePerIteration) =>
-        sizePerIteration.zipWithIndex.foreach {
-          case (sizeOnHeap, iteration) => dataset.addValue(sizeOnHeap, className, iteration)
-        }
+    classToIterationValues.foreach { case (className, sizePerIteration) =>
+      sizePerIteration.zipWithIndex.foreach { case (sizeOnHeap, iteration) =>
+        dataset.addValue(sizeOnHeap, className, iteration)
+      }
     }
 
     dataset
@@ -140,8 +139,8 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     val classes = vmInfoCollector.gcClassHistogram(takeTopClasses)
 
     analyzeVMClassHystogram(classes, event.getIteration)
-    val typeSizeOnHeap = classNameToBytesPerIteration.map {
-      case (className, values) => (className, values.map(_ / bytesInGb))
+    val typeSizeOnHeap = classNameToBytesPerIteration.map { case (className, values) =>
+      (className, values.map(_ / bytesInGb))
     }.toVector
 
     val csvFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.csv.gz")

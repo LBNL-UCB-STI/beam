@@ -16,20 +16,19 @@ import scala.collection.mutable
 class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnalysis {
   // Offset is number of passengers, value is number of rides with that amount of passengers
   private var overallRideStat: Array[Int] = Array.fill[Int](0)(0)
-  private var iterOverallRideStat = mutable.Map[Int, Array[Int]]()
+  private val iterOverallRideStat = mutable.Map[Int, Array[Int]]()
 
   override def createGraph(event: IterationEndsEvent): Unit = {
     iterOverallRideStat += event.getIteration -> overallRideStat.clone()
     val dataset = new DefaultCategoryDataset
     val revIteration = iterOverallRideStat.keys.toSeq.sorted
     revIteration.foreach { iteration =>
-      iterOverallRideStat(iteration).zipWithIndex.foreach {
-        case (rides, numOfPassenger) =>
-          dataset.addValue(
-            java.lang.Double.valueOf(rides.toString),
-            s"RideTripsWith${numOfPassenger}Passengers",
-            s"it.$iteration"
-          )
+      iterOverallRideStat(iteration).zipWithIndex.foreach { case (rides, numOfPassenger) =>
+        dataset.addValue(
+          java.lang.Double.valueOf(rides.toString),
+          s"RideTripsWith${numOfPassenger}Passengers",
+          s"it.$iteration"
+        )
       }
     }
     val fileName = event.getServices.getControlerIO.getOutputFilename("rideHailUtilisation.png")
@@ -54,10 +53,9 @@ class SimpleRideHailUtilization extends IterationSummaryAnalysis with GraphAnaly
 
   override def getSummaryStats: util.Map[String, java.lang.Double] = {
     val summaryMap = overallRideStat.zipWithIndex
-      .map {
-        case (rides, numOfPassenger) =>
-          val value: java.lang.Double = java.lang.Double.valueOf(rides.toString)
-          s"RideTripsWith${numOfPassenger}Passengers" -> value
+      .map { case (rides, numOfPassenger) =>
+        val value: java.lang.Double = java.lang.Double.valueOf(rides.toString)
+        s"RideTripsWith${numOfPassenger}Passengers" -> value
       }
       .toMap
       .asJava

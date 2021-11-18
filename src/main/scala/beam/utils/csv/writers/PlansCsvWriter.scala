@@ -3,6 +3,7 @@ package beam.utils.csv.writers
 import scala.collection.JavaConverters._
 
 import beam.utils.scenario.{PersonId, PlanElement}
+import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
@@ -32,24 +33,21 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   )
 
   private def getPlanInfo(scenario: Scenario): Iterator[PlanElement] = {
-    scenario.getPopulation.getPersons.asScala.iterator.flatMap {
-      case (_, person) =>
-        val selectedPlan = person.getSelectedPlan
-        person.getPlans.asScala.zipWithIndex.flatMap {
-          case (plan: Plan, planIndex: Int) =>
-            val isSelected = selectedPlan == plan
-            plan.getPlanElements.asScala.zipWithIndex.map {
-              case (planElement, planElementIndex) =>
-                toPlanInfo(
-                  planIndex = planIndex,
-                  personId = plan.getPerson.getId.toString,
-                  planScore = plan.getScore,
-                  isSelectedPlan = isSelected,
-                  planElement = planElement,
-                  planeElementIndex = planElementIndex,
-                )
-            }
+    scenario.getPopulation.getPersons.asScala.iterator.flatMap { case (_, person) =>
+      val selectedPlan = person.getSelectedPlan
+      person.getPlans.asScala.zipWithIndex.flatMap { case (plan: Plan, planIndex: Int) =>
+        val isSelected = selectedPlan == plan
+        plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
+          toPlanInfo(
+            planIndex = planIndex,
+            personId = plan.getPerson.getId.toString,
+            planScore = plan.getScore,
+            isSelectedPlan = isSelected,
+            planElement = planElement,
+            planeElementIndex = planElementIndex
+          )
         }
+      }
     }
   }
 
@@ -152,9 +150,9 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       planInfo.legRouteType.getOrElse(""),
       planInfo.legRouteStartLink.getOrElse(""),
       planInfo.legRouteEndLink.getOrElse(""),
-      planInfo.legRouteTravelTime,
-      planInfo.legRouteDistance,
-      planInfo.legRouteLinks
+      planInfo.legRouteTravelTime.getOrElse(""),
+      planInfo.legRouteDistance.getOrElse(""),
+      planInfo.legRouteLinks.mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
     ).mkString("", FieldSeparator, LineSeparator)
   }
 

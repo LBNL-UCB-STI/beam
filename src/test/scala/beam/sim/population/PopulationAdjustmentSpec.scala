@@ -1,7 +1,5 @@
 package beam.sim.population
 
-import java.util
-
 import beam.sim.BeamScenario
 import ch.qos.logback.classic.Level.{ERROR, INFO}
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -11,14 +9,16 @@ import org.matsim.api.core.v01.population.{Person, Plan, Population, PopulationF
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.Attributes
-import org.scalatest.{BeforeAndAfterEach, Matchers, WordSpecLike}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.slf4j.LoggerFactory
 
+import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-class PopulationAdjustmentSpec extends WordSpecLike with MockitoSugar with Matchers with BeforeAndAfterEach {
+class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
 
   private val appLogger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
   private var appender: ListAppender[ILoggingEvent] = _

@@ -26,4 +26,12 @@ object DateUtils {
     val timeAr = beamConfig.beam.agentsim.endTime.split(":")
     timeAr(0).toInt * 3600 + timeAr(1).toInt * 60 + timeAr(2).toInt
   }
+
+  def getMaxHour(beamConfig: beam.sim.config.BeamConfig): Int =
+    Math
+      .ceil(
+        getEndOfTime(beamConfig) / beamConfig.beam.agentsim.timeBinSize.toDouble
+      )
+      .toInt
+
 }

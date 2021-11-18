@@ -3,23 +3,24 @@ package beam.replanning.utilitybased
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.router.Modes
 import beam.sim.BeamHelper
-import org.junit.Assert
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.ConfigUtils
-import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
+import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.router.TripStructureUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsImpl}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{FlatSpec, GivenWhenThen, Matchers}
+import org.scalatest.GivenWhenThen
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.collection.{immutable, JavaConverters}
 import scala.util.Random
 
-class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper with MockitoSugar with GivenWhenThen {
+class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHelper with GivenWhenThen {
 
   val MODE = "Car"
 
@@ -44,7 +45,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
       // Create and add people
       personList.foreach(id => {
         val person = popFact.createPerson(id)
-        val plan: Plan = createPlan(id.toString.toInt)
+        val plan: Plan = createPlan()
         plan.setPerson(person)
         person.addPlan(plan)
         pop.addPerson(person)
@@ -74,7 +75,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
       )
     }
 
-    def createPlan(i: Int): Plan = {
+    def createPlan(): Plan = {
       val plan = popFact.createPlan()
 
       plan.addActivity(popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
@@ -91,31 +92,11 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
       plan.addActivity(popFact.createActivityFromLinkId("h", Id.createLinkId(42)))
       plan
     }
-
-    private def assertSingleVehicleAndGetVehicleId(p: Plan): Id[Vehicle] = {
-
-      var v: Option[Id[Vehicle]] = None
-
-      JavaConverters
-        .iterableAsScalaIterable(p.getPlanElements)
-        .toList
-        .foreach({
-          case leg: Leg if leg.getMode == MODE =>
-            val r = leg.getRoute.asInstanceOf[NetworkRoute]
-            Assert.assertNotNull("null vehicle id in route", r.getVehicleId)
-            Assert.assertTrue(
-              s"vehicle ${r.getVehicleId} not same as $v",
-              v.isEmpty || r.getVehicleId == v.get
-            )
-            v = Option(r.getVehicleId)
-        })
-
-      v.getOrElse(throw new RuntimeException("Not sure what's going on here!"))
-    }
   }
 
   private def createHouseholdWithEnoughVehicles = new ChainBasedTourAllocatorTestFixture {
     override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+
     override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
       personList.map(Id.createVehicleId(_))
     init()
@@ -123,6 +104,7 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
 
   private def createHouseholdsWithTooFewVehicles = new ChainBasedTourAllocatorTestFixture {
     override val personList: immutable.IndexedSeq[Id[Person]] = (1 to 5).map(Id.createPersonId(_))
+
     override val vehicleList: immutable.IndexedSeq[Id[Vehicle]] =
       (1 to 2).map(Id.createVehicleId(_))
     init()
@@ -162,17 +144,16 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithAnyRank,
-      subtour,
-      plan
+      subtour
     )
-    val legs = JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap { trip =>
-      JavaConverters
-        .collectionAsScalaIterable(trip.getLegsOnly)
-    }
+    //   val legs = JavaConverters.collectionAsScalaIterable(subtour.getTrips).flatMap { trip =>
+    //     JavaConverters
+    //       .collectionAsScalaIterable(trip.getLegsOnly)
+    //   }
 
     Then("it should be allocated to the person.")
 
-    val modes = legs.map(leg => leg.getMode)
+//    val modes = legs.map(leg => leg.getMode)
 
 //    modes should contain only "car"
 
@@ -188,7 +169,6 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
     val f = createHouseholdsWithTooFewVehicles
 
     And("too few chain-based vehicles in the household")
-    val vehicles = JavaConverters.mapAsScalaMap(f.vehs.getVehicles)
 
     And("a household member of high rank")
     val personWithHighRank = Id.createPersonId(5)
@@ -220,14 +200,13 @@ class ChainBasedTourAllocatorSpec extends FlatSpec with Matchers with BeamHelper
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
       personWithHighRank,
-      highRankSubtour,
-      highRankPlan
+      highRankSubtour
     )
-    val highRankLegs = JavaConverters.collectionAsScalaIterable(highRankSubtour.getTrips).flatMap { trip =>
-      JavaConverters
-        .collectionAsScalaIterable(trip.getLegsOnly)
-    }
-    val highRankModes = highRankLegs.map(leg => leg.getMode)
+//    val highRankLegs = JavaConverters.collectionAsScalaIterable(highRankSubtour.getTrips).flatMap { trip =>
+//      JavaConverters
+//        .collectionAsScalaIterable(trip.getLegsOnly)
+//    }
+//    val highRankModes = highRankLegs.map(leg => leg.getMode)
 
 //    highRankModes should contain only "car"
 

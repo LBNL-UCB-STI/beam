@@ -1,17 +1,18 @@
 package beam.calibration
 
 import java.io.File
-
 import beam.experiment.ExperimentApp
 import beam.tags.Periodic
 import com.sigopt.Sigopt
 import com.sigopt.exception.APIConnectionError
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.{Failure, Success, Try}
 
-class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging {
+class BeamSigoptTunerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll with LazyLogging {
 
   override protected def beforeAll(): Unit = {
     super.beforeAll()
@@ -32,8 +33,8 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
 
       wrapWithTestExperiment { experimentData =>
         val header = experimentData.experimentDef.header
-        header.title equals "Example-Experiment"
-        header.beamTemplateConfPath equals "test/input/sf-light/sf-light-0.5k.conf"
+        header.title shouldEqual "Example-Experiment"
+        header.beamTemplateConfPath shouldEqual "test/input/sf-light/sf-light-0.5k.conf"
       }
     }
 
@@ -43,14 +44,14 @@ class BeamSigoptTunerSpec extends WordSpecLike with Matchers with BeforeAndAfter
           val expParams = experimentData.experiment.getParameters
           // First is the rideHailParams
           val rideHailParams = expParams.iterator.next
-          rideHailParams.getName equals "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
-          rideHailParams.getBounds.getMax equals 0.1
-          rideHailParams.getBounds.getMin equals 0.001
+          rideHailParams.getName shouldEqual "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
+          rideHailParams.getBounds.getMax shouldEqual 0.1
+          rideHailParams.getBounds.getMin shouldEqual 0.001
           // Second is transitCapacityParams
           val transitCapacityParams = expParams.iterator.next
-          transitCapacityParams.getName equals "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
-          transitCapacityParams.getBounds.getMax equals 0.1
-          transitCapacityParams.getBounds.getMin equals 0.001
+          transitCapacityParams.getName shouldEqual "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation"
+          transitCapacityParams.getBounds.getMax shouldEqual 0.1
+          transitCapacityParams.getBounds.getMin shouldEqual 0.001
         }
       }
     }

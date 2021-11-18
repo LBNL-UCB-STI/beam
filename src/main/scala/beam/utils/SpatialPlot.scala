@@ -28,7 +28,8 @@ class SpatialPlot(width: Int, height: Int, frame: Int) extends Plot(width, heigh
     val heading = "rideHailAgentID,xCoord,yCoord"
     out.write(heading)
     rideHailAgentInitCoordBuffer.foreach(rideHailAgentInitCoord => {
-      val line = "\n" + rideHailAgentInitCoord.agentId + "," + rideHailAgentInitCoord.coord.getX + "," + rideHailAgentInitCoord.coord.getY
+      val line =
+        "\n" + rideHailAgentInitCoord.agentId + "," + rideHailAgentInitCoord.coord.getX + "," + rideHailAgentInitCoord.coord.getY
       out.write(line)
     })
     out.close()

@@ -10,7 +10,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  *
   * @author Dmitry Openkov
   */
 private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val myLinks: Set[Id[Link]]) {
@@ -65,8 +64,8 @@ private[bprsim] class BPRSimWorker(scenario: Scenario, config: BPRSimConfig, val
     }
 
     eventBuffer.clear()
-    otherWorkerEvents.foreach {
-      case (_, events) => events.clear()
+    otherWorkerEvents.foreach { case (_, events) =>
+      events.clear()
     }
     processQueuedEvents(workers, tillTime, 0)
     (eventBuffer, otherWorkerEvents)

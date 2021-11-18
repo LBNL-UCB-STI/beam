@@ -1,4 +1,5 @@
 package beam.physsim.cchRoutingAssignment
+
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Path, Paths}
 
@@ -90,8 +91,10 @@ class DockerRoutingFrameworkWrapper(
 
   private val itHourRelatedPath = (env: String, it: Int, hour: Int, file: String) =>
     Paths.get(env, s"Iter.$it", s"Hour.$hour", file)
+
   private val odPairsFileInContainer: (Int, Int) => String = (iteration: Int, hour: Int) =>
     toUnixPath(itHourRelatedPath("/work", iteration, hour, "odpairs.csv"))
+
   private val odPairsFileInTempDir: (Int, Int) => Path = (iteration: Int, hour: Int) =>
     itHourRelatedPath(tempDirPath, iteration, hour, "odpairs.csv")
 
@@ -138,10 +141,9 @@ class DockerRoutingFrameworkWrapper(
       bw.write("origin,destination")
       bw.newLine()
 
-      ods.foreach {
-        case OD(first, second) =>
-          bw.write(s"$first,$second")
-          bw.newLine()
+      ods.foreach { case OD(first, second) =>
+        bw.write(s"$first,$second")
+        bw.newLine()
       }
     }
   }
@@ -207,12 +209,11 @@ class DockerRoutingFrameworkWrapper(
         // so we are dividing it by 10 to get time in seconds
         map.get("bpr_result").toDouble / 10
       }
-      .foreach {
-        case (wayId, travelTime) =>
-          wayId2TravelTime.get(wayId) match {
-            case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
-            case None    => wayId2TravelTime.put(wayId, travelTime)
-          }
+      .foreach { case (wayId, travelTime) =>
+        wayId2TravelTime.get(wayId) match {
+          case Some(v) => wayId2TravelTime.put(wayId, v + travelTime)
+          case None    => wayId2TravelTime.put(wayId, travelTime)
+        }
       }
     wayId2TravelTime.toMap
   }

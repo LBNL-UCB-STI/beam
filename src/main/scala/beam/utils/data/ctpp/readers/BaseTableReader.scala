@@ -4,7 +4,7 @@ import java.io.{File, FileFilter}
 
 import beam.utils.data.ctpp.CTPPParser
 import beam.utils.data.ctpp.Models.CTPPEntry
-import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
+import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 import com.typesafe.scalalogging.StrictLogging
 
 abstract class BaseTableReader(
@@ -17,9 +17,8 @@ abstract class BaseTableReader(
   protected val stateToCsvTablePath: Map[String, String] =
     dbInfo.states.map(stateCode => stateCode -> findTablePath(stateCode)).toMap
   logger.info(s"Path to table $table for states ${dbInfo.states}")
-  stateToCsvTablePath.foreach {
-    case (state, fullPath) =>
-      logger.info(s"   $state: $fullPath")
+  stateToCsvTablePath.foreach { case (state, fullPath) =>
+    logger.info(s"   $state: $fullPath")
   }
 
   def geographyLevelFilter(x: CTPPEntry): Boolean = {
@@ -39,7 +38,7 @@ abstract class BaseTableReader(
   protected def findEstimateByLineNumberOr0(xs: Iterable[CTPPEntry], lineNumber: Int, what: String): Double = {
     xs.find(x => x.lineNumber == lineNumber).map(_.estimate).getOrElse {
       // TODO better data missing handling
-      // logger.warn(s"Could not find total count for '$what' in input ${xs.mkString(" ")}")
+      logger.warn(s"Could not find total count for '$what' in input ${xs.mkString(" ")}")
       0
     }
   }
@@ -115,7 +114,7 @@ object BaseTableReader {
     })
     require(
       foundFiles.size == 1,
-      s"Could not find file '${fileName}' under folder '${folderPath}'. Please, make sure input is correct"
+      s"Could not find file '$fileName' under folder '$folderPath'. Please, make sure input is correct"
     )
     foundFiles.head.getAbsolutePath
   }

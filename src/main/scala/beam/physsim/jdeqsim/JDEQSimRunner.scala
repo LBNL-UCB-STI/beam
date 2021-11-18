@@ -1,7 +1,5 @@
 package beam.physsim.jdeqsim
 
-import scala.collection.JavaConverters._
-import scala.util.Try
 import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
@@ -11,8 +9,9 @@ import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
   RoadCapacityAdjustmentFunction
 }
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
-import beam.sim.{BeamConfigChangesObservable, BeamServices}
+import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
+import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
@@ -23,11 +22,16 @@ import org.matsim.api.core.v01.population.Population
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.events.ParallelEventsManagerImpl
+import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
 import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
+
+import scala.concurrent.ExecutionContext
+
+import scala.collection.JavaConverters._
+import scala.util.Try
 
 class JDEQSimRunner(
   val beamConfig: BeamConfig,
@@ -37,11 +41,14 @@ class JDEQSimRunner(
   val controlerIO: OutputDirectoryHierarchy,
   val isCACCVehicle: java.util.Map[String, java.lang.Boolean],
   val beamConfigChangesObservable: BeamConfigChangesObservable,
-  val agentSimIterationNumber: Int
+  val agentSimIterationNumber: Int,
+  val maybePickUpDropOffCollector: Option[PickUpDropOffCollector]
 ) extends StrictLogging {
 
+  import JDEQSimRunner._
+
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
-    val jdeqsimEvents = new ParallelEventsManagerImpl(10)
+    val jdeqsimEvents = createEventManager
     val travelTimeCalculator =
       new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
     val legHistogram = new LegHistogram(
@@ -65,8 +72,8 @@ class JDEQSimRunner(
 
     val eventTypeCounter = new EventTypeCounter
     jdeqsimEvents.addHandler(eventTypeCounter)
-    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map {
-      case (k, v) => k -> Boolean2boolean(v)
+    val carTravelTimeHandler = new CarTravelTimeHandler(isCACCVehicle.asScala.map { case (k, v) =>
+      k -> Boolean2boolean(v)
     })
     jdeqsimEvents.addHandler(carTravelTimeHandler)
 
@@ -87,6 +94,16 @@ class JDEQSimRunner(
 
     val maybeCaccSettings = if (beamConfig.beam.physsim.jdeqsim.cacc.enabled) Some(createCaccSettings()) else None
 
+    val maybePickUpDropOffHolder: Option[PickUpDropOffHolder] =
+      if (
+        beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled
+        && maybePickUpDropOffCollector.nonEmpty
+      ) {
+        Some(createPickUpDropOffHolder(maybePickUpDropOffCollector.get))
+      } else {
+        None
+      }
+
     val simName = beamConfig.beam.physsim.name
     jdeqsimEvents.initProcessing()
     try {
@@ -94,13 +111,19 @@ class JDEQSimRunner(
         s"PhysSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",
         x => logger.info(x)
       ) {
-        val jdeqSimulation = getPhysSimulation(jdeqSimScenario, jdeqsimEvents, maybeCaccSettings, simName)
+        val jdeqSimulation =
+          getPhysSimulation(jdeqSimScenario, jdeqsimEvents, maybeCaccSettings, maybePickUpDropOffHolder, simName)
         logger.info(s"PhysSim iteration $currentPhysSimIter start")
         if (beamConfig.beam.debug.debugEnabled) {
           logger.info(DebugLib.getMemoryLogMessage("Memory Use Before PhysSim: "))
         }
         jdeqSimulation.run()
         logger.info(s"PhysSim iteration $currentPhysSimIter finished")
+        maybePickUpDropOffHolder.foreach { holder =>
+          logger.info(
+            s"During PhysSim simulation by PickUpDropOffHolder ${holder.linkTravelTimeAnalyzed} link analyzed, ${holder.linkTravelTimeAffected} links travel time changed."
+          )
+        }
       }
 
     } finally {
@@ -127,21 +150,44 @@ class JDEQSimRunner(
           new IterationEndsEvent(beamServices.matsimServices, agentSimIterationNumber)
         ),
         physsimSpeedHandler.notifyIterationEnds(agentSimIterationNumber),
-        (),
+        ()
       )(scala.concurrent.ExecutionContext.global)
     }
     SimulationResult(
       iteration = currentPhysSimIter,
       travelTime = travelTimeCalculator.getLinkTravelTimes,
+      volumesAnalyzer = Some(linkStatsGraph.getVolumes),
       eventTypeToNumberOfMessages = eventTypeCounter.getStats,
       carTravelTimeStats = carTravelTimeHandler.compute
     )
+  }
+
+  private def createEventManager = {
+    def parallelEventManager = {
+      val numberOfThreads = beamConfig.beam.physsim.eventManager.numberOfThreads
+      new ParallelEventsManagerImpl(Math.max(1, numberOfThreads))
+    }
+
+    def sequentialEventManger = new EventsManagerImpl
+
+    beamConfig.beam.physsim.eventManager.`type`.toLowerCase match {
+      case "auto"       => if (beamConfig.beam.physsim.name == "PARBPRSim") sequentialEventManger else parallelEventManager
+      case "sequential" => sequentialEventManger
+      case "parallel"   => parallelEventManager
+      case _ =>
+        logger.error(
+          "Wrong beam.physsim.eventManager parameter: {}. Using sequential event manger",
+          beamConfig.beam.physsim.eventManager
+        )
+        sequentialEventManger
+    }
   }
 
   private def getPhysSimulation(
     jdeqSimScenario: Scenario,
     jdeqsimEvents: EventsManager,
     maybeCACCSettings: Option[CACCSettings],
+    maybePickUpDropOffHolder: Option[PickUpDropOffHolder],
     simName: String
   ): Mobsim = {
     val config = new JDEQSimConfigGroup
@@ -164,10 +210,12 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
+            maybePickUpDropOffHolder
           ),
-          maybeCACCSettings,
+          maybeCACCSettings
         )
         new BPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents)
+
       case "PARBPRSim" =>
         val numberOfClusters = beamConfig.beam.physsim.parbprsim.numberOfClusters
         if (numberOfClusters <= 0) {
@@ -187,23 +235,32 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.bprsim.travelTimeFunction,
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
-            maybeCACCSettings
+            maybeCACCSettings,
+            maybePickUpDropOffHolder
           ),
-          maybeCACCSettings,
+          maybeCACCSettings
         )
         new ParallelBPRSimulation(jdeqSimScenario, bprCfg, jdeqsimEvents, beamConfig.matsim.modules.global.randomSeed)
-      case "JDEQSim" =>
-        maybeCACCSettings match {
-          case Some(caccSettings) =>
-            new JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents, caccSettings)
 
-          case None =>
-            logger.info("CACC disabled")
-            new org.matsim.core.mobsim.jdeqsim.JDEQSimulation(config, jdeqSimScenario, jdeqsimEvents)
+      case "JDEQSim" =>
+        if (maybeCACCSettings.isEmpty) {
+          logger.info("CACC disabled")
         }
+        new JDEQSimulation(
+          config,
+          beamConfig,
+          jdeqSimScenario,
+          jdeqsimEvents,
+          maybeCACCSettings,
+          maybePickUpDropOffHolder
+        )
+
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown physsim: $unknown")
     }
   }
+
+  def createPickUpDropOffHolder(pickUpDropOffCollector: PickUpDropOffCollector): PickUpDropOffHolder =
+    pickUpDropOffCollector.getPickUpDropOffHolder(beamConfig)
 
   def createCaccSettings(): CACCSettings = {
     logger.info("CACC enabled")
@@ -231,55 +288,71 @@ class JDEQSimRunner(
     )
   }
 
-  private def getTravelTimeFunction(
-    functionName: String,
-    flowCapacityFactor: Double,
-    minVolumeToUseBPRFunction: Int,
-    maybeCaccSettings: Option[CACCSettings],
-  ): (Double, Link, Double, Double) => Double = {
-    functionName match {
-      case "FREE_FLOW" =>
-        (time, link, _, _) =>
-          link.getLength / link.getFreespeed(time)
-      case "BPR" =>
-        maybeCaccSettings match {
-          case Some(caccSettings) =>
-            (time, link, caccShare, volume) =>
-              {
-                val ftt = link.getLength / (link.getFreespeed(time) * caccSettings.speedAdjustmentFactor)
-                if (volume >= minVolumeToUseBPRFunction) {
-                  val capacity = flowCapacityFactor *
-                  caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
-                  //volume is calculated as number of vehicles entered the road per hour
-                  //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-                  val tmp = volume / (capacity * 3600)
-                  val result = ftt * (1 + tmp * tmp)
-                  Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
-                } else {
-                  ftt
-                }
-              }
-          case None =>
-            (time, link, _, volume) =>
-              {
-                val ftt = link.getLength / link.getFreespeed(time)
-                if (volume >= minVolumeToUseBPRFunction) {
-                  val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                  ftt * (1 + tmp * tmp)
-                } else {
-                  ftt
-                }
-              }
-        }
-      case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
-    }
-  }
-
   def getNoOfBins(binSize: Int): Int = {
     val endTimeStr = beamConfig.matsim.modules.qsim.endTime
     val endTime = Time.parseTime(endTimeStr)
     var numOfTimeBins = endTime / binSize
     numOfTimeBins = Math.floor(numOfTimeBins)
     numOfTimeBins.toInt + 1
+  }
+}
+
+object JDEQSimRunner {
+
+  def getTravelTimeFunction(
+    functionName: String,
+    flowCapacityFactor: Double,
+    minVolumeToUseBPRFunction: Int,
+    maybeCaccSettings: Option[CACCSettings],
+    maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+  ): (Double, Link, Double, Double) => Double = {
+    val additionalTravelTime: (Link, Double) => Double = {
+      maybePickUpDropOffHolder match {
+        case Some(holder) =>
+          (link, simulationTime) => holder.getAdditionalLinkTravelTime(link, simulationTime)
+        case None =>
+          (_, _) => 0.0
+      }
+    }
+
+    functionName match {
+      case "FREE_FLOW" =>
+        (time, link, _, _) =>
+          val originalTravelTime = link.getLength / link.getFreespeed(time)
+          originalTravelTime + additionalTravelTime(link, time)
+      case "BPR" =>
+        maybeCaccSettings match {
+          case Some(caccSettings) =>
+            (time, link, caccShare, volume) => {
+              val ftt = link.getLength / (link.getFreespeed(time) * caccSettings.speedAdjustmentFactor)
+              if (volume >= minVolumeToUseBPRFunction) {
+                val capacity = flowCapacityFactor *
+                  caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
+                //volume is calculated as number of vehicles entered the road per hour
+                //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+                val tmp = volume / (capacity * 3600)
+                val result = ftt * (1 + tmp * tmp)
+
+                val originalTravelTime =
+                  Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
+                originalTravelTime + additionalTravelTime(link, time)
+              } else {
+                ftt + additionalTravelTime(link, time)
+              }
+            }
+          case None =>
+            (time, link, _, volume) => {
+              val ftt = link.getLength / link.getFreespeed(time)
+              if (volume >= minVolumeToUseBPRFunction) {
+                val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
+                val originalTravelTime = ftt * (1 + tmp * tmp)
+                originalTravelTime + additionalTravelTime(link, time)
+              } else {
+                ftt + additionalTravelTime(link, time)
+              }
+            }
+        }
+      case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
+    }
   }
 }

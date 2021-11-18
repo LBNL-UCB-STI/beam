@@ -11,11 +11,12 @@ import beam.utils.csv.GenericCsvReader
 class ParkingEntriesReader[T](
   parkingFile: Path,
   parkingEntryMapper: java.util.Map[String, String] => ParkingEntry[T]
-)(implicit t: ClassTag[T]) {
+)(implicit classTag: ClassTag[ParkingEntry[T]]) {
 
   def readParkingEntries(): Seq[ParkingEntry[T]] = {
     val (iter: Iterator[ParkingEntry[T]], toClose: Closeable) =
-      GenericCsvReader.readAs[ParkingEntry[T]](parkingFile.toString, parkingEntryMapper, _ => true)
+      GenericCsvReader
+        .readAs[ParkingEntry[T]](parkingFile.toString, parkingEntryMapper, _ => true)
     try {
       iter.toList
     } finally {
@@ -40,7 +41,7 @@ object ParkingEntriesReader {
       taz = TazCoordinate(rec.get("taz")),
       parkingType = rec.get("parkingType"),
       pricingModel = rec.get("pricingModel"),
-      chargingType = rec.get("chargingType"),
+      chargingPointType = rec.get("chargingPointType"),
       reservedFor = rec.get("reservedFor"),
       numStalls = rec.get("numStalls").toLong,
       feeInCents = rec.get("feeInCents").toDouble
@@ -52,7 +53,7 @@ object ParkingEntriesReader {
       geoIndex = H3Index(rec.get("geoIndex")),
       parkingType = rec.get("parkingType"),
       pricingModel = rec.get("pricingModel"),
-      chargingType = rec.get("chargingType"),
+      chargingPointType = rec.get("chargingPointType"),
       reservedFor = rec.get("reservedFor"),
       numStalls = rec.get("numStalls").toLong,
       feeInCents = rec.get("feeInCents").toDouble

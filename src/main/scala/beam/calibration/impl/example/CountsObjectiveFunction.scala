@@ -1,4 +1,5 @@
 package beam.calibration.impl.example
+
 import scala.io.Source
 
 import beam.calibration.api.ObjectiveFunction

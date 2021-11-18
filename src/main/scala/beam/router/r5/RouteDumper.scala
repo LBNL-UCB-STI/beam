@@ -21,6 +21,7 @@ import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEven
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
 import org.matsim.core.events.handler.BasicEventHandler
 
+import java.util.Objects
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
@@ -114,6 +115,7 @@ class RouteDumper(beamServices: BeamServices)
 }
 
 object RouteDumper {
+
   import io.circe.syntax._
   import beam.utils.json.AllNeededFormats._
 
@@ -145,6 +147,26 @@ object RouteDumper {
     record.put("loc_y", spaceTime.loc.getY)
     record.put("time", spaceTime.time)
     record
+  }
+
+  def toRecord(streetVehicle: StreetVehicle): GenericData.Record = {
+    val record = new GenericData.Record(streetVehicleSchema)
+    record.put("id", streetVehicle.id.toString)
+    record.put("vehicleTypeId", streetVehicle.vehicleTypeId.toString)
+    record.put("locationUTM_X", streetVehicle.locationUTM.loc.getX)
+    record.put("locationUTM_Y", streetVehicle.locationUTM.loc.getY)
+    record.put("locationUTM_time", streetVehicle.locationUTM.time)
+    record.put("mode", streetVehicle.mode.value)
+    record.put("asDriver", streetVehicle.asDriver)
+    record
+  }
+
+  def toRecord(streetVehicles: IndexedSeq[StreetVehicle]): GenericData.Array[Any] = {
+    val arr = new GenericData.Array[Any](streetVehicles.length, Schema.createArray(streetVehicleSchema))
+    streetVehicles.zipWithIndex.foreach { case (sv, idx) =>
+      arr.add(idx, toRecord(sv))
+    }
+    arr
   }
 
   def toRecord(record: GenericData.Record, streetVehicle: StreetVehicle, prefix: String): Unit = {
@@ -293,7 +315,7 @@ object RouteDumper {
     val linkTravelTime = {
       new Schema.Field(
         "linkTravelTime",
-        Schema.create(Type.STRING),
+        Schema.createArray(Schema.create(Type.DOUBLE)),
         "linkTravelTime",
         null.asInstanceOf[Any]
       )
@@ -427,7 +449,7 @@ object RouteDumper {
       new Schema.Field("householdIncome", nullable[Double], "householdIncome", null.asInstanceOf[Any]),
       new Schema.Field("householdSize", nullable[Int], "householdSize", null.asInstanceOf[Any]),
       new Schema.Field("numCars", nullable[Int], "numCars", null.asInstanceOf[Any]),
-      new Schema.Field("numBikes", nullable[Int], "numBikes", null.asInstanceOf[Any]),
+      new Schema.Field("numBikes", nullable[Int], "numBikes", null.asInstanceOf[Any])
     )
     Schema.createRecord("HouseholdAttributes", "", "", false, fields.asJava)
   }
@@ -440,7 +462,7 @@ object RouteDumper {
       new Schema.Field("availableModes", nullable[String], "availableModes", null.asInstanceOf[Any]),
       new Schema.Field("valueOfTime", nullable[Double], "valueOfTime", null.asInstanceOf[Any]),
       new Schema.Field("age", nullable[Int], "age", null.asInstanceOf[Any]),
-      new Schema.Field("income", nullable[Double], "income", null.asInstanceOf[Any]),
+      new Schema.Field("income", nullable[Double], "income", null.asInstanceOf[Any])
     )
     Schema.createRecord("AttributesOfIndividual", "", "", false, fields.asJava)
   }
@@ -449,22 +471,23 @@ object RouteDumper {
     val fields = List(
       new Schema.Field("loc_x", nullable[Double], "loc_x", null.asInstanceOf[Any]),
       new Schema.Field("loc_y", nullable[Double], "loc_y", null.asInstanceOf[Any]),
-      new Schema.Field("time", nullable[Int], "time", null.asInstanceOf[Any]),
+      new Schema.Field("time", nullable[Int], "time", null.asInstanceOf[Any])
     )
     Schema.createRecord("SpaceTimeSchema", "", "", false, fields.asJava)
   }
 
-  def streetVehicleSchema(prefix: String): List[Schema.Field] = {
+  def streetVehicleSchema: Schema = {
     val fields = List(
-      new Schema.Field(s"${prefix}_id", nullable[String], "id", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_vehicleTypeId", nullable[String], "vehicleTypeId", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_locationUTM_X", nullable[Double], "locationUTM_X", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_locationUTM_Y", nullable[Double], "locationUTM_Y", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_locationUTM_time", nullable[Int], "locationUTM_time", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_mode", nullable[String], "mode", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_asDriver", nullable[Boolean], "asDriver", null.asInstanceOf[Any]),
+      new Schema.Field("id", nullable[String], "id", null.asInstanceOf[Any]),
+      new Schema.Field("vehicleTypeId", nullable[String], "vehicleTypeId", null.asInstanceOf[Any]),
+      //new Schema.Field("locationUTM", spaceTimeSchema, "locationUTM", null.asInstanceOf[Any]),
+      new Schema.Field("locationUTM_X", nullable[Double], "locationUTM_X", null.asInstanceOf[Any]),
+      new Schema.Field("locationUTM_Y", nullable[Double], "locationUTM_Y", null.asInstanceOf[Any]),
+      new Schema.Field("locationUTM_time", nullable[Int], "locationUTM_time", null.asInstanceOf[Any]),
+      new Schema.Field("mode", nullable[String], "mode", null.asInstanceOf[Any]),
+      new Schema.Field("asDriver", nullable[Boolean], "asDriver", null.asInstanceOf[Any])
     )
-    fields
+    Schema.createRecord("StreetVehicle", "", "", false, fields.asJava)
   }
 
   val routingRequestSchema: Schema = {
@@ -486,11 +509,18 @@ object RouteDumper {
     val withTransit = {
       new Schema.Field("withTransit", Schema.create(Type.BOOLEAN), "withTransit", null.asInstanceOf[Any])
     }
-
+    val streetVehicles = {
+      new Schema.Field(
+        "streetVehicles",
+        Schema.createArray(streetVehicleSchema),
+        "streetVehicles",
+        null.asInstanceOf[Any]
+      )
+    }
     val attributesOfIndividual = {
       new Schema.Field(
         "attributesOfIndividual",
-        Schema.createUnion(util.Arrays.asList(attributesOfIndividualSchema, Schema.create(Schema.Type.NULL))),
+        SchemaBuilder.unionOf().nullType().and().`type`(attributesOfIndividualSchema).endUnion(),
         "attributesOfIndividual",
         null.asInstanceOf[Any]
       )
@@ -518,13 +548,11 @@ object RouteDumper {
       destinationUTM_Y,
       departureTime,
       withTransit,
+      streetVehicles,
       attributesOfIndividual,
       streetVehiclesUseIntermodalUse,
-      initiatedFrom,
-      requestAsJson,
-    ) ++ (streetVehicleSchema("streetVehicle_0") ++ streetVehicleSchema("streetVehicle_1") ++ streetVehicleSchema(
-      "streetVehicle_2"
-    ))
+      initiatedFrom
+    )
     Schema.createRecord("routingRequest", "", "", false, fields.asJava)
   }
 
@@ -541,10 +569,10 @@ object RouteDumper {
         nullType.and().floatType().endUnion()
       case ClassTag.Double =>
         nullType.and().doubleType().endUnion()
-      case x if x == classTag[String] =>
+      case x if Objects.equals(x, classTag[String]) =>
         nullType.and().stringType().endUnion()
       case x =>
-        throw new IllegalStateException(s"Don't know what to do with ${x}")
+        throw new IllegalStateException(s"Don't know what to do with $x")
     }
   }
 }

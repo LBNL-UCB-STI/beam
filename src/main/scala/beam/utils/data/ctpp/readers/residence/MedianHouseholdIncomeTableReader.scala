@@ -11,11 +11,10 @@ class MedianHouseholdIncomeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGe
   def read(): MedianHouseholdIncome = {
     val map = readRaw()
       .groupBy(x => x.geoId)
-      .map {
-        case (geoId, xs) =>
-          // It is one to one relation, that's why we get the head
-          val income = xs.head.estimate
-          geoId -> income
+      .map { case (geoId, xs) =>
+        // It is one to one relation, that's why we get the head
+        val income = xs.head.estimate
+        geoId -> income
       }
     MedianHouseholdIncome(map)
   }
@@ -23,6 +22,7 @@ class MedianHouseholdIncomeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGe
 }
 
 object MedianHouseholdIncomeTableReader {
+
   case class MedianHouseholdIncome(private val map: Map[String, Double]) extends Map[String, Double] {
     override def +[V1 >: Double](kv: (String, V1)): Map[String, V1] = map.+(kv)
 

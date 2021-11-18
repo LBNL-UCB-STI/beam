@@ -1,15 +1,9 @@
 package beam.utils
 
-import java.io._
-import java.net.URL
-import java.nio.charset.StandardCharsets
-import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
-import java.text.SimpleDateFormat
-import java.util.stream
-import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
-
 import beam.sim.config.BeamConfig
 import beam.utils.UnzipUtility.unzip
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
+import com.amazonaws.services.s3.model.GetObjectRequest
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.io
 import org.apache.commons.io.FileUtils.{copyURLToFile, deleteDirectory, getTempDirectoryPath}
@@ -17,10 +11,16 @@ import org.apache.commons.io.FilenameUtils.{getBaseName, getExtension, getName}
 import org.matsim.core.config.Config
 import org.matsim.core.utils.io.{IOUtils, UnicodeInputStream}
 
+import java.io._
+import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.nio.file.{FileAlreadyExistsException, Files, Path, Paths}
+import java.text.SimpleDateFormat
+import java.util.stream
+import java.util.zip.{GZIPInputStream, ZipEntry, ZipInputStream}
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.{higherKinds, postfixOps, reflectiveCalls}
 import scala.util.{Failure, Random, Success, Try}
@@ -190,6 +190,35 @@ object FileUtils extends LazyLogging {
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(stream), StandardCharsets.UTF_8))
   }
 
+  def readerFromIterator(iterator: Iterator[String]): java.io.Reader = {
+    new Reader() {
+      var currentLine: String = ""
+      var position: Int = 0
+
+      override def read(cbuf: Array[Char], off: Int, len: Int): Int = {
+        if (len == 0) return 0
+        if (position >= currentLine.length && !receiveNextLine()) return -1
+        val read = Math.min(currentLine.length - position, len)
+        currentLine.getChars(position, position + read, cbuf, off)
+        position += read
+        read
+      }
+
+      private def receiveNextLine() = {
+        if (iterator.hasNext) {
+          currentLine = iterator.next()
+          position = 0
+          true
+        } else {
+          currentLine = ""
+          false
+        }
+      }
+
+      override def close(): Unit = {}
+    }
+  }
+
   def readerFromURL(url: String): java.io.BufferedReader = {
     require(isRemote(url, "http://") || isRemote(url, "https://"))
     new BufferedReader(new InputStreamReader(new UnicodeInputStream(getInputStream(url)), StandardCharsets.UTF_8))
@@ -217,6 +246,17 @@ object FileUtils extends LazyLogging {
     assert(target != null)
     logger.info(s"Downloading [$source] to [$target]")
     copyURLToFile(new URL(source), Paths.get(target).toFile)
+  }
+
+  def downloadS3File(source: String, target: String): Unit = {
+    assert(source != null)
+    assert(target != null)
+    val s3Client = AmazonS3ClientBuilder.standard()
+    val localFile = new File(target)
+
+    val keys = source.substring("s3://".length).split("/", 2)
+    logger.info(s"Downloading [$source] to [$target]")
+    s3Client.build().getObject(new GetObjectRequest(keys(0), keys(1)), localFile)
   }
 
   def getHash(concatParams: Any*): Int = {
@@ -296,6 +336,10 @@ object FileUtils extends LazyLogging {
         val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
         downloadFile(srcPath, tmpPath)
         tmpPath
+      } else if (isS3Remote(srcPath, "s3")) {
+        val tmpPath = Paths.get(getTempDirectoryPath, srcName).toString
+        downloadS3File(srcPath, tmpPath)
+        tmpPath
       } else
         srcPath
 
@@ -326,6 +370,11 @@ object FileUtils extends LazyLogging {
   }
 
   private def isRemote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
+    assert(sourceFilePath != null)
+    sourceFilePath.startsWith(remoteIfStartsWith)
+  }
+
+  private def isS3Remote(sourceFilePath: String, remoteIfStartsWith: String): Boolean = {
     assert(sourceFilePath != null)
     sourceFilePath.startsWith(remoteIfStartsWith)
   }
@@ -391,19 +440,19 @@ object FileUtils extends LazyLogging {
     saver: (Int, Path, BufferedWriter) => Unit
   ): Unit = {
     assert(numberOfParts > 0, "numberOfParts must be greater than zero")
-    assert(fileNamePattern.contains("$i"), "fileNamePattern must contain $i for substitution")
+    val strPattern = "$i"
+    assert(fileNamePattern.contains(strPattern), s"fileNamePattern must contain $strPattern for substitution")
     import scala.concurrent.ExecutionContext.Implicits._
     val fileList = (1 to numberOfParts)
       .map { i =>
-        (i, Paths.get(outputDir.toString, fileNamePattern.replace("$i", i.toString)))
+        (i, Paths.get(outputDir.toString, fileNamePattern.replace(strPattern, i.toString)))
       }
-    val futures = fileList.map {
-      case (i: Int, path: Path) =>
-        Future {
-          using(IOUtils.getBufferedWriter(path.toString)) { writer =>
-            saver(i, path, writer)
-          }
+    val futures = fileList.map { case (i: Int, path: Path) =>
+      Future {
+        using(IOUtils.getBufferedWriter(path.toString)) { writer =>
+          saver(i, path, writer)
         }
+      }
     }
     Await.result(Future.sequence(futures), atMost)
   }
@@ -423,6 +472,31 @@ object FileUtils extends LazyLogging {
     if (deleteSourceFile) {
       Files.deleteIfExists(filePath)
     }
+  }
+
+  /**
+    * Not recursive (accepts only files)
+    * @param out the output file path
+    * @param files a sequence of pairs zip entry name -> file path
+    */
+  def zipFiles(out: String, files: IndexedSeq[(String, Path)]): String = {
+    import java.io.{BufferedInputStream, FileInputStream, FileOutputStream}
+    import java.util.zip.{ZipEntry, ZipOutputStream}
+
+    val existed = files.filter { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
+    val notExited = files.filterNot { case (_, path) => Files.exists(path) && Files.isRegularFile(path) }
+    notExited.foreach { case (name, _) => logger.error(s"Cannot find $name") }
+
+    using(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(out)))) { zip =>
+      existed.foreach { case (name, path) =>
+        zip.putNextEntry(new ZipEntry(name))
+        using(new BufferedInputStream(new FileInputStream(path.toFile))) { in =>
+          IOUtils.copyStream(in, zip)
+        }
+        zip.closeEntry()
+      }
+    }
+    out
   }
 
   def getStreamFromZipFolder(pathToZip: String, fileName: String): Option[InputStream] = {

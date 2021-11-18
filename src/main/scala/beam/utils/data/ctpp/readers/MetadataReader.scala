@@ -48,7 +48,7 @@ class MetadataReader(val pathToDoc: String) extends StrictLogging {
 
   def readShellTable(): Seq[TableShell] = {
     val (it, toClose) = GenericCsvReader
-      .readAs[TableShell](tableShellPath, toTableShell, x => true, new CsvPreference.Builder('"', '|', "\r\n").build)
+      .readAs[TableShell](tableShellPath, toTableShell, _ => true, new CsvPreference.Builder('"', '|', "\r\n").build)
     try {
       it.toVector
     } finally {
@@ -57,7 +57,7 @@ class MetadataReader(val pathToDoc: String) extends StrictLogging {
   }
 
   def getTablesInfo(): List[TableInfo] = {
-    val (it, toClose) = GenericCsvReader.readAs[TableInfo](tableInfoPath, toTableInfo, x => true)
+    val (it, toClose) = GenericCsvReader.readAs[TableInfo](tableInfoPath, toTableInfo, _ => true)
     try {
       it.toList
     } finally {
@@ -66,19 +66,19 @@ class MetadataReader(val pathToDoc: String) extends StrictLogging {
   }
 
   private[readers] def toTableShell(rec: java.util.Map[String, String]): TableShell = {
-    val tblId = GenericCsvReader.getIfNotNull(rec, "TBLID").toString
+    val tblId = GenericCsvReader.getIfNotNull(rec, "TBLID")
     val lineNo = GenericCsvReader.getIfNotNull(rec, "LINENO").toInt
     val lineIdent = GenericCsvReader.getIfNotNull(rec, "LINDENT").toInt
-    val description = GenericCsvReader.getIfNotNull(rec, "LDESC").toString
+    val description = GenericCsvReader.getIfNotNull(rec, "LDESC")
     TableShell(tblId = tblId, lineNumber = lineNo, lineIdent = lineIdent, description = description)
   }
 
   private[readers] def toTableInfo(rec: java.util.Map[String, String]): TableInfo = {
-    val tblId = GenericCsvReader.getIfNotNull(rec, "TableId").toString
-    val content = GenericCsvReader.getIfNotNull(rec, "Content").toString
-    val universe = GenericCsvReader.getIfNotNull(rec, "Universe").toString
-    val numberOfCells = GenericCsvReader.getIfNotNull(rec, "Number of Cells").toString.toInt
-    val runGeos = GenericCsvReader.getIfNotNull(rec, "Run Geos").toString
+    val tblId = GenericCsvReader.getIfNotNull(rec, "TableId")
+    val content = GenericCsvReader.getIfNotNull(rec, "Content")
+    val universe = GenericCsvReader.getIfNotNull(rec, "Universe")
+    val numberOfCells = GenericCsvReader.getIfNotNull(rec, "Number of Cells").toInt
+    val runGeos = GenericCsvReader.getIfNotNull(rec, "Run Geos")
     TableInfo(tblId = tblId, content = content, universe = universe, numberOfCells = numberOfCells, runGeos = runGeos)
   }
 }
