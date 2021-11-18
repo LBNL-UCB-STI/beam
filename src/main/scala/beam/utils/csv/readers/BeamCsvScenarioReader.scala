@@ -67,6 +67,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
   }
 
   private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
+    val tripId = getIfNotNull(rec, "tripId")
     val personId = getIfNotNull(rec, "personId")
     val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
@@ -75,6 +76,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
+      tripId = TripId(tripId),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,
@@ -99,6 +101,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
   }
 
   private def toPersonInfo(rec: JavaMap[String, String]): PersonInfo = {
+    val tripId = getIfNotNull(rec, "tripId")
     val personId = getIfNotNull(rec, "personId")
     val householdId = getIfNotNull(rec, "householdId")
     val age = getIfNotNull(rec, "age").toInt
@@ -107,6 +110,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0d)
     PersonInfo(
+      tripId = TripId(tripId),
       personId = PersonId(personId),
       householdId = HouseholdId(householdId),
       rank = rank,

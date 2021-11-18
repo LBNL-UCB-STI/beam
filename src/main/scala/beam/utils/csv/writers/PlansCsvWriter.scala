@@ -1,8 +1,7 @@
 package beam.utils.csv.writers
 
 import scala.collection.JavaConverters._
-
-import beam.utils.scenario.{PersonId, PlanElement}
+import beam.utils.scenario.{PersonId, PlanElement, TripId}
 import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
@@ -11,6 +10,7 @@ import org.matsim.core.population.routes.NetworkRoute
 object PlansCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] = Seq(
+    "tripId",
     "personId",
     "planIndex",
     "planScore",
@@ -39,6 +39,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         val isSelected = selectedPlan == plan
         plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
           toPlanInfo(
+            // TODO: find a way to get trip_id
             planIndex = planIndex,
             personId = plan.getPerson.getId.toString,
             planScore = plan.getScore,
@@ -53,6 +54,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   private def toPlanInfo(
     planIndex: Int,
+    tripId: String,
     personId: String,
     planScore: Double,
     isSelectedPlan: Boolean,
@@ -74,6 +76,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
+          tripId = TripId(tripId),
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
@@ -97,6 +100,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         )
       case act: Activity =>
         PlanElement(
+          tripId = TripId(tripId),
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
