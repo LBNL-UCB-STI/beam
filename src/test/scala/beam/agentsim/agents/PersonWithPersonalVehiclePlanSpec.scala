@@ -579,7 +579,7 @@ class PersonWithPersonalVehiclePlanSpec
         }
       )
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val car1 = new BeamVehicle(
+      val onlyCar = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType
@@ -588,12 +588,14 @@ class PersonWithPersonalVehiclePlanSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), car1.id, CAR)
-      population.addPerson(person)
-      val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, CAR)
-      population.addPerson(otherPerson)
+      val personToUseCar: Person = createTestPerson(Id.createPersonId("personToUseCar"), onlyCar.id, CAR)
+      population.addPerson(personToUseCar)
+      val personWhoCantUseCar: Person = createTestPerson(Id.createPersonId("personWhoCantUseCar"), onlyCar.id, CAR)
+      population.addPerson(personWhoCantUseCar)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
+      household.setMemberIds(
+        JavaConverters.bufferAsJavaList(mutable.Buffer(personToUseCar.getId, personWhoCantUseCar.getId))
+      )
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -621,7 +623,7 @@ class PersonWithPersonalVehiclePlanSpec
           eventsManager,
           population,
           household,
-          Map(car1.id -> car1),
+          Map(onlyCar.id -> onlyCar),
           new Coord(0.0, 0.0),
           Vector(),
           Set(vehicleType),
@@ -668,12 +670,21 @@ class PersonWithPersonalVehiclePlanSpec
         }
       }
 
-      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
-      modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent] // 'personToUseCar' chooses car mode
+      modeChoiceEvents.expectMsgType[ModeChoiceEvent] // 'personWhoCantUseCar' chooses car mode
 
-      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
-      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
-      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent].getVehicleId.toString.contains("body")
+      personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent].getVehicleId.toString.contains("body")
+      personEntersVehicleEvents
+        .expectMsgType[PersonEntersVehicleEvent]
+        .getVehicleId
+        .toString
+        .contains("car") // First person gets the car
+      personEntersVehicleEvents
+        .expectMsgType[PersonEntersVehicleEvent]
+        .getVehicleId
+        .toString
+        .contains("emergency") // Second person gets an emergency car created for them
 
       expectMsgType[CompletionNotice]
     }
