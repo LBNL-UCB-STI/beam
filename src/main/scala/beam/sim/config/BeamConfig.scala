@@ -1537,7 +1537,8 @@ object BeamConfig {
             maxDurationInSeconds: scala.Int,
             noRefuelThresholdInPercent: scala.Double,
             refuelRequiredThresholdInPercent: scala.Double,
-            thresholdForNotWalkingToDestinationInMeters: scala.Int
+            thresholdForNotWalkingToDestinationInMeters: scala.Int,
+            newLegStartDelayInSeconds: scala.Int
           )
 
           object Enroute {
@@ -1555,7 +1556,9 @@ object BeamConfig {
                 thresholdForNotWalkingToDestinationInMeters =
                   if (c.hasPathOrNull("thresholdForNotWalkingToDestinationInMeters"))
                     c.getInt("thresholdForNotWalkingToDestinationInMeters")
-                  else 1000
+                  else 1000,
+                newLegStartDelayInSeconds =
+                  if (c.hasPathOrNull("newLegStartDelayInSeconds")) c.getInt("newLegStartDelayInSeconds") else 3600
               )
             }
           }

@@ -152,9 +152,14 @@ object PersonAgent {
     override def geofence: Option[Geofence] = delegate.geofence
   }
 
-  // holds enroute charging related data
-  // `stall2Dest` contains car legs from charging stall to original destination
-  case class EnrouteStates(stall2Dest: Vector[EmbodiedBeamLeg])
+  case class EnrouteState(
+    enroute: Boolean = false,
+    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector(),
+    attempted: Boolean = false
+  ) {
+    val notEnroute: Boolean = !enroute
+    val notAttempted: Boolean = !attempted
+  }
 
   case class BasePersonData(
     currentActivityIndex: Int = 0,
@@ -169,7 +174,7 @@ object PersonAgent {
     currentTripCosts: Double = 0.0,
     numberOfReplanningAttempts: Int = 0,
     lastUsedParkingStall: Option[ParkingStall] = None,
-    enrouteStates: Option[EnrouteStates] = None
+    enrouteState: EnrouteState = EnrouteState()
   ) extends PersonData {
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
@@ -339,7 +344,7 @@ class PersonAgent(
     // if enroute then trip is not started yet, pick vehicle id of next leg (head of rest of the trip)
     // else the vehicle information is available in `currentVehicle`
     val vehicleId =
-      if (personData.enrouteStates.nonEmpty) personData.restOfCurrentTrip.head.beamVehicleId
+      if (personData.enrouteState.enroute) personData.restOfCurrentTrip.head.beamVehicleId
       else personData.currentVehicle.head
 
     val currentBeamVehicle = beamVehicles(vehicleId).vehicle
@@ -504,7 +509,8 @@ class PersonAgent(
               case _ =>
                 data.currentTourMode.orElse(modeOfNextLeg)
             },
-            numberOfReplanningAttempts = 0
+            numberOfReplanningAttempts = 0,
+            enrouteState = EnrouteState()
           ),
           SpaceTime(currentActivity(data).getCoord, _currentTick.get)
         )
@@ -790,7 +796,7 @@ class PersonAgent(
           )
         ) =>
       // do not travel the "head" leg if on enroute charging
-      val (trip, cost) = if (enrouteStates.nonEmpty) {
+      val (trip, cost) = if (enrouteStates.enroute) {
         log.debug("ReadyToChooseParking, enroute trip: {}", restOfCurrentTrip.toString())
         (restOfCurrentTrip, currentCost.toDouble)
       } else {
@@ -843,7 +849,7 @@ class PersonAgent(
       stay
     case _ @Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
-      stay
+      stay replying CompletionNotice(triggerId, Vector())
     case _ @Event(WaitingToCharge(_, _, _), _) =>
       stay
     case _ @Event(EndingRefuelSession(tick, _, triggerId), _) =>
@@ -870,23 +876,24 @@ class PersonAgent(
       // append walk legs around them, update start time and make legs consistent
       // unset reserved charging stall
       // unset enroute state, and update `data` with new legs
-      val stall2DestinationCarLegs = data.enrouteStates.get.stall2Dest
+      val stall2DestinationCarLegs = data.enrouteState.stall2DestLegs
       val walkTemp = data.currentTrip.head.legs.head
-      val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
+      val startTime = tick + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.newLegStartDelayInSeconds
+      val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
       val walk4 = data.currentTrip.head.legs.last
       val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
         EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (stall2DestinationCarLegs :+ walk4))
       val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
       currentBeamVehicle.unsetReservedParkingStall()
-
+      holdTickAndTriggerId(startTime, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
-        enrouteStates = None
+        enrouteState = EnrouteState(attempted = true)
       )
     case _ @Event(UnhandledVehicle(_, _, _), data: BasePersonData) =>
       // TODO is this valid transition?
-      goto(ProcessingNextLegOrStartActivity) using data.copy(enrouteStates = None)
+      goto(ProcessingNextLegOrStartActivity) using data.copy(enrouteState = EnrouteState(attempted = true))
     case Event(_, _) =>
       stash()
       stay
@@ -950,52 +957,54 @@ class PersonAgent(
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
         val isRefuelNeeded = vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
-        val inEnroute = asDriver && isElectric && isRefuelNeeded && data.enrouteStates.isEmpty
-
-        // Really? Also in the ReleasingParkingSpot case? How can it be that only one case releases the trigger,
-        // but both of them send a CompletionNotice?
-        if (nextLeg.beamLeg.endTime > lastTickOfSimulation && !inEnroute) {
-          scheduler ! CompletionNotice(
-            _currentTriggerId.get,
-            Vector()
-          )
-        } else if (!inEnroute) { // we don't want to start leg if we need en-route charging
-          scheduler ! CompletionNotice(
-            _currentTriggerId.get,
-            Vector(ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self))
-          )
+        val needEnroute = {
+          asDriver && isElectric && isRefuelNeeded &&
+          data.enrouteState.notEnroute && data.enrouteState.notAttempted
         }
 
-        val stateToGo = if (inEnroute) { // choose nearby charging stall if enroute
-          ReadyToChooseParking
-        } else if (
-          nextLeg.beamLeg.mode == CAR
-          || beamVehicles(nextLeg.beamVehicleId)
-            .asInstanceOf[ActualVehicle]
-            .vehicle
-            .isSharedVehicle
-        ) {
-          log.debug(
-            "ProcessingNextLegOrStartActivity, going to ReleasingParkingSpot with legsToInclude: {}",
-            legsToInclude
-          )
-          ReleasingParkingSpot
-        } else {
-          releaseTickAndTriggerId()
-          WaitingToDrive
+        val isSharedVehicle = beamVehicles(nextLeg.beamVehicleId)
+          .asInstanceOf[ActualVehicle]
+          .vehicle
+          .isSharedVehicle
+        val stateToGo = {
+          if (needEnroute) ReadyToChooseParking
+          else if (nextLeg.beamLeg.mode == CAR || isSharedVehicle) ReleasingParkingSpot
+          else WaitingToDrive
         }
 
-        // if enroute set empty legs as state
-        // we will add legs once we find out nearby charging stall
-        // non-none value `enrouteStates` field means vehicle is in enroute
-        val enrouteStates: Option[EnrouteStates] = if (inEnroute) Some(EnrouteStates(Vector())) else None
-
-        goto(stateToGo) using data.copy(
+        val copiedData = data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState,
-          enrouteStates = enrouteStates
+          currentVehicle = currentVehicleForNextState
         )
+
+        val triggerId = _currentTriggerId.get
+        val tick = _currentTick.get
+        def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit =
+          scheduler ! CompletionNotice(
+            triggerId,
+            Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
+          )
+
+        val (sendCompletionNotice, updatedData) = stateToGo match {
+          case ReadyToChooseParking =>
+            (false, copiedData.copy(enrouteState = EnrouteState(enroute = true)))
+          case ReleasingParkingSpot if data.enrouteState.attempted =>
+            scheduler ! ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self)
+            (true, copiedData)
+          case ReleasingParkingSpot =>
+            sendCompletionNoticeAndScheduleStartLegTrigger()
+            (false, copiedData)
+          case WaitingToDrive =>
+            sendCompletionNoticeAndScheduleStartLegTrigger()
+            releaseTickAndTriggerId()
+            (false, copiedData)
+        }
+
+        if ((sendCompletionNotice && data.enrouteState.notAttempted) || nextLeg.beamLeg.endTime > lastTickOfSimulation)
+          scheduler ! CompletionNotice(triggerId)
+
+        goto(stateToGo) using updatedData
       }
       nextState
 

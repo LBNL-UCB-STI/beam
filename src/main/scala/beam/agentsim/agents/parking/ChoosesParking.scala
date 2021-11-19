@@ -117,7 +117,7 @@ trait ChoosesParking extends {
     val remainingTripData = calculateRemainingTripData(data)
     val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
-    if (data.enrouteStates.nonEmpty) {
+    if (data.enrouteState.enroute) {
       // enroute means actual travelling has not started yet,
       // so vehicle can be found in first leg of rest of the trip.
       val vehicle = beamVehicles(firstLeg.beamVehicleId).vehicle
@@ -288,7 +288,7 @@ trait ChoosesParking extends {
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
         // if is specifically Enroute charging
-        val isEnroute = data match { case data: BasePersonData => data.enrouteStates.nonEmpty; case _ => false }
+        val isEnroute = data match { case data: BasePersonData => data.enrouteState.enroute; case _ => false }
         // or distance is greater than threshold
         // and parking duration is much greater than enrouteMaxDuration TODO: consider a buffer period later on
         // and stall has a fast charger
@@ -342,11 +342,11 @@ trait ChoosesParking extends {
         stay using data
       }
 
-    // TODO to keep it simple, adding new case here. [en-route]
+    // to keep it simple, adding new case here. [en-route]
     case Event(
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
           data: BasePersonData
-        ) if data.enrouteStates.nonEmpty =>
+        ) if data.enrouteState.enroute =>
       // find car leg and split it for parking
       def createCarLegs(legs: IndexedSeq[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
         legs
@@ -386,7 +386,7 @@ trait ChoosesParking extends {
 
         currentBeamVehicle.unsetReservedParkingStall()
         handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
-        goto(WaitingToDrive) using data.copy(enrouteStates = None)
+        goto(WaitingToDrive) using data.copy(enrouteState = EnrouteState(attempted = true))
       } else {
         // create new legs to travel to the charging stall
         val (tick, triggerId) = releaseTickAndTriggerId()
@@ -413,7 +413,7 @@ trait ChoosesParking extends {
           restOfCurrentTrip = newRestOfTrip.toList,
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
-          enrouteStates = Some(EnrouteStates(stall2DestinationCarLegs))
+          enrouteState = data.enrouteState.copy(stall2DestLegs = stall2DestinationCarLegs)
         )
       }
 
