@@ -200,7 +200,7 @@ object HouseholdActor {
         //WE NEED TO MAKE  A FLEET MANAGER EVEN IF THERE ARE NO CARSs
 
         val vehiclesByAllCategories = List(Car, Bike)
-          .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
+          .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map.empty[Id[BeamVehicle], BeamVehicle]))
           .toMap
         val fleetManagers = vehiclesByAllCategories.map { case (category, vs) =>
           val maybeDefaultVehicleType = category match {
@@ -218,7 +218,9 @@ object HouseholdActor {
                   classOf[BeamVehicleType]
                 )
               )
-            case _ => None
+            case _ =>
+              log.warning("No default vehicle manager defined for vehicle category {}", category.toString)
+              None
           }
           val fleetManager =
             context.actorOf(

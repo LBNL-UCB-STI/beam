@@ -141,7 +141,6 @@ class HouseholdFleetManager(
               vehicle.useParkingStall(stall)
               logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
               vehicle.becomeDriver(mobilityRequester)
-              availableVehicles = List[BeamVehicle]()
               MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
             } pipeTo mobilityRequester
           } else {
