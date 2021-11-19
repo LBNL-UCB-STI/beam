@@ -248,7 +248,7 @@ object RouteDumper {
     beamLeg.travelPath.transitStops.foreach { transitStop =>
       record.put("transitStops_agencyId", transitStop.agencyId)
       record.put("transitStops_routeId", transitStop.routeId)
-      record.put("transitStops_vehicleId", transitStop.vehicleId)
+      record.put("transitStops_vehicleId", transitStop.vehicleId.toString)
       record.put("transitStops_fromIdx", transitStop.fromIdx)
       record.put("transitStops_toIdx", transitStop.toIdx)
     }
@@ -277,7 +277,7 @@ object RouteDumper {
     val linkTravelTime = {
       new Schema.Field(
         "linkTravelTime",
-        Schema.createArray(Schema.create(Type.INT)),
+        Schema.createArray(Schema.create(Type.DOUBLE)),
         "linkTravelTime",
         null.asInstanceOf[Any]
       )
@@ -454,7 +454,7 @@ object RouteDumper {
     val attributesOfIndividual = {
       new Schema.Field(
         "attributesOfIndividual",
-        attributesOfIndividualSchema,
+        SchemaBuilder.unionOf().nullType().and().`type`(attributesOfIndividualSchema).endUnion(),
         "attributesOfIndividual",
         null.asInstanceOf[Any]
       )

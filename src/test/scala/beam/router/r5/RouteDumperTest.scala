@@ -209,7 +209,7 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
     leg.travelPath.transitStops.foreach { transitStops =>
       record.get("transitStops_agencyId") shouldBe transitStops.agencyId
       record.get("transitStops_routeId") shouldBe transitStops.routeId
-      record.get("transitStops_vehicleId") shouldBe transitStops.vehicleId
+      record.get("transitStops_vehicleId") shouldBe transitStops.vehicleId.toString
       record.get("transitStops_fromIdx") shouldBe transitStops.fromIdx
       record.get("transitStops_toIdx") shouldBe transitStops.toIdx
     }

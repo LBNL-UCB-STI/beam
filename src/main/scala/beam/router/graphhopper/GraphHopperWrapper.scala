@@ -94,7 +94,10 @@ abstract class GraphHopperWrapper(
       routingRequest.requestId,
       Some(routingRequest),
       isEmbodyWithCurrentTravelTime = false,
-      triggerId = routingRequest.triggerId
+      triggerId = routingRequest.triggerId,
+      searchedModes =
+        if (alternatives.isEmpty) routingRequest.streetVehicles.map(_.mode).toSet
+        else (alternatives.map(_.tripClassifier).toSet)
     )
   }
 
