@@ -70,6 +70,7 @@ import java.time.ZonedDateTime
 import java.util.Properties
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
@@ -301,10 +302,12 @@ trait BeamHelper extends LazyLogging {
       IndexedSeq.empty[FreightCarrier]
     }
 
+    val (privateVehicleMap, privateVehicleSoc) = privateVehicles(beamConfig, vehicleTypes)
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
-      privateVehicles(beamConfig, vehicleTypes) ++ freightCarriers.flatMap(_.fleet),
+      privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
+      privateVehicleSoc,
       new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
       beamConfig,
       dates,
@@ -344,18 +347,19 @@ trait BeamHelper extends LazyLogging {
   def privateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
+  ): (TrieMap[Id[BeamVehicle], BeamVehicle], mutable.Map[Id[BeamVehicle], Double]) =
     if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
-      TrieMap[Id[BeamVehicle], BeamVehicle]()
+      TrieMap[Id[BeamVehicle], BeamVehicle]() -> mutable.Map.empty
     } else {
-      TrieMap(
-        readVehiclesFile(
-          beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
-          vehicleTypes,
-          beamConfig.matsim.modules.global.randomSeed,
-          VehicleManager.AnyManager.managerId
-        ).toSeq: _*
+      val (vehicleIdToVehicle, vehicleIdToSoc) = readVehiclesFile(
+        beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+        vehicleTypes,
+        beamConfig.matsim.modules.global.randomSeed,
+        VehicleManager.AnyManager.managerId
       )
+      TrieMap(
+        vehicleIdToVehicle.toSeq: _*
+      ) -> mutable.HashMap(vehicleIdToSoc.toSeq: _*)
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo

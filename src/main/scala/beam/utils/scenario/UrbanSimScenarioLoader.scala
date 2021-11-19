@@ -138,6 +138,7 @@ class UrbanSimScenarioLoader(
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
     beamScenario.privateVehicles.clear()
+    beamScenario.privateVehicleInitialSoc.clear()
   }
 
   private[utils] def getPersonsWithPlan(

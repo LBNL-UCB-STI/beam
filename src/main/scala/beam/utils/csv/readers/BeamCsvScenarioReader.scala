@@ -121,6 +121,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     VehicleInfo(
       vehicleId = getIfNotNull(rec, "vehicleId"),
       vehicleTypeId = getIfNotNull(rec, "vehicleTypeId"),
+      initialSoc = Option(rec.get("stateOfCharge")).map(_.trim).filterNot(_.isEmpty).map(_.toDouble),
       householdId = getIfNotNull(rec, "householdId")
     )
   }

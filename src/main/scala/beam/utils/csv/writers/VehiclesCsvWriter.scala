@@ -7,19 +7,21 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.sim.BeamServices
 import beam.utils.scenario.VehicleInfo
 import ScenarioCsvWriter._
+import beam.agentsim.agents.vehicles.FuelType.Electricity
+import beam.utils.FormatUtils
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
 
-class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], String])
+class VehiclesCsvWriter(idVehicleToVehicleTypeIdAndSoc: Map[Id[BeamVehicle], (String, Option[Double])])
     extends ScenarioCsvWriter
     with StrictLogging {
 
-  override protected val fields: Seq[String] = Seq("vehicleId", "vehicleTypeId", "householdId")
+  override protected val fields: Seq[String] = Seq("vehicleId", "vehicleTypeId", "stateOfCharge", "householdId")
 
-  def vehicleType(vehicleId: Id[BeamVehicle]): String = {
-    idVehicleToVehicleTypeIdAsStr.getOrElse(vehicleId, "")
+  def vehicleType(vehicleId: Id[BeamVehicle]): (String, Option[Double]) = {
+    idVehicleToVehicleTypeIdAndSoc.getOrElse(vehicleId, "" -> None)
   }
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
@@ -27,7 +29,8 @@ class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], Stri
 
     val allVehicles = households.values.iterator.flatMap { hh =>
       hh.getVehicleIds.asScala.map { id: Id[Vehicle] =>
-        VehicleInfo(id.toString, vehicleType(id), hh.getId.toString)
+        val (vehicleTypeId, stateOfCharged) = vehicleType(id)
+        VehicleInfo(id.toString, vehicleTypeId, stateOfCharged, hh.getId.toString)
       }
     }
     contentIterator(allVehicles)
@@ -46,6 +49,7 @@ class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], Stri
     Seq(
       vehicleInfo.vehicleId,
       vehicleInfo.vehicleTypeId,
+      vehicleInfo.initialSoc.map(FormatUtils.DECIMAL_3.format).getOrElse(""),
       vehicleInfo.householdId
     ).mkString("", FieldSeparator, LineSeparator)
   }
@@ -54,18 +58,25 @@ class VehiclesCsvWriter(idVehicleToVehicleTypeIdAsStr: Map[Id[BeamVehicle], Stri
 object VehiclesCsvWriter {
 
   def apply(beamServices: BeamServices): VehiclesCsvWriter = {
-    val pVehicles: Map[Id[BeamVehicle], String] = beamServices.beamScenario.privateVehicles.map {
-      case (id: Id[BeamVehicle], vehicle: BeamVehicle) =>
-        id -> vehicle.beamVehicleType.id.toString.trim
-    }.toMap
-    new VehiclesCsvWriter(pVehicles)
+    val pVehicles: Map[Id[BeamVehicle], (String, Option[Double])] =
+      beamServices.beamScenario.privateVehicles.values.map {
+        case vehicle: BeamVehicle if vehicle.beamVehicleType.primaryFuelType == Electricity =>
+          vehicle.id -> (vehicle.beamVehicleType.id.toString, Some(
+            vehicle.primaryFuelLevelInJoules / vehicle.beamVehicleType.primaryFuelCapacityInJoule
+          ))
+        case vehicle: BeamVehicle =>
+          vehicle.id -> (vehicle.beamVehicleType.id.toString, None)
+      }.toMap
+    new VehiclesCsvWriter(
+      pVehicles
+    )
   }
 
   def apply(elements: Iterable[VehicleInfo]): VehiclesCsvWriter = {
-    val pVehicles: Map[Id[BeamVehicle], String] = elements.map { vehicleInfo: VehicleInfo =>
+    val pVehicles: Map[Id[BeamVehicle], (String, Option[Double])] = elements.map { vehicleInfo: VehicleInfo =>
       val id = Id.create(vehicleInfo.vehicleId, classOf[BeamVehicle])
       val vehicleTypeId = vehicleInfo.vehicleTypeId
-      id -> vehicleTypeId
+      id -> (vehicleTypeId, vehicleInfo.initialSoc)
     }.toMap
     new VehiclesCsvWriter(pVehicles)
   }

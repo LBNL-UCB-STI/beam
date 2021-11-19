@@ -15,6 +15,7 @@ import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 /**
   * This holds together a couple of containers of simulation data, all of which are immutable.
@@ -34,6 +35,7 @@ case class BeamScenario(
   fuelTypePrices: FuelTypePrices,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
+  privateVehicleInitialSoc: mutable.Map[Id[BeamVehicle], Double],
   vehicleEnergy: VehicleEnergy,
   beamConfig: BeamConfig,
   dates: DateUtils,

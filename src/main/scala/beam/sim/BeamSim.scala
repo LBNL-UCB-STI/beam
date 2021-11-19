@@ -374,11 +374,16 @@ class BeamSim @Inject() (
     )
 
     ExponentialLazyLogging.reset()
-    beamServices.beamScenario.privateVehicles.values.foreach(
-      _.initializeFuelLevelsFromUniformDistribution(
-        beamServices.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
-      )
-    )
+    beamServices.beamScenario.privateVehicles.values.foreach { vehicle =>
+      beamServices.beamScenario.privateVehicleInitialSoc.get(vehicle.id) match {
+        case Some(initialSoc) =>
+          vehicle.initializeFuelLevels(initialSoc)
+        case None =>
+          vehicle.initializeFuelLevelsFromUniformDistribution(
+            beamServices.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
+          )
+      }
+    }
 
     val iterationNumber = event.getIteration
 
@@ -486,13 +491,19 @@ class BeamSim @Inject() (
         }
       }
     }
+    val outputVehicles = Future {
+      VehiclesCsvWriter(beamServices).toCsv(
+        scenario,
+        event.getServices.getControlerIO.getIterationFilename(event.getIteration, "final_vehicles.csv.gz")
+      )
+    }
 
     val physsimFuture = Future {
       if (!beamConfig.beam.physsim.skipPhysSim) {
         agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
     }
-    val futuresToWait = List(outputGraphsFuture, routerFinished, physsimFuture)
+    val futuresToWait = List(outputGraphsFuture, routerFinished, outputVehicles, physsimFuture)
 
     // executing code blocks parallel
     Await.result(Future.sequence(futuresToWait), Duration.Inf)
