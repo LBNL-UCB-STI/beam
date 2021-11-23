@@ -146,7 +146,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
     "avoid enroute upon enough charging" in {
       var beenToEnroute: Boolean = false
       val controler = buildControler(defaultConfig) {
-        case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, _, Enroute)=>
+        case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, _, Enroute) =>
           beenToEnroute = true
         case _ =>
       }
