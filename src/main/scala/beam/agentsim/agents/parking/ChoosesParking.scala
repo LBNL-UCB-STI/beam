@@ -10,7 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
-import beam.agentsim.events.{EnrouteEvent, LeavingParkingEvent, ParkingEvent, SpaceTime}
+import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -405,10 +405,6 @@ trait ChoosesParking extends {
             )
           )
         )
-
-        val enrouteEvent = EnrouteEvent(tick, id, currentBeamVehicle.id, currentBeamVehicle.beamVehicleType)
-        logger.debug(s"EnrouteEvent: $enrouteEvent")
-        beamServices.matsimServices.getEvents.processEvent(enrouteEvent)
 
         handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
         goto(WaitingToDrive) using data.copy(
