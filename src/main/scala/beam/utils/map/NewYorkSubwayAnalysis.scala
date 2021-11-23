@@ -8,6 +8,7 @@ import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 
 object NewYorkSubwayAnalysis {
+
   private case class Data(
     requestId: Int,
     tripClassifier: String,
@@ -19,13 +20,12 @@ object NewYorkSubwayAnalysis {
   )
 
   def getNumberOf(walkTransitResponses: Map[Int, Array[Data]], modes: Set[String]): Int = {
-    walkTransitResponses.map {
-      case (_, xs) =>
-        val noBikeTransit = noBikes(xs)
-        val areMatching = noBikeTransit
-          .groupBy(x => x.itineraryIndex)
-          .map { case (_, xs) => modes == xs.map(_.mode).toSet }
-        areMatching.count(x => x)
+    walkTransitResponses.map { case (_, xs) =>
+      val noBikeTransit = noBikes(xs)
+      val areMatching = noBikeTransit
+        .groupBy(x => x.itineraryIndex)
+        .map { case (_, xs) => modes == xs.map(_.mode).toSet }
+      areMatching.count(x => x)
     }.sum
   }
 
@@ -95,11 +95,10 @@ object NewYorkSubwayAnalysis {
 
     val totalWalkTransits = walkTransitRequestToResponses.map(x => x._2.map(_.itineraryIndex).distinct.length).sum
 
-    val moreThanOneTransit = walkTransitRequestToResponses.count {
-      case (_, xs) =>
-        // Shouldn't consider bike because it become BIKE_TRANSIT
-        val nWalkTransits = noBikes(xs).count(x => x.tripClassifier == "walk_transit" && x.legIndex == 0)
-        nWalkTransits > 1
+    val moreThanOneTransit = walkTransitRequestToResponses.count { case (_, xs) =>
+      // Shouldn't consider bike because it become BIKE_TRANSIT
+      val nWalkTransits = noBikes(xs).count(x => x.tripClassifier == "walk_transit" && x.legIndex == 0)
+      nWalkTransits > 1
     }
 
     println(s"File: $pathToResponseFile")
@@ -151,13 +150,13 @@ object NewYorkSubwayAnalysis {
         (hasBus, hasSubway, hasBus && hasSubway)
       }
 
-      val anyBus = tripClass.exists { case (hasBus, hasSubway, _)    => hasBus && !hasSubway }
+      val anyBus = tripClass.exists { case (hasBus, hasSubway, _) => hasBus && !hasSubway }
       val anySubway = tripClass.exists { case (hasBus, hasSubway, _) => hasSubway && !hasBus }
-      val anyBoth = tripClass.exists { case (_, _, both)             => both }
+      val anyBoth = tripClass.exists { case (_, _, both) => both }
 
-      val onlyBusClass = tripClass.forall { case (hasBus, hasSubway, _)    => hasBus && !hasSubway }
+      val onlyBusClass = tripClass.forall { case (hasBus, hasSubway, _) => hasBus && !hasSubway }
       val onlySubwayClass = tripClass.forall { case (hasBus, hasSubway, _) => hasSubway && !hasBus }
-      val onlyBothClass = tripClass.forall { case (_, _, both)             => both }
+      val onlyBothClass = tripClass.forall { case (_, _, both) => both }
       val `bus + subway | subway Class` = anyBoth && anySubway && !anyBus
       val `bus + subway | bus Class` = anyBoth && anyBus && !anySubway
       val allClass = anyBoth && anySubway && anyBus
@@ -183,9 +182,8 @@ object NewYorkSubwayAnalysis {
     val transitDiversifivation =
       (default ++ temp.groupBy(identity).map { case (clazz, xs) => clazz -> xs.size }).toSeq.sortBy(x => x._1)
     println(s"transitDiversifivation: ${transitDiversifivation.size}")
-    transitDiversifivation.foreach {
-      case (clazz, cnt) =>
-        println(s"${clazz},$cnt")
+    transitDiversifivation.foreach { case (clazz, cnt) =>
+      println(s"${clazz},$cnt")
     }
 
     val csvKeys = transitDiversifivation.map(_._1).map(x => "\"" + x + "\"").mkString(",")

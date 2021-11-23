@@ -51,9 +51,8 @@ object NewYorkTrafficSpeedAnalysis {
 
   private def trafficFilter(map: Map[String, String]): Boolean = {
     val dataAsOfStr = map("DATA_AS_OF")
-    val dataAsOf = Try(LocalDateTime.parse(dataAsOfStr, dateTimeFormatter1)).recover {
-      case _: Exception =>
-        LocalDateTime.parse(dataAsOfStr, dateTimeFormatter2)
+    val dataAsOf = Try(LocalDateTime.parse(dataAsOfStr, dateTimeFormatter1)).recover { case _: Exception =>
+      LocalDateTime.parse(dataAsOfStr, dateTimeFormatter2)
     }.get
     dataAsOf.isAfter(firstDate)
   }
@@ -161,24 +160,21 @@ object NewYorkTrafficSpeedAnalysis {
     println(s"allTranscomLinks: ${allTranscomLinks.length}")
     println(s"allBeamLineStrings: ${allBeamLineStrings.length}")
 
-    val foundLinks = allTranscomLinks.map {
-      case (transcomLink, lineString) =>
-        val sorted = allBeamLineStrings
-          .map {
-            case (link, beamLineString) =>
-              val d = beamLineString.distance(lineString)
-              (link, beamLineString, d)
-          }
-          .sortBy(x => x._3)
-          .take(topN)
-        (transcomLink, lineString, sorted)
+    val foundLinks = allTranscomLinks.map { case (transcomLink, lineString) =>
+      val sorted = allBeamLineStrings
+        .map { case (link, beamLineString) =>
+          val d = beamLineString.distance(lineString)
+          (link, beamLineString, d)
+        }
+        .sortBy(x => x._3)
+        .take(topN)
+      (transcomLink, lineString, sorted)
     }
 
     val transcomShapeWriter =
       ShapeWriter.worldGeodetic[LineString, MappingAttributes](s"transcom_${splitThreshold}_densified.shp")
-    allTranscomLinks.zipWithIndex.foreach {
-      case ((link, lineString), idx) =>
-        transcomShapeWriter.add(lineString, idx.toString, MappingAttributes("", link.id, 0))
+    allTranscomLinks.zipWithIndex.foreach { case ((link, lineString), idx) =>
+      transcomShapeWriter.add(lineString, idx.toString, MappingAttributes("", link.id, 0))
     }
     transcomShapeWriter.write()
 
@@ -188,23 +184,21 @@ object NewYorkTrafficSpeedAnalysis {
     var id: Int = 0
     val hs: collection.mutable.Set[(String, String)] = collection.mutable.Set.empty
 
-    foundLinks.foreach {
-      case (transcomLink, transcomLineString, xs) =>
-        xs.foreach {
-          case (beamLink, beamLineString, d) =>
-            val connected = Array(beamLink) ++ getConnectedLinks(beamLink, level)
-            connected.foreach { link =>
-              val linkId = link.getId.toString.toInt
-              val key = (link.getId.toString, transcomLink.id)
-              if (!hs.contains(key)) {
-                val edge = r5Network.streetLayer.edgeStore.getCursor(linkId)
-                val attrib = MappingAttributes(link.getId.toString, transcomLink.id, d)
-                beamShapeWriter.add(edge.getGeometry, id.toString, attrib)
-                id += 1
-                hs += key
-              }
-            }
+    foundLinks.foreach { case (transcomLink, transcomLineString, xs) =>
+      xs.foreach { case (beamLink, beamLineString, d) =>
+        val connected = Array(beamLink) ++ getConnectedLinks(beamLink, level)
+        connected.foreach { link =>
+          val linkId = link.getId.toString.toInt
+          val key = (link.getId.toString, transcomLink.id)
+          if (!hs.contains(key)) {
+            val edge = r5Network.streetLayer.edgeStore.getCursor(linkId)
+            val attrib = MappingAttributes(link.getId.toString, transcomLink.id, d)
+            beamShapeWriter.add(edge.getGeometry, id.toString, attrib)
+            id += 1
+            hs += key
+          }
         }
+      }
     }
     beamShapeWriter.write()
   }
@@ -224,21 +218,20 @@ object NewYorkTrafficSpeedAnalysis {
     var totalLength: Double = 0.0
     var arr: ArrayBuffer[LineString] = ArrayBuffer()
     var currentCoords = ArrayBuffer[Coordinate]()
-    densified.getCoordinates.drop(1).zipWithIndex.foreach {
-      case (current, idx) =>
-        val utmPrev = new Coord(prev.x, prev.y)
-        val utmCurrent = new Coord(current.x, current.y)
-        val diff = GeoUtils.distFormula(utmPrev, utmCurrent)
-        totalLength += diff
-        if (totalLength > splitThresholdMeters && currentCoords.length >= 2) {
-          val lineString = geometryFactory.createLineString(currentCoords.toArray)
-          arr += lineString
-          currentCoords.clear()
-          totalLength = 0
-        }
-        val wgsPrev = geoUtils.utm2Wgs(utmPrev)
-        currentCoords += new Coordinate(wgsPrev.getX, wgsPrev.getY)
-        prev = current
+    densified.getCoordinates.drop(1).zipWithIndex.foreach { case (current, idx) =>
+      val utmPrev = new Coord(prev.x, prev.y)
+      val utmCurrent = new Coord(current.x, current.y)
+      val diff = GeoUtils.distFormula(utmPrev, utmCurrent)
+      totalLength += diff
+      if (totalLength > splitThresholdMeters && currentCoords.length >= 2) {
+        val lineString = geometryFactory.createLineString(currentCoords.toArray)
+        arr += lineString
+        currentCoords.clear()
+        totalLength = 0
+      }
+      val wgsPrev = geoUtils.utm2Wgs(utmPrev)
+      currentCoords += new Coordinate(wgsPrev.getX, wgsPrev.getY)
+      prev = current
     }
     val wgsPrev = geoUtils.utm2Wgs(new Coord(prev.x, prev.y))
     currentCoords += new Coordinate(wgsPrev.getX, wgsPrev.getY)
@@ -251,23 +244,22 @@ object NewYorkTrafficSpeedAnalysis {
 
   def getLinksWithinThreshold(linkPoints: Seq[Coordinate], diffThreshold: Double): Seq[Coordinate] = {
     val withSliding = linkPoints.sliding(2, 1).toVector
-    withSliding.zipWithIndex.foldLeft(Vector.empty[Coordinate]) {
-      case (acc, (xs, idx)) =>
-        if (xs.isEmpty || xs.length == 1)
-          acc
-        else {
-          val diff = GeoUtils.distFormula(new Coord(xs(0).x, xs(0).y), new Coord(xs(1).x, xs(1).y))
-          val updatedAcc = if (diff < diffThreshold) {
-            if (idx == withSliding.length - 1) {
-              acc ++ Vector(xs(0), xs(1))
-            } else {
-              acc :+ xs(0)
-            }
+    withSliding.zipWithIndex.foldLeft(Vector.empty[Coordinate]) { case (acc, (xs, idx)) =>
+      if (xs.isEmpty || xs.length == 1)
+        acc
+      else {
+        val diff = GeoUtils.distFormula(new Coord(xs(0).x, xs(0).y), new Coord(xs(1).x, xs(1).y))
+        val updatedAcc = if (diff < diffThreshold) {
+          if (idx == withSliding.length - 1) {
+            acc ++ Vector(xs(0), xs(1))
           } else {
-            acc
+            acc :+ xs(0)
           }
-          updatedAcc
+        } else {
+          acc
         }
+        updatedAcc
+      }
     }
   }
 
@@ -340,11 +332,12 @@ object NewYorkTrafficSpeedAnalysis {
     val (pteIter, toClose2) =
       GenericCsvReader.readAs[Map[String, String]](path, mapper => mapper.asScala.toMap, _ => true)
 
-    val ptes = try {
-      pteIter.toArray
-    } finally {
-      toClose2.close()
-    }
+    val ptes =
+      try {
+        pteIter.toArray
+      } finally {
+        toClose2.close()
+      }
 
     var www: Int = 0
     ptes.foreach { pte =>
@@ -354,12 +347,12 @@ object NewYorkTrafficSpeedAnalysis {
       val wgsEndY = pte("endY").toDouble
       oShapeWriter.add(
         geometryFactory.createPoint(new Coordinate(wgsStartX, wgsStartY)),
-        www.toString,
+        www.toString
       )
 
       dhapeWriter.add(
         geometryFactory.createPoint(new Coordinate(wgsEndX, wgsEndY)),
-        www.toString,
+        www.toString
       )
 
       www += 1
@@ -371,19 +364,18 @@ object NewYorkTrafficSpeedAnalysis {
   def createShapeFromNetwork(network: Network, pathToShapeFile: String): Unit = {
     val networkShapeWriter = ShapeWriter.worldGeodetic[Point, LinkAttributes](pathToShapeFile)
     try {
-      network.getLinks.values().asScala.zipWithIndex.foreach {
-        case (link, idx) =>
-          val (fromWgs, toWgs) = getFromToCoordsAsWgs(link)
-          networkShapeWriter.add(
-            geometryFactory.createPoint(new Coordinate(fromWgs.getX, fromWgs.getY)),
-            s"${idx}_start",
-            LinkAttributes(link.getFromNode.getId.toString, link.getId.toString)
-          )
-          networkShapeWriter.add(
-            geometryFactory.createPoint(new Coordinate(toWgs.getX, toWgs.getY)),
-            s"${idx}_end",
-            LinkAttributes(link.getToNode.getId.toString, link.getId.toString)
-          )
+      network.getLinks.values().asScala.zipWithIndex.foreach { case (link, idx) =>
+        val (fromWgs, toWgs) = getFromToCoordsAsWgs(link)
+        networkShapeWriter.add(
+          geometryFactory.createPoint(new Coordinate(fromWgs.getX, fromWgs.getY)),
+          s"${idx}_start",
+          LinkAttributes(link.getFromNode.getId.toString, link.getId.toString)
+        )
+        networkShapeWriter.add(
+          geometryFactory.createPoint(new Coordinate(toWgs.getX, toWgs.getY)),
+          s"${idx}_end",
+          LinkAttributes(link.getToNode.getId.toString, link.getId.toString)
+        )
       }
     } finally {
       networkShapeWriter.write()

@@ -796,6 +796,7 @@ object BeamConfig {
         )
 
         object Population {
+
           case class IndustryRemovalProbabilty(
             enabled: scala.Boolean,
             inputFilePath: java.lang.String,

@@ -41,8 +41,8 @@ object PopulationCorrection extends StrictLogging {
       val removedNonWorkers = elderThan16Years.map(x => x._2.size).sum - tempFinalResult.values.map(x => x.size).sum
       logger.info(
         s"""After applying work force sampler got ${tempFinalResult.size} households with ${tempFinalResult.values
-             .map(x => x.size)
-             .sum} people.
+          .map(x => x.size)
+          .sum} people.
            |Removed $removedEmptyHh households and $removedNonWorkers people""".stripMargin
       )
 

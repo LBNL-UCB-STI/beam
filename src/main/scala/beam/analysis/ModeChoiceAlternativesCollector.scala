@@ -47,19 +47,18 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
               (mco.modeCostTimeTransfers.get(tripType), mco.alternativesUtility.get(tripType)) match {
                 case (Some(tripCostTimeTransfer), Some(tripUtility)) =>
                   val duration = trip.legs.map(_.beamLeg.duration).sum
-                  trip.legs.foreach(
-                    leg =>
-                      writeAlternative(
-                        personId = mco.personId,
-                        numberOfAlternatives = mco.alternatives.size,
-                        tripNumber = idx,
-                        wasChosen = idx == mco.chosenAlternativeIdx,
-                        altCostTimeTransfer = tripCostTimeTransfer,
-                        altUtility = tripUtility,
-                        tripDuration = duration,
-                        tripType = tripType,
-                        leg = leg,
-                        tripCategory = tripCategory
+                  trip.legs.foreach(leg =>
+                    writeAlternative(
+                      personId = mco.personId,
+                      numberOfAlternatives = mco.alternatives.size,
+                      tripNumber = idx,
+                      wasChosen = idx == mco.chosenAlternativeIdx,
+                      altCostTimeTransfer = tripCostTimeTransfer,
+                      altUtility = tripUtility,
+                      tripDuration = duration,
+                      tripType = tripType,
+                      leg = leg,
+                      tripCategory = tripCategory
                     )
                   )
                 case _ =>

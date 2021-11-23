@@ -56,7 +56,8 @@ object FipsCodes {
         }
 
       def getInt(key: String): Int =
-        try { getStr(key).toInt } catch {
+        try { getStr(key).toInt }
+        catch {
           case _: java.lang.NumberFormatException =>
             logger.error(s"Can't parse ${getStr(key)} as Int. Got: java.lang.NumberFormatException")
             logger.error(s"The row: ${csvRow.asScala.mkString(",")}")
@@ -77,12 +78,11 @@ object FipsCodes {
         GenericCsvReader.readAs[FipsRow](relativePath, FipsRow.apply, _ => true)
       try {
         iter
-          .foldLeft(mutable.Map.empty[Int, mutable.Map[Int, String]]) {
-            case (stateToCountyToName, fipsRow) =>
-              val countyToName = stateToCountyToName.getOrElse(fipsRow.state, mutable.Map.empty[Int, String])
-              countyToName(fipsRow.county) = fipsRow.name
-              stateToCountyToName(fipsRow.state) = countyToName
-              stateToCountyToName
+          .foldLeft(mutable.Map.empty[Int, mutable.Map[Int, String]]) { case (stateToCountyToName, fipsRow) =>
+            val countyToName = stateToCountyToName.getOrElse(fipsRow.state, mutable.Map.empty[Int, String])
+            countyToName(fipsRow.county) = fipsRow.name
+            stateToCountyToName(fipsRow.state) = countyToName
+            stateToCountyToName
           }
           .map { case (key, mutmap) => key -> mutmap.toMap }
           .toMap

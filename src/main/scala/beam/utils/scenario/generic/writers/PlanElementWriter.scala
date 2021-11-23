@@ -16,6 +16,7 @@ class CsvPlanElementWriter(val path: String) extends AutoCloseable {
   def write(xs: Iterator[PlanElement]): Unit = {
     writeTo(xs, csvWriter)
   }
+
   override def close(): Unit = {
     Try(csvWriter.close())
   }

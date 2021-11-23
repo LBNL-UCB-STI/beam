@@ -75,7 +75,9 @@ object GeometryPerformance {
       tazMap.tazQuadTree, //it is required only in case of failures
       1.0,
       1.0,
-      18389
+      18389,
+      null,
+      null
     )
 
     val clusters: Vector[ParallelParkingManager.ParkingCluster] =

@@ -42,9 +42,8 @@ class IndustryTableReader(
         (geoId, (industry, entry.estimate))
       }
       .groupBy { case (geoId, xs) => geoId }
-      .map {
-        case (geoId, xs) =>
-          geoId -> xs.map(_._2)
+      .map { case (geoId, xs) =>
+        geoId -> xs.map(_._2)
       }
     res
   }

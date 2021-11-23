@@ -38,9 +38,8 @@ object NewYorkAnalysis {
 
     val csvWriter =
       new CsvWriter("coords.csv", Array("original_x", "original_y", "converted_x", "converted_y", "distance"))
-    coords.foreach {
-      case (distance, originalWgs, convertedWgs) =>
-        csvWriter.write(originalWgs.getX, originalWgs.getY, convertedWgs.getX, convertedWgs.getY, distance)
+    coords.foreach { case (distance, originalWgs, convertedWgs) =>
+      csvWriter.write(originalWgs.getX, originalWgs.getY, convertedWgs.getX, convertedWgs.getY, distance)
     }
     csvWriter.close()
 
@@ -73,14 +72,13 @@ object NewYorkAnalysis {
 
     val withinBoundingBox = NoAttributeShapeWriter.worldGeodetic[Point]("withinBoundingBox.shp")
     val outsideBoundingBox = NoAttributeShapeWriter.worldGeodetic[Point]("outsideBoundingBox.shp")
-    wgsCoords1.zipWithIndex.foreach {
-      case (wgsCoord, idx) =>
-        val point = geometryFactory.createPoint(new Coordinate(wgsCoord.getX, wgsCoord.getY))
-        if (boundingBox.contains(wgsCoord.getX, wgsCoord.getY)) {
-          withinBoundingBox.add(point, idx.toString)
-        } else {
-          outsideBoundingBox.add(point, idx.toString)
-        }
+    wgsCoords1.zipWithIndex.foreach { case (wgsCoord, idx) =>
+      val point = geometryFactory.createPoint(new Coordinate(wgsCoord.getX, wgsCoord.getY))
+      if (boundingBox.contains(wgsCoord.getX, wgsCoord.getY)) {
+        withinBoundingBox.add(point, idx.toString)
+      } else {
+        outsideBoundingBox.add(point, idx.toString)
+      }
     }
     withinBoundingBox.write()
     outsideBoundingBox.write()
@@ -93,10 +91,9 @@ object NewYorkAnalysis {
       .map { case (x, xs) => x -> xs.length }
     val sum = distribution.values.sum
     println(s"distribution: ${distribution}")
-    distribution.foreach {
-      case (isWithingBoundingBox, cnt) =>
-        val pct = 100 * cnt.toDouble / sum
-        println(s"isWithingBoundingBox: $isWithingBoundingBox, cnt: $cnt, percent: $pct")
+    distribution.foreach { case (isWithingBoundingBox, cnt) =>
+      val pct = 100 * cnt.toDouble / sum
+      println(s"isWithingBoundingBox: $isWithingBoundingBox, cnt: $cnt, percent: $pct")
     }
   }
 

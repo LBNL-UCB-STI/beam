@@ -56,15 +56,14 @@ object BlockGroupToTazMapper {
 
     val csvWriter = new CsvWriter(pathToResult, Array("block_group_id", "taz_id"))
     try {
-      blockGroupToToTazs.foreach {
-        case (blockGroupId, xs) =>
-          val (tazId, _) = new Random(rndSeed).shuffle(xs).head
-          // As GEOID field in shape file
-          val blockGroupIdStr =
-            s"${blockGroupId.state.value}${blockGroupId.county.value}${blockGroupId.tract}${blockGroupId.blockGroup}"
-          // As GEOID10 field in shape file
-          val tazIdStr = s"${tazId.state.value}${tazId.county.value}${tazId.taz}"
-          csvWriter.write(quoteCsv(blockGroupIdStr), quoteCsv(tazIdStr))
+      blockGroupToToTazs.foreach { case (blockGroupId, xs) =>
+        val (tazId, _) = new Random(rndSeed).shuffle(xs).head
+        // As GEOID field in shape file
+        val blockGroupIdStr =
+          s"${blockGroupId.state.value}${blockGroupId.county.value}${blockGroupId.tract}${blockGroupId.blockGroup}"
+        // As GEOID10 field in shape file
+        val tazIdStr = s"${tazId.state.value}${tazId.county.value}${tazId.taz}"
+        csvWriter.write(quoteCsv(blockGroupIdStr), quoteCsv(tazIdStr))
       }
     } finally {
       csvWriter.close()

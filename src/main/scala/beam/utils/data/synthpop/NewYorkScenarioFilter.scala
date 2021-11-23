@@ -62,14 +62,13 @@ object NewYorkScenarioFilter extends LazyLogging {
     val countiesSet = selectedCounties.map(_.toLowerCase).toSet
 
     val Accumulator(selectedPersonsIds: scala.collection.Set[PersonId], counties) =
-      personToCounties.foldLeft(Accumulator()) {
-        case (accum, (personId, counties)) =>
-          if (counties.intersect(countiesSet).nonEmpty) {
-            accum.selectedPersons += personId
-          } else {
-            accum.counties ++= counties
-          }
-          accum
+      personToCounties.foldLeft(Accumulator()) { case (accum, (personId, counties)) =>
+        if (counties.intersect(countiesSet).nonEmpty) {
+          accum.selectedPersons += personId
+        } else {
+          accum.counties ++= counties
+        }
+        accum
       }
 
     val filteredOutCounties = counties -- selectedCounties
@@ -85,9 +84,8 @@ object NewYorkScenarioFilter extends LazyLogging {
       buildIndustryToPeople(pathToInput, selectedPersonsIds)
 
     logger.info(s"Industry details:")
-    industryToPersons.toSeq.sortBy(x => x._2.size)(Ordering[Int].reverse).foreach {
-      case (industry, people) =>
-        logger.info(s"$industry: ${people.size}")
+    industryToPersons.toSeq.sortBy(x => x._2.size)(Ordering[Int].reverse).foreach { case (industry, people) =>
+      logger.info(s"$industry: ${people.size}")
     }
 
     ProfilingUtils.timed(s"Write filtered plans", x => logger.info(x)) {
@@ -225,14 +223,13 @@ object NewYorkScenarioFilter extends LazyLogging {
       )
 
     try {
-      persons.foldLeft(mutable.HashMap.empty[String, mutable.HashSet[PersonId]]) {
-        case (acc, person) =>
-          val industry = person.industry.getOrElse("")
-          acc.get(industry) match {
-            case Some(people) => people += person.personId
-            case None         => acc.put(industry, mutable.HashSet[PersonId](person.personId))
-          }
-          acc
+      persons.foldLeft(mutable.HashMap.empty[String, mutable.HashSet[PersonId]]) { case (acc, person) =>
+        val industry = person.industry.getOrElse("")
+        acc.get(industry) match {
+          case Some(people) => people += person.personId
+          case None         => acc.put(industry, mutable.HashSet[PersonId](person.personId))
+        }
+        acc
       }
     } finally {
       toClose.close()

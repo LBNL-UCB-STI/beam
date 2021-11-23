@@ -58,12 +58,16 @@ object BaseTableReader {
   sealed abstract class Table(val name: String, val desc: String)
 
   object Table {
+
     case object Residence {
       case object UsualHoursWorkedPerWeek extends Table("A102109", "Usual Hours worked per week (7)")
+
       case object HouseholdSizeByUnitsInStructure
           extends Table("A112210", "Household size (5) by Units in Structure (9)")
+
       case object MedianHouseholdIncome
           extends Table("B112104", "Median Household income in the past 12 months (2016$) (1)")
+
       case object MeanHouseholdIncome
           extends Table("B112103", "Mean Household income in the past 12 months (2016$)  (1)")
       case object TotalHouseholds extends Table("A112100", "Total households (1)")
@@ -71,6 +75,7 @@ object BaseTableReader {
       case object PopulationInHouseholds extends Table("A112107", "Population in households (1)")
       case object Age extends Table("A101101", "Age (1)")
       case object Sex extends Table("A101110", "Sex (3)")
+
       case object OccupationByIndustry
           extends Table(
             "A102214",

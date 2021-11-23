@@ -30,7 +30,8 @@ object NewYorkTrafficVolumeVisualization {
         x => (x.get("Segment ID"), x.get("Date")),
         x => x._2 == date
       )
-      try { it.map(_._1.toInt).toSet } finally { toClose.close() }
+      try { it.map(_._1.toInt).toSet }
+      finally { toClose.close() }
     }
     println(s"Read ${segmentIds.size} unique segmentIds for the date $date")
 
@@ -42,9 +43,8 @@ object NewYorkTrafficVolumeVisualization {
 
     val shapeFileName = "traffic_volume_ny_" + date.replace("/", "_")
     val shapeWriter = ShapeWriter.worldGeodetic[MultiLineString, GeoAttribute](s"$shapeFileName.shp")
-    filteredFeatures.zipWithIndex.foreach {
-      case ((attr, geom), idx) =>
-        shapeWriter.add(geom.asInstanceOf[MultiLineString], idx.toString, attr)
+    filteredFeatures.zipWithIndex.foreach { case ((attr, geom), idx) =>
+      shapeWriter.add(geom.asInstanceOf[MultiLineString], idx.toString, attr)
     }
     shapeWriter.write()
   }

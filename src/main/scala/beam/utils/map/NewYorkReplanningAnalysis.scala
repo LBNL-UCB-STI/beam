@@ -47,18 +47,16 @@ object NewYorkReplanningAnalysis {
       toClose.close()
       xs
     }
-    val replannings = events.collect {
-      case ev: ReplanningEvent => ev
+    val replannings = events.collect { case ev: ReplanningEvent =>
+      ev
     }
     val reasonToEvents = replannings.groupBy(x => x.getReason)
-    reasonToEvents.foreach {
-      case (reason, xs) =>
-        println(s"$reason: ${xs.length}")
+    reasonToEvents.foreach { case (reason, xs) =>
+      println(s"$reason: ${xs.length}")
     }
 
-    val timeToEvents = events.groupBy(x => x.getTime.toInt).map {
-      case (time, xs) =>
-        (time, xs.collect { case x: ModeChoiceEvent => x })
+    val timeToEvents = events.groupBy(x => x.getTime.toInt).map { case (time, xs) =>
+      (time, xs.collect { case x: ModeChoiceEvent => x })
     }
     println(s"events: ${events.length}")
 
@@ -78,12 +76,11 @@ object NewYorkReplanningAnalysis {
         }
       }
       val shapeWriter = ShapeWriter.worldGeodetic[Point, Attribute](s"${reason}.shp")
-      locationToNumberOfExhaustion.foreach {
-        case (location, cnt) =>
-          val link = network.getLinks.get(Id.createLinkId(location))
-          val wgsCoord = geoUtils.utm2Wgs(link.getCoord)
-          val point = geometryFactory.createPoint(new Coordinate(wgsCoord.getX, wgsCoord.getY))
-          shapeWriter.add(point, UUID.randomUUID().toString, Attribute(cnt))
+      locationToNumberOfExhaustion.foreach { case (location, cnt) =>
+        val link = network.getLinks.get(Id.createLinkId(location))
+        val wgsCoord = geoUtils.utm2Wgs(link.getCoord)
+        val point = geometryFactory.createPoint(new Coordinate(wgsCoord.getX, wgsCoord.getY))
+        shapeWriter.add(point, UUID.randomUUID().toString, Attribute(cnt))
       }
       shapeWriter.write()
     }

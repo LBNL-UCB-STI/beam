@@ -421,19 +421,18 @@ class SimpleScenarioGenerator(
     tazGeoIdToGeom: Map[TazGeoId, Geometry]
   ): Map[BlockGroupGeoId, List[(TazGeoId, Double)]] = {
     // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
-    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map {
-      case (blockGroupGeoId, blockGroupGeom) =>
-        // Intersect with all TAZ
-        val allIntersections = tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
-          val intersection = blockGroupGeom.intersection(tazGeo)
-          if (intersection.isEmpty)
-            None
-          else {
-            Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
-          }
+    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map { case (blockGroupGeoId, blockGroupGeom) =>
+      // Intersect with all TAZ
+      val allIntersections = tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
+        val intersection = blockGroupGeom.intersection(tazGeo)
+        if (intersection.isEmpty)
+          None
+        else {
+          Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
         }
-        blockGroupGeoId -> allIntersections.map(_._3).toList
-      }.seq
+      }
+      blockGroupGeoId -> allIntersections.map(_._3).toList
+    }.seq
     blockGroupToTazs
   }
 

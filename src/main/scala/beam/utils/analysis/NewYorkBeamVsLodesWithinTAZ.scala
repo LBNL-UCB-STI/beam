@@ -32,10 +32,13 @@ object NewYorkBeamVsLodesWithinTAZ {
     val beamMap: Map[(Id[TAZ], Id[TAZ]), Int] = getBeamHomeWorkTAZ(tazMap, homeToWork)
 
     val geoData: Array[(GeoAttribute, Coord)] = GeoJsonReader
-      .read(pathToGeoJson, feature => {
-        val (geoAttr, polygon) = NewYorkBeamVsLodes.mapper(feature)
-        (geoAttr, polygon.getCentroid)
-      })
+      .read(
+        pathToGeoJson,
+        feature => {
+          val (geoAttr, polygon) = NewYorkBeamVsLodes.mapper(feature)
+          (geoAttr, polygon.getCentroid)
+        }
+      )
       .map { case (attribute, point) => (attribute, geoUtils.wgs2Utm(new Coord(point.getX, point.getY))) }
 
     val lodesHomeToWorkCount: Seq[(String, String, Int)] = getLodesHomeWorkCounts(pathToLodes)
@@ -89,20 +92,18 @@ object NewYorkBeamVsLodesWithinTAZ {
     geoData: Array[(GeoAttribute, Coord)],
     lodesHomeToWorkCount: Seq[(String, String, Int)]
   ): Map[(Id[TAZ], Id[TAZ]), Int] = {
-    val geoToTazMap = geoData.map {
-      case (geoAttr, coord) =>
-        geoAttr.censusBlockGroup -> tazMap.getTAZ(coord)
+    val geoToTazMap = geoData.map { case (geoAttr, coord) =>
+      geoAttr.censusBlockGroup -> tazMap.getTAZ(coord)
     }.toMap
 
     val result = mutable.Map.empty[(Id[TAZ], Id[TAZ]), Int]
-    lodesHomeToWorkCount.foreach {
-      case (origin, destination, cnt) =>
-        (geoToTazMap.get(origin), geoToTazMap.get(destination)) match {
-          case (Some(origTaz), Some(destTaz)) =>
-            val key = (origTaz.tazId, destTaz.tazId)
-            result.update(key, result.getOrElse(key, 0) + cnt)
-          case _ =>
-        }
+    lodesHomeToWorkCount.foreach { case (origin, destination, cnt) =>
+      (geoToTazMap.get(origin), geoToTazMap.get(destination)) match {
+        case (Some(origTaz), Some(destTaz)) =>
+          val key = (origTaz.tazId, destTaz.tazId)
+          result.update(key, result.getOrElse(key, 0) + cnt)
+        case _ =>
+      }
     }
     println(s"lodes: ${result.size}")
     println(
@@ -117,12 +118,11 @@ object NewYorkBeamVsLodesWithinTAZ {
   ): Map[(Id[TAZ], Id[TAZ]), Int] = {
 
     val beamTazMap = mutable.Map.empty[(Id[TAZ], Id[TAZ]), Int]
-    homeToWork.foreach {
-      case ((origin, destination), cnt) =>
-        val origTaz: TAZ = tazMap.getTAZ(origin)
-        val destTaz: TAZ = tazMap.getTAZ(destination)
-        val key = (origTaz.tazId, destTaz.tazId)
-        beamTazMap.update(key, beamTazMap.getOrElse(key, 0) + cnt)
+    homeToWork.foreach { case ((origin, destination), cnt) =>
+      val origTaz: TAZ = tazMap.getTAZ(origin)
+      val destTaz: TAZ = tazMap.getTAZ(destination)
+      val key = (origTaz.tazId, destTaz.tazId)
+      beamTazMap.update(key, beamTazMap.getOrElse(key, 0) + cnt)
     }
     println(s"homeToWork: ${homeToWork.size}, beamTazMap: ${beamTazMap.size}")
     beamTazMap.toMap

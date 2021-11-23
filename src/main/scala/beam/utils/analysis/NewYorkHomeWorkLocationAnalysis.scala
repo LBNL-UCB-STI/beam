@@ -47,9 +47,8 @@ object NewYorkHomeWorkLocationAnalysis {
 
     val srcDstToPeople = readData
       .groupBy(x => (x.source, x.destination))
-      .map {
-        case ((src, dst), xs) =>
-          ((src, dst), xs.map(_.value).sum)
+      .map { case ((src, dst), xs) =>
+        ((src, dst), xs.map(_.value).sum)
       }
       .toSeq
       .sortBy(x => -x._2)
@@ -71,13 +70,12 @@ object NewYorkHomeWorkLocationAnalysis {
     println(s"boroughMap: ${boroughMap.size}")
 
     val tazGeoIdToBorough: Map[String, String] = ProfilingUtils.timed("TAZ to Borough", x => println(x)) {
-      newYorkTazs.par.map {
-        case (tazGeoId, tazGeom) =>
-          boroughMap.find { case (_, boroughGeom) => !boroughGeom.intersection(tazGeom).isEmpty } match {
-            case Some((borough, _)) => (tazGeoId, borough)
-            case None =>
-              (tazGeoId, "other")
-          }
+      newYorkTazs.par.map { case (tazGeoId, tazGeom) =>
+        boroughMap.find { case (_, boroughGeom) => !boroughGeom.intersection(tazGeom).isEmpty } match {
+          case Some((borough, _)) => (tazGeoId, borough)
+          case None =>
+            (tazGeoId, "other")
+        }
       }.seq
     }
     println(s"tazGeoIdToBorough: ${tazGeoIdToBorough.size}")
@@ -120,18 +118,16 @@ object NewYorkHomeWorkLocationAnalysis {
     val homeWorkLocationsFromScenario = getHomeWorkLocations(pathToPlans, isUtmCoord)
     println(s"homeWorkLocationsFromScenario: ${homeWorkLocationsFromScenario.size}")
 
-    val envelope = boroughMap.foldLeft(new Envelope()) {
-      case (env, (k, v)) =>
-        val center = v.getCentroid
-        env.expandToInclude(center.getX, center.getY)
-        env
+    val envelope = boroughMap.foldLeft(new Envelope()) { case (env, (k, v)) =>
+      val center = v.getCentroid
+      env.expandToInclude(center.getX, center.getY)
+      env
     }
 
     val quadTree =
       new QuadTree[(String, MultiPolygon)](envelope.getMinX, envelope.getMinY, envelope.getMaxX, envelope.getMaxY)
-    boroughMap.foreach {
-      case (k, v) =>
-        quadTree.put(v.getCentroid.getX, v.getCentroid.getY, (k, v))
+    boroughMap.foreach { case (k, v) =>
+      quadTree.put(v.getCentroid.getX, v.getCentroid.getY, (k, v))
     }
 
     def getViaQuadTree(coord: Coord): Option[String] = {
@@ -140,29 +136,26 @@ object NewYorkHomeWorkLocationAnalysis {
       else None
     }
 
-    val homeWorkBoroughToBorough = homeWorkLocationsFromScenario.par.flatMap {
-      case ((src, dst), count) =>
-        val maybeSrcGeoId = getViaQuadTree(src).fold {
-          boroughMap
-            .find {
-              case (_, polygon) =>
-                polygon.contains(MGC.coord2Point(src))
-            }
-            .map(_._1)
-        }(Some(_))
-        val maybeDstGeoId = getViaQuadTree(dst).fold {
-          boroughMap
-            .find {
-              case (_, polygon) =>
-                polygon.contains(MGC.coord2Point(dst))
-            }
-            .map(_._1)
-        }(Some(_))
+    val homeWorkBoroughToBorough = homeWorkLocationsFromScenario.par.flatMap { case ((src, dst), count) =>
+      val maybeSrcGeoId = getViaQuadTree(src).fold {
+        boroughMap
+          .find { case (_, polygon) =>
+            polygon.contains(MGC.coord2Point(src))
+          }
+          .map(_._1)
+      }(Some(_))
+      val maybeDstGeoId = getViaQuadTree(dst).fold {
+        boroughMap
+          .find { case (_, polygon) =>
+            polygon.contains(MGC.coord2Point(dst))
+          }
+          .map(_._1)
+      }(Some(_))
 
-        for {
-          srcGeoId <- maybeSrcGeoId
-          dstGeoId <- maybeDstGeoId
-        } yield ((srcGeoId, dstGeoId), count)
+      for {
+        srcGeoId <- maybeSrcGeoId
+        dstGeoId <- maybeDstGeoId
+      } yield ((srcGeoId, dstGeoId), count)
     }.seq
     println(s"homeWorkBoroughToBorough: ${homeWorkBoroughToBorough.size}")
 
@@ -173,9 +166,8 @@ object NewYorkHomeWorkLocationAnalysis {
 
     val csvWriter = new CsvWriter(outputCsvPath, Array("source", "destination", "count"))
 
-    boroughToBoroughAggregated.foreach {
-      case ((src, dst), count) =>
-        csvWriter.write(src, dst, count)
+    boroughToBoroughAggregated.foreach { case ((src, dst), count) =>
+      csvWriter.write(src, dst, count)
     }
     csvWriter.close()
 
@@ -198,32 +190,31 @@ object NewYorkHomeWorkLocationAnalysis {
           x.personId
         }
         .toSeq
-        .flatMap {
-          case (_, xs) =>
-            if (xs.length < 2) None
-            else {
-              val sorted = xs.sortBy(x => x.activityEndTime.getOrElse(Double.MaxValue))
-              val homeWorkActivities = sorted
-                .sliding(2, 1)
-                .filter { xs =>
-                  xs.length == 2
-                }
-                .filter { xs =>
-                  val isFirstOk = xs(0).activityType.exists(actType => actType.toLowerCase == "home")
-                  val isSecondOk = xs(1).activityType.exists(actType => actType.toLowerCase == "work")
-                  isFirstOk && isSecondOk
-                }
-                .toVector
-              homeWorkActivities.map { sorted =>
-                val srcCoord = new Coord(sorted(0).activityLocationX.get, sorted(0).activityLocationY.get)
-                val srcWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(srcCoord) else srcCoord
-                val dstCoord = new Coord(sorted(1).activityLocationX.get, sorted(1).activityLocationY.get)
-                val dstWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(dstCoord) else dstCoord
+        .flatMap { case (_, xs) =>
+          if (xs.length < 2) None
+          else {
+            val sorted = xs.sortBy(x => x.activityEndTime.getOrElse(Double.MaxValue))
+            val homeWorkActivities = sorted
+              .sliding(2, 1)
+              .filter { xs =>
+                xs.length == 2
+              }
+              .filter { xs =>
+                val isFirstOk = xs(0).activityType.exists(actType => actType.toLowerCase == "home")
+                val isSecondOk = xs(1).activityType.exists(actType => actType.toLowerCase == "work")
+                isFirstOk && isSecondOk
+              }
+              .toVector
+            homeWorkActivities.map { sorted =>
+              val srcCoord = new Coord(sorted(0).activityLocationX.get, sorted(0).activityLocationY.get)
+              val srcWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(srcCoord) else srcCoord
+              val dstCoord = new Coord(sorted(1).activityLocationX.get, sorted(1).activityLocationY.get)
+              val dstWgsCoord = if (isUtmCoord) geoUtils.utm2Wgs(dstCoord) else dstCoord
 //                val srcActivity = sorted(0).copy(activityLocationX = Some(srcWgsCoord.getX), activityLocationY =  Some(srcWgsCoord.getY))
 //                val dstActivity = sorted(1).copy(activityLocationX = Some(dstWgsCoord.getX), activityLocationY =  Some(dstWgsCoord.getY))
-                Some(((srcWgsCoord, dstWgsCoord), 1))
-              }
+              Some(((srcWgsCoord, dstWgsCoord), 1))
             }
+          }
         }
         .flatten
         .groupBy { case ((src, dst), _) => (src, dst) }
@@ -240,9 +231,8 @@ object NewYorkHomeWorkLocationAnalysis {
     outputCsvPath: String
   ): Unit = {
     val boroughToBorough = srcDstToPeople
-      .map {
-        case ((src, dst), cnt) =>
-          ((tazGeoIdToBorough.get(src), tazGeoIdToBorough.get(dst)), cnt)
+      .map { case ((src, dst), cnt) =>
+        ((tazGeoIdToBorough.get(src), tazGeoIdToBorough.get(dst)), cnt)
       }
       .groupBy { case ((src, dst), _) => (src, dst) }
       .map { case ((src, dst), xs) => ((src, dst), xs.map(_._2).sum) }
@@ -250,9 +240,8 @@ object NewYorkHomeWorkLocationAnalysis {
 
     val csvWriter = new CsvWriter(outputCsvPath, Array("source", "destination", "count"))
 
-    boroughToBorough.foreach {
-      case ((src, dst), count) =>
-        csvWriter.write(src, dst, count)
+    boroughToBorough.foreach { case ((src, dst), count) =>
+      csvWriter.write(src, dst, count)
     }
     csvWriter.close()
   }

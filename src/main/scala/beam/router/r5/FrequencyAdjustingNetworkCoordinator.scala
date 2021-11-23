@@ -118,9 +118,8 @@ case class FrequencyAdjustingNetworkCoordinator(beamConfig: BeamConfig) extends 
     }
 
     this.transportNetwork = processTransportNetwork(this.transportNetwork)
-    this.networks2 = this.networks2.map {
-      case (tn, n) =>
-        (processTransportNetwork(tn), n)
+    this.networks2 = this.networks2.map { case (tn, n) =>
+      (processTransportNetwork(tn), n)
     }
   }
 }

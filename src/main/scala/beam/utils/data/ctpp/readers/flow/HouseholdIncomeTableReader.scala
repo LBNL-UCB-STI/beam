@@ -48,10 +48,9 @@ object HouseholdIncomeTableReader {
         .groupBy { x =>
           (x.source, x.destination)
         }
-        .foreach {
-          case ((src, dst), xs) =>
-            val sumAllCounts = xs.map(_.value).sum.toInt
-            csvWriter.write(quoteCsv(src), quoteCsv(dst), sumAllCounts)
+        .foreach { case ((src, dst), xs) =>
+          val sumAllCounts = xs.map(_.value).sum.toInt
+          csvWriter.write(quoteCsv(src), quoteCsv(dst), sumAllCounts)
         }
     } finally {
       csvWriter.close()

@@ -24,6 +24,7 @@ class TransitCrowdingSkimmer @Inject() (
   import TransitCrowdingSkimmer._
   override protected[skim] val readOnlySkim = new TransitCrowdingSkims(beamScenario.vehicleTypes)
   override protected val skimFileBaseName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.fileBaseName
+
   override protected val skimFileHeader =
     "vehicleId,fromStopIdx,numberOfPassengers,capacity,observations,duration,iterations"
   override protected val skimName: String = beamConfig.beam.router.skim.transit_crowding_skimmer.name
@@ -96,6 +97,7 @@ object TransitCrowdingSkimmer extends LazyLogging {
     duration: Int,
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
+
     override def toCsv: String =
       numberOfPassengers + "," + capacity + "," + observations + "," + duration + "," + iterations
 

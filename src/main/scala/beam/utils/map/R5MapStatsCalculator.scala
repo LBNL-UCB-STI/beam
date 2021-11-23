@@ -203,14 +203,13 @@ object R5MapStatsCalculator {
       def printWays(ways: mutable.Map[java.lang.Long, Way]): Unit = {
         ways
           .groupBy { case (_, way) => way.getTag("maxspeed") == null }
-          .foreach {
-            case (doesNotHaveSpeedTag, ways) =>
-              if (doesNotHaveSpeedTag) {
-                println(s"\t\t${ways.size} does not have speed tag")
-              } else {
-                println(s"\t\t${ways.size} has speed tag")
-              }
-              ways
+          .foreach { case (doesNotHaveSpeedTag, ways) =>
+            if (doesNotHaveSpeedTag) {
+              println(s"\t\t${ways.size} does not have speed tag")
+            } else {
+              println(s"\t\t${ways.size} has speed tag")
+            }
+            ways
           }
       }
 

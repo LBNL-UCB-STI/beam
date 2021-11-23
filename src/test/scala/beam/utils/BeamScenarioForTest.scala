@@ -40,7 +40,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       primaryFuelCapacityInJoule = 0.1,
       vehicleCategory = VehicleCategory.Car
     )
-    val vehicleTypes = Map(vehicleType.id                -> vehicleType)
+    val vehicleTypes = Map(vehicleType.id -> vehicleType)
     val fuelTypePrices = Map(vehicleType.primaryFuelType -> 10.0)
     val tazMap = mock(classOf[TAZTreeMap])
     when(tazMap.getTAZ(any[java.lang.Double](), any[java.lang.Double]()))

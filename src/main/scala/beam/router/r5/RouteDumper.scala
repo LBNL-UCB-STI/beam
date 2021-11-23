@@ -244,35 +244,33 @@ object RouteDumper {
 
   def toRecords(routingResponse: RoutingResponse): java.util.ArrayList[GenericData.Record] = {
     val records = new java.util.ArrayList[GenericData.Record]
-    routingResponse.itineraries.zipWithIndex.foreach {
-      case (itinerary, itineraryIndex) =>
-        itinerary.legs.zipWithIndex.foreach {
-          case (embodiedBeamLeg, legIndex) =>
-            val record = new GenericData.Record(routingResponseSchema)
-            record.put("requestId", routingResponse.requestId)
-            record.put("computedInMs", routingResponse.computedInMs)
-            record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
+    routingResponse.itineraries.zipWithIndex.foreach { case (itinerary, itineraryIndex) =>
+      itinerary.legs.zipWithIndex.foreach { case (embodiedBeamLeg, legIndex) =>
+        val record = new GenericData.Record(routingResponseSchema)
+        record.put("requestId", routingResponse.requestId)
+        record.put("computedInMs", routingResponse.computedInMs)
+        record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
 
-            record.put("itineraries", routingResponse.itineraries.length)
-            record.put("itineraryIndex", itineraryIndex)
-            record.put("costEstimate", itinerary.costEstimate)
-            record.put("tripClassifier", itinerary.tripClassifier.value)
-            record.put("replanningPenalty", itinerary.replanningPenalty)
-            record.put("totalTravelTimeInSecs", itinerary.totalTravelTimeInSecs)
-            record.put("legs", itinerary.legs.length)
-            record.put("legIndex", legIndex)
+        record.put("itineraries", routingResponse.itineraries.length)
+        record.put("itineraryIndex", itineraryIndex)
+        record.put("costEstimate", itinerary.costEstimate)
+        record.put("tripClassifier", itinerary.tripClassifier.value)
+        record.put("replanningPenalty", itinerary.replanningPenalty)
+        record.put("totalTravelTimeInSecs", itinerary.totalTravelTimeInSecs)
+        record.put("legs", itinerary.legs.length)
+        record.put("legIndex", legIndex)
 
-            record.put("beamVehicleId", Option(embodiedBeamLeg.beamVehicleId).map(_.toString).orNull)
-            record.put("beamVehicleTypeId", Option(embodiedBeamLeg.beamVehicleTypeId).map(_.toString).orNull)
-            record.put("asDriver", embodiedBeamLeg.asDriver)
-            record.put("cost", embodiedBeamLeg.cost)
-            record.put("unbecomeDriverOnCompletion", embodiedBeamLeg.unbecomeDriverOnCompletion)
-            record.put("isPooledTrip", embodiedBeamLeg.isPooledTrip)
-            record.put("isRideHail", embodiedBeamLeg.isRideHail)
+        record.put("beamVehicleId", Option(embodiedBeamLeg.beamVehicleId).map(_.toString).orNull)
+        record.put("beamVehicleTypeId", Option(embodiedBeamLeg.beamVehicleTypeId).map(_.toString).orNull)
+        record.put("asDriver", embodiedBeamLeg.asDriver)
+        record.put("cost", embodiedBeamLeg.cost)
+        record.put("unbecomeDriverOnCompletion", embodiedBeamLeg.unbecomeDriverOnCompletion)
+        record.put("isPooledTrip", embodiedBeamLeg.isPooledTrip)
+        record.put("isRideHail", embodiedBeamLeg.isRideHail)
 
-            addToRecord(record, embodiedBeamLeg.beamLeg)
-            records.add(record)
-        }
+        addToRecord(record, embodiedBeamLeg.beamLeg)
+        records.add(record)
+      }
     }
     records
   }

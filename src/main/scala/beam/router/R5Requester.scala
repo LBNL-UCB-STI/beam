@@ -41,6 +41,7 @@ class MyDebugRoutingVisitor extends RoutingVisitor {
 	-PlogbackCfg=logback.xml -Dplans=test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz -DconvertToWgs=false
  */
 object R5Requester extends BeamHelper {
+
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:32118"
   }
@@ -103,19 +104,17 @@ object R5Requester extends BeamHelper {
       .filter(x => x.planElementType.equalsIgnoreCase("activity"))
       .groupBy(x => x.personId.id)
       .toSeq
-      .filter {
-        case (_, xs) =>
-          val firstActivity = xs.lift(0)
-          val secondActivity = xs.lift(1)
-          val isFirstHome =
-            firstActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("home")))
-          val isSecondWork =
-            secondActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("work")))
-          isFirstHome && isSecondWork
+      .filter { case (_, xs) =>
+        val firstActivity = xs.lift(0)
+        val secondActivity = xs.lift(1)
+        val isFirstHome =
+          firstActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("home")))
+        val isSecondWork =
+          secondActivity.exists(x => x.activityType.exists(actType => actType.equalsIgnoreCase("work")))
+        isFirstHome && isSecondWork
       }
-      .map {
-        case (personId, xs) =>
-          (xs(0), xs(1))
+      .map { case (personId, xs) =>
+        (xs(0), xs(1))
       }
 
     val sampledWorkWithHome = new Random(42).shuffle(workWithHome).take(nSampleSize)
@@ -144,141 +143,140 @@ object R5Requester extends BeamHelper {
 //    val workWithHome = Array(Array(createActivityPlanElement("3816745", "Home", new Coord(-74.17345197835338, 40.55232541650765), 145),
 //      createActivityPlanElement("3816745", "Work", new Coord(-74.0062321680475, 40.76305541131651), 52331)))
 
-    sampledWorkWithHome.foreach {
-      case (home, work) =>
-        val (startWgs, endWgs, startUTM, endUTM) = if (shouldConvertToWgs) {
-          val homeUTM = new Coord(home.activityLocationX.get, home.activityLocationY.get)
-          val workUTM = new Coord(work.activityLocationX.get, work.activityLocationY.get)
-          val homeWgs = geoUtils.utm2Wgs(homeUTM)
-          val workWgs = geoUtils.utm2Wgs(workUTM)
-          (homeWgs, workWgs, homeUTM, workUTM)
-        } else {
-          val homeWgs = new Coord(home.activityLocationX.get, home.activityLocationY.get)
-          val workWgs = new Coord(work.activityLocationX.get, work.activityLocationY.get)
-          val homeUTM = geoUtils.wgs2Utm(homeWgs)
-          val workUTM = geoUtils.wgs2Utm(workWgs)
-          (homeWgs, workWgs, homeUTM, workUTM)
-        }
-        val departureTime = home.activityEndTime.map(_.toInt).getOrElse(30600)
-        val carStreetVehicle =
-          getStreetVehicle("dummy-car-for-skim-observations", BeamMode.CAV, startUTM, departureTime)
+    sampledWorkWithHome.foreach { case (home, work) =>
+      val (startWgs, endWgs, startUTM, endUTM) = if (shouldConvertToWgs) {
+        val homeUTM = new Coord(home.activityLocationX.get, home.activityLocationY.get)
+        val workUTM = new Coord(work.activityLocationX.get, work.activityLocationY.get)
+        val homeWgs = geoUtils.utm2Wgs(homeUTM)
+        val workWgs = geoUtils.utm2Wgs(workUTM)
+        (homeWgs, workWgs, homeUTM, workUTM)
+      } else {
+        val homeWgs = new Coord(home.activityLocationX.get, home.activityLocationY.get)
+        val workWgs = new Coord(work.activityLocationX.get, work.activityLocationY.get)
+        val homeUTM = geoUtils.wgs2Utm(homeWgs)
+        val workUTM = geoUtils.wgs2Utm(workWgs)
+        (homeWgs, workWgs, homeUTM, workUTM)
+      }
+      val departureTime = home.activityEndTime.map(_.toInt).getOrElse(30600)
+      val carStreetVehicle =
+        getStreetVehicle("dummy-car-for-skim-observations", BeamMode.CAV, startUTM, departureTime)
 
-        val bikeStreetVehicle =
-          getStreetVehicle("dummy-bike-for-skim-observations", BeamMode.BIKE, startUTM, departureTime)
-        val walkStreetVehicle =
-          getStreetVehicle("dummy-body-for-skim-observations", BeamMode.WALK, startUTM, departureTime)
+      val bikeStreetVehicle =
+        getStreetVehicle("dummy-bike-for-skim-observations", BeamMode.BIKE, startUTM, departureTime)
+      val walkStreetVehicle =
+        getStreetVehicle("dummy-body-for-skim-observations", BeamMode.WALK, startUTM, departureTime)
 
-        val threeModesReq = baseRoutingRequest.copy(
-          streetVehicles = Vector(carStreetVehicle, bikeStreetVehicle, walkStreetVehicle),
-          withTransit = true,
-          originUTM = startUTM,
-          destinationUTM = endUTM,
-          departureTime = departureTime
-        )
+      val threeModesReq = baseRoutingRequest.copy(
+        streetVehicles = Vector(carStreetVehicle, bikeStreetVehicle, walkStreetVehicle),
+        withTransit = true,
+        originUTM = startUTM,
+        destinationUTM = endUTM,
+        departureTime = departureTime
+      )
 
-        if (shouldComputeAllInOne) {
-          allMs += ProfilingUtils.timeWork {
-            val threeModesResp = r5Wrapper.calcRoute(threeModesReq)
-            if (shouldLog) {
-              showRouteResponse("Three Modes in one shot", threeModesResp)
-              showPlanDetails(home, startWgs, endWgs)
-              println
-            }
-          }
-        }
-
-        if (shouldComputeCar) {
-          carMs += ProfilingUtils.timeWork {
-            val carReq =
-              baseRoutingRequest.copy(
-                streetVehicles = Vector(carStreetVehicle),
-                withTransit = false,
-                originUTM = startUTM,
-                destinationUTM = endUTM,
-                departureTime = departureTime
-              )
-            val carResp = r5Wrapper.calcRoute(carReq)
-            if (carResp.itineraries.isEmpty) emptyCars += 1
-
-            if (shouldLog) {
-              showRouteResponse("Only CAR mode", carResp)
-              showPlanDetails(home, startWgs, endWgs)
-              println
-            }
-          }
-        }
-
-        if (shouldComputeBike) {
-          val bikeElapsedMs = ProfilingUtils.timeWork {
-            val bikeReq =
-              baseRoutingRequest.copy(
-                streetVehicles = Vector(bikeStreetVehicle),
-                withTransit = false,
-                originUTM = startUTM,
-                destinationUTM = endUTM,
-                departureTime = departureTime
-              )
-            val bikeResp = r5Wrapper.calcRoute(bikeReq)
-            if (bikeResp.itineraries.isEmpty) emptyBikes += 1
-
-            if (shouldLog) {
-              showRouteResponse("Only BIKE mode", bikeResp)
-              showPlanDetails(home, startWgs, endWgs)
-              println
-              println
-            }
-          }
-          if (bikeElapsedMs > 10000) {
-            val link =
-              s"http://localhost:8080/plan?fromLat=${startWgs.getY}&fromLon=${startWgs.getX}&toLat=${endWgs.getY}&toLon=${endWgs.getX}&mode=BICYCLE&full=false"
-            println(link)
-            println(s"bikeElapsedMs: $bikeElapsedMs")
-
+      if (shouldComputeAllInOne) {
+        allMs += ProfilingUtils.timeWork {
+          val threeModesResp = r5Wrapper.calcRoute(threeModesReq)
+          if (shouldLog) {
+            showRouteResponse("Three Modes in one shot", threeModesResp)
             showPlanDetails(home, startWgs, endWgs)
-          }
-          bikeMs += bikeElapsedMs
-        }
-
-        if (shouldComputeWalk) {
-          walkMs += ProfilingUtils.timeWork {
-            val walkReq =
-              baseRoutingRequest.copy(
-                streetVehicles = Vector(walkStreetVehicle),
-                withTransit = true,
-                originUTM = startUTM,
-                destinationUTM = endUTM,
-                departureTime = departureTime
-              )
-            val walkResp = r5Wrapper.calcRoute(walkReq)
-            if (walkResp.itineraries.isEmpty) emptyWalks += 1
-            else {
-              walkResp.itineraries.foreach { it =>
-                if (it.tripClassifier.isTransit)
-                  nWalkTransits += 1
-              }
-            }
-
-            if (shouldLog) {
-              showRouteResponse("Only WALK mode with transit", walkResp)
-              showPlanDetails(home, startWgs, endWgs)
-              println()
-            }
+            println
           }
         }
+      }
 
-        if (i % 100 == 0) {
-          println(s"###################### $i ############################")
-          println(s"Three Modes in one shot: ${Statistics(allMs)}")
-          println(s"Only CAR mode: ${Statistics(carMs)}")
-          println(s"Only BIKE mode: ${Statistics(bikeMs)}")
-          println(s"Only WALK mode with transit: ${Statistics(walkMs)}, number of walk transits: ${nWalkTransits}")
-          println(s"emptyCars: $emptyCars")
-          println(s"emptyBikes: $emptyBikes")
-          println(s"emptyWalks: $emptyWalks")
-          println("######################################################")
+      if (shouldComputeCar) {
+        carMs += ProfilingUtils.timeWork {
+          val carReq =
+            baseRoutingRequest.copy(
+              streetVehicles = Vector(carStreetVehicle),
+              withTransit = false,
+              originUTM = startUTM,
+              destinationUTM = endUTM,
+              departureTime = departureTime
+            )
+          val carResp = r5Wrapper.calcRoute(carReq)
+          if (carResp.itineraries.isEmpty) emptyCars += 1
+
+          if (shouldLog) {
+            showRouteResponse("Only CAR mode", carResp)
+            showPlanDetails(home, startWgs, endWgs)
+            println
+          }
         }
+      }
 
-        i += 1
+      if (shouldComputeBike) {
+        val bikeElapsedMs = ProfilingUtils.timeWork {
+          val bikeReq =
+            baseRoutingRequest.copy(
+              streetVehicles = Vector(bikeStreetVehicle),
+              withTransit = false,
+              originUTM = startUTM,
+              destinationUTM = endUTM,
+              departureTime = departureTime
+            )
+          val bikeResp = r5Wrapper.calcRoute(bikeReq)
+          if (bikeResp.itineraries.isEmpty) emptyBikes += 1
+
+          if (shouldLog) {
+            showRouteResponse("Only BIKE mode", bikeResp)
+            showPlanDetails(home, startWgs, endWgs)
+            println
+            println
+          }
+        }
+        if (bikeElapsedMs > 10000) {
+          val link =
+            s"http://localhost:8080/plan?fromLat=${startWgs.getY}&fromLon=${startWgs.getX}&toLat=${endWgs.getY}&toLon=${endWgs.getX}&mode=BICYCLE&full=false"
+          println(link)
+          println(s"bikeElapsedMs: $bikeElapsedMs")
+
+          showPlanDetails(home, startWgs, endWgs)
+        }
+        bikeMs += bikeElapsedMs
+      }
+
+      if (shouldComputeWalk) {
+        walkMs += ProfilingUtils.timeWork {
+          val walkReq =
+            baseRoutingRequest.copy(
+              streetVehicles = Vector(walkStreetVehicle),
+              withTransit = true,
+              originUTM = startUTM,
+              destinationUTM = endUTM,
+              departureTime = departureTime
+            )
+          val walkResp = r5Wrapper.calcRoute(walkReq)
+          if (walkResp.itineraries.isEmpty) emptyWalks += 1
+          else {
+            walkResp.itineraries.foreach { it =>
+              if (it.tripClassifier.isTransit)
+                nWalkTransits += 1
+            }
+          }
+
+          if (shouldLog) {
+            showRouteResponse("Only WALK mode with transit", walkResp)
+            showPlanDetails(home, startWgs, endWgs)
+            println()
+          }
+        }
+      }
+
+      if (i % 100 == 0) {
+        println(s"###################### $i ############################")
+        println(s"Three Modes in one shot: ${Statistics(allMs)}")
+        println(s"Only CAR mode: ${Statistics(carMs)}")
+        println(s"Only BIKE mode: ${Statistics(bikeMs)}")
+        println(s"Only WALK mode with transit: ${Statistics(walkMs)}, number of walk transits: ${nWalkTransits}")
+        println(s"emptyCars: $emptyCars")
+        println(s"emptyBikes: $emptyBikes")
+        println(s"emptyWalks: $emptyWalks")
+        println("######################################################")
+      }
+
+      i += 1
     }
 
     println(s"Three Modes in one shot: ${Statistics(allMs)}")

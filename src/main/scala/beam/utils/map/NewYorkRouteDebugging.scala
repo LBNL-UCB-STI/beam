@@ -24,6 +24,7 @@ import org.matsim.api.core.v01.Coord
 import scala.collection.JavaConverters._
 
 object NewYorkRouteDebugging {
+
   private val geoUtils: GeoUtils = new beam.sim.common.GeoUtils {
     override def localCRS: String = "epsg:32118"
   }
@@ -48,13 +49,12 @@ object NewYorkRouteDebugging {
     val (workerParams: R5Parameters, maybeNetworks2) = R5Parameters.fromConfig(cfg)
     println(s"baseDate: ${workerParams.dates.localBaseDate}")
     val r5Wrapper: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
-    val r5Wrapper2: Option[R5Wrapper] = maybeNetworks2.map {
-      case (transportNetwork, network) =>
-        new R5Wrapper(
-          workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
-          new FreeFlowTravelTime,
-          travelTimeNoiseFraction = 0
-        )
+    val r5Wrapper2: Option[R5Wrapper] = maybeNetworks2.map { case (transportNetwork, network) =>
+      new R5Wrapper(
+        workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
+        new FreeFlowTravelTime,
+        travelTimeNoiseFraction = 0
+      )
     }
     val ppQuery = new PointToPointQuery(workerParams.transportNetwork)
 
@@ -132,10 +132,9 @@ object NewYorkRouteDebugging {
   }
 
   private def subwayPresented(resp: BeamRouter.RoutingResponse) = {
-    resp.itineraries.exists(
-      x =>
-        (x.tripClassifier == WALK_TRANSIT || x.tripClassifier == DRIVE_TRANSIT) & x.legs
-          .exists(leg => leg.beamLeg.mode == beam.router.Modes.BeamMode.SUBWAY)
+    resp.itineraries.exists(x =>
+      (x.tripClassifier == WALK_TRANSIT || x.tripClassifier == DRIVE_TRANSIT) & x.legs
+        .exists(leg => leg.beamLeg.mode == beam.router.Modes.BeamMode.SUBWAY)
     )
   }
 
@@ -159,12 +158,10 @@ object NewYorkRouteDebugging {
         "C:\\Users\\dimao\\Downloads\\ny-baseline.routingRequest.parquet"
       )
       try {
-        it.filter(
-            req =>
-              req.get("withTransit").asInstanceOf[Boolean] && requestIds
-                .contains(req.get("requestId").asInstanceOf[Int])
-          )
-          .toArray
+        it.filter(req =>
+          req.get("withTransit").asInstanceOf[Boolean] && requestIds
+            .contains(req.get("requestId").asInstanceOf[Int])
+        ).toArray
       } finally {
         toClose.close()
       }
@@ -222,32 +219,31 @@ object NewYorkRouteDebugging {
 
     val activeServices =
       workerParams.transportNetwork.transitLayer.getActiveServicesForDate(workerParams.dates.localBaseDate)
-    workerParams.transportNetwork.transitLayer.services.asScala.zipWithIndex.foreach {
-      case (svc, idx) =>
-        val isWorking = activeServices.get(idx).toString
-        workerParams.transportNetwork.transitLayer.services
-        Option(svc.calendar) match {
-          case Some(calendar) =>
-            csvWriter.write(
-              Vector(
-                escape(svc.service_id),
-                isWorking,
-                escape(calendar.feed_id),
-                calendar.monday.toString,
-                calendar.tuesday.toString,
-                calendar.wednesday.toString,
-                calendar.thursday.toString,
-                calendar.friday.toString,
-                calendar.saturday.toString,
-                calendar.sunday.toString,
-                calendar.start_date.toString,
-                calendar.end_date.toString
-              ): _*
-            )
-          case None =>
-            val row = Vector(escape(svc.service_id), isWorking) ++ Vector.fill(headers.size - 2)("")
-            csvWriter.write(row: _*)
-        }
+    workerParams.transportNetwork.transitLayer.services.asScala.zipWithIndex.foreach { case (svc, idx) =>
+      val isWorking = activeServices.get(idx).toString
+      workerParams.transportNetwork.transitLayer.services
+      Option(svc.calendar) match {
+        case Some(calendar) =>
+          csvWriter.write(
+            Vector(
+              escape(svc.service_id),
+              isWorking,
+              escape(calendar.feed_id),
+              calendar.monday.toString,
+              calendar.tuesday.toString,
+              calendar.wednesday.toString,
+              calendar.thursday.toString,
+              calendar.friday.toString,
+              calendar.saturday.toString,
+              calendar.sunday.toString,
+              calendar.start_date.toString,
+              calendar.end_date.toString
+            ): _*
+          )
+        case None =>
+          val row = Vector(escape(svc.service_id), isWorking) ++ Vector.fill(headers.size - 2)("")
+          csvWriter.write(row: _*)
+      }
     }
     csvWriter.close()
   }
@@ -276,9 +272,8 @@ object NewYorkRouteDebugging {
       }
       .toList
       .sortBy { case (_, n) => n }(Ordering[Int].reverse)
-    dateToActiveServices.foreach {
-      case (d, n) =>
-        println(s"$d => $n")
+    dateToActiveServices.foreach { case (d, n) =>
+      println(s"$d => $n")
     }
   }
 
