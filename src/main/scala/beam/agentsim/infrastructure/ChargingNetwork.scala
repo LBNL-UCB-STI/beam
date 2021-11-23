@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, RefuelTripType, ShiftStatus}
+import beam.agentsim.events.RefuelSessionEvent.{Normal, NotApplicable, RefuelTripType, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -400,7 +400,7 @@ object ChargingNetwork extends LazyLogging {
     theSender: ActorRef,
     chargingStatus: ListBuffer[ChargingStatus] = ListBuffer.empty[ChargingStatus],
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle],
-    refuelTripType: RefuelTripType
+    refuelTripType: RefuelTripType = Normal
   ) extends LazyLogging {
     import ChargingStatus._
 
