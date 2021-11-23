@@ -152,6 +152,12 @@ object PersonAgent {
     override def geofence: Option[Geofence] = delegate.geofence
   }
 
+  /**
+   * holds information for agent enroute
+   * @param enroute         flag to indicate whether agent is enrouting or not
+   * @param stall2DestLegs  car legs from enroute charging stall to original destination
+   * @param attempted       flag to indicate whether enroute already attempted for 'current' trip
+   */
   case class EnrouteState(
     enroute: Boolean = false,
     stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector(),
@@ -966,6 +972,8 @@ class PersonAgent(
           .asInstanceOf[ActualVehicle]
           .vehicle
           .isSharedVehicle
+
+        // decide next state to go
         val stateToGo = {
           if (needEnroute) ReadyToChooseParking
           else if (nextLeg.beamLeg.mode == CAR || isSharedVehicle) ReleasingParkingSpot
@@ -986,6 +994,7 @@ class PersonAgent(
             Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
           )
 
+        // decide whether we need to complete the trigger, start a leg or both
         val (sendCompletionNotice, updatedData) = stateToGo match {
           case ReadyToChooseParking =>
             (false, copiedData.copy(enrouteState = EnrouteState(enroute = true)))
@@ -1001,6 +1010,7 @@ class PersonAgent(
             (false, copiedData)
         }
 
+        // complete trigger only if following conditions match
         if ((sendCompletionNotice && data.enrouteState.notAttempted) || nextLeg.beamLeg.endTime > lastTickOfSimulation)
           scheduler ! CompletionNotice(triggerId)
 
