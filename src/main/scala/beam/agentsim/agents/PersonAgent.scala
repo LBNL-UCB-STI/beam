@@ -153,11 +153,11 @@ object PersonAgent {
   }
 
   /**
-   * holds information for agent enroute
-   * @param enroute         flag to indicate whether agent is enrouting or not
-   * @param stall2DestLegs  car legs from enroute charging stall to original destination
-   * @param attempted       flag to indicate whether enroute already attempted for 'current' trip
-   */
+    * holds information for agent enroute
+    * @param enroute         flag to indicate whether agent is enrouting or not
+    * @param stall2DestLegs  car legs from enroute charging stall to original destination
+    * @param attempted       flag to indicate whether enroute already attempted for 'current' trip
+    */
   case class EnrouteState(
     enroute: Boolean = false,
     stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector(),
