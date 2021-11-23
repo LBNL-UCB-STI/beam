@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
+import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, RefuelTripType, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -95,7 +95,8 @@ class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], Parki
           request.personId,
           request.shiftStatus,
           request.shiftDuration,
-          theSender
+          theSender,
+          request.refuelTripType
         )
       )
       .orElse {
@@ -303,7 +304,8 @@ object ChargingNetwork extends LazyLogging {
       personId: Id[Person],
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
-      theSender: ActorRef
+      theSender: ActorRef,
+      refuelTripType: RefuelTripType
     ): ChargingVehicle = {
       vehicles.get(vehicle.id) match {
         case Some(chargingVehicle) =>
@@ -311,7 +313,17 @@ object ChargingNetwork extends LazyLogging {
           chargingVehicle
         case _ =>
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, personId, shiftStatus, shiftDuration, theSender)
+            ChargingVehicle(
+              vehicle,
+              stall,
+              this,
+              tick,
+              personId,
+              shiftStatus,
+              shiftDuration,
+              theSender,
+              refuelTripType = refuelTripType
+            )
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
@@ -387,7 +399,8 @@ object ChargingNetwork extends LazyLogging {
     shiftDuration: Option[Int],
     theSender: ActorRef,
     chargingStatus: ListBuffer[ChargingStatus] = ListBuffer.empty[ChargingStatus],
-    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
+    chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle],
+    refuelTripType: RefuelTripType
   ) extends LazyLogging {
     import ChargingStatus._
 

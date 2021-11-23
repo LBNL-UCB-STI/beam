@@ -1,7 +1,7 @@
 package beam.agentsim.events
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.events.RefuelSessionEvent.{ActivityType, Normal, NotApplicable, ShiftStatus}
+import beam.agentsim.events.RefuelSessionEvent.{Normal, NotApplicable, RefuelTripType, ShiftStatus}
 import beam.agentsim.infrastructure.ParkingStall
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
@@ -21,7 +21,7 @@ case class RefuelSessionEvent(
   vehicleType: BeamVehicleType,
   personId: Id[Person],
   shiftStatus: ShiftStatus = NotApplicable,
-  activityType: ActivityType = Normal
+  refuelTripType: RefuelTripType = Normal
 ) extends Event(tick)
     with HasPersonId
     with ScalaEvent {
@@ -44,7 +44,7 @@ case class RefuelSessionEvent(
       status.toString
   }
 
-  private val activityTypeString = activityType match {
+  private val refuelTripTypeString = refuelTripType match {
     case Normal  => ""
     case Enroute => "enroute"
   }
@@ -65,7 +65,7 @@ case class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.id.toString)
     attributes.put(ATTRIBUTE_PERSON, personId.toString)
     attributes.put(ATTRIBUTE_SHIFT_STATUS, shiftStatusString)
-    attributes.put(ATTRIBUTE_ACTIVITY_TYPE, activityTypeString)
+    attributes.put(ATTRIBUTE_ACTIVITY_TYPE, refuelTripTypeString)
     attributes
   }
 }
@@ -93,7 +93,7 @@ object RefuelSessionEvent {
   case object OffShift extends ShiftStatus
   case object NotApplicable extends ShiftStatus
 
-  sealed trait ActivityType
-  case object Normal extends ActivityType
-  case object Enroute extends ActivityType
+  sealed trait RefuelTripType
+  case object Normal extends RefuelTripType
+  case object Enroute extends RefuelTripType
 }
