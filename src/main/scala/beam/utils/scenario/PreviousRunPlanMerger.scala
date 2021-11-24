@@ -13,16 +13,17 @@ import scala.util.{Random, Try}
   * @author Dmitry Openkov
   */
 class PreviousRunPlanMerger(
-  fraction: Double,
+  fractionOfNewPlansToUpdate: Double,
+  sampleFraction: Double,
   outputDir: Path,
   dirPrefix: String,
   rnd: Random,
   adjustForScenario: PlanElement => PlanElement
 ) extends LazyLogging {
-  require(0 <= fraction && fraction <= 1.0, "fraction must be in [0, 1]")
+  require(0 <= fractionOfNewPlansToUpdate && fractionOfNewPlansToUpdate <= 1.0, "fraction must be in [0, 1]")
 
   def merge(plans: Iterable[PlanElement]): (Iterable[PlanElement], Boolean) = {
-    if (fraction <= 0) {
+    if (fractionOfNewPlansToUpdate <= 0) {
       return plans -> false
     }
 
@@ -35,7 +36,7 @@ class PreviousRunPlanMerger(
           XmlPlanElementReader.read(planPath.toString)
         }
         val convertedPlans = previousPlans.map(adjustForScenario)
-        PreviousRunPlanMerger.merge(convertedPlans, plans, fraction, rnd) -> true
+        PreviousRunPlanMerger.merge(convertedPlans, plans, fractionOfNewPlansToUpdate, sampleFraction, rnd) -> true
       case None =>
         logger.warn(
           "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
@@ -52,20 +53,30 @@ object PreviousRunPlanMerger extends LazyLogging {
   def merge(
     plans: Iterable[PlanElement],
     plansToMerge: Iterable[PlanElement],
-    fraction: Double,
+    fractionOfPlansToUpdate: Double,
+    populationSample: Double,
     random: Random
   ): Iterable[PlanElement] = {
     val persons = plans.map(_.personId).toSet
     val mergePersons = plansToMerge.map(_.personId).toSet
     val matchedPersons = persons & mergePersons
-    val numberToReplace = (persons.size * fraction).round.toInt
+    val numberToReplace = (persons.size * fractionOfPlansToUpdate).round.toInt
     val personIdsToReplace = random.shuffle(matchedPersons.toSeq).take(numberToReplace).toSet
-    logger.info("Adding new plans to {} people", personIdsToReplace.size)
+    val newPersons = mergePersons &~ persons
+    val numberToAdd = (newPersons.size * populationSample).round.toInt
+    val personIdsToAdd = random.shuffle(newPersons.toSeq).take(numberToAdd).toSet
+    logger.info(
+      "Creating {} new people and adding new plans to {} people",
+      personIdsToAdd.size,
+      personIdsToReplace.size
+    )
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
     val (oldToBeReplaced, oldElements) = plans.partition(shouldReplace)
-    val newElements = plansToMerge.filter(shouldReplace)
+    val elementsFromExistingPersonsToAdd = plansToMerge.filter(shouldReplace)
+    val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
+    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd)
     val unselectedPlanElements = oldToBeReplaced.map(_.copy(planSelected = false))
-    oldElements ++ unselectedPlanElements ++ newElements
+    oldElements ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
   }
 }
 
