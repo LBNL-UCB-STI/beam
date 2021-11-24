@@ -51,8 +51,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       TestPopulationAdjustment.logModes(population)
       verifyLogging(
         INFO -> "Modes excluded:",
-        INFO -> "bike -> 2",
-        INFO -> "car -> 5"
+        INFO -> "car -> 5",
+        INFO -> "bike -> 2"
       )
     }
 
@@ -97,8 +97,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       TestPopulationAdjustment.logModes(population)
       verifyLogging(
         INFO  -> "Modes excluded:",
-        INFO  -> "bike -> 2",
         INFO  -> "car -> 3",
+        INFO  -> "bike -> 2",
         ERROR -> "Not all agents have person attributes - is attributes file missing ?"
       )
     }

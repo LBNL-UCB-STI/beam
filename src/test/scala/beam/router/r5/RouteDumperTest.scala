@@ -124,7 +124,7 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
   }
 
   test("Should be able to convert RoutingResponse to Record") {
-    val routingResposne = RoutingResponse(
+    val routingResponse = RoutingResponse(
       itineraries = Vector(
         EmbodiedBeamTrip(
           legs = Vector(
@@ -177,15 +177,15 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
       triggerId = 0
     )
 
-    val records = RouteDumper.toRecords(routingResposne)
-    val legToIt = routingResposne.itineraries.zipWithIndex.flatMap { case (it, itIndex) =>
+    val records = RouteDumper.toRecords(routingResponse)
+    val legToIt = routingResponse.itineraries.zipWithIndex.flatMap { case (it, itIndex) =>
       it.beamLegs.zipWithIndex.map { case (leg, legIndex) =>
         ((leg, legIndex), (it, itIndex))
       }
     }
     records.asScala.zip(legToIt).foreach { case (record, ((leg, legIndex), (trip, tripIndex))) =>
-      record.get("requestId") shouldBe routingResposne.requestId
-      record.get("isEmbodyWithCurrentTravelTime") shouldBe routingResposne.isEmbodyWithCurrentTravelTime
+      record.get("requestId") shouldBe routingResponse.requestId
+      record.get("isEmbodyWithCurrentTravelTime") shouldBe routingResponse.isEmbodyWithCurrentTravelTime
       record.get("itineraryIndex") shouldBe tripIndex
       record.get("costEstimate") shouldBe trip.costEstimate
       record.get("tripClassifier") shouldBe trip.tripClassifier.value
