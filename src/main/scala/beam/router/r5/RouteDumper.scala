@@ -462,7 +462,7 @@ object RouteDumper {
       new Schema.Field(s"${prefix}_locationUTM_Y", nullable[Double], "locationUTM_Y", null.asInstanceOf[Any]),
       new Schema.Field(s"${prefix}_locationUTM_time", nullable[Int], "locationUTM_time", null.asInstanceOf[Any]),
       new Schema.Field(s"${prefix}_mode", nullable[String], "mode", null.asInstanceOf[Any]),
-      new Schema.Field(s"${prefix}_asDriver", nullable[Boolean], "asDriver", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_asDriver", nullable[Boolean], "asDriver", null.asInstanceOf[Any])
     )
     fields
   }
@@ -520,7 +520,7 @@ object RouteDumper {
       attributesOfIndividual,
       streetVehiclesUseIntermodalUse,
       initiatedFrom,
-      requestAsJson,
+      requestAsJson
     ) ++ (streetVehicleSchema("streetVehicle_0") ++ streetVehicleSchema("streetVehicle_1") ++ streetVehicleSchema(
       "streetVehicle_2"
     ))
