@@ -297,8 +297,9 @@ trait ChoosesParking extends {
         val isStallHasFastCharger = chargingPointMaybe.exists(ChargingPointType.isFastCharger)
         val isDestinationChargeTurningToAnEnrouteCharge =
           isDistanceGreaterThanThreshold && isParkingDurationSmallEnoughFor && isStallHasFastCharger
+        val continueEnroute = isEnroute && isDestinationChargeTurningToAnEnrouteCharge
 
-        val carIfEnroute = if (isEnroute || isDestinationChargeTurningToAnEnrouteCharge) {
+        val carIfEnroute = if (continueEnroute) {
           currentBeamVehicle.setReservedParkingStall(Some(stall))
           // get car route from stall to destination, TODO note we give a dummy start time and update later based on drive time to stall
           Vector(
@@ -338,7 +339,11 @@ trait ChoosesParking extends {
           stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
         } yield (vehicle2StallResponse, stall2DestinationResponse)
         responses pipeTo self
-        stay using data
+        stay using (data match {
+          case d: BasePersonData =>
+            d.copy(enrouteState = d.enrouteState.copy(enroute = continueEnroute))
+          case _ => data
+        })
       }
 
     // to keep it simple, adding new case here. [en-route]
@@ -485,6 +490,7 @@ trait ChoosesParking extends {
         )
       )
 
+      handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,

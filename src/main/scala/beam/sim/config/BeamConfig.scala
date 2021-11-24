@@ -1558,7 +1558,7 @@ object BeamConfig {
                     c.getInt("thresholdForNotWalkingToDestinationInMeters")
                   else 1000,
                 newLegStartDelayInSeconds =
-                  if (c.hasPathOrNull("newLegStartDelayInSeconds")) c.getInt("newLegStartDelayInSeconds") else 3600
+                  if (c.hasPathOrNull("newLegStartDelayInSeconds")) c.getInt("newLegStartDelayInSeconds") else 1800
               )
             }
           }

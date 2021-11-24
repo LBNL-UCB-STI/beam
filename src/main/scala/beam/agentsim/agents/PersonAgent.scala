@@ -845,7 +845,7 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case _ @Event(StartingRefuelSession(tick, _), _) =>
+    case Event(StartingRefuelSession(tick, _), _) =>
       val endEnrouteRefuelingTime =
         tick +
         beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds +
@@ -853,12 +853,12 @@ class PersonAgent(
 
       scheduler ! ScheduleTrigger(EnrouteRefuelingTrigger(endEnrouteRefuelingTime), self)
       stay
-    case _ @Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
+    case Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
       stay replying CompletionNotice(triggerId, Vector())
-    case _ @Event(WaitingToCharge(_, _, _), _) =>
+    case Event(WaitingToCharge(_, _, _), _) =>
       stay
-    case _ @Event(EndingRefuelSession(tick, _, triggerId), _) =>
+    case Event(EndingRefuelSession(tick, _, triggerId), _) =>
       if (currentBeamVehicle.stall.isDefined) {
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
@@ -867,7 +867,7 @@ class PersonAgent(
         )
       }
       stay
-    case _ @Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
+    case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       handleReleasingParkingSpot(
         tick,
@@ -878,31 +878,52 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      // read preserved car legs to head back to original destination
-      // append walk legs around them, update start time and make legs consistent
-      // unset reserved charging stall
-      // unset enroute state, and update `data` with new legs
-      val stall2DestinationCarLegs = data.enrouteState.stall2DestLegs
-      val walkTemp = data.currentTrip.head.legs.head
       val startTime = tick + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.newLegStartDelayInSeconds
-      val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
-      val walk4 = data.currentTrip.head.legs.last
-      val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-        EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (stall2DestinationCarLegs :+ walk4))
-      val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
+      val updatedData = createStallToDestTripForEnroute(data, startTime)
       currentBeamVehicle.unsetReservedParkingStall()
       holdTickAndTriggerId(startTime, triggerId)
-      goto(ProcessingNextLegOrStartActivity) using data.copy(
-        currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
-        restOfCurrentTrip = newRestOfTrip.toList,
-        enrouteState = EnrouteState(attempted = true)
+      goto(ProcessingNextLegOrStartActivity) using updatedData
+    case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
+      log.debug(
+        s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
+        s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-    case _ @Event(UnhandledVehicle(_, _, _), data: BasePersonData) =>
-      // TODO is this valid transition?
-      goto(ProcessingNextLegOrStartActivity) using data.copy(enrouteState = EnrouteState(attempted = true))
+      handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager,
+        triggerId
+      )
+      val startTime = tick + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.newLegStartDelayInSeconds
+      val updatedData = createStallToDestTripForEnroute(data, startTime)
+      currentBeamVehicle.unsetReservedParkingStall()
+      holdTickAndTriggerId(startTime, triggerId)
+      goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
       stay
+  }
+
+  private def createStallToDestTripForEnroute(data: BasePersonData, startTime: Int): BasePersonData = {
+    // read preserved car legs to head back to original destination
+    // append walk legs around them, update start time and make legs consistent
+    // unset reserved charging stall
+    // unset enroute state, and update `data` with new legs
+    val stall2DestinationCarLegs = data.enrouteState.stall2DestLegs
+    val walkTemp = data.currentTrip.head.legs.head
+    val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
+    val walk4 = data.currentTrip.head.legs.last
+    val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
+      EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (stall2DestinationCarLegs :+ walk4))
+    val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
+    data.copy(
+      currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+      restOfCurrentTrip = newRestOfTrip.toList,
+      enrouteState = EnrouteState(attempted = true)
+    )
   }
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
