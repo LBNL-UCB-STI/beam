@@ -1016,23 +1016,23 @@ class PersonAgent(
           )
 
         // decide whether we need to complete the trigger, start a leg or both
-        val (sendCompletionNotice, updatedData) = stateToGo match {
+        val updatedData = stateToGo match {
           case ReadyToChooseParking =>
-            (false, copiedData.copy(enrouteState = EnrouteState(enroute = true)))
+            copiedData.copy(enrouteState = EnrouteState(enroute = true))
           case ReleasingParkingSpot if data.enrouteState.attempted =>
             scheduler ! ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self)
-            (true, copiedData)
+            copiedData
           case ReleasingParkingSpot =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
-            (false, copiedData)
+            copiedData
           case WaitingToDrive =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
             releaseTickAndTriggerId()
-            (false, copiedData)
+            copiedData
         }
 
         // complete trigger only if following conditions match
-        if ((sendCompletionNotice && data.enrouteState.notAttempted) || nextLeg.beamLeg.endTime > lastTickOfSimulation)
+        if (nextLeg.beamLeg.endTime > lastTickOfSimulation)
           scheduler ! CompletionNotice(triggerId)
 
         goto(stateToGo) using updatedData
