@@ -132,6 +132,7 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"commit\\":\\"$COMMIT\\",
