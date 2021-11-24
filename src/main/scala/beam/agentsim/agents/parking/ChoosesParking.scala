@@ -286,8 +286,6 @@ trait ChoosesParking extends {
         )
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
-        // if is specifically Enroute charging
-        val isEnroute = data match { case data: BasePersonData => data.enrouteState.enroute; case _ => false }
         // or distance is greater than threshold
         // and parking duration is much greater than enrouteMaxDuration TODO: consider a buffer period later on
         // and stall has a fast charger
@@ -297,9 +295,8 @@ trait ChoosesParking extends {
         val isStallHasFastCharger = chargingPointMaybe.exists(ChargingPointType.isFastCharger)
         val isDestinationChargeTurningToAnEnrouteCharge =
           isDistanceGreaterThanThreshold && isParkingDurationSmallEnoughFor && isStallHasFastCharger
-        val continueEnroute = isEnroute && isDestinationChargeTurningToAnEnrouteCharge
 
-        val carIfEnroute = if (continueEnroute) {
+        val carIfEnroute = if (isDestinationChargeTurningToAnEnrouteCharge) {
           currentBeamVehicle.setReservedParkingStall(Some(stall))
           // get car route from stall to destination, TODO note we give a dummy start time and update later based on drive time to stall
           Vector(
@@ -334,16 +331,25 @@ trait ChoosesParking extends {
           Some(attributes),
           triggerId = getCurrentTriggerIdOrGenerate
         )
-        val responses = for {
-          vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
-          stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
-        } yield (vehicle2StallResponse, stall2DestinationResponse)
-        responses pipeTo self
-        stay using (data match {
-          case d: BasePersonData =>
-            d.copy(enrouteState = d.enrouteState.copy(enroute = continueEnroute))
-          case _ => data
-        })
+
+        data match {
+          case data: BasePersonData if data.enrouteState.enroute && !isDestinationChargeTurningToAnEnrouteCharge =>
+            // continue normal workflow if enroute is not possible, and set `attempted` to true.
+            val (tick, triggerId) = releaseTickAndTriggerId()
+            handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
+            scheduler ! CompletionNotice(
+              triggerId,
+              Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg), self))
+            )
+            goto(WaitingToDrive) using data.copy(enrouteState = EnrouteState(attempted = true))
+          case _ =>
+            val responses = for {
+              vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
+              stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
+            } yield (vehicle2StallResponse, stall2DestinationResponse)
+            responses pipeTo self
+            stay using data
+        }
       }
 
     // to keep it simple, adding new case here. [en-route]
