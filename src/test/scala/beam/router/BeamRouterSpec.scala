@@ -113,7 +113,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
       TrieMap.empty,
-      mutable.HashMap.empty,
+      TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(

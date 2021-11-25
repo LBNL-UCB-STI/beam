@@ -61,9 +61,7 @@ object VehiclesCsvWriter {
     val pVehicles: Map[Id[BeamVehicle], (String, Option[Double])] =
       beamServices.beamScenario.privateVehicles.values.map {
         case vehicle: BeamVehicle if vehicle.beamVehicleType.primaryFuelType == Electricity =>
-          vehicle.id -> (vehicle.beamVehicleType.id.toString, Some(
-            vehicle.primaryFuelLevelInJoules / vehicle.beamVehicleType.primaryFuelCapacityInJoule
-          ))
+          vehicle.id -> (vehicle.beamVehicleType.id.toString, Some(vehicle.getStateOfCharge))
         case vehicle: BeamVehicle =>
           vehicle.id -> (vehicle.beamVehicleType.id.toString, None)
       }.toMap

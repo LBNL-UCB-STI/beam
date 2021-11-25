@@ -70,7 +70,6 @@ import java.time.ZonedDateTime
 import java.util.Properties
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
@@ -347,9 +346,9 @@ trait BeamHelper extends LazyLogging {
   def privateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): (TrieMap[Id[BeamVehicle], BeamVehicle], mutable.Map[Id[BeamVehicle], Double]) =
+  ): (TrieMap[Id[BeamVehicle], BeamVehicle], TrieMap[Id[BeamVehicle], Double]) =
     if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
-      TrieMap[Id[BeamVehicle], BeamVehicle]() -> mutable.Map.empty
+      TrieMap.empty[Id[BeamVehicle], BeamVehicle] -> TrieMap.empty[Id[BeamVehicle], Double]
     } else {
       val (vehicleIdToVehicle, vehicleIdToSoc) = readVehiclesFile(
         beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
@@ -359,7 +358,7 @@ trait BeamHelper extends LazyLogging {
       )
       TrieMap(
         vehicleIdToVehicle.toSeq: _*
-      ) -> mutable.HashMap(vehicleIdToSoc.toSeq: _*)
+      ) -> TrieMap(vehicleIdToSoc.toSeq: _*)
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo

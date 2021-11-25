@@ -3,7 +3,7 @@ package beam.sim
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
-import beam.agentsim.agents.vehicles.FuelType.FuelTypePrices
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelTypePrices}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleEnergy}
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
@@ -15,7 +15,6 @@ import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
 
 /**
   * This holds together a couple of containers of simulation data, all of which are immutable.
@@ -35,7 +34,7 @@ case class BeamScenario(
   fuelTypePrices: FuelTypePrices,
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
-  privateVehicleInitialSoc: mutable.Map[Id[BeamVehicle], Double],
+  privateVehicleInitialSoc: TrieMap[Id[BeamVehicle], Double],
   vehicleEnergy: VehicleEnergy,
   beamConfig: BeamConfig,
   dates: DateUtils,
@@ -64,4 +63,11 @@ case class BeamScenario(
         .toSeq
         .flatten
     }
+
+  def setInitialSocOfPrivateVehiclesFromCurrentStateOfVehicles(): Unit = {
+    privateVehicles.values.foreach(vehicle =>
+      if (vehicle.beamVehicleType.primaryFuelType == Electricity)
+        privateVehicleInitialSoc.put(vehicle.id, vehicle.getStateOfCharge)
+    )
+  }
 }
