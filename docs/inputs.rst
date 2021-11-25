@@ -274,3 +274,49 @@ Secondary activities generation
     that people are more likely to choose a less optimal destination, mode_nest_scale_factor means people are more likely
     to value destinations accessible by multiple modes, and trip_nest_scale_factor means that people are more likely
     to take secondary trips even if the costs are greater than the benefits.
+
+Defining what data BEAM writes out
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+There's the list of parameters responsible for writing out data produced by BEAM.
+
+::
+
+    beam.router.skim.writeSkimsInterval = 0
+    beam.router.skim.writeAggregatedSkimsInterval = 0
+    beam.router.skim.origin-destination-skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
+    beam.router.skim.origin-destination-skimmer.writeFullSkimsInterval = 0
+    beam.debug.writeModeChoiceAlternatives = false
+    beam.debug.writeRealizedModeChoiceFile = false
+    beam.outputs.writeGraphs = true
+    beam.outputs.writePlansInterval = 0
+    beam.outputs.writeEventsInterval = 1
+    beam.outputs.writeAnalysis = true
+    beam.outputs.writeR5RoutesInterval = 0
+    beam.physsim.writeEventsInterval = 0
+    beam.physsim.events.fileOutputFormats = "csv" # valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
+    beam.physsim.events.eventsToWrite = "ActivityEndEvent,ActivityStartEvent,LinkEnterEvent,LinkLeaveEvent,PersonArrivalEvent,PersonDepartureEvent,VehicleEntersTrafficEvent,VehicleLeavesTrafficEvent"
+    beam.physsim.writePlansInterval = 0
+    beam.physsim.writeRouteHistoryInterval = 10
+    beam.physsim.linkStatsWriteInterval = 0
+    beam.outputs.generalizedLinkStatsInterval = 0
+
+All integer values that end with 'Interval' mean writing data files at iteration which number % value = 0. In case value = 0
+writing is disabled.
+
+* beam.router.skim.writeSkimsInterval: enable writing all skim data for a particular iteration to corresponding files
+* beam.router.skim.writeAggregatedSkimsInterval: enable writing all aggregated skim data (for all iterations) to corresponding files
+* beam.router.skim.origin-destination-skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval: enable writing ODSkims for peak and non-peak time periods to #.skimsODExcerpt.csv.gz
+* beam.router.skim.origin-destination-skimmer.writeFullSkimsInterval: enable writing ODSkims for all TAZes presented in the scenario to #.skimsODFull.csv.gz
+* beam.outputs.writeGraphs: enable writing activity locations to #.activityLocations.png
+* beam.outputs.writePlansInterval: enable writing plans of persons at the iteration to #.plans.csv.gz
+* beam.outputs.writeEventsInterval: enable writing AgentSim events to #.events.csv.gz
+* beam.outputs.writeAnalysis: enable analysis with python script analyze_events.py and writing different data files
+* beam.outputs.writeR5RoutesInterval: enable writing routing requests/responses to files #.routingRequest.parquet, #.routingResponse.parquet, #.embodyWithCurrentTravelTime.parquet
+* beam.physsim.writeEventsInterval: enable writing physsim events to #.physSimEvents.csv.gz
+* beam.physsim.events.fileOutputFormats: file format for physsim event file; valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
+* beam.physsim.events.eventsToWrite: types of physsim events to write
+* beam.physsim.writePlansInterval: enable writing of physsim plans to #.physsimPlans.xml.gz
+* beam.physsim.writeRouteHistoryInterval: enable writing route history to #.routeHistory.csv.gz. It contains timeBin,originLinkId,destLinkId,route (link ids)
+* beam.physsim.linkStatsWriteInterval: enable writing link statistic to #.linkstats_unmodified.csv.gz"
+* beam.outputs.generalizedLinkStatsInterval: enable writing generalized link statistic (with generalized time and cost) to #.generalizedLinkStats.csv.gz
