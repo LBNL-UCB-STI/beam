@@ -160,6 +160,8 @@ public class OsmToMATSim {
         double capacity;
         double freespeed = defaults.freespeed;
         double freespeedFactor = defaults.freespeedFactor;
+        double alpha = defaults.alpha;
+        double beta = defaults.beta;
         boolean oneway = defaults.oneway;
         boolean onewayReverse = false;
 
@@ -263,6 +265,8 @@ public class OsmToMATSim {
             l.setFreespeed(freespeed);
             l.setCapacity(capacity);
             l.setNumberOfLanes(nofLanes);
+            l.getAttributes().putAttribute("alpha", alpha);
+            l.getAttributes().putAttribute("beta", beta);
             l.setAllowedModes(flagStrings);
             NetworkUtils.setOrigId(l, Long.toString(osmID));
             NetworkUtils.setType(l, highway);
