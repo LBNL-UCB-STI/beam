@@ -783,6 +783,7 @@ trait BeamHelper extends LazyLogging {
             }
             val merger = new PreviousRunPlanMerger(
               beamConfig.beam.agentsim.agents.plans.merge.fraction,
+              beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation,
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
               beamConfig.beam.input.simulationPrefix,
               new Random(),
