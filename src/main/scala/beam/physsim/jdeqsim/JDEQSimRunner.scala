@@ -13,7 +13,6 @@ import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
-import beam.utils.NetworkEdgeOutputGenerator.beamConfig
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
@@ -30,6 +29,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
 import scala.concurrent.ExecutionContext
+
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -316,7 +316,6 @@ object JDEQSimRunner {
     }
 
     functionName match {
-
       case "FREE_FLOW" =>
         (time, link, _, _) =>
           val originalTravelTime = link.getLength / link.getFreespeed(time)
@@ -331,11 +330,9 @@ object JDEQSimRunner {
                   caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-
-                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
-                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
                 val tmp = volume / (capacity * 3600)
-                val result = ftt * (1 + alpha * math.pow(tmp, beta))
+                val result = ftt * (1 + tmp * tmp)
+
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
                 originalTravelTime + additionalTravelTime(link, time)
@@ -348,9 +345,7 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val alpha = link.getAttributes.getAttribute("alpha").asInstanceOf[Double]
-                val beta = link.getAttributes.getAttribute("beta").asInstanceOf[Double]
-                val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
+                val originalTravelTime = ftt * (1 + tmp * tmp)
                 originalTravelTime + additionalTravelTime(link, time)
               } else {
                 ftt + additionalTravelTime(link, time)
