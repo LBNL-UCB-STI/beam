@@ -277,8 +277,10 @@ class PersonAgent(
 
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
+
   val minDistanceToTrainStop =
     beamScenario.beamConfig.beam.agentsim.agents.tripBehaviors.carUsage.minDistanceToTrainStop
+
   val bodyType: BeamVehicleType = beamScenario.vehicleTypes(
     Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
   )
@@ -503,6 +505,7 @@ class PersonAgent(
         )
     }
   }
+
   private def canUseCars(currentCoord: Coord, nextCoord: Coord): Boolean = {
     beamScenario.trainStopQuadTree
       .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
@@ -592,9 +595,9 @@ class PersonAgent(
         tick
       ),
       isWithinTripReplanning = true,
-      excludeModes =         (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
-      else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
-      else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)).distinct
+      excludeModes = (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
+                      else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
+                                         else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)).distinct
     )
   }
 
@@ -810,8 +813,9 @@ class PersonAgent(
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
         ),
         SpaceTime(currentCoord, _currentTick.get),
-        excludeModes =          if (canUseCars(currentCoord, nextCoord)) Vector.empty
-        else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
+        excludeModes =
+          if (canUseCars(currentCoord, nextCoord)) Vector.empty
+          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
   }
 

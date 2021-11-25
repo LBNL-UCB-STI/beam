@@ -1426,9 +1426,10 @@ object BeamConfig {
         )
 
         object TripBehaviors {
+
           case class CarUsage(
-                               minDistanceToTrainStop: scala.Double
-                             )
+            minDistanceToTrainStop: scala.Double
+          )
 
           object CarUsage {
 
