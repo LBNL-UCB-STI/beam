@@ -878,10 +878,9 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val startTime = tick + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.newLegStartDelayInSeconds
-      val updatedData = createStallToDestTripForEnroute(data, startTime)
+      val updatedData = createStallToDestTripForEnroute(data, tick)
       currentBeamVehicle.unsetReservedParkingStall()
-      holdTickAndTriggerId(startTime, triggerId)
+      holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
       log.debug(
@@ -897,10 +896,9 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val startTime = tick + beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.newLegStartDelayInSeconds
-      val updatedData = createStallToDestTripForEnroute(data, startTime)
+      val updatedData = createStallToDestTripForEnroute(data, tick)
       currentBeamVehicle.unsetReservedParkingStall()
-      holdTickAndTriggerId(startTime, triggerId)
+      holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
