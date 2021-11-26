@@ -3,7 +3,6 @@ package beam.integration
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
-import beam.agentsim.events.RefuelSessionEvent.Enroute
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -124,14 +123,13 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
               `vehicleId`,
               _,
               _,
-              _,
-              Enroute
+              _
             ) =>
           refuelEvents += RefuelEventData(
             energyInJoules,
             ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
           )
-          beenToEnroute = true
+//          beenToEnroute = true
         case _ =>
       }
       controler.run()
@@ -146,8 +144,8 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
     "avoid enroute upon enough charging" in {
       var beenToEnroute: Boolean = false
       val controler = buildControler(defaultConfig) {
-        case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, _, Enroute) =>
-          beenToEnroute = true
+        case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, _) =>
+        // beenToEnroute = true
         case _ =>
       }
       controler.run()

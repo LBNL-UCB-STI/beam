@@ -12,7 +12,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.VehicleFullError
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.VehicleProtocol._
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.RefuelSessionEvent.{Enroute, Normal, NotApplicable}
+import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingStall
@@ -378,8 +378,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     stall,
                     Id.createPersonId(id),
                     triggerId,
-                    shiftStatus = NotApplicable,
-                    refuelTripType = if (inEnroute) Enroute else Normal
+                    shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely

@@ -7,7 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.events.RefuelSessionEvent.{Normal, NotApplicable, RefuelTripType, ShiftStatus}
+import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
@@ -154,7 +154,7 @@ class ChargingNetworkManager(
       }
       sender ! CompletionNotice(triggerId)
 
-    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _, refuelTripType) =>
+    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
         // connecting the current vehicle
@@ -184,7 +184,7 @@ class ChargingNetworkManager(
         case Some(stall) =>
           getAppropriateChargingNetwork(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
             case Some(
-                  chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, status, sessions, refuelTripType)
+                  chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, status, sessions)
                 ) =>
               if (sessions.nonEmpty && !status.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
@@ -205,8 +205,7 @@ class ChargingNetworkManager(
                     newChargingVehicle.personId,
                     triggerId,
                     newChargingVehicle.shiftStatus,
-                    newChargingVehicle.shiftDuration,
-                    refuelTripType
+                    newChargingVehicle.shiftDuration
                   )
                 }
             case _ =>
@@ -402,8 +401,7 @@ object ChargingNetworkManager extends LazyLogging {
     personId: Id[Person],
     triggerId: Long,
     shiftStatus: ShiftStatus = NotApplicable,
-    shiftDuration: Option[Int] = None,
-    refuelTripType: RefuelTripType = Normal
+    shiftDuration: Option[Int] = None
   ) extends HasTriggerId
   case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
   case class StartingRefuelSession(tick: Int, triggerId: Long) extends HasTriggerId
@@ -470,8 +468,7 @@ object ChargingNetworkManager extends LazyLogging {
       vehicle.id,
       vehicle.beamVehicleType,
       chargingVehicle.personId,
-      chargingVehicle.shiftStatus,
-      chargingVehicle.refuelTripType
+      chargingVehicle.shiftStatus
     )
     logger.debug(s"RefuelSessionEvent: $refuelSessionEvent")
     beamServices.matsimServices.getEvents.processEvent(refuelSessionEvent)
