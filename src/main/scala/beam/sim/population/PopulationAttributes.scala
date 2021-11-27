@@ -67,8 +67,7 @@ case class AttributesOfIndividual(
             modeChoiceModel.situationMultipliers(beamMode),
             vehicleAutomationLevel,
             beamServices
-
-          ) * getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
+          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
         }
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel)
