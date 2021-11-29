@@ -80,6 +80,7 @@ object BeamConfig {
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
+          convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
           name: java.lang.String,
           plansFilePath: java.lang.String,
@@ -114,6 +115,7 @@ object BeamConfig {
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
+              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
               plansFilePath =

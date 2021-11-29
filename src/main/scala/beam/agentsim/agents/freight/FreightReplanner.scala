@@ -75,9 +75,7 @@ class FreightReplanner(
       val tours = toursAndPlans.map(_._1)
       val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
 
-      val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
-      PayloadPlansConverter
-        .createPersonPlan(tours, plansPerTour, person, if (convertWgs2Utm) Some(beamServices.geo) else None)
+      PayloadPlansConverter.createPersonPlan(tours, plansPerTour, person)
     }
   }
 
@@ -165,9 +163,9 @@ class FreightReplanner(
       val serviceId = payloadPlan.payloadId.toString
       payloadPlan.requestType match {
         case FreightRequestType.Unloading =>
-          Dropoff(serviceId, payloadPlan.location, payloadPlan.weight, payloadPlan.operationDurationInSec)
+          Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weight, payloadPlan.operationDurationInSec)
         case FreightRequestType.Loading =>
-          Pickup(serviceId, payloadPlan.location, payloadPlan.weight, payloadPlan.operationDurationInSec)
+          Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weight, payloadPlan.operationDurationInSec)
       }
     }
 
