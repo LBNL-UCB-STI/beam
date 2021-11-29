@@ -42,7 +42,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
     replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = "")
   )
 
-
+// issue for fixing old tests with old reader - https://github.com/LBNL-UCB-STI/beam/issues/3385
 //  "PayloadPlansConverter" should {
 //    "read Payload Plans" in {
 //      val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
