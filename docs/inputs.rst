@@ -154,6 +154,65 @@ TAZs, Scaling, and Physsim Tuning
 * physsim.parbprsim.syncInterval: The sync interval in seconds for PARBPRsim. When the sim time reaches this interval in a particular cluster then it waits for the other clusters at that time point.
 
 
+Routing Configuration
+^^^^^^^^^^^^^^^^^^^^^
+::
+
+# values: R5, staticGH, quasiDynamicGH, nativeCCH (Linux Only)
+beam.routing.carRouter="R5"
+beam.routing {
+  #Base local date in ISO 8061 YYYY-MM-DDTHH:MM:SS+HH:MM
+  baseDate = "2016-10-17T00:00:00-07:00"
+  transitOnStreetNetwork = true # PathTraversalEvents for transit vehicles
+  r5 {
+    directory = ${beam.inputDirectory}"/r5"
+    # Departure window in min
+    departureWindow = "double | 15.0"
+    numberOfSamples = "int | 1"
+    osmFile = ${beam.routing.r5.directory}"/beamville.osm.pbf"
+    osmMapdbFile = ${beam.routing.r5.directory}"/osm.mapdb"
+    mNetBuilder.fromCRS = "EPSG:4326"   # WGS84
+    mNetBuilder.toCRS = "EPSG:26910"    # UTM10N
+    travelTimeNoiseFraction = 0.0
+    maxDistanceLimitByModeInMeters {
+      bike = 40000
+    }
+    bikeLaneScaleFactor = 1.0
+    bikeLaneLinkIdsFilePath = ""
+  }
+  startingIterationForTravelTimesMSA = 0
+  overrideNetworkTravelTimesUsingSkims = false
+
+  # Set a lower bound on travel times that can possibly be used to override the network-based
+  # travel time in the route.This is used to prevent unrealistically fast trips or negative
+  # duration trips.
+  minimumPossibleSkimBasedTravelTimeInS= 60
+  skimTravelTimesScalingFactor =  0.0
+  writeRoutingStatistic = false
+}
+
+Parameters within beam.routing namespace
+* carRouter: type of car router.  The values are R5, staticGH, quasiDynamicGH, nativeCCH (Linux Only) where staticGH is GraphHopper router (when link travel times don't depend on time of the day), quasiDynamicGH is GraphHopper router (link
+travel times depend on time of the day), nativeCCH is router that uses native CCH library.
+* baseDate: the date which routes are requested on (transit depends on it)
+* transitOnStreetNetwork: if set to true transit PathTraversalEvents includes the route links
+* r5.directory: the directory that contains R5 data which includes pbf file, GTFS files.
+* r5.departureWindow: the departure window for transit requests
+* r5.numberOfSamples: Number of Monte Carlo draws to take for frequency searches when doing routing
+* r5.osmMapdbFile: osm map db file that is stored to this location
+* r5.mNetBuilder.fromCRS: convert network coordinates from this CRS
+* r5.mNetBuilder.toCRS: convert network coordinates to this CRS
+* r5.travelTimeNoiseFraction: if it's greater than zero some noise to link travel times will be added
+* r5.maxDistanceLimitByModeInMeters: one can limit max distance to be used for a particular mode
+* r5.bikeLaneScaleFactor: this parameter is intended to make the links with bike lanes to be more preferable when the
+    router calculates a route for bikes. The less this scaleFactor the more preferable these links get
+* r5.bikeLaneLinkIdsFilePath: the ids of links that have bike lanes
+* startingIterationForTravelTimesMSA: ???
+* overrideNetworkTravelTimesUsingSkims: travel time is got from skims
+* minimumPossibleSkimBasedTravelTimeInS: minimum skim based travel time
+* skimTravelTimesScalingFactor: used to scale skim based travel time
+* writeRoutingStatistic: if set to true writes origin-destination pairs that a route wasn't found between
+
 Warm Mode
 ^^^^^^^^^
 ::
