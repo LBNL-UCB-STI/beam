@@ -265,7 +265,7 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
                   'x2gd.metal', 'x2gd.16xlarge']
 
-instance_types_with_memory = {
+instance_type_to_memory = {
     't2.nano': 0.5, 't2.micro': 1, 't2.small': 2, 't2.medium': 4, 't2.large': 8, 't2.xlarge': 16, 't2.2xlarge': 32,
     'm4.large': 8, 'm4.xlarge': 16, 'm4.2xlarge': 32, 'm4.4xlarge': 64, 'm4.10xlarge': 160, 'm4.16xlarge': 256,
     'm5.large': 8, 'm5.xlarge': 16, 'm5.2xlarge': 32, 'm5.4xlarge': 64, 'm5.12xlarge': 192, 'm5.24xlarge': 384,
@@ -672,7 +672,7 @@ def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
 
 def calculate_max_ram(instance_type):
-    ram = instance_types_with_memory[instance_type]
+    ram = instance_type_to_memory[instance_type]
     return ram * (1 - percent_factor(ram))
 
 def deploy_handler(event, context):
