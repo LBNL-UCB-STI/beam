@@ -63,6 +63,4 @@ case class BeamScenario(
         .toSeq
         .flatten
     }
-
-  lazy val linkIdCoordMap: collection.Map[Id[Link], Coord] = network.getLinks.asScala.mapValues(_.getCoord)
 }

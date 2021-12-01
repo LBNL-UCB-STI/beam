@@ -45,7 +45,6 @@ import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
@@ -878,9 +877,11 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val updatedData = createStallToDestTripForEnroute(data, tick)
+      val updatedData =
+        createStallToDestTripForEnroute(data, tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      val updatedTick = updatedData.restOfCurrentTrip.head.beamLeg.startTime
       currentBeamVehicle.unsetReservedParkingStall()
-      holdTickAndTriggerId(tick, triggerId)
+      holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
       log.debug(
@@ -896,9 +897,11 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val updatedData = createStallToDestTripForEnroute(data, tick)
+      val updatedData =
+        createStallToDestTripForEnroute(data, tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      val updatedTick = updatedData.restOfCurrentTrip.head.beamLeg.startTime
       currentBeamVehicle.unsetReservedParkingStall()
-      holdTickAndTriggerId(tick, triggerId)
+      holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
@@ -1005,8 +1008,8 @@ class PersonAgent(
           currentVehicle = currentVehicleForNextState
         )
 
-        val triggerId = _currentTriggerId.get
         val tick = _currentTick.get
+        val triggerId = _currentTriggerId.get
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit =
           scheduler ! CompletionNotice(
             triggerId,
@@ -1018,7 +1021,7 @@ class PersonAgent(
           case ReadyToChooseParking =>
             copiedData.copy(enrouteState = EnrouteState(enroute = true))
           case ReleasingParkingSpot if data.enrouteState.attempted =>
-            scheduler ! ScheduleTrigger(StartLegTrigger(_currentTick.get, nextLeg.beamLeg), self)
+            scheduler ! ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)
             copiedData
           case ReleasingParkingSpot =>
             sendCompletionNoticeAndScheduleStartLegTrigger()

@@ -93,20 +93,7 @@ object ChoosesParking {
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  // TODO This might be a violation of Actor framework. Need to verify
   var latestParkingInquiry: Option[ParkingInquiry] = None
-
-  private def calculateMidpointUtm(vehicleTrip: List[EmbodiedBeamLeg]): Option[SpaceTime] = {
-    // we skip the first link during calculating path travel time
-    val linkIds = vehicleTrip.flatMap(_.beamLeg.travelPath.linkIds.drop(1))
-    val linkTravelTimes = vehicleTrip.flatMap(_.beamLeg.travelPath.linkTravelTime.drop(1))
-    val middleIdx = linkIds.size / 2
-    val middleLinkId = linkIds(middleIdx)
-    val middleLinkTravelTime = linkTravelTimes.take(middleIdx).sum.toInt
-    beamScenario.linkIdCoordMap
-      .get(Id.createLinkId(middleLinkId))
-      .map(SpaceTime(_, vehicleTrip.head.beamLeg.startTime + middleLinkTravelTime))
-  }
 
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head
@@ -122,11 +109,12 @@ trait ChoosesParking extends {
       val vehicle = beamVehicles(firstLeg.beamVehicleId).vehicle
       val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get
       ParkingInquiry.init(
-        calculateMidpointUtm(vehicleTrip).getOrElse(destinationUtm),
+        destinationUtm,
         activityType,
         reservedFor,
         Some(vehicle),
         remainingTripData,
+        Some(id),
         attributes.valueOfTime,
         parkingDuration,
         searchMode = ParkingSearchMode.EnRoute,
@@ -142,6 +130,7 @@ trait ChoosesParking extends {
         reservedFor,
         Some(currentBeamVehicle),
         remainingTripData,
+        Some(id),
         attributes.valueOfTime,
         parkingDuration,
         triggerId = getCurrentTriggerIdOrGenerate
@@ -152,10 +141,7 @@ trait ChoosesParking extends {
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
     val data = stateData.asInstanceOf[BasePersonData]
     latestParkingInquiry = Some(buildParkingInquiry(data))
-    if (latestParkingInquiry.get.isChargingRequestOrEV)
-      chargingNetworkManager ! latestParkingInquiry.get
-    else
-      parkingManager ! latestParkingInquiry.get
+    park(latestParkingInquiry.get)
   }
 
   when(ConnectingToChargingPoint) {
@@ -184,18 +170,11 @@ trait ChoosesParking extends {
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
       handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
-      goto(ReleasingParkingSpot) using data
+      goto(WaitingToDrive) using data
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(
-        tick,
-        currentBeamVehicle,
-        Some(energyCharged),
-        id,
-        parkingManager,
-        eventsManager,
-        triggerId
-      )
+      val energyMaybe = Some(energyCharged)
+      handleReleasingParkingSpot(tick, currentBeamVehicle, energyMaybe, id, parkingManager, eventsManager, triggerId)
       goto(WaitingToDrive) using data
   }
 
@@ -388,7 +367,6 @@ trait ChoosesParking extends {
         // if its greater than or equal to 80%, skill the enroute
         // unset enrouteStates and continue normal workflow
         val (tick, triggerId) = releaseTickAndTriggerId()
-
         scheduler ! CompletionNotice(
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(tick, data.restOfCurrentTrip.head.beamLeg), self))
@@ -406,7 +384,6 @@ trait ChoosesParking extends {
         val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
         // set two car legs in schedule
         val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
-
         scheduler ! CompletionNotice(
           triggerId,
           Vector(
