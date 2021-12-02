@@ -12,6 +12,7 @@ object DataExchange {
     householdId: String,
     rank: Int,
     age: Int,
+    studentNum: Int,
     excludedModes: String,
     isFemale: Boolean,
     valueOfTime: Double
