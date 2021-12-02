@@ -9,7 +9,7 @@ case class PersonInfo(
   householdId: HouseholdId,
   rank: Int,
   age: Int,
-  student: Int,
+  studentNum: Int,
   excludedModes: Seq[String] = Seq.empty,
   isFemale: Boolean,
   valueOfTime: Double

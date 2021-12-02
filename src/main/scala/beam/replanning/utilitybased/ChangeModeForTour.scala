@@ -249,6 +249,12 @@ class ChangeModeForTour(
         .asInstanceOf[Int]
     )
 
+    val studentNum = Option(
+      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+        .getAttribute(person.getId.toString, "student")
+        .asInstanceOf[Int]
+    )
+
     val attributesOfIndividual =
       AttributesOfIndividual(
         HouseholdAttributes(household, householdVehicles),
@@ -257,6 +263,7 @@ class ChangeModeForTour(
         availableModes,
         valueOfTime,
         Option(PersonUtils.getAge(person)),
+        studentNum,
         income.map { x =>
           x
         }

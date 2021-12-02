@@ -270,6 +270,10 @@ object PopulationAdjustment extends LazyLogging {
             beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.minimumValueOfTime
           ).getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
         )
+    val studentNum = Option(personAttributes.getAttribute(person.getId.toString, "student"))
+      .map(_.asInstanceOf[Int])
+      .getOrElse(-1)
+
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
       householdAttributes = householdAttributes,
@@ -278,6 +282,7 @@ object PopulationAdjustment extends LazyLogging {
       availableModes = availableModes,
       valueOfTime = valueOfTime,
       age = Option(PersonUtils.getAge(person)),
+      Option(studentNum),
       income = Some(income)
     )
   }

@@ -169,6 +169,7 @@ object RouteRequester extends BeamHelper {
     ),
     valueOfTime = 10.99834490709942,
     age = Some(28),
+    studentNum = Some(-1),
     income = Some(70000.0)
   )
 

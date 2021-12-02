@@ -16,7 +16,7 @@ import ScenarioCsvWriter._
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] =
-    Seq("personId", "age", "student", "isFemale", "householdId", "householdRank", "excludedModes", "valueOfTime")
+    Seq("personId", "age", "studentNum", "isFemale", "householdId", "householdRank", "excludedModes", "valueOfTime")
 
   // This method is needed because different sources fill differently
   // matsim xml loader fill the age in the property customAttributes
@@ -61,7 +61,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         Option(personAttributes.getAttribute(personId.toString, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
-      val student = String.valueOf(personAttributes.getAttribute(personId.toString, "student"))
+      val studentNum = String.valueOf(personAttributes.getAttribute(personId.toString, "student"))
 
       val isFemale = {
         val isMale = maybeAttribs
@@ -81,7 +81,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         householdId = HouseholdId(houseHoldId),
         rank = Try(rank.toInt).getOrElse(0),
         age = Try(personAge.toInt).getOrElse(0),
-        student = Try(student.toInt).getOrElse(0),
+        studentNum = Try(studentNum.toInt).getOrElse(0),
         isFemale = isFemale,
         valueOfTime = Try(valueOfTime.toString.toDouble).getOrElse(0),
         excludedModes = excludedModes
@@ -108,7 +108,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     val values = Seq(
       personInfo.personId.id,
       personInfo.age,
-      personInfo.student,
+      personInfo.studentNum,
       personInfo.isFemale,
       personInfo.householdId.id,
       personInfo.rank,

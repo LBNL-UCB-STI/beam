@@ -289,6 +289,7 @@ class SimpleScenarioGenerator(
                         householdId = createdHousehold.householdId,
                         rank = 0,
                         age = person.age,
+                        studentNum = -1,
                         excludedModes = Seq.empty,
                         isFemale = person.gender == Gender.Female,
                         valueOfTime = valueOfTime

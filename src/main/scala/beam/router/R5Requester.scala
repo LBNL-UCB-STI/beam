@@ -25,6 +25,7 @@ object R5Requester extends BeamHelper {
       availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
       valueOfTime = 17.15686274509804,
       age = None,
+      studentNum = None,
       income = Some(70000.0)
     )
     val personId = Id.createPersonId(1)

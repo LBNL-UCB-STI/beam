@@ -533,7 +533,11 @@ class ModeChoiceMultinomialLogit(
       Set(commuteTrip, ageLE50)    -> modalBehaviors.bikeMultiplier.commute.ageLE50,
       Set(commuteTrip, ageGT50)    -> modalBehaviors.bikeMultiplier.commute.ageGT50,
       Set(nonCommuteTrip, ageLE50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50,
-      Set(nonCommuteTrip, ageGT50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50
+      Set(nonCommuteTrip, ageGT50) -> modalBehaviors.bikeMultiplier.noncommute.ageLE50,
+      Set(commuteTrip, student)    -> modalBehaviors.bikeMultiplier.commute.student,
+      Set(commuteTrip, nonstudent)    -> modalBehaviors.bikeMultiplier.commute.nonstudent,
+      Set(nonCommuteTrip, student) -> modalBehaviors.bikeMultiplier.noncommute.student,
+      Set(nonCommuteTrip, nonstudent) -> modalBehaviors.bikeMultiplier.noncommute.nonstudent
     )
     Map(BIKE -> bikeMap, CAR -> carMap)
   }

@@ -136,7 +136,7 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _,_) =>
               val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
               new ModeChoiceMultinomialLogit(
                 beamServices,
@@ -185,6 +185,9 @@ object ModeChoiceCalculator {
   sealed trait AgeGroup extends SituationMultiplier
   case object ageGT50 extends AgeGroup
   case object ageLE50 extends AgeGroup
+  sealed trait StudentGroup extends SituationMultiplier
+  case object student extends StudentGroup
+  case object nonstudent extends StudentGroup
   sealed trait TimeSensitivity extends SituationMultiplier
   case object highSensitivity extends TimeSensitivity
   case object lowSensitivity extends TimeSensitivity

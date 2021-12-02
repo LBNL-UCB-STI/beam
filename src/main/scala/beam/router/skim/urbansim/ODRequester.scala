@@ -228,6 +228,7 @@ class ODRequester(
       availableModes = Seq(CAR, WALK_TRANSIT, BIKE, DRIVE_TRANSIT),
       valueOfTime = personVOTT,
       age = None,
+      studentNum = None,
       income = Some(dummyHouseholdAttributes.householdIncome)
     )
   }

@@ -1,7 +1,7 @@
 package beam.sim.population
 
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
-import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator.{StudentGroup, _}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
@@ -24,7 +24,7 @@ case class AttributesOfIndividual(
   availableModes: Seq[BeamMode],
   valueOfTime: Double,
   age: Option[Int],
-  student: Option[Int],
+  studentNum: Option[Int],
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
@@ -119,15 +119,18 @@ case class AttributesOfIndividual(
     destinationActivity: Option[Activity],
     originActivity: Option[Activity]
   ): Set[SituationMultiplier] = {
-    (destinationActivity, originActivity, age) match {
-      case (Some(origin), Some(destination), Some(travelerAge)) =>
+    (destinationActivity, originActivity, age, studentNum) match {
+      case (Some(origin), Some(destination), Some(travelerAge), Some(studentOrNot)) =>
         val ageBin =
           if (travelerAge > 50) { ageGT50 }
           else { ageLE50 }
+        val  studentCheck =
+          if (studentOrNot == 1) {student}
+          else {nonstudent}
         if (isCommute(destination, origin)) {
-          Set[SituationMultiplier](commuteTrip, ageBin)
+          Set[SituationMultiplier](commuteTrip, ageBin, studentCheck)
         } else {
-          Set[SituationMultiplier](nonCommuteTrip, ageBin)
+          Set[SituationMultiplier](nonCommuteTrip, ageBin, studentCheck)
         }
       case _ =>
         Set[SituationMultiplier]()

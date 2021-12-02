@@ -176,7 +176,9 @@ object BeamConfig {
 
             case class Commute(
               ageGT50: scala.Double,
-              ageLE50: scala.Double
+              ageLE50: scala.Double,
+              student: scala.Int,
+              nonstudent: scala.Int
             )
 
             object Commute {
@@ -186,14 +188,18 @@ object BeamConfig {
               ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute(
                   ageGT50 = if (c.hasPathOrNull("ageGT50")) c.getDouble("ageGT50") else 1.0,
-                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0
+                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0,
+                  student = if (c.hasPathOrNull("student")) c.getInt("student") else -1,
+                  nonstudent = if (c.hasPathOrNull("nonstudent")) c.getInt("nonstudent") else -1,
                 )
               }
             }
 
             case class Noncommute(
               ageGT50: scala.Double,
-              ageLE50: scala.Double
+              ageLE50: scala.Double,
+              student: scala.Int,
+              nonstudent: scala.Int
             )
 
             object Noncommute {
@@ -203,7 +209,9 @@ object BeamConfig {
               ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Noncommute(
                   ageGT50 = if (c.hasPathOrNull("ageGT50")) c.getDouble("ageGT50") else 1.0,
-                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0
+                  ageLE50 = if (c.hasPathOrNull("ageLE50")) c.getDouble("ageLE50") else 1.0,
+                  student = if (c.hasPathOrNull("student")) c.getInt("student") else -1,
+                  nonstudent = if (c.hasPathOrNull("nonstudent")) c.getInt("nonstudent") else -1
                 )
               }
             }
