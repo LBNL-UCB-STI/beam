@@ -2,7 +2,7 @@ package beam.utils.scenario.generic.readers
 
 import beam.utils.FileUtils
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
-import beam.utils.scenario.{PersonId, PlanElement}
+import beam.utils.scenario.{PersonId, PlanElement, TripId}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
@@ -29,6 +29,7 @@ object CsvPlanElementReader extends PlanElementReader {
   }
 
   private[readers] def toPlanElement(rec: java.util.Map[String, String]): PlanElement = {
+    val tripId = getIfNotNull(rec, "tripId")
     val personId = getIfNotNull(rec, "personId")
     val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
@@ -37,6 +38,7 @@ object CsvPlanElementReader extends PlanElementReader {
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
+      tripId = TripId(tripId),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore").toDouble,
@@ -90,6 +92,7 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
+      tripId = TripId("need_to_fix"),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -114,6 +117,7 @@ object XmlPlanElementReader extends PlanElementReader {
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
+      tripId = TripId("need_to_fix"),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,

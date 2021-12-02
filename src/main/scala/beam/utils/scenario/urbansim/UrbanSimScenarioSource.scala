@@ -56,6 +56,7 @@ class UrbanSimScenarioSource(
     planElements.map { plan: DataExchange.PlanElement =>
       val coord = convertLocation(plan)
       PlanElement(
+        tripId = TripId("need_to_fix"),
         personId = PersonId(plan.personId),
         planIndex = 0, // TODO FIXME!
         planElementType = plan.planElement,

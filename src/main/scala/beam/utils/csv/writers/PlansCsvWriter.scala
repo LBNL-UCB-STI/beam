@@ -3,6 +3,7 @@ package beam.utils.csv.writers
 import scala.collection.JavaConverters._
 import beam.utils.scenario.{PersonId, PlanElement, TripId}
 import ScenarioCsvWriter._
+import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
@@ -41,7 +42,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
           toPlanInfo(
             // TODO: find a way to get trip_id
-            tripId = ,
+            tripId = planElementIndex.toString,
             planIndex = planIndex,
             personId = plan.getPerson.getId.toString,
             planScore = plan.getScore,
