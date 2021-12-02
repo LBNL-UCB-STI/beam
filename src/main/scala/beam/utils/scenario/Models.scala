@@ -6,7 +6,6 @@ case class PersonId(id: String) extends AnyVal
 case class HouseholdId(id: String) extends AnyVal
 
 case class PersonInfo(
-                     tripId: TripId,
   personId: PersonId,
   householdId: HouseholdId,
   rank: Int,
