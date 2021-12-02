@@ -24,7 +24,7 @@ import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
-import beam.agentsim.events.{RideHailFleetStateEvent, RideHailFleetStoredElectricityEvent, SpaceTime}
+import beam.agentsim.events.{FleetStoredElectricityEvent, RideHailFleetStateEvent, SpaceTime}
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -425,16 +425,7 @@ class RideHailManager(
       )
 
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
-      val electricVehicles = resources.values.filter(vehicle => vehicle.beamVehicleType.primaryFuelType == Electricity)
-      val storedElectricityInJoules =
-        if (electricVehicles.isEmpty) 0.0
-        else electricVehicles.map { vehicle => vehicle.primaryFuelLevelInJoules }.sum
-      val storageCapacityInJoules =
-        if (electricVehicles.isEmpty) 0.0
-        else electricVehicles.map { vehicle => vehicle.beamVehicleType.primaryFuelCapacityInJoule }.sum
-      eventsManager.processEvent(
-        new RideHailFleetStoredElectricityEvent(tick, storedElectricityInJoules, storageCapacityInJoules)
-      )
+      eventsManager.processEvent(createStoredElectricityEvent(tick))
       sender ! CompletionNotice(triggerId, Vector())
 
     case TAZSkimsCollectionTrigger(tick) =>
@@ -487,19 +478,7 @@ class RideHailManager(
 
     case Finish =>
       val lastObservedTick = resources.values.map(_.spaceTime.time).max
-      val electricVehicleStates = resources.values.collect {
-        case vehicle if vehicle.beamVehicleType.primaryFuelType == Electricity =>
-          vehicle -> rideHailManagerHelper.getVehicleState(vehicle.id)
-      }
-      val storedElectricityInJoules =
-        if (electricVehicleStates.isEmpty) 0.0
-        else electricVehicleStates.map { case (_, state) => state.primaryFuelLevel }.sum
-      val storageCapacityInJoules =
-        if (electricVehicleStates.isEmpty) 0.0
-        else electricVehicleStates.map { case (vehicle, _) => vehicle.beamVehicleType.primaryFuelCapacityInJoule }.sum
-      eventsManager.processEvent(
-        new RideHailFleetStoredElectricityEvent(lastObservedTick, storedElectricityInJoules, storageCapacityInJoules)
-      )
+      eventsManager.processEvent(createStoredElectricityEvent(maxTime))
       if (beamServices.beamConfig.beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations) {
         rideHailFleetInitializer.overrideRideHailAgentInitializers(createRideHailAgentInitializersFromCurrentState)
       }
@@ -853,6 +832,23 @@ class RideHailManager(
 
     case msg =>
       ridehailManagerCustomizationAPI.receiveMessageHook(msg, sender())
+  }
+
+  private def createStoredElectricityEvent(tick: Int) = {
+    val electricVehicleStates = resources.values.collect {
+      case vehicle if vehicle.beamVehicleType.primaryFuelType == Electricity =>
+        vehicle -> rideHailManagerHelper.getVehicleState(vehicle.id)
+    }
+    val (storedElectricityInJoules, storageCapacityInJoules) = electricVehicleStates.foldLeft(0.0, 0.0) {
+      case ((fuelLevel, fuelCapacity), (vehicle, state)) =>
+        (fuelLevel + state.primaryFuelLevel, fuelCapacity + vehicle.beamVehicleType.primaryFuelCapacityInJoule)
+    }
+    new FleetStoredElectricityEvent(
+      tick,
+      "all-ridehail-fleet-vehicles",
+      storedElectricityInJoules,
+      storageCapacityInJoules
+    )
   }
 
   def continueProcessingTimeoutIfReady(triggerId: Long): Unit = {
