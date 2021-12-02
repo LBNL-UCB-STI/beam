@@ -27,7 +27,7 @@ case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
-  val maxRadiusForMapSearch = 10e3
+  val defaultMaxRadiusForMapSearch = 10000
   private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
 
   lazy val utm2Wgs: GeotoolsTransformation =
@@ -65,12 +65,12 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getNearestR5EdgeToUTMCoord(
     streetLayer: StreetLayer,
     coordUTM: Coord,
-    maxRadius: Double = maxRadiusForMapSearch
+    maxRadius: Double = defaultMaxRadiusForMapSearch
   ): Int = {
     getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
   }
 
-  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = maxRadiusForMapSearch): Int = {
+  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = defaultMaxRadiusForMapSearch): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
       val closestEdgesToTheCorners = ProfilingUtils
@@ -100,10 +100,10 @@ trait GeoUtils extends ExponentialLazyLogging {
   }
 
   def snapToR5Edge(
-    streetLayer: StreetLayer,
-    coordWGS: Coord,
-    maxRadius: Double = maxRadiusForMapSearch,
-    streetMode: StreetMode = StreetMode.WALK
+                    streetLayer: StreetLayer,
+                    coordWGS: Coord,
+                    maxRadius: Double = defaultMaxRadiusForMapSearch,
+                    streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
     if (theSplit == null) {
@@ -114,10 +114,10 @@ trait GeoUtils extends ExponentialLazyLogging {
   }
 
   def getR5Split(
-    streetLayer: StreetLayer,
-    coord: Coord,
-    maxRadius: Double = maxRadiusForMapSearch,
-    streetMode: StreetMode = StreetMode.WALK
+                  streetLayer: StreetLayer,
+                  coord: Coord,
+                  maxRadius: Double = defaultMaxRadiusForMapSearch,
+                  streetMode: StreetMode = StreetMode.WALK
   ): Split = {
     var radius = 10.0
     var theSplit: Split = null
