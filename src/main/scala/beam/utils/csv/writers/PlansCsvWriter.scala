@@ -34,7 +34,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   private def getPlanInfo(scenario: Scenario): Iterator[PlanElement] = {
 
-
     scenario.getPopulation.getPersons.asScala.iterator.flatMap { case (_, person) =>
       val selectedPlan = person.getSelectedPlan
       person.getPlans.asScala.zipWithIndex.flatMap { case (plan: Plan, planIndex: Int) =>
