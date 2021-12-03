@@ -1,13 +1,13 @@
 package beam.utils.csv.readers
 
 import java.util.{Map => JavaMap}
-
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
 import org.apache.commons.lang3.math.NumberUtils
+import org.matsim.api.core.v01.population.Plan
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 

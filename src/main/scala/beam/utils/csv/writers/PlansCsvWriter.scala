@@ -41,7 +41,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         val isSelected = selectedPlan == plan
         plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
           toPlanInfo(
-            plan = plan,
             planIndex = planIndex,
             // need some fix here
             tripId = plan.getAttributes().getAttribute("tripId").toString,
@@ -57,7 +56,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   }
 
   private def toPlanInfo(
-                        plan: Plan,
     planIndex: Int,
     tripId: String,
     personId: String,
@@ -78,7 +76,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString)
           case _                   => Seq.empty
         }
-        plan.getAttributes.putAttribute("tripId", tripId)
 
         val route = Option(leg.getRoute)
         PlanElement(
