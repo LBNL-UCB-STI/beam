@@ -27,7 +27,7 @@ object FilterPointsInShapeFile {
     geometries
   }
 
-  def readPersonToPointFromPlans(pathToPlansFile: String): IndexedSeq[(String ,String, Geometry)] = {
+  def readPersonToPointFromPlans(pathToPlansFile: String): IndexedSeq[(String, String, Geometry)] = {
     val planReader = new PlanReader(pathToPlansFile)
     val gf = new GeometryFactory()
 
@@ -35,7 +35,7 @@ object FilterPointsInShapeFile {
       .iterator()
       .flatMap {
         case InputPlanElement(tripId, personId, _, _, _, _, Some(x), Some(y), _) => Some(tripId, personId, x, y)
-        case _                                                           => None
+        case _                                                                   => None
       }
       .map { case (tripId, personId, x, y) => (tripId, personId, gf.createPoint(new Coordinate(x, y))) }
 

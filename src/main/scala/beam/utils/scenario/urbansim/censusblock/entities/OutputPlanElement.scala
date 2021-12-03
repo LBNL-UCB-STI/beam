@@ -1,7 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock.entities
 
 case class OutputPlanElement(
-                            tripId: Int,
+  tripId: Int,
   personId: Int,
   planElement: ActivityType,
   planElementIndex: Int,

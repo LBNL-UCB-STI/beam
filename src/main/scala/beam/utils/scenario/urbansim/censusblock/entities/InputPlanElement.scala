@@ -5,7 +5,7 @@ import java.util
 import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
 case class InputPlanElement(
-                             tripId: String,
+  tripId: String,
   personId: String,
   planElementIndex: Int,
   activityElement: ActivityType,
@@ -29,6 +29,16 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
     val yWgs = getOptional(m, "y").map(_.toDouble)
     val departureTime = getOptional(m, "departure_time").map(_.toDouble)
 
-    InputPlanElement(tripId, personId, planElementIndex, activityElement, tripMode, activityType, xWgs, yWgs, departureTime)
+    InputPlanElement(
+      tripId,
+      personId,
+      planElementIndex,
+      activityElement,
+      tripMode,
+      activityType,
+      xWgs,
+      yWgs,
+      departureTime
+    )
   }
 }
