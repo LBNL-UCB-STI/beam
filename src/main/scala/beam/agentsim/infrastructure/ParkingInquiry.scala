@@ -63,7 +63,6 @@ object ParkingInquiry extends LazyLogging {
     case object Home extends ParkingActivityType
     case object Work extends ParkingActivityType
     case object Secondary extends ParkingActivityType
-    case object Enroute extends ParkingActivityType
   }
 
   def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
@@ -73,7 +72,6 @@ object ParkingInquiry extends LazyLogging {
       case "work"     => ParkingActivityType.Work
       case "charge"   => ParkingActivityType.Charge
       case "wherever" => ParkingActivityType.Wherever
-      case "enroute"  => ParkingActivityType.Enroute
       case otherType =>
         logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever
