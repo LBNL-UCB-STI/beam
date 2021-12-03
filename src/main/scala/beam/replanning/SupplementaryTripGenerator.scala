@@ -8,7 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
-import org.matsim.api.core.v01.population.{Activity, Person, Plan}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
@@ -76,13 +76,14 @@ class SupplementaryTripGenerator(
 
     var updatedPreviousActivity = elements.head
 
-    val activityAccumulator = ListBuffer[Activity]()
+    val activityAccumulator = ListBuffer.empty[Activity]
+    val tripAccumulator = ListBuffer.empty[Leg]
 
     elements.sliding(3).foreach {
       case List(prev, curr, next) =>
         if (curr.getType.equalsIgnoreCase("temp")) {
           anyChanges = true
-          val newActivities =
+          val (newActivities, newLegs) =
             generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
           newActivities.foreach { x =>
             activityAccumulator.lastOption match {
@@ -94,10 +95,14 @@ class SupplementaryTripGenerator(
             }
             activityAccumulator.append(x)
           }
+          tripAccumulator += newLegs
+
           updatedPreviousActivity = activityAccumulator.last
         } else {
           if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
             activityAccumulator.append(curr)
+            val leg: Leg = generateLeg(curr, next, modeMNL, modes)
+            tripAccumulator.append(leg)
           }
           updatedPreviousActivity = curr
         }
@@ -119,6 +124,37 @@ class SupplementaryTripGenerator(
     }
   }
 
+  private def generateLeg(
+    prevActivity: Activity,
+    nextActivity: Activity,
+    modeMNL: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
+    availableModes: List[BeamMode] = List[BeamMode](CAR)
+  ): Leg = {
+
+    val modesToConsider: List[BeamMode] =
+      if (availableModes.contains(CAV)) {
+        List[BeamMode](CAV, WALK)
+      } else {
+        List[BeamMode](WALK, WALK_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED) ++ availableModes
+      }
+    val modeToTimeAndCost = getTazCost(nextActivity, prevActivity, modesToConsider, false)
+    val alternativeToTimeAndCost = modeToTimeAndCost.map { case (mode, timesAndCost) =>
+      val departureTime = prevActivity.getEndTime
+      val arrivalTime = timesAndCost.accessTime + departureTime
+      val supplementaryTripAlternative: SupplementaryTripAlternative =
+        DestinationChoiceModel.SupplementaryTripAlternative(
+          TAZ.DefaultTAZ,
+          nextActivity.getType,
+          mode,
+          (arrivalTime - nextActivity.getEndTime).toInt,
+          arrivalTime.toInt
+        )
+      supplementaryTripAlternative -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
+    }
+    val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, r)
+    PopulationUtils.createLeg(alternativeChosen.get.alternativeType.mode.value)
+  }
+
   private def generateSubtour(
     prevActivity: Activity,
     currentActivity: Activity,
@@ -127,7 +163,7 @@ class SupplementaryTripGenerator(
     destinationMNL: MultinomialLogit[SupplementaryTripAlternative, TripParameters],
     tripMNL: MultinomialLogit[Boolean, TripParameters],
     householdModes: List[BeamMode] = List[BeamMode](CAR)
-  ): List[Activity] = {
+  ): (List[Activity], List[Leg]) = {
     val tazChoiceSet: List[TAZ] =
       generateTazChoiceSet(
         beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size,
@@ -203,9 +239,11 @@ class SupplementaryTripGenerator(
         activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
         activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime)
 
-        List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
+        destinationMNL.sampleAlternative(modeChoice)
+
+        (List(activityBeforeNewActivity, newActivity, activityAfterNewActivity), List.empty[Leg])
       case None =>
-        List(alternativeActivity)
+        (List(alternativeActivity), List.empty[Leg])
     }
   }
 
@@ -273,7 +311,8 @@ class SupplementaryTripGenerator(
   private def getTazCost(
     additionalActivity: Activity,
     alternativeActivity: Activity,
-    modes: List[BeamMode]
+    modes: List[BeamMode],
+    bothDirections: Boolean = true
   ): Map[BeamMode, DestinationChoiceModel.TimesAndCost] = {
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
@@ -295,37 +334,63 @@ class SupplementaryTripGenerator(
             vehicleType,
             fuelPrice
           )
-        val egressTripSkim =
-          beamServices.skims.od_skimmer.getTimeDistanceAndCost(
-            additionalActivity.getCoord,
-            alternativeActivity.getCoord,
-            desiredReturnTimeBin,
-            mode,
-            vehicleType.id,
-            vehicleType,
-            fuelPrice
+        val egressTripSkimOption = if (bothDirections) {
+          Some(
+            beamServices.skims.od_skimmer.getTimeDistanceAndCost(
+              additionalActivity.getCoord,
+              alternativeActivity.getCoord,
+              desiredReturnTimeBin,
+              mode,
+              vehicleType.id,
+              vehicleType,
+              fuelPrice
+            )
           )
+        } else {
+          None
+        }
+
         val startingOverlap =
           (altStart - (additionalActivity.getStartTime - accessTripSkim.time)).max(0)
-        val endingOverlap =
-          ((additionalActivity.getEndTime + egressTripSkim.time) - altEnd).max(0)
+        val endingOverlap = egressTripSkimOption match {
+          case Some(egressTripSkim) => ((additionalActivity.getEndTime + egressTripSkim.time) - altEnd).max(0)
+          case None                 => 0.0
+        }
+
         val schedulePenalty = math.pow(startingOverlap, 2) + math.pow(endingOverlap, 2)
-        val previousActivityBenefit = attributesOfIndividual.getVOT(
-          (alternativeActivityDuration - accessTripSkim.time - egressTripSkim.time - activityDuration) / 3600 * activityVOTs
-            .getOrElse(alternativeActivity.getType, 1.0)
-        )
+        val previousActivityBenefit = egressTripSkimOption match {
+          case Some(egressTripSkim) =>
+            attributesOfIndividual.getVOT(
+              (alternativeActivityDuration - accessTripSkim.time - egressTripSkim.time - activityDuration) / 3600 * activityVOTs
+                .getOrElse(alternativeActivity.getType, 1.0)
+            )
+          case None => 0.0
+        }
 
         val newActivityBenefit: Double =
           destinationChoiceModel.getActivityUtility(additionalActivity, attributesOfIndividual)
 
-        mode -> TimesAndCost(
-          accessTripSkim.time,
-          egressTripSkim.time,
-          attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
-          attributesOfIndividual.getVOT(egressTripSkim.generalizedTime / 3600) + egressTripSkim.cost,
-          schedulePenalty,
-          newActivityBenefit + previousActivityBenefit
-        )
+        val timesAndCost = egressTripSkimOption match {
+          case Some(egressTripSkim) =>
+            TimesAndCost(
+              accessTripSkim.time,
+              egressTripSkim.time,
+              attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
+              attributesOfIndividual.getVOT(egressTripSkim.generalizedTime / 3600) + egressTripSkim.cost,
+              schedulePenalty,
+              newActivityBenefit + previousActivityBenefit
+            )
+          case None =>
+            TimesAndCost(
+              accessTripSkim.time,
+              0.0,
+              attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
+              0.0,
+              schedulePenalty,
+              0.0
+            )
+        }
+        mode -> timesAndCost
       }.toMap
     modeToTimeAndCosts
   }
