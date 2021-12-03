@@ -14,6 +14,7 @@ import java.util.Map;
 public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String EVENT_TYPE = "ModeChoice";
     public final static String ATTRIBUTE_MODE = "mode";
+    public final static String ATTRIBUTE_TRIP_ID = "trip";
     public final static String ATTRIBUTE_CURRENT_TOUR_MODE = "currentTourMode";
     public final static String ATTRIBUTE_PERSON_ID = "person";
     //    public final static String VERBOSE_ATTRIBUTE_EXP_MAX_UTILITY = "expectedMaximumUtility";
@@ -26,6 +27,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
     public final EmbodiedBeamTrip chosenTrip;
     public final Id<Person> personId;
+    public final String trip;
     public final String mode;
     public final String currentTourMode;
     public final String expectedMaxUtility;
@@ -35,12 +37,13 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final Double length;
     public final Integer tourIndex;
 
-    public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
+    public ModeChoiceEvent(double time, Id<Person> personId, String tripID, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
                            Integer tourIndex, EmbodiedBeamTrip chosenTrip) {
         super(time);
 
         this.personId = personId;
+        this.trip = tripID;
         this.mode = chosenMode;
         this.currentTourMode = currentTourMode;
         this.expectedMaxUtility = expectedMaxUtility.toString();
@@ -57,6 +60,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
             Map<String, String> attr = event.getAttributes();
             return new ModeChoiceEvent(event.getTime(),
                     Id.createPersonId(attr.get(ATTRIBUTE_PERSON_ID)),
+                    attr.get(ATTRIBUTE_TRIP_ID),
                     attr.get(ATTRIBUTE_MODE),
                     attr.get(ATTRIBUTE_CURRENT_TOUR_MODE),
                     Double.parseDouble(attr.get(ATTRIBUTE_EXP_MAX_UTILITY)),
@@ -75,6 +79,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public Map<String, String> getAttributes() {
         Map<String, String> attr = super.getAttributes();
         attr.put(ATTRIBUTE_PERSON_ID, personId.toString());
+        attr.put(ATTRIBUTE_TRIP_ID, trip);
         attr.put(ATTRIBUTE_MODE, mode);
         attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode);
         attr.put(ATTRIBUTE_EXP_MAX_UTILITY, expectedMaxUtility);

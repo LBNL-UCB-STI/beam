@@ -42,6 +42,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
           toPlanInfo(
             planIndex = planIndex,
+            // need some fix here
             tripId = planElementIndex.toString,
             personId = plan.getPerson.getId.toString,
             planScore = plan.getScore,
