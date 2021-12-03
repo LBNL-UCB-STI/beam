@@ -41,9 +41,8 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         val isSelected = selectedPlan == plan
         plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
           toPlanInfo(
-            // TODO: find a way to get trip_id
-            tripId = planElementIndex.toString,
             planIndex = planIndex,
+            tripId = planElementIndex.toString,
             personId = plan.getPerson.getId.toString,
             planScore = plan.getScore,
             isSelectedPlan = isSelected,
