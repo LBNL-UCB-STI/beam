@@ -102,10 +102,8 @@ class SupplementaryTripGenerator(
         } else if (!next.getType.equalsIgnoreCase("temp")) {
           val leg: Leg = generateLeg(curr, next, modeMNL, modes)
           tripAccumulator.append(leg)
-          if (!prev.getType.equalsIgnoreCase("temp")) {
-            activityAccumulator.append(curr)
-            updatedPreviousActivity = curr
-          }
+          activityAccumulator.append(next)
+          updatedPreviousActivity = next
         }
       case _ =>
     }
