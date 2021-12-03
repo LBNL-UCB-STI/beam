@@ -15,6 +15,7 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogging {
+
   override def inputType: InputType = InputType.CSV
 
   override def readPersonsFile(path: String): Array[PersonInfo] = {
@@ -67,7 +68,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
   }
 
   private[readers] def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
-    val tripId = getIfNotNull(rec, "tripId")
+    val tripId = getIfNotNull(rec, "trip_id")
     val personId = getIfNotNull(rec, "personId")
     val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
@@ -76,7 +77,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
-      tripId = TripId(tripId),
+      tripId = Option(rec.get("trip_id")),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,

@@ -35,6 +35,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   private def getPlanInfo(scenario: Scenario): Iterator[PlanElement] = {
 
+
     scenario.getPopulation.getPersons.asScala.iterator.flatMap { case (_, person) =>
       val selectedPlan = person.getSelectedPlan
       person.getPlans.asScala.zipWithIndex.flatMap { case (plan: Plan, planIndex: Int) =>
@@ -43,7 +44,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           toPlanInfo(
             planIndex = planIndex,
             // need some fix here
-            tripId = plan.getAttributes().getAttribute("tripId").toString,
+            tripId = planElement.getAttributes.getAttribute("tripId").toString,
             personId = plan.getPerson.getId.toString,
             planScore = plan.getScore,
             isSelectedPlan = isSelected,
