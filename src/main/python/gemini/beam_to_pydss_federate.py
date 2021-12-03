@@ -9,7 +9,7 @@ import json
 import os
 
 
-def run_beam_to_pydss_federate(station_bus_pairs):
+def run_beam_to_pydss_federate():
     fedinfo = h.helicsCreateFederateInfo()
 
     # set the name
@@ -28,14 +28,6 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     # create federate
     cfed = h.helicsCreateCombinationFederate("beam_to_pydss_federate", fedinfo)
     logging.info("beam_to_pydss_federate created")
-
-    # register publications
-    # publish an ordered list of charging station codes in same order as charging loads
-    # pubs_station_loads = {}
-    #
-    # for s in range(len(station_bus_pairs)):
-    #     station_id = station_bus_pairs[s][0]
-    #     pubs_station_loads[station_id] = h.helicsFederateRegisterTypePublication(cfed, station_id, "string_vector", "")
 
     print("Register a publication of control signals")
 
@@ -63,38 +55,18 @@ def run_beam_to_pydss_federate(station_bus_pairs):
     # start execution loop
     for t in range(0, 60*3600-timebin, timebin):
         syncTime(t)
-        isupdated = 0
-        # while isupdated != 1:
-        #     isupdated = h.helicsInputIsUpdated(subs_charger_loads)
         print("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
-        updated_station_ids = []
-        #updated_station_q = []
-        #updated_station_p = []
-        updated_station_loads = []
         logging.info('Logging this as CSV')
         logging.info('stationId,estimatedLoad,currentTime')
         for station in charger_load_json:
             reservedFor = station['reservedFor']
             parkingZoneId = station['parkingZoneId']
             station_load = station['estimatedLoad']
-            updated_station_ids.append(parkingZoneId)
-            updated_station_loads.append(station_load)
             logging.info(str(parkingZoneId)+','+str(station_load)+','+str(reservedFor)+','+str(t))
 
-        # uncomment this when pydss is included
-        # for i in range(len(updated_station_ids)):
-        #     # publish the station assignments
-        #     updated_station = updated_station_ids[i]
-        #     updated_load = updated_station_loads[i]
-        #     h.helicsPublicationPublishVector(pubs_station_loads[updated_station], updated_load)#[station_P, station_Q])
-
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
-        # power limits and potentially market signals will come from the controler and if they need reformatting before sending to BEAM, that can be done here
-        #power_limit_upper = h.helicsInputGetString(subs_power_limit_upper)
-        #power_limit_lower = h.helicsInputGetString(subs_power_limit_lower)
-        #lmp_with_control_signal = h.helicsInputGetString(subs_lmp_control)
         ## format appropriately here
         #
         # Let's uncomment this and send dummy control signal to BEAM
@@ -111,9 +83,6 @@ def run_beam_to_pydss_federate(station_bus_pairs):
             all_stations_with_control.append(station_with_control)
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(all_stations_with_control, separators=(',', ':')))
-        #h.helicsPublicationPublishString(pubs_power_limit_upper, power_limit_upper)
-        #h.helicsPublicationPublishString(pubs_power_limit_lower, power_limit_lower)
-        #h.helicsPublicationPublishString(pubs_lmp_control, lmp_with_control_signal)
         syncTime(t+1)
 
     # close the federate
@@ -125,20 +94,8 @@ def run_beam_to_pydss_federate(station_bus_pairs):
 
 
 ###############################################################################
-def load_station_bus_pairs():
-    # with open('station_bus_pairs.csv', 'r') as sbpfile:
-    #     station_bus_list = sbpfile.readlines()
-    station_bus_pairs = []
-    # for sbp in station_bus_list:
-    #     pair = sbp.split(',')
-    #     station_id = pair[0].strip()
-    #     bus_name = pair[1].strip()
-    #     station_bus_pairs.append((station_id, bus_name))
-    return station_bus_pairs
-
 
 if __name__ == "__main__":
     logging.basicConfig(filename='beam_to_pydss_federate.log', level=logging.DEBUG, filemode='w')
-    station_bus_pairs = load_station_bus_pairs()
     logging.info("stations_list_loaded")
-    run_beam_to_pydss_federate(station_bus_pairs)
+    run_beam_to_pydss_federate()

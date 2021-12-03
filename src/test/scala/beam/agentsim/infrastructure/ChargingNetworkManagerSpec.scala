@@ -62,7 +62,9 @@ class ChargingNetworkManagerSpec
      |}
      |beam.agentsim.chargingNetworkManager {
      |  timeStepInSeconds = 300
-     |
+     |  scaleUp {
+     |    enabled = false
+     |  }
      |  helics {
      |    connectionEnabled = false
      |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
@@ -177,7 +179,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
       expectMsgType[StartingRefuelSession]
-      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(40, beamVilleCar.id, 0)
+      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(10, beamVilleCar.id, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
 
@@ -190,7 +192,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.isConnectedToChargingPoint() should be(true)
 
       chargingNetworkManager ! ChargingUnplugRequest(610, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(640, 0.0, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(610, 0.0, 0)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
@@ -218,13 +220,13 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.805e8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar), 0)
-      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(472, beamVilleCar.id, 0)
+      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(442, beamVilleCar.id, 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector()
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(500, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(530, 1.08e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(500, 1.08e8, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -254,13 +256,13 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.075e8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(334, beamVilleCar), 0)
-      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(364, beamVilleCar.id, 0)
+      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(334, beamVilleCar.id, 0)
       expectMsgType[CompletionNotice] shouldBe CompletionNotice(0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(700, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(730, 8.1e7, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(700, 8.1e7, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -282,7 +284,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(35, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(65, 6249999.999999999, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(35, 6249999.999999999, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -322,7 +324,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.265e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(315, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(345, 7.625e7, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(315, 7.625e7, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.3025e8)
 
@@ -361,13 +363,13 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.79e8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(748, beamVilleCar), 0)
-      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(778, beamVilleCar.id, 0)
+      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(748, beamVilleCar.id, 0)
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(780, 1.62e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, 1.62e8, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
     }
@@ -404,7 +406,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2), 12)
-      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(472, beamVilleCar2.id, 12)
+      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(442, beamVilleCar2.id, 12)
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
@@ -421,18 +423,18 @@ class ChargingNetworkManagerSpec
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, beamVilleCar2, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(780, 1.08e8, 0)
-      expectMsgType[StartingRefuelSession] shouldBe StartingRefuelSession(810, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, 1.08e8, 0)
+      expectMsgType[StartingRefuelSession] shouldBe StartingRefuelSession(750, 0)
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(874, beamVilleCar3), 0)
-      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(904, beamVilleCar3.id, 0)
+      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(874, beamVilleCar3.id, 0)
       expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
-      beamVilleCar3.primaryFuelLevelInJoules should be(1.38e8)
+      beamVilleCar3.primaryFuelLevelInJoules should be(1.455e8)
       beamVilleCar3.isConnectedToChargingPoint() should be(true)
       beamVilleCar2.isConnectedToChargingPoint() should be(false)
     }

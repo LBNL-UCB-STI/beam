@@ -258,10 +258,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   def loadScenario(beamConfig: BeamConfig): BeamScenario = {
-    val vehicleTypes = maybeScaleTransit(
-      beamConfig,
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    )
+    val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
 
@@ -782,6 +779,7 @@ trait BeamHelper extends LazyLogging {
             }
             val merger = new PreviousRunPlanMerger(
               beamConfig.beam.agentsim.agents.plans.merge.fraction,
+              beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation,
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
               beamConfig.beam.input.simulationPrefix,
               new Random(),
@@ -899,7 +897,6 @@ trait BeamHelper extends LazyLogging {
     val errors = InputConsistencyCheck.checkConsistency(beamConfig)
     if (errors.nonEmpty) {
       logger.error("Input consistency check failed:\n" + errors.mkString("\n"))
-      throw new RuntimeException("Input consistency check failed")
     }
 
     level = beamConfig.beam.metrics.level

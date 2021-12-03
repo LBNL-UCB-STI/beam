@@ -175,7 +175,7 @@ dependencies {
     implementation('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0') {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
-    implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v2.6.1'
+    implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v2.6.2'
 
     // GPLv3
     implementation group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'

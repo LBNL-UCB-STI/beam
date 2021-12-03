@@ -119,6 +119,7 @@ trait ChoosesParking extends {
             reservedFor,
             Some(currentBeamVehicle),
             remainingTripData,
+            Some(this.id),
             attributes.valueOfTime,
             nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0),
             searchMode = ParkingSearchMode.EnRoute,
@@ -136,6 +137,7 @@ trait ChoosesParking extends {
         reservedFor,
         Some(currentBeamVehicle),
         remainingTripData,
+        Some(this.id),
         attributes.valueOfTime,
         nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0),
         triggerId = getCurrentTriggerIdOrGenerate
@@ -144,12 +146,9 @@ trait ChoosesParking extends {
   }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
-    val data = stateData.asInstanceOf[BasePersonData]
-    latestParkingInquiry = Some(buildParkingInquiry(data))
-    if (latestParkingInquiry.get.isChargingRequestOrEV)
-      chargingNetworkManager ! latestParkingInquiry.get
-    else
-      parkingManager ! latestParkingInquiry.get
+    val personData = stateData.asInstanceOf[BasePersonData]
+    latestParkingInquiry = Some(buildParkingInquiry(personData))
+    park(latestParkingInquiry.get)
   }
 
   when(ConnectingToChargingPoint) {
@@ -178,18 +177,11 @@ trait ChoosesParking extends {
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
       handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
-      goto(ReleasingParkingSpot) using data
+      goto(WaitingToDrive) using data
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(
-        tick,
-        currentBeamVehicle,
-        Some(energyCharged),
-        id,
-        parkingManager,
-        eventsManager,
-        triggerId
-      )
+      val energyMaybe = Some(energyCharged)
+      handleReleasingParkingSpot(tick, currentBeamVehicle, energyMaybe, id, parkingManager, eventsManager, triggerId)
       goto(WaitingToDrive) using data
   }
 
