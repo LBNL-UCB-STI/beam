@@ -1,5 +1,6 @@
 package beam.utils.scenario
 
+import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
@@ -19,7 +20,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{mutable, Iterable}
+import scala.collection.{Iterable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
@@ -553,6 +554,7 @@ class UrbanSimScenarioLoader(
 
   private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
     plans.foreach { planInfo =>
+
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {
         var plan = person.getSelectedPlan
@@ -565,9 +567,13 @@ class UrbanSimScenarioLoader(
         if (planElement.equalsIgnoreCase("leg")) {
           planInfo.legMode match {
             case Some(mode) =>
-              PopulationUtils.createAndAddLeg(plan, mode)
+              val leg = PopulationUtils.createLeg(mode)
+              leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              plan.addLeg(leg)
             case None =>
-              PopulationUtils.createAndAddLeg(plan, "")
+              val leg = PopulationUtils.createLeg("")
+              leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              plan.addLeg(leg)
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
           assert(
