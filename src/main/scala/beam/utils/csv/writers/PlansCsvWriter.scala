@@ -75,7 +75,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
-          tripId = None,
+          tripId = "leg.getAttributes.getAttribute(\"trip_id\").toString",
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
@@ -99,7 +99,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         )
       case act: Activity =>
         PlanElement(
-          tripId = None,
+          tripId = "None",
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,

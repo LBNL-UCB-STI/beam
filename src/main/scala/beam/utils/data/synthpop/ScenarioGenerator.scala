@@ -81,7 +81,7 @@ class SimpleScenarioGenerator(
   private val congestionLevelData: CsvCongestionLevelData = new CsvCongestionLevelData(pathToCongestionLevelDataFile)
 
   private val planElementTemplate: PlanElement = PlanElement(
-    tripId = None,
+    tripId = "None",
     personId = PersonId("1"),
     planIndex = 0,
     planScore = 0,

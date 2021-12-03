@@ -77,7 +77,7 @@ object UrbansimConverter {
 
   private def transformPlanElement(planElement: PlanElement): java.util.Map[String, Any] = {
     Map(
-      "tripId"           -> planElement.tripId,
+      "trip_id"           -> planElement.tripId,
       "personId"         -> planElement.personId,
       "planElement"      -> planElement.planElementType,
       "planElementIndex" -> planElement.planElementIndex,
