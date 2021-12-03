@@ -1,7 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock.merger
 
 import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
-import beam.utils.scenario.{PersonId, PlanElement, TripId}
+import beam.utils.scenario.{PersonId, PlanElement}
 
 class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, PlanElement] {
 
@@ -9,7 +9,7 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
 
   private def transform(inputPlanElement: InputPlanElement): PlanElement = {
     PlanElement(
-      TripId(inputPlanElement.tripId),
+      tripId = None,
       PersonId(inputPlanElement.personId),
       0,
       0,

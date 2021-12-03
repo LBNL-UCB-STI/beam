@@ -1,9 +1,8 @@
 package beam.utils.csv.writers
 
 import scala.collection.JavaConverters._
-import beam.utils.scenario.{PersonId, PlanElement, TripId}
+import beam.utils.scenario.{PersonId, PlanElement}
 import ScenarioCsvWriter._
-import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
@@ -43,8 +42,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
           toPlanInfo(
             planIndex = planIndex,
-            // need some fix here
-            tripId = planElement.getAttributes.getAttribute("tripId").toString,
             personId = plan.getPerson.getId.toString,
             planScore = plan.getScore,
             isSelectedPlan = isSelected,
@@ -58,7 +55,6 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   private def toPlanInfo(
     planIndex: Int,
-    tripId: String,
     personId: String,
     planScore: Double,
     isSelectedPlan: Boolean,
@@ -80,7 +76,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
-          tripId = TripId(tripId),
+          tripId = None,
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
@@ -104,7 +100,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         )
       case act: Activity =>
         PlanElement(
-          tripId = TripId(tripId),
+          tripId = None,
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,

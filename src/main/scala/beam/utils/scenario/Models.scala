@@ -1,6 +1,5 @@
 package beam.utils.scenario
 
-case class TripId(id: String) extends AnyVal
 case class PersonId(id: String) extends AnyVal
 
 case class HouseholdId(id: String) extends AnyVal
