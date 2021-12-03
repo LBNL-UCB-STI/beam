@@ -36,7 +36,8 @@ class SupplementaryTripGenerator(
   def generateNewPlans(
     plan: Plan,
     destinationChoiceModel: DestinationChoiceModel,
-    modes: List[BeamMode] = List[BeamMode](CAR)
+    modes: List[BeamMode] = List[BeamMode](CAR),
+    setModes: Boolean = false
   ): Option[Plan] = {
 
     val modeMNL: MultinomialLogit[
@@ -98,13 +99,13 @@ class SupplementaryTripGenerator(
           tripAccumulator += newLegs
 
           updatedPreviousActivity = activityAccumulator.last
-        } else {
-          if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
+        } else if (!next.getType.equalsIgnoreCase("temp")) {
+          val leg: Leg = generateLeg(curr, next, modeMNL, modes)
+          tripAccumulator.append(leg)
+          if (!prev.getType.equalsIgnoreCase("temp")) {
             activityAccumulator.append(curr)
-            val leg: Leg = generateLeg(curr, next, modeMNL, modes)
-            tripAccumulator.append(leg)
+            updatedPreviousActivity = curr
           }
-          updatedPreviousActivity = curr
         }
       case _ =>
     }
@@ -116,7 +117,8 @@ class SupplementaryTripGenerator(
     if (anyChanges) {
       //newPlan.setScore(plan.getScore)
       newPlan.setType(plan.getType)
-      val resultPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(newPlan)
+      val resultPlan =
+        ReplanningUtil.createPlanFromActivitiesAndTrips(newPlan, activityAccumulator.toVector, tripAccumulator.toVector)
       AttributesUtils.copyAttributesFromTo(plan, resultPlan)
       Some(resultPlan)
     } else {
@@ -152,7 +154,10 @@ class SupplementaryTripGenerator(
       supplementaryTripAlternative -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
     }
     val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, r)
-    PopulationUtils.createLeg(alternativeChosen.get.alternativeType.mode.value)
+    PopulationUtils.createLeg(alternativeChosen match {
+      case Some(alt) => alt.alternativeType.mode.value
+      case None      => ""
+    })
   }
 
   private def generateSubtour(
@@ -180,8 +185,8 @@ class SupplementaryTripGenerator(
     alternativeActivity.setStartTime(prevActivity.getStartTime)
     alternativeActivity.setEndTime(nextActivity.getEndTime)
     val (newActivityType, startTime, endTime) = generateSubtourTypeStartAndEndTime(alternativeActivity)
-    val chosenAlternativeOption = newActivityType match {
-      case "None" => None
+    newActivityType match {
+      case "None" => (List(alternativeActivity), List.empty[Leg])
       case _ =>
         val (
           modeTazCosts: Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[
@@ -210,41 +215,64 @@ class SupplementaryTripGenerator(
             false -> noTrip
           )
 
-        tripMNL.sampleAlternative(tripChoice, r) match {
+        val tazToChosenMode: Map[TAZ, Option[BeamMode]] = {
+          modeTazCosts.map { case (alt, modeCost) =>
+            val chosenModeOptionForTaz = modeMNL.sampleAlternative(modeCost, r)
+            chosenModeOptionForTaz match {
+              case Some(chosenModeForTaz) if true =>
+                alt.taz -> Some(chosenModeForTaz.alternativeType.mode)
+              case _ =>
+                alt.taz -> None
+            }
+          }
+
+        }
+
+        val chosenAlternativeOption = tripMNL.sampleAlternative(tripChoice, r) match {
           case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
           case _                                            => None
         }
+
+        chosenAlternativeOption match {
+          case Some(outcome) =>
+            val chosenAlternative = outcome.alternativeType
+            val tourModeOption = tazToChosenMode.getOrElse(outcome.alternativeType.taz, None)
+
+            val newActivity =
+              PopulationUtils.createActivityFromCoord(
+                newActivityType,
+                TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
+              )
+            val activityBeforeNewActivity =
+              PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
+            val activityAfterNewActivity =
+              PopulationUtils.createActivityFromCoord(nextActivity.getType, nextActivity.getCoord)
+
+            activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime)
+            activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
+
+            newActivity.setStartTime(startTime)
+            newActivity.setEndTime(endTime)
+
+            activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
+            activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime)
+
+            val accessLeg = PopulationUtils.createLeg(tourModeOption match {
+              case Some(tourMode) => tourMode.value
+              case None           => ""
+            })
+
+            val egressLeg = PopulationUtils.createLeg(tourModeOption match {
+              case Some(tourMode) => tourMode.value
+              case None           => ""
+            })
+
+            (List(activityBeforeNewActivity, newActivity, activityAfterNewActivity), List(accessLeg, egressLeg))
+          case None =>
+            (List(alternativeActivity), List.empty[Leg])
+        }
     }
 
-    chosenAlternativeOption match {
-      case Some(outcome) =>
-        val chosenAlternative = outcome.alternativeType
-
-        val newActivity =
-          PopulationUtils.createActivityFromCoord(
-            newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
-          )
-        val activityBeforeNewActivity =
-          PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
-        val activityAfterNewActivity =
-          PopulationUtils.createActivityFromCoord(nextActivity.getType, nextActivity.getCoord)
-
-        activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime)
-        activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
-
-        newActivity.setStartTime(startTime)
-        newActivity.setEndTime(endTime)
-
-        activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
-        activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime)
-
-        destinationMNL.sampleAlternative(modeChoice)
-
-        (List(activityBeforeNewActivity, newActivity, activityAfterNewActivity), List.empty[Leg])
-      case None =>
-        (List(alternativeActivity), List.empty[Leg])
-    }
   }
 
   private def gatherSubtourCosts(
