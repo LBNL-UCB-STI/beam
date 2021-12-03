@@ -37,7 +37,7 @@ class SupplementaryTripGenerator(
     plan: Plan,
     destinationChoiceModel: DestinationChoiceModel,
     modes: List[BeamMode] = List[BeamMode](CAR),
-    setModes: Boolean = false
+    fillInModes: Boolean = false
   ): Option[Plan] = {
 
     val modeMNL: MultinomialLogit[
@@ -85,7 +85,7 @@ class SupplementaryTripGenerator(
         if (curr.getType.equalsIgnoreCase("temp")) {
           anyChanges = true
           val (newActivities, newLegs) =
-            generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
+            generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes, fillInModes)
           newActivities.foreach { x =>
             activityAccumulator.lastOption match {
               case Some(lastTrip) =>
@@ -96,7 +96,7 @@ class SupplementaryTripGenerator(
             }
             activityAccumulator.append(x)
           }
-          tripAccumulator += newLegs
+          tripAccumulator ++= newLegs
 
           updatedPreviousActivity = activityAccumulator.last
         } else if (!next.getType.equalsIgnoreCase("temp")) {
@@ -167,7 +167,8 @@ class SupplementaryTripGenerator(
     modeMNL: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
     destinationMNL: MultinomialLogit[SupplementaryTripAlternative, TripParameters],
     tripMNL: MultinomialLogit[Boolean, TripParameters],
-    householdModes: List[BeamMode] = List[BeamMode](CAR)
+    householdModes: List[BeamMode] = List[BeamMode](CAR),
+    fillInModes: Boolean = false
   ): (List[Activity], List[Leg]) = {
     val tazChoiceSet: List[TAZ] =
       generateTazChoiceSet(
@@ -219,7 +220,7 @@ class SupplementaryTripGenerator(
           modeTazCosts.map { case (alt, modeCost) =>
             val chosenModeOptionForTaz = modeMNL.sampleAlternative(modeCost, r)
             chosenModeOptionForTaz match {
-              case Some(chosenModeForTaz) if true =>
+              case Some(chosenModeForTaz) if fillInModes =>
                 alt.taz -> Some(chosenModeForTaz.alternativeType.mode)
               case _ =>
                 alt.taz -> None
