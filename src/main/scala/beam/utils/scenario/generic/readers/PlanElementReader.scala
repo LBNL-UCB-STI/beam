@@ -92,7 +92,7 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
-      tripId = "None",
+      tripId = "",
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
