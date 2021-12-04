@@ -300,6 +300,9 @@ class PersonAgent(
 
   val _experiencedBeamPlan: BeamPlan = BeamPlan(matsimPlan)
 
+  val tripId = matsimPlan.getAttributes.getAttribute("trip_id")
+  _experiencedBeamPlan.getAttributes.putAttribute("trip_id", tripId)
+
   var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 

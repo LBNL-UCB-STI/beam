@@ -16,6 +16,7 @@ import beam.utils.{NetworkHelper, TravelTimeUtils}
 case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: BeamPath) {
   val endTime: Int = startTime + duration
 
+
   def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
     this.copy(travelPath = this.travelPath.copy(newLinks))
 
