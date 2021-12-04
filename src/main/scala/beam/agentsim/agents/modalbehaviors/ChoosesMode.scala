@@ -1367,7 +1367,7 @@ trait ChoosesMode {
       new ModeChoiceEvent(
         tick,
         id,
-        "",
+        ModeChoiceEvent.ATTRIBUTE_TRIP_ID,
         chosenTrip.tripClassifier.value,
         data.personData.currentTourMode.map(_.value).getOrElse(""),
         data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
