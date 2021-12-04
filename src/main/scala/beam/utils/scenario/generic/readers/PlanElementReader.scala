@@ -38,7 +38,7 @@ object CsvPlanElementReader extends PlanElementReader {
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
-      tripId = getIfNotNull(rec, "trip_id"),
+      tripId = Option(getIfNotNull(rec, "trip_id")),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore").toDouble,
@@ -117,7 +117,7 @@ object XmlPlanElementReader extends PlanElementReader {
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
-      tripId = leg.getAttributes.getAttribute("tripId").toString,
+      tripId = Option(leg.getAttributes.getAttribute("tripId").toString),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,

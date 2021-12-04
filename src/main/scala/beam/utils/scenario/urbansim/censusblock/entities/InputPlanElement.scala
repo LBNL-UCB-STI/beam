@@ -5,7 +5,7 @@ import java.util
 import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
 case class InputPlanElement(
-  tripId: String,
+  tripId: Option[String],
   personId: String,
   planElementIndex: Int,
   activityElement: ActivityType,
