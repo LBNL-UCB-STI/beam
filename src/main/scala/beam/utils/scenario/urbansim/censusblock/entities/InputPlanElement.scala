@@ -19,7 +19,7 @@ case class InputPlanElement(
 object InputPlanElement extends EntityTransformer[InputPlanElement] {
 
   override def transform(m: util.Map[String, String]): InputPlanElement = {
-    val tripId = getIfNotNull(m, "trip_id")
+    val tripId = Option(getIfNotNull(m, "trip_id"))
     val personId = getIfNotNull(m, "person_id").split("\\.").apply(0)
     val planElementIndex = getIfNotNull(m, "PlanElementIndex").toInt
     val activityElement = ActivityType.determineActivity(getIfNotNull(m, "ActivityElement"))

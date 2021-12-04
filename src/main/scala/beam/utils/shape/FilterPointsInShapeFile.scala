@@ -27,7 +27,7 @@ object FilterPointsInShapeFile {
     geometries
   }
 
-  def readPersonToPointFromPlans(pathToPlansFile: String): IndexedSeq[(String, String, Geometry)] = {
+  def readPersonToPointFromPlans(pathToPlansFile: String): IndexedSeq[(Option[String], String, Geometry)] = {
     val planReader = new PlanReader(pathToPlansFile)
     val gf = new GeometryFactory()
 
