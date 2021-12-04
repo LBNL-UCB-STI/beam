@@ -75,7 +75,11 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
-          tripId = Option(leg.getAttributes.getAttribute("trip_id").toString),
+          tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
+            Option(leg.getAttributes.getAttribute("trip_id").toString)
+          } else {
+            None
+          },
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
