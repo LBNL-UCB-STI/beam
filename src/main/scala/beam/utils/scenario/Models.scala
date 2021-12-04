@@ -15,7 +15,7 @@ case class PersonInfo(
 )
 
 case class PlanElement(
-  tripId: String,
+  tripId: Option[String],
   personId: PersonId,
   planIndex: Int,
   planScore: Double,
