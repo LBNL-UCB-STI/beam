@@ -298,46 +298,17 @@ instance_operations = ['start', 'stop', 'terminate']
 
 s3 = boto3.client('s3')
 ec2 = None
+max_system_ram = 15
+percent_towards_system_ram = .25
+
 
 def init_ec2(region):
     global ec2
     ec2 = boto3.client('ec2',region_name=region)
 
-def percent_factor(ram):
-    if ram < 16:
-        return 0.25
-    elif ram < 64:
-        return 0.12
-    elif ram < 128:
-        return 0.10
-    elif ram < 192:
-        return 0.08
-    elif ram < 256:
-        return 0.07
-    elif ram < 312:
-        return 0.06
-    elif ram < 378:
-        return 0.055
-    elif ram < 424:
-        return 0.05
-    elif ram < 512:
-        return 0.045
-    elif ram < 612:
-        return 0.04
-    elif ram < 668:
-        return 0.035
-    elif ram < 712:
-        return 0.03
-    elif ram < 850:
-        return 0.02
-    elif ram < 1024:
-        return 0.01
-    elif ram < 2048:
-        return 0.005
-    elif ram < 4096:
-        return 0.0025
-    else:
-        return 0.01
+def calculate_max_ram(instance_type):
+    ram = instance_type_to_memory[instance_type]
+    return ram - min(ram * percent_towards_system_ram, max_system_ram)
 
 
 def check_resource(bucket, key):
@@ -670,10 +641,6 @@ def stop_instance(instance_ids):
 
 def terminate_instance(instance_ids):
     return ec2.terminate_instances(InstanceIds=instance_ids)
-
-def calculate_max_ram(instance_type):
-    ram = instance_type_to_memory[instance_type]
-    return ram * (1 - percent_factor(ram))
 
 def deploy_handler(event, context):
     missing_parameters = []
