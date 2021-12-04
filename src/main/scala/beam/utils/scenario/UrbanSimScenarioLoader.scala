@@ -20,7 +20,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{Iterable, mutable}
+import scala.collection.{mutable, Iterable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
@@ -103,7 +103,6 @@ class UrbanSimScenarioLoader(
     val inputPlans = Await.result(plansF, 1800.seconds)
     val persons = Await.result(personsF, 1800.seconds)
     val households = Await.result(householdsF, 1800.seconds)
-
 
     val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
@@ -554,7 +553,6 @@ class UrbanSimScenarioLoader(
 
   private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
     plans.foreach { planInfo =>
-
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {
         var plan = person.getSelectedPlan
