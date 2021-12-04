@@ -99,7 +99,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         )
       case act: Activity =>
         PlanElement(
-          tripId = "None",
+          tripId = None,
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
