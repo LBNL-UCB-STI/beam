@@ -128,7 +128,8 @@ class BeamRouterSpec extends AnyFlatSpec {
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
       h3taz = null,
-      freightCarriers = IndexedSeq.empty
+      freightCarriers = IndexedSeq.empty,
+      fixedActivitiesDurations = Map.empty[String, Double]
     )
   }
 

@@ -993,20 +993,23 @@ class PersonAgent(
       nextActivity(data) match {
         case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
-          val endTime =
-            if (
-              activity.getEndTime >= tick && Math
-                .abs(activity.getEndTime) < Double.PositiveInfinity
-            ) {
+          def calculateActivityEndTime = {
+            if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
               activity.getEndTime
             } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
               tick
             } else {
-              //           logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10
-              // minutes.")
-              //TODO consider ending the day here to match MATSim convention for start/end activity
+              // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+              // TODO consider ending the day here to match MATSim convention for start/end activity
               tick + 60 * 10
             }
+          }
+
+          val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+            case Some(fixedDuration) => tick + fixedDuration
+            case _                   => calculateActivityEndTime
+          }
+
           val newEndTime = if (lastTickOfSimulation >= tick) {
             Math.min(lastTickOfSimulation, endTime)
           } else {

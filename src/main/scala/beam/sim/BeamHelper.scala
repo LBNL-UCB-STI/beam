@@ -310,6 +310,13 @@ trait BeamHelper extends LazyLogging {
       IndexedSeq.empty[FreightCarrier]
     }
 
+    val fixedActivitiesDurationsFromConfig = {
+      val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
+      BeamConfigUtils
+        .parseListToMap(maybeFixedDurationsList.getOrElse(List.empty[String]))
+        .map { case (activityType, stringDuration) => activityType -> stringDuration.toDouble }
+    }
+
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
@@ -327,7 +334,8 @@ trait BeamHelper extends LazyLogging {
       linkToTAZMapping,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
-      freightCarriers
+      freightCarriers,
+      fixedActivitiesDurations = fixedActivitiesDurationsFromConfig
     )
   }
 
