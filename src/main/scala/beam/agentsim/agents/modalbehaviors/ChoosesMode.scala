@@ -8,7 +8,6 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
-import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -34,7 +33,6 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import beam.agentsim.infrastructure.parking.GeoLevel
 import beam.router.{Modes, RoutingWorker}
-import beam.utils.scenario.urbansim.DataExchange.PlanElement
 
 /**
   * BEAM
@@ -1369,11 +1367,6 @@ trait ChoosesMode {
       new ModeChoiceEvent(
         tick,
         id,
-        if (_experiencedBeamPlan.getAttributes.getAttribute("trip_id") != null) {
-          _experiencedBeamPlan.getAttributes.getAttribute("trip_id").toString
-        } else {
-          " "
-        },
         chosenTrip.tripClassifier.value,
         data.personData.currentTourMode.map(_.value).getOrElse(""),
         data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),

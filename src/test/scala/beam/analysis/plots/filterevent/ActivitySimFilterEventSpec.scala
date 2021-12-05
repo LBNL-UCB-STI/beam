@@ -96,7 +96,6 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
     new ModeChoiceEvent(
       Random.nextDouble(),
       Id.createPersonId(Random.nextInt()),
-      Random.nextString(10),
       chosenMode,
       Random.nextString(10),
       Random.nextDouble(),
