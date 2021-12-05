@@ -77,7 +77,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
   it should "have expected activities duration" in {
     val config = ConfigFactory
       .parseString(s"""
-                      |beam.agentsim.lastIteration = 1
+                      |beam.agentsim.lastIteration = 0
                       |beam.outputs.events.fileOutputFormats = "xml,csv"
                      """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -85,19 +85,14 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
 
     val (matSimConfig, _, _) = runBeamWithConfig(config)
 
-    def checkForIteration(iteration: Int): Unit = {
-      val filePath = getEventsFilePath(matSimConfig, "events", "xml", iteration).getAbsolutePath
-      val events = fromXmlFile(filePath)
+    val filePath = getEventsFilePath(matSimConfig, "events", "xml", 0).getAbsolutePath
+    val events = fromXmlFile(filePath)
 
-      val activitiesDurations: Map[String, Set[Double]] = getActivitiesDurationsGroupedByType(events)
+    val activitiesDurations: Map[String, Set[Double]] = getActivitiesDurationsGroupedByType(events)
 
-      checkIfDurationsExistAndBiggerThan(activitiesDurations, "Shopping", 2000)
-      checkIfDurationsExistAndBiggerThan(activitiesDurations, "Other", 1000)
-      checkIfDurationsExistAndBiggerThan(activitiesDurations, "Work", 40000)
-    }
-
-    checkForIteration(0)
-    checkForIteration(1)
+    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Shopping", 2000)
+    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Other", 1000)
+    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Work", 40000)
   }
 
   it should "have fixed Other,Shopping and Work activities duration" in {
@@ -106,7 +101,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
     val expectedOtherDuration = 160.0
     val config = ConfigFactory
       .parseString(s"""
-                      |beam.agentsim.lastIteration = 1
+                      |beam.agentsim.lastIteration = 0
                       |beam.outputs.events.fileOutputFormats = "xml,csv"
                       |beam.agentsim.agents.activities.activityTypeToFixedDurationMap = [
                       |"Other -> $expectedOtherDuration",
@@ -118,19 +113,13 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
       .resolve()
 
     val (matSimConfig, _, _) = runBeamWithConfig(config)
+    val filePath = getEventsFilePath(matSimConfig, "events", "xml", 0).getAbsolutePath
+    val events = fromXmlFile(filePath)
 
-    def checkForIteration(iteration: Int): Unit = {
-      val filePath = getEventsFilePath(matSimConfig, "events", "xml", iteration).getAbsolutePath
-      val events = fromXmlFile(filePath)
+    val activitiesDurations: Map[String, Set[Double]] = getActivitiesDurationsGroupedByType(events)
 
-      val activitiesDurations: Map[String, Set[Double]] = getActivitiesDurationsGroupedByType(events)
-
-      checkIfDurationsExistAndEqual(activitiesDurations, "Work", expectedWorkDuration)
-      checkIfDurationsExistAndEqual(activitiesDurations, "Other", expectedOtherDuration)
-      checkIfDurationsExistAndEqual(activitiesDurations, "Shopping", expectedShoppingDuration)
-    }
-
-    checkForIteration(0)
-    checkForIteration(1)
+    checkIfDurationsExistAndEqual(activitiesDurations, "Work", expectedWorkDuration)
+    checkIfDurationsExistAndEqual(activitiesDurations, "Other", expectedOtherDuration)
+    checkIfDurationsExistAndEqual(activitiesDurations, "Shopping", expectedShoppingDuration)
   }
 }
