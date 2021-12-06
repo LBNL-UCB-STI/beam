@@ -123,6 +123,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       //todo: this is a quick fix for merging develop, MUST investigate
       networks2 = None,
       network = mock(classOf[Network]),
+      new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
       None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
