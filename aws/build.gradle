@@ -86,7 +86,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "git_user_email": "${getCurrentGitUserEmail()}",
   "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
-  "dataBranch": "$dataBranch",
+  "data_branch": "$dataBranch",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
   "configs": "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}",
