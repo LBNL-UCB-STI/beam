@@ -1421,10 +1421,25 @@ object BeamConfig {
         }
 
         case class TripBehaviors(
+          carUsage: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit
         )
 
         object TripBehaviors {
+
+          case class CarUsage(
+            minDistanceToTrainStop: scala.Double
+          )
+
+          object CarUsage {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage(
+                minDistanceToTrainStop =
+                  if (c.hasPathOrNull("minDistanceToTrainStop")) c.getDouble("minDistanceToTrainStop") else 0.0
+              )
+            }
+          }
 
           case class MulitnomialLogit(
             activity_file_path: java.lang.String,
@@ -1469,6 +1484,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
+              carUsage = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage(
+                if (c.hasPathOrNull("carUsage")) c.getConfig("carUsage")
+                else com.typesafe.config.ConfigFactory.parseString("carUsage{}")
+              ),
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
@@ -1796,7 +1815,11 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
+        chargingPointCostScalingFactor: scala.Double,
+        chargingPointCountScalingFactor: scala.Double,
+        chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
+        scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
       )
 
@@ -1810,6 +1833,7 @@ object BeamConfig {
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String,
+          feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
           timeDeltaProperty: scala.Double
         )
@@ -1830,17 +1854,64 @@ object BeamConfig {
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
               federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
         }
 
+        case class ScaleUp(
+          enabled: scala.Boolean,
+          expansionFactor_charge_activity: scala.Double,
+          expansionFactor_home_activity: scala.Double,
+          expansionFactor_init_activity: scala.Double,
+          expansionFactor_wherever_activity: scala.Double,
+          expansionFactor_work_activity: scala.Double
+        )
+
+        object ScaleUp {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              expansionFactor_charge_activity =
+                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
+                else 1.0,
+              expansionFactor_home_activity =
+                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
+                else 1.0,
+              expansionFactor_init_activity =
+                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
+                else 1.0,
+              expansionFactor_wherever_activity =
+                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
+                  c.getDouble("expansionFactor_wherever_activity")
+                else 1.0,
+              expansionFactor_work_activity =
+                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
+                else 1.0
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
+            chargingPointCostScalingFactor =
+              if (c.hasPathOrNull("chargingPointCostScalingFactor")) c.getDouble("chargingPointCostScalingFactor")
+              else 1.0,
+            chargingPointCountScalingFactor =
+              if (c.hasPathOrNull("chargingPointCountScalingFactor")) c.getDouble("chargingPointCountScalingFactor")
+              else 1.0,
+            chargingPointFilePath =
+              if (c.hasPathOrNull("chargingPointFilePath")) c.getString("chargingPointFilePath") else "",
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
+            ),
+            scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
+              else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")
             ),
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
@@ -2947,7 +3018,9 @@ object BeamConfig {
           case class LivingStreet(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object LivingStreet {
@@ -2958,7 +3031,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -2966,7 +3041,9 @@ object BeamConfig {
           case class Minor(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Minor {
@@ -2977,7 +3054,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Minor(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -2985,7 +3064,9 @@ object BeamConfig {
           case class Motorway(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Motorway {
@@ -2996,7 +3077,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Motorway(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3004,7 +3087,9 @@ object BeamConfig {
           case class MotorwayLink(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object MotorwayLink {
@@ -3015,7 +3100,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.MotorwayLink(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3023,7 +3110,9 @@ object BeamConfig {
           case class Primary(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Primary {
@@ -3034,7 +3123,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Primary(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3042,7 +3133,9 @@ object BeamConfig {
           case class PrimaryLink(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object PrimaryLink {
@@ -3053,7 +3146,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.PrimaryLink(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3061,7 +3156,9 @@ object BeamConfig {
           case class Residential(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Residential {
@@ -3072,7 +3169,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Residential(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3080,7 +3179,9 @@ object BeamConfig {
           case class Secondary(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Secondary {
@@ -3091,7 +3192,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Secondary(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3099,7 +3202,9 @@ object BeamConfig {
           case class SecondaryLink(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object SecondaryLink {
@@ -3110,7 +3215,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.SecondaryLink(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3118,7 +3225,9 @@ object BeamConfig {
           case class Tertiary(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Tertiary {
@@ -3129,7 +3238,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Tertiary(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3137,7 +3248,9 @@ object BeamConfig {
           case class TertiaryLink(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object TertiaryLink {
@@ -3148,7 +3261,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.TertiaryLink(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3156,7 +3271,9 @@ object BeamConfig {
           case class Trunk(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Trunk {
@@ -3167,7 +3284,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Trunk(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3175,7 +3294,9 @@ object BeamConfig {
           case class TrunkLink(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object TrunkLink {
@@ -3186,7 +3307,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.TrunkLink(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
@@ -3194,7 +3317,9 @@ object BeamConfig {
           case class Unclassified(
             capacity: scala.Option[scala.Int],
             lanes: scala.Option[scala.Int],
-            speed: scala.Option[scala.Double]
+            speed: scala.Option[scala.Double],
+            alpha: scala.Option[scala.Double],
+            beta: scala.Option[scala.Double]
           )
 
           object Unclassified {
@@ -3205,7 +3330,9 @@ object BeamConfig {
               BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Unclassified(
                 capacity = if (c.hasPathOrNull("capacity")) Some(c.getInt("capacity")) else None,
                 lanes = if (c.hasPathOrNull("lanes")) Some(c.getInt("lanes")) else None,
-                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None
+                speed = if (c.hasPathOrNull("speed")) Some(c.getDouble("speed")) else None,
+                alpha = if (c.hasPathOrNull("alpha")) Some(c.getDouble("alpha")) else None,
+                beta = if (c.hasPathOrNull("beta")) Some(c.getDouble("beta")) else None
               )
             }
           }
