@@ -1,6 +1,5 @@
 package beam.utils.scenario
 
-
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
