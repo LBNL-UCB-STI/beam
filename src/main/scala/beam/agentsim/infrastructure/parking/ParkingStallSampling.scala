@@ -25,38 +25,41 @@ object ParkingStallSampling {
     agent: Location,
     taz: TAZ,
     availabilityRatio: Double,
-    closetZone: Boolean = false
+    closestZone: Boolean = true
   ): Location = {
 
     val xDistance: Double = taz.coord.getX - agent.getX
     val yDistance: Double = taz.coord.getY - agent.getY
     val euclideanDistance = Math.sqrt(Math.pow(xDistance, 2.0) + Math.pow(yDistance, 2.0))
     val tazCharacteristicDiameter: Double = math.sqrt(taz.areaInSquareMeters)
-    val sampleStandardDeviation: Double =
-      0.33 // ZN: This probably shouldn't scale with TAZ size. Should also probably be configurable
-
-    val adjustedAvailabilityRatio =
-      if ((euclideanDistance < tazCharacteristicDiameter) | closetZone) availabilityRatio
-      else availabilityRatio / Math.pow(euclideanDistance / tazCharacteristicDiameter, 2.0)
+    val sampleStandardDeviation: Double = if (closestZone) { 200.0 }
+    else { tazCharacteristicDiameter * 0.33 }
 
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
     val availabilityFactor: Double =
-      if (adjustedAvailabilityRatio < Math.exp(-4.0)) 1.0 else -0.25 * math.log(adjustedAvailabilityRatio)
+      if (availabilityRatio < Math.exp(-4.0)) 1.0 else -0.25 * math.log(availabilityRatio)
 
     // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
-    val (scaledXDistance, scaledYDistance) = (
-      xDistance * availabilityFactor,
-      yDistance * availabilityFactor
-    )
+    val (expectedValueX, expectedValueY) = if (closestZone) {
+      (
+        xDistance * availabilityFactor + agent.getX,
+        yDistance * availabilityFactor + agent.getY
+      )
+    } else {
+      (
+        taz.coord.getX - xDistance * (tazCharacteristicDiameter / euclideanDistance),
+        taz.coord.getY - xDistance * (tazCharacteristicDiameter / euclideanDistance)
+      )
+    }
 
     // the random variable has a standard deviation made of an inverse of parking availability and scaled out
     // proportionally to 1/3 the diameter of the TAZ.
     // random value offset by the agent location and additionally offset by the distance from agent
     // to TAZ centroid with inverse availability also being a factor here.
     val (sampleX, sampleY) = (
-      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + agent.getX + scaledXDistance,
-      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + agent.getY + scaledYDistance
+      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + expectedValueX,
+      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + expectedValueY
     )
 
     new Coord(sampleX, sampleY)

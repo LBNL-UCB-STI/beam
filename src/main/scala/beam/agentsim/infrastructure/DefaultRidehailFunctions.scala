@@ -158,7 +158,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
     geoArea: GEO,
-    inClosetZone: Boolean = false
+    inClosetZone: Boolean = true
   ): Coord = {
     import GeoLevel.ops._
     geoArea.centroidLocation

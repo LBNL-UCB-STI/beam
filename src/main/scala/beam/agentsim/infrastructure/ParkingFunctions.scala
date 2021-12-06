@@ -152,7 +152,7 @@ class ParkingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
     geoArea: GEO,
-    inClosetZone: Boolean = false
+    inClosetZone: Boolean = true
   ): Coord = {
     if (parkingZone.link.isDefined)
       parkingZone.link.get.getCoord
