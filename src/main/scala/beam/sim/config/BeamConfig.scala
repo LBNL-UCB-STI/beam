@@ -99,6 +99,7 @@ object BeamConfig {
           carriersFilePath: java.lang.String,
           convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
+          generateFixedActivitiesDurations: scala.Boolean,
           name: java.lang.String,
           plansFilePath: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
@@ -134,6 +135,8 @@ object BeamConfig {
                 else "/test/input/beamville/freight/freight-carriers.csv",
               convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              generateFixedActivitiesDurations =
+                c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")

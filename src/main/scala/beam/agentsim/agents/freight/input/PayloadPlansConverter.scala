@@ -130,6 +130,12 @@ object PayloadPlansConverter extends LazyLogging {
               s"Value of requestType $wrongValue is unexpected."
             )
         }
+        val operationDurationInSec = get("operationDurationInSec").toDouble.toInt
+        val activityType = if (freightConfig.generateFixedActivitiesDurations) {
+          s"${requestType.toString}|$operationDurationInSec"
+        } else {
+          requestType.toString
+        }
 
         findClosestUTMPointOnMap(locationUTM, geoUtils, streetLayer) match {
           case Some(locationUTMOnMap) =>
@@ -141,10 +147,11 @@ object PayloadPlansConverter extends LazyLogging {
                 get("payloadType").createId[PayloadType],
                 weightInKg,
                 requestType,
+                activityType,
                 locationUTMOnMap,
                 get("estimatedTimeOfArrivalInSec").toDouble.toInt,
                 arrivalTimeWindowInSec,
-                get("operationDurationInSec").toDouble.toInt
+                operationDurationInSec
               )
             )
           case None =>
@@ -360,7 +367,7 @@ object PayloadPlansConverter extends LazyLogging {
 
       val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
         val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
-        val activityType = plan.requestType.toString
+        val activityType = plan.activityType
         val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime)
         val leg: Leg = createFreightLeg(activityEndTime)
         Seq(activity, leg)

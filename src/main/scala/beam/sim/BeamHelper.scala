@@ -284,21 +284,22 @@ trait BeamHelper extends LazyLogging {
       LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
     val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
-    val freightCarriers = if (beamConfig.beam.agentsim.agents.freight.enabled) {
+    val freightConfig = beamConfig.beam.agentsim.agents.freight
+    val (freightCarriers, fixedActivitiesDurationsFromFreight) = if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
       val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
       val tours = PayloadPlansConverter.readFreightTours(
-        beamConfig.beam.agentsim.agents.freight,
+        freightConfig,
         geoUtils,
         networkCoordinator.transportNetwork.streetLayer
       )
       val plans = PayloadPlansConverter.readPayloadPlans(
-        beamConfig.beam.agentsim.agents.freight,
+        freightConfig,
         geoUtils,
         networkCoordinator.transportNetwork.streetLayer
       )
-      PayloadPlansConverter.readFreightCarriers(
-        beamConfig.beam.agentsim.agents.freight,
+      val carriers = PayloadPlansConverter.readFreightCarriers(
+        freightConfig,
         geoUtils,
         networkCoordinator.transportNetwork.streetLayer,
         tours,
@@ -306,8 +307,14 @@ trait BeamHelper extends LazyLogging {
         vehicleTypes,
         rand
       )
+      val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
+        plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
+      } else {
+        Map.empty[String, Double]
+      }
+      (carriers, activityNameToDuration)
     } else {
-      IndexedSeq.empty[FreightCarrier]
+      (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
     }
 
     val fixedActivitiesDurationsFromConfig = {
@@ -335,7 +342,7 @@ trait BeamHelper extends LazyLogging {
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
       freightCarriers,
-      fixedActivitiesDurations = fixedActivitiesDurationsFromConfig
+      fixedActivitiesDurations = fixedActivitiesDurationsFromConfig + fixedActivitiesDurationsFromFreight
     )
   }
 

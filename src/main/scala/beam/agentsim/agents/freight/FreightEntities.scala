@@ -35,6 +35,7 @@ case class PayloadPlan(
   payloadType: Id[PayloadType],
   weight: Double,
   requestType: FreightRequestType,
+  activityType: String,
   locationUTM: Coord,
   estimatedTimeOfArrivalInSec: Int,
   arrivalTimeWindowInSec: Int,
