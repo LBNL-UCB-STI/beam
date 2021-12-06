@@ -10,7 +10,7 @@ import org.matsim.api.core.v01.Coord
   */
 object ParkingStallSampling {
 
-  type GeoSampling[GEO] = (Random, Location, GEO, Double) => Location
+  type GeoSampling[GEO] = (Random, Location, GEO, Double, Boolean) => Location
 
   /**
     * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability
@@ -20,22 +20,29 @@ object ParkingStallSampling {
     * @param availabilityRatio availability of the chosen stall type, as a ratio, i.e., in the range [0, 1]
     * @return a sampled location
     */
-  def availabilityAwareSampling(rand: Random, agent: Location, taz: TAZ, availabilityRatio: Double): Location = {
+  def availabilityAwareSampling(
+    rand: Random,
+    agent: Location,
+    taz: TAZ,
+    availabilityRatio: Double,
+    closetZone: Boolean = false
+  ): Location = {
 
     val xDistance: Double = taz.coord.getX - agent.getX
     val yDistance: Double = taz.coord.getY - agent.getY
     val euclideanDistance = Math.sqrt(Math.pow(xDistance, 2.0) + Math.pow(yDistance, 2.0))
     val tazCharacteristicDiameter: Double = math.sqrt(taz.areaInSquareMeters)
-    val sampleStandardDeviation: Double = tazCharacteristicDiameter * 0.33
+    val sampleStandardDeviation: Double =
+      0.33 // ZN: This probably shouldn't scale with TAZ size. Should also probably be configurable
 
     val adjustedAvailabilityRatio =
-      if (euclideanDistance < tazCharacteristicDiameter) availabilityRatio
+      if ((euclideanDistance < tazCharacteristicDiameter) | closetZone) availabilityRatio
       else availabilityRatio / Math.pow(euclideanDistance / tazCharacteristicDiameter, 2.0)
 
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
     val availabilityFactor: Double =
-      if (adjustedAvailabilityRatio < 0.01) 1.0 else -0.25 * math.log(adjustedAvailabilityRatio)
+      if (adjustedAvailabilityRatio < Math.exp(-4.0)) 1.0 else -0.25 * math.log(adjustedAvailabilityRatio)
 
     // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
     val (scaledXDistance, scaledYDistance) = (
