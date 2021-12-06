@@ -317,11 +317,17 @@ trait BeamHelper extends LazyLogging {
       (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
     }
 
-    val fixedActivitiesDurationsFromConfig = {
+    val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
       BeamConfigUtils
         .parseListToMap(maybeFixedDurationsList.getOrElse(List.empty[String]))
         .map { case (activityType, stringDuration) => activityType -> stringDuration.toDouble }
+    }
+
+    val fixedActivitiesDurations =
+      (fixedActivitiesDurationsFromConfig.toSeq ++ fixedActivitiesDurationsFromFreight.toSeq).toMap
+    if (fixedActivitiesDurations.nonEmpty) {
+      logger.info(s"Following activities will have fixed durations: ${fixedActivitiesDurations.mkString(",")}")
     }
 
     BeamScenario(
@@ -342,7 +348,7 @@ trait BeamHelper extends LazyLogging {
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
       freightCarriers,
-      fixedActivitiesDurations = fixedActivitiesDurationsFromConfig + fixedActivitiesDurationsFromFreight
+      fixedActivitiesDurations
     )
   }
 
