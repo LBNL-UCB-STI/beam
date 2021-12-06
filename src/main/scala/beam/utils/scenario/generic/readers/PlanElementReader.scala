@@ -117,7 +117,11 @@ object XmlPlanElementReader extends PlanElementReader {
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
-      tripId = Option(leg.getAttributes.getAttribute("tripId").toString),
+      tripId = if (leg.getAttributes.getAttribute("tripId") != null) {
+        Option(leg.getAttributes.getAttribute("tripId").toString)
+      } else {
+        None
+      },
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
