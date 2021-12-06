@@ -33,13 +33,15 @@ import scala.util.{Random, Try}
   * @author Dmitry Openkov
   */
 
-trait TravelTimeGoogleStatistic extends BasicEventHandler
-  with IterationEndsListener
-  with LazyLogging
+trait TravelTimeGoogleStatistic extends BasicEventHandler with IterationEndsListener with LazyLogging
 
 object TravelTimeGoogleStatistic extends LazyLogging {
-  def getTravelTimeGoogleStatistic(cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
-                                   actorSystem: ActorSystem, geoUtils: GeoUtils) = {
+
+  def getTravelTimeGoogleStatistic(
+    cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
+    actorSystem: ActorSystem,
+    geoUtils: GeoUtils
+  ) = {
     val apiKey = {
       val key = System.getenv("GOOGLE_API_KEY")
       if (cfg.enable && key == null)
@@ -47,7 +49,7 @@ object TravelTimeGoogleStatistic extends LazyLogging {
       key
     }
     val enabled = cfg.enable && apiKey != null
-    if(enabled) new TravelTimeGoogleStatisticImpl(cfg, actorSystem, geoUtils, enabled, apiKey)
+    if (enabled) new TravelTimeGoogleStatisticImpl(cfg, actorSystem, geoUtils, enabled, apiKey)
     else EmptyTravelTimeGoogleStatistic
   }
 }
