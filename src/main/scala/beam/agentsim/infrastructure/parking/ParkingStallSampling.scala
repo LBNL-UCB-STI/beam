@@ -11,6 +11,7 @@ import org.matsim.api.core.v01.Coord
 object ParkingStallSampling {
 
   type GeoSampling[GEO] = (Random, Location, GEO, Double, Boolean) => Location
+  val maxOffsetDistance = 600.0 // TODO: Make this a config parameter
 
   /**
     * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability
@@ -30,7 +31,7 @@ object ParkingStallSampling {
 
     val xDistance: Double = taz.coord.getX - agent.getX
     val yDistance: Double = taz.coord.getY - agent.getY
-    val euclideanDistance = Math.sqrt(Math.pow(xDistance, 2.0) + Math.pow(yDistance, 2.0))
+    val euclideanDistanceToTazCenter = Math.sqrt(Math.pow(xDistance, 2.0) + Math.pow(yDistance, 2.0))
     val tazCharacteristicDiameter: Double = math.sqrt(taz.areaInSquareMeters)
     val sampleStandardDeviation: Double = if (closestZone) { 200.0 }
     else { tazCharacteristicDiameter * 0.33 }
@@ -48,18 +49,27 @@ object ParkingStallSampling {
       )
     } else {
       (
-        taz.coord.getX - xDistance * (tazCharacteristicDiameter / euclideanDistance),
-        taz.coord.getY - xDistance * (tazCharacteristicDiameter / euclideanDistance)
+        taz.coord.getX - xDistance * (tazCharacteristicDiameter / euclideanDistanceToTazCenter),
+        taz.coord.getY - xDistance * (tazCharacteristicDiameter / euclideanDistanceToTazCenter)
       )
     }
+
+    val (offsetX, offsetY) = (
+      rand.nextGaussian * availabilityFactor * sampleStandardDeviation,
+      rand.nextGaussian * availabilityFactor * sampleStandardDeviation
+    )
+
+    val offsetDistance = Math.sqrt(Math.pow(offsetX, 2.0) + Math.pow(offsetY, 2.0))
+
+    val offsetMultiplier = if (offsetDistance <= maxOffsetDistance) {1.0} else {maxOffsetDistance / offsetDistance}
 
     // the random variable has a standard deviation made of an inverse of parking availability and scaled out
     // proportionally to 1/3 the diameter of the TAZ.
     // random value offset by the agent location and additionally offset by the distance from agent
     // to TAZ centroid with inverse availability also being a factor here.
     val (sampleX, sampleY) = (
-      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + expectedValueX,
-      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + expectedValueY
+      offsetX * offsetMultiplier + expectedValueX,
+      offsetY * offsetMultiplier + expectedValueY
     )
 
     new Coord(sampleX, sampleY)
