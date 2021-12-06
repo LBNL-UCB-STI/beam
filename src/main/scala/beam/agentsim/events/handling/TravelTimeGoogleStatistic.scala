@@ -33,7 +33,9 @@ import scala.util.{Random, Try}
   * @author Dmitry Openkov
   */
 
-trait TravelTimeGoogleStatistic extends BasicEventHandler with IterationEndsListener with LazyLogging
+trait TravelTimeGoogleStatistic extends BasicEventHandler with IterationEndsListener with LazyLogging {
+  def loadedEventNumber: Int
+}
 
 object TravelTimeGoogleStatistic extends LazyLogging {
 
@@ -217,7 +219,7 @@ class TravelTimeGoogleStatisticImpl(
     )
   }
 
-  def loadedEventNumber: Int = acc.size
+  override def loadedEventNumber: Int = acc.size
 
   override def reset(iteration: Int): Unit = {
     acc.clear()
@@ -228,6 +230,8 @@ object EmptyTravelTimeGoogleStatistic extends TravelTimeGoogleStatistic {
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {}
 
   override def handleEvent(event: Event): Unit = {}
+
+  override def loadedEventNumber: Int = 0
 }
 
 case class EventContainer(event: PathTraversalEvent, route: Route)
