@@ -32,16 +32,16 @@ class FreightReplanner(
     freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight
   ): Unit = {
     if (FreightReplanner.needReplanning(iteration, freightCarrier, freightConfig)) {
-      replan(freightCarrier)
+      replan(freightCarrier, freightConfig)
     }
   }
 
-  def replan(freightCarrier: FreightCarrier): Unit = {
+  def replan(freightCarrier: FreightCarrier, freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight): Unit = {
     val strategyName = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.strategy
     val departureTime = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.departureTime
     val routes = calculateRoutes(freightCarrier, strategyName, departureTime)
     val population = beamServices.matsimServices.getScenario.getPopulation.getPersons
-    val newPlans = convertToPlans(routes, population, freightCarrier)
+    val newPlans = convertToPlans(routes, population, freightCarrier, freightConfig)
 
     newPlans.foreach { newPlan =>
       val person = newPlan.getPerson
@@ -59,7 +59,8 @@ class FreightReplanner(
   private[freight] def convertToPlans(
     routes: IndexedSeq[Route],
     population: util.Map[Id[Person], _ <: Person],
-    freightCarrier: FreightCarrier
+    freightCarrier: FreightCarrier,
+    freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight
   ): Iterable[Plan] = {
     routes.groupBy(_.vehicle.id).map { case (vehicleIdStr, routes) =>
       val vehicleId = Id.createVehicleId(vehicleIdStr)
@@ -69,7 +70,8 @@ class FreightReplanner(
         convertToFreightTourWithPayloadPlans(
           s"freight-tour-${route.vehicle.id}-$i".createId,
           route,
-          freightCarrier.payloadPlans
+          freightCarrier.payloadPlans,
+          freightConfig
         )
       }
       val tours = toursAndPlans.map(_._1)
@@ -82,7 +84,8 @@ class FreightReplanner(
   private def convertToFreightTourWithPayloadPlans(
     tourId: Id[FreightTour],
     route: Route,
-    payloadPlans: Map[Id[PayloadPlan], PayloadPlan]
+    payloadPlans: Map[Id[PayloadPlan], PayloadPlan],
+    freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight
   ): (FreightTour, IndexedSeq[PayloadPlan]) = {
     val tour = FreightTour(
       tourId,
@@ -92,18 +95,26 @@ class FreightReplanner(
     )
 
     val plans = route.activities.zipWithIndex.map { case (activity, i) =>
-      val freightRequestType: FreightRequestType = activity.service match {
+      val requestType: FreightRequestType = activity.service match {
         case _: Dropoff => FreightRequestType.Unloading
         case _: Pickup  => FreightRequestType.Loading
       }
       val payloadPlan = payloadPlans(activity.service.id.createId)
+
+      val activityType = if (freightConfig.generateFixedActivitiesDurations) {
+        s"${requestType.toString}|${payloadPlan.operationDurationInSec}"
+      } else {
+        requestType.toString
+      }
+
       PayloadPlan(
         activity.service.id.createId,
         i,
         tour.tourId,
         payloadPlan.payloadType,
         activity.service.capacity,
-        freightRequestType,
+        requestType,
+        activityType,
         activity.service.location,
         activity.arrivalTime,
         payloadPlan.arrivalTimeWindowInSec,

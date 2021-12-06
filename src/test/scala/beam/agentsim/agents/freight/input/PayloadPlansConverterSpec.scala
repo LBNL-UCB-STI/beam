@@ -39,7 +39,8 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
     convertWgs2Utm = false,
     enabled = true,
     name = "Freight",
-    replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = "")
+    replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
+    generateFixedActivitiesDurations = false
   )
 
 // issue for fixing old tests with old reader - https://github.com/LBNL-UCB-STI/beam/issues/3385
