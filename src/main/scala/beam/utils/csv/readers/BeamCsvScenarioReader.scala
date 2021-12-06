@@ -7,7 +7,6 @@ import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
 import org.apache.commons.lang3.math.NumberUtils
-import org.matsim.api.core.v01.population.Plan
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
