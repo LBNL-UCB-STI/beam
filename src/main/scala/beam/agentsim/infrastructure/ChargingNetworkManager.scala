@@ -152,7 +152,13 @@ class ChargingNetworkManager(
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       if (vehicle.isBEV || vehicle.isPHEV) {
         // connecting the current vehicle
-        val activityType = vehicle2InquiryMap.get(vehicle.id).map(_.activityType).getOrElse("")
+        val activityType = vehicle2InquiryMap
+          .get(vehicle.id)
+          .map {
+            case inquiry if inquiry.searchMode == ParkingSearchMode.EnRoute => ParkingSearchMode.EnRoute.toString
+            case inquiry                                                    => inquiry.activityType
+          }
+          .getOrElse("")
         chargingNetworkHelper
           .get(stall.reservedFor.managerId)
           .processChargingPlugRequest(request, activityType, sender()) map {
