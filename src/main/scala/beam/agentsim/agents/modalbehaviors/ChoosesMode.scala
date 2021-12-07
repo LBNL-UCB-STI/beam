@@ -309,8 +309,8 @@ trait ChoosesMode {
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         val requireVehicleCategoryAvailable = mode match {
           case CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3 => Some(VehicleCategory.Car)
-          case BIKE_TRANSIT | BIKE => Some(VehicleCategory.Bike)
-          case _                   => None
+          case BIKE_TRANSIT | BIKE                       => Some(VehicleCategory.Bike)
+          case _                                         => None
         }
         requestAvailableVehicles(
           vehicleFleets,
