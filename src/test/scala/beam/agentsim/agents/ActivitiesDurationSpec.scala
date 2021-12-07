@@ -91,7 +91,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
     val activitiesDurations: Map[String, Set[Double]] = getActivitiesDurationsGroupedByType(events)
 
     checkIfDurationsExistAndBiggerThan(activitiesDurations, "Shopping", 2000)
-    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Other", 1000)
+    checkIfDurationsExistAndBiggerThan(activitiesDurations, "Other", 600)
     checkIfDurationsExistAndBiggerThan(activitiesDurations, "Work", 40000)
   }
 
