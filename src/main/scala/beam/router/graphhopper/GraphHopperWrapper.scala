@@ -176,7 +176,8 @@ abstract class GraphHopperWrapper(
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("GH")
         )
       )
     } catch {

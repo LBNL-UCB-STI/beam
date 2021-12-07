@@ -24,6 +24,16 @@ import org.matsim.core.controler.listener.{IterationEndsListener, IterationStart
 import java.util.Objects
 import scala.reflect.ClassTag
 
+/**
+  * Set `beam.outputs.writeR5RoutesInterval` config option to a number more than 0
+  * to write all router requests and responses to parquet file.
+  *
+  * That number means how frequent routes will be written,
+  * `1` - each iteration
+  * `2` - every second iteration
+  *
+  * and so on
+  */
 class RouteDumper(beamServices: BeamServices)
     extends BasicEventHandler
     with IterationStartsListener
@@ -226,6 +236,7 @@ object RouteDumper {
         record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
 
         record.put("itineraryIndex", itineraryIndex)
+        record.put("router", itinerary.router.mkString)
         record.put("costEstimate", itinerary.costEstimate)
         record.put("tripClassifier", itinerary.tripClassifier.value)
         record.put("replanningPenalty", itinerary.replanningPenalty)
@@ -338,6 +349,8 @@ object RouteDumper {
 
     val itineraryIndex =
       new Schema.Field("itineraryIndex", Schema.create(Type.INT), "itineraryIndex", null.asInstanceOf[Any])
+    val router =
+      new Schema.Field("router", Schema.create(Type.STRING), "router", null.asInstanceOf[Any])
     val costEstimate =
       new Schema.Field("costEstimate", Schema.create(Type.DOUBLE), "costEstimate", null.asInstanceOf[Any])
     val tripClassifier =
@@ -357,6 +370,7 @@ object RouteDumper {
       requestIdField,
       isEmbodyWithCurrentTravelTime,
       itineraryIndex,
+      router,
       costEstimate,
       tripClassifier,
       replanningPenalty,
