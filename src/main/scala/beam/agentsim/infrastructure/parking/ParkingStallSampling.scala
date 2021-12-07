@@ -52,7 +52,7 @@ object ParkingStallSampling {
     } else {
       (
         taz.coord.getX - xDistance * (tazCharacteristicRadius / euclideanDistanceToTazCenter / 2.0),
-        taz.coord.getY - xDistance * (tazCharacteristicRadius / euclideanDistanceToTazCenter / 2.0)
+        taz.coord.getY - yDistance * (tazCharacteristicRadius / euclideanDistanceToTazCenter / 2.0)
       )
     }
 
