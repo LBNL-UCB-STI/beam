@@ -146,4 +146,5 @@ object XmlPlanElementReader extends PlanElementReader {
       },
       geoId = None
     )
+  }
 }

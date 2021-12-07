@@ -141,7 +141,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   private def toLine(planInfo: PlanElement): String = {
     Seq(
-      planInfo.tripId,
+      planInfo.tripId.getOrElse(""),
       planInfo.personId.id,
       planInfo.planIndex,
       planInfo.planScore,

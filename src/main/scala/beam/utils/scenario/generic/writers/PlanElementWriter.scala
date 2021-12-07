@@ -41,7 +41,7 @@ object CsvPlanElementWriter extends PlanElementWriter {
       xs.foreach { planElement =>
         val legRouteLinks = planElement.legRouteLinks.mkString("|")
         csvWriter.write(
-          planElement.tripId,
+          planElement.tripId.getOrElse(""),
           planElement.personId.id,
           planElement.planIndex,
           planElement.planScore,
