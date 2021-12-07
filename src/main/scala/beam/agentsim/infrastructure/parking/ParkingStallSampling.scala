@@ -32,16 +32,18 @@ object ParkingStallSampling {
     val xDistance: Double = taz.coord.getX - agent.getX
     val yDistance: Double = taz.coord.getY - agent.getY
     val euclideanDistanceToTazCenter = Math.sqrt(Math.pow(xDistance, 2.0) + Math.pow(yDistance, 2.0))
-    val tazCharacteristicDiameter: Double = math.sqrt(taz.areaInSquareMeters)
-    val sampleStandardDeviation: Double = if (closestZone) { 200.0 }
-    else { tazCharacteristicDiameter * 0.33 }
+    val tazCharacteristicRadius: Double = math.sqrt(taz.areaInSquareMeters / 3.14)
+    val sampleStandardDeviation: Double = tazCharacteristicRadius * 0.5
 
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
     val availabilityFactor: Double =
       if (availabilityRatio < Math.exp(-4.0)) 1.0 else -0.25 * math.log(availabilityRatio)
 
-    // finding a location between the agent and the TAZ centroid to sample from, scaled back by increased availability
+    // finding a location between the agent and the TAZ centroid to sample from. If we're dealing with the closest TAZ,
+    // the center of the sampling distribution should be nearer to the TAZ center the lower availability is, but nearer
+    // the request if availability is high. If we're dealing with a farther-away taz, center the sampling distribution
+    // halfway between the TAZ center and the nearest point in the TAZ to the request
     val (expectedValueX, expectedValueY) = if (closestZone) {
       (
         xDistance * availabilityFactor + agent.getX,
@@ -49,8 +51,8 @@ object ParkingStallSampling {
       )
     } else {
       (
-        taz.coord.getX - xDistance * (tazCharacteristicDiameter / euclideanDistanceToTazCenter),
-        taz.coord.getY - xDistance * (tazCharacteristicDiameter / euclideanDistanceToTazCenter)
+        taz.coord.getX - xDistance * (tazCharacteristicRadius / euclideanDistanceToTazCenter / 2.0),
+        taz.coord.getY - xDistance * (tazCharacteristicRadius / euclideanDistanceToTazCenter / 2.0)
       )
     }
 
@@ -61,7 +63,12 @@ object ParkingStallSampling {
 
     val offsetDistance = Math.sqrt(Math.pow(offsetX, 2.0) + Math.pow(offsetY, 2.0))
 
-    val offsetMultiplier = if (offsetDistance <= maxOffsetDistance) {1.0} else {maxOffsetDistance / offsetDistance}
+    // Since we could be dealing with very big zones, set a cap on the walking distance within the the closest zone,
+    // even if availability is low
+
+    val offsetMultiplier = if ((offsetDistance > maxOffsetDistance) & closestZone) {
+      maxOffsetDistance / offsetDistance
+    } else { 1.0 }
 
     // the random variable has a standard deviation made of an inverse of parking availability and scaled out
     // proportionally to 1/3 the diameter of the TAZ.
