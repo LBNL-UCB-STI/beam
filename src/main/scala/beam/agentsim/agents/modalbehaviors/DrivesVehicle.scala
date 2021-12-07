@@ -336,10 +336,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       eventsManager.processEvent(pte)
       generateTCSEventIfPossible(pte)
 
-      val inEnroute = data match { case data: BasePersonData => data.enrouteState.enroute; case _ => false }
+      val isEnroute = data match { case data: BasePersonData => data.enrouteState.isEnroute; case _ => false }
       if (!isLastLeg) {
         // we don't want to choose parking stall if vehicle is in enroute
-        if (data.hasParkingBehaviors && !inEnroute) {
+        if (data.hasParkingBehaviors && !isEnroute) {
           holdTickAndTriggerId(tick, triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ReadyToChooseParking")
           goto(ReadyToChooseParking) using data
@@ -398,10 +398,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ConnectingToChargingPoint")
           // `EnrouteRefueling` handles recharging and resetting state to original destination
           // `ConnectingToChargingPoint` parks vehicle upon reaching destination
-          if (inEnroute) {
-            releaseTickAndTriggerId()
-            goto(EnrouteRefueling) using data.asInstanceOf[T] replying CompletionNotice(triggerId, Vector())
-          } else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
+          if (isEnroute) goto(EnrouteRefueling) using data.asInstanceOf[T]
+          else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
           handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
           self ! LastLegPassengerSchedule(triggerId)
@@ -692,7 +690,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   val drivingBehavior: StateFunction = {
     case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
-      log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
+      log.info("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(req: ReservationRequest, data)
         if !hasRoomFor(

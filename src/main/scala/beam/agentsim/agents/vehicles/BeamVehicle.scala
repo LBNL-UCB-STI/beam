@@ -132,12 +132,6 @@ class BeamVehicle(
     }
   }
 
-  def unsetReservedParkingStall(): Unit = {
-    stallRWLock.write {
-      reservedStallInternal = None
-    }
-  }
-
   def useParkingStall(newStall: ParkingStall): Unit = {
     stallRWLock.write {
       stallInternal = Some(newStall)
@@ -661,22 +655,4 @@ object BeamVehicle {
     }
   }
 
-  def fuelConsumptionInJoules(beamVehicle: BeamVehicle, legs: Vector[EmbodiedBeamLeg]): Double = {
-    val distanceInM = legs.map(_.beamLeg.travelPath.distanceInM).sum // distance needs to cover
-
-    val primaryFuelLevelInJoules = beamVehicle.primaryFuelLevelInJoules
-    val primaryFuelConsumptionInJoulePerMeter = beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter
-    val secondaryFuelConsumptionInJoulePerMeter = beamVehicle.beamVehicleType.secondaryFuelConsumptionInJoulePerMeter
-    val (primaryRange, _) = beamVehicle.getRemainingRange
-
-    if (distanceInM > primaryRange && secondaryFuelConsumptionInJoulePerMeter.nonEmpty) {
-      // distance remains after using all the fuel of primary storage
-      val remainingDistanceInM = Math.abs(primaryRange - distanceInM)
-      val secondaryConsumptionInJoules = secondaryFuelConsumptionInJoulePerMeter.get * remainingDistanceInM
-      primaryFuelLevelInJoules + secondaryConsumptionInJoules
-    } else {
-      val primaryConsumptionInJoules = primaryFuelConsumptionInJoulePerMeter * distanceInM
-      Math.max(primaryConsumptionInJoules, 0)
-    }
-  }
 }

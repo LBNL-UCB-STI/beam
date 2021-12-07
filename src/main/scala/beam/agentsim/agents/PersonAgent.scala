@@ -153,18 +153,13 @@ object PersonAgent {
 
   /**
     * holds information for agent enroute
-    * @param enroute         flag to indicate whether agent is enrouting or not
+    * @param isEnroute       flag to indicate whether agent is enrouting or not
     * @param stall2DestLegs  car legs from enroute charging stall to original destination
-    * @param attempted       flag to indicate whether enroute already attempted for 'current' trip
     */
   case class EnrouteState(
-    enroute: Boolean = false,
-    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector(),
-    attempted: Boolean = false
-  ) {
-    val notEnroute: Boolean = !enroute
-    val notAttempted: Boolean = !attempted
-  }
+    isEnroute: Boolean = false,
+    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector()
+  )
 
   case class BasePersonData(
     currentActivityIndex: Int = 0,
@@ -349,7 +344,7 @@ class PersonAgent(
     // if enroute then trip is not started yet, pick vehicle id of next leg (head of rest of the trip)
     // else the vehicle information is available in `currentVehicle`
     val vehicleId =
-      if (personData.enrouteState.enroute) personData.restOfCurrentTrip.head.beamVehicleId
+      if (personData.enrouteState.isEnroute) personData.restOfCurrentTrip.head.beamVehicleId
       else personData.currentVehicle.head
 
     val currentBeamVehicle = beamVehicles(vehicleId).vehicle
@@ -514,8 +509,7 @@ class PersonAgent(
               case _ =>
                 data.currentTourMode.orElse(modeOfNextLeg)
             },
-            numberOfReplanningAttempts = 0,
-            enrouteState = EnrouteState()
+            numberOfReplanningAttempts = 0
           ),
           SpaceTime(currentActivity(data).getCoord, _currentTick.get)
         )
@@ -801,7 +795,7 @@ class PersonAgent(
           )
         ) =>
       // do not travel the "head" leg if on enroute charging
-      val (trip, cost) = if (enrouteStates.enroute) {
+      val (trip, cost) = if (enrouteStates.isEnroute) {
         log.debug("ReadyToChooseParking, enroute trip: {}", restOfCurrentTrip.toString())
         (restOfCurrentTrip, currentCost.toDouble)
       } else {
@@ -844,7 +838,7 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(tick, _), _) =>
+    case Event(StartingRefuelSession(tick, triggerId), _) =>
       val endEnrouteRefuelingTime =
         tick +
         beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds +
@@ -854,7 +848,7 @@ class PersonAgent(
       stay
     case Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
-      stay replying CompletionNotice(triggerId, Vector())
+      stay replying CompletionNotice(triggerId)
     case Event(WaitingToCharge(_, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
@@ -877,11 +871,7 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val updatedData =
-        createStallToDestTripForEnroute(data, tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow)
-      val updatedTick = updatedData.restOfCurrentTrip.head.beamLeg.startTime
-      currentBeamVehicle.unsetReservedParkingStall()
-      holdTickAndTriggerId(updatedTick, triggerId)
+      val updatedData = createStallToDestTripForEnroute(data, tick)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
       log.debug(
@@ -897,11 +887,7 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val updatedData =
-        createStallToDestTripForEnroute(data, tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow)
-      val updatedTick = updatedData.restOfCurrentTrip.head.beamLeg.startTime
-      currentBeamVehicle.unsetReservedParkingStall()
-      holdTickAndTriggerId(updatedTick, triggerId)
+      val updatedData = createStallToDestTripForEnroute(data, tick)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
@@ -923,7 +909,7 @@ class PersonAgent(
     data.copy(
       currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
       restOfCurrentTrip = newRestOfTrip.toList,
-      enrouteState = EnrouteState(attempted = true)
+      enrouteState = EnrouteState()
     )
   }
 
@@ -985,10 +971,7 @@ class PersonAgent(
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
         val isRefuelNeeded = vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
-        val needEnroute = {
-          asDriver && isElectric && isRefuelNeeded &&
-          data.enrouteState.notEnroute && data.enrouteState.notAttempted
-        }
+        val needEnroute = asDriver && isElectric && isRefuelNeeded
 
         val isSharedVehicle = beamVehicles(nextLeg.beamVehicleId)
           .asInstanceOf[ActualVehicle]
@@ -1019,10 +1002,7 @@ class PersonAgent(
         // decide whether we need to complete the trigger, start a leg or both
         val updatedData = stateToGo match {
           case ReadyToChooseParking =>
-            copiedData.copy(enrouteState = EnrouteState(enroute = true))
-          case ReleasingParkingSpot if data.enrouteState.attempted =>
-            scheduler ! ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)
-            copiedData
+            copiedData.copy(enrouteState = EnrouteState(isEnroute = true))
           case ReleasingParkingSpot =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
             copiedData
@@ -1387,7 +1367,7 @@ class PersonAgent(
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
       stay()
     case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
-      log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
+      log.info("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
       stay() replying CompletionNotice(triggerId)
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
