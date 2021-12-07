@@ -346,8 +346,7 @@ trait ChoosesParking extends {
       // create new legs to travel to the charging stall
       val (tick, triggerId) = releaseTickAndTriggerId()
       val walkTemp = data.currentTrip.head.legs.head
-      val startTime = tick /*+ beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow*/
-      val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
+      val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
       val walk4 = data.currentTrip.head.legs.last
       val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
         EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (vehicle2StallCarLegs :+ walk4))
