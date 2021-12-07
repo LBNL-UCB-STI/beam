@@ -388,7 +388,7 @@ build.dependsOn spec
 * /////////////////////////////////////////////////// */
 
 processResources {
-  duplicatesStrategy = 'include'
+    duplicatesStrategy = 'include'
 }
 
 processTestResources {

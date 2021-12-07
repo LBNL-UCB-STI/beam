@@ -36,6 +36,7 @@ object PlanElement {
 }
 
 case class PlanElement(
+  tripId: Option[String],
   personId: PersonId,
   planIndex: Int,
   planScore: Double,
