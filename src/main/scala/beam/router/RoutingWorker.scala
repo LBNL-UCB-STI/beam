@@ -385,9 +385,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val definedResponses = responses.flatten
       (definedResponses, r5ResponseOption) match {
         case (head +: _, Some(r5Resp)) =>
-          head.copy(itineraries = definedResponses.flatMap(_.itineraries) ++ r5Resp.itineraries)
+          head.copy(
+            itineraries = r5Resp.itineraries ++ definedResponses.flatMap(_.itineraries),
+            searchedModes = r5Resp.searchedModes ++ definedResponses.flatMap(_.searchedModes)
+          )
         case (head +: _, None) =>
-          head.copy(itineraries = definedResponses.flatMap(_.itineraries))
+          head.copy(
+            itineraries = definedResponses.flatMap(_.itineraries),
+            searchedModes = definedResponses.flatMap(_.searchedModes).toSet
+          )
         case (Seq(), Some(r5Resp)) =>
           r5Resp
         case (Seq(), None) => r5.calcRoute(request)

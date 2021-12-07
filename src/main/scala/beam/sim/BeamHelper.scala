@@ -16,7 +16,7 @@ import beam.replanning._
 import beam.replanning.utilitybased.UtilityBasedModeChoice
 import beam.router.Modes.BeamMode
 import beam.router._
-import beam.router.gtfs.FareCalculator
+import beam.router.gtfs.{FareCalculator, GTFSUtils}
 import beam.router.osm.TollCalculator
 import beam.router.r5._
 import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
@@ -258,10 +258,7 @@ trait BeamHelper extends LazyLogging {
   }
 
   def loadScenario(beamConfig: BeamConfig): BeamScenario = {
-    val vehicleTypes = maybeScaleTransit(
-      beamConfig,
-      readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    )
+    val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
 
@@ -281,6 +278,8 @@ trait BeamHelper extends LazyLogging {
     )
 
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
+    val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
+    val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
     val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(TAZTreeMap.getTazTreeMap)
     val linkQuadTree: QuadTree[Link] =
@@ -314,6 +313,7 @@ trait BeamHelper extends LazyLogging {
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
       networkCoordinator.network,
+      trainStopQuadTree,
       tazMap,
       exchangeGeo,
       linkQuadTree,
@@ -780,6 +780,7 @@ trait BeamHelper extends LazyLogging {
             }
             val merger = new PreviousRunPlanMerger(
               beamConfig.beam.agentsim.agents.plans.merge.fraction,
+              beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation,
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
               beamConfig.beam.input.simulationPrefix,
               new Random(),
@@ -897,7 +898,6 @@ trait BeamHelper extends LazyLogging {
     val errors = InputConsistencyCheck.checkConsistency(beamConfig)
     if (errors.nonEmpty) {
       logger.error("Input consistency check failed:\n" + errors.mkString("\n"))
-      throw new RuntimeException("Input consistency check failed")
     }
 
     level = beamConfig.beam.metrics.level
