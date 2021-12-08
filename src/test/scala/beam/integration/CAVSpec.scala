@@ -105,8 +105,6 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
     DefaultPopulationAdjustment(services).update(scenario)
     val controler = services.controler
-
-    assert(services.beamConfig.beam.physsim.skipPhysSim, "beam.physsim.skipPhysSim should be 'true'")
     controler.run()
 
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
