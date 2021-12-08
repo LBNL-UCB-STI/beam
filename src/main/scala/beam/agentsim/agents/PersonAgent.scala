@@ -838,7 +838,7 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(tick, triggerId), _) =>
+    case Event(StartingRefuelSession(tick, _), _) =>
       val endEnrouteRefuelingTime =
         tick +
         beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds +
@@ -848,7 +848,7 @@ class PersonAgent(
       stay
     case Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
-      stay replying CompletionNotice(triggerId)
+      stay
     case Event(WaitingToCharge(_, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
@@ -871,7 +871,9 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val updatedData = createStallToDestTripForEnroute(data, tick)
+      val (updatedTick, updatedData) =
+        createStallToDestTripForEnroute(data, tick + beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
       log.debug(
@@ -887,14 +889,16 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val updatedData = createStallToDestTripForEnroute(data, tick)
+      val (updatedTick, updatedData) =
+        createStallToDestTripForEnroute(data, tick + beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
       stay
   }
 
-  private def createStallToDestTripForEnroute(data: BasePersonData, startTime: Int): BasePersonData = {
+  private def createStallToDestTripForEnroute(data: BasePersonData, startTime: Int): (Int, BasePersonData) = {
     // read preserved car legs to head back to original destination
     // append walk legs around them, update start time and make legs consistent
     // unset reserved charging stall
@@ -906,10 +910,13 @@ class PersonAgent(
     val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
       EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (stall2DestinationCarLegs :+ walk4))
     val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
-    data.copy(
-      currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
-      restOfCurrentTrip = newRestOfTrip.toList,
-      enrouteState = EnrouteState()
+    (
+      newRestOfTrip.head.beamLeg.startTime,
+      data.copy(
+        currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+        restOfCurrentTrip = newRestOfTrip.toList,
+        enrouteState = EnrouteState()
+      )
     )
   }
 
@@ -993,11 +1000,12 @@ class PersonAgent(
 
         val tick = _currentTick.get
         val triggerId = _currentTriggerId.get
-        def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit =
+        def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
           scheduler ! CompletionNotice(
             triggerId,
             Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
           )
+        }
 
         // decide whether we need to complete the trigger, start a leg or both
         val updatedData = stateToGo match {
@@ -1367,7 +1375,7 @@ class PersonAgent(
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
       stay()
     case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
-      log.info("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
+      log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
       stay() replying CompletionNotice(triggerId)
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)

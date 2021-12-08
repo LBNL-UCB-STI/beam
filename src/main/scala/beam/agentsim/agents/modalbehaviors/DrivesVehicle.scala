@@ -398,8 +398,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ConnectingToChargingPoint")
           // `EnrouteRefueling` handles recharging and resetting state to original destination
           // `ConnectingToChargingPoint` parks vehicle upon reaching destination
-          if (isEnroute) goto(EnrouteRefueling) using data.asInstanceOf[T]
-          else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
+          if (isEnroute) {
+            releaseTickAndTriggerId()
+            goto(EnrouteRefueling) using data.asInstanceOf[T] replying CompletionNotice(triggerId)
+          } else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
           handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
           self ! LastLegPassengerSchedule(triggerId)
@@ -690,7 +692,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
   val drivingBehavior: StateFunction = {
     case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
-      log.info("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
+      log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(req: ReservationRequest, data)
         if !hasRoomFor(
