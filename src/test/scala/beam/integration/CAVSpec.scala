@@ -39,6 +39,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val config = ConfigFactory
       .parseString(
         """
+           |beam.agentsim.simulationName = "beamville_for_CAVSpec"
            |beam.actorSystemName = "CAVSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
@@ -55,9 +56,6 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
-
-    assert(beamConfig.beam.physsim.skipPhysSim, "beam.physsim.skipPhysSim should be 'true'")
-
     val beamScenario = loadScenario(beamConfig)
     FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
     val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -107,6 +105,8 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
     DefaultPopulationAdjustment(services).update(scenario)
     val controler = services.controler
+
+    assert(services.beamConfig.beam.physsim.skipPhysSim, "beam.physsim.skipPhysSim should be 'true'")
     controler.run()
 
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
