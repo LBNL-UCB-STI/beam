@@ -24,11 +24,10 @@ library(ggmap)
 scaleup <- FALSE
 #expFactor <- (7.75/0.315) * 27.0 / 21.3
 expFactor <- (6.015/0.6015)
-loadInfo <- new("loadInfo", timebinInSec=900, siteXFCInKW=1000, plugXFCInKW=250)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2021Aug22-Oakland/BATCH3")
+dataDir <- normalizePath("~/Data/GEMINI/2021Oct29/BATCH1")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -37,16 +36,13 @@ mobilityDir <- paste(dataDir, "/mobility",sep="")
 dir.create(resultsDir, showWarnings = FALSE)
 dir.create(plotsDir, showWarnings = FALSE)
 
-scenarioNames <- c('Scenario0', 'Scenario1')
-scenarioBaselineLabel <- 'Scenario0'
-countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
-
 # MAIN
 processEventsFileAndScaleUp(dataDir, scaleup, expFactor)
 
+countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
 # PLOTS
 if (!file.exists(pp(resultsDir,'/ready-to-plot.Rdata'))) {
-  generateReadyToPlot(resultsDir, loadTypes, loadInfo, countyNames)
+  generateReadyToPlot(resultsDir, loadTypes, countyNames)
 }
 
 ## Energy Share Per Load Type
@@ -63,7 +59,11 @@ scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
 
-
+#####
+#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+scenarioNames <- c('Scenario2', 'Scenario3')
+scenarioBaselineLabel <- 'Scenario2'
+#all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
 ##########################################
@@ -79,8 +79,7 @@ p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
   facet_wrap(~panel) +
   scale_fill_manual(values = c(brewer.pal(3, "Blues"), brewer.pal(3, "Reds"))) +
   theme(strip.text = element_text(size=rel(1.2)))
-ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=12,height=4,units='in')
-
+ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=4,height=4,units='in')
 
 ## Baseline public charging
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
@@ -161,10 +160,11 @@ ggmap(oakland_map) +
     plot.title = element_text(colour = "orange"),
     panel.border = element_rect(colour = "grey", fill=NA, size=2)
   )
-toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% c(6, 9, 18, 0)]
+hours_to_show <- c(0, 8, 12, 18)
+toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% hours_to_show]
 toplot$hour.bin2.label <- "12am"
-toplot[hour.bin2==6]$hour.bin2.label <- "6am"
-toplot[hour.bin2==9]$hour.bin2.label <- "9am"
+toplot[hour.bin2==8]$hour.bin2.label <- "8am"
+toplot[hour.bin2==12]$hour.bin2.label <- "12pm"
 toplot[hour.bin2==18]$hour.bin2.label <- "6pm"
 counties <- data.table(urbnmapr::counties)[county_name%in%countyNames]
 setkey(toplot,xfc)
@@ -172,7 +172,7 @@ p <- ggmap(oakland_map) +
   theme_marain() +
   geom_polygon(data = counties, mapping = aes(x = long, y = lat, group = group), fill="white", size=.2) +
   coord_map(projection = 'albers', lat0 = 39, lat1 = 45,xlim=c(-122.2890,-122.2447),ylim=c(37.7915,37.8170))+
-  geom_point(dat=toplot[hour.bin2 %in% c(6, 9, 18, 0)],aes(x=x2,y=y2,size=kw,stroke=0.5,group=grp,colour=factor(extreme.lab, levels=extreme_lab_order)),alpha=.3)+
+  geom_point(dat=toplot[hour.bin2 %in% hours_to_show],aes(x=x2,y=y2,size=kw,stroke=0.5,group=grp,colour=factor(extreme.lab, levels=extreme_lab_order)),alpha=.3)+
   scale_colour_manual(values=c('darkgrey','orange','red'))+
   scale_size_continuous(range=c(0.5,35),breaks=c(500,1000,2000,4000))+
   labs(title="EV Charging Loads in Downtown Oakland",colour='Load Severity',size='Charging Site Power (kW)')+
@@ -183,6 +183,19 @@ ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p
 
 ## **************************************
 ##  public charging by scenario
+thelabeller <- c("Scenario2" = "Scenario2 (100% Population)", "Scenario2-010" = "Scenario2 (10% sample)", "Scenario2-025" = "Scenario2 (25% sample)", "Scenario2-050" = "Scenario2 (50% sample)")
+p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+  theme_marain() +
+  geom_area(colour="black", size=0.3) +
+  scale_fill_manual(values = chargingTypes.colors, name = "") +
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
+  theme(strip.text = element_text(size=rel(1.2))) +
+  facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
+
+## **************************************
+##  public charging by scenario
 p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
@@ -190,8 +203,8 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 3)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=12,height=7,units='in')
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
 
 ## public  daily charging by scenario
@@ -203,7 +216,7 @@ p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=kw/tot.kw*100,fill=factor(
   labs(x = "", y = "Share of Charging (%)", fill="load severity", title="Public Charging") +
   theme(axis.text.x = element_text(angle = 0, hjust=0.5), strip.text = element_text(size=rel(1.2)))
   #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
-ggsave(pp(plotsDir,'/public-daily-charging-by-scenario.png'),p,width=3,height=3,units='in')
+ggsave(pp(plotsDir,'/public-daily-charging-by-scenario.png'),p,width=5,height=3,units='in')
 
 
 
@@ -225,11 +238,9 @@ ggsave(pp(plotsDir,'/xfc-loads-by-scenario.png'),p,width=12,height=7,units='in')
 
 ## Energy charged by scenario
 metrics <- all.loads[!is.na(kw)&name%in%scenarioNames][,.(gw=sum(kw)/1e6,gwh=sum(kw)/4e6),by=.(name,hour.bin2,severity)][,.(gw.peak=max(gw),gwh=sum(gwh)),by=.(name,severity)]
-xfc.metric <- all.loads[!is.na(kw)&name%in%scenarioNames][!grepl('<1MW',severity),.(xfc.hours=.N/4),by=.(name,type,severity,taz)][,.(xfc.hours=mean(xfc.hours)),by=.(name,type,severity)]
-
 toplot <- melt(metrics,id.vars=c('name','severity'))
 toplot[name%in%scenarioNames,panel:=revalue(factor(variable),c('gw.peak'='Regional Charging Peak (GW)','gwh'='Total Energy Charged (GWh)'))]
-p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity, levels=severity_order)))+
+p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity,levels=severity_order)))+
   geom_bar(stat='identity')+
   facet_wrap(~panel,scales='free_y')+
   labs(y='',x='Scenario',fill='Severity')+
@@ -242,6 +253,7 @@ ggsave(pp(plotsDir,'/energy-charged-by-scenario.png'),p,width=8,height=3,units='
 
 
 ## XFC hours per site per day
+xfc.metric <- all.loads[!is.na(kw)&name%in%scenarioNames][!grepl('<1MW',severity),.(xfc.hours=.N/4),by=.(name,type,severity,taz)][,.(xfc.hours=mean(xfc.hours)),by=.(name,type,severity)]
 xfc.metric[,panel:='XFC-Hours per Site per Day']
 p <- ggplot(xfc.metric,aes(x=factor(name,scenarioNames),y=xfc.hours,fill=factor(severity, levels=severity_order)))+
   geom_bar(stat='identity',position='dodge')+
@@ -259,6 +271,54 @@ ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='
 # MOBILITY
 ##########################################
 
+# events <- readCsv(paste(dataDir, "/events-raw", "/0.events.SC2.csv.gz", sep=""))
+# pt <- events[type=="PathTraversal"]
+# pt2 <- pt[,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
+#              "primaryFuelLevel","driver","mode","seatingCapacity","startX",
+#              "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
+#              "secondaryFuel", "secondaryFuelType", "primaryFuelType",
+#              "numPassengers", "length", "primaryFuel")]
+# pt2$name <- 'Scenario2'
+# pt2$mode2 <- "Transit"
+# pt2[mode=="car"]$mode2 <- "Car"
+# pt2[mode=="car"&startsWith(vehicle,"rideHailVehicle")]$mode2 <- "Ridehail"
+# pt2[mode=="walk"]$mode2 <- "Walk"
+# pt2[mode=="bike"]$mode2 <- "Bike"
+# write.csv(
+#   pt2,
+#   file = paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""),
+#   row.names=FALSE,
+#   quote=FALSE,
+#   na="0")
+pt2 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC2.csv.gz", sep=""))
+pt3 <- readCsv(paste(dataDir, "/events-path", "/path.0.events.SC3.csv.gz", sep=""))
+pt3$name <- 'Scenario3'
+pt <- rbind(pt2, pt3)
+pt$fuelType <- "Diesel"
+pt[startsWith(vehicleType,"conv-")]$fuelType <- "Gasoline"
+pt[startsWith(vehicleType,"hev-")]$fuelType <- "Gasoline"
+pt[startsWith(vehicleType,"ev-")]$fuelType <- "Electric"
+pt[startsWith(vehicleType,"phev-")]$fuelType <- "Electric"
+
+
+
+summary <- pt[mode2%in%c("Car","Ridehail","Transit"),.(VMT=1e-6*sum(length)/1609.34,energy=(sum(primaryFuel+secondaryFuel))*2.77778e-13),by=.(fuelType,name)]
+# factor.remap <- c('Walk'='Walk','Bike'='Bike','Ridehail'='Ridehail','Car'='Car','Transit'='Public Transit')
+# factor.colors <- c('Walk'='#669900','Bike'='#FFB164','Ridehail'='#B30C0C','Car'='#8A8A8A','Transit'='#0066CC')
+factor.colors <- c('Diesel'=marain.dark.grey,'Gasoline'='#8A8A8A','Electric'='#8A8A8A')
+factor.remap <- c('Diesel'='Diesel','Gasoline'='Gasoline','Electric'='Electricity')
+factor.colors.remapped <- factor.colors
+names(factor.colors.remapped) <- factor.remap[names(factor.colors)]
+p <- summary[fuelType=="Electric"] %>% ggplot(aes(x=name,y=energy,fill=fuelType))+
+  geom_bar(stat='identity')+
+  labs(y='',x='Scenario',fill='Mode',title='Mobility Metrics')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values = factor.colors.remapped)
+ggsave(pp(plotsDir,'/metric-mobility.png'),p,width=8,height=3,units='in')
+
+
+#################################################
 factor.remap <- c('walk'='Walk','bike'='Bike','rh'='Ridehail Solo','rhp'='Ridehail Pooled','rh_empty'='Ridehail (Empty)','cav'='Personal AV','cav_empty'='Personal AV (Empty)','car'='Car','transit'='Public Transit')
 factor.colors <- c('walk'='#669900','bike'='#FFB164','rh'='#B30C0C','rhp'='#660099','rh_empty'=marain.light.grey,'cav'='#FFE664','cav_empty'=marain.dark.grey,'car'='#8A8A8A','transit'='#0066CC')
 factor.colors.remapped <- factor.colors
