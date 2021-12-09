@@ -624,8 +624,6 @@ class BeamSim @Inject() (
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
 
-    BeamConfigChangesObservable.clear()
-
     runningPythonScripts
       .filter(process => process.isRunning)
       .foreach(process => {

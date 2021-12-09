@@ -11,7 +11,10 @@ import scala.collection.mutable
 import scala.ref.WeakReference
 
 @Singleton
-class BeamConfigChangesObservable @Inject() (beamConfig: BeamConfig) {
+class BeamConfigChangesObservable @Inject() (
+  beamConfig: BeamConfig,
+  maybeOriginalConfigLocation: Option[String] = None
+) {
 
   class WeaklyObservable extends LazyLogging {
     private var changed: Boolean = false
@@ -78,8 +81,7 @@ class BeamConfigChangesObservable @Inject() (beamConfig: BeamConfig) {
   BeamConfigChangesObservable.lastBeamConfigValue = beamConfig
 
   def getUpdatedBeamConfig: BeamConfig = {
-    val configFileLocation = System.getProperty(BeamConfigChangesObservable.configFileLocationString)
-    Option(configFileLocation) match {
+    maybeOriginalConfigLocation match {
       case Some(location) =>
         val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(location)
         BeamConfig.apply(config.resolve())
@@ -104,10 +106,4 @@ object BeamConfigChangesObservable {
   private var lastBeamConfigValue: BeamConfig = _
 
   def lastBeamConfig: BeamConfig = lastBeamConfigValue
-
-  val configFileLocationString = "configFileLocation"
-
-  def clear(): Unit = {
-    System.clearProperty(configFileLocationString)
-  }
 }
