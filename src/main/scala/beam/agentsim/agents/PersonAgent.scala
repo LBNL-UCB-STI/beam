@@ -153,12 +153,14 @@ object PersonAgent {
 
   /**
     * holds information for agent enroute
-    * @param isEnroute       flag to indicate whether agent is enrouting or not
-    * @param stall2DestLegs  car legs from enroute charging stall to original destination
+    * @param isEnroute      flag to indicate whether agent is enrouting or not
+    * @param stall2DestLegs car legs from enroute charging stall to original destination
+    * @param attempted      flag to indicate agent just came from enroute
     */
   case class EnrouteState(
     isEnroute: Boolean = false,
-    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector()
+    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector(),
+    attempted: Boolean = false
   )
 
   case class BasePersonData(
@@ -509,7 +511,8 @@ class PersonAgent(
               case _ =>
                 data.currentTourMode.orElse(modeOfNextLeg)
             },
-            numberOfReplanningAttempts = 0
+            numberOfReplanningAttempts = 0,
+            enrouteState = EnrouteState()
           ),
           SpaceTime(currentActivity(data).getCoord, _currentTick.get)
         )
@@ -848,7 +851,7 @@ class PersonAgent(
       stay
     case Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
-      stay
+      stay replying CompletionNotice(triggerId)
     case Event(WaitingToCharge(_, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
@@ -915,7 +918,7 @@ class PersonAgent(
       data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
-        enrouteState = EnrouteState()
+        enrouteState = EnrouteState(attempted = true)
       )
     )
   }
@@ -1001,23 +1004,27 @@ class PersonAgent(
         val tick = _currentTick.get
         val triggerId = _currentTriggerId.get
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
-          scheduler ! CompletionNotice(
-            triggerId,
-            Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
-          )
+          if (data.enrouteState.attempted && currentBeamVehicle.isEV) {
+            scheduler ! ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)
+          } else {
+            scheduler ! CompletionNotice(
+              triggerId,
+              Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
+            )
+          }
         }
 
         // decide whether we need to complete the trigger, start a leg or both
         val updatedData = stateToGo match {
           case ReadyToChooseParking =>
-            copiedData.copy(enrouteState = EnrouteState(isEnroute = true))
+            copiedData.copy(enrouteState = copiedData.enrouteState.copy(isEnroute = true))
           case ReleasingParkingSpot =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
-            copiedData
+            copiedData.copy(enrouteState = copiedData.enrouteState.copy(attempted = false))
           case WaitingToDrive =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
             releaseTickAndTriggerId()
-            copiedData
+            copiedData.copy(enrouteState = copiedData.enrouteState.copy(attempted = false))
         }
 
         // complete trigger only if following conditions match

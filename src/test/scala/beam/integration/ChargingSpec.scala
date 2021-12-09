@@ -115,7 +115,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
                   totRealPower += ScaleUpCharging.toPowerInKW(energyInJoules, sessionDuration.toInt)
                 case e: PathTraversalEvent if e.vehicleId == vehicleId =>
                   energyConsumed += e.primaryFuelConsumed
-                case e: RefuelSessionEvent if e.vehId.toString.startsWith(ScaleUpCharging.VIRTUAL_CAR_ALIAS) =>
+                case e: RefuelSessionEvent if e.vehicleId.toString.startsWith(ScaleUpCharging.VIRTUAL_CAR_ALIAS) =>
                   totVirtualPower += ScaleUpCharging.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                 case e: RefuelSessionEvent =>
                   totRealPower += ScaleUpCharging.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)

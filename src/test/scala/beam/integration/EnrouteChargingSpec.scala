@@ -123,13 +123,14 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
               `vehicleId`,
               _,
               _,
+              "EnRoute",
               _
             ) =>
           refuelEvents += RefuelEventData(
             energyInJoules,
             ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
           )
-//          beenToEnroute = true
+          beenToEnroute = true
         case _ =>
       }
       controler.run()
@@ -144,8 +145,8 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
     "avoid enroute upon enough charging" in {
       var beenToEnroute: Boolean = false
       val controler = buildControler(defaultConfig) {
-        case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, _) =>
-        // beenToEnroute = true
+        case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, "EnRoute", _) =>
+          beenToEnroute = true
         case _ =>
       }
       controler.run()
