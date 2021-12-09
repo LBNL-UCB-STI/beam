@@ -121,6 +121,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       ptFares = PtFares(List.empty),
       transportNetwork = mock(classOf[TransportNetwork]),
       network = mock(classOf[Network]),
+      new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
       None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
