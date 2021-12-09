@@ -42,7 +42,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
            |beam.agentsim.simulationName = "beamville_for_CAVSpec"
            |beam.actorSystemName = "CAVSpec"
            |beam.outputs.events.fileOutputFormats = xml
-           |beam.physsim.skipPhysSim = false
+           |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
            |beam.agentsim.agents.vehicles.sharedFleets = []
         """.stripMargin
