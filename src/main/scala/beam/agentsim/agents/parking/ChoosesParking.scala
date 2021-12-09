@@ -216,10 +216,10 @@ trait ChoosesParking extends {
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
-        val (_, triggerId) = releaseTickAndTriggerId()
+        val (tick, triggerId) = releaseTickAndTriggerId()
         scheduler ! CompletionNotice(
           triggerId,
-          Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+          Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg), self))
         )
         goto(WaitingToDrive) using data
       } else {
@@ -346,7 +346,9 @@ trait ChoosesParking extends {
       // create new legs to travel to the charging stall
       val (tick, triggerId) = releaseTickAndTriggerId()
       val walkTemp = data.currentTrip.head.legs.head
-      val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
+      val walk1 = walkTemp.copy(beamLeg =
+        walkTemp.beamLeg.updateStartTime(tick + beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      )
       val walk4 = data.currentTrip.head.legs.last
       val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
         EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (vehicle2StallCarLegs :+ walk4))
