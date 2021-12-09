@@ -56,34 +56,101 @@ Mode choice parameters
 ::
 
    beam.agentsim.agents.modalBehaviors.modeChoiceClass = "ModeChoiceMultinomialLogit"
+   beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 3
    beam.agentsim.agents.modalBehaviors.defaultValueOfTime = 8.0
+   beam.agentsim.agents.modalBehaviors.minimumValueOfTime = 7.25
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.transit = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.bike = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.walk = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.rideHail = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.rideHailPooled = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.rideHailTransit = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.waiting = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV = 1.0
+   beam.agentsim.agents.modalBehaviors.modeVotMultiplier.drive = 1.0
+   beam.agentsim.agents.modalBehaviors.overrideAutomationLevel = 1
+   beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT = false
+   beam.agentsim.agents.modalBehaviors.poolingMultiplier.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.poolingMultiplier.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.poolingMultiplier.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.poolingMultiplier.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level5 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level4 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level3 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2 = 1.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer = -1.4
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.cav_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 2.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = -1.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = -3.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_pooled_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_transit_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding = 0.0
    beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile = 90
+   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor = 1.0
    beam.agentsim.agents.modalBehaviors.lccm.paramFile = ${beam.inputDirectory}"/lccm-long.csv"
    #Toll params
    beam.agentsim.toll.file=${beam.inputDirectory}"/toll-prices.csv"
    
 
 * modeChoiceClass: Selects the choice algorithm to be used by agents to select mode when faced with a choice. Default of ModeChoiceMultinomialLogit is recommended but other algorithms include ModeChoiceMultinomialLogit ModeChoiceTransitIfAvailable ModeChoiceDriveIfAvailable ModeChoiceRideHailIfAvailable ModeChoiceUniformRandom ModeChoiceLCCM.
+* maximumNumberOfReplanningAttempts: Replanning happens if a Person cannot have some resource required to continue trip in the chosen mode. If the number of replanning exceeded this value WALK mode is chosen.
 * defaultValueOfTime: This value of time is used by the ModeChoiceMultinomialLogit choice algorithm unless the value of time is specified in the populationAttributes file.
+* minimumValueOfTime: value of time cannot be lower than this value
+* modeVotMultiplier: allow to modify value of time for a particular trip mode
+* modeVotMultiplier.waiting: not used now
+* overrideAutomationLevel: the value to be used to override the vehicle automation level when calculating generalized time
+of ride-hail legs
+* overrideAutomationForVOTT: enabled overriding of automation level (see overrideAutomationLevel)
+* poolingMultiplier: this multiplier is used when calculating generalized time for pooled ride-hail trip for a particular
+vehicle automation level
+* highTimeSensitivity.highCongestion.highwayFactor.Level5 when a person go by car (not ride-hail) these params allow to set generalized time multiplier for a particular link for different situations: work trip/other trips, high/low traffic, highway or not, vehicle automation level
 * params.transfer: Constant utility (where 1 util = 1 dollar) of making transfers during a transit trip.
 * params.car_intercept: Constant utility (where 1 util = 1 dollar) of driving.
+* params.cav_intercept: Constant utility (where 1 util = 1 dollar) of using CAV.
 * params.walk_transit_intercept: Constant utility (where 1 util = 1 dollar) of walking to transit.
 * params.drive_transit_intercept: Constant utility (where 1 util = 1 dollar) of driving to transit.
 * params.ride_hail_transit_intercept: Constant utility (where 1 util = 1 dollar) of taking ride hail to/from transit.
 * params.ride_hail_intercept: Constant utility (where 1 util = 1 dollar) of taking ride hail.
+* params.ride_hail_pooled_intercept: Constant utility (where 1 util = 1 dollar) of taking pooled ride hail.
 * params.walk_intercept: Constant utility (where 1 util = 1 dollar) of walking.
 * params.bike_intercept: Constant utility (where 1 util = 1 dollar) of biking.
+* params.bike_transit_intercept: Constant utility (where 1 util = 1 dollar) of biking to transit.
 * params.transit_crowding: Multiplier utility of avoiding "crowded" transit vehicle. Should be negative.
 * params.transit_crowding_percentile: Which percentile to use to get the occupancyLevel (number of passengers / vehicle capacity). The route may have different occupancy levels during the legs/vehicle stops.
+* utility_scale_factor: amount by which utilites are scaled before evaluating probabilities. Smaller numbers leads to less determinism
 * lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
 * toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
 
