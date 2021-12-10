@@ -75,7 +75,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
-      tripId = Option(getIfNotNull(rec, "trip_id", "None")),
+      tripId = Option(rec.get("trip_id")),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,
