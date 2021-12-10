@@ -3907,6 +3907,7 @@ object BeamConfig {
     case class Routing(
       baseDate: java.lang.String,
       carRouter: java.lang.String,
+      gh: BeamConfig.Beam.Routing.Gh,
       minimumPossibleSkimBasedTravelTimeInS: scala.Int,
       overrideNetworkTravelTimesUsingSkims: scala.Boolean,
       r5: BeamConfig.Beam.Routing.R5,
@@ -3917,6 +3918,19 @@ object BeamConfig {
     )
 
     object Routing {
+
+      case class Gh(
+        useAlternativeRoutes: scala.Boolean
+      )
+
+      object Gh {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.Gh = {
+          BeamConfig.Beam.Routing.Gh(
+            useAlternativeRoutes = c.hasPathOrNull("useAlternativeRoutes") && c.getBoolean("useAlternativeRoutes")
+          )
+        }
+      }
 
       case class R5(
         bikeLaneLinkIdsFilePath: java.lang.String,
@@ -3993,6 +4007,9 @@ object BeamConfig {
         BeamConfig.Beam.Routing(
           baseDate = if (c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
           carRouter = if (c.hasPathOrNull("carRouter")) c.getString("carRouter") else "R5",
+          gh = BeamConfig.Beam.Routing.Gh(
+            if (c.hasPathOrNull("gh")) c.getConfig("gh") else com.typesafe.config.ConfigFactory.parseString("gh{}")
+          ),
           minimumPossibleSkimBasedTravelTimeInS =
             if (c.hasPathOrNull("minimumPossibleSkimBasedTravelTimeInS"))
               c.getInt("minimumPossibleSkimBasedTravelTimeInS")

@@ -258,7 +258,12 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       graphHopperDir
     )
 
-    walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+    walkGraphHopper = new WalkGraphHopperWrapper(
+      graphHopperDir,
+      workerParams.geo,
+      id2Link,
+      workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
+    )
   }
 
   private def createCarGraphHoppers(travelTime: TravelTime): Unit = {
@@ -300,7 +305,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           workerParams.vehicleTypes,
           workerParams.fuelTypePrices,
           wayId2TravelTime,
-          id2Link
+          id2Link,
+          workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
         )
       }
     }
@@ -478,7 +484,8 @@ object RoutingWorker {
           0,
           unbecomeDriverOnCompletion = true
         )
-      )
+      ),
+      Some("Bushwhacking")
     )
   }
 
