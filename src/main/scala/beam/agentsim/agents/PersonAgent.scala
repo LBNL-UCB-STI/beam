@@ -874,8 +874,7 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val (updatedTick, updatedData) =
-        createStallToDestTripForEnroute(data, tick + beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
@@ -892,8 +891,7 @@ class PersonAgent(
         eventsManager,
         triggerId
       )
-      val (updatedTick, updatedData) =
-        createStallToDestTripForEnroute(data, tick + beamScenario.beamConfig.beam.agentsim.schedulerParallelismWindow)
+      val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
