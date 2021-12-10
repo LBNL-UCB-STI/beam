@@ -30,7 +30,10 @@ import scala.reflect.ClassTag
   *
   * That number means how frequent routes will be written,
   * `1` - each iteration
-  * `2` - every second iteration
+  * `2` - every second iteration.
+  *
+  * Each row in the resulting file will correspond to one Beam leg for each itinerary in RoutingResponse
+  * So for one RoutingResponse there will be multiple rows.
   *
   * and so on
   */

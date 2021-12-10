@@ -31,23 +31,23 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
   lazy implicit val system: ActorSystem = ActorSystem("GHRouterSpec", config)
 
-  def routingResponseFile(outputDir: String): File = new File(outputDir, "ITERS/it.0/0.routingResponse.parquet")
-
-  def runAndGetRoutesCount(config: Config): Int = {
-    val (matsimConfig, _, _) = runBeamWithConfig(config)
-    val outputDir = matsimConfig.controler.getOutputDirectory
-    val routingResponse = new File(outputDir, "ITERS/it.0/0.routingResponse.parquet")
-    val (iterator, closable) = ParquetReader.read(routingResponse.toString)
-    val routesCount = iterator.length
-    closable.close()
-    routesCount
-  }
-
   "Static GH" must {
-    "run successfully and provide alternative routes if option is enabled" in {
-      val routesCount = runAndGetRoutesCount(config)
-      val routesCountAltRoutes = runAndGetRoutesCount(configAltRoutes)
-      routesCountAltRoutes should be > routesCount
+    "run successfully" in {
+      runBeamWithConfig(config)
+    }
+
+    "add alternative route for GraphHopper if enabled" in {
+      val (matsimConfig, _, _) = runBeamWithConfig(configAltRoutes)
+      val outputDir = matsimConfig.controler.getOutputDirectory
+      val routingResponse = new File(outputDir, "ITERS/it.0/0.routingResponse.parquet")
+      val (iterator, closable) = ParquetReader.read(routingResponse.toString)
+      val result = iterator.exists { record =>
+        val router = record.get("router").toString
+        val itineraryIndex = record.get("itineraryIndex").toString
+        router == "GH" && itineraryIndex == "2"
+      }
+      closable.close()
+      result shouldBe true
     }
 
   }
