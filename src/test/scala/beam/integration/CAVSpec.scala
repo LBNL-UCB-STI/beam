@@ -17,24 +17,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
-
-  // CI shows this test is not working with this exception:
-  //
-  //  17:39:39 CAVSpec:
-  //  17:39:39 Running a CAV-only scenario with a couple of CAVs
-  //  17:39:39 - must result in everybody using CAV or walk *** FAILED *** (21 seconds, 849 milliseconds)
-  //  17:39:39   java.lang.NullPointerException:
-  //  17:39:39   at beam.sim.BeamSim.$anonfun$notifyIterationEnds$16(BeamSim.scala:492)
-  //  17:39:39   at scala.runtime.java8.JFunction0$mcV$sp.apply(JFunction0$mcV$sp.java:23)
-  //  17:39:39   at scala.concurrent.Future$.$anonfun$apply$1(Future.scala:659)
-  //  17:39:39   at scala.util.Success.$anonfun$map$1(Try.scala:255)
-  //  17:39:39   at scala.util.Success.map(Try.scala:213)
-  //  17:39:39   at scala.concurrent.Future.$anonfun$map$1(Future.scala:292)
-  //  17:39:39   at scala.concurrent.impl.Promise.liftedTree1$1(Promise.scala:33)
-  //  17:39:39   at scala.concurrent.impl.Promise.$anonfun$transform$1(Promise.scala:33)
-  //  17:39:39   at scala.concurrent.impl.CallbackRunnable.run(Promise.scala:64)
-  //  17:39:39   at java.util.concurrent.ForkJoinTask$RunnableExecuteAction.exec(ForkJoinTask.java:1402)
-
   "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
     val config = ConfigFactory
       .parseString(
