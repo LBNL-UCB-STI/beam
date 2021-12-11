@@ -27,17 +27,17 @@ object FilterPointsInShapeFile {
     geometries
   }
 
-  def readPersonToPointFromPlans(pathToPlansFile: String): IndexedSeq[(Option[String], String, Geometry)] = {
+  def readPersonToPointFromPlans(pathToPlansFile: String): IndexedSeq[(String, Geometry)] = {
     val planReader = new PlanReader(pathToPlansFile)
     val gf = new GeometryFactory()
 
     val points = planReader
       .iterator()
       .flatMap {
-        case InputPlanElement(tripId, personId, _, _, _, _, Some(x), Some(y), _) => Some(tripId, personId, x, y)
+        case InputPlanElement(tripId, personId, _, _, _, _, Some(x), Some(y), _) => Some(personId, x, y)
         case _                                                                   => None
       }
-      .map { case (tripId, personId, x, y) => (tripId, personId, gf.createPoint(new Coordinate(x, y))) }
+      .map { case (personId, x, y) => (personId, gf.createPoint(new Coordinate(x, y))) }
 
     points.toIndexedSeq
   }
@@ -53,10 +53,10 @@ object FilterPointsInShapeFile {
     println(s"read ${personToPoint.length} points from plans")
 
     val setOfPersonsWithActivitiesWithinShapeFile = personToPoint
-      .filter { case (_, _, point) =>
+      .filter { case ( _, point) =>
         geoms.exists(geometry => geometry.contains(point))
       }
-      .map { case (_, personId, _) => personId }
+      .map { case (personId, _) => personId }
       .toSet
 
     println(s"found ${setOfPersonsWithActivitiesWithinShapeFile.size} persons with activities within shapefile")
