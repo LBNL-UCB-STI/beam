@@ -93,7 +93,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
       )
       ParquetScenarioReader.toPlanInfo(gr) should be(
         PlanElement(
-          tripId = Some("1"),
+          tripId = "1",
           personId = "1",
           planElement = "leg",
           planElementIndex = 1,
