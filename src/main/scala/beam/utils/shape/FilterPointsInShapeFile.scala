@@ -53,7 +53,7 @@ object FilterPointsInShapeFile {
     println(s"read ${personToPoint.length} points from plans")
 
     val setOfPersonsWithActivitiesWithinShapeFile = personToPoint
-      .filter { case ( _, point) =>
+      .filter { case (_, point) =>
         geoms.exists(geometry => geometry.contains(point))
       }
       .map { case (personId, _) => personId }
