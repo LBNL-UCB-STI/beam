@@ -198,7 +198,7 @@ dependencies {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
-    implementation 'com.graphhopper:graphhopper-core:1.0'
+    implementation group: 'com.graphhopper', name: 'graphhopper-core', version: '2.3'
     implementation "com.sigopt:sigopt-java:4.9.0"
     implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
 

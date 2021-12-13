@@ -165,7 +165,8 @@ case class ODRouterR5GHForActivitySimSkims(
         workerParams.vehicleTypes,
         workerParams.fuelTypePrices,
         wayId2TravelTime,
-        id2Link
+        id2Link,
+        workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
       )
     }.toMap
 
@@ -180,7 +181,12 @@ case class ODRouterR5GHForActivitySimSkims(
       graphHopperDir
     )
 
-    new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+    new WalkGraphHopperWrapper(
+      graphHopperDir,
+      workerParams.geo,
+      id2Link,
+      workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
+    )
   }
 
   private def calcCarGhRouteWithoutTransit(request: RoutingRequest): Option[RoutingResponse] = {

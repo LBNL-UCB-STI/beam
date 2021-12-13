@@ -114,7 +114,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               totalCost,
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("R5")
         )
       ),
       embodyRequestId,
@@ -820,7 +821,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               unbecomeDriverOnCompletion = true
             )
           }
-          EmbodiedBeamTrip(embodiedBeamLegs)
+          EmbodiedBeamTrip(embodiedBeamLegs, Some("R5"))
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
