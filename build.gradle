@@ -347,6 +347,14 @@ configurations.all {
 
 //compileScala.dependsOn(scalafmtAll)
 
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
 tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
     outputs.upToDateWhen { false }
 }
