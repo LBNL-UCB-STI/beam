@@ -88,13 +88,13 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
+        maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://repo.osgeo.org/repository/release/" }
         maven { url "https://download.osgeo.org/webdav/geotools" }
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
         maven { url "https://central.maven.org/maven2" }
-        maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://repo.matsim.org/repository/matsim" }
         // Used for graphql-java and matsim.contrib.decongestion specific versions -
         maven {
