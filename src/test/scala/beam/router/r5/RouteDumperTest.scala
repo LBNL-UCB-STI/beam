@@ -3,7 +3,7 @@ package beam.router.r5
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, Location, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.model.RoutingModel.TransitStopsInfo
@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
+import java.io.File
 import scala.collection.JavaConverters._
 
 class RouteDumperTest extends AnyFunSuite with Matchers {
@@ -197,12 +198,76 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
     }
   }
 
+  test("write RouteResponse to parquet") {
+    val response = RoutingResponse(
+      itineraries = Vector(
+        EmbodiedBeamTrip(
+          Vector(
+            EmbodiedBeamLeg(
+              BeamLeg(1295, BeamMode.DRIVE_TRANSIT, 0, BeamPath.empty),
+              Id.createVehicleId(0),
+              Id.create(0, classOf[BeamVehicleType]),
+              false,
+              0,
+              false
+            )
+          )
+        )
+      ),
+      requestId = 0,
+      request = Some(
+        RoutingRequest(
+          originUTM = new Location(290956.446675882, 50435.04443916706),
+          destinationUTM = new Location(301043.01250748953, 66968.4063643679),
+          departureTime = 1114,
+          withTransit = true,
+          personId = Some(Id.createPersonId(170703)),
+          streetVehicles = Vector(
+            StreetVehicle(
+              Id.createVehicleId(170703),
+              Id.create("BODY - TYPE - DEFAULT", classOf[BeamVehicleType]),
+              SpaceTime(290956.446675882, 50435.04443916706, 214),
+              BeamMode.WALK,
+              true,
+              false
+            ),
+            StreetVehicle(
+              Id.createVehicleId("dummyRH"),
+              Id.create("Car", classOf[BeamVehicleType]),
+              SpaceTime(290956.446675882, 50435.04443916706, 1114),
+              BeamMode.CAR,
+              false,
+              true
+            )
+          ),
+          attributesOfIndividual = None,
+          streetVehiclesUseIntermodalUse = AccessAndEgress,
+          requestId = 0,
+          possibleEgressVehicles = Vector(),
+          triggerId = 949
+        )
+      ),
+      isEmbodyWithCurrentTravelTime = false,
+      computedInMs = 1637,
+      searchedModes = Set(BeamMode.RIDE_HAIL_TRANSIT),
+      triggerId = 949
+    )
+    val records = RouteDumper.toRecords(response)
+
+    val tmpFile = File.createTempFile("route-dumper", "")
+    val path = tmpFile.toString()
+    tmpFile.delete()
+    val writer = RouteDumper.createWriter(path, RouteDumper.routingResponseSchema)
+    records.forEach(record => writer.write(record))
+
+  }
+
   private def verifyBeamLeg(leg: BeamLeg, record: GenericData.Record): Unit = {
     record.get("startTime") shouldBe leg.startTime
     record.get("mode") shouldBe leg.mode.value
     record.get("duration") shouldBe leg.duration
-    record.get("linkIds").asInstanceOf[String] shouldBe leg.travelPath.linkIds.mkString(", ")
-    record.get("linkTravelTime").asInstanceOf[String] shouldBe leg.travelPath.linkTravelTime.mkString(", ")
+    record.get("linkIds") shouldBe leg.travelPath.linkIds.toArray
+    record.get("linkTravelTime") shouldBe leg.travelPath.linkTravelTime.toArray
     leg.travelPath.transitStops.foreach { transitStops =>
       record.get("transitStops_agencyId") shouldBe transitStops.agencyId
       record.get("transitStops_routeId") shouldBe transitStops.routeId

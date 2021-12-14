@@ -97,16 +97,6 @@ class RouteDumper(beamServices: BeamServices)
     }
   }
 
-  private def createWriter(path: String, schema: Schema): ParquetWriter[GenericData.Record] = {
-    AvroParquetWriter
-      .builder[GenericData.Record](
-        new Path(path)
-      )
-      .withSchema(schema)
-      .withCompressionCodec(CompressionCodecName.SNAPPY)
-      .build()
-  }
-
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     routingRequestWriter.foreach(_.close())
     embodyWithCurrentTravelTimeWriter.foreach(_.close())
@@ -259,8 +249,8 @@ object RouteDumper {
     record.put("startTime", beamLeg.startTime)
     record.put("mode", beamLeg.mode.value)
     record.put("duration", beamLeg.duration)
-    record.put("linkIds", beamLeg.travelPath.linkIds.mkString(", "))
-    record.put("linkTravelTime", beamLeg.travelPath.linkTravelTime.mkString(", "))
+    record.put("linkIds", beamLeg.travelPath.linkIds.toArray)
+    record.put("linkTravelTime", beamLeg.travelPath.linkTravelTime.toArray)
     beamLeg.travelPath.transitStops.foreach { transitStop =>
       record.put("transitStops_agencyId", transitStop.agencyId)
       record.put("transitStops_routeId", transitStop.routeId)
@@ -288,7 +278,7 @@ object RouteDumper {
       new Schema.Field("duration", Schema.create(Type.INT), "duration", null.asInstanceOf[Any])
     }
     val linkIds = {
-      new Schema.Field("linkIds", Schema.create(Type.STRING), "linkIds", null.asInstanceOf[Any])
+      new Schema.Field("linkIds", Schema.createArray(Schema.create(Type.INT)), "linkIds", null.asInstanceOf[Any])
     }
     val linkTravelTime = {
       new Schema.Field(
@@ -545,5 +535,15 @@ object RouteDumper {
       case x =>
         throw new IllegalStateException(s"Don't know what to do with $x")
     }
+  }
+
+  def createWriter(path: String, schema: Schema): ParquetWriter[GenericData.Record] = {
+    AvroParquetWriter
+      .builder[GenericData.Record](
+        new Path(path)
+      )
+      .withSchema(schema)
+      .withCompressionCodec(CompressionCodecName.SNAPPY)
+      .build()
   }
 }

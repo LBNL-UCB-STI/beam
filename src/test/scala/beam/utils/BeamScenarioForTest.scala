@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
+import com.conveyal.gtfs.model.Stop
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
@@ -60,6 +61,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       transportNetwork = mock(classOf[TransportNetwork]),
       networks2 = None,
       network = mock(classOf[Network]),
+      trainStopQuadTree = new QuadTree[Stop](0, 0, 10, 10),
       tazTreeMap = tazMap,
       exchangeGeoMap = None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
