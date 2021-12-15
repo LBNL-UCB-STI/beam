@@ -205,7 +205,8 @@ object RouteRequester extends BeamHelper {
       r5Parameters.vehicleTypes,
       r5Parameters.fuelTypePrices,
       Map.empty,
-      id2Link
+      id2Link,
+      r5Parameters.beamConfig.beam.routing.gh.useAlternativeRoutes
     )
 
     ghWrapper

@@ -78,6 +78,8 @@ import scala.util.{Random, Try}
 trait BeamHelper extends LazyLogging {
   //  Kamon.init()
 
+  private val originalConfigLocationPath = "originalConfigLocation"
+
   protected val beamAsciiArt: String =
     """
       |  ________
@@ -175,7 +177,13 @@ trait BeamHelper extends LazyLogging {
           // This code will be executed 3 times due to this https://github.com/LBNL-UCB-STI/matsim/blob/master/matsim/src/main/java/org/matsim/core/controler/Injector.java#L99:L101
           // createMapBindingsForType is called 3 times. Be careful not to do expensive operations here
           bind(classOf[BeamConfigHolder])
-          val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig)
+
+          val maybeConfigLocation = if (typesafeConfig.hasPath(originalConfigLocationPath)) {
+            Some(typesafeConfig.getString(originalConfigLocationPath))
+          } else {
+            None
+          }
+          val beamConfigChangesObservable = new BeamConfigChangesObservable(beamConfig, maybeConfigLocation)
 
           bind(classOf[MatsimConfigUpdater]).asEagerSingleton()
 
@@ -410,20 +418,28 @@ trait BeamHelper extends LazyLogging {
       "Please provide a valid configuration file."
     )
 
-    ConfigConsistencyComparator.parseBeamTemplateConfFile(parsedArgs.configLocation.get)
+    val originalConfigFileLocation = parsedArgs.configLocation.get
+    ConfigConsistencyComparator.parseBeamTemplateConfFile(originalConfigFileLocation)
 
-    if (parsedArgs.configLocation.get.contains("\\")) {
+    if (originalConfigFileLocation.contains("\\")) {
       throw new RuntimeException("wrong config path, expected:forward slash, found: backward slash")
     }
 
-    val location = ConfigFactory.parseString(s"""config="${parsedArgs.configLocation.get}"""")
-    System.setProperty("configFileLocation", parsedArgs.configLocation.getOrElse(""))
-    val config = embedSelectArgumentsIntoConfig(
-      parsedArgs, {
-        if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
-        else parsedArgs.config.get
-      }
-    ).withFallback(location).resolve()
+    val location: TypesafeConfig = ConfigFactory.parseString(s"""config="$originalConfigFileLocation"""")
+
+    // need this for BeamConfigChangesObservable.
+    // We can't use 'config' key for that because for many tests it is usually pointing to the beamville config
+    val originalConfigLocation: TypesafeConfig =
+      ConfigFactory.parseString(s"""$originalConfigLocationPath="$originalConfigFileLocation"""")
+
+    val configFromArgs =
+      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
+      else parsedArgs.config.get
+
+    val config = embedSelectArgumentsIntoConfig(parsedArgs, configFromArgs)
+      .withFallback(location)
+      .withFallback(originalConfigLocation)
+      .resolve()
 
     checkDockerIsInstalledForCCHPhysSim(config)
 
