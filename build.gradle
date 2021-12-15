@@ -88,6 +88,9 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
+        mavenCentral().content {
+            excludeModule("javax.media", "jai_core")
+        }
         maven { url "https://repo.osgeo.org/repository/release/" }
         maven { url "https://download.osgeo.org/webdav/geotools" }
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
@@ -107,7 +110,6 @@ allprojects {
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
         mavenLocal()
-        mavenCentral()
         maven {
             url "http://nexus.onebusaway.org/content/groups/public/"
             allowInsecureProtocol = true
@@ -346,6 +348,14 @@ configurations.all {
 }
 
 //compileScala.dependsOn(scalafmtAll)
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
 
 tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
     outputs.upToDateWhen { false }
