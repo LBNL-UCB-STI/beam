@@ -81,6 +81,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
     "be able to create PlanInfo from GenericRecord" in {
       val gr = new GenericRecordMock(
         Map(
+          "tripId"           -> "1".asInstanceOf[AnyRef],
           "personId"         -> "1".asInstanceOf[AnyRef],
           "planElement"      -> "leg".asInstanceOf[AnyRef],
           "planElementIndex" -> 1L.asInstanceOf[AnyRef],
@@ -92,6 +93,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
       )
       ParquetScenarioReader.toPlanInfo(gr) should be(
         PlanElement(
+          tripId = "1",
           personId = "1",
           planElement = "leg",
           planElementIndex = 1,
