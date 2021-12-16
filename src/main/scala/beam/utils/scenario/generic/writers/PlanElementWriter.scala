@@ -55,7 +55,6 @@ object CsvPlanElementWriter extends PlanElementWriter {
     } finally {
       Try(csvWriter.close())
     }
-
   }
 
   private def writeTo(xs: Iterator[PlanElement], csvWriter: CsvWriter): Unit = {
