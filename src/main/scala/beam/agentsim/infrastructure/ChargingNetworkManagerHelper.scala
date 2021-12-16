@@ -100,8 +100,7 @@ trait ChargingNetworkManagerHelper extends {
       .processCycle(startTime, theActualEndTime, energyToCharge, energyToChargeIfUnconstrained, maxCycleDuration)
       .flatMap {
         case cycle if chargingIsCompleteUsing(cycle) || interruptCharging =>
-          handleEndCharging(cycle.endTime, chargingVehicle, triggerId, interruptCharging)
-          None
+          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle, interruptCharging), self))
         case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
           log.debug(
             s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. Remaining: {} J",
@@ -113,7 +112,12 @@ trait ChargingNetworkManagerHelper extends {
           None
         case cycle =>
           // charging is going to end during this current session
-          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
+          Some(
+            ScheduleTrigger(
+              ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle, chargingInterrupted = false),
+              self
+            )
+          )
       }
   }
 

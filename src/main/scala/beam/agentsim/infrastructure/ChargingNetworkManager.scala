@@ -137,12 +137,12 @@ class ChargingNetworkManager(
         triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries
       )
 
-    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle), triggerId) =>
+    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle, chargingInterrupted), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
-            handleEndCharging(tick, _, triggerId, chargingInterrupted = false)
+            handleEndCharging(tick, _, triggerId, chargingInterrupted)
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
@@ -250,7 +250,7 @@ class ChargingNetworkManager(
 object ChargingNetworkManager extends LazyLogging {
   object DebugReport
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
-  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
+  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle, chargingInterrupted: Boolean) extends Trigger
 
   case class ChargingPlugRequest(
     tick: Int,
