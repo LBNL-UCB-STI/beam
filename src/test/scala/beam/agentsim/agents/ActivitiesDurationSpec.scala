@@ -26,7 +26,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
           new ActEnd(act.getTime, act.getAttributes.get("actType"), act.getAttributes.get("person"))
       }
 
-    val activitesToDurations = mutable.HashMap.empty[String, Set[Double]]
+    val activitiesToDurations = mutable.HashMap.empty[String, Set[Double]]
 
     activities
       .groupBy(_.person)
@@ -40,14 +40,14 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
         }
 
         typeToDurations.foreach { case (actType, duration) =>
-          activitesToDurations.get(actType) match {
-            case Some(durations) => activitesToDurations(actType) = durations + duration
-            case None            => activitesToDurations(actType) = Set(duration)
+          activitiesToDurations.get(actType) match {
+            case Some(durations) => activitiesToDurations(actType) = durations + duration
+            case None            => activitiesToDurations(actType) = Set(duration)
           }
         }
       }
 
-    activitesToDurations.toMap
+    activitiesToDurations.toMap
   }
 
   def checkIfDurationsExistAndBiggerThan(
