@@ -274,3 +274,13 @@ Secondary activities generation
     that people are more likely to choose a less optimal destination, mode_nest_scale_factor means people are more likely
     to value destinations accessible by multiple modes, and trip_nest_scale_factor means that people are more likely
     to take secondary trips even if the costs are greater than the benefits.
+
+Agents and Activities
+^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.agentsim.agents.activities.activityTypeToFixedDurationMap = ["<activity type> -> <duration>"]
+
+*
+    beam.agentsim.agents.activities.activityTypeToFixedDurationMap - by default is empty. For specified activities the duration will be fixed.
+    The durations of the rest activities will be calculated based on activity end time.
