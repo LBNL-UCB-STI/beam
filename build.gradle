@@ -357,6 +357,8 @@ publishing {
     }
 }
 
+task install(dependsOn: 'publishToMavenLocal')
+
 tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
     outputs.upToDateWhen { false }
 }
