@@ -28,7 +28,7 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
       beamScenario: BeamScenario,
       services: BeamServices,
       plansMerged: Boolean
-      ) = prepareBeamService(config, None)
+    ) = prepareBeamService(config, None)
 
     val exception: RuntimeException = intercept[RuntimeException] {
       runBeam(
