@@ -284,3 +284,16 @@ Agents and Activities
 *
     beam.agentsim.agents.activities.activityTypeToFixedDurationMap - by default is empty. For specified activities the duration will be fixed.
     The durations of the rest activities will be calculated based on activity end time.
+
+
+Output
+^^^^^^^^^
+::
+
+    # this will write out plans and throw and exception at the beginning of simulation
+    beam.output.writePlansAndStopSimulation = "boolean | false"
+
+*
+    beam.output.writePlansAndStopSimulation - if set to true will write plans into 'generatedPlans.csv.gz'
+    and stop simulation with exception at the beginning of agentSim iteration.
+    The functionality was created to generate full population plans with secondary activities for full unscaled input.
