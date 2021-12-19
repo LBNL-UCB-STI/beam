@@ -342,6 +342,16 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
+      PlansCsvWriter.toCsv(
+        scenario,
+        beamServices.matsimServices.getControlerIO.getOutputFilename("generatedPlans.csv.gz")
+      )
+      throw new RuntimeException(
+        "The simulation was stopped because beam.output.writePlansAndStopSimulation set to true."
+      )
+    }
+
     backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
