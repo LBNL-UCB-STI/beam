@@ -14,6 +14,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.MathUtils
 import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
@@ -166,9 +167,10 @@ class Population(
     val (storedElectricityInJoules, storageCapacityInJoules) = beamServices.beamScenario.privateVehicles.values
       .filter(_.beamVehicleType.primaryFuelType == Electricity)
       .foldLeft(0.0, 0.0) { case ((fuelLevel, fuelCapacity), vehicle) =>
+        val primaryFuelCapacityInJoule = vehicle.beamVehicleType.primaryFuelCapacityInJoule
         (
-          fuelLevel + vehicle.primaryFuelLevelInJoules,
-          fuelCapacity + vehicle.beamVehicleType.primaryFuelCapacityInJoule
+          fuelLevel + MathUtils.clamp(vehicle.primaryFuelLevelInJoules, 0, primaryFuelCapacityInJoule),
+          fuelCapacity + primaryFuelCapacityInJoule
         )
       }
     new FleetStoredElectricityEvent(tick, "all-private-vehicles", storedElectricityInJoules, storageCapacityInJoules)

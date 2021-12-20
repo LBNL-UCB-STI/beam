@@ -545,7 +545,7 @@ class BeamSim @Inject() (
       vmInformationWriter.notifyIterationEnds(event)
     }
 
-    if (beamConfig.beam.agentsim.agents.vehicles.initializeSocFromEndOfIteration)
+    if (beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations)
       beamServices.beamScenario.setInitialSocOfPrivateVehiclesFromCurrentStateOfVehicles()
 
     // Clear the state of private vehicles because they are shared across iterations

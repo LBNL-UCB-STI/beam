@@ -34,7 +34,7 @@ class FleetStoredElectricityEvent(
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
     attributes.put(ATTRIBUTE_FLEET_ID, fleetId)
-    attributes.put(ATTRIBUTE_STORAGE_CAPACITY_IN_JOULES, storageCapacityInJoules.toString)
+    attributes.put(ATTRIBUTE_STORED_ELECTRICITY_IN_JOULES, storedElectricityInJoules.toString)
     attributes.put(ATTRIBUTE_STORAGE_CAPACITY_IN_JOULES, storageCapacityInJoules.toString)
     attributes
   }

@@ -841,7 +841,10 @@ class RideHailManager(
     }
     val (storedElectricityInJoules, storageCapacityInJoules) = electricVehicleStates.foldLeft(0.0, 0.0) {
       case ((fuelLevel, fuelCapacity), (vehicle, state)) =>
-        (fuelLevel + state.primaryFuelLevel, fuelCapacity + vehicle.beamVehicleType.primaryFuelCapacityInJoule)
+        (
+          fuelLevel + MathUtils.clamp(state.primaryFuelLevel, 0, vehicle.beamVehicleType.primaryFuelCapacityInJoule),
+          fuelCapacity + vehicle.beamVehicleType.primaryFuelCapacityInJoule
+        )
     }
     new FleetStoredElectricityEvent(
       tick,
@@ -1395,8 +1398,11 @@ class RideHailManager(
             "Creation of RideHailAgentInitializers for linking across iterations has not been tested for PHEVs."
           )
         }
-        val stateOfCharge =
-          beamVehicleState.primaryFuelLevel / rideHailAgentLocation.vehicleType.primaryFuelCapacityInJoule
+        val stateOfCharge = MathUtils.clamp(
+          beamVehicleState.primaryFuelLevel / rideHailAgentLocation.vehicleType.primaryFuelCapacityInJoule,
+          0,
+          1
+        )
 
         RideHailAgentInitializer(
           rideHailVehicleId.id,
