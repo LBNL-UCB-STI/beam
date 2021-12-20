@@ -412,7 +412,9 @@ def lambda_handler(event, context):
     if region not in regions:
         return "Unable to start, {region} region not supported.".format(region=region)
 
-    max_ram = event.get('forced_max_ram', calculate_max_ram(instance_type))
+    max_ram = event.get('forced_max_ram')
+    if parameter_wasnt_specified(max_ram):
+        max_ram = calculate_max_ram(instance_type)
 
     if volume_size < 64:
         volume_size = 64
@@ -461,7 +463,7 @@ def lambda_handler(event, context):
         .replace('$S3_OUTPUT_BUCKET', s3_output_bucket) \
         .replace('$S3_OUTPUT_BASE_PATH', s3_output_base_path) \
         .replace('$PILATES_SCENARIO_NAME', pilates_scenario_name) \
-        .replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
+        .replace('$TITLED', run_name).replace('$MAX_RAM', str(max_ram)) \
         .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
         .replace('$GOOGLE_API_KEY', google_api_key) \
         .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \

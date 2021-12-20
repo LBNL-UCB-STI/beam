@@ -358,7 +358,7 @@ class BeamSim @Inject() (
 
     beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
 
-    beamConfigChangesObservable.notifyChangeToSubscribers()
+    beamConfigChangesObservable.updateBeamConfigAndNotifyChangeToSubscribers()
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
       modeChoiceAlternativesCollector.notifyIterationStarts(event)
@@ -400,8 +400,7 @@ class BeamSim @Inject() (
 
   }
 
-  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+  private def shouldWritePlansAtCurrentIteration(beamConfig: BeamConfig, iterationNumber: Int): Boolean = {
     val interval = beamConfig.beam.outputs.writePlansInterval
     interval > 0 && iterationNumber % interval == 0
   }
@@ -409,9 +408,10 @@ class BeamSim @Inject() (
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     backgroundSkimsCreator.foreach(_.increaseParallelismTo(Runtime.getRuntime.availableProcessors() - 1))
 
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    beamConfigChangesObservable.updateBeamConfigAndNotifyChangeToSubscribers()
+    val beamConfig: BeamConfig = beamConfigChangesObservable.lastBeamConfig
 
-    if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
+    if (shouldWritePlansAtCurrentIteration(beamConfig, event.getIteration)) {
       PlansCsvWriter.toCsv(
         scenario,
         beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv.gz")
@@ -623,8 +623,6 @@ class BeamSim @Inject() (
     logger.info("Actor system shut down")
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
-
-    BeamConfigChangesObservable.clear()
 
     runningPythonScripts
       .filter(process => process.isRunning)

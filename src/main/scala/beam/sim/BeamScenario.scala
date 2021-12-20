@@ -48,7 +48,8 @@ case class BeamScenario(
   linkToTAZMapping: Map[Link, TAZ],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
-  freightCarriers: IndexedSeq[FreightCarrier]
+  freightCarriers: IndexedSeq[FreightCarrier],
+  fixedActivitiesDurations: Map[String, Double]
 ) {
   val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
 
