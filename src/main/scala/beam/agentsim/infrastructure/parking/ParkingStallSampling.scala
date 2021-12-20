@@ -38,10 +38,10 @@ object ParkingStallSampling {
     // this coefficient models the effect of parking supply constraint on the distance a parking stall
     // might be placed from the agent's desired destination
     val exponent = -0.25 // Parameter relating distance to parking stalls to availability. More negative means that
-                         // for a given availability ratio parking stalls appear closer to the request rather than being
-                         // randomly distributed throughout taz
+    // for a given availability ratio parking stalls appear closer to the request rather than being
+    // randomly distributed throughout taz
     val minimumAvailabilityRatio = Math.exp(1 / exponent) // Parking ratio below which we assume random availability
-                                                          // within TAZ
+    // within TAZ
     val availabilityFactor: Double =
       if (availabilityRatio < minimumAvailabilityRatio) 1.0 else exponent * math.log(availabilityRatio)
 
