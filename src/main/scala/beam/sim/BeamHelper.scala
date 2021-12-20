@@ -311,6 +311,13 @@ trait BeamHelper extends LazyLogging {
       IndexedSeq.empty[FreightCarrier]
     }
 
+    val fixedActivitiesDurationsFromConfig = {
+      val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
+      BeamConfigUtils
+        .parseListToMap(maybeFixedDurationsList.getOrElse(List.empty[String]))
+        .map { case (activityType, stringDuration) => activityType -> stringDuration.toDouble }
+    }
+
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
@@ -329,7 +336,8 @@ trait BeamHelper extends LazyLogging {
       linkToTAZMapping,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
-      freightCarriers
+      freightCarriers,
+      fixedActivitiesDurations = fixedActivitiesDurationsFromConfig
     )
   }
 
@@ -710,12 +718,7 @@ trait BeamHelper extends LazyLogging {
     val peopleForRemovingWorkActivities =
       (people.size * beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity).toInt
 
-    if (!beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
-      people
-        .take(peopleForRemovingWorkActivities)
-        .map(_.getId)
-        .foreach(scenario.getPopulation.removePerson)
-    } else {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       people
         .take(peopleForRemovingWorkActivities)
         .flatMap(p => p.getPlans.asScala.toSeq)
@@ -740,6 +743,11 @@ trait BeamHelper extends LazyLogging {
         .foreach { case (planKey, people) =>
           logger.info("There are {} people with plan `{}`", people.size, planKey)
         }
+    } else {
+      people
+        .take(peopleForRemovingWorkActivities)
+        .map(_.getId)
+        .foreach(scenario.getPopulation.removePerson)
     }
   }
 
