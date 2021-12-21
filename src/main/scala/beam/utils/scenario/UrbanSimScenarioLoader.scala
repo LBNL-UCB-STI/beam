@@ -566,7 +566,6 @@ class UrbanSimScenarioLoader(
             case Some(mode) =>
               val leg = PopulationUtils.createLeg(mode)
 
-
               if (planInfo.tripId != null) {
                 leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
               } else {
