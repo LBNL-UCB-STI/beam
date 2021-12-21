@@ -21,6 +21,7 @@ object BeamConfig {
     inputDirectory: java.lang.String,
     logger: BeamConfig.Beam.Logger,
     metrics: BeamConfig.Beam.Metrics,
+    output: BeamConfig.Beam.Output,
     outputs: BeamConfig.Beam.Outputs,
     physsim: BeamConfig.Beam.Physsim,
     replanning: BeamConfig.Beam.Replanning,
@@ -2685,6 +2686,20 @@ object BeamConfig {
       }
     }
 
+    case class Output(
+      writePlansAndStopSimulation: scala.Boolean
+    )
+
+    object Output {
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Output = {
+        BeamConfig.Beam.Output(
+          writePlansAndStopSimulation =
+            c.hasPathOrNull("writePlansAndStopSimulation") && c.getBoolean("writePlansAndStopSimulation")
+        )
+      }
+    }
+
     case class Outputs(
       addTimestampToOutputDirectory: scala.Boolean,
       baseOutputDirectory: java.lang.String,
@@ -4390,6 +4405,10 @@ object BeamConfig {
         metrics = BeamConfig.Beam.Metrics(
           if (c.hasPathOrNull("metrics")) c.getConfig("metrics")
           else com.typesafe.config.ConfigFactory.parseString("metrics{}")
+        ),
+        output = BeamConfig.Beam.Output(
+          if (c.hasPathOrNull("output")) c.getConfig("output")
+          else com.typesafe.config.ConfigFactory.parseString("output{}")
         ),
         outputs = BeamConfig.Beam.Outputs(
           if (c.hasPathOrNull("outputs")) c.getConfig("outputs")
