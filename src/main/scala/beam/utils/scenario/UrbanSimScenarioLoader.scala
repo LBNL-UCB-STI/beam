@@ -565,13 +565,28 @@ class UrbanSimScenarioLoader(
           planInfo.legMode match {
             case Some(mode) =>
               val leg = PopulationUtils.createLeg(mode)
-              leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
+
+
+              if (planInfo.tripId != null) {
+                leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              } else {
+                leg.getAttributes.putAttribute("trip_id", "")
+              }
               plan.addLeg(leg)
-              plan.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              if (planInfo.tripId != null) {
+                plan.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              } else {
+                plan.getAttributes.putAttribute("trip_id", "")
+              }
             case None =>
               val leg = PopulationUtils.createLeg("")
-              leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
-              plan.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              if (planInfo.tripId != null) {
+                leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
+                plan.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              } else {
+                leg.getAttributes.putAttribute("trip_id", "")
+                plan.getAttributes.putAttribute("trip_id", "")
+              }
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
           assert(
