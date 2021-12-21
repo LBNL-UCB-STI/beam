@@ -18,6 +18,7 @@ object DataExchange {
   )
 
   case class PlanElement(
+    tripId: String,
     personId: String,
     planElement: String,
     planElementIndex: Int,
