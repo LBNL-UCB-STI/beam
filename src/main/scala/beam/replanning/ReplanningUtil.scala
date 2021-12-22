@@ -108,7 +108,7 @@ object ReplanningUtil {
 
   def createPlanFromActivitiesAndTrips(originalPlan: Plan, activities: Vector[Activity], legs: Vector[Leg]): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
-    for (i <- 0 until legs.size - 1) {
+    for (i <- legs.indices) {
       newPlan.getPlanElements.add(activities(i))
       newPlan.getPlanElements.add(legs(i))
     }
