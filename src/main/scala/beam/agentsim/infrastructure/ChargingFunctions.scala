@@ -163,6 +163,6 @@ class ChargingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
     geoArea: GEO,
-    inClosetZone: Boolean = false
-  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, geoArea, inClosetZone)
+    inClosestZone: Boolean = false
+  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, geoArea, inClosestZone)
 }

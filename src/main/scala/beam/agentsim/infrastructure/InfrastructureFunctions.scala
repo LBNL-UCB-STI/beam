@@ -75,7 +75,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
     geoArea: GEO,
-    inClosetZone: Boolean = false
+    inClosestZone: Boolean = false
   ): Coord
 
   // ************
