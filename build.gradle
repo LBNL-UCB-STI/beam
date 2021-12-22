@@ -128,6 +128,8 @@ configurations.all {
     resolutionStrategy {
 //       we need this in order to get Elki library working fine.
         force 'it.unimi.dsi:fastutil:8.5.4'
+        force 'org.apache.logging.log4j:log4j-core:2.15.0'
+        force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
 }
 
@@ -325,7 +327,6 @@ dependencies {
     // AWS S3
     implementation group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
     implementation group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
-
 }
 
 // Autoformatting using scalafmt
@@ -356,6 +357,8 @@ publishing {
         }
     }
 }
+
+task install(dependsOn: 'publishToMavenLocal')
 
 tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
     outputs.upToDateWhen { false }
