@@ -127,7 +127,7 @@ class SupplementaryTripGenerator(
           activityAccumulator.append(next)
           updatedPreviousActivity = next
           next.getType match {
-            case "Home"                            => tourModes = collection.mutable.Set(modes.toArray: _*) // Access to all vehicles at home
+            case "Home"                            => tourModes = collection.mutable.Set(modesToConsider.toArray: _*) // Access to all vehicles at home
             case _ if !leg.getMode.contains("car") => tourModes -= CAR // Can't use car if didn't drive to work
             case _                                 =>
           }
