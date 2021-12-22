@@ -124,9 +124,15 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       )
 
     val closestZone =
-      parkingZoneSearchParams.zoneQuadTree.getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY)
+      Option(
+        parkingZoneSearchParams.zoneQuadTree
+          .getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY)
+      )
 
-    val closestZoneId = GeoLevel[GEO].getId(closestZone)
+    val closestZoneId = closestZone match {
+      case Some(foundZone) => GeoLevel[GEO].getId(foundZone)
+      case _               => GeoLevel[GEO].emergencyGeoId
+    }
 
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
