@@ -1,6 +1,7 @@
 package beam.router.skim
 
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
+import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -11,6 +12,7 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import java.io.BufferedWriter
+import scala.collection.immutable.SortedSet
 import scala.util.Failure
 import scala.util.control.NonFatal
 
@@ -29,8 +31,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
   override def writeToDisk(event: IterationEndsEvent): Unit =
     if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {
+      val extension = if (config.activity_sim_skimmer.fileOutputFormat.equalsIgnoreCase("csv")) "csv.gz" else "omx"
       val filePath = event.getServices.getControlerIO
-        .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "_current.csv.gz")
+        .getIterationFilename(event.getServices.getIterationNumber, s"${skimFileBaseName}_current.$extension")
       writePresentedSkims(filePath)
     }
 
@@ -176,10 +179,16 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
 
-      val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
-      csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq)) match {
+      val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
+        val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
+        csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
+      } else {
+        val geoUnits = SortedSet[String](beamScenario.tazTreeMap.getTAZs.map(_.tazId.toString).toSeq: _*)
+        ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
+      }
+      writeResult match {
         case Failure(exception) =>
-          logger.error(s"Cannot write to $filePath", exception)
+          logger.error(s"Cannot write skims to {}", filePath, exception)
         case _ =>
       }
     }
@@ -333,12 +342,45 @@ object ActivitySimSkimmer extends LazyLogging {
     debugText: String = ""
   ) {
 
+    def getValue(metric: ActivitySimMetric): Double = {
+      metric match {
+        case ActivitySimMetric.TOTIVT   => weightedTotalInVehicleTime
+        case ActivitySimMetric.FERRYIVT => weightedFerryInVehicleTimeInMinutes
+        case ActivitySimMetric.FAR      => weightedGeneralizedCost
+        case ActivitySimMetric.KEYIVT   => weightedLightRailInVehicleTimeInMinutes
+        case ActivitySimMetric.DTIM     => weightedDriveTimeInMinutes
+        case ActivitySimMetric.BOARDS   => weightedTransitBoardingsCount
+        case ActivitySimMetric.DDIST    => weightedDriveDistanceInMeters
+        case ActivitySimMetric.WAUX     => weightedWalkAuxiliary
+        case ActivitySimMetric.TIME     => weightedGeneralizedTime
+        case ActivitySimMetric.DIST     => weightedDistance
+        case ActivitySimMetric.WEGR     => weightedWalkEgress
+        case ActivitySimMetric.WACC     => weightedWalkAccess
+        case _                          => Double.NaN
+      }
+    }
+
     def toCsvString: String = productIterator.mkString("", ",", "\n")
 
     def toCsvSeq: Seq[Any] = productIterator.toSeq
   }
 
   object ExcerptData {
+
+    val supportedActivitySimMetric: Set[ActivitySimMetric] = Set(
+      ActivitySimMetric.TOTIVT,
+      ActivitySimMetric.FERRYIVT,
+      ActivitySimMetric.FAR,
+      ActivitySimMetric.KEYIVT,
+      ActivitySimMetric.DTIM,
+      ActivitySimMetric.BOARDS,
+      ActivitySimMetric.DDIST,
+      ActivitySimMetric.WAUX,
+      ActivitySimMetric.TIME,
+      ActivitySimMetric.DIST,
+      ActivitySimMetric.WEGR,
+      ActivitySimMetric.WACC
+    )
 
     val csvHeaderSeq: Seq[String] = Seq(
       "timePeriod",
