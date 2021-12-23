@@ -17,8 +17,9 @@ import scala.collection.JavaConverters._
 class WalkGraphHopperWrapper(
   graphDir: String,
   geo: GeoUtils,
-  id2Link: Map[Int, (Coord, Coord)]
-) extends GraphHopperWrapper(graphDir, geo, id2Link) {
+  id2Link: Map[Int, (Coord, Coord)],
+  useAlternativeRoutes: Boolean
+) extends GraphHopperWrapper(graphDir, geo, id2Link, useAlternativeRoutes) {
 
   override protected val beamMode: Modes.BeamMode = BeamMode.WALK
 
