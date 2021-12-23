@@ -30,7 +30,6 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
       """
          |beam.actorSystemName = "GHRouterSpec"
          |beam.routing.carRouter="staticGH"
-         |beam.outputs.writeR5RoutesInterval = 1
       """.stripMargin
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
