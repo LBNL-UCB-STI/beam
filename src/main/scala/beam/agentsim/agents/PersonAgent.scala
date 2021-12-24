@@ -862,7 +862,6 @@ class PersonAgent(
       }
       stay
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
-      log.info("=> UnpluggingVehicle vehicle {} energyCharged {}", currentBeamVehicle.id, energyCharged)
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       handleReleasingParkingSpot(
         tick,
@@ -877,7 +876,6 @@ class PersonAgent(
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
-      log.info("=> UnhandledVehicle vehicle {}", vehicleId)
       log.debug(
         s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
