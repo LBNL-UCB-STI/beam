@@ -39,6 +39,7 @@ import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
+import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -294,38 +295,9 @@ trait BeamHelper extends LazyLogging {
       LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
     val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
-    val freightConfig = beamConfig.beam.agentsim.agents.freight
-    val (freightCarriers, fixedActivitiesDurationsFromFreight) = if (freightConfig.enabled) {
-      val geoUtils = new GeoUtilsImpl(beamConfig)
-      val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
-      val tours = PayloadPlansConverter.readFreightTours(
-        freightConfig,
-        geoUtils,
-        networkCoordinator.transportNetwork.streetLayer
-      )
-      val plans = PayloadPlansConverter.readPayloadPlans(
-        freightConfig,
-        geoUtils,
-        networkCoordinator.transportNetwork.streetLayer
-      )
-      val carriers = PayloadPlansConverter.readFreightCarriers(
-        freightConfig,
-        geoUtils,
-        networkCoordinator.transportNetwork.streetLayer,
-        tours,
-        plans,
-        vehicleTypes,
-        rand
-      )
-      val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
-        plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
-      } else {
-        Map.empty[String, Double]
-      }
-      (carriers, activityNameToDuration)
-    } else {
-      (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
-    }
+
+    val (freightCarriers, fixedActivitiesDurationsFromFreight) =
+      loadFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes)
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
@@ -361,6 +333,37 @@ trait BeamHelper extends LazyLogging {
       freightCarriers,
       fixedActivitiesDurations
     )
+  }
+
+  def loadFreights(
+    beamConfig: BeamConfig,
+    streetLayer: StreetLayer,
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+  ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
+    val freightConfig = beamConfig.beam.agentsim.agents.freight
+    if (freightConfig.enabled) {
+      val geoUtils = new GeoUtilsImpl(beamConfig)
+      val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
+      val tours = PayloadPlansConverter.readFreightTours(freightConfig, geoUtils, streetLayer)
+      val plans = PayloadPlansConverter.readPayloadPlans(freightConfig, geoUtils, streetLayer)
+      val carriers = PayloadPlansConverter.readFreightCarriers(
+        freightConfig,
+        geoUtils,
+        streetLayer,
+        tours,
+        plans,
+        vehicleTypes,
+        rand
+      )
+      val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
+        plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
+      } else {
+        Map.empty[String, Double]
+      }
+      (carriers, activityNameToDuration)
+    } else {
+      (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
+    }
   }
 
   def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
