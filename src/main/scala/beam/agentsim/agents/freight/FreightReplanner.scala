@@ -1,6 +1,6 @@
 package beam.agentsim.agents.freight
 
-import beam.agentsim.agents.freight.input.PayloadPlansConverter
+import beam.agentsim.agents.freight.input.NRELPayloadPlansConverter
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.jspritwrapper._
 import beam.router.Modes.BeamMode
@@ -64,7 +64,8 @@ class FreightReplanner(
   ): Iterable[Plan] = {
     routes.groupBy(_.vehicle.id).map { case (vehicleIdStr, routes) =>
       val vehicleId = Id.createVehicleId(vehicleIdStr)
-      val person = population.get(PayloadPlansConverter.createPersonId(vehicleId))
+      val converter = new NRELPayloadPlansConverter()
+      val person = population.get(converter.createPersonId(vehicleId))
 
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
         convertToFreightTourWithPayloadPlans(
@@ -77,7 +78,7 @@ class FreightReplanner(
       val tours = toursAndPlans.map(_._1)
       val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
 
-      PayloadPlansConverter.createPersonPlan(tours, plansPerTour, person)
+      converter.createPersonPlan(tours, plansPerTour, person)
     }
   }
 
@@ -129,7 +130,7 @@ class FreightReplanner(
   private implicit def toCoord(location: Location): Coord = new Coord(location.x, location.y)
 
   private def getVehicleHouseholdLocation(vehicle: BeamVehicle): Location = {
-    val householdIdStr = PayloadPlansConverter.createHouseholdId(vehicle.id).toString
+    val householdIdStr = new NRELPayloadPlansConverter().createHouseholdId(vehicle.id).toString
     val x = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
       .getAttribute(householdIdStr, "homecoordx")
       .asInstanceOf[Double]

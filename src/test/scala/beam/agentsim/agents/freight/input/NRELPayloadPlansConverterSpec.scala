@@ -24,7 +24,7 @@ import scala.util.Random
 /**
   * @author Dmitry Openkov
   */
-class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
+class NRELPayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
   private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
 
   private val geoUtils = new GeoUtils {

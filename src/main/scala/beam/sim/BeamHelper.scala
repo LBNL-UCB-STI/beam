@@ -2,7 +2,7 @@ package beam.sim
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
-import beam.agentsim.agents.freight.input.PayloadPlansConverter
+import beam.agentsim.agents.freight.input.NRELPayloadPlansConverter
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
@@ -344,9 +344,10 @@ trait BeamHelper extends LazyLogging {
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
       val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
-      val tours = PayloadPlansConverter.readFreightTours(freightConfig, geoUtils, streetLayer)
-      val plans = PayloadPlansConverter.readPayloadPlans(freightConfig, geoUtils, streetLayer)
-      val carriers = PayloadPlansConverter.readFreightCarriers(
+      val converter = new NRELPayloadPlansConverter()
+      val tours = converter.readFreightTours(freightConfig, geoUtils, streetLayer)
+      val plans = converter.readPayloadPlans(freightConfig, geoUtils, streetLayer)
+      val carriers = converter.readFreightCarriers(
         freightConfig,
         geoUtils,
         streetLayer,
@@ -916,7 +917,7 @@ trait BeamHelper extends LazyLogging {
       .flatMap(_.fleet)
       .foreach { case (id, vehicle) => beamScenario.privateVehicles.put(id, vehicle) }
 
-    val plans: IndexedSeq[(Household, Plan)] = PayloadPlansConverter.generatePopulation(
+    val plans: IndexedSeq[(Household, Plan)] = new NRELPayloadPlansConverter().generatePopulation(
       beamScenario.freightCarriers,
       population.getFactory,
       households.getFactory
