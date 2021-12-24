@@ -62,23 +62,23 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
             Id.create("beamVilleCar", classOf[BeamVehicleType]),
             SpaceTime(167138.00001152378, 2233.9999999985166, 32482),
             BeamMode.CAR,
-            true,
-            true
+            asDriver = true,
+            needsToCalculateCost = true
           ),
           StreetVehicle(
             Id.createVehicleId("body-2"),
             Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
             SpaceTime(167138.0, 2234.0, 36952),
-            WALK,
-            true,
-            false
+            BeamMode.WALK,
+            asDriver = true,
+            needsToCalculateCost = false
           )
         ),
         attributesOfIndividual = Some(
           AttributesOfIndividual(
             HouseholdAttributes("1", 50000.0, 3, 1, 0),
-            None,
-            true,
+            modalityStyle = None,
+            isMale = true,
             List(
               CAR,
               CAV,
