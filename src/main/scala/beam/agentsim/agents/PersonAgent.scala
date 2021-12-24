@@ -864,6 +864,7 @@ class PersonAgent(
       }
       stay
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
+      log.info("=> UnpluggingVehicle vehicle {} energyCharged {}", currentBeamVehicle.id, energyCharged)
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       handleReleasingParkingSpot(
         tick,
@@ -876,8 +877,10 @@ class PersonAgent(
       )
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
+      currentBeamVehicle.enroute.set(false)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
+      log.info("=> UnhandledVehicle vehicle {}", vehicleId)
       log.debug(
         s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
@@ -893,6 +896,7 @@ class PersonAgent(
       )
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
+      currentBeamVehicle.enroute.set(false)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
@@ -1002,14 +1006,10 @@ class PersonAgent(
         val tick = _currentTick.get
         val triggerId = _currentTriggerId.get
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
-          if (data.enrouteState.attempted && currentBeamVehicle.isEV) {
-            scheduler ! ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self)
-          } else {
-            scheduler ! CompletionNotice(
-              triggerId,
-              Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
-            )
-          }
+          scheduler ! CompletionNotice(
+            triggerId,
+            Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
+          )
         }
 
         // decide whether we need to complete the trigger, start a leg or both

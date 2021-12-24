@@ -611,7 +611,7 @@ class RideHailManager(
            * overwrite the response below with the latest.
            */
           if (previousRideHailResponse.request.departAt >= request.departAt) {
-            log.error(
+            log.debug(
               s"Customer ${request.customer.personId} has made two RideHail Inquiries, with the departAt for the " +
               s"second being before or equal to the first: (${previousRideHailResponse.request.departAt} < ${request.departAt}. This is " +
               s"likely to cause logical errors."
