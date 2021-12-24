@@ -297,7 +297,7 @@ trait BeamHelper extends LazyLogging {
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
 
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
-      loadFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes)
+      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes)
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
@@ -335,7 +335,7 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def loadFreights(
+  def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
