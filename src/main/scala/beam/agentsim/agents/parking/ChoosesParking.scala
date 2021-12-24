@@ -217,15 +217,10 @@ trait ChoosesParking extends {
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
         val (tick, triggerId) = releaseTickAndTriggerId()
-        data match {
-//          case data: BasePersonData if data.enrouteState.attempted && currentBeamVehicle.isEV =>
-//            scheduler ! ScheduleTrigger(StartLegTrigger(tick, nextLeg), self)
-          case _ =>
-            scheduler ! CompletionNotice(
-              triggerId,
-              Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg), self))
-            )
-        }
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg), self))
+        )
         goto(WaitingToDrive) using data
       } else {
         // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
@@ -310,14 +305,10 @@ trait ChoosesParking extends {
           case data: BasePersonData if data.enrouteState.isEnroute && !hasChargingPointAndIsFastCharger =>
             // continue normal workflow if enroute is not possible
             val (tick, triggerId) = releaseTickAndTriggerId()
-//            if (data.enrouteState.attempted && currentBeamVehicle.isEV) {
-//              scheduler ! ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self)
-//            } else {
-              scheduler ! CompletionNotice(
-                triggerId,
-                Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
-              )
-//            }
+            scheduler ! CompletionNotice(
+              triggerId,
+              Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+            )
             handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
             goto(WaitingToDrive) using data.copy(enrouteState = EnrouteState())
           case _ =>
@@ -364,25 +355,17 @@ trait ChoosesParking extends {
       // set two car legs in schedule
       val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
 
-//      if (data.enrouteState.attempted && currentBeamVehicle.isEV) {
-//        scheduler ! ScheduleTrigger(
-//          StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
-//          self
-//        )
-//      } else {
-        scheduler ! CompletionNotice(
-          triggerId,
-          Vector(
-            ScheduleTrigger(
-              StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
-              self
-            )
+      scheduler ! CompletionNotice(
+        triggerId,
+        Vector(
+          ScheduleTrigger(
+            StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
+            self
           )
         )
-//      }
+      )
 
       handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
-      currentBeamVehicle.enroute.set(true)
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,

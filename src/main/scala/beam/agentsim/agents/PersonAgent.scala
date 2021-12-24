@@ -155,12 +155,10 @@ object PersonAgent {
     * holds information for agent enroute
     * @param isEnroute      flag to indicate whether agent is enrouting or not
     * @param stall2DestLegs car legs from enroute charging stall to original destination
-    * @param attempted      flag to indicate agent just came from enroute
     */
   case class EnrouteState(
     isEnroute: Boolean = false,
-    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector(),
-    attempted: Boolean = false
+    stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector()
   )
 
   case class BasePersonData(
@@ -512,7 +510,7 @@ class PersonAgent(
                 data.currentTourMode.orElse(modeOfNextLeg)
             },
             numberOfReplanningAttempts = 0,
-            enrouteState = EnrouteState()
+            enrouteState = EnrouteState() // TODO remove?
           ),
           SpaceTime(currentActivity(data).getCoord, _currentTick.get)
         )
@@ -877,7 +875,6 @@ class PersonAgent(
       )
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
-      currentBeamVehicle.enroute.set(false)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
       log.info("=> UnhandledVehicle vehicle {}", vehicleId)
@@ -896,7 +893,6 @@ class PersonAgent(
       )
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
-      currentBeamVehicle.enroute.set(false)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(_, _) =>
       stash()
@@ -920,7 +916,7 @@ class PersonAgent(
       data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
-        enrouteState = EnrouteState(attempted = true)
+        enrouteState = EnrouteState()
       )
     )
   }
@@ -1018,11 +1014,11 @@ class PersonAgent(
             copiedData.copy(enrouteState = copiedData.enrouteState.copy(isEnroute = true))
           case ReleasingParkingSpot =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
-            copiedData.copy(enrouteState = copiedData.enrouteState.copy(attempted = false))
+            copiedData
           case WaitingToDrive =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
             releaseTickAndTriggerId()
-            copiedData.copy(enrouteState = copiedData.enrouteState.copy(attempted = false))
+            copiedData
         }
 
         // complete trigger only if following conditions match
