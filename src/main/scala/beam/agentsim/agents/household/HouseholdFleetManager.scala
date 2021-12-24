@@ -1,5 +1,5 @@
 package beam.agentsim.agents.household
-
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import java.util.concurrent.TimeUnit
 import akka.actor.Status.{Failure, Success}
 import akka.actor.ActorRef
@@ -18,7 +18,7 @@ import beam.agentsim.agents.household.HouseholdActor.{
 }
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle,VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -28,11 +28,14 @@ import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.households.Household
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class HouseholdFleetManager(
   parkingManager: ActorRef,
+  chargingNetworkManager: ActorRef,
+  household: Household,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
   homeCoord: Coord,
   implicit val debug: Debug
@@ -54,19 +57,44 @@ class HouseholdFleetManager(
         veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
         veh.setMustBeDrivenHome(true)
         veh.useParkingStall(resp.stall)
+        if (resp.stall.chargingPointType.isDefined) {
+          chargingNetworkManager ! ChargingPlugRequest(
+            0, veh, resp.stall, 
+            // use first household member id as stand-in.
+            household.getMemberIds().get(0),  
+            triggerId
+          )
+        }
+
         self ! ReleaseVehicleAndReply(veh, triggerId = triggerId)
       }
       triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
-        (parkingManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), "init", triggerId = triggerId))
-          .mapTo[ParkingInquiryResponse]
-          .map { r =>
-            (id, r)
+
+      val listOfFutures: 
+        List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = 
+          // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV, 
+          // send the request to the charging manager. Otherwise send request to the parking manager.
+          vehicles.toList.map { case (id, vehicle) =>
+            if (vehicle.isBEV | vehicle.isPHEV) {
+              (chargingNetworkManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), 
+                "init",
+                VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
+                beamVehicle = Option(vehicle), triggerId = triggerId))
+                .mapTo[ParkingInquiryResponse]
+                .map ( r =>
+                  (id, r)
+                )
+            } else {
+              (parkingManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), "init", triggerId = triggerId))
+                .mapTo[ParkingInquiryResponse]
+                .map { r =>
+                  (id, r)
+                }
+            }
           }
-      }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
       response.pipeTo(self)

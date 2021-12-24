@@ -122,14 +122,16 @@ object ParkingZone extends LazyLogging {
   def defaultInit[GEO](
     geoId: Id[GEO],
     parkingType: ParkingType,
-    numStalls: Int
+    numStalls: Int,
+    chargingPointType: Option[ChargingPointType] = None
   ): ParkingZone[GEO] = {
     init[GEO](
       Some(DefaultParkingZoneId),
       geoId,
       parkingType,
       VehicleManager.AnyManager,
-      numStalls
+      numStalls,
+      chargingPointType = chargingPointType
     )
   }
 

@@ -25,6 +25,7 @@ import beam.agentsim.agents.vehicles.{
   VehicleManager
 }
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.HasTriggerId
@@ -193,10 +194,10 @@ object HouseholdActor {
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
-        val fleetManagers = vehiclesByCategory.map { case (category, vs) =>
+        val fleetManagers = vehiclesByCategory.map { case (category, vehiclesInCategory) =>
           val fleetManager =
             context.actorOf(
-              Props(new HouseholdFleetManager(parkingManager, vs, homeCoord, beamServices.beamConfig.beam.debug)),
+              Props(new HouseholdFleetManager(parkingManager, chargingNetworkManager, household, vehiclesInCategory, homeCoord, beamServices.beamConfig.beam.debug)),
               category.toString
             )
           context.watch(fleetManager)
