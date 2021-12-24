@@ -141,9 +141,8 @@ class BeamMobsim @Inject() (
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      fillInSecondaryActivities(
-        beamServices.matsimServices.getScenario.getHouseholds
-      )
+      val fillInModes = beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims
+      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, fillInModes)
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -180,7 +179,7 @@ class BeamMobsim @Inject() (
     logger.info("Processing Agentsim Events (End)")
   }
 
-  private def fillInSecondaryActivities(households: Households): Unit = {
+  private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
     households.getHouseholds.values.forEach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
@@ -192,21 +191,23 @@ class BeamMobsim @Inject() (
       val vehiclesByCategory =
         vehicles.filter(_.beamVehicleType.automationLevel <= 3).groupBy(_.beamVehicleType.vehicleCategory)
 
-      val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
-        case VehicleCategory.Car  => BeamMode.CAR
-        case VehicleCategory.Bike => BeamMode.BIKE
-      }.toList
+      val nonCavModesAvailable = vehiclesByCategory.keys
+        .collect {
+          case VehicleCategory.Car  => BeamMode.CAR
+          case VehicleCategory.Bike => BeamMode.BIKE
+        }
+        .toSet[BeamMode]
 
       val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
 
-      val cavModeAvailable: List[BeamMode] =
+      val cavModeAvailable: Set[BeamMode] =
         if (cavs.nonEmpty) {
-          List[BeamMode](BeamMode.CAV)
+          Set[BeamMode](BeamMode.CAV)
         } else {
-          List[BeamMode]()
+          Set.empty[BeamMode]
         }
 
-      val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
+      val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
       persons.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
@@ -227,7 +228,12 @@ class BeamMobsim @Inject() (
               person.getId
             )
           val newPlan =
-            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
+            supplementaryTripGenerator.generateNewPlans(
+              person.getSelectedPlan,
+              destinationChoiceModel,
+              modesAvailable,
+              fillInModes
+            )
           newPlan match {
             case Some(plan) =>
               person.removePlan(person.getSelectedPlan)
