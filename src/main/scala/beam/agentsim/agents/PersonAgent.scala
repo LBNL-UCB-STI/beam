@@ -972,8 +972,9 @@ class PersonAgent(
         val firstLeg = data.restOfCurrentTrip.head
         val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
         val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
-        val refuelRequiredThresholdInMeters = totalDistance * enrouteConfig.refuelRequiredThresholdInPercent
-        val noRefuelThresholdInMeters = totalDistance * enrouteConfig.noRefuelThresholdInPercent
+        // TODO calculate distance to cross before enroute charging
+        val refuelRequiredThresholdInMeters = totalDistance
+        val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdInMeters
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
         val isRefuelNeeded = vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)

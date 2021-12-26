@@ -1535,8 +1535,8 @@ object BeamConfig {
 
           case class Enroute(
             maxDurationInSeconds: scala.Int,
-            noRefuelThresholdInPercent: scala.Double,
-            refuelRequiredThresholdInPercent: scala.Double,
+            noRefuelThresholdInMeters: scala.Int,
+            refuelRequiredThresholdInMeters: scala.Int,
             thresholdForNotWalkingToDestinationInMeters: scala.Int
           )
 
@@ -1546,12 +1546,11 @@ object BeamConfig {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
                 maxDurationInSeconds =
                   if (c.hasPathOrNull("maxDurationInSeconds")) c.getInt("maxDurationInSeconds") else 1800,
-                noRefuelThresholdInPercent =
-                  if (c.hasPathOrNull("noRefuelThresholdInPercent")) c.getDouble("noRefuelThresholdInPercent") else 1.2,
-                refuelRequiredThresholdInPercent =
-                  if (c.hasPathOrNull("refuelRequiredThresholdInPercent"))
-                    c.getDouble("refuelRequiredThresholdInPercent")
-                  else 1.05,
+                noRefuelThresholdInMeters =
+                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 96540,
+                refuelRequiredThresholdInMeters =
+                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                  else 16090,
                 thresholdForNotWalkingToDestinationInMeters =
                   if (c.hasPathOrNull("thresholdForNotWalkingToDestinationInMeters"))
                     c.getInt("thresholdForNotWalkingToDestinationInMeters")
