@@ -399,8 +399,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           // `EnrouteRefueling` handles recharging and resetting state to original destination
           // `ConnectingToChargingPoint` parks vehicle upon reaching destination
           if (isEnroute) {
-            releaseTickAndTriggerId()
-            goto(EnrouteRefueling) using data.asInstanceOf[T] replying CompletionNotice(triggerId)
+            goto(EnrouteRefueling) using data.asInstanceOf[T]
           } else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
           handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)

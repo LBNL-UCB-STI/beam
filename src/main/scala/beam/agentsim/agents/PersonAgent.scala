@@ -839,13 +839,9 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(tick, _), _) =>
-      val endEnrouteRefuelingTime =
-        tick +
-        beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute.maxDurationInSeconds +
-        beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
-
-      scheduler ! ScheduleTrigger(EnrouteRefuelingTrigger(endEnrouteRefuelingTime), self)
+    case Event(StartingRefuelSession(tick, triggerId), _) =>
+      releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
       stay
     case Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)

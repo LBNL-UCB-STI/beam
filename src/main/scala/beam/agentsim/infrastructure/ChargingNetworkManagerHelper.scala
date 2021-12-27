@@ -24,7 +24,6 @@ trait ChargingNetworkManagerHelper extends {
   private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val parallelismWindow: Int = beamConfig.beam.agentsim.schedulerParallelismWindow
   protected val vehicle2InquiryMap: TrieMap[Id[BeamVehicle], ParkingInquiry] = TrieMap()
-  protected var enrouteVehicleSet: Set[Id[BeamVehicle]] = Set.empty
 
   /**
     * if this is the last timebin of the simulation
@@ -138,7 +137,6 @@ trait ChargingNetworkManagerHelper extends {
       vehicle.useParkingStall(chargingVehicle.stall)
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
-    chargingVehicle.theSender ! StartingRefuelSession(tick, triggerId)
     processStartChargingEvent(tick, chargingVehicle)
     dispatchEnergyAndProcessChargingCycle(
       chargingVehicle,
@@ -150,6 +148,7 @@ trait ChargingNetworkManagerHelper extends {
     ).foreach(
       getScheduler ! _
     )
+    chargingVehicle.theSender ! StartingRefuelSession(tick, triggerId)
   }
 
   /**

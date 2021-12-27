@@ -148,7 +148,7 @@ class ChargingFunctions[GEO: GeoLevel](
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult
+  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult.orElse(Some(emergencyStall(inquiry)))
 
   /**
     * sample location of a parking stall with a GEO area

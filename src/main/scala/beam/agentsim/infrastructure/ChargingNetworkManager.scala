@@ -146,11 +146,7 @@ class ChargingNetworkManager(
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
-      if (enrouteVehicleSet.contains(vehicle.id)) {
-        enrouteVehicleSet -= vehicle.id
-      } else {
-        sender ! CompletionNotice(triggerId)
-      }
+      sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
@@ -160,7 +156,6 @@ class ChargingNetworkManager(
           .get(vehicle.id)
           .map {
             case inquiry if inquiry.searchMode == ParkingSearchMode.EnRoute =>
-              enrouteVehicleSet += vehicle.id
               ParkingSearchMode.EnRoute.toString
             case inquiry => inquiry.activityType
           }
