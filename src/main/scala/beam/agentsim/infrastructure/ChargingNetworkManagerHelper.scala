@@ -157,13 +157,14 @@ trait ChargingNetworkManagerHelper extends {
     * @param chargingVehicle charging vehicle information
     * @param triggerId the trigger
     * @param chargingInterrupted Boolean
+    * @return true if EndingRefuelSession is sent to the agent
     */
   protected def handleEndCharging(
     tick: Int,
     chargingVehicle: ChargingVehicle,
     triggerId: Long,
     chargingInterrupted: Boolean
-  ): Unit = {
+  ): Boolean = {
     val result = chargingVehicle.chargingStatus.last.status match {
       case Connected =>
         chargingVehicle.chargingStation.endCharging(chargingVehicle.vehicle.id, tick) orElse {
@@ -180,6 +181,7 @@ trait ChargingNetworkManagerHelper extends {
       if (!chargingInterrupted)
         chargingVehicle.theSender ! EndingRefuelSession(tick, chargingVehicle.vehicle.id, triggerId)
     }
+    result.isDefined && !chargingInterrupted
   }
 
   /**

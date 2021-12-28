@@ -888,6 +888,8 @@ class PersonAgent(
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
+    case ev @ Event(Finish, _) =>
+      myUnhandled(ev)
     case Event(_, _) =>
       stash()
       stay
@@ -1367,8 +1369,9 @@ class PersonAgent(
     case ev @ Event(WaitingToCharge(_, _, _), _) =>
       log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
-    case ev @ Event(EndingRefuelSession(_, _, _), _) =>
+    case ev @ Event(EndingRefuelSession(_, _, triggerId), _) =>
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
+      scheduler ! CompletionNotice(triggerId)
       stay()
     case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
       log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
