@@ -91,6 +91,7 @@ class ChargingNetworkSpec
           powerTrain = new Powertrain(0.0),
           beamVehicleType = vehicleType1
         )
+        vehicle1.spaceTime = SpaceTime(centerSpaceTime.loc.getX - 200, centerSpaceTime.loc.getY - 200, 0)
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
         val firstInquiry =
@@ -120,6 +121,7 @@ class ChargingNetworkSpec
           powerTrain = new Powertrain(0.0),
           beamVehicleType = vehicleType2
         )
+        vehicle2.spaceTime = SpaceTime(centerSpaceTime.loc.getX - 200, centerSpaceTime.loc.getY - 200, 0)
         val secondInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle2), triggerId = 49238)
         val response2 = chargingNetwork.processParkingInquiry(secondInquiry)
