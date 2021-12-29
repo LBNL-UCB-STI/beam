@@ -161,26 +161,22 @@ class ParkingFunctions[GEO: GeoLevel](
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
-            emergencyStall(inquiry)
+            val boxAroundRequest = new Envelope(
+              inquiry.destinationUtm.loc.getX + 2000,
+              inquiry.destinationUtm.loc.getX - 2000,
+              inquiry.destinationUtm.loc.getY + 2000,
+              inquiry.destinationUtm.loc.getY - 2000
+            )
+            val newStall = ParkingStall.lastResortStall(
+              boxAroundRequest,
+              new Random(seed),
+              tazId = TAZ.EmergencyTAZId,
+              geoId = GeoLevel[GEO].emergencyGeoId
+            )
+            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
         }
     }
     Some(output)
-  }
-
-  def emergencyStall(inquiry: ParkingInquiry): ParkingZoneSearchResult[GEO] = {
-    val boxAroundRequest = new Envelope(
-      inquiry.destinationUtm.loc.getX + 2000,
-      inquiry.destinationUtm.loc.getX - 2000,
-      inquiry.destinationUtm.loc.getY + 2000,
-      inquiry.destinationUtm.loc.getY - 2000
-    )
-    val newStall = ParkingStall.lastResortStall(
-      boxAroundRequest,
-      new Random(seed),
-      tazId = TAZ.EmergencyTAZId,
-      geoId = GeoLevel[GEO].emergencyGeoId
-    )
-    ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
   }
 
   /**

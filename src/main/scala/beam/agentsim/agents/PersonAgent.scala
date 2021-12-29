@@ -975,7 +975,10 @@ class PersonAgent(
         val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdInMeters
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
-        val isRefuelNeeded = vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
+        val remainingDistanceRefuelThresholdInMeters = 500 //todo move to config,
+        val isRefuelNeeded =
+          if (totalDistance < remainingDistanceRefuelThresholdInMeters) false
+          else vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
         val needEnroute = asDriver && isElectric && isRefuelNeeded
 
         val isSharedVehicle = beamVehicles(nextLeg.beamVehicleId)
