@@ -42,7 +42,7 @@ class ParallelParkingManager(
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends ParkingNetwork[TAZ](parkingZones) {
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions[TAZ]] = None
 
   protected val workers: Vector[Worker] = clusters.zipWithIndex.map { case (cluster, _) =>
     createWorker(cluster)

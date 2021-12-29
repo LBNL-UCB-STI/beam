@@ -10,7 +10,7 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
     extends LazyLogging {
 
   // Generic
-  protected val searchFunctions: Option[InfrastructureFunctions[_]]
+  protected val searchFunctions: Option[InfrastructureFunctions[GEO]]
 
   // Core
   protected var totalStallsInUse: Long = 0L

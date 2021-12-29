@@ -29,7 +29,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
 
   import ChargingNetwork._
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
 
   protected val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
     chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
@@ -167,7 +167,7 @@ object ChargingNetwork extends LazyLogging {
     fuelPrice: Map[FuelType, Double]
   ): ChargingNetwork[GEO] = {
     new ChargingNetwork[GEO](chargingZones) {
-      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
         new ChargingFunctions[GEO](
           geoQuadTree,
           idToGeoMapping,
