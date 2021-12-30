@@ -602,24 +602,29 @@ class RideHailManager(
           RideHailResponse(request, Some(travelProposal))
         }
       request.customer.personRef ! rideHailResponse
-      rideHailResponseCache.get(request.customer) match {
-        case Some(previousRideHailResponse) =>
+      val maybePreviousResponse = rideHailResponseCache.get(request.customer)
+      maybePreviousResponse match {
+        case Some(previousRideHailResponse)
+            if previousRideHailResponse.request.requestId < request.requestId &&
+              previousRideHailResponse.request.departAt >= request.departAt =>
           /* We log an error if an identical inquiry with a time stamp before the previously cached response as illogical
            * behavior, but we cannot make a stronger claim here that NO previous response is cached. This is because if an
            * agent makes an inquiry -- and the response is cached here -- but doesn't choose ride hail
            * as a mode, there is no simple way to remove that cached response inside the RHM. We can still safely
            * overwrite the response below with the latest.
+           * Sometimes inquiries get to this point not in order they were sent (because of the router with multiple
+           * actors is involved) so we need to check the request ids too
            */
-          if (previousRideHailResponse.request.departAt >= request.departAt) {
-            log.error(
-              s"Customer ${request.customer.personId} has made two RideHail Inquiries, with the departAt for the " +
-              s"second being before or equal to the first: (${previousRideHailResponse.request.departAt} < ${request.departAt}. This is " +
-              s"likely to cause logical errors."
-            )
-          }
-        case None =>
+          log.error(
+            s"Customer ${request.customer.personId} has made two RideHail Inquiries, with the departAt for the " +
+            s"second being before or equal to the first: (${previousRideHailResponse.request.departAt} < ${request.departAt}. This is " +
+            s"likely to cause logical errors."
+          )
+        case _ =>
       }
-      rideHailResponseCache.put(request.customer, rideHailResponse)
+      if (maybePreviousResponse.isEmpty || maybePreviousResponse.get.request.requestId < request.requestId) {
+        rideHailResponseCache.put(request.customer, rideHailResponse)
+      }
       inquiryIdToInquiryAndResponse.remove(request.requestId)
       responses.foreach(routingResp => routeRequestIdToRideHailRequestId.remove(routingResp.requestId))
 
