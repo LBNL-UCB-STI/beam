@@ -710,7 +710,7 @@ trait BeamHelper extends LazyLogging {
 
     if (beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
       logger.info(s"Generating freight population from ${beamScenario.freightCarriers.size} carriers ...")
-      val converter = FreightReader(
+      val freightReader = FreightReader(
         beamServices.beamConfig,
         beamServices.geo,
         beamServices.beamScenario.transportNetwork.streetLayer,
@@ -720,7 +720,7 @@ trait BeamHelper extends LazyLogging {
         beamScenario,
         scenario.getPopulation,
         scenario.getHouseholds,
-        converter
+        freightReader
       )
       logger.info(s"""Freight population generated:
                      |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
