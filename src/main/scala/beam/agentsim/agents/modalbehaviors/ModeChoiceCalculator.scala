@@ -6,7 +6,6 @@ import beam.agentsim.agents.choice.mode._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual

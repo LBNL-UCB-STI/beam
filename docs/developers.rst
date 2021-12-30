@@ -103,46 +103,71 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 
 #. Just push the files as usual
 
-Keeping Production Data out of Master Branch
+Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
+Production data is located in separate git repositories each scenario in its own repo.
 
-However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
+Separation of production data and code is needed for:
 
-Checkout your production branch::
+1. Reducing the git repository size for developers
+2. Easier addition or changing production data without merging back into develop code changes
+3. Ability to use any production data with any code branch/commit without creation of yet another git production branch
 
-  git checkout production-branch
 
-Bring branch even with master::
+These repositories have `beam-data-` prefix, e.g `beam-data-sfbay`
 
-  git merge master
+They are linked back to the parent repo by `git submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_. For example sfbay is mapped to `production/sfbay`.
 
-Resolve conflicts if needed
+When you clone a parent project, by default you get the production data directories that contain submodules, but none of the files within them.
+To fetch production data manually type::
 
-Capture the files that are different now between production and master::
+   git submodule update --init --remote production/sfbay
 
-  git diff --name-only HEAD master > diff-with-master.txt
+(replace `sfbay` with other scenario if needed)
 
-You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+If you don't need the production data anymore and want to remove it locally you can run::
 
-IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+  git submodule deinit production/sfbay
 
-Checkout master::
+or::
 
-  git checkout master
+  git submodule deinit --all
 
-Create a new branch off of master, this is where you will stage the files to then merge back into master::
+to remove all production data.
 
-  git checkout -b new-branch-with-changes-4ci
+Note that if you locally fetch the submodule then it will update the submodule pointer to the latest submodule commit.
+That will result in a git change.
 
-Do a file by file checkout of all differing files from production branch onto master::
+for example, the output of `git status` will be something like that::
 
-  cat diff-with-master.txt | xargs git checkout production-branch --
+  Changes not staged for commit:
+    (use "git add <file>..." to update what will be committed)
+    (use "git restore <file>..." to discard changes in working directory)
+	  modified:   production/sfbay (new commits)
 
-Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt"). If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
+It is safe to either add this change with `git add` and commit it or drop it with `git reset`. It doesn't matter since we
+always fetch the latest commit in submodule.
 
-Finally, commit the files that were checked out of the production branch, push, and go create your pull request!
+Using old production data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Old production data is still available at branches `production-gemini-develop`, `inm/merge-urbansim-with-detroit` etc.
+
+If for some reason you need to merge latest changes to these branches please note that there could be a conflict with the
+same directory name for example `production/sfbay`. In that case you will need to rename this directory in production branch
+to some other name before merging, commit this change and then merge the latest changes from develop.
+
+Adding new production scenario
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+First create a new repository for the data with beam-data- prefix.
+
+Then in the main repo type::
+
+  git submodule add -b develop git@github.com:LBNL-UCB-STI/beam-data-city.git production/city
+
+replacing `city` with a new scenario name, assuming that repo uses `develop` branch as default one.
 
 
 Automated Cloud Deployment
@@ -165,6 +190,7 @@ The command will start an ec2 instance based on the provided configurations and 
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **dataBranch**: To specify the data branch (branch on production data repository) for simulation, 'develop' branch will be used as default data branch.
 * **deployMode**: to specify what type of deploy it will be: config | experiment | execute
 * **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
 * **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
@@ -207,6 +233,7 @@ You need to define the deploy properties that are similar to the ones for AWS de
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **dataBranch**: To specify the branch for production data, 'develop' branch will be used as default branch.
 * **beamConfigs**: The `beam.conf` file. It should be relative path under the project home.
 * **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
