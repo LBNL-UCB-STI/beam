@@ -1,13 +1,39 @@
 package beam.utils.scenario.urbansim.censusblock.merger
 
-import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
+import beam.utils.scenario.urbansim.censusblock.entities.{Activity, InputPlanElement, Leg}
 import beam.utils.scenario.{PersonId, PlanElement}
 
-class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, PlanElement] {
+import scala.math._
+
+class PlanMerger(val trips: Map[(String, Double), String], modeMap: Map[String, String])
+    extends Merger[InputPlanElement, PlanElement] {
+
+  private var activityPersonOpt: Option[String] = None
+  private var timeOpt: Option[Double] = None
 
   def merge(inputIterator: Iterator[InputPlanElement]): Iterator[PlanElement] = inputIterator.map(transform)
 
-  private def transform(inputPlanElement: InputPlanElement): PlanElement = {
+  private def transform(inputPlanElement: InputPlanElement): PlanElement =
+    inputPlanElement.activityElement match {
+      case Activity =>
+        activityPersonOpt = Some(inputPlanElement.personId)
+        timeOpt = inputPlanElement.departureTime
+        inputToOutput(inputPlanElement, None)
+      case Leg =>
+        val modeOpt = for {
+          activityPerson <- activityPersonOpt
+          time           <- timeOpt.map(floor)
+          inputRes       <- trips.get((activityPerson, time))
+          outputRes = convertMode(inputRes)
+        } yield outputRes
+
+        activityPersonOpt = None
+        timeOpt = None
+
+        inputToOutput(inputPlanElement, modeOpt)
+    }
+
+  private def inputToOutput(inputPlanElement: InputPlanElement, mode: Option[String]): PlanElement = {
     PlanElement(
       PersonId(inputPlanElement.personId),
       0,
@@ -19,7 +45,7 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
       inputPlanElement.x,
       inputPlanElement.y,
       inputPlanElement.departureTime,
-      inputPlanElement.tripMode.map(convertMode),
+      mode,
       legDepartureTime = None,
       legTravelTime = None,
       legRouteType = None,

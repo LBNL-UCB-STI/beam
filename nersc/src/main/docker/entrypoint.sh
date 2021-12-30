@@ -4,18 +4,6 @@ cd /app/sources
 git clone --single-branch --branch $BEAM_BRANCH_NAME https://github.com/LBNL-UCB-STI/beam.git
 cd ./beam
 git reset --hard $BEAM_COMMIT_SHA
-
-production_data_submodules=$(git submodule | awk '{ print $2 }')
-for i in $production_data_submodules
- do
-   case $BEAM_CONFIG in
-    '*$i*)'
-       echo "Loading remote production data for $i"
-       git config submodule.$i.branch $BEAM_DATA_BRANCH_NAME
-       git submodule update --init --remote $i
-   esac
- done
-
 git lfs pull
 
 #we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes

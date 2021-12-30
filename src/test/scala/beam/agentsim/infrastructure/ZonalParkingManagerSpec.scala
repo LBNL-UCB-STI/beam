@@ -430,7 +430,7 @@ class ZonalParkingManagerSpec
         beamConfig,
         None
       )
-      val parkingZones = InfrastructureUtils.loadParkingStalls(stalls)
+      val parkingZones = InfrastructureUtils.buildParkingZones(stalls)
       val zonesMap = ZonalParkingManager[TAZ](
         parkingZones,
         tazMap.tazQuadTree,

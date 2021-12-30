@@ -531,10 +531,11 @@ class ModeChoiceMultinomialLogit(
       ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level5
     )
     val bikeMap = Map[Set[SituationMultiplier], Double](
-      Set(commuteTrip, ageLE60)        -> modalBehaviors.bikeMultiplier.commute.ageLE60,
-      Set(commuteTrip, ageGT60)        -> modalBehaviors.bikeMultiplier.commute.ageGT60,
-      Set(nonCommuteTrip, ageLE60)     -> modalBehaviors.bikeMultiplier.noncommute.ageLE60,
-      Set(nonCommuteTrip, ageGT60)     -> modalBehaviors.bikeMultiplier.noncommute.ageLE60,
+      Set(commuteTrip, ageLE60)    -> modalBehaviors.bikeMultiplier.commute.ageLE60,
+      Set(commuteTrip, ageGT60)    -> modalBehaviors.bikeMultiplier.commute.ageGT60,
+      Set(nonCommuteTrip, ageLE60) -> modalBehaviors.bikeMultiplier.noncommute.ageLE60,
+      Set(nonCommuteTrip, ageGT60) -> modalBehaviors.bikeMultiplier.noncommute.ageLE60,
+
       Set(commuteTrip, incomeGT50k)    -> modalBehaviors.bikeMultiplier.commute.incomeGT50k,
       Set(commuteTrip, incomeLE50k)    -> modalBehaviors.bikeMultiplier.commute.incomeLE50k,
       Set(nonCommuteTrip, incomeGT50k) -> modalBehaviors.bikeMultiplier.noncommute.incomeGT50k,
@@ -542,7 +543,6 @@ class ModeChoiceMultinomialLogit(
     )
     Map(BIKE -> bikeMap, CAR -> carMap)
   }
-
   override def utilityOf(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
@@ -587,7 +587,7 @@ class ModeChoiceMultinomialLogit(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
-  ): Double = trips.map(utilityOf(_, attributesOfIndividual, None, None)).sum // TODO: Update with destination activity
+   ): Double = trips.map(utilityOf(_, attributesOfIndividual, None, None)).sum // TODO: Update with destination activity
 }
 
 object ModeChoiceMultinomialLogit {

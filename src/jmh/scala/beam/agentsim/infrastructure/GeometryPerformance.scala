@@ -1,10 +1,8 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import com.typesafe.config.ConfigFactory
 import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Fork, Mode}
 import org.openjdk.jmh.infra.Blackhole
@@ -71,19 +69,13 @@ object GeometryPerformance {
     val beamHome = System.getProperty("beam.home", ".")
     println("beamHome = " + Paths.get(beamHome).toAbsolutePath)
     val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
-    val configLocation = "test/input/sf-light/sf-light-1k.conf"
-    val baseConfigUnresolved = ConfigFactory.parseString("config=" + configLocation)
-    val baseConfig = baseConfigUnresolved.resolve()
-    val beamConfig = BeamConfig(baseConfig)
     val stalls = InfrastructureUtils.loadStalls[TAZ](
       s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
       IndexedSeq(),
       tazMap.tazQuadTree, //it is required only in case of failures
       1.0,
       1.0,
-      18389,
-      beamConfig,
-      None
+      18389
     )
 
     val clusters: Vector[ParallelParkingManager.ParkingCluster] =

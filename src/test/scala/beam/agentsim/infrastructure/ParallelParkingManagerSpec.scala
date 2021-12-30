@@ -8,6 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.InfrastructureUtils.buildParkingZones
 import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -347,7 +348,7 @@ class ParallelParkingManagerSpec
         beamConfig,
         None
       )
-      val parkingZones = InfrastructureUtils.loadParkingStalls[TAZ](stalls)
+      val parkingZones = buildParkingZones[TAZ](stalls)
       val zpm = ParallelParkingManager.init(
         parkingZones,
         beamConfig,

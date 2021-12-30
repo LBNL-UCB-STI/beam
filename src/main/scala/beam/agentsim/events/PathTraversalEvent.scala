@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicReference
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
-import beam.utils.FormatUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
@@ -78,7 +77,7 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
       attr.put(ATTRIBUTE_MODE, mode.value)
       attr.put(ATTRIBUTE_LINK_IDS, linkIds.mkString(","))
-      attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.map(FormatUtils.DECIMAL_3.format).mkString(","))
+      attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.mkString(","))
       attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
       attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
       attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)

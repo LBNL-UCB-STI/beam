@@ -1,33 +1,33 @@
 package beam.agentsim.infrastructure.power
 
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.createId
+import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
-import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: BeamConfig) extends LazyLogging {
-  import PowerController._
+class PowerController(
+  chargingNetwork: ChargingNetwork[_],
+  rideHailNetwork: ChargingNetwork[_],
+  beamConfig: BeamConfig,
+  unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds]
+) extends LazyLogging {
+  import SitePowerManager._
   private val timeStep = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
   private val isConnectedToHelics = beamConfig.beam.agentsim.chargingNetworkManager.helics.connectionEnabled
-
-  private[infrastructure] lazy val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
-    chargingNetworkHelper.allChargingStations
-  ).value
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] =
     if (isConnectedToHelics) {
       logger.warn("ChargingNetworkManager should be connected to a grid via Helics...")
       val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.helics
       Try {
-        logger.info("Init PowerController resources...")
+        logger.debug("Init PowerController resources...")
         getFederate(
           helicsConfig.federateName,
           helicsConfig.coreType,
@@ -89,36 +89,32 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
         }
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
-        if (beamConfig.beam.agentsim.chargingNetworkManager.helics.feedbackEnabled) {
-          gridBounds.flatMap { x =>
-            val reservedFor = x("reservedFor").asInstanceOf[String] match {
-              case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
-              case managerIdString =>
-                VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
-            }
-            chargingNetworkHelper
-              .get(reservedFor)
-              .lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
-              case Some(station) =>
-                Some(
-                  station -> PhysicalBounds(
-                    station,
-                    x("power_limit_upper").asInstanceOf[PowerInKW],
-                    x("power_limit_lower").asInstanceOf[PowerInKW],
-                    x("lmp_with_control_signal").asInstanceOf[Double]
-                  )
+        gridBounds.flatMap { x =>
+          val reservedFor = x("reservedFor").asInstanceOf[String] match {
+            case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
+            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
+          }
+          val appropriateChargingNetwork = reservedFor.managerType match {
+            case VehicleManager.TypeEnum.RideHail => rideHailNetwork
+            case _                                => chargingNetwork
+          }
+          appropriateChargingNetwork.lookupStation(createId(x("parkingZoneId").asInstanceOf[String])) match {
+            case Some(station) =>
+              Some(
+                station -> PhysicalBounds(
+                  station,
+                  x("power_limit_upper").asInstanceOf[PowerInKW],
+                  x("power_limit_lower").asInstanceOf[PowerInKW],
+                  x("lmp_with_control_signal").asInstanceOf[Double]
                 )
-              case _ =>
-                logger.error(
-                  "Cannot find the charging station correspondent to what has been received from the co-simulation"
-                )
-                None
-            }
-          }.toMap
-        } else {
-          // unlimited physical bounds for now until we figure out why the simulation gets affected
-          unlimitedPhysicalBounds
-        }
+              )
+            case _ =>
+              logger.error(
+                "Cannot find the charging station correspondent to what has been received from the co-simulation"
+              )
+              None
+          }
+        }.toMap
       case _ =>
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
         unlimitedPhysicalBounds
@@ -143,36 +139,5 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
             logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
         }
       }
-  }
-}
-
-object PowerController {
-  type PowerInKW = Double
-  type EnergyInJoules = Double
-  type ChargingDurationInSec = Int
-
-  case class PhysicalBounds(
-    station: ChargingStation,
-    powerLimitUpper: PowerInKW,
-    powerLimitLower: PowerInKW,
-    lpmWithControlSignal: Double
-  )
-
-  /**
-    * create unlimited physical bounds
-    * @param stations sequence of stations for which to produce physical bounds
-    * @return map of physical bounds
-    */
-  def getUnlimitedPhysicalBounds(stations: Seq[ChargingStation]): Eval[Map[ChargingStation, PhysicalBounds]] = {
-    Eval.later {
-      stations.map { case station @ ChargingStation(zone) =>
-        station -> PhysicalBounds(
-          station,
-          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
-          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
-          0.0
-        )
-      }.toMap
-    }
   }
 }

@@ -12,10 +12,8 @@ import java.nio.file.{Files, Paths}
 import scala.collection.JavaConverters._
 
 /**
-  * <<<<<<< HEAD
-  * @author Dmitry Openkov
-  */
-
+ * @author Dmitry Openkov
+ */
 object GTFSUtils {
 
   def loadGTFS(dataDir: String): IndexedSeq[GTFSFeed] = {
@@ -62,5 +60,4 @@ object GTFSUtils {
       case _                                      => false
     }
   }
-
 }

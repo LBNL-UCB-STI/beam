@@ -40,7 +40,7 @@ def backup_and_retrieve_config_and_delete_old_backup():
 
 def get_tagged_amis_along_with_most_recent(region):
     ec2 = get_ec2_for(region)
-    amis = ec2.describe_images(Owners=['self'],Filters=[{'Name':'name','Values':['beam-automation-*']}])
+    amis = ec2.describe_images(Owners=['self'])
     allAMIs = []
     newestAMI = None
     for ami in amis['Images']:

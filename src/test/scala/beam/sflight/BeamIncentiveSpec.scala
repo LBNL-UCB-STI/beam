@@ -32,11 +32,11 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
   "BeamVille with a lot of ride_hail incentives" must {
     "choose ride_hail more times than without/less incentives" in {
       val lastIteration = 0
-      val numChoicesWithoutRideHailIncentive =
+      val avgChoicesWithoutRideHailIncentive =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
-      val numChoicesWithRideHailIncentives =
+      val avgChoicesWithRideHailIncentives =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives-ride_hail.csv")
-      assert(numChoicesWithoutRideHailIncentive < numChoicesWithRideHailIncentives)
+      assert(avgChoicesWithoutRideHailIncentive <= avgChoicesWithRideHailIncentives)
     }
   }
 
@@ -76,7 +76,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
     controller.run()
 
     val fileName = extractFileName(outputDir, iterationNumber)
-    BeamIncentiveSpec.numRideHailModeFromCsv(fileName)
+    BeamIncentiveSpec.avgRideHailModeFromCsv(fileName)
   }
 
   private def extractFileName(
@@ -96,7 +96,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
 
 object BeamIncentiveSpec {
 
-  def numRideHailModeFromCsv(filePath: String): Double = {
+  def avgRideHailModeFromCsv(filePath: String): Double = {
     val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
       source.getLines().find(isRideHail)
     }
@@ -107,9 +107,12 @@ object BeamIncentiveSpec {
       .tail
       .map(_.toDouble)
 
-    allHourAvg.sum
+    val relevantTimes = allHourAvg.filterNot(_ == 0d)
+    relevantTimes.sum / relevantTimes.length
   }
 
-  def isRideHail(value: String): Boolean = value.startsWith(BeamMode.RIDE_HAIL.value + ",")
+  def isRideHail(value: String): Boolean = rideHailValues.exists(value.startsWith)
+
+  private val rideHailValues = Set(BeamMode.RIDE_HAIL.value, BeamMode.RIDE_HAIL_POOLED.value)
 
 }

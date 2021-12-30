@@ -16,7 +16,7 @@ isConnected = h.helicsBrokerIsConnected(broker)
 if isConnected == 1:
     print("Broker created and connected")
 second = 0
-while h.helicsBrokerIsConnected(broker) == 1:
+while h.helicsBrokerIsConnected(broker) == 1 and second < 7*24*3600:
     time.sleep(1)
     second += 1
     if second % 3600 == 0:

@@ -20,7 +20,7 @@ class TravelTimeAndDistanceCalculatorAppSpec extends AnyWordSpecLike with Matche
     "Run with R5 router" in {
       val app = new TravelTimeAndDistanceCalculatorApp(parameters)
       val results = app.processCsv()
-      results.map(_.travelTime) shouldBe Vector(72, 427, 426)
+      results.map(_.travelTime) shouldBe Vector(75, 433, 432)
       results.map(_.distance) shouldBe Vector(1127.997, 6679.088000000001, 6667.975000000001)
     }
 

@@ -1,26 +1,20 @@
 library(tidyverse)
 library(data.table)
 
-nbOfBinsInHour <- 3600/900
-binsInterval <- 1/nbOfBinsInHour
-siteXFCInKW <- 1000
-plugXFCInKW <- 250
-time.bins <- data.table(time=seq(0,61,by=binsInterval)*3600,quarter.hour=seq(0,61,by=binsInterval))
+setClass("loadInfo", slots=list(timebinInSec="numeric", siteXFCInKW="numeric", plugXFCInKW="numeric"))
 
-chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#FFCC33", "#CC3300", "#0066CC")
-names(chargingTypes.colors) <- c("XFC", "DCFC", "Public-L2", "Work-L2", "Work-L1", "Home-L2", "Home-L1")
+time.bins <- data.table(time=seq(0,61,by=0.25)*3600,quarter.hour=seq(0,61,by=0.25))
+
 loadTypes <- data.table::data.table(
   chargingPointType = c(
-    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
-    "worklevel2(7.2|AC)",
-    "publiclevel2(7.2|AC)",
-    "publicfc(50.0|DC)", "publicfc(150.0|DC)", "depotfc(150.0|DC)",
-    "publicxfc(250.0|DC)", "publicxfc(400.0|DC)", "depotfc(250.0|DC)", "depotfc(400.0|DC)"),
-  loadType = c("Home-L1", "Home-L2",
-               "Work-L2",
-               "Public-L2",
-               "DCFC", "DCFC", "DCFC",
-               "XFC", "XFC", "XFC", "XFC"))
+    "homelevel1(1.8|AC)", "homelevel2(7.2|AC)", "publiclevel2(7.2|AC)",
+    "worklevel2(7.2|AC)", "custom(7.2|AC)",
+    "publicfc(150.0|DC)", "custom(150.0|DC)", "publicxfc(250.0|DC)", "custom(250.0|DC)"),
+  loadType = c(
+    "Home-L1", "Home-L2", "Public-L2",
+    "Work-L2", "Work-L2",
+    "DCFC", "DCFC", "XFC", "XFC"))
+
 
 nextTimePoisson <- function(rate) {
   return(-log(1.0 - runif(1)) / rate)
@@ -28,7 +22,7 @@ nextTimePoisson <- function(rate) {
 scaleUPSession <- function(DT, t, factor) {
   nb <- nrow(DT)
   nb.scaled <- nb*factor
-  rate <- nb.scaled/binsInterval
+  rate <- nb.scaled/0.25
   DT.temp1 <- data.table(start.time2=round(t+cumsum(unlist(lapply(rep(rate, nb.scaled), nextTimePoisson)))*3600))[order(start.time2),]
   DT.temp2 <- DT[sample(.N,nrow(DT.temp1),replace=T)][order(start.time)]
   DT.temp1[,row2:=1:.N]
@@ -39,19 +33,18 @@ extractChargingSessions <- function(events) {
   ## replace everything by chargingPointType, when develop problem is solved
   ## c("vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType", "locationY", "locationX", "duration", "vehicleType")
   ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-  ev1.vehicles <- unique(ev1$vehicle)
-  ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+  ev2 <- events[type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
   setnames(ev2, "time", "start.time")
-  ev <- ev1[ev2, on=c("vehicle", "IDX")][!is.na(parkingTaz)]
+  ev <- ev1[ev2, on=c("vehicle", "IDX")]
   return(ev)
 }
 spreadChargingSessionsIntoPowerIntervals <- function(ev) {
   ev[,kw:=unlist(lapply(str_split(as.character(chargingPointType),'\\('),function(ll){ as.numeric(str_split(ll[2],'\\|')[[1]][1])}))]
   ev[,depot:=(substr(vehicle,0,5)=='rideH' & substr(vehicleType,0,5)=='ev-L5')]
   ev[,plug.xfc:=(kw>=250)]
-  sessions <- ev[chargingPointType!='NoCharger'
+  sessions <- ev[chargingPointType!='None' & time/3600>=4
                  ,.(start.time,depot,plug.xfc,taz=parkingTaz,kw,
-                    x=locationX,y=locationY,duration=duration/3600.0,chargingPointType,
+                    x=locationX,y=locationY,duration=duration/60,chargingPointType,
                     parkingType,vehicleType,vehicle,person,fuel,parkingZoneId)]
   sessions[,row:=1:.N]
   start.time.dt <- data.table(time=sessions$start.time)
@@ -61,7 +54,7 @@ spreadChargingSessionsIntoPowerIntervals <- function(ev) {
 }
 scaleUpAllSessions <- function(DT, expansion.factor) {
   sim.events <- data.table()
-  for (bin in seq(min(DT$start.time.bin),max(DT$start.time.bin),by=binsInterval))
+  for (bin in seq(min(DT$start.time.bin),max(DT$start.time.bin),by=0.25))
   {
     DT.bin <- DT[start.time.bin == bin]
     sim.events <- rbind(sim.events, scaleUPSession(DT.bin, bin*3600, expansion.factor))
@@ -73,7 +66,6 @@ scaleUpAllSessions <- function(DT, expansion.factor) {
 }
 filterEvents <- function(dataDir, filename, eventsList) {
   outputFilepath <- paste(dataDir,"/events/filtered.",filename, sep="")
-  outputFilepath2 <- paste(dataDir,"/events/paths.",filename, sep="")
   if(!file.exists(outputFilepath)) {
     events <- readCsv(paste(dataDir, "/events-raw", "/", filename, sep=""))
     filteredEvents <- events[type %in% eventsList][
@@ -140,13 +132,16 @@ processEventsFileAndScaleUp <- function(dataDir, scaleUpFlag, expFactor) {
 
 
 ## *****************
-extractLoads <- function(sessions, loadTypes, countyNames) {
-  # here we expand each session into the appropriate number of X-minute bins, so each row here is 1 X-minute slice of a session
-  sessions[,plug.xfc:=grepl("xfc", chargingPointType)]
-  loads <- sessions[,.(parkingZoneId,chargingPointType,depot,plug.xfc,taz,kw=c(rep(kw,length(seq(0,duration,by=binsInterval))-1),kw*(duration-max(seq(0,duration,by=binsInterval)))/binsInterval),x,y,duration,hour.bin=start.time.bin+seq(0,duration,by=binsInterval)),by='row']
+extractLoads <- function(sessions, loadTypes, loadInfo, countyNames) {
+  hourShare <- loadInfo@timebinInSec/3600.0
+  siteXFCInKW <- loadInfo@siteXFCInKW
+  plugXFCInKW <- loadInfo@plugXFCInKW
+  # here we expand each session into the appropriate number of 15-minute bins, so each row here is 1 15-minute slice of a session
+  sessions[,plug.xfc:=grepl("(250.0|DC)", chargingPointType)]
+  loads <- sessions[,.(chargingPointType,depot,plug.xfc,taz,kw=c(rep(kw,length(seq(0,duration/60,by=hourShare))-1),kw*(duration/60-max(seq(0,duration/60,by=hourShare)))/hourShare),x,y,duration,hour.bin=start.time.bin+seq(0,duration/60,by=hourShare)),by='row']
   loads[,site.xfc:=(sum(kw)>=siteXFCInKW),by=c('depot','taz','hour.bin')]
   loads[,xfc:=site.xfc|plug.xfc]
-  loads[,fuel:=kw*binsInterval*3.6e6] # the binsInterval converts avg. power in X-minutes to kwh, then 3.6e6 converts to Joules
+  loads[,fuel:=kw*0.25/3.6e6] # the 0.25 converts avg. power in 15-minutes to kwh, then 3.6e6 converts to Joules
   loads <- loads[,.(x=x[1],y=y[1],fuel=sum(fuel),kw=sum(kw,na.rm=T),site.xfc=site.xfc[1]),by=c('depot','taz','hour.bin','xfc','chargingPointType')]
   taz <- loads[,.(x2=mean(x),y2=mean(y)),by='taz']
   loads <- merge(loads,taz,by='taz')
@@ -162,7 +157,9 @@ extractLoads <- function(sessions, loadTypes, countyNames) {
 
 
 ## *****************
-generateReadyToPlot <- function(resultsDirName, loadTypes, countyNames) {
+generateReadyToPlot <- function(resultsDirName, loadTypes, loadInfo, countyNames) {
+  chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#FFCC33", "#CC3300", "#0066CC")
+  names(chargingTypes.colors) <- c("XFC", "DCFC", "Public-L2", "Work-L2", "Work-L1", "Home-L2", "Home-L1")
   file.list <- list.files(path=resultsDirName)
   all.sessions <- list()
   all.chargingTypes <- list()
@@ -183,7 +180,7 @@ generateReadyToPlot <- function(resultsDirName, loadTypes, countyNames) {
       sessions[,code:=code]
       write.csv(sessions,file = pp(sim.xfc.temp.file,"-sessions.csv"),row.names=FALSE,quote=FALSE,na="0")
 
-      loads <- extractLoads(sessions, loadTypes, countyNames)
+      loads <- extractLoads(sessions, loadTypes, loadInfo, countyNames)
       loads[,hour.bin2:=hour.bin%%24]
       loads[,code:=code]
       write.csv(loads,file = pp(sim.xfc.temp.file,"-loads.csv"),row.names=FALSE,quote=FALSE,na="0")

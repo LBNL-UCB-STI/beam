@@ -1,8 +1,5 @@
 package beam.utils
 
-import java.text.DecimalFormatSymbols
-import java.util.Locale
-
 /**
   * Created by sfeygin on 4/6/17.
   */
@@ -77,7 +74,5 @@ object FormatUtils {
     * Medium format as 6.004912491 => 6.004913491
     */
   final object LONG extends FormatType("%15s", "#,##0.00000000")
-
-  val DECIMAL_3 = new DecimalFormat("#.###", DecimalFormatSymbols.getInstance(Locale.US))
 
 }

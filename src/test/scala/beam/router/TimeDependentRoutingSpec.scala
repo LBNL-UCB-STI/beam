@@ -76,7 +76,7 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 144)
+      assert(response.itineraries.head.beamLegs.head.duration == 147)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -102,7 +102,7 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 271)
+      assert(response.itineraries.head.beamLegs.head.duration == 276)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -128,7 +128,7 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 564)
+      assert(response.itineraries.head.beamLegs.head.duration == 567)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -155,7 +155,7 @@ class TimeDependentRoutingSpec
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 144)
+      assert(carOption.totalTravelTimeInSecs == 147)
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) =>
         1000

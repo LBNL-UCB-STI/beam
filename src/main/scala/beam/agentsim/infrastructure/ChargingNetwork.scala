@@ -22,7 +22,7 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
     extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._
@@ -82,7 +82,6 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
     */
   def processChargingPlugRequest(
     request: ChargingPlugRequest,
-    activityType: String,
     theSender: ActorRef
   ): Option[ChargingVehicle] = {
     lookupStation(request.stall.parkingZoneId)
@@ -92,7 +91,6 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
           request.vehicle,
           request.stall,
           request.personId,
-          activityType,
           request.shiftStatus,
           request.shiftDuration,
           theSender
@@ -302,7 +300,6 @@ object ChargingNetwork extends LazyLogging {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       personId: Id[Person],
-      activityType: String,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
       theSender: ActorRef
@@ -313,7 +310,7 @@ object ChargingNetwork extends LazyLogging {
           chargingVehicle
         case _ =>
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, personId, activityType, shiftStatus, shiftDuration, theSender)
+            ChargingVehicle(vehicle, stall, this, tick, personId, shiftStatus, shiftDuration, theSender)
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
@@ -375,13 +372,7 @@ object ChargingNetwork extends LazyLogging {
     }
   }
 
-  final case class ChargingCycle(
-    startTime: Int,
-    endTime: Int,
-    energyToCharge: Double,
-    energyToChargeIfUnconstrained: Double,
-    maxDuration: Int
-  ) {
+  final case class ChargingCycle(startTime: Int, endTime: Int, energyToCharge: Double, maxDuration: Int) {
     var refueled: Boolean = false
   }
 
@@ -391,7 +382,6 @@ object ChargingNetwork extends LazyLogging {
     chargingStation: ChargingStation,
     arrivalTime: Int,
     personId: Id[Person],
-    activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],
     theSender: ActorRef,
@@ -430,7 +420,7 @@ object ChargingNetwork extends LazyLogging {
       */
     def refuel: Option[ChargingCycle] = {
       chargingSessions.lastOption match {
-        case Some(cycle @ ChargingCycle(_, _, energy, _, _)) if !cycle.refueled =>
+        case Some(cycle @ ChargingCycle(_, _, energy, _)) if !cycle.refueled =>
           vehicle.addFuel(energy)
           cycle.refueled = true
           logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
@@ -462,13 +452,7 @@ object ChargingNetwork extends LazyLogging {
       * @param endTime endTime of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processCycle(
-      startTime: Int,
-      endTime: Int,
-      energy: Double,
-      energyToChargeIfUnconstrained: Double,
-      maxDuration: Int
-    ): Option[ChargingCycle] = {
+    def processCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
         case None =>
           // first charging cycle
@@ -495,7 +479,7 @@ object ChargingNetwork extends LazyLogging {
           false
       }
       if (addNewChargingCycle) {
-        val newCycle = ChargingCycle(startTime, endTime, energy, energyToChargeIfUnconstrained, maxDuration)
+        val newCycle = ChargingCycle(startTime, endTime, energy, maxDuration)
         chargingSessions.append(newCycle)
         Some(newCycle)
       } else None

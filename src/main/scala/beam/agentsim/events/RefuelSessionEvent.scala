@@ -17,10 +17,9 @@ case class RefuelSessionEvent(
   energyInJoules: Double,
   sessionStartingFuelLevelInJoules: Double,
   sessionDuration: Double,
-  vehId: Id[Vehicle],
+  val vehId: Id[Vehicle],
   vehicleType: BeamVehicleType,
   personId: Id[Person],
-  activityType: String,
   shiftStatus: ShiftStatus = NotApplicable
 ) extends Event(tick)
     with HasPersonId
@@ -59,7 +58,6 @@ case class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
     attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.id.toString)
     attributes.put(ATTRIBUTE_PERSON, personId.toString)
-    attributes.put(ATTRIBUTE_ACTTYPE, activityType.toString)
     attributes.put(ATTRIBUTE_SHIFT_STATUS, shiftStatusString)
     attributes
   }
@@ -81,7 +79,6 @@ object RefuelSessionEvent {
   val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
   val ATTRIBUTE_SHIFT_STATUS: String = "shiftStatus"
   val ATTRIBUTE_PERSON: String = "person"
-  val ATTRIBUTE_ACTTYPE: String = "actType"
 
   sealed trait ShiftStatus
   case object OnShift extends ShiftStatus

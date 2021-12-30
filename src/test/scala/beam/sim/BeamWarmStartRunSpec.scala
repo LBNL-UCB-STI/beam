@@ -28,8 +28,8 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
       val (_, output, _) = runBeamWithConfig(baseConf)
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 1))
-      logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(0.75 +- 0.07)
+      averageCarSpeedIt0 should equal(4.0 +- 1.6)
+      averageCarSpeedIt1 should equal(6.0 +- 1.6)
 
     }
   }
@@ -50,7 +50,8 @@ object BeamWarmStartRunSpec {
       GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, _ => true)
     try {
       val travelTimes = rdr.toArray
-      if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
+      val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
+      TimeUnit.SECONDS.toMinutes(avg.toLong)
     } finally {
       toClose.close()
     }

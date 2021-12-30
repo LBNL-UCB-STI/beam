@@ -3,7 +3,6 @@ package beam.integration
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.ScaleUpCharging
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
@@ -28,47 +27,28 @@ import org.scalatest.matchers.should.Matchers
 import scala.collection.mutable.ArrayBuffer
 
 class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
+  private val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
+  private val vehicleId = Id.create(2, classOf[Vehicle])
+  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
-  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
-    val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
-    val vehicleId = Id.create(2, classOf[Vehicle])
-    val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
-    val config: Config = ConfigFactory
-      .parseString(
-        s"""|beam.outputs.events.fileOutputFormats = csv
-            |beam.physsim.skipPhysSim = true
-            |beam.agentsim.lastIteration = 0
-            |beam.agentsim.tuning.transitCapacity = 0.0
-            |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
-            |beam.agentsim.agents.vehicles.sharedFleets = []
-            |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
-            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
-            |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
-            |beam.agentsim.chargingNetworkManager {
-            |  timeStepInSeconds = 300
-            |  chargingPointCountScalingFactor = 1.0
-            |  chargingPointCostScalingFactor = 1.0
-            |  chargingPointFilePath =  ""
-            |  scaleUp {
-            |    enabled = true
-            |    expansionFactor_home_activity = 3.0
-            |    expansionFactor_work_activity = 3.0
-            |    expansionFactor_charge_activity = 3.0
-            |    expansionFactor_wherever_activity = 3.0
-            |    expansionFactor_init_activity = 3.0
-            |  }
-            |  helics {
-            |    connectionEnabled = false
-            |  }
-            |  helics {
-            |    connectionEnabled = false
-            |  }
-            |}
-            |
+  val config: Config = ConfigFactory
+    .parseString(
+      s"""|beam.outputs.events.fileOutputFormats = csv
+         |beam.physsim.skipPhysSim = true
+         |beam.agentsim.lastIteration = 0
+         |beam.agentsim.tuning.transitCapacity = 0.0
+         |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |beam.agentsim.agents.vehicles.sharedFleets = []
+         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
+         |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
+         |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
+         |
       """.stripMargin
-      )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
+    )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
+
+  "Running a single person car-only scenario" must "catch charging events" in {
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val beamConfig = BeamConfig(config)
@@ -81,8 +61,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val chargingPlugOutEvents: ArrayBuffer[Double] = new ArrayBuffer[Double]()
     val refuelSessionEvents: ArrayBuffer[(Double, Long, Double)] = new ArrayBuffer[(Double, Long, Double)]()
     var energyConsumed: Double = 0.0
-    var totVirtualPower = 0.0
-    var totRealPower = 0.0
+
     val injector = org.matsim.core.controler.Injector.createInjector(
       scenario.getConfig,
       new AbstractModule() {
@@ -102,7 +81,6 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
                       `vehicleId`,
                       _,
                       _,
-                      _,
                       _
                     ) =>
                   refuelSessionEvents += (
@@ -112,13 +90,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
                       ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                     )
                   )
-                  totRealPower += ScaleUpCharging.toPowerInKW(energyInJoules, sessionDuration.toInt)
                 case e: PathTraversalEvent if e.vehicleId == vehicleId =>
                   energyConsumed += e.primaryFuelConsumed
-                case e: RefuelSessionEvent if e.vehId.toString.startsWith(ScaleUpCharging.VIRTUAL_CAR_ALIAS) =>
-                  totVirtualPower += ScaleUpCharging.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
-                case e: RefuelSessionEvent =>
-                  totRealPower += ScaleUpCharging.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                 case _ =>
               }
             }
@@ -183,10 +156,5 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     // consumed energy should be more or less equal total added energy
     // TODO Hard to test this without ensuring an energy conservation mechanism
     // totalEnergyInJoules shouldBe (energyConsumed +- 1000)
-
-    assume(
-      totVirtualPower - totRealPower > 0,
-      "There should be at least as much virtual power as real power when scaling up by 2"
-    )
   }
 }

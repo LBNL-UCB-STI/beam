@@ -37,22 +37,22 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     val link = networkHelper.getLinkUnsafe(linkId)
     assert(link != null)
     val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-    val maxTravelTime = edge.getLengthM / minSpeed
+    val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
     val maxSpeed: Double = vehicleType match {
       case Some(vType) => vType.maxVelocity.getOrElse(maxFreeSpeed)
       case None        => maxFreeSpeed
     }
 
-    val minTravelTime = edge.getLengthM / maxSpeed
+    val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
 
     val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
     val physSimTravelTimeWithNoise =
-      if (travelTimeNoiseFraction.equals(0d) || !shouldAddNoise) {
-        physSimTravelTime
-      } else {
-        val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
-        physSimTravelTime * travelTimeNoises(idx)
-      }
+      (if (travelTimeNoiseFraction.equals(0d) || !shouldAddNoise) {
+         physSimTravelTime
+       } else {
+         val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
+         physSimTravelTime * travelTimeNoises(idx)
+       }).ceil.toInt
     val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
     Math.min(linkTravelTime, maxTravelTime)
   }
