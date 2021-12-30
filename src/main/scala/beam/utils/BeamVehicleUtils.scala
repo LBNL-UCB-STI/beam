@@ -4,6 +4,8 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.sim.config.BeamConfig
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
@@ -112,6 +114,30 @@ object BeamVehicleUtils {
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
+  }
+
+  def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val rideHailTypeId = beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
+    val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
+    val defaultVehicleType = BeamVehicleType(
+      id = Id.create("DefaultVehicleType", classOf[BeamVehicleType]),
+      seatingCapacity = 4,
+      standingRoomCapacity = 0,
+      lengthInMeter = 4.5,
+      primaryFuelType = FuelType.Gasoline,
+      primaryFuelConsumptionInJoulePerMeter = 3655.98,
+      primaryFuelCapacityInJoule = 3655980000.0,
+      vehicleCategory = VehicleCategory.Car
+    )
+
+    val missingTypes = Seq(
+      dummySharedCarId.createId[BeamVehicleType],
+      rideHailTypeId.createId[BeamVehicleType]
+    ).collect {
+      case vehicleId if !vehicleTypes.contains(vehicleId) => vehicleId -> defaultVehicleType.copy(id = vehicleId)
+    }
+    vehicleTypes ++ missingTypes
   }
 
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {

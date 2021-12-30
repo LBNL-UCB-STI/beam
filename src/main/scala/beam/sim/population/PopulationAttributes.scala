@@ -56,7 +56,7 @@ case class AttributesOfIndividual(
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel) *
-              getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
+            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
           } else {
             getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel)
           }
@@ -104,7 +104,7 @@ case class AttributesOfIndividual(
       case BIKE =>
         val situation = getSituationForVOT(destinationActivity, originActivity)
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel, Some(situation)) *
-          embodiedBeamLeg.beamLeg.duration / 3600
+        embodiedBeamLeg.beamLeg.duration / 3600
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel) *
           embodiedBeamLeg.beamLeg.duration / 3600
@@ -114,14 +114,17 @@ case class AttributesOfIndividual(
   def getVOT(generalizedTime: Double): Double = {
     valueOfTime * generalizedTime
   }
+
   private def getSituationForVOT(
-                                  destinationActivity: Option[Activity],
-                                  originActivity: Option[Activity]
-                                ): Set[SituationMultiplier] = {
+    destinationActivity: Option[Activity],
+    originActivity: Option[Activity]
+  ): Set[SituationMultiplier] = {
     (destinationActivity, originActivity, age, income) match {
       case (Some(origin), Some(destination), Some(travelerAge), Some(traverlerIncome)) =>
-        val ageBin = if (travelerAge > 60) { ageGT60 } else { ageLE60 }
-        val incomeBin = if (traverlerIncome > 50000) { incomeGT50k } else { incomeLE50k }
+        val ageBin = if (travelerAge > 60) { ageGT60 }
+        else { ageLE60 }
+        val incomeBin = if (traverlerIncome > 50000) { incomeGT50k }
+        else { incomeLE50k }
 
         if (isCommute(destination, origin)) {
           Set[SituationMultiplier](commuteTrip, ageBin, incomeBin)

@@ -1,5 +1,6 @@
 package beam.utils
 
+import java.util.concurrent.ThreadLocalRandom
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -124,10 +125,7 @@ object MathUtils {
     * @return one of the nearest integers depending on the random value and the fraction of x
     */
   def roundUniformly(x: Double): Long = {
-    val floor: Double = Math.floor(x)
-    val diff = x - floor
-    val addition = if (Random.nextDouble() < diff) 1 else 0
-    Math.round(floor + addition)
+    roundUniformly(x, ThreadLocalRandom.current())
   }
 
   /**
