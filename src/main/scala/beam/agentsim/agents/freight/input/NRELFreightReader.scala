@@ -245,7 +245,7 @@ class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random
     if (vehicleId.toString.startsWith(freightIdPrefix)) {
       Id.createPersonId(s"$vehicleId-agent")
     } else {
-      Id.createPersonId(s"freight-$vehicleId-agent")
+      Id.createPersonId(s"$freightIdPrefix-$vehicleId-agent")
     }
   }
 
@@ -254,7 +254,7 @@ class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random
     if (vehicleId.toString.startsWith(freightIdPrefix)) {
       s"$vehicleId-household".createId
     } else {
-      s"freight-$vehicleId-household".createId
+      s"$freightIdPrefix-$vehicleId-household".createId
     }
   }
 }
