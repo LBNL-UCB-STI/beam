@@ -351,11 +351,6 @@ class PopulationScaling extends LazyLogging {
 
 object PopulationScaling {
 
-  def isWarmstartDisabledOrSamplingEnabled(beamConfig: BeamConfig): Boolean = {
-    !BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart) ||
-    beamConfig.beam.warmStart.samplePopulationIntegerFlag == 1
-  }
-
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(
     scenario: MutableScenario,
@@ -365,20 +360,22 @@ object PopulationScaling {
     outputDir: String
   ): Unit = {
     val populationScaling = new PopulationScaling()
-    if (
-      isWarmstartDisabledOrSamplingEnabled(
-        beamConfig
-      ) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1
-    ) {
+    if (beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.enabled) {
+      populationScaling.sampleByIndustry(scenario, beamConfig)
+    }
+
+    val warmstartDisabledOrSamplingEnabled = {
+      !BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart) ||
+      beamConfig.beam.warmStart.samplePopulationIntegerFlag == 1
+    }
+
+    if (warmstartDisabledOrSamplingEnabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
       populationScaling.downSample(beamServices, scenario, beamScenario, outputDir)
     }
-    if (
-      isWarmstartDisabledOrSamplingEnabled(
-        beamConfig
-      ) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1
-    ) {
+    if (warmstartDisabledOrSamplingEnabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1) {
       populationScaling.upSample(beamServices, scenario, beamScenario)
     }
+
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
 
