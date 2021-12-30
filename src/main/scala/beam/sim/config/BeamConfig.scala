@@ -103,6 +103,7 @@ object BeamConfig {
           generateFixedActivitiesDurations: scala.Boolean,
           name: java.lang.String,
           plansFilePath: java.lang.String,
+          reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           toursFilePath: java.lang.String
         )
@@ -142,6 +143,7 @@ object BeamConfig {
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
+              reader = if (c.hasPathOrNull("reader")) c.getString("reader") else "Generic",
               replanning = BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
                 else com.typesafe.config.ConfigFactory.parseString("replanning{}")

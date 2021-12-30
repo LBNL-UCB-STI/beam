@@ -2,7 +2,7 @@ package beam.sim
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
-import beam.agentsim.agents.freight.input.NRELPayloadPlansConverter
+import beam.agentsim.agents.freight.input._
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
@@ -341,21 +341,13 @@ trait BeamHelper extends LazyLogging {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
     val freightConfig = beamConfig.beam.agentsim.agents.freight
+
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
-      val converter = new NRELPayloadPlansConverter()
-      val tours = converter.readFreightTours(freightConfig, geoUtils, streetLayer)
-      val plans = converter.readPayloadPlans(freightConfig, geoUtils, streetLayer)
-      val carriers = converter.readFreightCarriers(
-        freightConfig,
-        geoUtils,
-        streetLayer,
-        tours,
-        plans,
-        vehicleTypes,
-        rand
-      )
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer)
+      val tours = freightReader.readFreightTours()
+      val plans = freightReader.readPayloadPlans()
+      val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
       val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
         plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
       } else {
@@ -718,12 +710,17 @@ trait BeamHelper extends LazyLogging {
 
     if (beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
       logger.info(s"Generating freight population from ${beamScenario.freightCarriers.size} carriers ...")
-      generatePopulationForPayloadPlans(
+      val converter = FreightReader(
         beamServices.beamConfig,
         beamServices.geo,
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.beamScenario.tazTreeMap
+      )
+      generatePopulationForPayloadPlans(
         beamScenario,
         scenario.getPopulation,
-        scenario.getHouseholds
+        scenario.getHouseholds,
+        converter
       )
       logger.info(s"""Freight population generated:
                      |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
@@ -907,17 +904,16 @@ trait BeamHelper extends LazyLogging {
   }
 
   def generatePopulationForPayloadPlans(
-    beamConfig: BeamConfig,
-    geoUtils: GeoUtils,
     beamScenario: BeamScenario,
     population: Population,
-    households: Households
+    households: Households,
+    converter: FreightReader
   ): Unit = {
     beamScenario.freightCarriers
       .flatMap(_.fleet)
       .foreach { case (id, vehicle) => beamScenario.privateVehicles.put(id, vehicle) }
 
-    val plans: IndexedSeq[(Household, Plan)] = new NRELPayloadPlansConverter().generatePopulation(
+    val plans: IndexedSeq[(Household, Plan)] = converter.generatePopulation(
       beamScenario.freightCarriers,
       population.getFactory,
       households.getFactory
