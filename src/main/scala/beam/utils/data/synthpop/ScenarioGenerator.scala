@@ -4,7 +4,6 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
-
 import beam.agentsim.infrastructure.geozone._
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
@@ -25,6 +24,7 @@ import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.writers.{
+  CsvBlockInfoWriter,
   CsvHouseholdInfoWriter,
   CsvParkingInfoWriter,
   CsvPersonInfoWriter,
@@ -55,6 +55,7 @@ case class ScenarioResult(
   totalNumberOfHouseholds: Int,
   totalNumberOfPeople: Int,
   totalNumberOfPlanElements: Int,
+  totalNumberOfBlocks: Int,
   geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)]
 )
 
@@ -260,14 +261,17 @@ class SimpleScenarioGenerator(
     val householdFilePath = s"$pathToOutput/households.csv.gz"
     val personsFilePath = s"$pathToOutput/persons.csv.gz"
     val plansFilePath = s"$pathToOutput/plans.csv.gz"
+    val blocksFilePath = s"$pathToOutput/blocks.csv.gz"
 
     val householdInfoWriter = new CsvHouseholdInfoWriter(householdFilePath)
     val personInfoWriter = new CsvPersonInfoWriter(personsFilePath)
     val plansInfoWriter = new CsvPlanElementWriter(plansFilePath)
+    val blockInfoWriter = new CsvBlockInfoWriter(blocksFilePath)
 
     var totalNumberOfHouseholds: Int = 0
     var totalNumberOfPeople: Int = 0
     var totalNumberOfPlanElements: Int = 0
+    var totalNumberOfBlocks: Int = 0
 
     val wgsActivityLocations = ArrayBuffer[Coord]()
 
@@ -290,6 +294,12 @@ class SimpleScenarioGenerator(
                 HouseholdId(household.fullId),
                 household.numOfVehicles,
                 household.income,
+                wgsHouseholdLocation.getX,
+                wgsHouseholdLocation.getY
+              )
+
+              val createBlock = BlockInfo(
+                BlockId(blockGroupGeoId.asUniqueKey.toLong),
                 wgsHouseholdLocation.getX,
                 wgsHouseholdLocation.getY
               )
@@ -379,10 +389,11 @@ class SimpleScenarioGenerator(
                     }
                 }
               globalPersonId = lastPersonId
-              if (personsAndPlans.size == personsWithData.size) {
-                Some((createdHousehold, personsAndPlans))
-              } else None
+
+              if (personsAndPlans.size == personsWithData.size) Some((createdHousehold, personsAndPlans, createBlock))
+              else None
           }
+
           cnt += 1
           val householdList = res.map(_._1)
           householdInfoWriter.write(householdList.toIterator)
@@ -396,6 +407,10 @@ class SimpleScenarioGenerator(
           plansInfoWriter.write(plans.toIterator)
           totalNumberOfPlanElements += plans.size
 
+          val blockList = res.map(_._3)
+          blockInfoWriter.write(blockList.toIterator)
+          totalNumberOfBlocks += blockList.size
+
           plans.filter(_.planElementType == "activity").foreach { plan =>
             val wgsCoord = geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
             wgsActivityLocations += wgsCoord
@@ -405,6 +420,7 @@ class SimpleScenarioGenerator(
       plansInfoWriter.close()
       personInfoWriter.close()
       householdInfoWriter.close()
+      blockInfoWriter.close()
     }
 
     writeH3(pathToOutput, wgsActivityLocations, 1000)
@@ -413,6 +429,7 @@ class SimpleScenarioGenerator(
       totalNumberOfHouseholds = totalNumberOfHouseholds,
       totalNumberOfPeople = totalNumberOfPeople,
       totalNumberOfPlanElements = totalNumberOfPlanElements,
+      totalNumberOfBlocks = totalNumberOfBlocks,
       geoIdToAreaResidentsAndWorkers = geoIdToAreaResidentsAndWorkers
     )
   }
@@ -668,6 +685,7 @@ object SimpleScenarioGenerator extends StrictLogging {
     logger.info(s"Number of households: ${scenarioResult.totalNumberOfHouseholds}")
     logger.info(s"Number of people: ${scenarioResult.totalNumberOfPeople}")
     logger.info(s"Number of plan elements: ${scenarioResult.totalNumberOfPlanElements}")
+    logger.info(s"Number of blocks: ${scenarioResult.totalNumberOfBlocks}")
 
     val parkingFilePath = s"$pathToOutput/taz-parking.csv"
     CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, scenarioResult.geoIdToAreaResidentsAndWorkers)
@@ -700,7 +718,6 @@ object SimpleScenarioGenerator extends StrictLogging {
           throw new IllegalStateException("Unable to parse arguments. Check the logs")
         case Some(parsedArgs: Arguments) =>
           run(parsedArgs)
-
       }
     }
   }

@@ -4,6 +4,8 @@ case class PersonId(id: String) extends AnyVal
 
 case class HouseholdId(id: String) extends AnyVal
 
+case class BlockId(id: Long) extends AnyVal
+
 case class PersonInfo(
   personId: PersonId,
   householdId: HouseholdId,
@@ -42,3 +44,5 @@ case class PlanElement(
 case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, locationX: Double, locationY: Double)
 
 case class VehicleInfo(vehicleId: String, vehicleTypeId: String, householdId: String)
+
+case class BlockInfo(blockId: BlockId, x: Double, y: Double)
