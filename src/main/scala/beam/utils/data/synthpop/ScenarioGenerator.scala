@@ -259,6 +259,22 @@ class SimpleScenarioGenerator(
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     var cnt: Int = 0
 
+    def createPerson(personId: Int, householdId: HouseholdId, income: Double, person: Models.Person): PersonInfo = {
+      val valueOfTime =
+        PopulationAdjustment.incomeToValueOfTime(income).getOrElse(defaultValueOfTime)
+
+      beam.utils.scenario.PersonInfo(
+        personId = PersonId(personId.toString),
+        householdId = householdId,
+        rank = 0,
+        age = person.age,
+        excludedModes = Seq.empty,
+        isFemale = person.gender == Gender.Female,
+        valueOfTime = valueOfTime,
+        industry = person.industry
+      )
+    }
+
     val householdFilePath = s"$pathToOutput/households.csv.gz"
     val personsFilePath = s"$pathToOutput/persons.csv.gz"
     val plansFilePath = s"$pathToOutput/plans.csv.gz"
@@ -315,19 +331,9 @@ class SimpleScenarioGenerator(
                     val offset = nextWorkLocation.getOrElse(workTazGeoId, 0)
                     nextWorkLocation.update(workTazGeoId, offset + 1)
                     workLocations.lift(offset) match {
-                      case Some(wgsWorkingLocation) =>
-                        val valueOfTime =
-                          PopulationAdjustment.incomeToValueOfTime(household.income).getOrElse(defaultValueOfTime)
-                        val createdPerson = beam.utils.scenario.PersonInfo(
-                          personId = PersonId(nextPersonId.toString),
-                          householdId = createdHousehold.householdId,
-                          rank = 0,
-                          age = person.age,
-                          excludedModes = Seq.empty,
-                          isFemale = person.gender == Gender.Female,
-                          valueOfTime = valueOfTime,
-                          industry = person.industry
-                        )
+                      case Some(wgsWorkingLocation) if person.isWorker =>
+                        val createdPerson =
+                          createPerson(nextPersonId, createdHousehold.householdId, household.income, person)
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
                         // Create Home Activity: end time is when a person leaves a home
@@ -384,6 +390,26 @@ class SimpleScenarioGenerator(
                           createdPerson,
                           List(leavingHomeActivity, leavingHomeLeg, leavingWorkActivity, leavingWorkLeg, homeActivity)
                         )
+                        (personWithPlans :: xs, nextPersonId + 1)
+                      case _ if !person.isWorker =>
+                        val createdPerson =
+                          createPerson(nextPersonId, createdHousehold.householdId, household.income, person)
+
+                        val homeActivity = planElementTemplate.copy(
+                          personId = createdPerson.personId,
+                          planElementType = "activity",
+                          planElementIndex = 1,
+                          activityType = Some("Home"),
+                          activityLocationX = Some(wgsHouseholdLocation.getX),
+                          activityLocationY = Some(wgsHouseholdLocation.getY),
+                          geoId = Some(toTazGeoId(homeLocGeoId.state, homeLocGeoId.county, homeLocGeoId.taz))
+                        )
+
+                        val personWithPlans = PersonWithPlans(
+                          createdPerson,
+                          List(homeActivity)
+                        )
+
                         (personWithPlans :: xs, nextPersonId + 1)
                       case None =>
                         (xs, nextPersonId + 1)
