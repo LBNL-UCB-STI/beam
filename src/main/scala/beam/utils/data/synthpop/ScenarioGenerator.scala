@@ -71,6 +71,7 @@ class SimpleScenarioGenerator(
   val offPeakSpeedMetersPerSecond: Double,
   val localCoordinateReferenceSystem: String,
   val defaultValueOfTime: Double = 8.0,
+  val keepOnlyElderThan16Years: Boolean = true,
   val shouldRemoveNonWorkers: Boolean = false
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -133,7 +134,7 @@ class SimpleScenarioGenerator(
     // Read households and people
     val temp: Seq[(Models.Household, Seq[Models.Person])] = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
     // Adjust population
-    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler, shouldRemoveNonWorkers)
+    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler, keepOnlyElderThan16Years, shouldRemoveNonWorkers)
   }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
@@ -633,7 +634,8 @@ object SimpleScenarioGenerator extends StrictLogging {
     offPeakSpeedMetersPerSecond: Double,
     defaultValueOfTime: Double,
     localCRS: String,
-    outputFolder: String
+    outputFolder: String,
+    keepOnlyElderThan16Years: Boolean
   )
 
   def getCurrentDateTime: String = {
@@ -676,7 +678,8 @@ object SimpleScenarioGenerator extends StrictLogging {
         randomSeed = parsedArgs.randomSeed,
         offPeakSpeedMetersPerSecond = parsedArgs.offPeakSpeedMetersPerSecond,
         localCoordinateReferenceSystem = parsedArgs.localCRS,
-        defaultValueOfTime = parsedArgs.defaultValueOfTime
+        defaultValueOfTime = parsedArgs.defaultValueOfTime,
+        keepOnlyElderThan16Years = parsedArgs.keepOnlyElderThan16Years
       )
 
     gen.writeTazCenters(pathToOutput)

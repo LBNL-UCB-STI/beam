@@ -106,11 +106,21 @@ object SimpleScenarioGeneratorArgParser {
         .action((value, args) => args.copy(outputFolder = value))
         .validate(value => if (value.isEmpty) failure("`outputFolder` cannot be empty") else success)
         .text("Path to output folder with the results")
+      opt[String]("keepOnlyElderThan16Years")
+        .action((value, args) => args.copy(keepOnlyElderThan16Years = value.toBoolean))
+        .validate(value =>
+          if (List("true", "false").contains(value)) success
+          else failure("`keepOnlyElderThan16Years` must be either 'true' or 'false'.")
+        )
+        .text("To determine whether person needs to be included in population based on age")
     }
   }
 
   private def parseArguments(parser: OptionParser[Arguments], args: Array[String]): Option[Arguments] = {
-    parser.parse(args, init = Arguments("", "", Set.empty, "", "", "", "", "", 1, 0.0, 0.0, "", ""))
+    parser.parse(
+      args,
+      init = Arguments("", "", Set.empty, "", "", "", "", "", 1, 0.0, 0.0, "", "", keepOnlyElderThan16Years = true)
+    )
   }
 
   def parseArguments(args: Array[String]): Option[Arguments] = parseArguments(buildParser, args)
