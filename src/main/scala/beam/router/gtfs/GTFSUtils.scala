@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 
 import java.nio.file.{Files, Paths}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /**
   * @author Dmitry Openkov

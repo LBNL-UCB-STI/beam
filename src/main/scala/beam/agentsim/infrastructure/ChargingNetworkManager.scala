@@ -130,7 +130,7 @@ class ChargingNetworkManager(
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
       log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
-      sender ! CompletionNotice(
+      sender() ! CompletionNotice(
         triggerId,
         triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries
       )

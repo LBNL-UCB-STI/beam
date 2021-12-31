@@ -1002,7 +1002,7 @@ class RideHailAgent(
         ev,
         vehicle.id
       )
-      stay
+      stay()
   }
   when(RefuelingInterrupted) {
     case Event(Resume(_), _) =>
