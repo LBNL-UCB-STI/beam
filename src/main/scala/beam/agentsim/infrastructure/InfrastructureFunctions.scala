@@ -143,7 +143,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     val parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double] =
       (parkingAlternative: ParkingAlternative[GEO]) => {
         val params = setupMNLParameters(parkingAlternative, inquiry)
-        if (inquiry.activityType == ParkingActivityType.Home) {
+        if (inquiry.parkingActivityType == ParkingActivityType.Home) {
           logger.debug(
             f"tour=${inquiry.remainingTripData
               .map {

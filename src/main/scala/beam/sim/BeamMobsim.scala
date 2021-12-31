@@ -27,6 +27,7 @@ import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
+import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
@@ -141,6 +142,16 @@ class BeamMobsim @Inject() (
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(matsimServices.getScenario.getHouseholds)
+    }
+
+    if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
+      PlansCsvWriter.toCsv(
+        scenario,
+        beamServices.matsimServices.getControlerIO.getOutputFilename("generatedPlans.csv.gz")
+      )
+      throw new RuntimeException(
+        "The simulation was stopped because beam.output.writePlansAndStopSimulation set to true."
+      )
     }
 
     val iteration = actorSystem.actorOf(

@@ -79,19 +79,21 @@ task deploy(type: AWSLambdaInvokeTask) {
 
         def tempInstanceType = "${ext.getParameterValue('instanceType') ?: (project.hasProperty('defaultInstanceType') ? defaultInstanceType : '')}"
         def finalInstanceType = tempInstanceType != "" ? tempInstanceType : null
+        def dataBranch = "${ext.getParameterValue('dataBranch') ?: 'develop'}"
 
         def pload = """{
   "title": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
   "git_user_email": "${getCurrentGitUserEmail()}",
   "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+  "data_branch": "$dataBranch",
   "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
   "configs": "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}",
   "experiments": "${ext.getParameterValue('beamExperiments') ?: ext.getParameterValue(getCurrentGitBranch() + '.experiments')}",
   "execute_class": "${ext.getParameterValue('executeClass')}",
   "execute_args": "${ext.getParameterValue('executeArgs')}",
-  "max_ram": "${ext.getParameterValue('maxRAM') ?: '140g'}",
+  "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
   "storage_size": ${ext.getParameterValue('storageSize')},
   "batch": ${ext.getParameterValue('beamBatch')},
   "s3_publish": ${ext.getParameterValue('s3Backup') ?: true},
@@ -110,6 +112,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "max_memory": ${ext.getParameterValue('maxMemory') ?: 0}
 }"""
         payload = pload
+        println "Using data branch $dataBranch"
         println payload
         println "Please note that if you set isSpot to true then it could take an excessive time period. In fact it could time out at 15 minutes and still complete later on. ALSO! volumes using spot instances must be MANUALLY deleted. This is done so you do not lose data in the case of a premature shutdown."
         functionName = "simulateBeam"
@@ -144,19 +147,20 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         defaultParamVals['region'] = defRegion
         defaultParamVals['dataRegion'] = defRegion
         defaultParamVals['beamBranch'] = getCurrentGitBranch()
+        defaultParamVals['dataBranch'] = 'develop'
 
         def paramMap = [:]
         def missing = []
 
         // all possible parameters
         ['runName', 'pilatesScenarioName',
-         'beamBranch', 'beamCommit',
+         'beamBranch', 'dataBranch', 'beamCommit',
          'beamConfig',
          'startYear', 'countOfYears', 'beamItLen', 'urbansimItLen',
          'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
          'pilatesImageVersion', 'pilatesImageName',
          's3OutputBucket', 's3OutputBasePath',
-         'inYearOutput', 'maxRAM', 'profiler_type',
+         'inYearOutput', 'forcedMaxRAM', 'profiler_type',
          'storageSize', 'instanceType', 'dataRegion', 'region',
          'shutdownWait', 'shutdownBehaviour'].each {
             def pval = ext.getParameterValue(it)
@@ -172,6 +176,8 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         paramMap['runName'] = paramMap['runName'] + '_' + getCurrentGitUserEmail()
 
         println("parameters wasn't specified: " + missing.join(', '))
+
+        println "Using data branch ${paramMap['dataBranch']}"
 
         // create a string with json object which contains all parameters
         def pload = "{\n" + paramMap.collect { key, val -> "   \"$key\": \"$val\"" }.join(",\n") + "\n}"

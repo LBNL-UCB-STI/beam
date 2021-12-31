@@ -13,7 +13,7 @@ import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
-
+import com.conveyal.gtfs.model.Stop
 import scala.collection.concurrent.TrieMap
 
 /**
@@ -40,6 +40,7 @@ case class BeamScenario(
   ptFares: PtFares,
   transportNetwork: TransportNetwork,
   network: Network,
+  trainStopQuadTree: QuadTree[Stop],
   tazTreeMap: TAZTreeMap,
   exchangeGeoMap: Option[TAZTreeMap],
   linkQuadTree: QuadTree[Link],
@@ -47,7 +48,8 @@ case class BeamScenario(
   linkToTAZMapping: Map[Link, TAZ],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
-  freightCarriers: IndexedSeq[FreightCarrier]
+  freightCarriers: IndexedSeq[FreightCarrier],
+  fixedActivitiesDurations: Map[String, Double]
 ) {
   val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
 

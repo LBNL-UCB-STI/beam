@@ -138,7 +138,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val parkingZone = stalls(parkingZoneId)
         val (pricingModel, feeInCents) = parkingZone.pricingModel match {
           case None     => ("", "")
-          case Some(pm) => (s"$pm", s"${pm.costInDollars / 100.0}")
+          case Some(pm) => (s"$pm", s"${pm.costInDollars * 100.0}")
         }
         val chargingPoint = parkingZone.chargingPointType match {
           case None     => "NoCharger"
@@ -456,7 +456,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       logger.error(s"Failed to match row of parking configuration '$csvRow' to expected schema")
       return None
     }
-    implicit val parkingStallCountScalingFactorImplicit: Double = parkingStallCountScalingFactor
     implicit val randImplicit: Random = rand
     val tazString = csvRow.get("taz")
     val parkingTypeString = csvRow.get("parkingType")
@@ -479,7 +478,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
-      val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor)
+      val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
         else Some(ParkingZone.createId(parkingZoneIdString))
@@ -517,18 +516,17 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     }
   }
 
-  private def calculateNumStalls(
-    initialNumStalls: Double,
-    reservedFor: ReservedFor
-  )(implicit parkingStallCountScalingFactor: Double, rand: Random): Int = {
+  private def calculateNumStalls(initialNumStalls: Double, reservedFor: ReservedFor, scalingFactor: Double)(implicit
+    rand: Random
+  ): Int = {
     reservedFor.managerType match {
       case VehicleManager.TypeEnum.Household =>
-        if (rand.nextDouble() <= parkingStallCountScalingFactor)
+        if (rand.nextDouble() <= scalingFactor)
           initialNumStalls.toInt
         else
           0
       case _ =>
-        val expectedNumberOfStalls = initialNumStalls * parkingStallCountScalingFactor
+        val expectedNumberOfStalls = initialNumStalls * scalingFactor
         MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt
     }
   }

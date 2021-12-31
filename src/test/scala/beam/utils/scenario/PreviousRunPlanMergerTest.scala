@@ -16,12 +16,12 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
     "should throw error when fraction is not within range [0, 1]" in {
       assertThrows[IllegalArgumentException] {
-        new PreviousRunPlanMerger(-1, outputPath, "", new Random(), identity)
+        new PreviousRunPlanMerger(-1, 1, outputPath, "", new Random(), identity)
       }
     }
 
     "should return same plans when fraction = 0" in {
-      val planMerger = new PreviousRunPlanMerger(0, outputPath, "", new Random(), identity)
+      val planMerger = new PreviousRunPlanMerger(0, 1, outputPath, "", new Random(), identity)
 
       val (res, actuallyMerged) = planMerger.merge(newPlans)
 
@@ -33,23 +33,23 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
   "PreviousRunPlanMerger with fraction >= 0" should {
 
     "should return same plans when fraction = 0" in {
-      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 0, new Random())
+      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 0, 0, new Random())
 
       res should be(oldPlans)
     }
 
     "should return same plans when activity sim plans empty" in {
 
-      val res = PreviousRunPlanMerger.merge(oldPlans, Seq(), 0.5, new Random())
+      val res = PreviousRunPlanMerger.merge(oldPlans, Seq(), 0.5, 0, new Random())
 
       res should be(oldPlans)
     }
 
-    "should return half of plans merged when fraction = 0.5" in {
-      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 0.5, new Random(1))
+    "should return half of plans merged and all new plans when fraction = 0.5 and sample = 1" in {
+      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 0.5, 1.0, new Random(1))
 
       res.toSet.count(oldPlans.contains) should be(5)
-      res.toSet.count(newPlans.contains) should be(8)
+      res.toSet.count(newPlans.contains) should be(12)
 
       res should be(
         Seq(
@@ -58,6 +58,12 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("2", 0, 49503),
           createPlanElement("2", 1, 49504), //old
           createPlanElement("6", 2, 49508), //old as unique
+          createPlanElement("0", 0, 49499, planSelected = false),
+          createPlanElement("0", 1, 49500, planSelected = false),
+          createPlanElement("3", 0, 49505, planSelected = false),
+          createPlanElement("3", 1, 49506, planSelected = false),
+          createPlanElement("3", 2, 49507, planSelected = false),
+          createPlanElement("4", 2, 49508, planSelected = false),
           createPlanElement("0", 0, 49509),
           createPlanElement("0", 1, 49510),
           createPlanElement("0", 2, 49511), //new merged
@@ -65,22 +71,67 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("3", 1, 49514), //new merged
           createPlanElement("4", 0, 49515),
           createPlanElement("4", 1, 49516),
-          createPlanElement("4", 2, 49517) //new merged
+          createPlanElement("4", 2, 49517), //new merged
+          createPlanElement("5", 0, 49518), //new added
+          createPlanElement("8", 0, 49515), //new added
+          createPlanElement("8", 1, 49516), //new added
+          createPlanElement("8", 2, 49517) //new added
         )
       )
     }
 
-    "should return all plans merged when fraction = 1.1" in {
-      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 1.0, new Random(1))
+    "should return half of plans merged and half of new plans when fraction = 0.5 and sample = 0.5" in {
+      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 0.5, 0.5, new Random(1))
 
-      res.toSet.count(oldPlans.contains) should be(3)
+      res.toSet.count(oldPlans.contains) should be(5)
       res.toSet.count(newPlans.contains) should be(9)
 
       res should be(
         Seq(
           createPlanElement("7", 0, 49501),
           createPlanElement("7", 1, 49502), //old as unique
+          createPlanElement("2", 0, 49503),
+          createPlanElement("2", 1, 49504), //old
           createPlanElement("6", 2, 49508), //old as unique
+          createPlanElement("0", 0, 49499, planSelected = false),
+          createPlanElement("0", 1, 49500, planSelected = false),
+          createPlanElement("3", 0, 49505, planSelected = false),
+          createPlanElement("3", 1, 49506, planSelected = false),
+          createPlanElement("3", 2, 49507, planSelected = false),
+          createPlanElement("4", 2, 49508, planSelected = false),
+          createPlanElement("0", 0, 49509),
+          createPlanElement("0", 1, 49510),
+          createPlanElement("0", 2, 49511), //new merged
+          createPlanElement("3", 0, 49513),
+          createPlanElement("3", 1, 49514), //new merged
+          createPlanElement("4", 0, 49515),
+          createPlanElement("4", 1, 49516),
+          createPlanElement("4", 2, 49517), //new merged
+          createPlanElement("5", 0, 49518) //new added
+        )
+      )
+
+    }
+
+    "should return all plans merged and all new persons when fraction = 1.0" in {
+      val res = PreviousRunPlanMerger.merge(oldPlans, newPlans, 1.0, 1.0, new Random(1))
+
+      res.toSet.count(oldPlans.contains) should be(3)
+      res.toSet.count(newPlans.contains) should be(13)
+
+      res should be(
+        Seq(
+          createPlanElement("7", 0, 49501),
+          createPlanElement("7", 1, 49502), //old as unique
+          createPlanElement("6", 2, 49508), //old as unique
+          createPlanElement("0", 0, 49499, planSelected = false),
+          createPlanElement("0", 1, 49500, planSelected = false),
+          createPlanElement("2", 0, 49503, planSelected = false),
+          createPlanElement("2", 1, 49504, planSelected = false),
+          createPlanElement("3", 0, 49505, planSelected = false),
+          createPlanElement("3", 1, 49506, planSelected = false),
+          createPlanElement("3", 2, 49507, planSelected = false),
+          createPlanElement("4", 2, 49508, planSelected = false),
           createPlanElement("0", 0, 49509),
           createPlanElement("0", 1, 49510),
           createPlanElement("0", 2, 49511), //new merged
@@ -89,7 +140,11 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("3", 1, 49514), //new merged
           createPlanElement("4", 0, 49515),
           createPlanElement("4", 1, 49516),
-          createPlanElement("4", 2, 49517) //new merged
+          createPlanElement("4", 2, 49517), //new merged
+          createPlanElement("5", 0, 49518), //new added
+          createPlanElement("8", 0, 49515), //new added
+          createPlanElement("8", 1, 49516), //new added
+          createPlanElement("8", 2, 49517) //new added
         )
       )
     }
@@ -97,7 +152,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   "PreviousRunPlanMerger with valid inputs" should {
     "must read previous xml plans without error" in {
-      val planMerger = new PreviousRunPlanMerger(1.0, outputPath, "beamville", new Random(), identity)
+      val planMerger = new PreviousRunPlanMerger(1.0, 0.0, outputPath, "beamville", new Random(), identity)
       val activitySimPlans = getOldPlans //to avoid naming mess
 
       val (mergedPlans, merged) = planMerger.merge(activitySimPlans)
@@ -160,16 +215,25 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       createPlanElement("4", 0, 49515),
       createPlanElement("4", 1, 49516),
       createPlanElement("4", 2, 49517),
-      createPlanElement("5", 0, 49518)
+      createPlanElement("5", 0, 49518),
+      createPlanElement("8", 0, 49515),
+      createPlanElement("8", 1, 49516),
+      createPlanElement("8", 2, 49517)
     )
   }
 
-  def createPlanElement(personId: String, planIndex: Int, activityEndTime: Double): PlanElement = {
+  def createPlanElement(
+    personId: String,
+    planIndex: Int,
+    activityEndTime: Double,
+    planSelected: Boolean = true
+  ): PlanElement = {
     PlanElement(
+      "",
       PersonId(personId),
       planIndex,
       1,
-      true,
+      planSelected = planSelected,
       "activity",
       0,
       Some("a"),
@@ -198,10 +262,11 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     planElementIdx: Int,
     planScore: Double
   ): PlanElement = PlanElement(
+    "",
     PersonId(personId),
     0,
     planScore,
-    true,
+    planSelected = true,
     "activity",
     planElementIdx,
     Some(activityType),
@@ -222,10 +287,11 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   def createLegPlanElement(mode: String, personId: String, planElementIdx: Int, planScore: Double): PlanElement =
     PlanElement(
+      "",
       PersonId(personId),
       0,
       planScore,
-      true,
+      planSelected = true,
       "leg",
       planElementIdx,
       None,
