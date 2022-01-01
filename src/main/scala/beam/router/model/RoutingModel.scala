@@ -21,7 +21,7 @@ object RoutingModel {
     travelTimeByEnterTimeAndLinkId: (Int, Int) => Int
   ): Iterator[Event] = {
     if (leg.travelPath.linkIds.size >= 2) {
-      val links = leg.travelPath.linkIds.view
+      val links = leg.travelPath.linkIds.view.toSeq
       val fullyTraversedLinks = links.drop(1).dropRight(1)
 
       def exitTimeByEnterTimeAndLinkId(enterTime: Int, linkId: Int) =
