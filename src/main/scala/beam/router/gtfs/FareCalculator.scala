@@ -11,7 +11,6 @@ import play.api.libs.json.Json.JsValueWrapper
 import java.io._
 import java.nio.file.{Files, Path, Paths}
 import javax.inject.Inject
-import scala.collection.Map
 
 class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyLogging {
 
@@ -164,7 +163,6 @@ object FareCalculator {
 
   implicit val beamFareFormat: OFormat[BeamFare] = Json.format[BeamFare]
   implicit val beamFareRuleFormat: OFormat[BeamFareRule] = Json.format[BeamFareRule]
-
   implicit val beamFareRuleMapArrayFormat: Format[Map[String, Vector[BeamFareRule]]] =
     new Format[Map[String, Vector[BeamFareRule]]] {
 
@@ -172,7 +170,7 @@ object FareCalculator {
         JsSuccess(
           json.as[JsObject].value.map { case (k, v) =>
             k -> v.as[Vector[BeamFareRule]]
-          }
+          }.toMap
         )
       }
 
