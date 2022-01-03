@@ -27,7 +27,9 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyL
         Json.parse(new FileInputStream(cacheFile)).as[Map[AgencyId, Vector[BeamFareRule]]]
       } catch {
         case ex =>
-          logger.warn(s"Could not deserialize cached Beam Fare file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization...")
+          logger.warn(
+            s"Could not deserialize cached Beam Fare file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization..."
+          )
           try {
             new ObjectInputStream(new FileInputStream(cacheFile))
               .readObject()
@@ -162,25 +164,27 @@ object FareCalculator {
 
   implicit val beamFareFormat: OFormat[BeamFare] = Json.format[BeamFare]
   implicit val beamFareRuleFormat: OFormat[BeamFareRule] = Json.format[BeamFareRule]
-  implicit val beamFareRuleMapArrayFormat: Format[Map[String, Vector[BeamFareRule]]] = new Format[Map[String, Vector[BeamFareRule]]] {
-    override def reads(json: JsValue): JsResult[Map[String, Vector[BeamFareRule]]] = {
-      JsSuccess(
-        json.as[JsObject].value.map{
-          case (k, v) => k -> v.as[Vector[BeamFareRule]]
-        }
-      )
-    }
 
-    override def writes(beamFareRuleMap: Map[String, Vector[BeamFareRule]]): JsValue = {
-      Json.obj(
-        beamFareRuleMap.map{
-          case (agencyId, fareRules) =>
+  implicit val beamFareRuleMapArrayFormat: Format[Map[String, Vector[BeamFareRule]]] =
+    new Format[Map[String, Vector[BeamFareRule]]] {
+
+      override def reads(json: JsValue): JsResult[Map[String, Vector[BeamFareRule]]] = {
+        JsSuccess(
+          json.as[JsObject].value.map { case (k, v) =>
+            k -> v.as[Vector[BeamFareRule]]
+          }
+        )
+      }
+
+      override def writes(beamFareRuleMap: Map[String, Vector[BeamFareRule]]): JsValue = {
+        Json.obj(
+          beamFareRuleMap.map { case (agencyId, fareRules) =>
             val x: (String, JsValueWrapper) = agencyId -> Json.toJson(fareRules)
             x
-        }.toSeq: _*
-      )
+          }.toSeq: _*
+        )
+      }
     }
-  }
 
   /**
     * A FareAttribute (defined in fare_attributes.txt) defines a fare class. A FareAttribute has a price,

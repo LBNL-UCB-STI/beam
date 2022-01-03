@@ -96,14 +96,19 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
         Some(Json.parse(new FileInputStream(cacheFile)).as[util.Map[Long, Array[Toll]]])
       } catch {
         case ex =>
-          logger.warn(s"Could not deserialize cached Toll file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization...")
+          logger.warn(
+            s"Could not deserialize cached Toll file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization..."
+          )
           try {
             using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
               Some(stream.readObject().asInstanceOf[java.util.Map[Long, Array[Toll]]])
             }
           } catch {
             case NonFatal(ex) =>
-              logger.warn(s"Could not deserialize cached Toll file from ${cacheFile.getAbsolutePath} using Java. Going to re-create cache", ex)
+              logger.warn(
+                s"Could not deserialize cached Toll file from ${cacheFile.getAbsolutePath} using Java. Going to re-create cache",
+                ex
+              )
               Some(readFromDatAndCreateCache(cacheFile))
           }
       }
@@ -176,21 +181,26 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 object TollCalculator {
   implicit val rangeFormat = Json.format[beam.sim.common.Range]
   implicit val beamTollFormat: OFormat[Toll] = Json.format[Toll]
+
   implicit val beamTollMapFormat: Format[util.Map[Long, Array[Toll]]] = new Format[java.util.Map[Long, Array[Toll]]] {
+
     override def reads(json: JsValue): JsResult[java.util.Map[Long, Array[Toll]]] = {
       JsSuccess(
-        json.as[JsObject].value.map{
-          case (k, v) => k.toLong -> v.as[Array[Toll]]
-        }.asJava
+        json
+          .as[JsObject]
+          .value
+          .map { case (k, v) =>
+            k.toLong -> v.as[Array[Toll]]
+          }
+          .asJava
       )
     }
 
     override def writes(beamTollMap: java.util.Map[Long, Array[Toll]]): JsValue = {
       Json.obj(
-        beamTollMap.asScala.map{
-          case (wayId, tolls) =>
-            val x: (String, JsValueWrapper) = wayId.toString -> Json.toJson(tolls)
-            x
+        beamTollMap.asScala.map { case (wayId, tolls) =>
+          val x: (String, JsValueWrapper) = wayId.toString -> Json.toJson(tolls)
+          x
         }.toSeq: _*
       )
     }
