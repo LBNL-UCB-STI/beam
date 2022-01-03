@@ -95,7 +95,7 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
       try {
         Some(Json.parse(new FileInputStream(cacheFile)).as[util.Map[Long, Array[Toll]]])
       } catch {
-        case ex =>
+        case ex: Throwable =>
           logger.warn(
             s"Could not deserialize cached Toll file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization..."
           )

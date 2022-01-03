@@ -26,7 +26,7 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyL
       try {
         Json.parse(new FileInputStream(cacheFile)).as[Map[AgencyId, Vector[BeamFareRule]]]
       } catch {
-        case ex =>
+        case ex: Throwable =>
           logger.warn(
             s"Could not deserialize cached Beam Fare file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization..."
           )
