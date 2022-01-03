@@ -163,14 +163,19 @@ object FareCalculator {
 
   implicit val beamFareFormat: OFormat[BeamFare] = Json.format[BeamFare]
   implicit val beamFareRuleFormat: OFormat[BeamFareRule] = Json.format[BeamFareRule]
+
   implicit val beamFareRuleMapArrayFormat: Format[Map[String, Vector[BeamFareRule]]] =
     new Format[Map[String, Vector[BeamFareRule]]] {
 
       override def reads(json: JsValue): JsResult[Map[String, Vector[BeamFareRule]]] = {
         JsSuccess(
-          json.as[JsObject].value.map { case (k, v) =>
-            k -> v.as[Vector[BeamFareRule]]
-          }.toMap
+          json
+            .as[JsObject]
+            .value
+            .map { case (k, v) =>
+              k -> v.as[Vector[BeamFareRule]]
+            }
+            .toMap
         )
       }
 
