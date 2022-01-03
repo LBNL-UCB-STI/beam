@@ -5,11 +5,9 @@ import java.nio.file.{Files, Path, Paths}
 import java.util
 import java.util.Collections
 import javax.inject.Inject
-
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scala.util.control.NonFatal
-
 import beam.router.model.BeamPath
 import beam.router.osm.TollCalculator.Toll
 import beam.sim.common.Range
@@ -20,6 +18,8 @@ import com.google.common.collect.Maps
 import com.typesafe.scalalogging.LazyLogging
 import gnu.trove.map.hash.TIntObjectHashMap
 import org.apache.commons.collections4.MapUtils
+import play.api.libs.json.Json.JsValueWrapper
+import play.api.libs.json.{Format, JsObject, JsResult, JsSuccess, JsValue, Json, OFormat}
 
 class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
   import beam.utils.FileUtils._
@@ -93,13 +93,19 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
     val cacheFile = dataDirectory.resolve("tolls.dat").toFile
     val chachedWays = if (cacheFile.exists()) {
       try {
-        using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
-          Some(stream.readObject().asInstanceOf[java.util.Map[Long, Array[Toll]]])
-        }
+        Some(Json.parse(new FileInputStream(cacheFile)).as[util.Map[Long, Array[Toll]]])
       } catch {
-        case NonFatal(ex) =>
-          logger.warn(s"Could not read cached data from '${cacheFile.getAbsolutePath}. Going to re-create cache", ex)
-          Some(readFromDatAndCreateCache(cacheFile))
+        case ex =>
+          logger.warn(s"Could not deserialize cached Toll file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization...")
+          try {
+            using(new ObjectInputStream(new FileInputStream(cacheFile))) { stream =>
+              Some(stream.readObject().asInstanceOf[java.util.Map[Long, Array[Toll]]])
+            }
+          } catch {
+            case NonFatal(ex) =>
+              logger.warn(s"Could not deserialize cached Toll file from ${cacheFile.getAbsolutePath} using Java. Going to re-create cache", ex)
+              Some(readFromDatAndCreateCache(cacheFile))
+          }
       }
     } else None
     chachedWays.getOrElse(readFromDatAndCreateCache(cacheFile))
@@ -168,5 +174,27 @@ class TollCalculator @Inject() (val config: BeamConfig) extends LazyLogging {
 }
 
 object TollCalculator {
+  implicit val rangeFormat = Json.format[beam.sim.common.Range]
+  implicit val beamTollFormat: OFormat[Toll] = Json.format[Toll]
+  implicit val beamTollMapFormat: Format[util.Map[Long, Array[Toll]]] = new Format[java.util.Map[Long, Array[Toll]]] {
+    override def reads(json: JsValue): JsResult[java.util.Map[Long, Array[Toll]]] = {
+      JsSuccess(
+        json.as[JsObject].value.map{
+          case (k, v) => k.toLong -> v.as[Array[Toll]]
+        }.asJava
+      )
+    }
+
+    override def writes(beamTollMap: java.util.Map[Long, Array[Toll]]): JsValue = {
+      Json.obj(
+        beamTollMap.asScala.map{
+          case (wayId, tolls) =>
+            val x: (String, JsValueWrapper) = wayId.toString -> Json.toJson(tolls)
+            x
+        }.toSeq: _*
+      )
+    }
+  }
+
   case class Toll(amount: Double, timeRange: Range) extends Serializable
 }
