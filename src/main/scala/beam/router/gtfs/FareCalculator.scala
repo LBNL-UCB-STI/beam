@@ -34,7 +34,7 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyL
               .readObject()
               .asInstanceOf[Map[String, Vector[BeamFareRule]]]
           } catch {
-            case ex: InvalidClassException =>
+            case ex: Throwable =>
               logger.error(
                 s"Could not deserialize cached Beam Fare file from $cacheFile using Java - returning an empty Map. Exception is $ex"
               )
