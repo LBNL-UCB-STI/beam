@@ -223,86 +223,18 @@ trait ChoosesParking extends {
         )
         goto(WaitingToDrive) using data
       } else {
-        // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
-        import context.dispatcher
-        val currentPoint = nextLeg.travelPath.startPoint
-        val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
-        val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
-        val finalPoint = nextLeg.travelPath.endPoint
-
-        val streetVehicle = currentBeamVehicle.toStreetVehicle
-        // get route from customer to stall, add body for backup in case car route fails
-        val carStreetVeh =
-          StreetVehicle(
-            currentBeamVehicle.id,
-            currentBeamVehicle.beamVehicleType.id,
-            currentPointUTM,
-            streetVehicle.mode,
-            asDriver = true,
-            streetVehicle.needsToCalculateCost
-          )
-        val bodyStreetVeh =
-          StreetVehicle(
-            body.id,
-            body.beamVehicleType.id,
-            currentPointUTM,
-            WALK,
-            asDriver = true,
-            needsToCalculateCost = false
-          )
-        val veh2StallRequest = RoutingRequest(
-          currentLocUTM,
-          stall.locationUTM,
-          currentPoint.time,
-          withTransit = false,
-          Some(id),
-          Vector(carStreetVeh, bodyStreetVeh),
-          Some(attributes),
-          triggerId = getCurrentTriggerIdOrGenerate
-        )
-        val futureVehicle2StallResponse = router ? veh2StallRequest
-
-        val isEnroute = data match { case data: BasePersonData => data.enrouteData.isInEnrouteState; case _ => false }
-        val hasChargingPointAndIsFastCharger = chargingPointMaybe.exists(ChargingPointType.isFastCharger)
-
-        val carIfEnroute = if (isEnroute && hasChargingPointAndIsFastCharger) {
-          currentBeamVehicle.setReservedParkingStall(Some(stall))
-          // get car route from stall to destination, TODO note we give a dummy start time and update later based on drive time to stall
-          Vector(
-            StreetVehicle(
-              currentBeamVehicle.id,
-              currentBeamVehicle.beamVehicleType.id,
-              SpaceTime(stall.locationUTM, currentPoint.time),
-              streetVehicle.mode,
-              asDriver = true,
-              streetVehicle.needsToCalculateCost
-            )
-          )
-        } else Vector()
-
-        // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
-        val bodyStreetVehToDest = StreetVehicle(
-          body.id,
-          body.beamVehicleType.id,
-          SpaceTime(stall.locationUTM, currentPoint.time),
-          WALK,
-          asDriver = true,
-          needsToCalculateCost = false
-        )
-
-        val futureStall2DestinationResponse = router ? RoutingRequest(
-          stall.locationUTM,
-          beamServices.geo.wgs2Utm(finalPoint.loc),
-          currentPoint.time,
-          withTransit = false,
-          Some(id),
-          carIfEnroute :+ bodyStreetVehToDest,
-          Some(attributes),
-          triggerId = getCurrentTriggerIdOrGenerate
-        )
-
-        data match {
-          case data: BasePersonData if data.enrouteData.isInEnrouteState && !hasChargingPointAndIsFastCharger =>
+        val (updatedData, isEnrouting) = data match {
+          case data: BasePersonData if data.enrouteData.isInEnrouteState =>
+            val updatedEnrouteData =
+              data.enrouteData.copy(hasReservedFastChargerStall =
+                chargingPointMaybe.exists(ChargingPointType.isFastCharger)
+              )
+            (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
+          case _ =>
+            (data, false)
+        }
+        updatedData match {
+          case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
             // continue normal workflow if enroute is not possible
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(
@@ -312,12 +244,81 @@ trait ChoosesParking extends {
             handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
             goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
           case _ =>
+            // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
+            import context.dispatcher
+            val currentPoint = nextLeg.travelPath.startPoint
+            val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
+            val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
+            val finalPoint = nextLeg.travelPath.endPoint
+            val streetVehicle = currentBeamVehicle.toStreetVehicle
+            // get route from customer to stall, add body for backup in case car route fails
+            val carStreetVeh =
+              StreetVehicle(
+                currentBeamVehicle.id,
+                currentBeamVehicle.beamVehicleType.id,
+                currentPointUTM,
+                streetVehicle.mode,
+                asDriver = true,
+                streetVehicle.needsToCalculateCost
+              )
+            val bodyStreetVeh =
+              StreetVehicle(
+                body.id,
+                body.beamVehicleType.id,
+                currentPointUTM,
+                WALK,
+                asDriver = true,
+                needsToCalculateCost = false
+              )
+            val veh2StallRequest = RoutingRequest(
+              currentLocUTM,
+              stall.locationUTM,
+              currentPoint.time,
+              withTransit = false,
+              Some(id),
+              Vector(carStreetVeh, bodyStreetVeh),
+              Some(attributes),
+              triggerId = getCurrentTriggerIdOrGenerate
+            )
+            val futureVehicle2StallResponse = router ? veh2StallRequest
+            val carIfEnroute = if (isEnrouting) {
+              // get car route from stall to destination
+              Vector(
+                StreetVehicle(
+                  currentBeamVehicle.id,
+                  currentBeamVehicle.beamVehicleType.id,
+                  SpaceTime(stall.locationUTM, currentPoint.time),
+                  streetVehicle.mode,
+                  asDriver = true,
+                  streetVehicle.needsToCalculateCost
+                )
+              )
+            } else Vector()
+            // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
+            val bodyStreetVehToDest = StreetVehicle(
+              body.id,
+              body.beamVehicleType.id,
+              SpaceTime(stall.locationUTM, currentPoint.time),
+              WALK,
+              asDriver = true,
+              needsToCalculateCost = false
+            )
+            val futureStall2DestinationResponse = router ? RoutingRequest(
+              stall.locationUTM,
+              beamServices.geo.wgs2Utm(finalPoint.loc),
+              currentPoint.time,
+              withTransit = false,
+              Some(id),
+              carIfEnroute :+ bodyStreetVehToDest,
+              Some(attributes),
+              triggerId = getCurrentTriggerIdOrGenerate
+            )
             val responses = for {
               vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
               stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
             } yield (vehicle2StallResponse, stall2DestinationResponse)
             responses pipeTo self
-            stay using data
+            stay using updatedData
         }
       }
 
@@ -325,7 +326,7 @@ trait ChoosesParking extends {
     case Event(
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
           data: BasePersonData
-        ) if data.enrouteData.isInEnrouteState =>
+        ) if data.enrouteData.isEnrouting =>
       // find car leg and split it for parking
       def createCarLegs(legs: IndexedSeq[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
         legs
