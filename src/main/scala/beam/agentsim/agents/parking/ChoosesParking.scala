@@ -103,7 +103,7 @@ trait ChoosesParking extends {
     val remainingTripData = calculateRemainingTripData(data)
     val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
-    if (data.enrouteState.isEnroute) {
+    if (data.enrouteData.isInEnrouteState) {
       // enroute means actual travelling has not started yet,
       // so vehicle can be found in first leg of rest of the trip.
       val vehicle = beamVehicles(firstLeg.beamVehicleId).vehicle
@@ -262,7 +262,7 @@ trait ChoosesParking extends {
         )
         val futureVehicle2StallResponse = router ? veh2StallRequest
 
-        val isEnroute = data match { case data: BasePersonData => data.enrouteState.isEnroute; case _ => false }
+        val isEnroute = data match { case data: BasePersonData => data.enrouteData.isInEnrouteState; case _ => false }
         val hasChargingPointAndIsFastCharger = chargingPointMaybe.exists(ChargingPointType.isFastCharger)
 
         val carIfEnroute = if (isEnroute && hasChargingPointAndIsFastCharger) {
@@ -302,7 +302,7 @@ trait ChoosesParking extends {
         )
 
         data match {
-          case data: BasePersonData if data.enrouteState.isEnroute && !hasChargingPointAndIsFastCharger =>
+          case data: BasePersonData if data.enrouteData.isInEnrouteState && !hasChargingPointAndIsFastCharger =>
             // continue normal workflow if enroute is not possible
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(
@@ -310,7 +310,7 @@ trait ChoosesParking extends {
               Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
             )
             handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
-            goto(WaitingToDrive) using data.copy(enrouteState = EnrouteState())
+            goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
           case _ =>
             val responses = for {
               vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
@@ -325,7 +325,7 @@ trait ChoosesParking extends {
     case Event(
           (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
           data: BasePersonData
-        ) if data.enrouteState.isEnroute =>
+        ) if data.enrouteData.isInEnrouteState =>
       // find car leg and split it for parking
       def createCarLegs(legs: IndexedSeq[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
         legs
@@ -371,7 +371,7 @@ trait ChoosesParking extends {
         restOfCurrentTrip = newRestOfTrip.toList,
         passengerSchedule = newPassengerSchedule,
         currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
-        enrouteState = data.enrouteState.copy(stall2DestLegs = stall2DestinationCarLegs)
+        enrouteData = data.enrouteData.copy(stall2DestLegs = stall2DestinationCarLegs)
       )
 
     case Event(

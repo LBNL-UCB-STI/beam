@@ -979,7 +979,7 @@ class RideHailAgent(
       stay
     case ev @ Event(UnpluggingVehicle(tick, energyCharged, triggerId), _) =>
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      log.debug("state(RideHailingAgent.Refueling.UnpluggingVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, energyCharged, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {

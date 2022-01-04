@@ -42,7 +42,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.{immutable, mutable}
+import scala.collection.mutable
 import scala.language.postfixOps
 
 /**
@@ -336,10 +336,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       eventsManager.processEvent(pte)
       generateTCSEventIfPossible(pte)
 
-      val isEnroute = data match { case data: BasePersonData => data.enrouteState.isEnroute; case _ => false }
+      val isInEnrouteState = data match {
+        case data: BasePersonData => data.enrouteData.isInEnrouteState; case _ => false
+      }
       if (!isLastLeg) {
         // we don't want to choose parking stall if vehicle is in enroute
-        if (data.hasParkingBehaviors && !isEnroute) {
+        if (data.hasParkingBehaviors && !isInEnrouteState) {
           holdTickAndTriggerId(tick, triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ReadyToChooseParking")
           goto(ReadyToChooseParking) using data
@@ -398,7 +400,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ConnectingToChargingPoint")
           // `EnrouteRefueling` handles recharging and resetting state to original destination
           // `ConnectingToChargingPoint` parks vehicle upon reaching destination
-          if (isEnroute) {
+          if (isInEnrouteState) {
             goto(EnrouteRefueling) using data.asInstanceOf[T]
           } else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {

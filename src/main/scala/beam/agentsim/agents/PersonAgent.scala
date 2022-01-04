@@ -156,10 +156,13 @@ object PersonAgent {
     * @param isEnroute      flag to indicate whether agent is enrouting or not
     * @param stall2DestLegs car legs from enroute charging stall to original destination
     */
-  case class EnrouteState(
-    isEnroute: Boolean = false,
+  case class EnrouteData(
+    isInEnrouteState: Boolean = false,
+    hasReservedFastChargerStall: Boolean = false,
     stall2DestLegs: Vector[EmbodiedBeamLeg] = Vector()
-  )
+  ) {
+    def isEnrouting: Boolean = isInEnrouteState && hasReservedFastChargerStall
+  }
 
   case class BasePersonData(
     currentActivityIndex: Int = 0,
@@ -174,7 +177,7 @@ object PersonAgent {
     currentTripCosts: Double = 0.0,
     numberOfReplanningAttempts: Int = 0,
     lastUsedParkingStall: Option[ParkingStall] = None,
-    enrouteState: EnrouteState = EnrouteState()
+    enrouteData: EnrouteData = EnrouteData()
   ) extends PersonData {
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
@@ -344,7 +347,7 @@ class PersonAgent(
     // if enroute then trip is not started yet, pick vehicle id of next leg (head of rest of the trip)
     // else the vehicle information is available in `currentVehicle`
     val vehicleId =
-      if (personData.enrouteState.isEnroute) personData.restOfCurrentTrip.head.beamVehicleId
+      if (personData.enrouteData.isInEnrouteState) personData.restOfCurrentTrip.head.beamVehicleId
       else personData.currentVehicle.head
 
     val currentBeamVehicle = beamVehicles(vehicleId).vehicle
@@ -510,7 +513,7 @@ class PersonAgent(
                 data.currentTourMode.orElse(modeOfNextLeg)
             },
             numberOfReplanningAttempts = 0,
-            enrouteState = EnrouteState() // TODO remove?
+            enrouteData = EnrouteData()
           ),
           SpaceTime(currentActivity(data).getCoord, _currentTick.get)
         )
@@ -792,11 +795,11 @@ class PersonAgent(
             _,
             currentCost,
             _,
-            enrouteStates
+            enrouteData
           )
         ) =>
       // do not travel the "head" leg if on enroute charging
-      val (trip, cost) = if (enrouteStates.isEnroute) {
+      val (trip, cost) = if (enrouteData.isInEnrouteState) {
         log.debug("ReadyToChooseParking, enroute trip: {}", restOfCurrentTrip.toString())
         (restOfCurrentTrip, currentCost.toDouble)
       } else {
@@ -839,7 +842,7 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(tick, triggerId), _) =>
+    case Event(StartingRefuelSession(_, triggerId), _) =>
       releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
@@ -849,13 +852,11 @@ class PersonAgent(
     case Event(WaitingToCharge(_, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
-      if (currentBeamVehicle.stall.isDefined) {
-        chargingNetworkManager ! ChargingUnplugRequest(
-          tick,
-          currentBeamVehicle,
-          triggerId
-        )
-      }
+      chargingNetworkManager ! ChargingUnplugRequest(
+        tick,
+        currentBeamVehicle,
+        triggerId
+      )
       stay
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
@@ -872,7 +873,7 @@ class PersonAgent(
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
-      log.debug(
+      log.warning(
         s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
@@ -900,7 +901,7 @@ class PersonAgent(
     // append walk legs around them, update start time and make legs consistent
     // unset reserved charging stall
     // unset enroute state, and update `data` with new legs
-    val stall2DestinationCarLegs = data.enrouteState.stall2DestLegs
+    val stall2DestinationCarLegs = data.enrouteData.stall2DestLegs
     val walkTemp = data.currentTrip.head.legs.head
     val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
     val walk4 = data.currentTrip.head.legs.last
@@ -912,7 +913,7 @@ class PersonAgent(
       data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
-        enrouteState = EnrouteState()
+        enrouteData = EnrouteData()
       )
     )
   }
@@ -970,7 +971,7 @@ class PersonAgent(
         val firstLeg = data.restOfCurrentTrip.head
         val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
         val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
-        // TODO calculate distance to cross before enroute charging
+        // Calculating distance to cross before enroute charging
         val refuelRequiredThresholdInMeters = totalDistance
         val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdInMeters
         val asDriver = data.restOfCurrentTrip.head.asDriver
@@ -1011,7 +1012,7 @@ class PersonAgent(
         // decide whether we need to complete the trigger, start a leg or both
         val updatedData = stateToGo match {
           case ReadyToChooseParking =>
-            copiedData.copy(enrouteState = copiedData.enrouteState.copy(isEnroute = true))
+            copiedData.copy(enrouteData = copiedData.enrouteData.copy(isInEnrouteState = true))
           case ReleasingParkingSpot =>
             sendCompletionNoticeAndScheduleStartLegTrigger()
             copiedData
