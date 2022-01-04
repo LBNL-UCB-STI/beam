@@ -982,13 +982,6 @@ class PersonAgent(
           .vehicle
           .isSharedVehicle
 
-        // decide next state to go
-        val stateToGo = {
-          if (needEnroute) ReadyToChooseParking
-          else if (nextLeg.beamLeg.mode == CAR || isSharedVehicle) ReleasingParkingSpot
-          else WaitingToDrive
-        }
-
         val copiedData = data.copy(
           passengerSchedule = newPassengerSchedule,
           currentLegPassengerScheduleIndex = 0,
@@ -1004,17 +997,18 @@ class PersonAgent(
           )
         }
 
-        // decide whether we need to complete the trigger, start a leg or both
-        val updatedData = stateToGo match {
-          case ReadyToChooseParking =>
-            copiedData.copy(enrouteData = copiedData.enrouteData.copy(isInEnrouteState = true))
-          case ReleasingParkingSpot =>
+        // decide next state to go, whether we need to complete the trigger, start a leg or both
+        val (stateToGo, updatedData) = {
+          if (needEnroute) {
+            (ReadyToChooseParking, copiedData.copy(enrouteData = copiedData.enrouteData.copy(isInEnrouteState = true)))
+          } else if (nextLeg.beamLeg.mode == CAR || isSharedVehicle) {
             sendCompletionNoticeAndScheduleStartLegTrigger()
-            copiedData
-          case WaitingToDrive =>
+            (ReleasingParkingSpot, copiedData)
+          } else {
             sendCompletionNoticeAndScheduleStartLegTrigger()
             releaseTickAndTriggerId()
-            copiedData
+            (WaitingToDrive, copiedData)
+          }
         }
 
         // complete trigger only if following conditions match
