@@ -216,10 +216,10 @@ trait ChoosesParking extends {
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
       if (distance <= distanceThresholdToIgnoreWalking) {
-        val (tick, triggerId) = releaseTickAndTriggerId()
+        val (_, triggerId) = releaseTickAndTriggerId()
         scheduler ! CompletionNotice(
           triggerId,
-          Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg), self))
+          Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
         )
         goto(WaitingToDrive) using data
       } else {

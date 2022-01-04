@@ -195,7 +195,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
   var latestObservedTick: Int = 0
 
-  private def beamConfig: BeamConfig = BeamConfigChangesObservable.lastBeamConfig
+  private def beamConfig: BeamConfig = beamServices.beamConfig
 
   case class PassengerScheduleEmptyMessage(
     lastVisited: SpaceTime,

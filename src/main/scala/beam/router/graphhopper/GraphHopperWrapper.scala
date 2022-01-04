@@ -25,7 +25,8 @@ import scala.collection.JavaConverters._
 abstract class GraphHopperWrapper(
   graphDir: String,
   geo: GeoUtils,
-  id2Link: Map[Int, (Coord, Coord)]
+  id2Link: Map[Int, (Coord, Coord)],
+  useAlternativeRoutes: Boolean
 ) extends Router {
 
   protected val beamMode: BeamMode
@@ -62,6 +63,9 @@ abstract class GraphHopperWrapper(
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
+    if (useAlternativeRoutes) {
+      request.setAlgorithm(Parameters.Algorithms.ALT_ROUTE)
+    }
     prepareRequest(request)
 
     val response = graphHopper.route(request)
@@ -172,7 +176,8 @@ abstract class GraphHopperWrapper(
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("GH")
         )
       )
     } catch {

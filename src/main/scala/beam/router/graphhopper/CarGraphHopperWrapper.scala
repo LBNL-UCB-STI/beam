@@ -22,8 +22,9 @@ class CarGraphHopperWrapper(
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   fuelTypePrices: FuelTypePrices,
   wayId2TravelTime: Map[Long, Double],
-  id2Link: Map[Int, (Coord, Coord)]
-) extends GraphHopperWrapper(graphDir, geo, id2Link) {
+  id2Link: Map[Int, (Coord, Coord)],
+  useAlternativeRoutes: Boolean
+) extends GraphHopperWrapper(graphDir, geo, id2Link, useAlternativeRoutes) {
 
   override protected val beamMode: Modes.BeamMode = BeamMode.CAR
 
