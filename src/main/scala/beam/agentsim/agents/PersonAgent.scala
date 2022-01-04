@@ -231,8 +231,6 @@ object PersonAgent {
 
   case object EnrouteRefueling extends Traveling
 
-  case class EnrouteRefuelingTrigger(tick: Int) extends Trigger
-
   def correctTripEndTime(
     trip: EmbodiedBeamTrip,
     endTime: Int,
@@ -846,9 +844,6 @@ class PersonAgent(
       releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
-    case Event(TriggerWithId(EnrouteRefuelingTrigger(tick), triggerId), _) =>
-      chargingNetworkManager ! ChargingUnplugRequest(tick, currentBeamVehicle, triggerId)
-      stay replying CompletionNotice(triggerId)
     case Event(WaitingToCharge(_, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
@@ -1377,9 +1372,6 @@ class PersonAgent(
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
       scheduler ! CompletionNotice(triggerId)
       stay()
-    case ev @ Event(TriggerWithId(EnrouteRefuelingTrigger(_), triggerId), _) =>
-      log.debug("myUnhandled.EnrouteRefuelingTrigger: {}", ev)
-      stay() replying CompletionNotice(triggerId)
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)
       stay()

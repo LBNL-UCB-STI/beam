@@ -25,7 +25,6 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.population.routes.NetworkRoute
