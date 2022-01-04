@@ -35,7 +35,7 @@ object CsvPersonInfoReader extends PersonInfoReader {
       householdId = HouseholdId(householdId),
       rank = rank,
       age = age,
-      excludedModes = excludedModes,
+      excludedModes = excludedModes.toSeq,
       isFemale = isFemale,
       valueOfTime = valueOfTime
     )

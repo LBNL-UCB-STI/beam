@@ -56,7 +56,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Path, Paths}
 import java.util.Collections
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -319,7 +319,7 @@ class BeamSim @Inject() (
         geoClustering,
         abstractSkimmer,
         new FreeFlowTravelTime,
-        Array(BeamMode.WALK),
+        IndexedSeq(BeamMode.WALK),
         withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
         buildDirectWalkRoute = backgroundODSkimsCreatorConfig.modesToBuild.walk,
         buildDirectCarRoute = false,
@@ -561,7 +561,7 @@ class BeamSim @Inject() (
           val event = new ShutdownEvent(beamServices.matsimServices, false)
           // Create files
           listener.notifyShutdown(event)
-          dumpHouseholdAttributes
+          dumpHouseholdAttributes()
 
         case _ => logger.warn(s"dumper is not `ShutdownListener` - $dumper")
       }
@@ -636,7 +636,7 @@ class BeamSim @Inject() (
 
     if (rootFilesName.nonEmpty) {
       val rootFiles = for {
-        fileName <- rootFilesName.split(",")
+        fileName <- rootFilesName.split(",").toSeq
       } yield Paths.get(beamServices.matsimServices.getControlerIO.getOutputFilename(fileName))
       tryDelete("root files: ", rootFiles)
     }
@@ -646,7 +646,7 @@ class BeamSim @Inject() (
         fileName        <- iterationFilesName.split(",")
         iterationNumber <- 0 to lastIterationNumber
       } yield Paths.get(beamServices.matsimServices.getControlerIO.getIterationFilename(iterationNumber, fileName))
-      tryDelete("iteration files: ", iterationFiles)
+      tryDelete("iteration files: ", iterationFiles.toSeq)
     }
   }
 
@@ -814,7 +814,7 @@ class BeamSim @Inject() (
           skimCreator.ODs,
           abstractSkimmer,
           currentTravelTime,
-          Array(BeamMode.CAR, BeamMode.WALK),
+          Seq(BeamMode.CAR, BeamMode.WALK),
           withTransit = backgroundODSkimsCreatorConfig.modesToBuild.transit,
           buildDirectWalkRoute = false,
           buildDirectCarRoute = backgroundODSkimsCreatorConfig.modesToBuild.drive,

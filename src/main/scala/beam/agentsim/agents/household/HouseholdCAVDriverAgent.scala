@@ -48,7 +48,7 @@ class HouseholdCAVDriverAgent(
       stash()
       stay()
     case Event(Finish, _) =>
-      stop
+      stop()
   }
   onTransition { case _ -> _ =>
     unstashAll()
@@ -106,7 +106,7 @@ class HouseholdCAVDriverAgent(
 
     case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
       scheduler ! CompletionNotice(triggerId)
-      stop
+      stop()
   }
 
   override def logPrefix(): String = s"$id "

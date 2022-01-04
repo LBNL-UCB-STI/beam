@@ -38,7 +38,8 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 class PersonAgentSpec
     extends AnyFunSpecLike
@@ -160,7 +161,7 @@ class PersonAgentSpec
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
@@ -373,7 +374,7 @@ class PersonAgentSpec
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,
@@ -656,7 +657,7 @@ class PersonAgentSpec
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
           beamConfig,

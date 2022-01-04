@@ -28,7 +28,9 @@ object TotalHouseholdsTableReader {
 
     override def iterator: Iterator[(String, Int)] = map.iterator
 
-    override def -(key: String): Map[String, Int] = map.-(key)
+    override def removed(key: String): Map[String, Int] = map.removed(key)
+
+    override def updated[V1 >: Int](key: String, value: V1): Map[String, V1] = map.updated(key, value)
   }
 
   def main(args: Array[String]): Unit = {

@@ -10,7 +10,7 @@ import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 

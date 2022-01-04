@@ -19,8 +19,8 @@ case class SigoptExperimentData(
 
   val baseConfig: Config =
     ConfigFactory
-      .parseFile(Paths.get(experimentDef.getHeader.getBeamTemplateConfPath).toFile)
-      .withFallback(ConfigFactory.parseString(s"config=${experimentDef.getHeader.getBeamTemplateConfPath}"))
+      .parseFile(Paths.get(experimentDef.getHeader().getBeamTemplateConfPath()).toFile)
+      .withFallback(ConfigFactory.parseString(s"config=${experimentDef.getHeader().getBeamTemplateConfPath()}"))
 
   // Always default to single JVM if incorrect entry
   val numWorkers: Int = Try {

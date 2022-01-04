@@ -30,7 +30,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
     RoutingModel
       .traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime)
-      .toStream should contain theSameElementsAs Vector(
+      .to(LazyList) should contain theSameElementsAs Vector(
       new LinkLeaveEvent(0.0, Id.createVehicleId(13), Id.createLinkId(1)),
       new LinkEnterEvent(0.0, Id.createVehicleId(13), Id.createLinkId(2)),
       new LinkLeaveEvent(1000.0, Id.createVehicleId(13), Id.createLinkId(2)),
@@ -60,7 +60,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
     RoutingModel
       .traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, conditionalTravelTime)
-      .toStream should contain theSameElementsAs Vector(
+      .to(LazyList) should contain theSameElementsAs Vector(
       new LinkLeaveEvent(0.0, Id.createVehicleId(13), Id.createLinkId(1)),
       new LinkEnterEvent(0.0, Id.createVehicleId(13), Id.createLinkId(2)),
       new LinkLeaveEvent(1000.0, Id.createVehicleId(13), Id.createLinkId(2)),
@@ -88,7 +88,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
     RoutingModel
       .traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime)
-      .toStream should contain theSameElementsAs Vector(
+      .to(LazyList) should contain theSameElementsAs Vector(
       new LinkLeaveEvent(0.0, Id.createVehicleId(13), Id.createLinkId(1)),
       new LinkEnterEvent(0.0, Id.createVehicleId(13), Id.createLinkId(2))
     )
@@ -105,9 +105,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
     RoutingModel
       .traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime)
-      .toStream should be(
-      'empty
-    )
+      .to(LazyList) should be(Symbol("empty"))
   }
 
   it should "produce an empty sequence of link events from a car leg which is empty" in {
@@ -121,8 +119,8 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
     )
     RoutingModel
       .traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime)
-      .toStream should be(
-      'empty
+      .to(LazyList) should be(
+      Symbol("empty")
     )
   }
 
@@ -135,8 +133,8 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
       cost = 0,
       unbecomeDriverOnCompletion = true
     )
-    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime).toStream should be(
-      'empty
+    RoutingModel.traverseStreetLeg(leg.beamLeg, leg.beamVehicleId, defaultTravelTime).to(LazyList) should be(
+      Symbol("empty")
     )
   }
 

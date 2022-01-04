@@ -1,13 +1,11 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.RideHailMatching._
-import beam.router.Modes.BeamMode
-import beam.router.skim.SkimsUtils
 import beam.sim.BeamServices
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -61,8 +59,8 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
           val t = RideHailTrip(List(r), schedule, Some(v))
           finalRequestsList append t
           if (!vertices.contains(v)) vertices append v
-          vertices append (r, t)
-          edges append ((r, t), (t, v))
+          vertices appendAll (Seq(r, t))
+          edges appendAll Seq((r, t), (t, v))
         }
     )
     if (finalRequestsList.nonEmpty) {

@@ -82,7 +82,7 @@ object ZipViaEventsFiles extends App {
 
       def getReader(filePath: String): (Iterator[String], () => Unit) = {
         val source = Source fromFile filePath
-        (source.getLines, () => source.close())
+        (source.getLines(), () => source.close())
       }
 
       val (file1Iterator, file1Close) = getReader(filePath1)

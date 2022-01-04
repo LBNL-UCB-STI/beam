@@ -10,7 +10,7 @@ import org.opengis.referencing.operation.MathTransform
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters._
 
 class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
   "Network2ShapeFile transformation" should {

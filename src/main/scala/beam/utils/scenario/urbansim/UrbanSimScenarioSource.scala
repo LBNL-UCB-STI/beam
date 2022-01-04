@@ -13,6 +13,7 @@ import beam.utils.{FileUtils, ProfilingUtils}
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.parallel.immutable.ParMap
+import scala.collection.parallel.CollectionConverters._
 
 class UrbanSimScenarioSource(
   val scenarioSrc: String,
@@ -37,7 +38,7 @@ class UrbanSimScenarioSource(
         householdId = HouseholdId(person.householdId),
         rank = person.rank,
         age = person.age,
-        excludedModes = person.excludedModes.split(","),
+        excludedModes = person.excludedModes.split(",").toSeq,
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime
       )
@@ -164,7 +165,7 @@ class UrbanSimScenarioSource(
         val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
         !isCorrupted
       }
-      .flatMap { case (_, v) => v.sortBy(x => x.planElementIndex) }
+      .flatMap[DataExchange.PlanElement] { case (_, v) => v.sortBy(x => x.planElementIndex) }
       .toArray
     correctPlanElements
   }

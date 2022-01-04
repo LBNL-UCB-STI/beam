@@ -20,6 +20,6 @@ trait BeamVehicleAfterUseFuelHook {
     eventsManager: EventsManager,
     eventBuilder: ActorRef,
     beamVehicle: BeamVehicle
-  )
+  ): Unit
 
 }

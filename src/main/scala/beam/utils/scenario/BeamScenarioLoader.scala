@@ -9,7 +9,7 @@ import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
@@ -19,7 +19,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class BeamScenarioLoader(
@@ -80,7 +80,7 @@ class BeamScenarioLoader(
 
     beamScenario.privateVehicles.clear()
     vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
+      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt()))
       .foreach(v => beamScenario.privateVehicles.put(v.id, v))
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)

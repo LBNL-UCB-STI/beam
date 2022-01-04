@@ -3,6 +3,7 @@ package beam.agentsim.infrastructure.geozone.aggregation
 import java.nio.file.Path
 
 import scala.collection.parallel.ParSet
+import scala.collection.parallel.CollectionConverters._
 
 import beam.agentsim.infrastructure.geozone.{H3Index, H3Wrapper, WgsCoordinate}
 

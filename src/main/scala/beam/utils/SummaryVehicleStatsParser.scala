@@ -2,6 +2,7 @@ package beam.utils
 
 import scala.collection.immutable.HashSet
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object SummaryVehicleStatsParser {
 
@@ -44,7 +45,7 @@ object SummaryVehicleStatsParser {
         accumulator
       }
 
-    val processed = selectedStats
+    val processed: Map[String, ArrayBuffer[Double]] = selectedStats
       .foldLeft(mutable.Map.empty[String, mutable.ArrayBuffer[Double]]) {
         case (vehicleStatsRecords, ParsedState(_, vehicleType, statValue, statValueIdx)) =>
           vehicleStatsRecords.get(vehicleType) match {
@@ -60,6 +61,6 @@ object SummaryVehicleStatsParser {
       }
       .toMap
 
-    (ignoredStats, processed)
+    (ignoredStats.toSeq, processed.view.mapValues(_.toIndexedSeq).toMap)
   }
 }

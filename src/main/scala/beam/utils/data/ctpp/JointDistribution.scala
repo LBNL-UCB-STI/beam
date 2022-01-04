@@ -7,7 +7,7 @@ import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.util.{Pair => CPair}
 
 import java.util.{Map => JavaMap}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object JointDistribution extends GenericCsvReader {

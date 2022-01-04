@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class ModeIterationPlanCleaner @Inject() (config: BeamConfig, scenario: Scenario) extends LazyLogging {
 

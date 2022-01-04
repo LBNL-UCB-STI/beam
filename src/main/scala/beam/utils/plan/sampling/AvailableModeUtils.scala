@@ -2,7 +2,7 @@ package beam.utils.plan.sampling
 
 import java.util
 
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters._
 
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
@@ -22,7 +22,7 @@ object AvailableModeUtils extends LazyLogging {
   object AllowAllModes extends PermissibleModesCalculator {
 
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
-      JavaConverters.asJavaCollection(BeamMode.allModes.map(_.toString))
+      BeamMode.allModes.map(_.toString).asJava
     }
   }
 

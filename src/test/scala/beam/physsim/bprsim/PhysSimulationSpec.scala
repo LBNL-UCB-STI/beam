@@ -24,11 +24,10 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -58,7 +57,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new JDEQSimulation(jdeqConfig, scenario, eventManager)
       sim.run()
-      validateEvents(eventBuffer.buffer)
+      validateEvents(eventBuffer.buffer.toSeq)
     }
   }
 
@@ -77,7 +76,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new BPRSimulation(scenario, bprConfig, eventManager)
       sim.run()
-      validateEvents(eventBuffer.buffer)
+      validateEvents(eventBuffer.buffer.toSeq)
     }
   }
 
@@ -96,7 +95,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
       val (eventManager: EventsManagerImpl, eventBuffer: BufferEventHandler) = createEventManager
       val sim = new ParallelBPRSimulation(scenario, bprConfig, eventManager, 42)
       sim.run()
-      validateEvents(eventBuffer.buffer)
+      validateEvents(eventBuffer.buffer.toSeq)
     }
   }
 
@@ -111,9 +110,9 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
       case event: HasPersonId if event.getPersonId == person10 => event
     }
     person10Events.size should be(22)
-    person10Events(0) should be(an[ActivityEndEvent])
-    person10Events(0).getTime should be(25247.0 +- 0.0001)
-    person10Events(0).asInstanceOf[ActivityEndEvent].getLinkId should be(Id.createLinkId(228))
+    person10Events.head should be(an[ActivityEndEvent])
+    person10Events.head.getTime should be(25247.0 +- 0.0001)
+    person10Events.head.asInstanceOf[ActivityEndEvent].getLinkId should be(Id.createLinkId(228))
     person10Events(12) should be(an[PersonDepartureEvent])
     person10Events(12).getTime should be(72007.0 +- 0.0001)
     person10Events(12).asInstanceOf[PersonDepartureEvent].getLinkId should be(Id.createLinkId(34))

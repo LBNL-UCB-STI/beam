@@ -3,7 +3,6 @@ package beam.calibration
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
 
-import beam.analysis.plots.GraphsStatsAgentSimEventsListener
 import beam.calibration.impl.example.{
   CountsObjectiveFunction,
   ErrorComparisonType,
@@ -17,7 +16,8 @@ import com.typesafe.config.{Config, ConfigValueFactory}
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 object ObjectiveFunctionClassBuilder extends ReflectionUtils {
   override def packageName: String = "beam.calibration"
@@ -160,12 +160,11 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
 
     val suggestionId: String = suggestion.getId
 
-    val configParams: mutable.Map[String, Object] = JavaConverters.mapAsScalaMap(
-      experimentData.experimentDef.defaultParams
-    ) ++
-      JavaConverters
-        .iterableAsScalaIterable(assignments.entrySet())
-        .seq
+    val configParams: mutable.Map[String, Object] =
+      experimentData.experimentDef.defaultParams.asScala ++
+      assignments
+        .entrySet()
+        .asScala
         .map { e =>
           e.getKey -> e.getValue
         }

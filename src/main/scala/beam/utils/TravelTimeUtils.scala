@@ -14,7 +14,7 @@ object TravelTimeUtils {
         val delta = newTravelTime - newLinkTravelTimes.sum
         val newLast = newLinkTravelTimes.last + delta
         newLinkTravelTimes.update(newLinkTravelTimes.length - 1, newLast)
-        newLinkTravelTimes
+        newLinkTravelTimes.toIndexedSeq
       } else {
         linkTravelTime
       }

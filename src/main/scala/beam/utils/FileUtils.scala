@@ -389,7 +389,7 @@ object FileUtils extends LazyLogging {
     * @tparam M the container type
     * @return all the loaded records as an Iterable
     */
-  def flatParRead[X, M[X] <: TraversableOnce[X]](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
+  def flatParRead[X, M[X] <: IterableOnce[X]](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
     loader: (Path, BufferedReader) => M[X]
   ): Iterable[X] =
     parRead(dir, fileNamePattern, atMost) { (path: Path, reader: BufferedReader) =>
@@ -409,7 +409,7 @@ object FileUtils extends LazyLogging {
   def parRead[Key, Value](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
     loader: (Path, BufferedReader) => (Key, Value)
   ): Map[Key, Value] = {
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
     import scala.concurrent.ExecutionContext.Implicits._
     val directoryStream = Files.newDirectoryStream(dir, fileNamePattern)
     val fileList = directoryStream.iterator().asScala.toList

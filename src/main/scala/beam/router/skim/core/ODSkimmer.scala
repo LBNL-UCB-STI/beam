@@ -16,6 +16,7 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.util.control.NonFatal
+import scala.collection.parallel._
 
 class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
@@ -352,7 +353,7 @@ object ODSkimmer extends LazyLogging {
 
   // cases
   case class ODSkimmerKey(hour: Int, mode: BeamMode, origin: String, destination: String) extends AbstractSkimmerKey {
-    override def toCsv: String = hour + "," + mode + "," + origin + "," + destination
+    override def toCsv: String = s"$hour,$mode,$origin,$destination"
   }
 
   def fromCsv(
@@ -417,7 +418,7 @@ object ODSkimmer extends LazyLogging {
       )
 
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations
+      s"$travelTimeInS,$generalizedTimeInS,$cost,$generalizedCost,$distanceInM,$energy,$level4CavTravelTimeScalingFactor,$observations,$iterations"
   }
 
   case class Skim(

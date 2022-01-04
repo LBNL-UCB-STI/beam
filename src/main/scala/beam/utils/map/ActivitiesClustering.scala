@@ -18,7 +18,7 @@ import de.lmu.ifi.dbs.elki.distance.distancefunction.minkowski.SquaredEuclideanD
 import de.lmu.ifi.dbs.elki.utilities.random.RandomFactory
 import org.matsim.api.core.v01.Coord
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
@@ -96,7 +96,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
         coords += CoordWithLabel(coord, labels.get(iter))
         iter.advance()
       }
-      ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords)
+      ClusterInfo(cluster.size, new Coord(cluster.getModel.getMean), coords.toIndexedSeq)
     }.toArray
   }
 

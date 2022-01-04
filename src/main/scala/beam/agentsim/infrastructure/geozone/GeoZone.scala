@@ -1,12 +1,13 @@
 package beam.agentsim.infrastructure.geozone
 
 import scala.collection.parallel.ParSet
+import scala.collection.parallel.CollectionConverters._
 
 import beam.agentsim.infrastructure.geozone.H3Wrapper.geoToH3Address
 
 class GeoZone(val coordinates: ParSet[WgsCoordinate]) {
 
-  def this(coordinates: Set[WgsCoordinate]) {
+  def this(coordinates: Set[WgsCoordinate]) = {
     this(coordinates.par)
   }
 

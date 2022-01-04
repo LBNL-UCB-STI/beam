@@ -12,7 +12,7 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class PathTraversalEvent(
   time: Double,
@@ -234,11 +234,12 @@ object PathTraversalEvent {
     val mode: BeamMode = BeamMode.fromString(attr(ATTRIBUTE_MODE)).get
     val legLength: Double = attr(ATTRIBUTE_LENGTH).toDouble
     val linkIdsAsStr = Option(attr(ATTRIBUTE_LINK_IDS)).getOrElse("")
-    val linkIds: IndexedSeq[Int] = if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt)
+    val linkIds: IndexedSeq[Int] =
+      if (linkIdsAsStr == "") IndexedSeq.empty else linkIdsAsStr.split(",").map(_.toInt).toIndexedSeq
     val linkTravelTimeStr = attr.getOrElse(ATTRIBUTE_LINK_TRAVEL_TIME, "")
     val linkTravelTime: IndexedSeq[Double] =
       if (linkTravelTimeStr == null || linkTravelTimeStr == "") IndexedSeq.empty
-      else linkTravelTimeStr.split(",").map(_.toDouble)
+      else linkTravelTimeStr.split(",").toIndexedSeq.map(_.toDouble)
     val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
     val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
     val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble

@@ -21,7 +21,7 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters._
 
 class Population(
   val scenario: Scenario,
@@ -115,16 +115,13 @@ class Population(
           .asInstanceOf[Double]
       )
 
-      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
-        .collectionAsScalaIterable(household.getVehicleIds)
-        .map { vid =>
-          val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
-          val reservedFor =
-            VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
-          bv.vehicleManagerId.set(reservedFor.managerId)
-          bv.id -> bv
-        }
-        .toMap
+      val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = household.getVehicleIds.asScala.map { vid =>
+        val bv = beamScenario.privateVehicles(BeamVehicle.createId(vid))
+        val reservedFor =
+          VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
+        bv.vehicleManagerId.set(reservedFor.managerId)
+        bv.id -> bv
+      }.toMap
       val householdActor = context.actorOf(
         HouseholdActor.props(
           beamServices,
@@ -165,7 +162,7 @@ object Population {
     household: Household,
     beamScenario: BeamScenario
   ): Map[Id[BeamVehicle], BeamVehicle] = {
-    val houseHoldVehicles = JavaConverters.collectionAsScalaIterable(household.getVehicleIds)
+    val houseHoldVehicles = household.getVehicleIds.asScala
     houseHoldVehicles.map(i => Id.create(i, classOf[BeamVehicle]) -> beamScenario.privateVehicles(i)).toMap
   }
 

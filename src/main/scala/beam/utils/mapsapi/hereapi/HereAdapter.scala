@@ -46,7 +46,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
   }
 
   private def toPolyLines(encodedPolyLines: String): Seq[WgsCoordinate] = {
-    import collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     val points = PolylineEncoderDecoder.decode(encodedPolyLines).asScala
     points
@@ -65,7 +65,7 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
     val firstRoute = (jsObject \ "routes").as[JsArray].value.head
     val firstSection = (firstRoute \ "sections").as[JsArray].value.head
     val polyLines: Seq[WgsCoordinate] = toPolyLines((firstSection \ "polyline").as[String])
-    val spans = (firstSection \ "spans").as[JsArray].value.map(toSpan)
+    val spans = (firstSection \ "spans").as[JsArray].value.map(toSpan).toSeq
     HerePath(coordinates = polyLines, spans = spans)
   }
 
@@ -79,7 +79,8 @@ class HereAdapter(apiKey: String) extends AutoCloseable {
   }
 
   override def close(): Unit = {
-    Http().shutdownAllConnectionPools
+    Http()
+      .shutdownAllConnectionPools()
       .andThen { case _ =>
         system.terminate()
       }

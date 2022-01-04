@@ -2,7 +2,7 @@ package beam.analysis
 
 import java.{lang, util}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.agentsim.events._
 import org.matsim.api.core.v01.Id
@@ -62,8 +62,8 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
   }
 
   override def resetStats(): Unit = {
-    humanChargingStatsPerDriver.clear
-    cavChargingStatsPerDriver.clear
+    humanChargingStatsPerDriver.clear()
+    cavChargingStatsPerDriver.clear()
   }
 
   def getSummaryStats(): util.Map[String, lang.Double] = {

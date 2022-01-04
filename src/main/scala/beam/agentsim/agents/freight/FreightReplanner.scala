@@ -13,7 +13,7 @@ import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import java.util
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 import scala.util.Random
 

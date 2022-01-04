@@ -40,7 +40,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail)
+      val walkTrip = response.itineraries.find(_.tripClassifier == WALK).getOrElse(fail())
       val routedStartTime = walkTrip.beamLegs.head.startTime
       assert(routedStartTime == time)
     }
@@ -178,7 +178,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail)
+      val bikeTrip = response.itineraries.find(_.tripClassifier == BIKE).getOrElse(fail())
       val routedStartTime = bikeTrip.beamLegs.head.startTime
       assert(routedStartTime == time)
       val actualSpeed = bikeTrip.beamLegs.head.travelPath.distanceInM / bikeTrip.totalTravelTimeInSecs
@@ -311,7 +311,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
         legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
         inside(legs.loneElement) { case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
           mode should be(WALK)
-          links should be('empty)
+          links should be(Symbol("empty"))
         }
       }
 

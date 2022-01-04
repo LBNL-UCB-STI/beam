@@ -121,7 +121,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
         findFileInDir(warmStartFile, Paths.get(iters.head).getParent.toString)
 
       } else {
-        Files.walk(Paths.get(parentRunPath)).toScala[Stream].map(_.toString).find(_.endsWith(warmStartFile))
+        Files.walk(Paths.get(parentRunPath)).toScala[LazyList].map(_.toString).find(_.endsWith(warmStartFile))
       }
     }
   }
@@ -160,7 +160,7 @@ class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends 
   private def getITERSPath(runPath: String): Option[String] = {
     Files
       .walk(Paths.get(runPath))
-      .toScala[Stream]
+      .toScala[LazyList]
       .map(_.toString)
       .find(p => "ITERS".equals(getName(p)))
   }

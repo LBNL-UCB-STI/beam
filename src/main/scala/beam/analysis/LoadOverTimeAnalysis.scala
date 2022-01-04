@@ -104,9 +104,9 @@ class LoadOverTimeAnalysis(simMetricCollector: SimulationMetricCollector)
   }
 
   override def resetStats(): Unit = {
-    vehicleTypeToHourlyLoad.clear
-    chargerTypeToHourlyLoad.clear
-    parkingTypeToHourlyLoad.clear
+    vehicleTypeToHourlyLoad.clear()
+    chargerTypeToHourlyLoad.clear()
+    parkingTypeToHourlyLoad.clear()
   }
 
   override def createGraph(event: IterationEndsEvent): Unit = {

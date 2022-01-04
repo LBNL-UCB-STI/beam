@@ -102,8 +102,8 @@ object BeamHelicsInterface {
     }
 
     def read(value: JsValue): Any = value match {
-      case JsNumber(n) if n.isInstanceOf[Int] => n.intValue()
-      case JsNumber(n)                        => n.doubleValue()
+      case JsNumber(n) if n.isInstanceOf[Int] => n.intValue
+      case JsNumber(n)                        => n.doubleValue
       case JsTrue                             => true
       case JsFalse                            => false
       case JsString(s)                        => s

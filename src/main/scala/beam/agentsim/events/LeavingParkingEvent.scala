@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.events.{Event, GenericEvent}
 import org.matsim.vehicles.Vehicle
 
 import java.util
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class LeavingParkingEvent(
   time: Double,

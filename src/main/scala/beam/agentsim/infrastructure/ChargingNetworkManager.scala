@@ -25,6 +25,7 @@ import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
+import scala.collection.parallel.CollectionConverters._
 import scala.language.postfixOps
 
 /**
@@ -129,7 +130,7 @@ class ChargingNetworkManager(
       nHandledPlanEnergyDispatchTrigger += 1
       timeSpentToPlanEnergyDispatchTrigger += e - s
       log.debug(s"timeSpentToPlanEnergyDispatchTrigger: $timeSpentToPlanEnergyDispatchTrigger. tick: $timeBin")
-      sender ! CompletionNotice(
+      sender() ! CompletionNotice(
         triggerId,
         triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries
       )
@@ -143,7 +144,7 @@ class ChargingNetworkManager(
           } getOrElse log.debug(s"Vehicle ${vehicle.id} has already ended charging")
         case _ => log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
       }
-      sender ! CompletionNotice(triggerId)
+      sender() ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
@@ -169,7 +170,7 @@ class ChargingNetworkManager(
         }
       } else {
         sender() ! Failure(
-          new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name}")
+          new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender().path.name}")
         )
       }
 
@@ -195,7 +196,7 @@ class ChargingNetworkManager(
                 )
               }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
-              sender ! UnpluggingVehicle(tick, totEnergy, triggerId)
+              sender() ! UnpluggingVehicle(tick, totEnergy, triggerId)
               chargingNetwork
                 .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
@@ -211,11 +212,11 @@ class ChargingNetworkManager(
                 }
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")
-              sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
+              sender() ! UnhandledVehicle(tick, vehicle.id, triggerId)
           }
         case _ =>
           log.debug(s"Cannot unplug $vehicle as it doesn't have a stall at $tick")
-          sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
+          sender() ! UnhandledVehicle(tick, vehicle.id, triggerId)
       }
 
     case Finish =>

@@ -15,7 +15,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
@@ -327,11 +327,7 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
           case _ if parkingStats.inboundParkingCostOverhead.size == 1 => parkingStats.inboundParkingCostOverhead.head
           case _                                                      => parkingStats.inboundParkingCostOverhead.sum / parkingStats.inboundParkingCostOverhead.size
         }
-        bin + "," +
-        taz + "," +
-        outboundParkingTime + "," +
-        inboundParkingTime + "," +
-        inboundParkingCost
+        s"$bin,$taz,$outboundParkingTime,$inboundParkingTime,$inboundParkingCost"
       } mkString "\n"
       FileUtils.writeToFile(csvFilePath, Some(header), data, None)
     } catch {

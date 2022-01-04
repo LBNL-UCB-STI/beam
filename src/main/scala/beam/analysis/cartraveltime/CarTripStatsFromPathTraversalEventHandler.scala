@@ -51,11 +51,11 @@ class CarTripStatsFromPathTraversalEventHandler(
 
   private val iterationsCarTripInfo: mutable.Map[(Int, CarType), IterationCarTripStats] = mutable.Map.empty
 
-  private val averageCarSpeedPerIterationByType: collection.mutable.MutableList[Map[CarType, Double]] =
-    collection.mutable.MutableList.empty
+  private val averageCarSpeedPerIterationByType: collection.mutable.ListBuffer[Map[CarType, Double]] =
+    collection.mutable.ListBuffer.empty
 
-  private val statsHeader: Array[String] =
-    Array("iteration", "carType", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
+  private val statsHeader: Seq[String] =
+    Seq("iteration", "carType", "avg", "median", "p75", "p95", "p99", "min", "max", "sum")
 
   private val travelTimeStatsWriter = {
     val fileName = controllerIO.getOutputFilename(s"${prefix}CarTravelTime.csv")
@@ -115,7 +115,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   }
 
   def calcRideStats(iterationNumber: Int, carType: CarType): Seq[CarTripStat] = {
-    val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty)
+    val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty).toSeq
 
     val stats = carType match {
       case CarType.Personal =>
@@ -163,15 +163,15 @@ class CarTripStatsFromPathTraversalEventHandler(
       createCarRideIterationGraph(event.getIteration, stats, carType.toString)
     }
 
-    val type2Statistics: Map[CarType, IterationCarTripStats] = type2RideStats.mapValues { singleRideStats =>
+    val type2Statistics: Map[CarType, IterationCarTripStats] = type2RideStats.view.mapValues { singleRideStats =>
       getIterationCarRideStats(event.getIteration, singleRideStats)
-    }
+    }.toMap
 
     iterationsCarTripInfo ++= type2Statistics.map { case (carType, iterationCarTripStats) =>
       (event.getIteration, carType) -> iterationCarTripStats
     }
 
-    averageCarSpeedPerIterationByType += type2Statistics.mapValues(_.speed.stats.avg)
+    averageCarSpeedPerIterationByType += type2Statistics.view.mapValues(_.speed.stats.avg).toMap
 
     createRootGraphForAverageCarSpeedByType()
     createPercentageFreeSpeedGraph(event.getServices.getControlerIO.getOutputFilename("percentageFreeSpeed.png"))

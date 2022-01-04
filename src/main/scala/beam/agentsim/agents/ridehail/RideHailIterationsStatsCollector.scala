@@ -53,7 +53,7 @@ case class RideHailStatsEntry(
   }
 
   def getDemandEstimate: Double = {
-    sumOfRequestedRides + sumOfActivityEndEvents
+    (sumOfRequestedRides + sumOfActivityEndEvents).toDouble
   }
 }
 
@@ -348,7 +348,7 @@ class RideHailIterationsStatsCollector(
         val endTime = personEntersVehicleEvent.getTime.toLong
         val waitingTime = endTime - startTime
 
-        val binIndex = getTimeBin(startTime)
+        val binIndex = getTimeBin(startTime.toDouble)
         val tazId = getStartTazId(pathTraversalEvent)
 
         val tazBins = rideHailStats.get(tazId) match {

@@ -74,7 +74,7 @@ class ChargingNetworkSpec
         oneParkingOption: Iterator[String] =
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
                                                |1,Workplace,FlatFee,UltraFast(250|DC),9999,5678,,0
-          """.stripMargin.split("\n").toIterator
+          """.stripMargin.split("\n").iterator
         chargingNetwork = ChargingNetworkSpec.mockChargingNetwork(
           config,
           tazTreeMap,

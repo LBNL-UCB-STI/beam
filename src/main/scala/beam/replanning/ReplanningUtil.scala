@@ -7,7 +7,7 @@ import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.replanning.selectors.RandomPlanSelector
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ReplanningUtil {
 

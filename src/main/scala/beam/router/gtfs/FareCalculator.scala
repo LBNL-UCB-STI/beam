@@ -3,13 +3,16 @@ package beam.router.gtfs
 import beam.router.gtfs.FareCalculator._
 import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
+import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.gtfs.GTFSFeed
+import play.api.libs.json.{Format, JsObject, JsResult, JsSuccess, JsValue, Json, OFormat}
+import play.api.libs.json.Json.JsValueWrapper
 
 import java.io._
 import java.nio.file.{Files, Path, Paths}
 import javax.inject.Inject
 
-class FareCalculator @Inject() (beamConfig: BeamConfig) {
+class FareCalculator @Inject() (beamConfig: BeamConfig) extends ExponentialLazyLogging {
 
   private val dataDirectory: Path = Paths.get(beamConfig.beam.routing.r5.directory)
   private val cacheFile: File = dataDirectory.resolve("fares.dat").toFile
@@ -19,9 +22,25 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
 
   private def loadBeamFares: Map[AgencyId, Vector[BeamFareRule]] = {
     if (cacheFile.isFile) {
-      new ObjectInputStream(new FileInputStream(cacheFile))
-        .readObject()
-        .asInstanceOf[Map[String, Vector[BeamFareRule]]]
+      try {
+        Json.parse(new FileInputStream(cacheFile)).as[Map[AgencyId, Vector[BeamFareRule]]]
+      } catch {
+        case ex: Throwable =>
+          logger.warn(
+            s"Could not deserialize cached Beam Fare file from $cacheFile using JSON. Was it created before the Scala 2.13 migration? Exception is $ex. Attempting Java deserialization..."
+          )
+          try {
+            new ObjectInputStream(new FileInputStream(cacheFile))
+              .readObject()
+              .asInstanceOf[Map[String, Vector[BeamFareRule]]]
+          } catch {
+            case ex: Throwable =>
+              logger.error(
+                s"Could not deserialize cached Beam Fare file from $cacheFile using Java - returning an empty Map. Exception is $ex"
+              )
+              Map.empty[String, Vector[BeamFareRule]]
+          }
+      }
     } else {
       val agencies = fromDirectory(dataDirectory)
       FileUtils.using(new ObjectOutputStream(new FileOutputStream(cacheFile))) { stream =>
@@ -141,6 +160,34 @@ class FareCalculator @Inject() (beamConfig: BeamConfig) {
 }
 
 object FareCalculator {
+
+  implicit val beamFareFormat: OFormat[BeamFare] = Json.format[BeamFare]
+  implicit val beamFareRuleFormat: OFormat[BeamFareRule] = Json.format[BeamFareRule]
+
+  implicit val beamFareRuleMapArrayFormat: Format[Map[String, Vector[BeamFareRule]]] =
+    new Format[Map[String, Vector[BeamFareRule]]] {
+
+      override def reads(json: JsValue): JsResult[Map[String, Vector[BeamFareRule]]] = {
+        JsSuccess(
+          json
+            .as[JsObject]
+            .value
+            .map { case (k, v) =>
+              k -> v.as[Vector[BeamFareRule]]
+            }
+            .toMap
+        )
+      }
+
+      override def writes(beamFareRuleMap: Map[String, Vector[BeamFareRule]]): JsValue = {
+        Json.obj(
+          beamFareRuleMap.map { case (agencyId, fareRules) =>
+            val x: (String, JsValueWrapper) = agencyId -> Json.toJson(fareRules)
+            x
+          }.toSeq: _*
+        )
+      }
+    }
 
   /**
     * A FareAttribute (defined in fare_attributes.txt) defines a fare class. A FareAttribute has a price,

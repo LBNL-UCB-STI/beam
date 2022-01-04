@@ -17,9 +17,10 @@ import org.matsim.core.utils.collections.QuadTree
 import org.supercsv.io.CsvMapWriter
 import org.supercsv.prefs.CsvPreference
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.parallel.CollectionConverters._
 import scala.util.Random
 
 object RandomRepositioning {

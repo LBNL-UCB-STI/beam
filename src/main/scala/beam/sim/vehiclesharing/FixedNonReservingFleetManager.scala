@@ -26,7 +26,7 @@ import org.matsim.core.utils.geometry.CoordUtils
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Random
@@ -99,7 +99,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
       val nearbyVehicles = availableVehiclesIndex.query(boundingBox).asScala.toVector.asInstanceOf[Vector[BeamVehicle]]
       nearbyVehicles.sortBy(veh => CoordUtils.calcEuclideanDistance(veh.spaceTime.loc, whenWhere.loc))
-      sender ! MobilityStatusResponse(
+      sender() ! MobilityStatusResponse(
         nearbyVehicles.take(5).map { vehicle =>
           Token(vehicle.id, self, vehicle)
         },

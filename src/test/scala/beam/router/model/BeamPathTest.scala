@@ -11,34 +11,34 @@ class BeamPathTest extends AnyWordSpec with Matchers {
     "return 0" when {
       "both input arrays contain the same elements" in {
         // Check for empty arrays
-        BeamPath.compareSeq(Array.empty[Int], Array.empty[Int]) shouldBe 0
+        BeamPath.compareSeq(IndexedSeq.empty[Int], IndexedSeq.empty[Int]) shouldBe 0
         // Non-empty arrays
-        BeamPath.compareSeq(Array[Int](1), Array[Int](1)) shouldBe 0
-        BeamPath.compareSeq(Array[Int](1, 2), Array[Int](1, 2)) shouldBe 0
+        BeamPath.compareSeq(IndexedSeq[Int](1), IndexedSeq[Int](1)) shouldBe 0
+        BeamPath.compareSeq(IndexedSeq[Int](1, 2), IndexedSeq[Int](1, 2)) shouldBe 0
       }
     }
 
     "return 1" when {
       "the first array has more elements than the second" in {
-        BeamPath.compareSeq(Array[Int](1), Array[Int]()) shouldBe 1
-        BeamPath.compareSeq(Array[Int](1, 2), Array[Int](1)) shouldBe 1
+        BeamPath.compareSeq(IndexedSeq[Int](1), IndexedSeq[Int]()) shouldBe 1
+        BeamPath.compareSeq(IndexedSeq[Int](1, 2), IndexedSeq[Int](1)) shouldBe 1
       }
 
       "the same number of elements but the first array has an element larger than the second array" in {
-        BeamPath.compareSeq(Array[Int](2), Array[Int](1)) shouldBe 1
-        BeamPath.compareSeq(Array[Int](1, 2), Array[Int](1, 1)) shouldBe 1
+        BeamPath.compareSeq(IndexedSeq[Int](2), IndexedSeq[Int](1)) shouldBe 1
+        BeamPath.compareSeq(IndexedSeq[Int](1, 2), IndexedSeq[Int](1, 1)) shouldBe 1
       }
     }
 
     "return -1" when {
       "the first array has less elements than the second" in {
-        BeamPath.compareSeq(Array[Int](), Array[Int](1)) shouldBe -1
-        BeamPath.compareSeq(Array[Int](1), Array[Int](1, 2)) shouldBe -1
+        BeamPath.compareSeq(IndexedSeq[Int](), IndexedSeq[Int](1)) shouldBe -1
+        BeamPath.compareSeq(IndexedSeq[Int](1), IndexedSeq[Int](1, 2)) shouldBe -1
       }
 
       "the same number of elements but the first array has an element smaller than the second array" in {
-        BeamPath.compareSeq(Array[Int](1), Array[Int](2)) shouldBe -1
-        BeamPath.compareSeq(Array[Int](1, 1), Array[Int](1, 2)) shouldBe -1
+        BeamPath.compareSeq(IndexedSeq[Int](1), IndexedSeq[Int](2)) shouldBe -1
+        BeamPath.compareSeq(IndexedSeq[Int](1, 1), IndexedSeq[Int](1, 2)) shouldBe -1
       }
     }
   }
@@ -118,18 +118,24 @@ class BeamPathTest extends AnyWordSpec with Matchers {
       }
 
       "the first has more elements in linkIds than the second" in {
-        BeamPath.compare(beamPath.copy(linkIds = Array(1)), beamPath.copy(linkIds = Array.empty[Int])) shouldBe 1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq(1)),
+          beamPath.copy(linkIds = IndexedSeq.empty[Int])
+        ) shouldBe 1
       }
 
       "linkIds have the same size, but the first contains element larger than the second one" in {
-        BeamPath.compare(beamPath.copy(linkIds = Array(2)), beamPath.copy(linkIds = Array(1))) shouldBe 1
-        BeamPath.compare(beamPath.copy(linkIds = Array(1, 2)), beamPath.copy(linkIds = Array(1, 1))) shouldBe 1
+        BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(2)), beamPath.copy(linkIds = IndexedSeq(1))) shouldBe 1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq(1, 2)),
+          beamPath.copy(linkIds = IndexedSeq(1, 1))
+        ) shouldBe 1
       }
 
       "linkTravelTime have the same size, but the first contains element larger than the second one" in {
         BeamPath.compare(
-          beamPath.copy(linkTravelTime = Array(5.0, 5.0)),
-          beamPath.copy(linkTravelTime = Array(5.0, 4.0))
+          beamPath.copy(linkTravelTime = IndexedSeq(5.0, 5.0)),
+          beamPath.copy(linkTravelTime = IndexedSeq(5.0, 4.0))
         ) shouldBe 1
       }
     }
@@ -192,18 +198,24 @@ class BeamPathTest extends AnyWordSpec with Matchers {
       }
 
       "the first has less elements in linkIds than the second" in {
-        BeamPath.compare(beamPath.copy(linkIds = Array.empty[Int]), beamPath.copy(linkIds = Array(1))) shouldBe -1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq.empty[Int]),
+          beamPath.copy(linkIds = IndexedSeq(1))
+        ) shouldBe -1
       }
 
       "linkIds have the same size, but the first contains element smaller than the second one" in {
-        BeamPath.compare(beamPath.copy(linkIds = Array(1)), beamPath.copy(linkIds = Array(2))) shouldBe -1
-        BeamPath.compare(beamPath.copy(linkIds = Array(1, 1)), beamPath.copy(linkIds = Array(1, 2))) shouldBe -1
+        BeamPath.compare(beamPath.copy(linkIds = IndexedSeq(1)), beamPath.copy(linkIds = IndexedSeq(2))) shouldBe -1
+        BeamPath.compare(
+          beamPath.copy(linkIds = IndexedSeq(1, 1)),
+          beamPath.copy(linkIds = IndexedSeq(1, 2))
+        ) shouldBe -1
       }
 
       "linkTravelTime have the same size, but the first contains element smaller than the second one" in {
         BeamPath.compare(
-          beamPath.copy(linkTravelTime = Array(5.0, 4.0)),
-          beamPath.copy(linkTravelTime = Array(5.0, 5.0))
+          beamPath.copy(linkTravelTime = IndexedSeq(5.0, 4.0)),
+          beamPath.copy(linkTravelTime = IndexedSeq(5.0, 5.0))
         ) shouldBe -1
       }
     }

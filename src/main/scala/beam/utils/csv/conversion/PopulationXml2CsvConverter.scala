@@ -33,7 +33,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     val parser = ConstructingParser.fromFile(householdsXml, preserveWS = true)
     val doc = parser.document().docElem
     val households: NodeSeq = doc \\ "household"
-    val allHouseholdMembers = households.toIterator.map(node => toHouseholdMembers(node))
+    val allHouseholdMembers = households.iterator.map(node => toHouseholdMembers(node))
     allHouseholdMembers.flatMap { relation =>
       relation.memberIds.map(memberId => (memberId, relation.houseHoldId))
     }.toMap
@@ -46,7 +46,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     val parser = ConstructingParser.fromFile(populationAttributesXml, preserveWS = true)
     val doc = parser.document().docElem
     val people: NodeSeq = doc \\ "object"
-    val allPeopleAttributes: Iterator[PersonAttributes] = people.toIterator.map(node => toPersonAttributes(node))
+    val allPeopleAttributes: Iterator[PersonAttributes] = people.iterator.map(node => toPersonAttributes(node))
     allPeopleAttributes.map(pa => (pa.objectId, pa)).toMap
   }
 
@@ -94,7 +94,7 @@ class PopulationXml2CsvConverter(householdsXml: File, populationAttributesXml: F
     val memberToHousehold = readMemberToHousehold()
     val memberToRank: MemberToRank = readMember2Rank()
 
-    peopleNodes.toIterator.map(node => toPerson(node, memberToHousehold, memberToRank).toString + LineSeparator)
+    peopleNodes.iterator.map(node => toPerson(node, memberToHousehold, memberToRank).toString + LineSeparator)
   }
 
 }

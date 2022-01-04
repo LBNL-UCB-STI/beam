@@ -9,7 +9,7 @@ import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.mutable
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -39,7 +39,6 @@ class ConsecutivePopulationLoader(
       hh.getMemberIds.asScala.map(p => p -> hh)
     }
     .toMap
-    .seq
 
   private val fullHousehold: HouseholdsImpl = {
     val newHouseholds: HouseholdsImpl = new HouseholdsImpl()

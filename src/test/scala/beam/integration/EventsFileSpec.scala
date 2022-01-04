@@ -22,7 +22,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.BeforeAndAfterAll
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.io.Source
 import scala.util.Try
 

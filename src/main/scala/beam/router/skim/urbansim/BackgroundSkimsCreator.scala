@@ -44,7 +44,7 @@ class BackgroundSkimsCreator(
     buildDirectWalkRoute: Boolean,
     buildDirectCarRoute: Boolean,
     calculationTimeoutHours: Int
-  )(implicit actorSystem: ActorSystem) {
+  )(implicit actorSystem: ActorSystem) = {
     this(
       beamServices,
       beamScenario,

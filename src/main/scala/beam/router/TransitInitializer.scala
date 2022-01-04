@@ -20,7 +20,8 @@ import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.collection.concurrent.TrieMap
 
 class TransitInitializer(

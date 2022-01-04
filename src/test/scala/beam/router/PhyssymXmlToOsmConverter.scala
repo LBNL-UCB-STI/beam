@@ -86,7 +86,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
           case "links" if canProcessLink =>
             canProcessLink = false
           case "link" if canProcessLink =>
-            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags)
+            links += Way(wayId, source_destination._1, source_destination._2, wayInnerTags.toSeq)
           case "attributes" if canProcessLinkAttributes =>
             canProcessLinkAttributes = false
           case "attribute" if canProcessLinkAttributes =>
@@ -107,7 +107,7 @@ object PhyssymXmlToOsmConverter extends StrictLogging {
       }
     }
     logger.info(s"Network loaded with # nodes: [${nodes.size}] and # links: [${links.size}]")
-    new OsmNetwork(nodes.values.toSeq, links)
+    new OsmNetwork(nodes.values.toSeq, links.toSeq)
   }
 
   private def isBlank(str: String): Boolean = {

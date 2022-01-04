@@ -56,7 +56,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       val freightCarriers: scala.IndexedSeq[FreightCarrier] = readCarriers
       freightCarriers should have size 2
       val result = freightCarriers.find(_.carrierId == "carrier-1".createId[FreightCarrier])
-      result should be('defined)
+      result should be(Symbol("defined"))
       val carrier1 = result.get
       carrier1.fleet should have size 2
       carrier1.payloadPlans should have size 7
@@ -64,10 +64,10 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       carrier1.tourMap should contain key Id.createVehicleId("freight-2")
       carrier1.tourMap(Id.createVehicleId("freight-2")) should have size 1
       carrier1.tourMap(Id.createVehicleId("freight-2")).head should have(
-        'tourId ("tour-1".createId[FreightTour]),
-        'departureTimeInSec (1000),
-        'warehouseLocation (new Coord(169637.3661199976, 3030.52756066406)),
-        'maxTourDurationInSec (36000)
+        Symbol("tourId")("tour-1".createId[FreightTour]),
+        Symbol("departureTimeInSec")(1000),
+        Symbol("warehouseLocation")(new Coord(169637.3661199976, 3030.52756066406)),
+        Symbol("maxTourDurationInSec")(36000)
       )
       carrier1.plansPerTour should have size 3
       carrier1.plansPerTour("tour-1".createId) should have size 2
@@ -75,7 +75,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       carrier1.plansPerTour("tour-3".createId) should have size 3
 
       val result2 = freightCarriers.find(_.carrierId == "carrier-2".createId[FreightCarrier])
-      result2 should be('defined)
+      result2 should be(Symbol("defined"))
       val carrier2 = result2.get
       carrier2.fleet should have size 1
       carrier2.payloadPlans should have size 1

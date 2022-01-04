@@ -2,7 +2,7 @@ package beam.utils
 
 import java.io.File
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import com.typesafe.config.{ConfigException, ConfigFactory, ConfigResolveOptions, ConfigValue, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 
@@ -103,7 +103,7 @@ object ConfigConsistencyComparator extends LazyLogging {
           configKey.update(keyedValue(0).trim, configKey(keyedValue(0).trim) + 1)
         }
       }
-      configKey.retain((_, value) => value > 1).keys.toSeq
+      configKey.filterInPlace((_, value) => value > 1).keys.toSeq
     } finally {
       source.close()
     }

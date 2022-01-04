@@ -29,7 +29,7 @@ import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
 import java.util.{Collections, Optional}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
@@ -397,7 +397,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
       .groupBy(_.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")))
+      .view
       .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
+      .toMap
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
@@ -614,8 +616,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         val router = new McRaptorSuboptimalPathProfileRouter(
           transportNetwork,
           profileRequest,
-          accessStopsByMode.mapValues(_.stops).asJava,
-          egressStopsByMode.mapValues(_.stops).asJava,
+          accessStopsByMode.view.mapValues(_.stops).toMap.asJava,
+          egressStopsByMode.view.mapValues(_.stops).toMap.asJava,
           (departureTime: Int) =>
             new BeamDominatingList(
               profileRequest.inRoutingFareCalculator,
@@ -817,7 +819,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               unbecomeDriverOnCompletion = true
             )
           }
-          EmbodiedBeamTrip(embodiedBeamLegs, Some("R5"))
+          EmbodiedBeamTrip(embodiedBeamLegs.toIndexedSeq, Some("R5"))
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
@@ -839,7 +841,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           geo
         )
         RoutingResponse(
-          embodiedTrips :+ dummyTrip,
+          (embodiedTrips :+ dummyTrip).toSeq,
           request.requestId,
           Some(request),
           isEmbodyWithCurrentTravelTime = false,
@@ -848,7 +850,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
       } else {
         RoutingResponse(
-          embodiedTrips,
+          embodiedTrips.toSeq,
           request.requestId,
           Some(request),
           isEmbodyWithCurrentTravelTime = false,
@@ -858,7 +860,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
     } else {
       RoutingResponse(
-        embodiedTrips,
+        embodiedTrips.toSeq,
         request.requestId,
         Some(request),
         isEmbodyWithCurrentTravelTime = false,
@@ -925,7 +927,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       activeLinkIds += edge.edgeId.intValue()
     }
     val beamLeg: BeamLeg =
-      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds)
+      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds.toIndexedSeq)
     val toll = if (segment.mode == LegMode.CAR) {
       val osm = segment.streetEdges.asScala
         .map(e =>

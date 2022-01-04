@@ -7,7 +7,7 @@ object BeamEventsReader {
 
   def createProgressObject(filePath: String): ConsoleProgress = {
     val src = scala.io.Source.fromFile(filePath)
-    val fileLength = src.getLines.size
+    val fileLength = src.getLines().size
     src.close()
 
     new ConsoleProgress("events from file analyzed", fileLength, 17)

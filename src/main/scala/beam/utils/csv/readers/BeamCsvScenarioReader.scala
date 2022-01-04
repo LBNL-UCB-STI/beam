@@ -98,7 +98,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       legRouteEndLink = Option(rec.get("legRouteEndLink")),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
-      legRouteLinks = linkIds,
+      legRouteLinks = linkIds.toSeq,
       geoId = Option(rec.get("geoId"))
     )
   }
@@ -116,7 +116,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       householdId = HouseholdId(householdId),
       rank = rank,
       age = age,
-      excludedModes = excludedModes,
+      excludedModes = excludedModes.toSeq,
       isFemale = isFemale,
       valueOfTime = valueOfTime
     )

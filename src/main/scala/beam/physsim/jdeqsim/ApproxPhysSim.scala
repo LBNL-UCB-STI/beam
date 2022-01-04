@@ -17,7 +17,7 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.util.{Random, Try}
 
@@ -87,12 +87,12 @@ class ApproxPhysSim(
   def run(travelTime: TravelTime): SimulationResult = {
     val carTravelTimeWriter: CsvWriter = {
       val fileName = controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_car_travel_time.csv")
-      new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
+      new CsvWriter(fileName, Seq("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     val reroutedTravelTimeWriter: CsvWriter = {
       val fileName =
         controllerIO.getIterationFilename(agentSimIterationNumber, "MultiJDEQSim_rerouted_car_travel_time.csv")
-      new CsvWriter(fileName, Array("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
+      new CsvWriter(fileName, Seq("iteration", "avg", "median", "p75", "p95", "p99", "min", "max"))
     }
     try {
       logger.info(s"Running ApproxPhysSim")

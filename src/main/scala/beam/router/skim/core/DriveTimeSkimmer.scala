@@ -161,7 +161,7 @@ class DriveTimeSkimmer @Inject() (
 object DriveTimeSkimmer extends LazyLogging {
 
   case class DriveTimeSkimmerKey(fromTAZId: Id[TAZ], toTAZId: Id[TAZ], hour: Int) extends AbstractSkimmerKey {
-    override def toCsv: String = fromTAZId + "," + toTAZId + "," + hour
+    override def toCsv: String = s"$fromTAZId,$toTAZId,$hour"
   }
 
   case class DriveTimeSkimmerInternal(
@@ -170,7 +170,7 @@ object DriveTimeSkimmer extends LazyLogging {
     observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
-    override def toCsv: String = timeSimulated + "," + timeObserved + "," + observations + "," + iterations
+    override def toCsv: String = s"$timeSimulated,$timeObserved,$observations,$iterations"
   }
 
 }

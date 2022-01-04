@@ -4,17 +4,15 @@ import java.io._
 import java.util
 
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
-import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
+import org.supercsv.cellprocessor.constraint.NotNull
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
-import scala.collection.JavaConverters._
-
-import beam.agentsim.infrastructure.taz.CsvTaz
+import scala.jdk.CollectionConverters._
 
 object ShapeUtils {
 
@@ -150,7 +148,7 @@ object ShapeUtils {
   }
 
   private def clearRepeatedTaz(groupedRepeatedTaz: Map[String, Array[CsvTaz]]): Array[CsvTaz] = {
-    groupedRepeatedTaz.flatMap(i => addSuffix(i._1, i._2)).toArray
+    groupedRepeatedTaz.flatMap[CsvTaz](i => addSuffix(i._1, i._2)).toArray
   }
 
   private def addSuffix(id: String, elems: Array[CsvTaz]): Array[CsvTaz] = {

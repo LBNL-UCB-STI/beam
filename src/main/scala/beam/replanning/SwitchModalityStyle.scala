@@ -2,7 +2,7 @@ package beam.replanning
 
 import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class SwitchModalityStyle() extends PlansStrategyAdopter {

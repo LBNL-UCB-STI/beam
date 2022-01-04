@@ -48,8 +48,8 @@ object ParkingStallSampling {
     // random value offset by the agent location and additionally offset by the distance from agent
     // to TAZ centroid with inverse availability also being a factor here.
     val (sampleX, sampleY) = (
-      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + agent.getX + scaledXDistance,
-      (rand.nextGaussian * availabilityFactor * sampleStandardDeviation) + agent.getY + scaledYDistance
+      (rand.nextGaussian() * availabilityFactor * sampleStandardDeviation) + agent.getX + scaledXDistance,
+      (rand.nextGaussian() * availabilityFactor * sampleStandardDeviation) + agent.getY + scaledYDistance
     )
 
     new Coord(sampleX, sampleY)

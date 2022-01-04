@@ -6,9 +6,9 @@ object SequenceUtil {
 
   def groupBy[K, V](pairs: Seq[(K, V)]): Map[K, Set[V]] = {
     val groupedByKey = pairs.groupBy(_._1)
-    groupedByKey.mapValues { pairs: Iterable[(K, V)] =>
+    groupedByKey.view.mapValues { pairs: Iterable[(K, V)] =>
       pairs.map(_._2).toSet
-    }
+    }.toMap
   }
 
   def groupBy[K, V](pairs: ParSeq[(K, V)]): Map[K, Set[V]] = {

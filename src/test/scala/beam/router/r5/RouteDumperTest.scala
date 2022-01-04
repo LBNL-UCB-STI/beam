@@ -14,7 +14,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class RouteDumperTest extends AnyFunSuite with Matchers {
   test("Should be able to convert RoutingRequest to Record") {

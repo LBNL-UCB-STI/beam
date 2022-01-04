@@ -5,7 +5,7 @@ import java.io.File
 import com.typesafe.config.{Config, ConfigResolveOptions}
 import com.typesafe.scalalogging.StrictLogging
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 /*
 Run application by providing 2 config file
@@ -86,7 +86,7 @@ object ConfigAnalysis extends App with StrictLogging {
 
   final def listFiles(base: File): Seq[File] = {
     val files = base.listFiles
-    val result = files.filter(_.isFile)
+    val result = files.filter(_.isFile).toSeq
     result ++
     files
       .filter(_.isDirectory)

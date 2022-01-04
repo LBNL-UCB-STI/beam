@@ -62,16 +62,16 @@ trait RepositionManager extends LoggingMessageActor with ActorLogging {
             ScheduleTrigger(REPVehicleTeleportTrigger(dstWhereWhen.time, dstWhereWhen, vehicle, dstTAZ), self)
           }
           .toVector
-        sender ! CompletionNotice(triggerId, triggers :+ ScheduleTrigger(REPVehicleRepositionTrigger(nextTick), self))
+        sender() ! CompletionNotice(triggerId, triggers :+ ScheduleTrigger(REPVehicleRepositionTrigger(nextTick), self))
       } else {
-        sender ! CompletionNotice(triggerId)
+        sender() ! CompletionNotice(triggerId)
       }
 
     case TriggerWithId(REPVehicleTeleportTrigger(_, whereWhen, vehicle, _), triggerId) =>
       makeTeleport(vehicle.id, whereWhen)
       makeAvailable(vehicle.id)
       collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.dropoff)
-      sender ! CompletionNotice(triggerId)
+      sender() ! CompletionNotice(triggerId)
   }
 
   protected def collectData(time: Int, loc: Coord, varLabel: String): Unit = {

@@ -6,7 +6,7 @@ import org.matsim.api.core.v01.{Id, Identifiable}
 import org.matsim.households.Household
 import scala.language.implicitConversions
 
-import scala.collection.JavaConverters
+import scala.jdk.CollectionConverters._
 
 object Memberships {
 
@@ -41,7 +41,7 @@ object Memberships {
       }
 
       override val members: Seq[Person] =
-        JavaConverters.asScalaBuffer(household.getMemberIds).map(population.getPersons.get)
+        household.getMemberIds.asScala.map(population.getPersons.get).toSeq
 
       /**
         * Members sorted by rank.

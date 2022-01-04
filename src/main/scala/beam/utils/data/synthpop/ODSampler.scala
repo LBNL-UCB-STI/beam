@@ -5,7 +5,7 @@ import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.util.{Pair => CPair}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object ODSampler {
 

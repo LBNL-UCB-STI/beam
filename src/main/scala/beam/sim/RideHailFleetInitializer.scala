@@ -22,7 +22,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.math.{max, min}
@@ -67,7 +67,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
   private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
     val source = Source.fromFile(tazFilePath)
-    val lines = source.getLines.toVector
+    val lines = source.getLines().toVector
     source.close()
     lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
   }
@@ -99,7 +99,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     * @param fleetData data to be written.
     */
   def writeFleetData(filePath: String, fleetData: Seq[RideHailAgentInputData]): Unit = {
-    val fileHeader: Array[String] = Array[String](
+    val fileHeader: Seq[String] = Seq[String](
       "id",
       "rideHailManagerId",
       "vehicleType",

@@ -1,7 +1,7 @@
 package beam.utils
 
 import java.util.concurrent.ThreadLocalRandom
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 /**
@@ -77,7 +77,7 @@ object MathUtils {
   def logSumExp(iter: Iterator[Double], max: Double): Double = {
     var accum = 0.0
     while (iter.hasNext) {
-      val b = iter.next
+      val b = iter.next()
       if (!b.isNegInfinity)
         accum += math.exp(b - max)
     }
@@ -142,7 +142,7 @@ object MathUtils {
   }
 
   def formatBytes(v: Long): String = {
-    if (v < 1024) return v + " B"
+    if (v < 1024) return s"$v B"
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }

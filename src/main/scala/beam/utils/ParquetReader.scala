@@ -42,7 +42,7 @@ object ParquetReader {
       println("#############################################################")
       print(metaData.getSchema)
       println("#############################################################")
-      println
+      println()
 
       println("Metadata: ")
       println("#############################################################")
@@ -56,7 +56,7 @@ object ParquetReader {
           println(map)
       }
       println("#############################################################")
-      println
+      println()
     }
   }
 

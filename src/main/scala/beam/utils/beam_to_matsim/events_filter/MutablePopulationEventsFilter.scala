@@ -34,10 +34,10 @@ case class MutablePopulationEventsFilter(selectNewPersonById: String => Boolean)
   private val personsEventsMap = mutable.Map.empty[String, PersonEvents]
 
   override def toString: String =
-    metPersons.foldLeft(0) {
+    s"${metPersons.foldLeft(0) {
       case (size, (_, true)) => size + 1
       case (size, _)         => size
-    } + " persons in population"
+    }} persons in population"
 
   private def personSelected(id: String): Boolean = metPersons.get(id) match {
     case Some(decision) => decision
@@ -62,10 +62,10 @@ case class MutablePopulationEventsFilter(selectNewPersonById: String => Boolean)
     case _ =>
   }
 
-  override def vehiclesTrips: Traversable[VehicleTrip] = Seq.empty[VehicleTrip]
+  override def vehiclesTrips: Iterable[VehicleTrip] = Seq.empty[VehicleTrip]
 
-  override def personsTrips: Traversable[PersonTrip] = Seq.empty[PersonTrip]
+  override def personsTrips: Iterable[PersonTrip] = Seq.empty[PersonTrip]
 
-  override def personsEvents: Traversable[PersonEvents] = personsEventsMap.values
+  override def personsEvents: Iterable[PersonEvents] = personsEventsMap.values
 
 }

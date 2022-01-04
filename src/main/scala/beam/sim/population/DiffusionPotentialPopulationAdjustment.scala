@@ -5,12 +5,11 @@ import java.util.Random
 import beam.sim.{BeamScenario, BeamServices}
 import beam.sim.common.GeoUtils
 import beam.sim.population.DiffusionPotentialPopulationAdjustment._
-import org.joda.time.DateTime
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) extends PopulationAdjustment {
 

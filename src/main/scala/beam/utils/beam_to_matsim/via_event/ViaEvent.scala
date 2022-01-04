@@ -5,5 +5,5 @@ trait ViaEvent {
   val link: Int
   def toXml: scala.xml.Elem
   def toXmlString: String
-  def timeString: String = time.toInt + ".0"
+  def timeString: String = s"${time.toInt}.0"
 }

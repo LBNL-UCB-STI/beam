@@ -107,7 +107,7 @@ class MultinomialLogit[A, T](
               }
               ._2
 
-          val randomDraw: Double = random.nextDouble
+          val randomDraw: Double = random.nextDouble()
 
           // we discard while the probability's draw threshold is below or equal the random draw
           // and will leave us with a list who's first element is the largest just below or equal the draw value

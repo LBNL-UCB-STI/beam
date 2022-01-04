@@ -67,7 +67,7 @@ object EventReader {
       }
     })
     fromFile(filePath, eventsManager)
-    events
+    events.toIndexedSeq
   }
 
   def fromFile(filePath: String, eventsManager: EventsManager): Unit = {

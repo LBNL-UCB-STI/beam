@@ -37,7 +37,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
 
   override def loggedReceive: Receive = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      sender ! CompletionNotice(triggerId)
+      sender() ! CompletionNotice(triggerId)
 
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(Set(vehicleType), triggerId)
@@ -54,7 +54,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
       nextVehicleIndex += 1
       vehicle.setManager(Some(self))
       vehicle.spaceTime = whenWhere
-      vehicle.becomeDriver(sender)
+      vehicle.becomeDriver(sender())
 
       // Park it and forward it to the customer
       (parkingManager ? ParkingInquiry.init(
@@ -66,7 +66,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
           vehicle.useParkingStall(stall)
           MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-        } pipeTo sender
+        } pipeTo sender()
 
     case ReleaseVehicle(_, _) =>
     // That's fine, nothing to do.

@@ -103,13 +103,13 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
           if (!isStuck) {
             // We have to add it back
             add(oldest.time, oldest.value, false)
-            stuckAgents
+            stuckAgents.toSeq
           } else {
             stuckAgents += oldest
             detectStuckAgents0(helper, stuckAgents)
           }
         case None =>
-          stuckAgents
+          stuckAgents.toSeq
       }
     }
     val result = ArrayBuffer.empty[ValueWithTime[ScheduledTrigger]]
@@ -125,7 +125,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       })
       exceedMaxNumberOfMessages.clear()
     }
-    result
+    result.toSeq
   }
 
   def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {

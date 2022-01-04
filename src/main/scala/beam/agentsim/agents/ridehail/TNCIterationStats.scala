@@ -14,7 +14,7 @@ import org.apache.commons.math3.ml.clustering.{Clusterable, KMeansPlusPlusCluste
 import org.apache.commons.math3.util.{Pair => WeightPair}
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.reflect.ClassTag
@@ -125,7 +125,7 @@ case class TNCIterationStats(
             getRideHailStatsInfo(tazInRadius.tazId, _) match {
               case Some(statsEntry) =>
                 val waitingTimeScore = waitingTimeWeight * Math
-                  .pow(statsEntry.sumOfWaitingTimes, 2) /
+                  .pow(statsEntry.sumOfWaitingTimes.toDouble, 2) /
                   Math.pow(statsEntry.sumOfWaitingTimes + 1000.0, 2)
 
                 val demandScore = demandWeight * Math
@@ -282,7 +282,7 @@ case class TNCIterationStats(
           idleScore = idleScore + idleTAZs(taz.tazId.toString).sumOfIdlingVehicles
         }
       }
-      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
+      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore.toDouble))
     }
 
     priorityQueue = priorityQueue.filter(vehicleLocationScores =>
@@ -362,7 +362,7 @@ case class TNCIterationStats(
         )
         .sum
 
-      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore))
+      priorityQueue.enqueue(VehicleLocationScores(rhLoc, idleScore.toDouble))
     }
 
     /*
@@ -461,7 +461,6 @@ case class TNCIterationStats(
     tick: Double,
     timeWindowSizeInSecForDecidingAboutRepositioning: Double
   ): Double = {
-    import scala.collection.JavaConverters._
     val startTime = tick
 
     if (circleSize.isPosInfinity) {
@@ -579,7 +578,7 @@ case class TNCIterationStats(
 
         columns = columns + entry + "\t\t"
       })
-      columns = i + "\t\t" + aggregates(i) + "\t\t" + columns
+      columns = s"$i\t\t${aggregates(i)}\t\t$columns"
       logger.debug(columns)
     }
 

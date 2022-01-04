@@ -12,7 +12,7 @@ import org.matsim.core.utils.gis.ShapeFileWriter
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object Network2ShapeFile extends LazyLogging {

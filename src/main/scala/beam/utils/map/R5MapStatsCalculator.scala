@@ -7,7 +7,7 @@ import com.conveyal.r5.streets.EdgeStore.EdgeFlag
 import com.conveyal.r5.transit.TransportNetwork
 
 import java.{lang, util}
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object R5MapStatsCalculator {

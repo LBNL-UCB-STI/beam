@@ -10,7 +10,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.collection.mutable
 
 class LinkInOutFeature(
@@ -75,7 +76,7 @@ class LinkInOutFeature(
         linkIdToInLinkHops,
         delimiter
       )
-      val fileName = new File(outputPath).getParentFile + "/LinkInOut_mapping.csv"
+      val fileName = s"${new File(outputPath).getParentFile}/LinkInOut_mapping.csv"
       mappingWriter.write(fileName)
     }
   }

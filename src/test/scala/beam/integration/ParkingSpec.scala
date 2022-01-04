@@ -106,7 +106,7 @@ class ParkingSpec
     val outputDirectoryFile = new File(outputDirectory)
     FileUtils.copyDirectory(outputDirectoryFile, new File(s"${outputDirectory}_$parkingScenario"))
 
-    queueEvents
+    queueEvents.toSeq
   }
 
   private lazy val defaultEvents = runAndCollectForIterations("default", 5)

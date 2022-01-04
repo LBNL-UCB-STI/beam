@@ -15,7 +15,7 @@ import org.apache.commons.math3.util.{Pair => CPair}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Random
 
 class InverseSquareDistanceRepositioningFactor(
@@ -172,22 +172,25 @@ class InverseSquareDistanceRepositioningFactor(
 
   private def createHexClusters(tick: Int): Array[ClusterInfo] = {
     // Build clusters for every time bin. Number of clusters is configured
-    getTimeBins(tick).flatMap(timeBinToActivities.get).flatMap { acts =>
-      if (acts.isEmpty)
-        Array.empty[ClusterInfo]
-      else {
-        acts
-          .map(_.getCoord)
-          .groupBy(beamServices.beamScenario.h3taz.getIndex)
-          .map { case (hex, group) =>
-            val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
-            logger.debug(s"HexIndex: $hex")
-            logger.debug(s"Size: ${group.size}")
-            logger.debug(s"Center: $centroid")
-            ClusterInfo(group.size, centroid, group.toIndexedSeq)
-          }
+    getTimeBins(tick).view
+      .flatMap(timeBinToActivities.get)
+      .flatMap { acts =>
+        if (acts.isEmpty)
+          Array.empty[ClusterInfo]
+        else {
+          acts
+            .map(_.getCoord)
+            .groupBy(beamServices.beamScenario.h3taz.getIndex)
+            .map { case (hex, group) =>
+              val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
+              logger.debug(s"HexIndex: $hex")
+              logger.debug(s"Size: ${group.size}")
+              logger.debug(s"Center: $centroid")
+              ClusterInfo(group.size, centroid, group.toIndexedSeq)
+            }
+        }
       }
-    }
+      .toArray
   }
 
   private def getTimeBins(tick: Int): Array[Int] = {

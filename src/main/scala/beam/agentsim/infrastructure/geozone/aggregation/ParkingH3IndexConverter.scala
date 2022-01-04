@@ -2,6 +2,8 @@ package beam.agentsim.infrastructure.geozone.aggregation
 
 import java.nio.file.Path
 
+import scala.collection.parallel.CollectionConverters._
+
 import beam.agentsim.infrastructure.geozone.{GeoZone, H3Index, WgsCoordinate}
 import beam.agentsim.infrastructure.geozone.aggregation.ParkingH3IndexConverter.{
   H3IndexParkingEntry,

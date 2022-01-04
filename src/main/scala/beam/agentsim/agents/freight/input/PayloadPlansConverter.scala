@@ -40,7 +40,9 @@ object PayloadPlansConverter {
         )
       }
       .groupBy(_.tourId)
+      .view
       .mapValues(_.head)
+      .toMap
   }
 
   private def getDistributedTazLocation(tazId: String, tazTree: TAZTreeMap, rnd: Random): Coord =
@@ -67,7 +69,9 @@ object PayloadPlansConverter {
         )
       }
       .groupBy(_.payloadId)
+      .view
       .mapValues(_.head)
+      .toMap
   }
 
   def readFreightCarriers(
@@ -119,19 +123,26 @@ object PayloadPlansConverter {
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
         .groupBy(_.vehicleId)
+        .view
         .mapValues { rows =>
           rows
             //setting the tour warehouse location to be the carrier warehouse location
             .map(row => tours(row.tourId).copy(warehouseLocation = warehouseLocation))
             .sortBy(_.departureTimeInSec)
         }
+        .toMap
 
       val carrierTourIds = tourMap.values.flatten.map(_.tourId).toSet
 
       val plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
-        plans.values.groupBy(_.tourId).filterKeys(carrierTourIds).mapValues(_.toIndexedSeq.sortBy(_.sequenceRank))
+        plans.values
+          .groupBy(_.tourId)
+          .view
+          .filterKeys(carrierTourIds)
+          .mapValues(_.toIndexedSeq.sortBy(_.sequenceRank))
+          .toMap
       val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.flatten.map(_.payloadId).toSet
-      val payloadMap = plans.filterKeys(carrierPlanIds)
+      val payloadMap = plans.view.filterKeys(carrierPlanIds).toMap
 
       FreightCarrier(carrierId, tourMap, payloadMap, vehicleMap, plansPerTour)
     }

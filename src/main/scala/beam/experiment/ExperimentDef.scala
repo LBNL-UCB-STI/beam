@@ -1,13 +1,11 @@
 package beam.experiment
 
 import java.nio.file.{Files, Path, Paths}
-import java.util.{Collections, List => JavaList, Map => JavaMap}
-import java.util
 
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
 import scala.beans.BeanProperty
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class ExperimentDef(
   @BeanProperty var runExperimentScript: String,
@@ -29,7 +27,7 @@ case class ExperimentDef(
 
   def combinationsOfLevels(): List[ExperimentRun] = {
 
-    val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor))).toArray
+    val values = factors.asScala.map(factor => factor.levels.asScala.map(l => (l, factor)).toSeq).toSeq
     val runs = cartesian(values).toList
     runs.map { levels =>
       ExperimentRun(this, levels)

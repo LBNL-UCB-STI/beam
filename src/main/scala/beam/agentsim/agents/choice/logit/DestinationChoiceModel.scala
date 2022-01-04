@@ -7,7 +7,7 @@ import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.utils.io.IOUtils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 object DestinationChoiceModel {
@@ -148,12 +148,12 @@ class DestinationChoiceModel(
     //val out = Map[String, scala.collection.mutable.Map[Int, Double]]
     Try {
       val rows = activityFileContents.asScala
-      val headers = rows.next.split(",").map(_.trim).drop(1)
+      val headers = rows.next().split(",").map(_.trim).drop(1)
       val out = collection.mutable.Map() ++ headers.map { actType =>
         actType -> Map[Int, Double]()
       }.toMap
       while (rows.hasNext) {
-        val row = rows.next.split(",").map(_.trim)
+        val row = rows.next().split(",").map(_.trim)
         val hourInd = row.head.toInt
         row.drop(1).zip(headers).foreach { case (rate, actType) =>
           out(actType) += (hourInd -> rate.toDouble)
@@ -194,11 +194,11 @@ class DestinationChoiceModel(
   ): Option[(DestinationChoiceModel.ActivityVOTs, DestinationChoiceModel.ActivityDurations)] = {
     //val out = Map[String, scala.collection.mutable.Map[Int, Double]]
     val rows = activityFileContents.asScala
-    val headers = rows.next.split(",").map(_.trim).drop(1)
+    val headers = rows.next().split(",").map(_.trim).drop(1)
     var VOTs: Option[DestinationChoiceModel.ActivityVOTs] = None
     var Durations: Option[DestinationChoiceModel.ActivityDurations] = None
     while (rows.hasNext) {
-      val row = rows.next.split(",").map(_.trim)
+      val row = rows.next().split(",").map(_.trim)
       val rowId = row.head
       val paramValues = row
         .drop(1)

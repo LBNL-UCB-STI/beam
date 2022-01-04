@@ -7,10 +7,10 @@ import scala.collection.mutable
 object VehicleTrip {
 
   def apply(pte: BeamPathTraversal): VehicleTrip =
-    new VehicleTrip(pte.vehicleId, mutable.MutableList(pte))
+    new VehicleTrip(pte.vehicleId, mutable.ListBuffer(pte))
 
   def apply(vehicleId: String, pte: BeamPathTraversal): VehicleTrip =
-    new VehicleTrip(vehicleId, mutable.MutableList(pte))
+    new VehicleTrip(vehicleId, mutable.ListBuffer(pte))
 }
 
-case class VehicleTrip(vehicleId: String, trip: mutable.MutableList[BeamPathTraversal]) {}
+case class VehicleTrip(vehicleId: String, trip: mutable.ListBuffer[BeamPathTraversal]) {}

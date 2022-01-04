@@ -9,7 +9,7 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
 
-import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 trait PlanElementReader {
@@ -57,7 +57,7 @@ object CsvPlanElementReader extends PlanElementReader {
       legRouteEndLink = Option(rec.get("legRouteEndLink")),
       legRouteTravelTime = Option(rec.get("legRouteTravelTime")).map(_.toDouble),
       legRouteDistance = Option(rec.get("legRouteDistance")).map(_.toDouble),
-      legRouteLinks = linkIds,
+      legRouteLinks = linkIds.toSeq,
       geoId = Option(rec.get("geoId"))
     )
   }

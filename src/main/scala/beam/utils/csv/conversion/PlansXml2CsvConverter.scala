@@ -73,6 +73,7 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
           .zipWithIndex
       }
       .getOrElse(Seq.empty)
+      .toSeq
 
     childWithIndex
       .map(pair => toActivity(pair._1, pair._2 + 1))
@@ -95,6 +96,6 @@ object PlansXml2CsvConverter extends Xml2CsvFileConverter {
     val parser = ConstructingParser.fromFile(sourceFile, preserveWS = true)
     val doc = parser.document().docElem
     val peopleNodes: NodeSeq = doc \\ "population" \\ "person"
-    peopleNodes.toIterator.flatMap(toPlans).map(_.toString + LineSeparator)
+    peopleNodes.iterator.flatMap(toPlans).map(_.toString + LineSeparator)
   }
 }

@@ -110,7 +110,7 @@ class HierarchicalParkingManager(
                 tazParkingZone.geoId,
                 foundZoneDescription
               )
-              import scala.collection.JavaConverters._
+              import scala.jdk.CollectionConverters._
               val tazLinkZones = for {
                 link      <- linkQuadTree.values().asScala.toList
                 linkZones <- linkZoneSearchMap.get(link.getId)
@@ -180,7 +180,7 @@ class HierarchicalParkingManager(
         val linkStalls = tazLinks
           .get(taz.tazId)
           .map { linkTree =>
-            import scala.collection.JavaConverters._
+            import scala.jdk.CollectionConverters._
             val links = linkTree.values().asScala
             links.flatMap { link =>
               for {
@@ -351,7 +351,7 @@ object HierarchicalParkingManager {
     val linkZoneToTazZoneMap = tazZones
       .zip(tazZoneDescriptions.map { case (_, _, linkZones) => linkZones })
       .flatMap { case ((parkingZoneId, _), linkZones) => linkZones.map(_.parkingZoneId -> parkingZoneId) }
-    (tazZones, linkZoneToTazZoneMap)
+    (tazZones, linkZoneToTazZoneMap.toMap)
   }
 
   private def createLinkZoneSearchMap(
@@ -373,7 +373,7 @@ object HierarchicalParkingManager {
   }
 
   private def invertMap(linkToTAZMapping: Map[Link, TAZ]): Map[TAZ, Set[Link]] = {
-    linkToTAZMapping.groupBy(_._2).mapValues(_.keys.toSet)
+    linkToTAZMapping.groupBy(_._2).view.mapValues(_.keys.toSet).toMap
   }
 
   /**

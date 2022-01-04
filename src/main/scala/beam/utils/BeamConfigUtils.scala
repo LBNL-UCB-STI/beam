@@ -6,7 +6,7 @@ import java.nio.file.Paths
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.FilenameUtils._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.{immutable, mutable}
 
 object BeamConfigUtils {
@@ -86,7 +86,7 @@ object BeamConfigUtils {
 
   private def readFileLines(filePath: String): Array[String] = {
     val source = scala.io.Source.fromFile(filePath)
-    val lines = source.getLines.toArray
+    val lines = source.getLines().toArray
     source.close()
     lines
   }

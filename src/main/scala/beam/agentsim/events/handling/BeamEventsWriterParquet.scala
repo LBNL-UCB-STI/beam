@@ -12,7 +12,7 @@ import org.apache.parquet.hadoop.ParquetWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.matsim.api.core.v01.events.Event
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class BeamEventsWriterParquet(
@@ -56,7 +56,7 @@ class BeamEventsWriterParquet(
         .toSeq
   }
 
-  def getSchema(columnNames: Traversable[String]): Schema = {
+  def getSchema(columnNames: Iterable[String]): Schema = {
     def getStrField(fieldName: String): Schema.Field =
       new Schema.Field(fieldName, fieldSchema(fieldName), "", fieldDefaultValue(fieldName))
 
@@ -84,7 +84,7 @@ class BeamEventsWriterParquet(
       .build()
   }
 
-  override protected def writeEvent(event: Event): Unit = {
+  override def writeEvent(event: Event): Unit = {
     val genericDataRecord = toGenericDataRecord(event, columnNames)
     parquetWriter.write(genericDataRecord)
   }
@@ -144,7 +144,7 @@ class BeamEventsWriterParquet(
         }
     }
 
-    attributes
+    attributes.toSeq
   }
 
   def getFieldNameToTypeMap: Map[String, ParquetType] = Map(

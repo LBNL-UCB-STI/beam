@@ -14,7 +14,7 @@ import org.matsim.core.network.NetworkUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.scalatest.funspec.AnyFunSpec
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends AnyFunSpec {
   private val NumberOfSecondsInOneHour = 3600

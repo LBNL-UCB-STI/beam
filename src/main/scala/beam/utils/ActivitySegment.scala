@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.Activity
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 class ActivitySegment(private val activities: Array[Activity], val binSize: Int) extends LazyLogging {
@@ -23,10 +23,10 @@ class ActivitySegment(private val activities: Array[Activity], val binSize: Int)
     val idx = time.toInt / binSize
     if (idx > maxIdx) {
       // logger.warn(s"Cant find bucket at time: $time, idx: $idx, maxIdx: $maxIdx")
-      emptyArr
+      emptyArr.toIndexedSeq
     } else {
       val r: Array[Activity] = Option(arr(idx)).getOrElse(emptyArr)
-      r
+      r.toIndexedSeq
     }
   }
 

@@ -1,13 +1,13 @@
 package beam.physsim.jdeqsim
 
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.util.Try
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.r5.{R5Parameters, R5Wrapper}
@@ -42,15 +42,15 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
         updatePlans(oldTravelTimes, newTravelTimes, result)
         // We're assuming this should go down
         logger.info(
-          s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toArray)}"
+          s"Old total travel time for rerouted people: ${Statistics(oldTravelTimes.map(x => x / 60).toSeq)}"
         )
         logger.info(
-          s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toArray)}"
+          s"New total travel time for rerouted people: ${Statistics(newTravelTimes.map(x => x / 60).toSeq)}"
         )
       }
-      Statistics(newTravelTimes.map(x => x / 60).toArray)
+      Statistics(newTravelTimes.map(x => x / 60).toSeq)
     } else
-      Statistics(Array.empty[Double])
+      Statistics(Seq.empty[Double])
   }
 
   private def updatePlans(

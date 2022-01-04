@@ -22,7 +22,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
@@ -65,7 +66,7 @@ trait ScaleUpCharging extends {
             s"Something is broken in ScaleUpCharging. Request $requestId is not present in virtualParkingInquiries"
           )
       }
-      sender ! CompletionNotice(triggerId)
+      sender() ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
@@ -276,7 +277,7 @@ trait ScaleUpCharging extends {
       powerTrain,
       vehicleType,
       new AtomicReference(reservedFor.managerId),
-      randomSeed = rand.nextInt
+      randomSeed = rand.nextInt()
     )
     beamVehicle.initializeFuelLevels(soc)
     beamVehicle

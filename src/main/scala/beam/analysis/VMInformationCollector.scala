@@ -140,7 +140,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
 
     analyzeVMClassHystogram(classes, event.getIteration)
     val typeSizeOnHeap = classNameToBytesPerIteration.map { case (className, values) =>
-      (className, values.map(_ / bytesInGb))
+      (className, values.map(_ / bytesInGb).toSeq)
     }.toVector
 
     val csvFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.csv.gz")

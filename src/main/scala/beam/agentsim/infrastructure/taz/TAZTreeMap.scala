@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.taz
 
 import java.io._
 import java.util
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
@@ -231,7 +231,7 @@ object TAZTreeMap {
         val elementStream = quadTree
           .getRing(searchCenter.getX, searchCenter.getY, innerRadius, outerRadius)
           .asScala
-          .toStream
+          .to(LazyList)
         val result = elementStream.flatMap(f(_)).headOption
         if (result.isDefined) result
         else _find(outerRadius, outerRadius * radiusMultiplication)

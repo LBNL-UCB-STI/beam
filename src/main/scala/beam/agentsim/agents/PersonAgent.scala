@@ -473,7 +473,7 @@ class PersonAgent(
     nextActivity(data) match {
       case None =>
         logger.warn(s"didn't get nextActivity, PersonAgent:$id")
-        stay replying CompletionNotice(triggerId)
+        stay() replying CompletionNotice(triggerId)
       case Some(nextAct) =>
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
         holdTickAndTriggerId(tick, triggerId)
@@ -1154,7 +1154,7 @@ class PersonAgent(
           logDebug("PersonAgent nextActivity returned None")
           val (_, triggerId) = releaseTickAndTriggerId()
           scheduler ! CompletionNotice(triggerId)
-          stop
+          stop()
       }
   }
 
@@ -1196,15 +1196,15 @@ class PersonAgent(
   }
 
   def handleBoardOrAlightOutOfPlace: State = {
-    stash
-    stay
+    stash()
+    stay()
   }
 
   val myUnhandled: StateFunction = {
     case Event(BeamAgentSchedulerTimer, _) =>
       // Put a breakpoint here to see an internal state of the actor
       log.debug(s"Received message from ${sender()}")
-      stay
+      stay()
     case Event(IllegalTriggerGoToError(reason), _) =>
       stop(Failure(reason))
     case Event(Status.Failure(reason), _) =>
@@ -1226,7 +1226,7 @@ class PersonAgent(
       } else {
         logger.warn(s"$id has received Finish while in state: $stateName, personId: $id")
       }
-      stop
+      stop()
     case Event(TriggerWithId(_: BoardVehicleTrigger, _), _: ChoosesModeData) =>
       handleBoardOrAlightOutOfPlace
     case Event(TriggerWithId(_: AlightVehicleTrigger, _), _: ChoosesModeData) =>

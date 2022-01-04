@@ -104,7 +104,7 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
 
       val itrDir = Paths.get(output, ITERS_DIR).toFile
 
-      outDir should be a 'directory
+      outDir should be a Symbol("directory")
       outDir.list should not be empty
       outDir.list should contain(ITERS_DIR)
       itrDir.list should have length totalIterations

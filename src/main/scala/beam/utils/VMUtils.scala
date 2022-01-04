@@ -31,6 +31,7 @@ object VMUtils {
   def parseClassHistogram(jfrClassHistogram: String, takeLines: Int): Seq[VMClassInfo] = {
     val lines = jfrClassHistogram
       .split("\n")
+      .toSeq
       .filter(_.length > 5)
       .slice(2, takeLines + 2)
 

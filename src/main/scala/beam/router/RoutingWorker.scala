@@ -43,7 +43,7 @@ import scala.reflect.io.Directory
 
 class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
 
-  def this(config: Config) {
+  def this(config: Config) = {
     this(workerParams = {
       R5Parameters.fromConfig(config)
     })
@@ -158,7 +158,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         case None => //
       }
     case WorkAvailable =>
-      workAssigner = sender
+      workAssigner = sender()
       askForMoreWork()
 
     case request: RoutingRequest =>
@@ -195,7 +195,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       eventualResponse.recover { case e =>
         log.error(e, "calcRoute failed")
         RoutingFailure(e, request)
-      } pipeTo sender
+      } pipeTo sender()
       askForMoreWork()
 
     case UpdateTravelTimeLocal(newTravelTime) =>
@@ -243,7 +243,7 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         ) =>
       val response: RoutingResponse =
         r5.embodyWithCurrentTravelTime(leg, vehicleId, vehicleTypeId, embodyRequestId, triggerId)
-      sender ! response
+      sender() ! response
       askForMoreWork()
   }
 
@@ -403,6 +403,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         case (Seq(), Some(r5Resp)) =>
           r5Resp
         case (Seq(), None) => r5.calcRoute(request)
+        case (_, _) =>
+          ??? //temporarily in place to appease the 2.13 compiler - https://github.com/scala/bug/issues/12243
       }
     }
   }

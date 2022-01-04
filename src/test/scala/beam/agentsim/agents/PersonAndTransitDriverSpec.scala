@@ -39,7 +39,8 @@ import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -247,14 +248,14 @@ class PersonAndTransitDriverSpec
       val busDriver = Await.result(
         system
           .actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(busId))
-          .resolveOne,
+          .resolveOne(),
         60.seconds
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), busDriver)
       val tramDriver = Await.result(
         system
           .actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(tramId))
-          .resolveOne,
+          .resolveOne(),
         60.seconds
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(10000), tramDriver)
@@ -280,7 +281,7 @@ class PersonAndTransitDriverSpec
       plan.addActivity(workActivity)
       person.addPlan(plan)
       population.addPerson(person)
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(

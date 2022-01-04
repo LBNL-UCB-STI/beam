@@ -20,6 +20,7 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
+import scala.collection.parallel.CollectionConverters._
 import scala.util.Try
 
 case class PersonWithExtraInfoPuma(person: Models.Person, workDest: PowPumaGeoId, timeLeavingHomeRange: Range)

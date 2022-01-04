@@ -6,10 +6,9 @@ import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.population.{Activity, Plan}
-import org.scalatest._
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 class AbstractSfLightSpec(val name: String)

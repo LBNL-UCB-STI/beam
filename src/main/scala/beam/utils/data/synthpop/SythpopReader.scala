@@ -71,6 +71,6 @@ object SythpopReader extends StrictLogging {
       logger.info(s"Household: $hh")
       logger.info(s"People   : $people")
     }
-    new SythpopReader(hhWithPeople)
+    new SythpopReader(hhWithPeople.toSeq)
   }
 }

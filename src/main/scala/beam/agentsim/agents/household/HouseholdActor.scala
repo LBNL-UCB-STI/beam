@@ -370,7 +370,7 @@ object HouseholdActor {
             }
             val passengerSchedule =
               PassengerSchedule().addLegs(BeamLeg.makeVectorLegsConsistentAsOrderdStandAloneLegs(theLegs.toVector))
-            val updatedLegsIterator = passengerSchedule.schedule.keys.toIterator
+            val updatedLegsIterator = passengerSchedule.schedule.keys.iterator
             var pickDropsForGrouping: Map[PersonIdWithActorRef, List[BeamLeg]] = Map()
             var passengersToAdd = Set[PersonIdWithActorRef]()
             cavSchedule.schedule.foreach { serviceRequest =>
@@ -398,7 +398,7 @@ object HouseholdActor {
                 ).itineraries.nonEmpty
               ) {
                 if (updatedLegsIterator.hasNext) {
-                  val leg = updatedLegsIterator.next
+                  val leg = updatedLegsIterator.next()
                   passengersToAdd.foreach { pass =>
                     val legsForPerson = pickDropsForGrouping.getOrElse(pass, List()) :+ leg
                     pickDropsForGrouping = pickDropsForGrouping + (pass -> legsForPerson)

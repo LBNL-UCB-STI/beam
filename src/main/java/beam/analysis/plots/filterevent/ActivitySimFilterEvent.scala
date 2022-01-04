@@ -7,7 +7,7 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.controler.MatsimServices
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class ActivitySimFilterEvent(beamConfig: BeamConfig, matsimServices: MatsimServices) extends FilterEvent {
 

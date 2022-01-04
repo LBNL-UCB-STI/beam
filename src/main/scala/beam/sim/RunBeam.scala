@@ -5,7 +5,7 @@ import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
 import ch.qos.logback.classic.util.ContextInitializer
 import org.matsim.core.controler.AbstractModule
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object RunBeam extends BeamHelper {
   val logbackConfigFile: Option[String] = Option(System.getProperty(ContextInitializer.CONFIG_FILE_PROPERTY))

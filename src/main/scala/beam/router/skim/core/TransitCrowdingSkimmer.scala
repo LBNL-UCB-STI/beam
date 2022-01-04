@@ -80,7 +80,7 @@ class TransitCrowdingSkimmer @Inject() (
 object TransitCrowdingSkimmer extends LazyLogging {
 
   case class TransitCrowdingSkimmerKey(vehicleId: Id[Vehicle], fromStopIdx: Int) extends AbstractSkimmerKey {
-    override def toCsv: String = vehicleId + "," + fromStopIdx
+    override def toCsv: String = s"$vehicleId,$fromStopIdx"
   }
 
   case class TransitCrowdingSkimmerInternal(
@@ -88,7 +88,7 @@ object TransitCrowdingSkimmer extends LazyLogging {
     capacity: Int,
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
-    override def toCsv: String = numberOfPassengers + "," + capacity + "," + observations + "," + iterations
+    override def toCsv: String = s"$numberOfPassengers,$capacity,$observations,$iterations"
 
     //vehicle id, fromStopIdx are unique within an iteration, so they can be observed only once
     override val observations = 1

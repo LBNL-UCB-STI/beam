@@ -128,7 +128,7 @@ class ZonalParkingManagerSpec
         oneParkingOption: Iterator[String] = s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
             |1,Workplace,FlatFee,None,1,1234,,0
             |
-          """.stripMargin.split("\n").toIterator
+          """.stripMargin.split("\n").iterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           config,
           tazTreeMap,
@@ -193,7 +193,7 @@ class ZonalParkingManagerSpec
           """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
           |1,Workplace,FlatFee,None,1,1234,,0
           |
-          """.stripMargin.split("\n").toIterator
+          """.stripMargin.split("\n").iterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
           config,
           tazTreeMap,
@@ -373,7 +373,7 @@ class ZonalParkingManagerSpec
           |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,
           |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
           .split("\n")
-          .toIterator
+          .iterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val minSearchRadius = 1000.0
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
@@ -616,7 +616,7 @@ object ZonalParkingManagerSpec {
       .map { case (stalls, i) => s"${i + 1},Workplace,FlatFee,None,$stalls,0,," }
       .mkString(s"$header\n", "\n", "")
       .split("\n")
-      .toIterator
+      .iterator
     result
   }
 

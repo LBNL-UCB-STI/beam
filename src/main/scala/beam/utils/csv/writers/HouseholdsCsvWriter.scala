@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 import beam.utils.scenario.{HouseholdId, HouseholdInfo}
@@ -18,7 +18,7 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
   override def contentIterator(scenario: Scenario): Iterator[String] = {
     val attributes: ObjectAttributes = scenario.getHouseholds.getHouseholdAttributes
     val households = scenario.getHouseholds.getHouseholds.asScala.values
-    households.toIterator.map { h: Household =>
+    households.iterator.map { h: Household =>
       val id = h.getId.toString
       val info = HouseholdInfo(
         householdId = HouseholdId(id),

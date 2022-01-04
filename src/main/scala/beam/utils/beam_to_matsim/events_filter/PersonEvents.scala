@@ -5,7 +5,7 @@ import beam.utils.beam_to_matsim.events.BeamEvent
 import scala.collection.mutable
 
 object PersonEvents {
-  def apply(personId: String, event: BeamEvent): PersonEvents = new PersonEvents(personId, mutable.MutableList(event))
+  def apply(personId: String, event: BeamEvent): PersonEvents = new PersonEvents(personId, mutable.ListBuffer(event))
 }
 
-case class PersonEvents(personId: String, events: mutable.MutableList[BeamEvent]) {}
+case class PersonEvents(personId: String, events: mutable.ListBuffer[BeamEvent]) {}

@@ -11,7 +11,7 @@ class RichSegments(segments: Seq[Segment]) {
 
   def saveToCsv(path: Path): Seq[Segment] = {
     val csvWriter: CsvWriter = {
-      val headers = Array("wgsCoordinates", "lengthInMeters", "durationInSeconds", "speedLimitInKph")
+      val headers = Seq("wgsCoordinates", "lengthInMeters", "durationInSeconds", "speedLimitInKph")
       new CsvWriter(path.toString, headers)
     }
     val rows = segments.map { segment =>

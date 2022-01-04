@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -17,7 +17,7 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
 import scala.concurrent.duration._
@@ -228,7 +228,7 @@ class UrbanSimScenarioLoader(
           bvId,
           powerTrain,
           beamVehicleType,
-          randomSeed = rand.nextInt
+          randomSeed = rand.nextInt()
         )
         beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
         vehicleCounter = vehicleCounter + 1
@@ -482,7 +482,8 @@ class UrbanSimScenarioLoader(
       s"Currently $currentTotalCars are left, $numberOfWorkVehiclesToBeRemoved work vehicles are yet to be removed"
     )
 
-    numberOfCars2HouseholdIds.keys.toStream
+    numberOfCars2HouseholdIds.keys
+      .to(LazyList)
       .sorted(Ordering[Int].reverse)
       .takeWhile(currentNumberOfCars => currentNumberOfCars > 0 && currentTotalCars > goalCarTotal)
       .filter(numberOfCars2HouseholdIds.contains)
@@ -544,7 +545,7 @@ class UrbanSimScenarioLoader(
         person,
         hh,
         population,
-        availableModes.split(",")
+        availableModes.split(",").toSeq
       )
       population.addPerson(person)
     }

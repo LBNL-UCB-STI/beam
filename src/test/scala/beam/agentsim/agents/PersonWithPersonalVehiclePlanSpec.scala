@@ -36,7 +36,8 @@ import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters._
 
 class PersonWithPersonalVehiclePlanSpec
     extends AnyFunSpecLike
@@ -96,7 +97,7 @@ class PersonWithPersonalVehiclePlanSpec
       val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, CAR)
       population.addPerson(person)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -334,7 +335,7 @@ class PersonWithPersonalVehiclePlanSpec
       val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, BIKE)
       population.addPerson(person)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -485,7 +486,7 @@ class PersonWithPersonalVehiclePlanSpec
       val otherPerson: Person = createTestPerson(Id.createPersonId("dummyAgent2"), car1.id, CAR)
       population.addPerson(otherPerson)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId, otherPerson.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -584,7 +585,7 @@ class PersonWithPersonalVehiclePlanSpec
       val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, CAR, false)
       population.addPerson(person)
 
-      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+      household.setMemberIds(mutable.Buffer(person.getId).asJava)
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(

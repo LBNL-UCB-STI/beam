@@ -6,7 +6,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import com.google.inject.Inject
 import org.matsim.core.utils.misc.Time
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 

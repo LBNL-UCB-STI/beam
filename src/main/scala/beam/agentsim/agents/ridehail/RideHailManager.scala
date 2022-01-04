@@ -58,7 +58,7 @@ import java.awt.Color
 import java.io.File
 import java.util
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -425,7 +425,7 @@ class RideHailManager(
       )
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      sender ! CompletionNotice(triggerId, Vector())
+      sender() ! CompletionNotice(triggerId, Vector())
 
     case TAZSkimsCollectionTrigger(tick) =>
       rideHailManagerHelper.getIdleVehicles.foreach { case (_, agentLocation) =>
@@ -471,7 +471,7 @@ class RideHailManager(
         rideHailResourceAllocationManager.removeRequestFromBuffer(request)
       }
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
-      rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
+      rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary()
       log.debug("Cleaning up from RecoverFromStuckness")
       cleanUp(triggerId)
 
@@ -1571,7 +1571,7 @@ class RideHailManager(
   }
 
   def cleanUpBufferedRequestProcessing(triggerId: Long): Unit = {
-    rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
+    rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary()
     modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     log.debug("Cleaning up from cleanUpBufferedRequestProcessing")
     cleanUp(triggerId)

@@ -81,7 +81,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     val sb = new mutable.StringBuilder()
     val nl = System.lineSeparator()
     triggerTypeToOccurrence.foreach { case (clazz, buf) =>
-      val s = Statistics(buf.map(_.toDouble))
+      val s = Statistics(buf.map(_.toDouble).toSeq)
       sb.append(s"${nl}Type: $clazz${nl}Stats: $s$nl".stripMargin)
     }
     sb.append(s"$nl Max number of trigger messages per actor type$nl")
@@ -121,7 +121,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
 
   def prepareJsonConfig(maxPerActorType: Map[String, Map[String, Int]]): String = {
     val temp = maxPerActorType.toSeq.flatMap { case (actorType, map) =>
-      map.toIterator.map { case (triggerType, count) =>
+      map.iterator.map { case (triggerType, count) =>
         (triggerType, (actorType, count))
       }
     }
@@ -148,7 +148,7 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
           newAcc
       }
       // To get default values that's why we create it from empty configuration
-      val threshold = Thresholds$Elm.apply(ConfigFactory.empty())
+      val threshold = Thresholds$Elm.apply(ConfigFactory.empty(), "beam.debug.StuckAgentDetection", null)
       val finalMaxTime = if (threshold.markAsStuckAfterMs > maxTime) {
         threshold.markAsStuckAfterMs
       } else {
@@ -164,7 +164,8 @@ class TriggerMeasurer(val cfg: BeamConfig.Beam.Debug.TriggerMeasurer) extends La
     val sortedByTriggerType = thresholds.sortBy(x => x.triggerType)
     // To get default values that's why we create it from empty configuration
     val dummyCfg = ConfigFactory.parseString("thresholds = []")
-    val stuckAgentDetection = StuckAgentDetection.apply(dummyCfg).copy(thresholds = sortedByTriggerType, enabled = true)
+    val stuckAgentDetection =
+      StuckAgentDetection.apply(dummyCfg, "beam.debug", null).copy(thresholds = sortedByTriggerType, enabled = true)
     Printer.spaces2.print(stuckAgentDetection.asJson)
   }
 

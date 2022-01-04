@@ -229,7 +229,7 @@ trait ChargingNetworkManagerHelper extends {
       stall.copy(locationUTM = getBeamServices.geo.utm2Wgs(stall.locationUTM)),
       totEnergy,
       vehicle.primaryFuelLevelInJoules - totEnergy,
-      totDuration,
+      totDuration.toDouble,
       vehicle.id,
       vehicle.beamVehicleType,
       chargingVehicle.personId,

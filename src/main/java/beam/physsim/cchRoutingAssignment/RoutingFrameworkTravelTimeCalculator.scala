@@ -12,8 +12,8 @@ import com.vividsolutions.jts.index.kdtree.{KdNode, KdTree}
 import org.apache.commons.lang.time.StopWatch
 import org.matsim.api.core.v01.network.Link
 
-import scala.collection.JavaConverters._
-import scala.collection.convert.ImplicitConversionsToScala._
+import scala.jdk.CollectionConverters._
+//import scala.collection.convert.ImplicitConversionsToScala._
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -60,7 +60,7 @@ class RoutingFrameworkTravelTimeCalculator(
 
     val travelTimeCalculationStopWatch = new StopWatch()
 
-    val id2Link = links.toStream.map(x => x.getId.toString.toInt -> x).toMap
+    val id2Link = links.asScala.to(LazyList).map(x => x.getId.toString.toInt -> x).toMap
 
     val hour2Events = generateHour2Events(pathTraversalEvents)
 
@@ -72,8 +72,8 @@ class RoutingFrameworkTravelTimeCalculator(
 
           val ods = generateOdsFromTravelInfos(events, id2Link).toList
 
-          val odStream = Stream.fill(odsFactor.toInt)(ods).flatten ++
-            scala.util.Random.shuffle(ods).toStream.take(((odsFactor % 1) * ods.size).toInt)
+          val odStream = LazyList.fill(odsFactor.toInt)(ods).flatten ++
+            scala.util.Random.shuffle(ods).to(LazyList).take(((odsFactor % 1) * ods.size).toInt)
 
           routingFrameworkWrapper.writeOds(iterationNumber, hour, odStream)
 
@@ -120,7 +120,7 @@ class RoutingFrameworkTravelTimeCalculator(
   ): (Int, Map[String, Array[Double]]) = {
     var linksFailedToResolve = 0
 
-    val linkId2TravelTimeByHour = links
+    val linkId2TravelTimeByHour = links.asScala
       .groupBy(linkWayId)
       .flatMap { case (maybeWayId, linksInWay) =>
         linksInWay.map { link =>
@@ -157,8 +157,9 @@ class RoutingFrameworkTravelTimeCalculator(
   private[cchRoutingAssignment] def generateOdsFromTravelInfos(
     events: Seq[TravelInfo],
     id2Link: Map[Int, Link]
-  ): Stream[OD] = {
-    events.toStream
+  ): LazyList[OD] = {
+    events
+      .to(LazyList)
       .map { event =>
         for {
           firstLinkId <- event.linkIds.headOption
@@ -184,7 +185,7 @@ class RoutingFrameworkTravelTimeCalculator(
     pathTraversalEvents: util.Collection[PathTraversalEvent]
   ): Map[Int, List[TravelInfo]] = {
     val preliminaryHour2Events: Map[Int, Iterable[PathTraversalEvent]] =
-      pathTraversalEvents
+      pathTraversalEvents.asScala
         .groupBy(x => x.departureTime / 3600)
 
     val hours2EventsMutable = mutable.HashMap[Int, mutable.ArrayBuffer[TravelInfo]]()
@@ -217,7 +218,7 @@ class RoutingFrameworkTravelTimeCalculator(
       }
     }
 
-    hours2EventsMutable.mapValues(_.toList).toMap
+    hours2EventsMutable.view.mapValues(_.toList).toMap
   }
 
   private def linkWayId(link: Link): Option[Long] =
@@ -230,12 +231,12 @@ class RoutingFrameworkTravelTimeCalculator(
     var distance = 0.00001
     val envelope = new Envelope(coordinate)
 
-    Stream
+    LazyList
       .range(1, 10)
       .map { _ =>
         distance = distance * 10
         envelope.expandBy(distance)
-        kdTree.query(envelope).asInstanceOf[java.util.ArrayList[KdNode]].toList match {
+        kdTree.query(envelope).asInstanceOf[java.util.ArrayList[KdNode]].asScala.toList match {
           case Nil => None
           case res =>
             Some(

@@ -20,7 +20,7 @@ import com.graphhopper.util.{PMap, Parameters, PointList}
 import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 abstract class GraphHopperWrapper(
   graphDir: String,
@@ -44,7 +44,7 @@ abstract class GraphHopperWrapper(
 
   protected def createGraphHopper(): GraphHopper
   protected def getProfile(): Profile
-  protected def prepareRequest(request: GHRequest)
+  protected def prepareRequest(request: GHRequest): Unit
   protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double]
   protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double
 
@@ -94,7 +94,7 @@ abstract class GraphHopperWrapper(
         .map(_.get)
     }
     RoutingResponse(
-      alternatives,
+      alternatives.toSeq,
       routingRequest.requestId,
       Some(routingRequest),
       isEmbodyWithCurrentTravelTime = false,

@@ -5,7 +5,7 @@ import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
 import org.matsim.core.replanning.selectors.PlanSelector
 import scala.language.existentials
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 class TryToKeepOneOfEachClass extends PlanSelector[Plan, Person] {
 

@@ -72,8 +72,8 @@ object GeoFenceVerifier extends LazyLogging {
         s"Number of PTE for ride-hail is ${pathTraversalEvents.length}. There are ${errors.length} points which violate geofence"
       )
       logger.info("Stats about violations:")
-      logger.info(s"Distance: ${Statistics(errors.map(_.offset))}")
-      logger.info(s"Error(percent to the geofence radius): ${Statistics(errors.map(_.ratio * 100))}")
+      logger.info(s"Distance: ${Statistics(errors.map(_.offset).toSeq)}")
+      logger.info(s"Error(percent to the geofence radius): ${Statistics(errors.map(_.ratio * 100).toSeq)}")
     } finally {
       Try(closable.close())
     }

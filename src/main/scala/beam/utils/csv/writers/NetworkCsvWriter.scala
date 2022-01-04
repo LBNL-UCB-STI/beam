@@ -2,7 +2,7 @@ package beam.utils.csv.writers
 
 import org.matsim.api.core.v01.Scenario
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import ScenarioCsvWriter._
 
@@ -66,7 +66,7 @@ object NetworkCsvWriter extends ScenarioCsvWriter {
     scenario.getNetwork.getLinks
       .values()
       .asScala
-      .toIterator
+      .iterator
       .map { link =>
         val linkModeAsString =
           link.getAllowedModes.asScala

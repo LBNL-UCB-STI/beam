@@ -8,7 +8,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.Attributes
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 /**

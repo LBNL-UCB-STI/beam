@@ -5,7 +5,7 @@ import java.nio.file.{Files, Path}
 
 import beam.utils.BeamConfigUtils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 object RunBatch extends App with BeamHelper {
   val BATCH_OPT = "batch"

@@ -34,7 +34,7 @@ object DebugRepositioning {
             PointToPlot(
               tazEntry._1,
               Color.RED,
-              10 + Math.log(tazEntry._2.sumOfRequestedRides).toInt
+              10 + Math.log(tazEntry._2.sumOfRequestedRides.toDouble).toInt
             )
           )
         }
@@ -45,7 +45,7 @@ object DebugRepositioning {
         rideHailManager.beamServices.matsimServices.getControlerIO
           .getIterationFilename(
             rideHailManager.beamServices.matsimServices.getIterationNumber,
-            tick / 3600 + "locationOfAgentsInitally.png"
+            s"${tick / 3600}locationOfAgentsInitally.png"
           )
           .replace(iteration, iteration + "/rideHailDebugging")
       )

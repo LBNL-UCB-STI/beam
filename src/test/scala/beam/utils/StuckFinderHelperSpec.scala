@@ -33,7 +33,7 @@ class StuckFinderHelperSpec extends AnyWordSpec with Matchers {
 
     "remove oldest value by timestamp" in {
       val s = new StuckFinderHelper[String]
-      s.removeOldest should be(None)
+      s.removeOldest() should be(None)
       s.add(100, "100")
 
       val oldest = s.removeOldest()

@@ -17,7 +17,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.handler.BasicEventHandler
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 case class DelayInLength(delay: Double, length: Int)
 
@@ -120,7 +120,7 @@ class DelayMetricAnalysis @Inject() (
     util.Arrays.fill(cumulativeLength, 0.0)
     util.Arrays.fill(linkTravelsCount, 0)
     linkAverageDelay = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
-    capacitiesDelay.clear
+    capacitiesDelay.clear()
     linkUtilization.clear()
     totalTravelTime = 0
   }
@@ -157,9 +157,9 @@ class DelayMetricAnalysis @Inject() (
   }
 
   // calculating weighted average
-  def averageDelayDataset(event: IterationEndsEvent) {
+  def averageDelayDataset(event: IterationEndsEvent) = {
     val iteration = event.getIteration
-    val nonNull: IndexedSeq[DelayInLength] = linkAverageDelay.filter(x => x != null)
+    val nonNull: IndexedSeq[DelayInLength] = linkAverageDelay.filter(x => x != null).toIndexedSeq
     val sumDelay: Double = nonNull.view.map(delayInLength => delayInLength.delay).sum
     val sumLength: Double = nonNull.view.map(delayInLength => delayInLength.length).sum
     val avg = sumDelay / sumLength

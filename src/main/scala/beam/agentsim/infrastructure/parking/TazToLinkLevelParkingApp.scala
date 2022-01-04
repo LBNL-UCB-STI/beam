@@ -57,7 +57,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
 
   logger.info(s"Number of links in the network: ${linkToTaz.size}")
 
-  val tazToLinks: Map[TAZ, List[Link]] = linkToTaz.groupBy(_._2).mapValues(_.keys.toList)
+  val tazToLinks: Map[TAZ, List[Link]] = linkToTaz.groupBy(_._2).view.mapValues(_.keys.toList).toMap
 
   val zonesLink: Iterable[ParkingZone[Link]] = tazToLinks.flatMap { case (taz, links) =>
     distributeParking(taz, links, parkingZones, zoneSearchTree)
@@ -83,11 +83,15 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
 
   val zoneSearchTreeLink = zoneArrayLink.values
     .groupBy(_.geoId)
+    .view
     .mapValues { zones =>
       zones
         .groupBy(zone => zone.parkingType)
+        .view
         .mapValues(zonesByType => zonesByType.map(_.parkingZoneId).toVector)
+        .toMap
     }
+    .toMap
 
   logger.info("Generated {} zones", zoneArrayLink.size)
   logger.info("with {} parking stalls", zoneArrayLink.map(_._2.stallsAvailable.toLong).sum)

@@ -36,9 +36,9 @@ class TAZSkimsCollector(scheduler: ActorRef, beamServices: BeamServices, vehicle
     case TriggerWithId(TAZSkimsCollectionTrigger(tick), triggerId) =>
       vehicleManagers.foreach(_ ! TAZSkimsCollectionTrigger(tick))
       if (tick + timeBin <= endOfSimulationTime) {
-        sender ! CompletionNotice(triggerId, Vector(ScheduleTrigger(TAZSkimsCollectionTrigger(tick + timeBin), self)))
+        sender() ! CompletionNotice(triggerId, Vector(ScheduleTrigger(TAZSkimsCollectionTrigger(tick + timeBin), self)))
       } else {
-        sender ! CompletionNotice(triggerId)
+        sender() ! CompletionNotice(triggerId)
       }
 
     case Finish =>

@@ -3,7 +3,7 @@ package beam.docs
 import java.io.{FileOutputStream, PrintWriter}
 import java.nio.file.{FileSystems, Path, Paths}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
 import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription}
 import beam.utils.OutputDataDescriptor
@@ -54,7 +54,7 @@ object GenerateDocumentationTask extends App with StrictLogging {
   }
 
   def buildDocument(descriptor: OutputDataDescriptor, ioController: OutputDirectoryHierarchy): String = {
-    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions(ioController).asScala
+    val allValues: Seq[OutputDataDescription] = descriptor.getOutputDataDescriptions(ioController).asScala.toSeq
 
     val columns: Seq[String] = Seq("field", "description")
     val columnsSize: Map[String, Int] = calculateColumnSize(allValues, columns)

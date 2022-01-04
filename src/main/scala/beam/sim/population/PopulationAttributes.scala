@@ -13,7 +13,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 
 sealed trait PopulationAttributes

@@ -22,7 +22,7 @@ import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.core.utils.collections.QuadTree
 
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 import scala.util.Random

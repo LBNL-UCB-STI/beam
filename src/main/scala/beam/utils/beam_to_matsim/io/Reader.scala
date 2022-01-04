@@ -11,7 +11,7 @@ object Reader {
   def readWithFilter(
     eventsPath: String,
     filter: MutableSamplingFilter
-  ): (Traversable[VehicleTrip], Traversable[PersonEvents]) = {
+  ): (Iterable[VehicleTrip], Iterable[PersonEvents]) = {
 
     val beamEventsFilter = BeamEventsReader
       .fromFileFoldLeft[MutableSamplingFilter](
@@ -59,7 +59,7 @@ object Reader {
     vehiclesTrips.foreach { vehicleTrip =>
       progress.step()
       vehicleTrip match {
-        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip.toSeq)
         case _                          =>
       }
     }
@@ -67,24 +67,24 @@ object Reader {
     personsTrips.foreach { vehicleTrip =>
       progress.step()
       vehicleTrip match {
-        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip)
+        case trip if trip.trip.size > 1 => pteOverlappingFix(trip.trip.toSeq)
         case _                          =>
       }
     }
 
     progress.finish()
 
-    Console.println(vehiclesTrips.size + " vehicle trips collected")
-    Console.println(personsEvents.size + " persons trips collected")
+    Console.println(s"${vehiclesTrips.size} vehicle trips collected")
+    Console.println(s"${personsEvents.size} persons trips collected")
 
     (vehiclesTrips, personsEvents)
   }
 
   def transformActivities(
-    personsEvents: Traversable[PersonEvents]
-  ): (mutable.MutableList[ViaEvent], mutable.HashMap[String, Int]) = {
+    personsEvents: Iterable[PersonEvents]
+  ): (mutable.ListBuffer[ViaEvent], mutable.HashMap[String, Int]) = {
 
-    val viaEvents = mutable.MutableList.empty[ViaEvent]
+    val viaEvents = mutable.ListBuffer.empty[ViaEvent]
     val actTypes = mutable.HashMap.empty[String, Int]
 
     def getActType(acttivityType: String) = "activity_" + acttivityType
@@ -114,17 +114,17 @@ object Reader {
       events
     }))
 
-    Console.println(viaEvents.size + " via events for activities display (" + actTypes.size + " different types)")
+    Console.println(s"${viaEvents.size} via events for activities display (${actTypes.size} different types)")
 
     (viaEvents, actTypes)
   }
 
   def transformModeChoices(
-    personsEvents: Traversable[PersonEvents],
+    personsEvents: Iterable[PersonEvents],
     modeChoiceDuration: Int = 50
-  ): (mutable.MutableList[ViaEvent], mutable.HashMap[String, Int]) = {
+  ): (mutable.ListBuffer[ViaEvent], mutable.HashMap[String, Int]) = {
 
-    val viaEvents = mutable.MutableList.empty[ViaEvent]
+    val viaEvents = mutable.ListBuffer.empty[ViaEvent]
     val modes = mutable.HashMap.empty[String, Int]
 
     personsEvents.foreach(_.events.foldLeft(viaEvents) {
@@ -143,13 +143,13 @@ object Reader {
       case (acc, _) => acc
     })
 
-    Console.println(viaEvents.size + " via events for modeChoices display (" + modes.size + " different types)")
+    Console.println(s"${viaEvents.size} via events for modeChoices display (${modes.size} different types)")
 
     (viaEvents, modes)
   }
 
   def transformPathTraversals(
-    vehiclesTrips: Traversable[VehicleTrip],
+    vehiclesTrips: Iterable[VehicleTrip],
     vehicleId: BeamPathTraversal => String,
     vehicleType: BeamPathTraversal => String
   ): (mutable.PriorityQueue[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
@@ -233,14 +233,14 @@ object Reader {
     val viaEventsCollector =
       vehiclesTrips.foldLeft(ViaEventsCollector(vehicleId, vehicleType))((acc, trip) => {
         progress.step()
-        acc.collectVehicleTrip(trip.trip)
+        acc.collectVehicleTrip(trip.trip.toSeq)
         acc
       })
 
     progress.finish()
 
-    Console.println(viaEventsCollector.events.size + " via events with vehicles trips")
-    Console.println(viaEventsCollector.vehicleTypeToId.size + " vehicle types")
+    Console.println(s"${viaEventsCollector.events.size} via events with vehicles trips")
+    Console.println(s"${viaEventsCollector.vehicleTypeToId.size} vehicle types")
 
     (viaEventsCollector.events, viaEventsCollector.vehicleTypeToId)
   }

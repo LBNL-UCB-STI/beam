@@ -19,7 +19,7 @@ import java.io.BufferedWriter
 import java.nio.file.Paths
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal
@@ -123,7 +123,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
         val filePattern = s"*${BeamWarmStart.fileNameSubstringToDetectIfReadSkimsInParallelMode}*.csv*"
         FileUtils
           .flatParRead(Paths.get(file.path), filePattern, awaitSkimLoading) { (path, reader) =>
-            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader)
+            new CsvSkimReader(path.toString, fromCsv, logger).readSkims(reader).toSeq
           }
           .toMap
       }

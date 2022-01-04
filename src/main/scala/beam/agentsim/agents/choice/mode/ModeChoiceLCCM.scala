@@ -16,7 +16,7 @@ import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.population.Person
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -302,6 +302,7 @@ class ModeChoiceLCCM(
         )
       }
       .toMap
+      .view
       .mapValues(modeChoiceCalculatorForStyle =>
         trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None)).sum
       )

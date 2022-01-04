@@ -55,6 +55,6 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
         .filter(x => x != 0)
       travelTimes
     }
-    Statistics(allTravelTimes.map(t => t.toDouble / 60).toArray)
+    Statistics(allTravelTimes.map(t => t.toDouble / 60).toSeq)
   }
 }

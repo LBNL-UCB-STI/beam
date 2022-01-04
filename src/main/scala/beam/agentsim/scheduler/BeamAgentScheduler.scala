@@ -14,7 +14,7 @@ import com.google.common.collect.TreeMultimap
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Deadline, FiniteDuration}
@@ -408,7 +408,7 @@ class BeamAgentScheduler(
       nowInSeconds = newNow
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
-        stuckAgentChecker.foreach(_.cancel)
+        stuckAgentChecker.foreach(_.cancel())
         log.info(
           s"Stopping BeamAgentScheduler @ tick $nowInSeconds. Iteration $currentIter executed in ${duration.toSeconds} seconds"
         )

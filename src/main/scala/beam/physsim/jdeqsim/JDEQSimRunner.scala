@@ -30,7 +30,7 @@ import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
 import scala.concurrent.ExecutionContext
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 class JDEQSimRunner(

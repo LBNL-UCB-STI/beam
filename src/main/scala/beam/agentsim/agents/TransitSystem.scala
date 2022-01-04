@@ -50,7 +50,7 @@ class TransitSystem(
 
   override def loggedReceive: PartialFunction[Any, Unit] = {
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
-      sender ! CompletionNotice(triggerId, Vector())
+      sender() ! CompletionNotice(triggerId, Vector())
     case Terminated(_) =>
     // Do nothing
     case Finish =>
@@ -94,7 +94,7 @@ class TransitSystem(
           chargingNetworkManager,
           transitDriverId,
           vehicle,
-          legs,
+          legs.toSeq,
           geo,
           networkHelper
         )
@@ -172,7 +172,9 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
       .map(_.trim.split(","))
       .filter(_.length > 2)
       .groupBy(_(0))
-      .mapValues(_.groupBy(_(1)).mapValues(_.head(2)))
+      .view
+      .mapValues(_.groupBy(_(1)).view.mapValues(_.head(2)).toMap)
+      .toMap
   }
 
 }

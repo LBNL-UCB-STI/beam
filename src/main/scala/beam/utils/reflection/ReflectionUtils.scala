@@ -7,7 +7,7 @@ import akka.event.LoggingAdapter
 import org.reflections.Reflections
 import org.reflections.util.{ClasspathHelper, ConfigurationBuilder}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 /**

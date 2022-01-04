@@ -1,6 +1,6 @@
 package beam.utils.csv.writers
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import beam.utils.scenario.{PersonId, PlanElement}
 import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
@@ -98,7 +98,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legRouteEndLink = route.map(_.getEndLinkId.toString),
           legRouteTravelTime = route.map(_.getTravelTime),
           legRouteDistance = route.map(_.getDistance),
-          legRouteLinks = routeLinks,
+          legRouteLinks = routeLinks.toSeq,
           geoId = None
         )
       case act: Activity =>

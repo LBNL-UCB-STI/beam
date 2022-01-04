@@ -107,7 +107,7 @@ class SfLightRoutePopulationSpec
                   }
                   inside(legs(1)) { case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
                     mode should be(CAR)
-                    links should not be 'empty
+                    links should not be Symbol("empty")
                   }
                   inside(legs(2)) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
                     mode should be(WALK)

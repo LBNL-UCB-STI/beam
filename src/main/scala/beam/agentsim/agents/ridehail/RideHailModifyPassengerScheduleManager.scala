@@ -371,9 +371,9 @@ class RideHailModifyPassengerScheduleManager(
           status.rideHailAgent.tell(Resume(triggerId), rideHailManagerRef)
       }
     }
-    vehicleIdToModifyPassengerScheduleStatus.clear
-    interruptIdToModifyPassengerScheduleStatus.clear
-    interruptedVehicleIds.clear
+    vehicleIdToModifyPassengerScheduleStatus.clear()
+    interruptIdToModifyPassengerScheduleStatus.clear()
+    interruptedVehicleIds.clear()
   }
 
   def clearModifyStatusFromCacheWithVehicleId(vehicleId: Id[Vehicle]): Unit = {

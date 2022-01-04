@@ -3,7 +3,8 @@ package beam.agentsim.infrastructure.geozone
 import java.io.Closeable
 import java.nio.file.Path
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
+import scala.collection.parallel.CollectionConverters._
 import scala.collection.mutable
 
 import beam.utils.csv.GenericCsvReader

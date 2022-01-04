@@ -10,7 +10,7 @@ class CustomTerminateAtFixedIterationNumber extends TerminationCriterion {
   private var beamConfigHolder: BeamConfigHolder = _
 
   @Inject
-  def this(controlerConfigGroup: ControlerConfigGroup, beamConfigHolder: BeamConfigHolder) {
+  def this(controlerConfigGroup: ControlerConfigGroup, beamConfigHolder: BeamConfigHolder) = {
     this()
     this.beamConfigHolder = beamConfigHolder
     this.lastIteration = controlerConfigGroup.getLastIteration

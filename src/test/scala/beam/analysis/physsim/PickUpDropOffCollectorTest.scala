@@ -218,6 +218,6 @@ class PickUpDropOffCollectorTest extends AnyFunSuite with Matchers {
     }
 
     linkToPickUpDropOffFromPython.keySet -- linkToPickUpDropOff.keySet shouldBe Set.empty[Int]
-    linkToPickUpDropOff.keySet -- linkToPickUpDropOffFromPython.keySet shouldBe Set.empty[Int]
+    linkToPickUpDropOff.keySet.toSet.removedAll(linkToPickUpDropOffFromPython.keySet) shouldBe Set.empty[Int]
   }
 }

@@ -7,7 +7,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 import org.slf4j.LoggerFactory
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.collection.immutable.List
 import scala.collection.mutable
 
@@ -49,7 +49,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       .filter(x => x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))
       .toList
 
-    val newElements = elements.foldLeft(mutable.MutableList[Activity]())((listOfAct, currentAct) =>
+    val newElements = elements.foldLeft(mutable.ListBuffer[Activity]())((listOfAct, currentAct) =>
       listOfAct.lastOption match {
         case Some(lastAct) =>
           if (lastAct.getType == currentAct.getType) {
@@ -60,7 +60,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
           } else {
             listOfAct += currentAct
           }
-        case None => mutable.MutableList[Activity](currentAct)
+        case None => mutable.ListBuffer[Activity](currentAct)
       }
     )
 

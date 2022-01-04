@@ -112,7 +112,7 @@ object BenchmarkGenerator {
 
   private def writeBeamModes(path: String, modes: Seq[(BeamMode, Double)]): Unit = {
     val totalCount = modes.map(_._2).sum
-    val csvWriter = new CsvWriter(path, Array("mode", "count", "percent"))
+    val csvWriter = new CsvWriter(path, Seq("mode", "count", "percent"))
     try {
       modes.foreach { case (mode, count) =>
         val pct = 100 * count / totalCount

@@ -32,7 +32,7 @@ class BeamEventsWriterXML(
     *
     * @param event event to written
     */
-  override protected def writeEvent(event: Event): Unit = {
+  override def writeEvent(event: Event): Unit = {
     //get all the event attributes
     outWriter.append("\t<event ")
     event.getAttributes.forEach((name, value) => {
@@ -48,7 +48,7 @@ class BeamEventsWriterXML(
   /**
     * Adds the xml header to the file.
     */
-  override protected def writeHeaders(): Unit = {
+  override def writeHeaders(): Unit = {
     outWriter.write(header)
     outWriter.newLine()
   }

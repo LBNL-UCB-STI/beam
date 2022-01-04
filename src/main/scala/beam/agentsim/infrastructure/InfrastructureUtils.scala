@@ -16,7 +16,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.existentials
 import scala.util.{Failure, Random, Success, Try}
 
