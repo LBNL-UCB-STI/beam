@@ -4,11 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStatus.Connected
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingTimeOutTrigger,
-  EndingRefuelSession,
-  StartingRefuelSession
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingTimeOutTrigger
 import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.config.BeamConfig.Beam.Agentsim
@@ -163,7 +159,7 @@ trait ChargingNetworkManagerHelper extends {
     chargingVehicle: ChargingVehicle,
     triggerId: Long,
     chargingInterrupted: Boolean
-  ): Boolean = {
+  ): Option[ChargingVehicle] = {
     val result = chargingVehicle.chargingStatus.last.status match {
       case Connected =>
         chargingVehicle.chargingStation.endCharging(chargingVehicle.vehicle.id, tick) orElse {
@@ -177,10 +173,8 @@ trait ChargingNetworkManagerHelper extends {
     if (result.isDefined) {
       handleRefueling(chargingVehicle)
       processEndChargingEvents(tick, chargingVehicle)
-      if (!chargingInterrupted)
-        chargingVehicle.theSender ! EndingRefuelSession(tick, chargingVehicle.vehicle.id, triggerId)
     }
-    result.isDefined && !chargingInterrupted
+    result
   }
 
   /**

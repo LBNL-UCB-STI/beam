@@ -138,20 +138,23 @@ class ChargingNetworkManager(
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle, chargingInterrupted), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
-      val endingRefuelSessionSent: Boolean = vehicle.stall match {
+      val vehicleEndedCharging = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
             handleEndCharging(tick, _, triggerId, chargingInterrupted)
           } getOrElse {
             log.debug(s"Vehicle ${vehicle.id} has already ended charging")
-            false
+            None
           }
         case _ =>
           log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
-          false
+          None
       }
-      if (!endingRefuelSessionSent) {
-        sender ! CompletionNotice(triggerId)
+      vehicleEndedCharging match {
+        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) =>
+          theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
+        case _ =>
+          sender ! CompletionNotice(triggerId)
       }
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
