@@ -29,6 +29,7 @@ object CsvPlanElementReader extends PlanElementReader {
   }
 
   private[readers] def toPlanElement(rec: java.util.Map[String, String]): PlanElement = {
+
     val personId = getIfNotNull(rec, "personId")
     val planIndex = getIfNotNull(rec, "planIndex").toInt
     val planElementType = getIfNotNull(rec, "planElementType")
@@ -37,6 +38,7 @@ object CsvPlanElementReader extends PlanElementReader {
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
+      tripId = rec.get("tripId"),
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore").toDouble,
@@ -90,6 +92,7 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
+      tripId = "",
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -114,6 +117,11 @@ object XmlPlanElementReader extends PlanElementReader {
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
+      tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
+        leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,

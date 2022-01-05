@@ -88,6 +88,9 @@ if (project.hasProperty('env')) {
 
 allprojects {
     repositories {
+        mavenCentral().content {
+            excludeModule("javax.media", "jai_core")
+        }
         maven { url "https://repo.osgeo.org/repository/release/" }
         maven { url "https://download.osgeo.org/webdav/geotools" }
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
@@ -107,7 +110,6 @@ allprojects {
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
         mavenLocal()
-        mavenCentral()
         maven {
             url "http://nexus.onebusaway.org/content/groups/public/"
             allowInsecureProtocol = true
@@ -126,12 +128,14 @@ configurations.all {
     resolutionStrategy {
 //       we need this in order to get Elki library working fine.
         force 'it.unimi.dsi:fastutil:8.5.4'
+        force 'org.apache.logging.log4j:log4j-core:2.15.0'
+        force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
 }
 
 dependencies {
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.12') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.15') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -198,7 +202,8 @@ dependencies {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
-    implementation group: 'com.graphhopper', name: 'graphhopper-core', version: '1.0'
+
+    implementation group: 'com.graphhopper', name: 'graphhopper-core', version: '2.3'
     implementation "com.sigopt:sigopt-java:4.9.0"
 
     implementation("com.uber:h3:3.4.1")
@@ -322,7 +327,6 @@ dependencies {
     // AWS S3
     implementation group: 'software.amazon.awssdk', name: 's3', version: '2.16.68'
     implementation group: 'org.ini4j', name: 'ini4j', version: '0.5.4'
-
 }
 
 // Autoformatting using scalafmt
@@ -345,6 +349,16 @@ configurations.all {
 }
 
 //compileScala.dependsOn(scalafmtAll)
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+task install(dependsOn: 'publishToMavenLocal')
 
 tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
     outputs.upToDateWhen { false }
@@ -375,8 +389,8 @@ tasks.withType(ScalaCompile) {
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     def n = project.hasProperty('numThreads') ? numThreads : 4
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-oD', '-l', 'beam.tags.ExcludeRegular',
-            "-PS$n", '-T', '120']
+    args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-u', 'build/scalatest-report-xml', '-oD', '-l', 'beam.tags.ExcludeRegular',
+            "-PS$n", '-T', '120', '-W', '300', '60']
     classpath = sourceSets.test.runtimeClasspath
 }
 build.dependsOn spec
@@ -388,7 +402,7 @@ build.dependsOn spec
 * /////////////////////////////////////////////////// */
 
 processResources {
-  duplicatesStrategy = 'include'
+    duplicatesStrategy = 'include'
 }
 
 processTestResources {
