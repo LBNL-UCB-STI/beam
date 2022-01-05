@@ -199,7 +199,7 @@ class ChargingNetworkManager(
     case ChargingUnplugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
       val bounds = powerController.obtainPowerPhysicalBounds(tick, None)
-      vehicle.stall match {
+      val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
             case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, status, sessions)) =>
@@ -218,7 +218,6 @@ class ChargingNetworkManager(
                 )
               }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
-              sender ! UnpluggingVehicle(tick, totEnergy, triggerId)
               chargingNetwork
                 .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
@@ -232,14 +231,16 @@ class ChargingNetworkManager(
                     newChargingVehicle.shiftDuration
                   )
                 }
+              UnpluggingVehicle(tick, totEnergy, triggerId)
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")
-              sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
+              UnhandledVehicle(tick, vehicle.id, triggerId)
           }
         case _ =>
           log.debug(s"Cannot unplug $vehicle as it doesn't have a stall at $tick")
-          sender ! UnhandledVehicle(tick, vehicle.id, triggerId)
+          UnhandledVehicle(tick, vehicle.id, triggerId)
       }
+      sender ! responseHasTriggerId
 
     case Finish =>
       log.info("CNM is Finishing. Now clearing the charging networks!")
