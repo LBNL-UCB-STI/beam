@@ -1534,18 +1534,23 @@ object BeamConfig {
           }
 
           case class Enroute(
-            maxDurationInSeconds: scala.Int,
-            noRefuelThresholdInMeters: scala.Double
+            avgChargingDurationInSecond: scala.Int,
+            noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
+            noRefuelThresholdOffsetInMeters: scala.Double
           )
 
           object Enroute {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
-                maxDurationInSeconds =
-                  if (c.hasPathOrNull("maxDurationInSeconds")) c.getInt("maxDurationInSeconds") else 1800,
-                noRefuelThresholdInMeters =
-                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getDouble("noRefuelThresholdInMeters")
+                avgChargingDurationInSecond =
+                  if (c.hasPathOrNull("avgChargingDurationInSecond")) c.getInt("avgChargingDurationInSecond") else 1800,
+                noRefuelAtRemainingDistanceThresholdInMeters =
+                  if (c.hasPathOrNull("noRefuelAtRemainingDistanceThresholdInMeters"))
+                    c.getInt("noRefuelAtRemainingDistanceThresholdInMeters")
+                  else 500,
+                noRefuelThresholdOffsetInMeters =
+                  if (c.hasPathOrNull("noRefuelThresholdOffsetInMeters")) c.getDouble("noRefuelThresholdOffsetInMeters")
                   else 32186.9
               )
             }

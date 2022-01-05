@@ -108,6 +108,7 @@ trait ChoosesParking extends {
       // so vehicle can be found in first leg of rest of the trip.
       val vehicle = beamVehicles(firstLeg.beamVehicleId).vehicle
       val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get
+      //TODO ADD remaining range to Parking Inquiry, to estimate charging duration, then run a test, then commit
       ParkingInquiry.init(
         destinationUtm,
         activityType,

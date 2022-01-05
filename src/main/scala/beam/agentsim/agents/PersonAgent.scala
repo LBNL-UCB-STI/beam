@@ -153,7 +153,8 @@ object PersonAgent {
 
   /**
     * holds information for agent enroute
-    * @param isEnroute      flag to indicate whether agent is enrouting or not
+    * @param isInEnrouteState flag to indicate whether agent is in enroute node
+    * @param hasReservedFastChargerStall flag indicate if the agent has reserved a stall with fast charger point
     * @param stall2DestLegs car legs from enroute charging stall to original destination
     */
   case class EnrouteData(
@@ -968,12 +969,11 @@ class PersonAgent(
         val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
         // Calculating distance to cross before enroute charging
         val refuelRequiredThresholdInMeters = totalDistance
-        val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdInMeters
+        val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdOffsetInMeters
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
-        val remainingDistanceRefuelThresholdInMeters = 500 //todo move to config,
         val isRefuelNeeded =
-          if (totalDistance < remainingDistanceRefuelThresholdInMeters) false
+          if (totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters) false
           else vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
         val needEnroute = asDriver && isElectric && isRefuelNeeded
 
