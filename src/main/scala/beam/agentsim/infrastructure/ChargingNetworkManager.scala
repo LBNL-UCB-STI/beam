@@ -89,8 +89,6 @@ class ChargingNetworkManager(
         case Some(parkingResponse) =>
           inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
           sender() ! parkingResponse
-        case _ if inquiry.searchMode == ParkingSearchMode.EnRoute =>
-          (parkingNetworkManager ? inquiry.copy(searchMode = ParkingSearchMode.Destination)).pipeTo(sender())
         case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 

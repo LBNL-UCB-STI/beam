@@ -14,6 +14,8 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
+import scala.util.Random
+
 class ChargingFunctions[GEO: GeoLevel](
   geoQuadTree: QuadTree[GEO],
   idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
@@ -148,7 +150,27 @@ class ChargingFunctions[GEO: GeoLevel](
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult
+  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult match {
+    case None if inquiry.searchMode == ParkingSearchMode.EnRoute =>
+      // did not find a stall with a fast charging point, return a dummy stall
+      Some(
+        ParkingZoneSearch.ParkingZoneSearchResult(
+          ParkingStall.lastResortStall(
+            new Envelope(
+              inquiry.originUtm.get.loc.getX + 2000,
+              inquiry.originUtm.get.loc.getX - 2000,
+              inquiry.originUtm.get.loc.getY + 2000,
+              inquiry.originUtm.get.loc.getY - 2000
+            ),
+            new Random(seed),
+            tazId = TAZ.EmergencyTAZId,
+            geoId = GeoLevel[GEO].emergencyGeoId
+          ),
+          DefaultParkingZone
+        )
+      )
+    case resultMaybe => resultMaybe
+  }
 
   /**
     * sample location of a parking stall with a GEO area
