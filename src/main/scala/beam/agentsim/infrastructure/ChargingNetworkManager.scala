@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRoute
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -155,14 +156,13 @@ class ChargingNetworkManager(
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
-      if (vehicle.isBEV || vehicle.isPHEV) {
+      val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
         val activityType = vehicle2InquiryMap
           .get(vehicle.id)
           .map {
-            case inquiry if inquiry.searchMode == ParkingSearchMode.EnRoute =>
-              ParkingSearchMode.EnRoute.toString
-            case inquiry => inquiry.activityType
+            case ParkingInquiry(_, _, _, _, _, _, _, _, _, _, `EnRoute`, _, _)    => EnRoute.toString
+            case ParkingInquiry(_, activityType, _, _, _, _, _, _, _, _, _, _, _) => activityType
           }
           .getOrElse("")
         chargingNetworkHelper
@@ -176,17 +176,22 @@ class ChargingNetworkManager(
               chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
               chargingVehicle.chargingStation.howManyVehiclesAreWaiting
             )
-            sender() ! WaitingToCharge(tick, vehicle.id, triggerId)
+            WaitingToCharge(tick, vehicle.id, triggerId)
           case chargingVehicle =>
+            vehicle2InquiryMap.remove(vehicle.id)
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
             collectVehicleRequestInfo(chargingVehicle)
-            vehicle2InquiryMap.remove(vehicle.id)
-        }
-      } else {
-        sender() ! Failure(
-          new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name}")
+            StartingRefuelSession(tick, triggerId)
+        } getOrElse Failure(
+          new RuntimeException(
+            s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
+            s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
+          )
         )
+      } else {
+        Failure(new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name}"))
       }
+      sender ! responseHasTriggerId
 
     case ChargingUnplugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")

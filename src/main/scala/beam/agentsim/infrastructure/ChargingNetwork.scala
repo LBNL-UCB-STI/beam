@@ -86,28 +86,19 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
     request: ChargingPlugRequest,
     activityType: String,
     theSender: ActorRef
-  ): Option[ChargingVehicle] = {
-    lookupStation(request.stall.parkingZoneId)
-      .map(
-        _.connect(
-          request.tick,
-          request.vehicle,
-          request.stall,
-          request.personId,
-          activityType,
-          request.shiftStatus,
-          request.shiftDuration,
-          theSender
-        )
+  ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
+    .map(
+      _.connect(
+        request.tick,
+        request.vehicle,
+        request.stall,
+        request.personId,
+        activityType,
+        request.shiftStatus,
+        request.shiftDuration,
+        theSender
       )
-      .orElse {
-        logger.error(
-          s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
-          s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
-        )
-        None
-      }
-  }
+    )
 
   /**
     * @param vehicleId vehicle to end charge

@@ -148,7 +148,6 @@ trait ChargingNetworkManagerHelper extends {
     ).foreach(
       getScheduler ! _
     )
-    chargingVehicle.theSender ! StartingRefuelSession(tick, triggerId)
   }
 
   /**
