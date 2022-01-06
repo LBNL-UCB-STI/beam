@@ -68,7 +68,7 @@ object ODPairsFromPlans {
 
   def listOfTAZODFromActivitiesCoords(
     plansPath: String,
-    tazCentersPath: String,
+    tazTreeMap: TAZTreeMap,
     plansFormat: String
   ): ParSet[String] = {
     val activityCoords = plansFormat match {
@@ -78,7 +78,6 @@ object ODPairsFromPlans {
         readActivityCoords(plansPath, "person_id", "ActivityElement", "x", "y")
     }
 
-    val tazTreeMap: TAZTreeMap = taz.TAZTreeMap.getTazTreeMap(tazCentersPath)
     def getTaz(coord: Coord): String = { tazTreeMap.getTAZ(coord).tazId.toString }
 
     val ODPairs = activityCoords.par
@@ -101,7 +100,8 @@ object ODPairsFromPlans {
         "Following arguments expected: <path to plans>  <path to TAZ centers file>  <plans format: generated|urbansim_v2>  <OD pairs output path>"
       )
     } else {
-      val ODPairs = listOfTAZODFromActivitiesCoords(args(0), args(1), args(2))
+      val tazTreeMap: TAZTreeMap = taz.TAZTreeMap.getTazTreeMap(args(1))
+      val ODPairs = listOfTAZODFromActivitiesCoords(args(0), tazTreeMap, args(2))
       val outputPath = args(3)
 
       new FileWriter(outputPath, false).use { csvWriter =>
@@ -109,7 +109,8 @@ object ODPairsFromPlans {
         ODPairs.foreach(odPair => csvWriter.write(odPair))
       }
 
-      println(s"${ODPairs.size} TAZ OD pairs written out into '$outputPath'")
+      val tazsCount = tazTreeMap.tazQuadTree.size()
+      println(s"${ODPairs.size} TAZ OD pairs (out of ${tazsCount * tazsCount} possible) written out into '$outputPath'")
     }
   }
 }
