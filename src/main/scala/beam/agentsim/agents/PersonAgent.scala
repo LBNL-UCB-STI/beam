@@ -56,19 +56,16 @@ import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import com.typesafe.scalalogging.{LazyLogging, Logger}
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
-import org.slf4j.LoggerFactory
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
-import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
 
 /**
   */
@@ -295,6 +292,9 @@ class PersonAgent(
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 
+  val minDistanceToTrainStop =
+    beamScenario.beamConfig.beam.agentsim.agents.tripBehaviors.carUsage.minDistanceToTrainStop
+
   val bodyType: BeamVehicleType = beamScenario.vehicleTypes(
     Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
   )
@@ -507,24 +507,28 @@ class PersonAgent(
           case leg: Leg => BeamMode.fromString(leg.getMode)
           case _        => None
         }
-        // If the mode of the next leg is defined and is CAV, use it, otherwise,
-        // If we don't have a current tour mode (i.e. are not on a tour aka at home),
-        // use the mode of the next leg as the new tour mode.
-        val nextTourMode = modeOfNextLeg match {
-          case Some(CAV) =>
-            Some(CAV)
-          case _ =>
-            data.currentTourMode.orElse(modeOfNextLeg)
-        }
-        val personData = data.copy(
-          currentTourMode = nextTourMode,
-          numberOfReplanningAttempts = 0
-        )
+        val currentCoord = currentActivity(data).getCoord
+        val nextCoord = nextActivity(data).get.getCoord
         goto(ChoosingMode) using ChoosesModeData(
-          personData = personData,
-          SpaceTime(currentActivity(data).getCoord, _currentTick.get)
+          personData = data.copy(
+            // If the mode of the next leg is defined and is CAV, use it, otherwise,
+            // If we don't have a current tour mode (i.e. are not on a tour aka at home),
+            // use the mode of the next leg as the new tour mode.
+            currentTourMode = modeOfNextLeg match {
+              case Some(CAV) =>
+                Some(CAV)
+              case _ =>
+                data.currentTourMode.orElse(modeOfNextLeg)
+            },
+            numberOfReplanningAttempts = 0
+          ),
+          SpaceTime(currentCoord, _currentTick.get),
+          excludeModes =
+            if (canUseCars(currentCoord, nextCoord)) Vector.empty
+            else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
         )
     }
+
   }
 
   when(Teleporting) {
@@ -583,6 +587,7 @@ class PersonAgent(
       eventsManager.processEvent(teleportationEvent)
 
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
+
   }
 
   when(WaitingForDeparture) {
@@ -629,6 +634,12 @@ class PersonAgent(
       goto(ProcessingNextLegOrStartActivity)
   }
 
+  private def canUseCars(currentCoord: Coord, nextCoord: Coord): Boolean = {
+    currentCoord == null || beamScenario.trainStopQuadTree
+      .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
+      .isEmpty || beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
+  }
+
   def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
     if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg)
     else Right(_experiencedBeamPlan.activities(ind))
@@ -661,17 +672,18 @@ class PersonAgent(
       )
     )
     eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
+    val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
+    val nextCoord = nextActivity(data).get.getCoord
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
-        beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
+        currentCoord,
         tick
       ),
       isWithinTripReplanning = true,
-      excludeModes = if (data.numberOfReplanningAttempts > 0) { Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT) }
-      else {
-        Vector()
-      }
+      excludeModes = (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
+                      else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
+                                         else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)).distinct
     )
   }
 
@@ -690,11 +702,15 @@ class PersonAgent(
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
+      val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
-        currentLocation =
-          SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
-        isWithinTripReplanning = true
+        currentLocation = SpaceTime(currentCoord, _currentTick.get),
+        isWithinTripReplanning = true,
+        excludeModes =
+          if (canUseCars(currentCoord, nextCoord)) Vector.empty
+          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
     // RIDE HAIL DELAY
     case Event(DelayedRideHailResponse, data: BasePersonData) =>
@@ -873,16 +889,19 @@ class PersonAgent(
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
+      val currentCoord =
+        beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
+      val nextCoord = nextActivity(basePersonData).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
           currentTourPersonalVehicle = None,
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
         ),
-        SpaceTime(
-          beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc,
-          _currentTick.get
-        )
+        SpaceTime(currentCoord, _currentTick.get),
+        excludeModes =
+          if (canUseCars(currentCoord, nextCoord)) Vector.empty
+          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
   }
 
@@ -982,12 +1001,16 @@ class PersonAgent(
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
+      val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
           .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
-        currentLocation =
-          SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
-        isWithinTripReplanning = true
+        currentLocation = SpaceTime(currentCoord, _currentTick.get),
+        isWithinTripReplanning = true,
+        excludeModes =
+          if (canUseCars(currentCoord, nextCoord)) Vector.empty
+          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
     // TRANSIT
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _))
@@ -1040,12 +1063,16 @@ class PersonAgent(
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
+      val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
           .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
-        currentLocation =
-          SpaceTime(beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc, _currentTick.get),
-        isWithinTripReplanning = true
+        currentLocation = SpaceTime(currentCoord, _currentTick.get),
+        isWithinTripReplanning = true,
+        excludeModes =
+          if (canUseCars(currentCoord, nextCoord)) Vector.empty
+          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
@@ -1151,11 +1178,8 @@ class PersonAgent(
       nextActivity(data) match {
         case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
-          val endTime =
-            if (
-              activity.getEndTime >= tick && Math
-                .abs(activity.getEndTime) < Double.PositiveInfinity
-            ) {
+          def calculateActivityEndTime = {
+            if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
               activity.getEndTime
             } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
               tick
@@ -1164,6 +1188,13 @@ class PersonAgent(
               // TODO consider ending the day here to match MATSim convention for start/end activity
               tick + 60 * 10
             }
+          }
+
+          val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+            case Some(fixedDuration) => tick + fixedDuration
+            case _                   => calculateActivityEndTime
+          }
+
           val newEndTime = if (lastTickOfSimulation >= tick) {
             Math.min(lastTickOfSimulation, endTime)
           } else {

@@ -258,7 +258,12 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       graphHopperDir
     )
 
-    walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+    walkGraphHopper = new WalkGraphHopperWrapper(
+      graphHopperDir,
+      workerParams.geo,
+      id2Link,
+      workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
+    )
   }
 
   private def createCarGraphHoppers(travelTime: TravelTime): Unit = {
@@ -300,7 +305,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           workerParams.vehicleTypes,
           workerParams.fuelTypePrices,
           wayId2TravelTime,
-          id2Link
+          id2Link,
+          workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
         )
       }
     }
@@ -385,9 +391,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val definedResponses = responses.flatten
       (definedResponses, r5ResponseOption) match {
         case (head +: _, Some(r5Resp)) =>
-          head.copy(itineraries = definedResponses.flatMap(_.itineraries) ++ r5Resp.itineraries)
+          head.copy(
+            itineraries = r5Resp.itineraries ++ definedResponses.flatMap(_.itineraries),
+            searchedModes = r5Resp.searchedModes ++ definedResponses.flatMap(_.searchedModes)
+          )
         case (head +: _, None) =>
-          head.copy(itineraries = definedResponses.flatMap(_.itineraries))
+          head.copy(
+            itineraries = definedResponses.flatMap(_.itineraries),
+            searchedModes = definedResponses.flatMap(_.searchedModes).toSet
+          )
         case (Seq(), Some(r5Resp)) =>
           r5Resp
         case (Seq(), None) => r5.calcRoute(request)
@@ -472,7 +484,8 @@ object RoutingWorker {
           0,
           unbecomeDriverOnCompletion = true
         )
-      )
+      ),
+      Some("Bushwhacking")
     )
   }
 

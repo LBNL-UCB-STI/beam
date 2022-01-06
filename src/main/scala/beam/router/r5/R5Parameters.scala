@@ -53,7 +53,7 @@ object R5Parameters {
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate)
     )
     val geo = new GeoUtilsImpl(beamConfig)
-    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig)
     val fuelTypePrices = readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap
     val ptFares = PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath)
     val fareCalculator = new FareCalculator(beamConfig)

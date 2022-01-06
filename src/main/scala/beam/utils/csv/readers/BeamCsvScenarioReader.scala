@@ -1,7 +1,6 @@
 package beam.utils.csv.readers
 
 import java.util.{Map => JavaMap}
-
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.matsim.BeamScenarioReader
@@ -15,6 +14,7 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogging {
+
   override def inputType: InputType = InputType.CSV
 
   override def readPersonsFile(path: String): Array[PersonInfo] = {
@@ -75,6 +75,11 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
+      tripId = if (rec.get("trip_id") != null) {
+        rec.get("trip_id").filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,
