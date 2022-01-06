@@ -277,6 +277,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
+      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
