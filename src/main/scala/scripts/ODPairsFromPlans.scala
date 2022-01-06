@@ -106,7 +106,7 @@ object ODPairsFromPlans {
 
       new FileWriter(outputPath, false).use { csvWriter =>
         csvWriter.write("origin,destination\n")
-        ODPairs.foreach(odPair => csvWriter.write(odPair))
+        ODPairs.foreach(odPair => csvWriter.write(s"$odPair\n"))
       }
 
       val tazsCount = tazTreeMap.tazQuadTree.size()
