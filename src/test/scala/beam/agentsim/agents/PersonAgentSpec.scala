@@ -865,8 +865,6 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
     }
 
   }
