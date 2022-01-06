@@ -102,6 +102,8 @@ object ODPairsFromPlans {
         "Following arguments expected: <path to plans>  <path to TAZ centers file>  <plans format: generated|urbansim_v2>  <OD pairs output path>"
       )
       println("Following arguments at the end are optional: [<crs of activities locations used to convert into WGS>]")
+      println()
+      println(s"Following arguments given: (len: ${args.length}) ${args.mkString(", ")}")
     } else {
 
       val pathToPlans = args(0)
