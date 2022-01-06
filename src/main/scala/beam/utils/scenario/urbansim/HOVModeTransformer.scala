@@ -71,12 +71,6 @@ object HOVModeTransformer extends LazyLogging {
     var forcedHOV2Teleports = 0
     var forcedHOV3Teleports = 0
 
-    if (forcedHOV2Teleports > 0 || forcedHOV3Teleports > 0) {
-      logger.info(
-        s"There were $forcedHOV2Teleports hov2 and $forcedHOV3Teleports hov3 forced teleports because actors did not get access to a car."
-      )
-    }
-
     var forcedCarHOV2Count = 0
     var forcedCarHOV3Count = 0
 
