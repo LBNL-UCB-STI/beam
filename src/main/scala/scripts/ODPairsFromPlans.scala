@@ -95,7 +95,7 @@ object ODPairsFromPlans {
 
   def main(args: Array[String]): Unit = {
     if (args.length != 3) {
-      println("2 arguments expected: <path to plans> <path to TAZ centers file> <plans format: generated|urbansim_v2 >")
+      println("Following arguments expected: <path to plans>  <path to TAZ centers file>  <plans format: generated|urbansim_v2 >")
     } else {
       val ODPairs = listOfTAZODFromActivitiesCoords(args(0), args(1), args(2))
       println("origin,destination")
