@@ -9,6 +9,11 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.immutable.ParSet
 
+/**
+ * A script to generate all origin->destination TAZ pairs from plans.
+ * For example a plan Home -> Work -> Meal -> Home will yield three OD pairs with TAZ id according to each location:
+ * (homeLocationTAZ, workLocationTAZ), (workLocationTAZ, mealLocationTAZ), (mealLocationTAZ, homeLocationTAZ)
+ */
 object ODPairsFromPlans {
 
   // return an iterable of activity locations per person from input plans
