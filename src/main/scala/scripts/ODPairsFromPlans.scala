@@ -2,18 +2,20 @@ package scripts
 
 import beam.agentsim.infrastructure.taz
 import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.utils.CloseableUtil.RichCloseable
 import beam.utils.csv.GenericCsvReader
 import org.matsim.api.core.v01.Coord
 
+import java.io.FileWriter
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.immutable.ParSet
 
 /**
- * A script to generate all origin->destination TAZ pairs from plans.
- * For example a plan Home -> Work -> Meal -> Home will yield three OD pairs with TAZ id according to each location:
- * (homeLocationTAZ, workLocationTAZ), (workLocationTAZ, mealLocationTAZ), (mealLocationTAZ, homeLocationTAZ)
- */
+  * A script to generate all origin->destination TAZ pairs from plans.
+  * For example a plan Home -> Work -> Meal -> Home will yield three OD pairs with TAZ id according to each location:
+  * (homeLocationTAZ, workLocationTAZ), (workLocationTAZ, mealLocationTAZ), (mealLocationTAZ, homeLocationTAZ)
+  */
 object ODPairsFromPlans {
 
   // return an iterable of activity locations per person from input plans
@@ -94,12 +96,20 @@ object ODPairsFromPlans {
   }
 
   def main(args: Array[String]): Unit = {
-    if (args.length != 3) {
-      println("Following arguments expected: <path to plans>  <path to TAZ centers file>  <plans format: generated|urbansim_v2 >")
+    if (args.length != 4) {
+      println(
+        "Following arguments expected: <path to plans>  <path to TAZ centers file>  <plans format: generated|urbansim_v2>  <OD pairs output path>"
+      )
     } else {
       val ODPairs = listOfTAZODFromActivitiesCoords(args(0), args(1), args(2))
-      println("origin,destination")
-      ODPairs.foreach(ODPair => println(ODPair))
+      val outputPath = args(3)
+
+      new FileWriter(outputPath, false).use { csvWriter =>
+        csvWriter.write("origin,destination\n")
+        ODPairs.foreach(odPair => csvWriter.write(odPair))
+      }
+
+      println(s"${ODPairs.size} TAZ OD pairs written out into '$outputPath'")
     }
   }
 }
