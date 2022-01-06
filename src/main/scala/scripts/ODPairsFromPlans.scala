@@ -2,6 +2,7 @@ package scripts
 
 import beam.agentsim.infrastructure.taz
 import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.sim.common.GeoUtils
 import beam.utils.CloseableUtil.RichCloseable
 import beam.utils.csv.GenericCsvReader
 import org.matsim.api.core.v01.Coord
@@ -69,7 +70,8 @@ object ODPairsFromPlans {
   def listOfTAZODFromActivitiesCoords(
     plansPath: String,
     tazTreeMap: TAZTreeMap,
-    plansFormat: String
+    plansFormat: String,
+    processCoord: Coord => Coord
   ): ParSet[String] = {
     val activityCoords = plansFormat match {
       case "generated" =>
@@ -83,7 +85,7 @@ object ODPairsFromPlans {
     val ODPairs = activityCoords.par
       .flatMap { activityCoords =>
         activityCoords.sliding(2).map {
-          case Seq(orig, dest) => Some(getTaz(orig), getTaz(dest))
+          case Seq(orig, dest) => Some(getTaz(processCoord(orig)), getTaz(processCoord(dest)))
           case _               => None
         }
       }
@@ -95,14 +97,31 @@ object ODPairsFromPlans {
   }
 
   def main(args: Array[String]): Unit = {
-    if (args.length != 4) {
+    if (args.length < 4) {
       println(
         "Following arguments expected: <path to plans>  <path to TAZ centers file>  <plans format: generated|urbansim_v2>  <OD pairs output path>"
       )
+      println("Following arguments at the end are optional: [<crs of activities locations used to convert into WGS>]")
     } else {
-      val tazTreeMap: TAZTreeMap = taz.TAZTreeMap.getTazTreeMap(args(1))
-      val ODPairs = listOfTAZODFromActivitiesCoords(args(0), tazTreeMap, args(2))
+
+      val pathToPlans = args(0)
+      val pathToTAZ = args(1)
+      val plansFormat = args(2)
       val outputPath = args(3)
+
+      def processCoord: Coord => Coord = {
+        if (args.length == 5) {
+          val geoUtils = new GeoUtils {
+            override def localCRS: String = args(4)
+          }
+          (coord: Coord) => geoUtils.utm2Wgs(coord)
+        } else { (coord: Coord) =>
+          coord
+        }
+      }
+
+      val tazTreeMap: TAZTreeMap = taz.TAZTreeMap.getTazTreeMap(pathToTAZ)
+      val ODPairs = listOfTAZODFromActivitiesCoords(pathToPlans, tazTreeMap, plansFormat, processCoord)
 
       new FileWriter(outputPath, false).use { csvWriter =>
         csvWriter.write("origin,destination\n")
