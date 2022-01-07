@@ -116,7 +116,7 @@ object ODPairsFromPlans {
           val geoUtils = new GeoUtils {
             override def localCRS: String = args(4)
           }
-          (coord: Coord) => geoUtils.utm2Wgs(coord)
+          (coord: Coord) => geoUtils.wgs2Utm(coord)
         } else { (coord: Coord) =>
           coord
         }
