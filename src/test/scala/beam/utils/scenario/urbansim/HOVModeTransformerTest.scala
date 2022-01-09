@@ -4,7 +4,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.utils.scenario._
 import beam.utils.scenario.urbansim.censusblock.merger.PlanMerger
-import beam.utils.scenario.urbansim.censusblock.reader.{PlanReader}
+import beam.utils.scenario.urbansim.censusblock.reader.PlanReader
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
@@ -440,14 +440,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 }
 
 object HOVModeTransformerTest {
-
   private val random = new Random()
-//
-//  def newPerson(personId: Int, householdId: Int): PersonInfo =
-//    PersonInfo(PersonId(personId.toString), HouseholdId(householdId.toString), 0, 33, List(), isFemale = false, 42.0)
-//
-//  def newHousehold(householdId: Int, numberOfCars: Int): HouseholdInfo =
-//    HouseholdInfo(HouseholdId(householdId.toString), numberOfCars, 90000.0, 10000.0, 20000.0)
 
   def newTrip(
     personId: Int,
@@ -481,51 +474,52 @@ object HOVModeTransformerTest {
   }
 
   def newLeg(personId: Int, planIndex: Int, mode: String): PlanElement = PlanElement(
-    PersonId(personId.toString),
-    0,
-    0.0,
+    tripId = "",
+    personId = PersonId(personId.toString),
+    planIndex = 0,
+    planScore = 0.0,
     planSelected = true,
-    PlanElement.Leg,
-    planIndex,
-    None,
-    None,
-    None,
-    None,
-    Some(mode),
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    None,
-    List(),
-    None
+    planElementType = PlanElement.Leg,
+    planElementIndex = planIndex,
+    activityType = None,
+    activityLocationX = None,
+    activityLocationY = None,
+    activityEndTime = None,
+    legMode = Some(mode),
+    legDepartureTime = None,
+    legTravelTime = None,
+    legRouteType = None,
+    legRouteStartLink = None,
+    legRouteEndLink = None,
+    legRouteTravelTime = None,
+    legRouteDistance = None,
+    legRouteLinks = Seq.empty[String],
+    geoId = None
   )
 
-  def newActivity(personId: Int, planIndex: Int, act: Act): PlanElement =
-    PlanElement(
-      PersonId(personId.toString),
-      0,
-      0.0,
-      planSelected = true,
-      PlanElement.Activity,
-      planIndex,
-      Some(act.activity),
-      Some(act.locationX),
-      Some(act.locationY),
-      Some(10.0),
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      None,
-      List(),
-      None
-    )
+  def newActivity(personId: Int, planIndex: Int, act: Act): PlanElement = PlanElement(
+    tripId = "",
+    personId = PersonId(personId.toString),
+    planIndex = 0,
+    planScore = 0.0,
+    planSelected = true,
+    planElementType = PlanElement.Activity,
+    planElementIndex = planIndex,
+    activityType = Some(act.activity),
+    activityLocationX = Some(act.locationX),
+    activityLocationY = Some(act.locationY),
+    activityEndTime = Some(10.0),
+    legMode = None,
+    legDepartureTime = None,
+    legTravelTime = None,
+    legRouteType = None,
+    legRouteStartLink = None,
+    legRouteEndLink = None,
+    legRouteTravelTime = None,
+    legRouteDistance = None,
+    legRouteLinks = Seq.empty[String],
+    geoId = None
+  )
 
   case class Act(activity: String, locationX: Double = random.nextDouble(), locationY: Double = random.nextDouble())
 }

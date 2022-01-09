@@ -233,7 +233,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       PersonId(personId),
       planIndex,
       1,
-      true,
+      planSelected = planSelected,
       PlanElement.Activity,
       0,
       Some("a"),
