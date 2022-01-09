@@ -118,8 +118,7 @@ class ChargingNetworkManager(
           timeBin,
           timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
           physicalBounds,
-          triggerId,
-          interruptCharging = false
+          triggerId
         )
       }
       val nextStepPlanningTriggers =
@@ -141,7 +140,7 @@ class ChargingNetworkManager(
       val vehicleEndedCharging = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
-            handleEndCharging(tick, _, triggerId, chargingInterrupted)
+            handleEndCharging(tick, _, triggerId)
           } getOrElse {
             log.debug(s"Vehicle ${vehicle.id} has already ended charging")
             None
@@ -151,7 +150,7 @@ class ChargingNetworkManager(
           None
       }
       vehicleEndedCharging match {
-        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) =>
+        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) if !chargingInterrupted =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
@@ -202,22 +201,15 @@ class ChargingNetworkManager(
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
-            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, status, sessions)) =>
-              if (sessions.nonEmpty && !status.exists(_.status == GracePeriod)) {
+            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, listStatus, sessions)) =>
+              if (sessions.nonEmpty && listStatus(listStatus.size - 2).status == Connected) {
                 // If the vehicle was still charging
                 val unplugTime = currentTimeBin(tick)
                 val index = sessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTime && x.startTime <= tick)
                 val (startTime, endTime) = if (index == -1) (unplugTime, tick) else (sessions(index).startTime, tick)
-                dispatchEnergyAndProcessChargingCycle(
-                  chargingVehicle,
-                  startTime,
-                  endTime,
-                  bounds,
-                  triggerId,
-                  interruptCharging = true
-                )
+                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, triggerId, true)
+                handleEndCharging(endTime, chargingVehicle, triggerId)
               }
-              val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
               chargingNetwork
                 .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
@@ -231,6 +223,7 @@ class ChargingNetworkManager(
                     newChargingVehicle.shiftDuration
                   )
                 }
+              val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
               UnpluggingVehicle(tick, totEnergy, triggerId)
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")

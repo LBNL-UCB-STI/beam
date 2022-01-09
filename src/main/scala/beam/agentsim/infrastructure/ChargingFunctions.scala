@@ -67,7 +67,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifEnrouteChargingTheFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+  def ifEnrouteThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
     inquiry.searchMode match {
       case ParkingSearchMode.EnRoute =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
@@ -106,7 +106,7 @@ class ChargingFunctions[GEO: GeoLevel](
       throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
     val isEV: Boolean = inquiry.beamVehicle.forall(v => v.isBEV || v.isPHEV)
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
-    val enrouteFastChargingOnly: Boolean = ifEnrouteChargingTheFastChargingOnly(zone, inquiry)
+    val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
