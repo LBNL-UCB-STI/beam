@@ -105,7 +105,7 @@ trait ChargingNetworkManagerHelper extends {
           )
           None
         case cycle if chargingIsCompleteUsing(cycle) =>
-          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle, interruptCharging), self))
+          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
         case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
           log.debug(
             s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. SOC: {}",
@@ -117,12 +117,7 @@ trait ChargingNetworkManagerHelper extends {
           None
         case cycle =>
           // charging is going to end during this current session
-          Some(
-            ScheduleTrigger(
-              ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle, chargingInterrupted = false),
-              self
-            )
-          )
+          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
       }
   }
 

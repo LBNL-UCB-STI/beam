@@ -10,7 +10,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRoute
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -135,7 +134,7 @@ class ChargingNetworkManager(
         triggers.toIndexedSeq ++ nextStepPlanningTriggers ++ simulatedParkingInquiries
       )
 
-    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle, chargingInterrupted), triggerId) =>
+    case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       val vehicleEndedCharging = vehicle.stall match {
         case Some(stall) =>
@@ -150,7 +149,7 @@ class ChargingNetworkManager(
           None
       }
       vehicleEndedCharging match {
-        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) if !chargingInterrupted =>
+        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
@@ -258,7 +257,7 @@ class ChargingNetworkManager(
 object ChargingNetworkManager extends LazyLogging {
   object DebugReport
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
-  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle, chargingInterrupted: Boolean) extends Trigger
+  case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
 
   case class ChargingPlugRequest(
     tick: Int,
