@@ -21,6 +21,7 @@ object BeamConfig {
     inputDirectory: java.lang.String,
     logger: BeamConfig.Beam.Logger,
     metrics: BeamConfig.Beam.Metrics,
+    output: BeamConfig.Beam.Output,
     outputs: BeamConfig.Beam.Outputs,
     physsim: BeamConfig.Beam.Physsim,
     replanning: BeamConfig.Beam.Replanning,
@@ -60,6 +61,7 @@ object BeamConfig {
     object Agentsim {
 
       case class Agents(
+        activities: BeamConfig.Beam.Agentsim.Agents.Activities,
         bodyType: java.lang.String,
         freight: BeamConfig.Beam.Agentsim.Agents.Freight,
         households: BeamConfig.Beam.Agentsim.Agents.Households,
@@ -76,6 +78,22 @@ object BeamConfig {
       )
 
       object Agents {
+
+        case class Activities(
+          activityTypeToFixedDurationMap: scala.Option[scala.List[java.lang.String]]
+        )
+
+        object Activities {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Activities = {
+            BeamConfig.Beam.Agentsim.Agents.Activities(
+              activityTypeToFixedDurationMap =
+                if (c.hasPathOrNull("activityTypeToFixedDurationMap"))
+                  scala.Some($_L$_str(c.getList("activityTypeToFixedDurationMap")))
+                else None
+            )
+          }
+        }
 
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
@@ -1421,10 +1439,25 @@ object BeamConfig {
         }
 
         case class TripBehaviors(
+          carUsage: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit
         )
 
         object TripBehaviors {
+
+          case class CarUsage(
+            minDistanceToTrainStop: scala.Double
+          )
+
+          object CarUsage {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage(
+                minDistanceToTrainStop =
+                  if (c.hasPathOrNull("minDistanceToTrainStop")) c.getDouble("minDistanceToTrainStop") else 0.0
+              )
+            }
+          }
 
           case class MulitnomialLogit(
             activity_file_path: java.lang.String,
@@ -1469,6 +1502,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
+              carUsage = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage(
+                if (c.hasPathOrNull("carUsage")) c.getConfig("carUsage")
+                else com.typesafe.config.ConfigFactory.parseString("carUsage{}")
+              ),
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
@@ -1745,6 +1782,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents = {
           BeamConfig.Beam.Agentsim.Agents(
+            activities = BeamConfig.Beam.Agentsim.Agents.Activities(
+              if (c.hasPathOrNull("activities")) c.getConfig("activities")
+              else com.typesafe.config.ConfigFactory.parseString("activities{}")
+            ),
             bodyType = if (c.hasPathOrNull("bodyType")) c.getString("bodyType") else "BODY-TYPE-DEFAULT",
             freight = BeamConfig.Beam.Agentsim.Agents.Freight(
               if (c.hasPathOrNull("freight")) c.getConfig("freight")
@@ -1799,7 +1840,11 @@ object BeamConfig {
       }
 
       case class ChargingNetworkManager(
+        chargingPointCostScalingFactor: scala.Double,
+        chargingPointCountScalingFactor: scala.Double,
+        chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
+        scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
       )
 
@@ -1813,6 +1858,7 @@ object BeamConfig {
           dataInStreamPoint: java.lang.String,
           dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String,
+          feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
           timeDeltaProperty: scala.Double
         )
@@ -1833,17 +1879,64 @@ object BeamConfig {
               dataOutStreamPoint =
                 if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
               federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
         }
 
+        case class ScaleUp(
+          enabled: scala.Boolean,
+          expansionFactor_charge_activity: scala.Double,
+          expansionFactor_home_activity: scala.Double,
+          expansionFactor_init_activity: scala.Double,
+          expansionFactor_wherever_activity: scala.Double,
+          expansionFactor_work_activity: scala.Double
+        )
+
+        object ScaleUp {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              expansionFactor_charge_activity =
+                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
+                else 1.0,
+              expansionFactor_home_activity =
+                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
+                else 1.0,
+              expansionFactor_init_activity =
+                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
+                else 1.0,
+              expansionFactor_wherever_activity =
+                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
+                  c.getDouble("expansionFactor_wherever_activity")
+                else 1.0,
+              expansionFactor_work_activity =
+                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
+                else 1.0
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
+            chargingPointCostScalingFactor =
+              if (c.hasPathOrNull("chargingPointCostScalingFactor")) c.getDouble("chargingPointCostScalingFactor")
+              else 1.0,
+            chargingPointCountScalingFactor =
+              if (c.hasPathOrNull("chargingPointCountScalingFactor")) c.getDouble("chargingPointCountScalingFactor")
+              else 1.0,
+            chargingPointFilePath =
+              if (c.hasPathOrNull("chargingPointFilePath")) c.getString("chargingPointFilePath") else "",
             helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
+            ),
+            scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
+              else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")
             ),
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
@@ -2592,6 +2685,20 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Metrics = {
         BeamConfig.Beam.Metrics(
           level = if (c.hasPathOrNull("level")) c.getString("level") else "verbose"
+        )
+      }
+    }
+
+    case class Output(
+      writePlansAndStopSimulation: scala.Boolean
+    )
+
+    object Output {
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Output = {
+        BeamConfig.Beam.Output(
+          writePlansAndStopSimulation =
+            c.hasPathOrNull("writePlansAndStopSimulation") && c.getBoolean("writePlansAndStopSimulation")
         )
       }
     }
@@ -3839,6 +3946,7 @@ object BeamConfig {
     case class Routing(
       baseDate: java.lang.String,
       carRouter: java.lang.String,
+      gh: BeamConfig.Beam.Routing.Gh,
       minimumPossibleSkimBasedTravelTimeInS: scala.Int,
       overrideNetworkTravelTimesUsingSkims: scala.Boolean,
       r5: BeamConfig.Beam.Routing.R5,
@@ -3849,6 +3957,19 @@ object BeamConfig {
     )
 
     object Routing {
+
+      case class Gh(
+        useAlternativeRoutes: scala.Boolean
+      )
+
+      object Gh {
+
+        def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.Gh = {
+          BeamConfig.Beam.Routing.Gh(
+            useAlternativeRoutes = c.hasPathOrNull("useAlternativeRoutes") && c.getBoolean("useAlternativeRoutes")
+          )
+        }
+      }
 
       case class R5(
         bikeLaneLinkIdsFilePath: java.lang.String,
@@ -3925,6 +4046,9 @@ object BeamConfig {
         BeamConfig.Beam.Routing(
           baseDate = if (c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
           carRouter = if (c.hasPathOrNull("carRouter")) c.getString("carRouter") else "R5",
+          gh = BeamConfig.Beam.Routing.Gh(
+            if (c.hasPathOrNull("gh")) c.getConfig("gh") else com.typesafe.config.ConfigFactory.parseString("gh{}")
+          ),
           minimumPossibleSkimBasedTravelTimeInS =
             if (c.hasPathOrNull("minimumPossibleSkimBasedTravelTimeInS"))
               c.getInt("minimumPossibleSkimBasedTravelTimeInS")
@@ -4284,6 +4408,10 @@ object BeamConfig {
         metrics = BeamConfig.Beam.Metrics(
           if (c.hasPathOrNull("metrics")) c.getConfig("metrics")
           else com.typesafe.config.ConfigFactory.parseString("metrics{}")
+        ),
+        output = BeamConfig.Beam.Output(
+          if (c.hasPathOrNull("output")) c.getConfig("output")
+          else com.typesafe.config.ConfigFactory.parseString("output{}")
         ),
         outputs = BeamConfig.Beam.Outputs(
           if (c.hasPathOrNull("outputs")) c.getConfig("outputs")

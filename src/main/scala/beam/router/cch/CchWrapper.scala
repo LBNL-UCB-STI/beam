@@ -129,7 +129,8 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
             ),
             unbecomeDriverOnCompletion = true
           )
-        )
+        ),
+        Some("CCH")
       )
 
       RoutingResponse(

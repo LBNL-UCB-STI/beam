@@ -45,3 +45,11 @@ object ReservationRequestIdGenerator extends IdGenerator {
     id.getAndIncrement()
   }
 }
+
+object VehicleIdGenerator extends IdGenerator {
+  private val id: AtomicInteger = new AtomicInteger(0)
+
+  def nextId: Int = {
+    id.getAndIncrement()
+  }
+}

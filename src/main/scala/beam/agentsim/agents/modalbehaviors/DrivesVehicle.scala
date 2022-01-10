@@ -15,7 +15,8 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingStall
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
@@ -41,7 +42,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.language.postfixOps
 
 /**
@@ -194,7 +195,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   protected val fuelConsumedByTrip: mutable.Map[Id[Person], FuelConsumed] = mutable.Map()
   var latestObservedTick: Int = 0
 
-  private def beamConfig: BeamConfig = BeamConfigChangesObservable.lastBeamConfig
+  private def beamConfig: BeamConfig = beamServices.beamConfig
 
   case class PassengerScheduleEmptyMessage(
     lastVisited: SpaceTime,
@@ -837,5 +838,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       tollCalculator.calcTollByLinkIds(leg.travelPath)
     else
       0.0
+  }
+
+  protected def park(parkingInquiry: ParkingInquiry): Unit = {
+    val isRefuelNeeded: Boolean = parkingInquiry.beamVehicle match {
+      case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
+      case _             => parkingInquiry.parkingActivityType == ParkingActivityType.Charge
+    }
+    if (isRefuelNeeded)
+      chargingNetworkManager ! parkingInquiry
+    else
+      parkingManager ! parkingInquiry
   }
 }
