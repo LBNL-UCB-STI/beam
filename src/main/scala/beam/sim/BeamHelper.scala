@@ -798,7 +798,6 @@ trait BeamHelper extends LazyLogging {
 
     val fileFormat = scenarioConfig.fileFormat
 
-    val geoUtils = new GeoUtilsImpl(beamConfig)
     val (scenario, beamScenario, plansMerged) =
       ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
         if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
