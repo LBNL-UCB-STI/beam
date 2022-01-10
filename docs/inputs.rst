@@ -316,7 +316,7 @@ Ride hail management
    beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters = 10000
    beam.agentsim.agents.rideHail.initialization.filePath = ""
    beam.agentsim.agents.rideHail.initialization.parking.filePath = ""
-   
+
    beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
    beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
    beam.agentsim.agents.rideHail.defaultBaseCost = 1.8
@@ -508,6 +508,29 @@ Secondary activities generation
     that people are more likely to choose a less optimal destination, mode_nest_scale_factor means people are more likely
     to value destinations accessible by multiple modes, and trip_nest_scale_factor means that people are more likely
     to take secondary trips even if the costs are greater than the benefits.
+
+Agents and Activities
+^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.agentsim.agents.activities.activityTypeToFixedDurationMap = ["<activity type> -> <duration>"]
+
+*
+    beam.agentsim.agents.activities.activityTypeToFixedDurationMap - by default is empty. For specified activities the duration will be fixed.
+    The durations of the rest activities will be calculated based on activity end time.
+
+
+Output
+^^^^^^^^^
+::
+
+    # this will write out plans and throw and exception at the beginning of simulation
+    beam.output.writePlansAndStopSimulation = "boolean | false"
+
+*
+    beam.output.writePlansAndStopSimulation - if set to true will write plans into 'generatedPlans.csv.gz'
+    and stop simulation with exception at the beginning of agentSim iteration.
+    The functionality was created to generate full population plans with secondary activities for full unscaled input.
 
 Defining what data BEAM writes out
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

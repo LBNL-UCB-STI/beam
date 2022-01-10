@@ -198,7 +198,6 @@ runcmd:
   -    export $metric=$count
   - done < RunHealthAnalysis.txt
   
-  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   - s3glip=""
   - if [ "$S3_PUBLISH" = "True" ]
   - then
@@ -234,7 +233,7 @@ runcmd:
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
       }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
-  - /tmp/slack.sh "$bye_msg"
+  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="$bye_msg" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"  
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
@@ -692,7 +691,10 @@ def deploy_handler(event, context):
     if not is_spot and instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
-    max_ram = event.get('forced_max_ram', calculate_max_ram(instance_type))
+    max_ram = event.get('forced_max_ram')
+    if parameter_wasnt_specified(max_ram):
+        max_ram = calculate_max_ram(instance_type)
+
     if shutdown_behaviour not in shutdown_behaviours:
         return "Unable to start run, {shutdown_behaviour} shutdown behaviour not supported.".format(shutdown_behaviour=shutdown_behaviour)
 

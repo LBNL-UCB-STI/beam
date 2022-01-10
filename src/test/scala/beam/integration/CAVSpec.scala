@@ -17,11 +17,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
-
   "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
     val config = ConfigFactory
       .parseString(
         """
+           |beam.agentsim.simulationName = "beamville_for_CAVSpec"
            |beam.actorSystemName = "CAVSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
