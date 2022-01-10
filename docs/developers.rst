@@ -128,26 +128,13 @@ To fetch production data manually type::
 
 If you don't need the production data anymore and want to remove it locally you can run::
 
-  git submodule deinit production/sfbay
+  git submodule deinit -f production/sfbay
 
 or::
 
-  git submodule deinit --all
+  git submodule deinit -f --all
 
 to remove all production data.
-
-Note that if you locally fetch the submodule then it will update the submodule pointer to the latest submodule commit.
-That will result in a git change.
-
-for example, the output of `git status` will be something like that::
-
-  Changes not staged for commit:
-    (use "git add <file>..." to update what will be committed)
-    (use "git restore <file>..." to discard changes in working directory)
-	  modified:   production/sfbay (new commits)
-
-It is safe to either add this change with `git add` and commit it or drop it with `git reset`. It doesn't matter since we
-always fetch the latest commit in submodule.
 
 Using old production data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,6 +155,24 @@ Then in the main repo type::
   git submodule add -b develop git@github.com:LBNL-UCB-STI/beam-data-city.git production/city
 
 replacing `city` with a new scenario name, assuming that repo uses `develop` branch as default one.
+
+The next step is to set the option to ignore changes in submodule within the parent repo otherwise git will ask to commit
+a change each time the submodule is fetched.
+
+To do it type::
+
+ git config -f .gitmodules submodule.production/city.ignore all
+
+
+Replacing `production/city` with the actual city name. This only needs to be done once when creating a submodule
+
+In the result the following record should appear in `.gitmodules` file::
+
+  [submodule "production/city"]
+    path = production/city
+    url = git@github.com:LBNL-UCB-STI/beam-data-city.git
+    branch = develop
+    ignore = all
 
 
 Automated Cloud Deployment
