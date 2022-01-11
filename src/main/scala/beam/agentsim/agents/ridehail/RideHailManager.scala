@@ -477,7 +477,6 @@ class RideHailManager(
       cleanUp(triggerId)
 
     case Finish =>
-      val lastObservedTick = resources.values.map(_.spaceTime.time).max
       eventsManager.processEvent(createStoredElectricityEvent(maxTime))
       if (beamServices.beamConfig.beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations) {
         rideHailFleetInitializer.overrideRideHailAgentInitializers(createRideHailAgentInitializersFromCurrentState)

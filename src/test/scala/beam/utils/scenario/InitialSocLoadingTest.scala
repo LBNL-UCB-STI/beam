@@ -28,7 +28,10 @@ class InitialSocLoadingTest
 
   "Scenario loader" must {
     "load correct SoC levels for vehicles" in {
-      beamScenario.privateVehicleInitialSoc.loneElement should be("3".createId[BeamVehicle], 0.765)
+      beamScenario.privateVehicleInitialSoc should contain theSameElementsAs Map(
+        "3".createId[BeamVehicle] -> 0.765,
+        "4".createId[BeamVehicle] -> 0.9
+      )
     }
   }
 }
