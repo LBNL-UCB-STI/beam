@@ -2,6 +2,8 @@ package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
 import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
@@ -20,18 +22,38 @@ import scala.util.Random
 /**
   * @author Dmitry Openkov
   */
-class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
+class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
   private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
   private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
 
+  private val geoUtils = new GeoUtils {
+    override def localCRS: String = "epsg:26910"
+  }
+
+  private val freightConfig: Freight = new Freight(
+    carrierParkingFilePath = None,
+    carriersFilePath = s"$freightInputDir/freight-carriers.csv",
+    plansFilePath = s"$freightInputDir/payload-plans.csv",
+    toursFilePath = s"$freightInputDir/freight-tours.csv",
+    convertWgs2Utm = false,
+    enabled = true,
+    name = "Freight",
+    reader = "Generic",
+    replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
+    generateFixedActivitiesDurations = false
+  )
+
+  val rnd = new Random(2333L)
+
+  private val reader = new GenericFreightReader(freightConfig, geoUtils, rnd, tazMap)
+
   "PayloadPlansConverter" should {
     "read Payload Plans" in {
-      val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
-        PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv", tazMap, new Random(2333L))
+      val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = reader.readPayloadPlans()
       payloadPlans should have size 8
       val plan7 = payloadPlans("payload-7".createId)
       plan7.payloadId should be("payload-7".createId)
-      plan7.location should be(new Coord(169624.51213105154, 3272.492326224974))
+      plan7.locationUTM should be(new Coord(169624.51213105154, 3272.492326224974))
       plan7.estimatedTimeOfArrivalInSec should be(18000)
       plan7.arrivalTimeWindowInSec should be(1800)
       plan7.operationDurationInSec should be(500)
@@ -43,12 +65,12 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
     }
 
     "read Freight Tours" in {
-      val tours = PayloadPlansConverter.readFreightTours(s"$freightInputDir/freight-tours.csv")
+      val tours = reader.readFreightTours()
       tours should have size 4
       val tour3 = tours("tour-3".createId)
       tour3.tourId should be("tour-3".createId)
       tour3.departureTimeInSec should be(15000)
-      tour3.warehouseLocation should be(new Coord(170308.4, 2964.6))
+      tour3.warehouseLocationUTM should be(new Coord(170308.4, 2964.6))
       tour3.maxTourDurationInSec should be(36000)
     }
 
@@ -66,7 +88,7 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
       carrier1.tourMap(Id.createVehicleId("freight-2")).head should have(
         'tourId ("tour-1".createId[FreightTour]),
         'departureTimeInSec (1000),
-        'warehouseLocation (new Coord(169637.3661199976, 3030.52756066406)),
+        'warehouseLocationUTM (new Coord(169637.3661199976, 3030.52756066406)),
         'maxTourDurationInSec (36000)
       )
       carrier1.plansPerTour should have size 3
@@ -107,11 +129,10 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
         household
       }
 
-      PayloadPlansConverter.generatePopulation(
+      reader.generatePopulation(
         readCarriers,
         populationFactory,
-        householdFactory,
-        None
+        householdFactory
       )
 
       personPlans should have size 3
@@ -133,18 +154,16 @@ class PayloadPlansConverterSpec extends AnyWordSpecLike with Matchers {
   }
 
   private def readCarriers: IndexedSeq[FreightCarrier] = {
-    val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] =
-      PayloadPlansConverter.readPayloadPlans(s"$freightInputDir/payload-plans.csv", tazMap, new Random(4324L))
-    val tours = PayloadPlansConverter.readFreightTours(s"$freightInputDir/freight-tours.csv")
+    val converter = new GenericFreightReader(freightConfig, geoUtils, new Random(4324L), tazMap)
+    val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = converter.readPayloadPlans()
+    val tours = converter.readFreightTours()
     val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
-    val freightCarriers: IndexedSeq[FreightCarrier] = PayloadPlansConverter.readFreightCarriers(
-      s"$freightInputDir/freight-carriers.csv",
-      tours,
-      payloadPlans,
-      vehicleTypes,
-      tazMap,
-      new Random(73737L)
-    )
+    val freightCarriers: IndexedSeq[FreightCarrier] =
+      new GenericFreightReader(freightConfig, geoUtils, new Random(73737L), tazMap).readFreightCarriers(
+        tours,
+        payloadPlans,
+        vehicleTypes
+      )
     freightCarriers
   }
 }

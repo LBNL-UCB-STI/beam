@@ -100,7 +100,7 @@ class Population(
       }
       if (
         scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null
+          .getAttribute(household.getId.toString, "homecoordy") == null
       ) {
         log.error(
           s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
