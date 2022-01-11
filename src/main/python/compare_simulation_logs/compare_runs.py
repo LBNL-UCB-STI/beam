@@ -143,11 +143,9 @@ for index, file_name in enumerate(list_files_ordered):
             if key in result_merged_files:
                 # k = error text, v = count of errors for this file
                 for k, v in value.items():
-                    if k in result_merged_files[key]:
-                        result_merged_files[key][k][index] = v
-                    else:
+                    if k not in result_merged_files[key]:
                         result_merged_files[key][k] = [0] * len(list_files_ordered)
-                        result_merged_files[key][k][index] = v
+                    result_merged_files[key][k][index] = v
 
 
 with open(output_dir + "merged.csv", 'w') as outf:
