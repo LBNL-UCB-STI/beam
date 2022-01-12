@@ -1,6 +1,6 @@
 package beam.sim.termination
 
-import beam.agentsim.events.{RideHailFleetStoredElectricityEvent, RideHailFleetStoredElectricityEventTracker}
+import beam.agentsim.events.{FleetStoredElectricityEvent, RideHailFleetStoredElectricityEventTracker}
 import beam.sim.config.BeamConfigHolder
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -119,8 +119,8 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
     */
   override def handleEvent(event: Event): Unit = {
     event match {
-      case rideHailFleetStoredElectricityEvent: RideHailFleetStoredElectricityEvent =>
-        handleRideHailFleetStoredElectricityEvent(rideHailFleetStoredElectricityEvent)
+      case fleetStoredElectricityEvent: FleetStoredElectricityEvent =>
+        handleFleetStoredElectricityEvent(fleetStoredElectricityEvent)
       case _ =>
     }
   }

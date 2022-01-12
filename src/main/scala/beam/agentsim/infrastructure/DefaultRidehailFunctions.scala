@@ -207,7 +207,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   }
 
   def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone[GEO]): Boolean = {
-    val soc = beamVehicle.primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelCapacityInJoule
+    val soc = beamVehicle.getStateOfCharge
     soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
   }
 

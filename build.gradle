@@ -131,6 +131,7 @@ configurations.all {
         force 'org.apache.logging.log4j:log4j-core:2.15.0'
         force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
+    exclude group: "log4j", module: "log4j"
 }
 
 dependencies {
