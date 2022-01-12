@@ -1,6 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock.entities
 
 case class OutputPlanElement(
+  tripId: Int,
   personId: Int,
   planElement: ActivityType,
   planElementIndex: Int,
@@ -12,6 +13,7 @@ case class OutputPlanElement(
 ) {
 
   def toRow(): Map[String, Any] = Map(
+    "tripId"           -> tripId,
     "personId"         -> personId,
     "planElement"      -> planElement.toString,
     "planElementIndex" -> planElementIndex,
@@ -26,5 +28,5 @@ case class OutputPlanElement(
 object OutputPlanElement {
 
   val headers: Seq[String] =
-    Seq("personId", "planElement", "planElementIndex", "activityType", "x", "y", "endTime", "mode")
+    Seq("tripId", "personId", "planElement", "planElementIndex", "activityType", "x", "y", "endTime", "mode")
 }

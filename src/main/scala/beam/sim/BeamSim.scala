@@ -1,13 +1,8 @@
 package beam.sim
 
-import java.io.{BufferedWriter, File, FileWriter}
-import java.nio.file.{Files, Path, Paths}
-import java.util.Collections
-import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
-import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.ridehail.allocation.RideHailResourceAllocationManager
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailIterationsStatsCollector}
@@ -22,11 +17,9 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
-import beam.analysis._
 import beam.physsim.PickUpDropOffCollector
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.BeamRouter.ODSkimmerReady
-import beam.router.BeamRouter.UpdateTravelTimeLocal
+import beam.router.BeamRouter.{ODSkimmerReady, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -34,22 +27,14 @@ import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clust
 import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
-import beam.utils.watcher.MethodWatcher
-import org.matsim.core.router.util.TravelTime
-
-import scala.util.Try
-import scala.concurrent.duration._
-import scala.util.control.NonFatal
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scripts.FailFast
+import beam.utils.watcher.MethodWatcher
 import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
-import beam.analysis.PythonProcess
 import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
@@ -63,13 +48,22 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
+import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.router.util.TravelTime
+import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 
+import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.{Files, Path, Paths}
+import java.util.Collections
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
+import scala.util.Try
+import scala.util.control.NonFatal
 
 class BeamSim @Inject() (
   private val actorSystem: ActorSystem,
@@ -153,12 +147,11 @@ class BeamSim @Inject() (
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
-  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
-    new TravelTimeGoogleStatistic(
-      beamServices.beamConfig.beam.calibration.google.travelTimes,
-      actorSystem,
-      beamServices.geo
-    )
+  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic = TravelTimeGoogleStatistic.getTravelTimeGoogleStatistic(
+    beamServices.beamConfig.beam.calibration.google.travelTimes,
+    actorSystem,
+    beamServices.geo
+  )
 
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO
@@ -358,7 +351,7 @@ class BeamSim @Inject() (
 
     beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
 
-    beamConfigChangesObservable.notifyChangeToSubscribers()
+    beamConfigChangesObservable.updateBeamConfigAndNotifyChangeToSubscribers()
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
       modeChoiceAlternativesCollector.notifyIterationStarts(event)
@@ -400,8 +393,7 @@ class BeamSim @Inject() (
 
   }
 
-  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+  private def shouldWritePlansAtCurrentIteration(beamConfig: BeamConfig, iterationNumber: Int): Boolean = {
     val interval = beamConfig.beam.outputs.writePlansInterval
     interval > 0 && iterationNumber % interval == 0
   }
@@ -409,9 +401,10 @@ class BeamSim @Inject() (
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     backgroundSkimsCreator.foreach(_.increaseParallelismTo(Runtime.getRuntime.availableProcessors() - 1))
 
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    beamConfigChangesObservable.updateBeamConfigAndNotifyChangeToSubscribers()
+    val beamConfig: BeamConfig = beamConfigChangesObservable.lastBeamConfig
 
-    if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
+    if (shouldWritePlansAtCurrentIteration(beamConfig, event.getIteration)) {
       PlansCsvWriter.toCsv(
         scenario,
         beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv.gz")
@@ -623,8 +616,6 @@ class BeamSim @Inject() (
     logger.info("Actor system shut down")
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
-
-    BeamConfigChangesObservable.clear()
 
     runningPythonScripts
       .filter(process => process.isRunning)

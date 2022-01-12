@@ -112,7 +112,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               totalCost,
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("R5")
         )
       ),
       embodyRequestId,
@@ -435,13 +436,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
       val from = geo.snapToR5Edge(
         transportNetwork.streetLayer,
-        geo.utm2Wgs(theOrigin),
-        10e3
+        geo.utm2Wgs(theOrigin)
       )
       val to = geo.snapToR5Edge(
         transportNetwork.streetLayer,
-        geo.utm2Wgs(theDestination),
-        10e3
+        geo.utm2Wgs(theDestination)
       )
       profileRequest.fromLon = from.getX
       profileRequest.fromLat = from.getY
@@ -544,6 +543,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
               directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
             }
+          } else {
+            val coord_str = s"lat:${profileRequest.toLat}, lon:${profileRequest.toLon}"
+            logger.warn(s"Can't 'set destination' to coord $coord_str with streetRouter's maxDistance and mode.")
           }
         }
       }
@@ -816,7 +818,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               unbecomeDriverOnCompletion = true
             )
           }
-          EmbodiedBeamTrip(embodiedBeamLegs)
+          EmbodiedBeamTrip(embodiedBeamLegs, Some("R5"))
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
@@ -1097,7 +1099,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   ): TravelTimeCalculator = {
     val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
     (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) => {
-      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
+      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
     }
   }
 
