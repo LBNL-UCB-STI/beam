@@ -312,7 +312,7 @@ trait BeamHelper extends LazyLogging {
       logger.info(s"Following activities will have fixed durations: ${fixedActivitiesDurations.mkString(",")}")
     }
 
-    val (privateVehicleMap, privateVehicleSoc) = privateVehicles(beamConfig, vehicleTypes)
+    val (privateVehicleMap, privateVehicleSoc) = readPrivateVehicles(beamConfig, vehicleTypes)
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
