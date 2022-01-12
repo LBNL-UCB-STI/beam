@@ -147,12 +147,11 @@ class BeamSim @Inject() (
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
-  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
-    new TravelTimeGoogleStatistic(
-      beamServices.beamConfig.beam.calibration.google.travelTimes,
-      actorSystem,
-      beamServices.geo
-    )
+  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic = TravelTimeGoogleStatistic.getTravelTimeGoogleStatistic(
+    beamServices.beamConfig.beam.calibration.google.travelTimes,
+    actorSystem,
+    beamServices.geo
+  )
 
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO

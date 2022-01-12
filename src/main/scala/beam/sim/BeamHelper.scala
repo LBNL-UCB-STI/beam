@@ -2,7 +2,7 @@ package beam.sim
 
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
-import beam.agentsim.agents.freight.input.PayloadPlansConverter
+import beam.agentsim.agents.freight.input._
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
@@ -39,6 +39,7 @@ import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
 import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
+import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
@@ -294,34 +295,27 @@ trait BeamHelper extends LazyLogging {
       LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
     val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
-    val freightCarriers = if (beamConfig.beam.agentsim.agents.freight.enabled) {
-      val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
-      val tours = PayloadPlansConverter.readFreightTours(beamConfig.beam.agentsim.agents.freight.toursFilePath)
-      val plans =
-        PayloadPlansConverter.readPayloadPlans(beamConfig.beam.agentsim.agents.freight.plansFilePath, tazMap, rand)
-      PayloadPlansConverter.readFreightCarriers(
-        beamConfig.beam.agentsim.agents.freight.carriersFilePath,
-        tours,
-        plans,
-        vehicleTypes,
-        tazMap,
-        rand
-      )
-    } else {
-      IndexedSeq.empty[FreightCarrier]
-    }
 
-    val fixedActivitiesDurationsFromConfig = {
+    val (freightCarriers, fixedActivitiesDurationsFromFreight) =
+      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes)
+
+    val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
       BeamConfigUtils
         .parseListToMap(maybeFixedDurationsList.getOrElse(List.empty[String]))
         .map { case (activityType, stringDuration) => activityType -> stringDuration.toDouble }
     }
 
+    val fixedActivitiesDurations =
+      (fixedActivitiesDurationsFromConfig.toSeq ++ fixedActivitiesDurationsFromFreight.toSeq).toMap
+    if (fixedActivitiesDurations.nonEmpty) {
+      logger.info(s"Following activities will have fixed durations: ${fixedActivitiesDurations.mkString(",")}")
+    }
+
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
-      privateVehicles(beamConfig, vehicleTypes) ++ freightCarriers.flatMap(_.fleet),
+      readPrivateVehicles(beamConfig, vehicleTypes),
       new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
       beamConfig,
       dates,
@@ -338,8 +332,32 @@ trait BeamHelper extends LazyLogging {
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
       freightCarriers,
-      fixedActivitiesDurations = fixedActivitiesDurationsFromConfig
+      fixedActivitiesDurations
     )
+  }
+
+  def readFreights(
+    beamConfig: BeamConfig,
+    streetLayer: StreetLayer,
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+  ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
+    val freightConfig = beamConfig.beam.agentsim.agents.freight
+
+    if (freightConfig.enabled) {
+      val geoUtils = new GeoUtilsImpl(beamConfig)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer)
+      val tours = freightReader.readFreightTours()
+      val plans = freightReader.readPayloadPlans()
+      val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
+      val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
+        plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
+      } else {
+        Map.empty[String, Double]
+      }
+      (carriers, activityNameToDuration)
+    } else {
+      (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
+    }
   }
 
   def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
@@ -361,7 +379,7 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def privateVehicles(
+  def readPrivateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): TrieMap[Id[BeamVehicle], BeamVehicle] =
@@ -691,6 +709,25 @@ trait BeamHelper extends LazyLogging {
       beamServices.beamConfig
     )
 
+    if (beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
+      logger.info(s"Generating freight population from ${beamScenario.freightCarriers.size} carriers ...")
+      val freightReader = FreightReader(
+        beamServices.beamConfig,
+        beamServices.geo,
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.beamScenario.tazTreeMap
+      )
+      generatePopulationForPayloadPlans(
+        beamScenario,
+        scenario.getPopulation,
+        scenario.getHouseholds,
+        freightReader
+      )
+      logger.info(s"""Freight population generated:
+                     |Number of households: ${scenario.getHouseholds.getHouseholds.keySet.size}
+                     |Number of persons: ${scenario.getPopulation.getPersons.keySet.size}""".stripMargin)
+    }
+
     val houseHoldVehiclesInScenario: Iterable[Id[Vehicle]] = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -762,7 +799,6 @@ trait BeamHelper extends LazyLogging {
 
     val fileFormat = scenarioConfig.fileFormat
 
-    val geoUtils = new GeoUtilsImpl(beamConfig)
     val (scenario, beamScenario, plansMerged) =
       ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
         if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
@@ -863,49 +899,42 @@ trait BeamHelper extends LazyLogging {
           throw new NotImplementedError(s"ScenarioSource '$src' is not yet implemented")
         }
       }
-    generatePopulationForPayloadPlans(
-      beamConfig,
-      geoUtils,
-      beamScenario,
-      scenario.getPopulation,
-      scenario.getHouseholds
-    )
+
     (scenario, beamScenario, plansMerged)
   }
 
   def generatePopulationForPayloadPlans(
-    beamConfig: BeamConfig,
-    geoUtils: GeoUtils,
     beamScenario: BeamScenario,
     population: Population,
-    households: Households
+    households: Households,
+    converter: FreightReader
   ): Unit = {
-    if (beamConfig.beam.agentsim.agents.freight.enabled) {
-      val convertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
-      val plans: IndexedSeq[(Household, Plan)] = PayloadPlansConverter.generatePopulation(
-        beamScenario.freightCarriers,
-        population.getFactory,
-        households.getFactory,
-        if (convertWgs2Utm) Some(geoUtils) else None
-      )
+    beamScenario.freightCarriers
+      .flatMap(_.fleet)
+      .foreach { case (id, vehicle) => beamScenario.privateVehicles.put(id, vehicle) }
 
-      val allowedModes = Seq(BeamMode.CAR.value)
-      plans.foreach { case (household, plan) =>
-        households.getHouseholds.put(household.getId, household)
-        population.addPerson(plan.getPerson)
-        AvailableModeUtils.setAvailableModesForPerson_v2(
-          beamScenario,
-          plan.getPerson,
-          household,
-          population,
-          allowedModes
-        )
-        val freightVehicle = beamScenario.privateVehicles(household.getVehicleIds.get(0))
-        households.getHouseholdAttributes
-          .putAttribute(household.getId.toString, "homecoordx", freightVehicle.spaceTime.loc.getX)
-        households.getHouseholdAttributes
-          .putAttribute(household.getId.toString, "homecoordy", freightVehicle.spaceTime.loc.getY)
-      }
+    val plans: IndexedSeq[(Household, Plan)] = converter.generatePopulation(
+      beamScenario.freightCarriers,
+      population.getFactory,
+      households.getFactory
+    )
+
+    val allowedModes = Seq(BeamMode.CAR.value)
+    plans.foreach { case (household, plan) =>
+      households.getHouseholds.put(household.getId, household)
+      population.addPerson(plan.getPerson)
+      AvailableModeUtils.setAvailableModesForPerson_v2(
+        beamScenario,
+        plan.getPerson,
+        household,
+        population,
+        allowedModes
+      )
+      val freightVehicle = beamScenario.privateVehicles(household.getVehicleIds.get(0))
+      households.getHouseholdAttributes
+        .putAttribute(household.getId.toString, "homecoordx", freightVehicle.spaceTime.loc.getX)
+      households.getHouseholdAttributes
+        .putAttribute(household.getId.toString, "homecoordy", freightVehicle.spaceTime.loc.getY)
     }
   }
 
