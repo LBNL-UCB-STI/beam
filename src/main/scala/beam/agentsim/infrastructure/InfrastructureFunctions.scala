@@ -113,7 +113,6 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
 
     val parkingZoneSearchParams: ParkingZoneSearchParams[GEO] =
       ParkingZoneSearchParams(
-        inquiry.beamVehicle.map(_.spaceTime.loc).getOrElse(inquiry.destinationUtm.loc),
         inquiry.destinationUtm.loc,
         inquiry.parkingDuration,
         inquiry.searchMode,
@@ -121,7 +120,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         zoneSearchTree,
         parkingZones,
         geoQuadTree,
-        new Random(seed)
+        new Random(seed),
+        inquiry.originUtm.orElse(inquiry.beamVehicle.map(_.spaceTime)).map(_.loc)
       )
 
     // filters out ParkingZones which do not apply to this agent

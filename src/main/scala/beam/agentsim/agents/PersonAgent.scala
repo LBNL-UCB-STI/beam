@@ -980,19 +980,29 @@ class PersonAgent(
         // Enroute block
         // calculate whether enroute charging required or not.
         val vehicle = beamVehicles(nextLeg.beamVehicleId).vehicle
-        val enrouteConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute
-        val firstLeg = data.restOfCurrentTrip.head
-        val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
-        val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
-        // Calculating distance to cross before enroute charging
-        val refuelRequiredThresholdInMeters = totalDistance
-        val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdOffsetInMeters
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
-        val isRefuelNeeded =
-          if (totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters) false
+        val needEnroute = if (asDriver && isElectric) {
+          val enrouteConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute
+          val firstLeg = data.restOfCurrentTrip.head
+          val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
+          val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
+          // Calculating distance to cross before enroute charging
+          val refuelRequiredThresholdInMeters = totalDistance
+          val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdOffsetInMeters
+          val originUtm = vehicle.spaceTime.loc
+          val lastLeg = vehicleTrip.last.beamLeg
+          val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc)
+          //sometimes this distance is zero which causes parking stall search to get stuck
+          val distUtm = geo.distUTMInMeters(originUtm, destinationUtm)
+          if (
+            totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters ||
+            distUtm < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters
+          ) false
           else vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)
-        val needEnroute = asDriver && isElectric && isRefuelNeeded
+        } else {
+          false
+        }
 
         val tempData = data.copy(
           passengerSchedule = newPassengerSchedule,

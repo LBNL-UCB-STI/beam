@@ -64,7 +64,6 @@ object ParkingZoneSearch {
     * @param parkingTypes the list of acceptable parking types allowed for this search
     */
   case class ParkingZoneSearchParams[GEO](
-    originUTM: Location,
     destinationUTM: Location,
     parkingDuration: Double,
     searchMode: ParkingSearchMode,
@@ -73,6 +72,7 @@ object ParkingZoneSearch {
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     zoneQuadTree: QuadTree[GEO],
     random: Random,
+    originUTM: Option[Location],
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
   )
 
@@ -304,7 +304,7 @@ object ParkingZoneSearch {
       params.searchMode match {
         case ParkingSearchMode.EnRoute =>
           EnrouteSearch(
-            params.originUTM,
+            params.originUTM.getOrElse(throw new RuntimeException("Enroute process is expecting an origin location")),
             params.destinationUTM,
             config.searchMaxDistanceRelativeToEllipseFoci,
             config.searchExpansionFactor,
