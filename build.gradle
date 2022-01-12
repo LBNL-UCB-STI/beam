@@ -594,7 +594,6 @@ task execute(type: JavaExec) {
         mainClass = mainClassName
     }
     classpath = sourceSets.main.runtimeClasspath
-    systemProperties System.getProperties()
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }

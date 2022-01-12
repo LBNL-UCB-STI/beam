@@ -69,7 +69,8 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
       h3taz = null,
-      freightCarriers = null
+      freightCarriers = null,
+      fixedActivitiesDurations = Map.empty
     )
   }
 }

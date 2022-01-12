@@ -375,8 +375,6 @@ trait ChoosesMode {
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>
-          // FIXME: Our previous tour was WALK, but this should not stop us to use RideHail or try transit!
-          // This is important for the secondary activties because you can end-up walking very far (the problem was that whenever the person chooses WALK, he will never use any other mode anymore)
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(WALK_TRANSIT) =>

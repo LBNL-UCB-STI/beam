@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -19,7 +19,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{mutable, Iterable}
+import scala.collection.{Iterable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
@@ -540,7 +540,6 @@ class UrbanSimScenarioLoader(
 
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
-      person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
       person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
       person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse("#NO_DATA#"))
 
