@@ -21,6 +21,7 @@ object BeamConfig {
     inputDirectory: java.lang.String,
     logger: BeamConfig.Beam.Logger,
     metrics: BeamConfig.Beam.Metrics,
+    output: BeamConfig.Beam.Output,
     outputs: BeamConfig.Beam.Outputs,
     physsim: BeamConfig.Beam.Physsim,
     replanning: BeamConfig.Beam.Replanning,
@@ -97,9 +98,12 @@ object BeamConfig {
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
+          convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
+          generateFixedActivitiesDurations: scala.Boolean,
           name: java.lang.String,
           plansFilePath: java.lang.String,
+          reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           toursFilePath: java.lang.String
         )
@@ -131,11 +135,15 @@ object BeamConfig {
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
+              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              generateFixedActivitiesDurations =
+                c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
+              reader = if (c.hasPathOrNull("reader")) c.getString("reader") else "Generic",
               replanning = BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
                 else com.typesafe.config.ConfigFactory.parseString("replanning{}")
@@ -2685,6 +2693,20 @@ object BeamConfig {
       }
     }
 
+    case class Output(
+      writePlansAndStopSimulation: scala.Boolean
+    )
+
+    object Output {
+
+      def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Output = {
+        BeamConfig.Beam.Output(
+          writePlansAndStopSimulation =
+            c.hasPathOrNull("writePlansAndStopSimulation") && c.getBoolean("writePlansAndStopSimulation")
+        )
+      }
+    }
+
     case class Outputs(
       addTimestampToOutputDirectory: scala.Boolean,
       baseOutputDirectory: java.lang.String,
@@ -4390,6 +4412,10 @@ object BeamConfig {
         metrics = BeamConfig.Beam.Metrics(
           if (c.hasPathOrNull("metrics")) c.getConfig("metrics")
           else com.typesafe.config.ConfigFactory.parseString("metrics{}")
+        ),
+        output = BeamConfig.Beam.Output(
+          if (c.hasPathOrNull("output")) c.getConfig("output")
+          else com.typesafe.config.ConfigFactory.parseString("output{}")
         ),
         outputs = BeamConfig.Beam.Outputs(
           if (c.hasPathOrNull("outputs")) c.getConfig("outputs")

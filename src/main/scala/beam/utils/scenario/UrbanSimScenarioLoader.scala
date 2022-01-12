@@ -100,8 +100,11 @@ class UrbanSimScenarioLoader(
       householdsInsideBoundingBox
     }
     val inputPlans = Await.result(plansF, 1800.seconds)
+    logger.info(s"Reading plans done.")
     val persons = Await.result(personsF, 1800.seconds)
+    logger.info(s"Reading persons done.")
     val households = Await.result(householdsF, 1800.seconds)
+    logger.info(s"Reading households done.")
 
     val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
@@ -565,13 +568,13 @@ class UrbanSimScenarioLoader(
           planInfo.legMode match {
             case Some(mode) =>
               val leg = PopulationUtils.createLeg(mode)
-              leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              leg.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
               plan.addLeg(leg)
-              plan.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              plan.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
             case None =>
               val leg = PopulationUtils.createLeg("")
-              leg.getAttributes.putAttribute("trip_id", planInfo.tripId)
-              plan.getAttributes.putAttribute("trip_id", planInfo.tripId)
+              leg.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
+              plan.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
           }
         } else if (planElement.equalsIgnoreCase("activity")) {
           assert(

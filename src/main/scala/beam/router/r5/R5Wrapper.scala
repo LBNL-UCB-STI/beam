@@ -436,13 +436,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
       val from = geo.snapToR5Edge(
         transportNetwork.streetLayer,
-        geo.utm2Wgs(theOrigin),
-        10e3
+        geo.utm2Wgs(theOrigin)
       )
       val to = geo.snapToR5Edge(
         transportNetwork.streetLayer,
-        geo.utm2Wgs(theDestination),
-        10e3
+        geo.utm2Wgs(theDestination)
       )
       profileRequest.fromLon = from.getX
       profileRequest.fromLat = from.getY
@@ -545,6 +543,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
               directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
             }
+          } else {
+            val coord_str = s"lat:${profileRequest.toLat}, lon:${profileRequest.toLon}"
+            logger.warn(s"Can't 'set destination' to coord $coord_str with streetRouter's maxDistance and mode.")
           }
         }
       }
