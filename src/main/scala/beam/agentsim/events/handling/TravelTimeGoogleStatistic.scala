@@ -50,8 +50,6 @@ object TravelTimeGoogleStatistic extends LazyLogging {
         logger.warn("google api key is empty")
       key
     }
-    val queryDate = getQueryDate(cfg.queryDate)
-    logger.info(s"queryDate :$queryDate")
 
     val enabled = cfg.enable && apiKey != null
     if (enabled) new TravelTimeGoogleStatisticImpl(cfg, actorSystem, geoUtils, enabled, apiKey)
