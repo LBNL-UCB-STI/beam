@@ -5,10 +5,11 @@ import beam.sim.BeamHelper
 import beam.tags.FlakyTest
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class MultinomialCustomConfigSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeamHelper
     with IntegrationSpecCommon
@@ -57,7 +58,7 @@ class MultinomialCustomConfigSpec
       countPositive should be >= countNegative
     }
 
-    "Prefer mode bike when intercept is very high versus very low" taggedAs (FlakyTest) in {
+    "Prefer mode bike when intercept is very high versus very low" taggedAs FlakyTest in {
 
       val config1: Config = baseConfig
         .withValue(

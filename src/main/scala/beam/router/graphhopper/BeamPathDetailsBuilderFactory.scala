@@ -8,6 +8,7 @@ import com.graphhopper.routing.weighting.Weighting
 import com.graphhopper.util.details.{PathDetailsBuilder, PathDetailsBuilderFactory}
 
 class BeamPathDetailsBuilderFactory extends PathDetailsBuilderFactory {
+
   override def createPathDetailsBuilders(
     requestedPathDetails: util.List[String],
     evl: EncodedValueLookup,

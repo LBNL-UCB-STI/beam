@@ -1,18 +1,9 @@
 package beam.api.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.repositioningmanager.{
-  AlwaysBeRepositioningManager,
-  DefaultRepositioningManager,
-  DemandFollowingRepositioningManager,
-  InverseSquareDistanceRepositioningFactor,
-  RepositioningLowWaitingTimes,
-  RepositioningManager,
-  TheSameLocationRepositioningManager
-}
+import beam.agentsim.agents.ridehail.repositioningmanager._
 
 import scala.util.Try
-import scala.util.control.NonFatal
 
 /**
   * API defining [[RepositionManagerFactory]] and its default implementation ([[DefaultRepositionManagerFactory]]), which
@@ -28,6 +19,7 @@ trait RepositionManagerFactory {
   * Default implementation of [[RepositionManagerFactory]].
   */
 class DefaultRepositionManagerFactory extends RepositionManagerFactory {
+
   override def create(rideHailManager: RideHailManager, repositioningManagerName: String): Try[RepositioningManager] = {
 
     Try {

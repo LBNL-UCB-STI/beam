@@ -11,49 +11,48 @@ private case class PeopleAndWorkers(totalPeople: Int, totalWorkers: Int)
 
 class WorkForceSampler(val dbInfo: CTPPDatabaseInfo, val stateCode: String, val randomGenerator: RandomGenerator)
     extends StrictLogging {
+
   private val workersAgesOD: Iterable[OD[AgeRange]] =
     new AgeOfWorkerTableReader(dbInfo, ResidenceToWorkplaceFlowGeography.`State To State`)
       .read()
       .filter(od => od.source == stateCode && od.destination == stateCode)
+
   private val populationAge = new AgeTableReader(dbInfo, ResidenceGeography.State)
     .read()
-  require(populationAge.contains(stateCode), s"Can't find state ${stateCode} in ${populationAge.keySet}")
+  require(populationAge.contains(stateCode), s"Can't find state $stateCode in ${populationAge.keySet}")
   private val stateAges = populationAge(stateCode).filter { case (ageRng, _) => ageRng.range.start >= 16 }
 
   private val workerAgeToStats = workersAgesOD
-    .foldLeft(List.empty[(AgeRange, PeopleAndWorkers)]) {
-      case (acc, od) =>
-        val workerAgeRng = od.attribute.range
-        // Inefficient way to find subranges in the range
-        // But the number of elements is less than 10, so we should be fine
-        val matchedStateAges = stateAges.flatMap {
-          case (stateRng, cnt) =>
-            val intersection = stateRng.range.intersect(workerAgeRng)
-            if (intersection.nonEmpty) {
-              Some(Range.inclusive(intersection.head, intersection.last), cnt)
-            } else
-              None
-        }
-        val totalPeople = matchedStateAges.values.sum.toInt
-        (AgeRange(workerAgeRng) -> PeopleAndWorkers(totalPeople, od.value.toInt)) :: acc
+    .foldLeft(List.empty[(AgeRange, PeopleAndWorkers)]) { case (acc, od) =>
+      val workerAgeRng = od.attribute.range
+      // Inefficient way to find subranges in the range
+      // But the number of elements is less than 10, so we should be fine
+      val matchedStateAges = stateAges.flatMap { case (stateRng, cnt) =>
+        val intersection = stateRng.range.intersect(workerAgeRng)
+        if (intersection.nonEmpty) {
+          Some(Range.inclusive(intersection.head, intersection.last), cnt)
+        } else
+          None
+      }
+      val totalPeople = matchedStateAges.values.sum.toInt
+      (AgeRange(workerAgeRng) -> PeopleAndWorkers(totalPeople, od.value.toInt)) :: acc
     }
     .sortBy(x => x._1.range.start)
 
-  workerAgeToStats.foreach {
-    case (ageRng, stat) =>
-      val ratio = stat.totalWorkers.toDouble / stat.totalPeople
-      logger.info(
-        s"$ageRng => Total people: ${stat.totalPeople}, total workers: ${stat.totalWorkers}, ratio: ${ratio.formatted("%.3f")}"
-      )
+  workerAgeToStats.foreach { case (ageRng, stat) =>
+    val ratio = stat.totalWorkers.toDouble / stat.totalPeople
+    logger.info(
+      s"$ageRng => Total people: ${stat.totalPeople}, total workers: ${stat.totalWorkers}, ratio: ${ratio.formatted("%.3f")}"
+    )
   }
 
-  private val workerAgeToEmploymentRatio: List[(AgeRange, Double)] = workerAgeToStats.map {
-    case (ageRng, stat) => (ageRng, stat.totalWorkers.toDouble / stat.totalPeople)
+  private val workerAgeToEmploymentRatio: List[(AgeRange, Double)] = workerAgeToStats.map { case (ageRng, stat) =>
+    (ageRng, stat.totalWorkers.toDouble / stat.totalPeople)
   }
 
   def isWorker(age: Int): Boolean = {
-    workerAgeToEmploymentRatio.find { case (ageRng, ratio) => ageRng.range.contains(age) } match {
-      case Some((rng, ratio)) =>
+    workerAgeToEmploymentRatio.find { case (ageRng, _) => ageRng.range.contains(age) } match {
+      case Some((_, ratio)) =>
         val probability = ratio
         randomGenerator.nextDouble() < probability
       case None =>
@@ -86,11 +85,11 @@ object WorkForceSampler {
     val isWorkerList = (1 to 100000).map { _ =>
       wfs.isWorker(age)
     }
-    val numOfWorkers = isWorkerList.count(x => x == true)
+    val numOfWorkers = isWorkerList.count(_ == true)
     val ratio = numOfWorkers.toDouble / isWorkerList.size
 
-    println(s"numOfWorkers: $numOfWorkers, isWorkerList size: ${isWorkerList.size}, ratio: ${ratio}")
+    println(s"numOfWorkers: $numOfWorkers, isWorkerList size: ${isWorkerList.size}, ratio: $ratio")
     val absDiff = Math.abs(expectedProbability - ratio)
-    require(absDiff < 1E-2, "Something wrong with probability function?")
+    require(absDiff < 1e-2, "Something wrong with probability function?")
   }
 }

@@ -1,12 +1,9 @@
 package beam.replanning
 
-import javax.inject.Inject
-
 import org.matsim.api.core.v01.population.{HasPlansAndId, Leg, Person, Plan}
-import org.matsim.core.config.Config
 import org.slf4j.LoggerFactory
 
-class ClearRoutes @Inject()(config: Config) extends PlansStrategyAdopter {
+class ClearRoutes() extends PlansStrategyAdopter {
 
   private val log = LoggerFactory.getLogger(classOf[ClearRoutes])
 

@@ -22,7 +22,6 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.core.utils.io.IOUtils
 
 import scala.collection.mutable
 import scala.concurrent.Await
@@ -31,25 +30,43 @@ import scala.concurrent.duration._
 import scala.util.{Random, Try}
 
 /**
-  *
   * @author Dmitry Openkov
   */
-class TravelTimeGoogleStatistic(
+
+trait TravelTimeGoogleStatistic extends BasicEventHandler with IterationEndsListener with LazyLogging {
+  def loadedEventNumber: Int
+}
+
+object TravelTimeGoogleStatistic extends LazyLogging {
+
+  def getTravelTimeGoogleStatistic(
+    cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
+    actorSystem: ActorSystem,
+    geoUtils: GeoUtils
+  ) = {
+    val apiKey = {
+      val key = System.getenv("GOOGLE_API_KEY")
+      if (cfg.enable && key == null)
+        logger.warn("google api key is empty")
+      key
+    }
+    val enabled = cfg.enable && apiKey != null
+    if (enabled) new TravelTimeGoogleStatisticImpl(cfg, actorSystem, geoUtils, enabled, apiKey)
+    else EmptyTravelTimeGoogleStatistic
+  }
+}
+
+class TravelTimeGoogleStatisticImpl(
   cfg: BeamConfig.Beam.Calibration.Google.TravelTimes,
   actorSystem: ActorSystem,
-  geoUtils: GeoUtils
-) extends BasicEventHandler
-    with IterationEndsListener
-    with LazyLogging {
+  geoUtils: GeoUtils,
+  enabled: Boolean,
+  apiKey: String
+) extends TravelTimeGoogleStatistic {
 
-  private val acc = mutable.ListBuffer.empty[PathTraversalEvent]
-  private val apiKey = System.getenv("GOOGLE_API_KEY")
-  if (cfg.enable && apiKey == null)
-    logger.warn("google api key is empty")
-  private val queryDate = getQueryDate(cfg.queryDate)
-
-  private val enabled = cfg.enable && apiKey != null
-  private val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
+  private lazy val acc = mutable.ListBuffer.empty[PathTraversalEvent]
+  private lazy val queryDate = getQueryDate(cfg.queryDate)
+  private lazy val constraints: Set[TravelConstraint] = if (cfg.tolls) Set.empty else Set(AvoidTolls)
 
   override def handleEvent(event: Event): Unit = {
     if (enabled) {
@@ -62,21 +79,23 @@ class TravelTimeGoogleStatistic(
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    if (enabled
-        && cfg.iterationInterval > 0
-        && event.getIteration % cfg.iterationInterval == 0) {
+    if (
+      enabled
+      && cfg.iterationInterval > 0
+      && event.getIteration % cfg.iterationInterval == 0
+    ) {
       logger.info(
         "Executing google API call for iteration #{}, query date = {}",
         event.getIteration,
         queryDate.toLocalDate
       )
       val numEventsPerHour = Math.max(1, cfg.numDataPointsOver24Hours / 24)
-      val byHour = acc.groupBy(_.departureTime % 3600).filter {
-        case (hour, _) => hour < 24
+      val byHour = acc.groupBy(_.departureTime % 3600).filter { case (hour, _) =>
+        hour < 24
       }
       val events = byHour
-        .flatMap {
-          case (_, events) => getAppropriateEvents(events, numEventsPerHour)
+        .flatMap { case (_, events) =>
+          getAppropriateEvents(events, numEventsPerHour)
         }
       logger.info("Number of events: {}", events.size)
 
@@ -85,9 +104,7 @@ class TravelTimeGoogleStatistic(
       val adapter = new GoogleAdapter(apiKey, Some(Paths.get(responsePath)), Some(actorSystem))
       val result = using(adapter) { adapter =>
         queryGoogleAPI(events, adapter)
-      }.sortBy(
-        ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationInTrafficSeconds)
-      )
+      }.sortBy(ec => (ec.event.departureTime, ec.event.vehicleId, ec.route.durationInTrafficSeconds))
       val filePath = controller.getIterationFilename(event.getIteration, "googleTravelTimeEstimation.csv")
       val num = writeToCsv(result, filePath)
       logger.info(s"Saved $num routes to $filePath")
@@ -98,13 +115,12 @@ class TravelTimeGoogleStatistic(
     val futureResult = for {
       result <- adapter.findRoutes(events.map(e => toRouteRequest(e)))
       list = result.toList
-      _ = list.collect {
-        case (Left(throwable), uo) => logger.error(s"Error when calling google API for $uo", throwable)
+      _ = list.collect { case (Left(throwable), uo) =>
+        logger.error(s"Error when calling google API for $uo", throwable)
       }
-    } yield
-      list.collect {
-        case (Right(routes), event) => routes.map(EventContainer(event, _))
-      }.flatten
+    } yield list.collect { case (Right(routes), event) =>
+      routes.map(EventContainer(event, _))
+    }.flatten
     Await.result(futureResult, 10.minutes)
   }
 
@@ -131,25 +147,24 @@ class TravelTimeGoogleStatistic(
     )
     using(new CsvWriter(filePath, headers)) { csvWriter =>
       seq
-        .map(
-          ec =>
-            Vector[String](
-              Objects.toString(ec.event.vehicleId),
-              ec.event.vehicleType,
-              ec.event.departureTime,
-              ec.event.startY,
-              ec.event.startX,
-              ec.event.endY,
-              ec.event.endX,
-              ec.event.arrivalTime - ec.event.departureTime,
-              ec.route.durationIntervalInSeconds,
-              ec.route.durationInTrafficSeconds,
-              geoUtils.distLatLon2Meters(
-                new Coord(ec.event.startX, ec.event.startY),
-                new Coord(ec.event.endX, ec.event.endY)
-              ),
-              ec.event.legLength,
-              ec.route.distanceInMeters,
+        .map(ec =>
+          Vector[String](
+            Objects.toString(ec.event.vehicleId),
+            ec.event.vehicleType,
+            ec.event.departureTime,
+            ec.event.startY,
+            ec.event.startX,
+            ec.event.endY,
+            ec.event.endX,
+            ec.event.arrivalTime - ec.event.departureTime,
+            ec.route.durationIntervalInSeconds,
+            ec.route.durationInTrafficSeconds,
+            geoUtils.distLatLon2Meters(
+              new Coord(ec.event.startX, ec.event.startY),
+              new Coord(ec.event.endX, ec.event.endY)
+            ),
+            ec.event.legLength,
+            ec.route.distanceInMeters
           )
         )
         .foreach { line =>
@@ -204,11 +219,19 @@ class TravelTimeGoogleStatistic(
     )
   }
 
-  def loadedEventNumber: Int = acc.size
+  override def loadedEventNumber: Int = acc.size
 
   override def reset(iteration: Int): Unit = {
     acc.clear()
   }
+}
+
+object EmptyTravelTimeGoogleStatistic extends TravelTimeGoogleStatistic {
+  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {}
+
+  override def handleEvent(event: Event): Unit = {}
+
+  override def loadedEventNumber: Int = 0
 }
 
 case class EventContainer(event: PathTraversalEvent, route: Route)

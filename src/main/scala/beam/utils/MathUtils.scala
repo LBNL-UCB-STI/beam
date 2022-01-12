@@ -1,4 +1,6 @@
 package beam.utils
+
+import java.util.concurrent.ThreadLocalRandom
 import scala.collection.JavaConverters._
 import scala.util.Random
 
@@ -15,7 +17,7 @@ object MathUtils {
     * @return
     */
   def roundDouble(inVal: Double, scale: Int = 3): Double = {
-    BigDecimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
+    BigDecimal.decimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
   /**
@@ -23,6 +25,7 @@ object MathUtils {
     * @param list the list of data
     * @return median of the given list
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def median(list: java.util.List[java.lang.Double]): Double = {
     if (list.isEmpty) {
       0
@@ -30,7 +33,7 @@ object MathUtils {
       val sortedList = list.asScala.sortWith(_ < _)
       list.size match {
         case 1                   => sortedList.head
-        case odd if odd % 2 == 1 => sortedList(odd / 2)
+        case odd if odd % 2 != 0 => sortedList(odd / 2)
         case even if even % 2 == 0 =>
           val (l, h) = sortedList splitAt even / 2
           (l.last + h.head) / 2
@@ -81,10 +84,19 @@ object MathUtils {
     max + math.log(accum)
   }
 
+  def randomPointInCircle(rSquared: Double, rnd: Random): (Double, Double) = {
+    val xSquared = rnd.nextDouble() * rSquared
+    val ySquared = rnd.nextDouble() * (rSquared - xSquared)
+    val xSign = Math.signum(rnd.nextDouble() - 0.5)
+    val ySign = Math.signum(rnd.nextDouble() - 0.5)
+    (xSign * Math.sqrt(xSquared), ySign * Math.sqrt(ySquared))
+  }
+
   /**
     * Sums together things in log space.
     * @return log(\sum exp(a_i))
     */
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def logSumExp(a: Iterable[Double]): Double = {
     a.size match {
       case 0 => Double.NegativeInfinity;
@@ -113,9 +125,19 @@ object MathUtils {
     * @return one of the nearest integers depending on the random value and the fraction of x
     */
   def roundUniformly(x: Double): Long = {
+    roundUniformly(x, ThreadLocalRandom.current())
+  }
+
+  /**
+    * Tested with not negative
+    * @param x float to round
+    * @param random scala.util.Random
+    * @return
+    */
+  def roundUniformly(x: Double, random: Random): Long = {
     val floor: Double = Math.floor(x)
     val diff = x - floor
-    val addition = if (Random.nextDouble() < diff) 1 else 0
+    val addition = if (random.nextDouble() < diff) 1 else 0
     Math.round(floor + addition)
   }
 
@@ -125,5 +147,6 @@ object MathUtils {
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
 
-  def nanToZero(x: Double) = if (x.isNaN) { 0.0 } else { x }
+  def nanToZero(x: Double) = if (x.isNaN) { 0.0 }
+  else { x }
 }

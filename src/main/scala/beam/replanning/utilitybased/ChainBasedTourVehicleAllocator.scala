@@ -3,14 +3,13 @@ package beam.replanning.utilitybased
 import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
-import beam.router.Modes
 import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
-import org.matsim.core.population.routes.{LinkNetworkRouteFactory, NetworkRoute}
+import org.matsim.core.population.routes.LinkNetworkRouteFactory
 import org.matsim.core.router.TripStructureUtils._
-import org.matsim.core.router.{CompositeStageActivityTypes, TripStructureUtils}
+import org.matsim.core.router.CompositeStageActivityTypes
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
@@ -45,10 +44,9 @@ case class ChainBasedTourVehicleAllocator(
     householdMembershipAllocator
       .lookupVehicleForRankedPerson(person)
       .map(vehId => vehicles.getVehicles.get(vehId))
-      .filter(
-        vehicle =>
-          vehicle.getType.getDescription.equals("Car") || vehicle.getType.getDescription
-            .equals("SUV")
+      .filter(vehicle =>
+        vehicle.getType.getDescription.equals("Car") || vehicle.getType.getDescription
+          .equals("SUV")
       )
       .toVector
   }
@@ -64,8 +62,7 @@ case class ChainBasedTourVehicleAllocator(
 
   def allocateChainBasedModesforHouseholdMember(
     memberId: Id[Person],
-    subtour: Subtour,
-    plan: Plan
+    subtour: Subtour
   ): Unit = {
 
     val household = householdMemberships(memberId)
@@ -84,31 +81,9 @@ case class ChainBasedTourVehicleAllocator(
     }
   }
 
-  private def processAllocation(record: SubtourRecord, plan: Plan): Unit = {
-    val subtour = record.subtour
-    for {
-      trip: TripStructureUtils.Trip <- JavaConverters.collectionAsScalaIterable(subtour.getTrips)
-      leg: Leg                      <- JavaConverters.collectionAsScalaIterable(trip.getLegsOnly)
-    } yield {
-      if (leg.getRoute == null) {
-        val currentTrip = TripStructureUtils.findCurrentTrip(leg, plan, stageActivitytypes)
-        leg.setRoute(
-          linkNetworkRouteFactory.createRoute(
-            currentTrip.getOriginActivity.getLinkId,
-            currentTrip.getDestinationActivity.getLinkId
-          )
-        )
-      }
-      val allocatedVehicle = record.allocatedVehicle.getOrElse {
-        throw new RuntimeException("No vehicle allocated for subtour!")
-      }
-      leg.getRoute.asInstanceOf[NetworkRoute].setVehicleId(allocatedVehicle)
-      leg.setMode("car")
-    }
-  }
-
   private def allocateVehicles(currentSubtour: SubtourRecord): Boolean = {
     if (currentSubtour.possibleVehicles.nonEmpty) {
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val firstAvailableVehicle =
         currentSubtour.possibleVehicles.min((vr1: VehicleRecord, vr2: VehicleRecord) => {
           val timeComp = java.lang.Double.compare(vr1.availableFrom, vr2.availableFrom)
@@ -159,18 +134,6 @@ case class ChainBasedTourVehicleAllocator(
     }
     returnVal.getOrElse(vehicularTours)
   }
-
-  private def isChainBased(t: Trip): Boolean = {
-    val legs = JavaConverters.collectionAsScalaIterable(t.getLegsOnly).toSeq
-    if (legs.isEmpty) false
-    else {
-      // XXX what to do if several legs???
-      val l = legs.head
-      if (!Modes.BeamMode.chainBasedModes.map(mode => mode.matsimMode).contains(l.getMode)) false
-      else true
-    }
-  }
-
 }
 
 object ChainBasedTourVehicleAllocator {
@@ -201,9 +164,13 @@ object ChainBasedTourVehicleAllocator {
 
     def apply(possibleVehicles: Vector[VehicleRecord], subtour: Subtour): SubtourRecord = {
       val trips = JavaConverters.collectionAsScalaIterable(subtour.getTrips)
-      val startTime = Try {
-        trips.head.getOriginActivity.getStartTime
-      }.getOrElse(throw new RuntimeException(s"No endTime in ${trips.head.getOriginActivity}"))
+
+      val tripOriginActivityOption = trips.headOption.map(_.getOriginActivity)
+      val startTime = tripOriginActivityOption
+        .map(_.getStartTime)
+        .getOrElse(throw new RuntimeException(s"No startTime in $tripOriginActivityOption"))
+
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
       val endTime = lastTrip.getOriginActivity.getEndTime + JavaConverters
         .collectionAsScalaIterable(lastTrip.getTripElements)
@@ -215,11 +182,10 @@ object ChainBasedTourVehicleAllocator {
           case leg: Leg =>
             Option(leg)
               .flatMap(leg => Option(leg.getRoute))
-              .filterNot(
-                route =>
-                  Time.isUndefinedTime(Try {
-                    route.getTravelTime
-                  }.getOrElse(Double.NegativeInfinity))
+              .filterNot(route =>
+                Time.isUndefinedTime(Try {
+                  route.getTravelTime
+                }.getOrElse(Double.NegativeInfinity))
               )
               .map(_.getTravelTime)
               .filterNot(Time.isUndefinedTime)

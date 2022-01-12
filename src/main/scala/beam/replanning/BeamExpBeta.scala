@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
 import org.matsim.core.replanning.selectors.ExpBetaPlanSelector
 
-class BeamExpBeta @Inject()(services: BeamServices) extends PlansStrategyAdopter with StrictLogging {
+class BeamExpBeta @Inject() (services: BeamServices) extends PlansStrategyAdopter with StrictLogging {
 
   private def iterationNumber: Int = services.matsimServices.getIterationNumber
 

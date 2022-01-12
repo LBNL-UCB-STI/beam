@@ -11,7 +11,7 @@ object ProfilingUtils {
 
   def timeWork[U](work: => U): Long = {
     val startTime = System.currentTimeMillis()
-    val data = work
+    work
     val endTime = System.currentTimeMillis()
     endTime - startTime
   }

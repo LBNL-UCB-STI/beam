@@ -17,11 +17,11 @@ import org.matsim.core.controler.events.IterationEndsEvent
 
 import scala.collection.mutable
 
-class DriveTimeSkimmer @Inject()(
+class DriveTimeSkimmer @Inject() (
   matsimServices: MatsimServices,
   beamScenario: BeamScenario,
   beamConfig: BeamConfig,
-  geo: GeoUtils,
+  geo: GeoUtils
 ) extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   import DriveTimeSkimmer._
   import SkimsUtils._
@@ -33,8 +33,9 @@ class DriveTimeSkimmer @Inject()(
   val uniqueTimeBins: Range.Inclusive = 0 to 23
 
   override protected[skim] lazy val readOnlySkim: AbstractSkimmerReadOnly = DriveTimeSkims()
-  import readOnlySkim._
+
   override protected val skimFileBaseName: String = config.drive_time_skimmer.fileBaseName
+
   override protected val skimFileHeader: String =
     "fromTAZId,toTAZId,hour,timeSimulated,timeObserved,counts,iterations"
   override protected val skimName: String = config.drive_time_skimmer.name
@@ -42,13 +43,14 @@ class DriveTimeSkimmer @Inject()(
   private val chartName: String = "scatterplot_simulation_vs_reference.png"
   private val histogramName: String = "simulation_vs_reference_histogram.png"
   private val histogramBinSize: Int = 200
+
   private lazy val observedTravelTimes =
     buildObservedODTravelTime(beamConfig, geo, beamScenario, maxDistanceFromBeamTaz)
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    var series = new mutable.ListBuffer[(Int, Double, Double)]()
+    val series = new mutable.ListBuffer[(Int, Double, Double)]()
     val categoryDataset = new HistogramDataset()
-    var deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
+    val deltasOfObservedSimulatedTimes = new mutable.ListBuffer[Double]
     if (observedTravelTimes.nonEmpty) {
       beamScenario.tazTreeMap.getTAZs
         .foreach { origin =>
@@ -123,9 +125,11 @@ class DriveTimeSkimmer @Inject()(
         )
       ) // no current skim means 0 observation
     DriveTimeSkimmerInternal(
-      timeSimulated = (prevSkim.timeSimulated * prevSkim.iterations + currSkim.timeSimulated * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      timeSimulated =
+        (prevSkim.timeSimulated * prevSkim.iterations + currSkim.timeSimulated * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
-      observations = (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations =
+        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -145,7 +149,8 @@ class DriveTimeSkimmer @Inject()(
       )
     val currSkim = currObservation.asInstanceOf[DriveTimeSkimmerInternal]
     DriveTimeSkimmerInternal(
-      timeSimulated = (prevSkim.timeSimulated * prevSkim.observations + currSkim.timeSimulated * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      timeSimulated =
+        (prevSkim.timeSimulated * prevSkim.observations + currSkim.timeSimulated * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
       observations = prevSkim.observations + currSkim.observations,
       iterations = prevSkim.iterations

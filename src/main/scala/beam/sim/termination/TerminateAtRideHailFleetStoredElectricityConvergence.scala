@@ -42,7 +42,7 @@ import org.matsim.core.events.handler.BasicEventHandler
   *
   * @see <a href="http://fourier.eng.hmc.edu/e176/lectures/NM/node17.html">More information on fixed point iteration</a>
   */
-class TerminateAtRideHailFleetStoredElectricityConvergence @Inject()(
+class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
   beamConfigHolder: BeamConfigHolder,
   eventsManager: EventsManager
 ) extends TerminationCriterion
@@ -53,8 +53,10 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject()(
 
   private val minLastIteration =
     beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.minLastIteration
+
   private val maxLastIteration =
     beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.maxLastIteration
+
   private val relativeTolerance =
     beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.relativeTolerance
 
@@ -64,7 +66,8 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject()(
     logger.warn("linkFleetStateAcrossIterations is false. Stored energy convergence is very unlikely.")
   }
 
-  /** Allows iterations to continue before minLastIteration. Then, stops iterations if the relative difference between
+  /**
+    * Allows iterations to continue before minLastIteration. Then, stops iterations if the relative difference between
     * electricity stored in the ride hail fleet's batteries is less than relativeTolerance.
     * If this does not happen before reaching maxLastIteration, the iteration is stopped.
     *

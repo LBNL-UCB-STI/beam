@@ -25,7 +25,8 @@ import scala.collection.JavaConverters._
 abstract class GraphHopperWrapper(
   graphDir: String,
   geo: GeoUtils,
-  id2Link: Map[Int, (Coord, Coord)]
+  id2Link: Map[Int, (Coord, Coord)],
+  useAlternativeRoutes: Boolean
 ) extends Router {
 
   protected val beamMode: BeamMode
@@ -47,7 +48,11 @@ abstract class GraphHopperWrapper(
   protected def getLinkTravelTimes(responsePath: ResponsePath, totalTravelTime: Int): IndexedSeq[Double]
   protected def getCost(beamLeg: BeamLeg, vehicleTypeId: Id[BeamVehicleType]): Double
 
-  override def calcRoute(routingRequest: RoutingRequest): RoutingResponse = {
+  override def calcRoute(
+    routingRequest: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean
+  ): RoutingResponse = {
     assert(!routingRequest.withTransit, "Can't route transit yet")
     assert(
       routingRequest.streetVehicles.size == 1,
@@ -55,8 +60,12 @@ abstract class GraphHopperWrapper(
     )
     val origin = geo.utm2Wgs(routingRequest.originUTM)
     val destination = geo.utm2Wgs(routingRequest.destinationUTM)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
+    if (useAlternativeRoutes) {
+      request.setAlgorithm(Parameters.Algorithms.ALT_ROUTE)
+    }
     prepareRequest(request)
 
     val response = graphHopper.route(request)
@@ -84,7 +93,16 @@ abstract class GraphHopperWrapper(
         .filter(_.isDefined)
         .map(_.get)
     }
-    RoutingResponse(alternatives, routingRequest.requestId, Some(routingRequest), isEmbodyWithCurrentTravelTime = false)
+    RoutingResponse(
+      alternatives,
+      routingRequest.requestId,
+      Some(routingRequest),
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = routingRequest.triggerId,
+      searchedModes =
+        if (alternatives.isEmpty) routingRequest.streetVehicles.map(_.mode).toSet
+        else (alternatives.map(_.tripClassifier).toSet)
+    )
   }
 
   private def processResponsePath(responsePath: ResponsePath) = {
@@ -99,12 +117,12 @@ abstract class GraphHopperWrapper(
     val allLinkTravelTimes = getLinkTravelTimes(responsePath, totalTravelTime)
 
     val linkTravelTimes: IndexedSeq[Double] = allLinkTravelTimes
-    // TODO ask why GH is producing negative travel time
-    //          .map { x =>
-    //            require(x > 0, "GOING BACK IN TIME")
-    //            x
-    //          }
-    //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
+      // TODO ask why GH is producing negative travel time
+      //          .map { x =>
+      //            require(x > 0, "GOING BACK IN TIME")
+      //            x
+      //          }
+      //FIXME BECAUSE OF ADDITIONAL ZEROs WE HAVE A DISCREPANCY BETWEEN NUMBER OF LINK IDS AND TRAVEL TIMES
       .take(ghLinkIds.size)
 
     if (allLinkTravelTimes.size > ghLinkIds.size) {
@@ -158,7 +176,8 @@ abstract class GraphHopperWrapper(
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("GH")
         )
       )
     } catch {
@@ -250,7 +269,7 @@ object GraphHopperWrapper {
     weighting: Weighting,
     transportNetwork: TransportNetwork,
     osm: OSM,
-    directory: String,
+    directory: String
   ): Unit = {
     val ch = CHConfig.nodeBased(profile.getName, weighting)
     val ghDirectory = new GHDirectory(directory, DAType.RAM_STORE)

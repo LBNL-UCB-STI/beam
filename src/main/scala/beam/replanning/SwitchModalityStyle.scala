@@ -1,13 +1,12 @@
 package beam.replanning
 
-import javax.inject.Inject
 import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
-import org.matsim.core.config.Config
 
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class SwitchModalityStyle @Inject()(config: Config) extends PlansStrategyAdopter {
+class SwitchModalityStyle() extends PlansStrategyAdopter {
+
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
     ReplanningUtil.makeExperiencedMobSimCompatible(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)

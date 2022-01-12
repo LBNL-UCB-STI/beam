@@ -1,7 +1,6 @@
 package beam.router.skim
 
 import java.io.File
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
@@ -27,14 +26,15 @@ import org.matsim.core.controler.events.{IterationStartsEvent, ShutdownEvent}
 import org.matsim.core.controler.listener.{IterationStartsListener, ShutdownListener}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.{immutable, mutable}
 import scala.util.control.NonFatal
 
-class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
+class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
   import SkimmerSpec._
 
   "Skimmer" must "write skims to hard drive" in {
@@ -76,12 +76,11 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
       countSkimsFromDisk.size == countSkimsFromMem.size,
       s"${SkimType.TAZ_SKIMMER}: the written skim has a different size from memory"
     )
-    countSkimsFromMem.foreach {
-      case (key, value) =>
-        assume(
-          value == countSkimsFromDisk(key),
-          s"${SkimType.TAZ_SKIMMER}: the written skim is different from memory"
-        )
+    countSkimsFromMem.foreach { case (key, value) =>
+      assume(
+        value == countSkimsFromDisk(key),
+        s"${SkimType.TAZ_SKIMMER}: the written skim is different from memory"
+      )
     }
 
     // TAZ_SKIMMER
@@ -91,9 +90,8 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
       ttSkimsFromDisk.size == ttSkimsFromMem.size,
       s"${SkimType.DT_SKIMMER}: the written skim has a different size from memory"
     )
-    ttSkimsFromMem.foreach {
-      case (key, value) =>
-        assume(value == ttSkimsFromDisk(key), s"${SkimType.DT_SKIMMER}: the written skim is different from memory")
+    ttSkimsFromMem.foreach { case (key, value) =>
+      assume(value == ttSkimsFromDisk(key), s"${SkimType.DT_SKIMMER}: the written skim is different from memory")
     }
 
     // TAZ_SKIMMER
@@ -103,9 +101,8 @@ class SkimmerSpec extends FlatSpec with Matchers with BeamHelper {
       odSkimsFromDisk.size == odSkimsFromMem.size,
       s"${SkimType.OD_SKIMMER}: the written skim has a different size from memory"
     )
-    odSkimsFromMem.foreach {
-      case (key, value) =>
-        assume(value == odSkimsFromDisk(key), s"${SkimType.OD_SKIMMER}: the written skim is different from memory")
+    odSkimsFromMem.foreach { case (key, value) =>
+      assume(value == odSkimsFromDisk(key), s"${SkimType.OD_SKIMMER}: the written skim is different from memory")
     }
   }
 
@@ -144,7 +141,7 @@ object SkimmerSpec extends LazyLogging {
   val skimsPath = mutable.Map.empty[SkimType.Value, String]
   val skimsMap = mutable.Map.empty[SkimType.Value, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
 
-  class CountSkimmerTester @Inject()(beamServices: BeamServices)
+  class CountSkimmerTester @Inject() (beamServices: BeamServices)
       extends BasicEventHandler
       with IterationStartsListener
       with ShutdownListener {
@@ -176,12 +173,11 @@ object SkimmerSpec extends LazyLogging {
           taz_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.TAZ_SKIMMER} collected"
         )
-        taz_skimmer.aggregatedFromPastSkims.foreach {
-          case (key, value) =>
-            assume(
-              value == taz_skimmer.pastSkims(taz_skimmer.currentIteration)(key),
-              s"the aggregated skims should be equal to the first collected ${SkimType.TAZ_SKIMMER}"
-            )
+        taz_skimmer.aggregatedFromPastSkims.foreach { case (key, value) =>
+          assume(
+            value == taz_skimmer.pastSkims(taz_skimmer.currentIteration)(key),
+            s"the aggregated skims should be equal to the first collected ${SkimType.TAZ_SKIMMER}"
+          )
         }
 
         // od_skimmer
@@ -189,12 +185,11 @@ object SkimmerSpec extends LazyLogging {
           od_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.OD_SKIMMER} collected"
         )
-        od_skimmer.aggregatedFromPastSkims.foreach {
-          case (key, value) =>
-            assume(
-              value == od_skimmer.pastSkims(od_skimmer.currentIteration)(key),
-              s"the aggregated skims should be equal to the first collected ${SkimType.OD_SKIMMER}"
-            )
+        od_skimmer.aggregatedFromPastSkims.foreach { case (key, value) =>
+          assume(
+            value == od_skimmer.pastSkims(od_skimmer.currentIteration)(key),
+            s"the aggregated skims should be equal to the first collected ${SkimType.OD_SKIMMER}"
+          )
         }
 
         // dt_skimmer
@@ -202,12 +197,11 @@ object SkimmerSpec extends LazyLogging {
           dt_skimmer.pastSkims.size == 1,
           s"at the second iteration there should be only one ${SkimType.DT_SKIMMER} collected"
         )
-        dt_skimmer.aggregatedFromPastSkims.foreach {
-          case (key, value) =>
-            assume(
-              value == dt_skimmer.pastSkims(dt_skimmer.currentIteration)(key),
-              s"the aggregated skims should be equal to the first collected ${SkimType.DT_SKIMMER}"
-            )
+        dt_skimmer.aggregatedFromPastSkims.foreach { case (key, value) =>
+          assume(
+            value == dt_skimmer.pastSkims(dt_skimmer.currentIteration)(key),
+            s"the aggregated skims should be equal to the first collected ${SkimType.DT_SKIMMER}"
+          )
         }
       }
     }
@@ -267,8 +261,8 @@ object SkimmerSpec extends LazyLogging {
       ODSkimmerKey(
         hour = row("hour").toInt,
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
-        originTaz = Id.create(row("origTaz"), classOf[TAZ]),
-        destinationTaz = Id.create(row("destTaz"), classOf[TAZ])
+        origin = row("origTaz"),
+        destination = row("destTaz")
       ),
       ODSkimmerInternal(
         travelTimeInS = row("travelTimeInS").toDouble,
@@ -280,7 +274,7 @@ object SkimmerSpec extends LazyLogging {
         level4CavTravelTimeScalingFactor =
           Option(row("level4CavTravelTimeScalingFactor")).map(_.toDouble).getOrElse(1.0),
         observations = row("observations").toInt,
-        iterations = row("iterations").toInt,
+        iterations = row("iterations").toInt
       )
     )
   }
@@ -303,18 +297,8 @@ object SkimmerSpec extends LazyLogging {
 
   private def getCountSkimPair(row: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
-      TAZSkimmerKey(
-        row("time").toInt,
-        Id.create(row("taz"), classOf[TAZ]),
-        row("hex"),
-        row("actor"),
-        row("key")
-      ),
-      TAZSkimmerInternal(
-        row("value").toDouble,
-        row("observations").toInt,
-        row("iterations").toInt
-      )
+      TAZSkimmerKey(row("time").toInt, row("geoId"), row("actor"), row("key")),
+      TAZSkimmerInternal(row("value").toDouble, row("observations").toInt, row("iterations").toInt)
     )
   }
 }

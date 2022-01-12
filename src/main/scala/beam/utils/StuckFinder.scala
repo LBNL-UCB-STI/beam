@@ -5,7 +5,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
-import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.reflection.ReflectionUtils
 import com.typesafe.scalalogging.LazyLogging
 
@@ -13,7 +12,8 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-/** THIS CLASS IS NOT THREAD-SAFE!!! It's safe to use it inside actor, but not use the reference in Future and other threads..
+/**
+  * THIS CLASS IS NOT THREAD-SAFE!!! It's safe to use it inside actor, but not use the reference in Future and other threads..
   */
 class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   private var tickValue: Int = -1
@@ -30,6 +30,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
     verifyTypesExist()
 
   }
+
   private val triggerTypeToActorThreshold: Map[Class[_], Map[String, Int]] = if (!cfg.checkMaxNumberOfMessagesEnabled) {
     Map.empty
   } else {
@@ -100,7 +101,6 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
         case Some(oldest) =>
           val isStuck: Boolean = isStuckAgent(oldest.value, oldest.time, time)
           if (!isStuck) {
-            val stat = actorToTriggerMessages.get(oldest.value.agent)
             // We have to add it back
             add(oldest.time, oldest.value, false)
             stuckAgents

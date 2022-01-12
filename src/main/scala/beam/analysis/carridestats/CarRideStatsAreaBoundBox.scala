@@ -6,6 +6,7 @@ case class CarRideStatsPoint(x: Double, y: Double) {
 
 case class CarRideStatsFilterAreaBoundBox(topLeft: CarRideStatsPoint, bottomRight: CarRideStatsPoint)
     extends CarRideStatsParam {
+
   override def arguments: Seq[String] = {
     Seq("--areaBoundBox", s"[$topLeft,$bottomRight]")
   }

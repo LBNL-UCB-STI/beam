@@ -23,7 +23,9 @@ case class LinkParam(
   capacity: Option[Double],
   freeSpeed: Option[Double],
   length: Option[Double],
-  lanes: Option[Int]
+  lanes: Option[Int],
+  alpha: Option[Double],
+  beta: Option[Double]
 ) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
@@ -40,6 +42,13 @@ case class LinkParam(
     }
     lanes.foreach { value =>
       link.setNumberOfLanes(value)
+    }
+
+    alpha.foreach { value =>
+      link.getAttributes.putAttribute("alpha", value)
+    }
+    beta.foreach { value =>
+      link.getAttributes.putAttribute("beta", value)
     }
   }
 }
@@ -112,13 +121,12 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
-    overwriteLinkParamMap.foreach {
-      case (linkId, param) =>
-        val link = network.getLinks.get(Id.createLinkId(linkId))
-        require(link != null, s"Could not find link with id $linkId")
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        // Overwrite params
-        param.overwriteFor(link, edge)
+    overwriteLinkParamMap.foreach { case (linkId, param) =>
+      val link = network.getLinks.get(Id.createLinkId(linkId))
+      require(link != null, s"Could not find link with id $linkId")
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      // Overwrite params
+      param.overwriteFor(link, edge)
     }
   }
 
@@ -156,24 +164,23 @@ trait NetworkCoordinator extends LazyLogging {
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>
           val tripStartTimes = ts.startTimes(0).until(ts.endTimes(0)).by(ts.headwaySeconds(0)).toVector
-          tripStartTimes.zipWithIndex.map {
-            case (startTime, ind) =>
-              val tsNew = ts.clone()
-              val newTripId = s"${tsNew.tripId}-$ind"
-              val newArrivals = new Array[Int](ts.arrivals.length)
-              val newDepartures = new Array[Int](ts.arrivals.length)
-              for (i <- tsNew.arrivals.indices) {
-                newArrivals(i) = tsNew.arrivals(i) + startTime
-                newDepartures(i) = tsNew.departures(i) + startTime
-              }
-              tsNew.arrivals = newArrivals
-              tsNew.departures = newDepartures
-              tsNew.tripId = newTripId
-              tsNew.frequencyEntryIds = null
-              tsNew.headwaySeconds = null
-              tsNew.startTimes = null
-              tsNew.endTimes = null
-              tsNew
+          tripStartTimes.zipWithIndex.map { case (startTime, ind) =>
+            val tsNew = ts.clone()
+            val newTripId = s"${tsNew.tripId}-$ind"
+            val newArrivals = new Array[Int](ts.arrivals.length)
+            val newDepartures = new Array[Int](ts.arrivals.length)
+            for (i <- tsNew.arrivals.indices) {
+              newArrivals(i) = tsNew.arrivals(i) + startTime
+              newDepartures(i) = tsNew.departures(i) + startTime
+            }
+            tsNew.arrivals = newArrivals
+            tsNew.departures = newDepartures
+            tsNew.tripId = newTripId
+            tsNew.frequencyEntryIds = null
+            tsNew.headwaySeconds = null
+            tsNew.startTimes = null
+            tsNew.endTimes = null
+            tsNew
           }
         }
         tp.tripSchedules.clear()
@@ -197,7 +204,10 @@ trait NetworkCoordinator extends LazyLogging {
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
             val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes)
+            val alpha = Option(line.get("alpha")).map(_.toDouble)
+            val beta = Option(line.get("beta")).map(_.toDouble)
+            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes, alpha, beta)
+
             z += ((linkId, lp))
         }
       } catch {
@@ -213,6 +223,7 @@ trait NetworkCoordinator extends LazyLogging {
 }
 
 object NetworkCoordinator {
+
   private[r5] def createHighwaySetting(highwayType: Physsim.Network.OverwriteRoadTypeProperties): HighwaySetting = {
     if (!highwayType.enabled) {
       HighwaySetting.empty()
@@ -220,7 +231,9 @@ object NetworkCoordinator {
       val speeds = getSpeeds(highwayType)
       val capacities = getCapacities(highwayType)
       val lanes = getLanes(highwayType)
-      new HighwaySetting(speeds, capacities, lanes)
+      val alphas = getAlphas(highwayType)
+      val betas = getBetas(highwayType)
+      new HighwaySetting(speeds, capacities, lanes, alphas, betas)
     }
   }
 
@@ -301,4 +314,57 @@ object NetworkCoordinator {
     highwayType.unclassified.lanes.foreach(lanes => map.put(HighwayType.Unclassified, lanes))
     map
   }
+
+  private[r5] def getAlphas(
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Double] = {
+    val map = new java.util.HashMap[HighwayType, java.lang.Double]()
+    highwayType.motorway.alpha.foreach(alpha => map.put(HighwayType.Motorway, alpha))
+    highwayType.motorwayLink.alpha.foreach(alpha => map.put(HighwayType.MotorwayLink, alpha))
+
+    highwayType.primary.alpha.foreach(alpha => map.put(HighwayType.Primary, alpha))
+    highwayType.primaryLink.alpha.foreach(alpha => map.put(HighwayType.PrimaryLink, alpha))
+
+    highwayType.trunk.alpha.foreach(alpha => map.put(HighwayType.Trunk, alpha))
+    highwayType.trunkLink.alpha.foreach(alpha => map.put(HighwayType.TrunkLink, alpha))
+
+    highwayType.secondary.alpha.foreach(alpha => map.put(HighwayType.Secondary, alpha))
+    highwayType.secondaryLink.alpha.foreach(alpha => map.put(HighwayType.SecondaryLink, alpha))
+
+    highwayType.tertiary.alpha.foreach(alpha => map.put(HighwayType.Tertiary, alpha))
+    highwayType.tertiaryLink.alpha.foreach(alpha => map.put(HighwayType.TertiaryLink, alpha))
+
+    highwayType.minor.alpha.foreach(alpha => map.put(HighwayType.Minor, alpha))
+    highwayType.residential.alpha.foreach(alpha => map.put(HighwayType.Residential, alpha))
+    highwayType.livingStreet.alpha.foreach(alpha => map.put(HighwayType.LivingStreet, alpha))
+    highwayType.unclassified.alpha.foreach(alpha => map.put(HighwayType.Unclassified, alpha))
+    map
+  }
+
+  private[r5] def getBetas(
+    highwayType: Physsim.Network.OverwriteRoadTypeProperties
+  ): java.util.HashMap[HighwayType, java.lang.Double] = {
+    val map = new java.util.HashMap[HighwayType, java.lang.Double]()
+    highwayType.motorway.beta.foreach(beta => map.put(HighwayType.Motorway, beta))
+    highwayType.motorwayLink.beta.foreach(beta => map.put(HighwayType.MotorwayLink, beta))
+
+    highwayType.primary.beta.foreach(beta => map.put(HighwayType.Primary, beta))
+    highwayType.primaryLink.beta.foreach(beta => map.put(HighwayType.PrimaryLink, beta))
+
+    highwayType.trunk.beta.foreach(beta => map.put(HighwayType.Trunk, beta))
+    highwayType.trunkLink.beta.foreach(beta => map.put(HighwayType.TrunkLink, beta))
+
+    highwayType.secondary.beta.foreach(beta => map.put(HighwayType.Secondary, beta))
+    highwayType.secondaryLink.beta.foreach(beta => map.put(HighwayType.SecondaryLink, beta))
+
+    highwayType.tertiary.beta.foreach(beta => map.put(HighwayType.Tertiary, beta))
+    highwayType.tertiaryLink.beta.foreach(beta => map.put(HighwayType.TertiaryLink, beta))
+
+    highwayType.minor.beta.foreach(beta => map.put(HighwayType.Minor, beta))
+    highwayType.residential.beta.foreach(beta => map.put(HighwayType.Residential, beta))
+    highwayType.livingStreet.beta.foreach(beta => map.put(HighwayType.LivingStreet, beta))
+    highwayType.unclassified.beta.foreach(beta => map.put(HighwayType.Unclassified, beta))
+    map
+  }
+
 }

@@ -1,13 +1,12 @@
 package beam.utils.data.ctpp
 
-import java.util.{Map => JavaMap}
-
 import beam.utils.csv.GenericCsvReader
 import beam.utils.data.ctpp.JointDistribution.{CustomRange, RETURN_COLUMN}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator
 import org.apache.commons.math3.util.{Pair => CPair}
 
+import java.util.{Map => JavaMap}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -38,14 +37,15 @@ object JointDistribution extends GenericCsvReader {
   ): JointDistribution = {
     def toScalaMap(rec: JavaMap[String, String]): Map[String, String] = rec.asScala.toMap
     val (it, toClose) = readAs[Map[String, String]](pathToCsv, toScalaMap, _ => true)
-    val mappedArray: Array[Map[String, String]] = try {
-      it.toArray
-    } finally {
-      Try(toClose.close())
-    }
+    val mappedArray: Array[Map[String, String]] =
+      try {
+        it.toArray
+      } finally {
+        Try(toClose.close())
+      }
 
-    val detectedColumn = mappedArray(0).map {
-      case (key, value) => (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
+    val detectedColumn = mappedArray(0).map { case (key, value) =>
+      (key, if (value.contains(",")) RANGE_COLUMN_TYPE else STRING_COLUMN_TYPE)
     }
     if (columnMapping.nonEmpty)
       new JointDistribution(mappedArray, rndGen, columnMapping, scale)
@@ -55,7 +55,6 @@ object JointDistribution extends GenericCsvReader {
 }
 
 /**
-  *
   * @param mappedArray Array of csv column values map
   * @param rndGen Random number generator. If an instance of `JointDistribution` is shared across multiple threads,
   *               make sure you use thread-safe instance of `RandomGenerator`, for example, `SynchronizedRandomGenerator`
@@ -88,9 +87,9 @@ class JointDistribution(
       new CPair[Map[String, String], java.lang.Double](row(value, sampleWithinRange), value(RETURN_COLUMN).toDouble)
     }.toVector
 
-    val values = pmf.map(_.getValue)
-    if (values.isEmpty || values.reduce(_ + _) == 0.0) {
-      return Map()
+    val values = pmf.map(_.getValue.doubleValue())
+    if (values.fold(0d)(_ + _) == 0d) {
+      return Map.empty
     }
     val distr = new EnumeratedDistribution[Map[String, String]](rndGen, pmf.asJava)
     distr.sample()
@@ -102,20 +101,20 @@ class JointDistribution(
 
   private def row(values: Map[String, String], range: Boolean): Map[String, String] = {
     if (range) {
-      values.map {
-        case (key, value) =>
-          if (value.contains(",")) {
-            val startEnd = toRange(Left(value), trimBracket = true)
-            key -> (startEnd.start + (startEnd.end - startEnd.start) * rndGen.nextDouble()).toString
-          } else {
-            key -> value
-          }
+      values.map { case (key, value) =>
+        if (value.contains(",")) {
+          val startEnd = toRange(Left(value), trimBracket = true)
+          key -> (startEnd.start + (startEnd.end - startEnd.start) * rndGen.nextDouble()).toString
+        } else {
+          key -> value
+        }
       }
     } else {
       values
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def getRangeList(keyValueTuple: (String, Either[String, CustomRange])*): Array[Map[String, String]] = {
     mappedArray
       .filter { map =>

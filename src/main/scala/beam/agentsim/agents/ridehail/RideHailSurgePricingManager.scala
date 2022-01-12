@@ -10,7 +10,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
+class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
   import RideHailSurgePricingManager._
 
   val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
@@ -25,10 +25,10 @@ class RideHailSurgePricingManager @Inject()(val beamServices: BeamServices) {
   // define other strategies for this?
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
-  val timeBinSize
-    : Int = beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories
-    : Int = rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val timeBinSize: Int =
+    beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories: Int =
+    rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins: Int = Math
     .floor(Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1

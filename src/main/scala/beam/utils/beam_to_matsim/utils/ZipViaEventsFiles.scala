@@ -29,14 +29,15 @@ object ZipViaEventsFiles extends App {
   object ViaEventString {
 
     def readXml(xmlevent: Node): Option[ViaEventString] = {
-      val timeOption = try {
-        xmlevent.attribute("time") match {
-          case Some(attVal) => Some(attVal.text.toDouble)
-          case _            => None
+      val timeOption =
+        try {
+          xmlevent.attribute("time") match {
+            case Some(attVal) => Some(attVal.text.toDouble)
+            case _            => None
+          }
+        } catch {
+          case _: Exception => None
         }
-      } catch {
-        case _: Exception => None
-      }
 
       timeOption match {
         case Some(time) => Some(ViaEventString(time, xmlevent.toString))
@@ -45,14 +46,15 @@ object ZipViaEventsFiles extends App {
     }
 
     def readStr(str: String): Option[ViaEventString] = {
-      val timeOption = try {
-        XML.loadString(str).attribute("time") match {
-          case Some(attVal) => Some(attVal.text.toDouble)
-          case _            => None
+      val timeOption =
+        try {
+          XML.loadString(str).attribute("time") match {
+            case Some(attVal) => Some(attVal.text.toDouble)
+            case _            => None
+          }
+        } catch {
+          case _: Exception => None
         }
-      } catch {
-        case _: Exception => None
-      }
 
       timeOption match {
         case Some(time) => Some(ViaEventString(time, str))

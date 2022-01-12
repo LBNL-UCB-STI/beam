@@ -3,23 +3,24 @@ package beam.integration.ridehail
 import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig, TestConstants}
 import beam.sim.BeamHelper
 import com.typesafe.config.ConfigValueFactory
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class RideHailPriceSpec extends WordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
+class RideHailPriceSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   "Running beam with modeChoice ModeChoiceMultinomialLogit and increasing rideHailPrice value" must {
     "create less entries for mode choice rideHail as value increases" ignore {
       val inputRideHailPrice = Seq(0.1, 1.0)
-      val modeChoice = inputRideHailPrice.map(
-        tc =>
-          new StartWithCustomConfig(
-            baseConfig
-              .withValue(
-                TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-                ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
-              )
-              .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
-          ).groupedCount
+      val modeChoice = inputRideHailPrice.map(tc =>
+        new StartWithCustomConfig(
+          baseConfig
+            .withValue(
+              TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+              ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
+            )
+            .withValue("beam.agentsim.tuning.rideHailPrice", ConfigValueFactory.fromAnyRef(tc))
+        ).groupedCount
       )
 
       val tc = modeChoice

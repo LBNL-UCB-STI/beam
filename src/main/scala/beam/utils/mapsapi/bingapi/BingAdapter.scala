@@ -63,7 +63,7 @@ class BingAdapter(apiKey: String, actorSystem: Option[ActorSystem] = None) exten
     SnappedPoint(
       coordinate = WgsCoordinate(
         latitude = (coordinate \ "latitude").as[Double],
-        longitude = (coordinate \ "longitude").as[Double],
+        longitude = (coordinate \ "longitude").as[Double]
       ),
       name = (jsObject \ "name").as[String],
       speedLimitInKph = (jsObject \ "speedLimit").as[Double]
@@ -73,9 +73,8 @@ class BingAdapter(apiKey: String, actorSystem: Option[ActorSystem] = None) exten
   override def close(): Unit = {
     implicit val timeOut: Timeout = new Timeout(20L, TimeUnit.SECONDS)
     Http().shutdownAllConnectionPools
-      .andThen {
-        case _ =>
-          if (actorSystem.isEmpty) system.terminate()
+      .andThen { case _ =>
+        if (actorSystem.isEmpty) system.terminate()
       }
 
   }
