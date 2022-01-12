@@ -24,7 +24,7 @@ object FreightRequestType extends Enum[FreightRequestType] {
 case class FreightTour(
   tourId: Id[FreightTour],
   departureTimeInSec: Int,
-  warehouseLocation: Coord,
+  warehouseLocationUTM: Coord,
   maxTourDurationInSec: Int
 )
 
@@ -35,7 +35,8 @@ case class PayloadPlan(
   payloadType: Id[PayloadType],
   weight: Double,
   requestType: FreightRequestType,
-  location: Coord,
+  activityType: String,
+  locationUTM: Coord,
   estimatedTimeOfArrivalInSec: Int,
   arrivalTimeWindowInSec: Int,
   operationDurationInSec: Int

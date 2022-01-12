@@ -6,6 +6,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
 import beam.agentsim.agents.vehicles._
@@ -131,11 +132,10 @@ class BeamMobsim @Inject() (
     ConcurrentUtils.parallelExecution(
       beamScenario.freightCarriers.zipWithIndex.map { case (carrier, i) =>
         () =>
-          new FreightReplanner(
-            beamServices,
-            skims.od_skimmer,
-            new Random(beamConfig.matsim.modules.global.randomSeed + i)
-          ).replanIfNeeded(carrier, matsimServices.getIterationNumber, beamConfig.beam.agentsim.agents.freight)
+          val rnd = new Random(beamConfig.matsim.modules.global.randomSeed + i)
+          val reader = FreightReader(beamServices)
+          new FreightReplanner(beamServices, skims.od_skimmer, rnd, reader)
+            .replanIfNeeded(carrier, matsimServices.getIterationNumber)
       }
     )(scala.concurrent.ExecutionContext.global)
 
