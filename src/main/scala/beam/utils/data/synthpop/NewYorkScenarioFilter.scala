@@ -17,18 +17,19 @@ private case class OutputPath(path: String) extends AnyVal
 object NewYorkScenarioFilter extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
-    val input = InputPath("C:/repos/beam/test/input/newyork/generic_scenario/10034k")
-    val outputBase = "C:/repos/beam/test/input/newyork/generic_scenario/New"
+    require(
+      args.length == 3,
+      "Expected input path and outputBase"
+      // /test/input/newyork/generic_scenario/10034k
+      // /test/input/newyork/generic_scenario/New"
+      // fips_codes.csv https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv
+    )
 
-    // https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv
-    val fipsCodes = "C:/Users/User/Downloads/fips_codes.csv"
-
-    val output = OutputPath(outputBase + SimpleScenarioGenerator.getCurrentDateTime)
-
+    val output = OutputPath(args(1) + SimpleScenarioGenerator.getCurrentDateTime)
     val counties =
       Seq("Bronx County NY", "Kings County NY", "New York County NY", "Queens County NY", "Richmond County NY")
 
-    filterScenario(input, output, fipsCodes, counties)
+    filterScenario(InputPath(args(0)), output, args(2), counties)
   }
 
   def filterScenario(

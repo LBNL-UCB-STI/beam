@@ -16,7 +16,15 @@ object BlockGroupToTazMapper {
   def quoteCsv(s: String): String = "\"" + s + "\""
 
   def main(args: Array[String]): Unit = {
-    val pathToData = PathToData("D:/Work/beam/CTPP/")
+    require(
+      args.length == 4,
+      "Expect 4 args. First argument should be the path to CTPP directory. " +
+      "The second argument is the path to Shape/TAZ directory. " +
+      "The third argument is the path to Shape/BlockGroup directory" +
+      "The fourth argument is the path to the OSM map file .pbf"
+    )
+
+    val pathToData = PathToData(args(0))
     // 34 - New Jersey
     // 36 - New York
     val databaseInfo = CTPPDatabaseInfo(pathToData, Set("34", "36"))
@@ -25,20 +33,22 @@ object BlockGroupToTazMapper {
         .read()
         .toVector
 
-    blockGroupToTazMapper("block_group_to_taz.csv")
+    val pathToResultFile = "block_group_to_taz.csv"
+    blockGroupToTazMapper(pathToResultFile, pathToTaz = args(1), pathToBlockGroup = args(2), pathToOsm = args(3))
   }
 
-  private def blockGroupToTazMapper(pathToResult: String): Unit = {
+  private def blockGroupToTazMapper(
+    pathToResult: String,
+    pathToTaz: String,
+    pathToBlockGroup: String,
+    pathToOsm: String
+  ): Unit = {
     val geoUtils: GeoUtils = new GeoUtils {
       override def localCRS: String = "epsg:32118"
     }
 
     val geoSvc: GeoService = new GeoService(
-      GeoServiceInputParam(
-        "D:/Work/beam/NewYork/input/Shape/TAZ/",
-        "D:/Work/beam/NewYork/input/Shape/BlockGroup/",
-        "D:/Work/beam/NewYork/input/OSM/newyork-14-counties-incomplete.osm.pbf"
-      ),
+      GeoServiceInputParam(pathToTaz, pathToBlockGroup, pathToOsm),
       Set.empty,
       geoUtils
     )
