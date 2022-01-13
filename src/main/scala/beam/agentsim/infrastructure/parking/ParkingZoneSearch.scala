@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.infrastructure.ParkingStall
-import beam.agentsim.infrastructure.parking.ParkingZone._
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location

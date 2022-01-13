@@ -107,16 +107,14 @@ object ParkingStall {
     */
   def defaultResidentialStall(
     locationUTM: Location,
-    defaultGeoId: Id[_],
-    parkingZoneId: Id[ParkingZoneId] = Id.create("default", classOf[ParkingZoneId]),
-    chargingPointType: Option[ChargingPointType] = None
+    defaultGeoId: Id[_]
   ): ParkingStall = ParkingStall(
     geoId = defaultGeoId,
     tazId = TAZ.DefaultTAZId,
-    parkingZoneId = parkingZoneId,
+    parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = locationUTM,
     costInDollars = 0.0,
-    chargingPointType = chargingPointType,
+    chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
     reservedFor = VehicleManager.AnyManager

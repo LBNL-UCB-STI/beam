@@ -161,7 +161,6 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     val result = processParkingZoneSearchResult(
       inquiry,
       ParkingZoneSearch.incrementalParkingZoneSearch(
-        // inquiry,
         parkingZoneSearchConfiguration,
         parkingZoneSearchParams,
         parkingZoneFilterFunction,
