@@ -13,7 +13,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.api.agentsim.agents.vehicles.BeamVehicleAfterUseFuelHook
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
-import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
+import beam.router.model.BeamLeg
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
