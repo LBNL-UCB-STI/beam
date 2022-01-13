@@ -261,15 +261,20 @@ object PopulationAdjustment extends LazyLogging {
     )
 
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
+    // JL: added useDefaultVOT parameter to config - check this to determine whether to use config value or VOT as function of HH income
     val valueOfTime: Double =
-      Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
-        .map(_.asInstanceOf[Double])
-        .getOrElse(
-          incomeToValueOfTime(
-            householdAttributes.householdIncome,
-            beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.minimumValueOfTime
-          ).getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
-        )
+      if (beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.useDefaultVOT){
+        beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
+      }else{
+        Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+          .map(_.asInstanceOf[Double])
+          .getOrElse(
+            incomeToValueOfTime(
+              householdAttributes.householdIncome,
+              beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.minimumValueOfTime
+            ).getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
+          )
+
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
       householdAttributes = householdAttributes,

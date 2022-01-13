@@ -28,6 +28,17 @@ case class AttributesOfIndividual(
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+  lazy val gender: Int = if(isMale) {0} else {1}
+  lazy val indAge: Int = age.getOrElse(0)
+  lazy val hhdIncome: Double = householdAttributes.householdIncome
+  lazy val age_30_to_50: Int = if(age.getOrElse(0) >= 30) {if (age.getOrElse(0)< 50){1}else{0}}else{0}
+  lazy val age_50_to_70: Int = if (age.getOrElse(0) >= 50){if (age.getOrElse(0)< 70){1}else{0}}else{0}
+  lazy val age_70_over: Int = if(age.getOrElse(0) >= 70) {1}else{0}
+  lazy val income_under_35k: Int = if (hhdIncome < 35000){1} else{0}
+  lazy val income_35_to_100k: Int = if(hhdIncome >= 35000.0) {if (hhdIncome < 100000.0){1}else{0}}else{0}
+  lazy val income_100k_more: Int = if (hhdIncome >= 100000.0){1}else{0}
+  lazy val numHhdCars: Int = householdAttributes.numCars
+  lazy val car_owner: Int = if(numHhdCars>=1){1} else{0}
 
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
@@ -40,7 +51,8 @@ case class AttributesOfIndividual(
     beamVehicleTypeId: Id[BeamVehicleType],
     destinationActivity: Option[Activity] = None,
     isRideHail: Boolean = false,
-    isPooledTrip: Boolean = false
+    isPooledTrip: Boolean = false,
+    highIncome: Boolean = false
   ): Double = {
     // NOTE: This is in hours
     val isWorkTrip = destinationActivity match {
@@ -50,15 +62,16 @@ case class AttributesOfIndividual(
         activity.getType().equalsIgnoreCase("work")
     }
 
+    val high_income_multiplier = if(highIncome){modeChoiceModel.incomeMultiplier}else{1}
     val multiplier = beamMode match {
       case CAR =>
         val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
         if (isRideHail) {
           if (isPooledTrip) {
             getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers) *
-            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
+            getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)* high_income_multiplier
           } else {
-            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
+            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)* high_income_multiplier
           }
         } else {
           getSituationMultiplier(
@@ -68,7 +81,7 @@ case class AttributesOfIndividual(
             modeChoiceModel.situationMultipliers,
             vehicleAutomationLevel,
             beamServices
-          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)
+          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel.modeMultipliers)* high_income_multiplier
         }
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
@@ -82,6 +95,8 @@ case class AttributesOfIndividual(
     beamServices: BeamServices,
     destinationActivity: Option[Activity]
   ): Double = {
+    // TODO: add param to config to determine high income threshold for high income VOT multiplier
+    val highIncome: Boolean = if(householdAttributes.householdIncome >= 100000){true}else{false}
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
       case CAR => // NOTE: Ride hail legs are classified as CAR mode. For now we only need to loop through links here
@@ -97,7 +112,8 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.beamVehicleTypeId,
             destinationActivity,
             embodiedBeamLeg.isRideHail,
-            embodiedBeamLeg.isPooledTrip
+            embodiedBeamLeg.isPooledTrip,
+            highIncome
           )
         )
       case _ =>
@@ -105,7 +121,44 @@ case class AttributesOfIndividual(
           embodiedBeamLeg.beamLeg.duration / 3600
     }
   }
+  // JL: New method to calculate utility due to individual attributes
+  def getGeneralizedOtherOfTripForMNL(beamTrip: EmbodiedBeamTrip,
+                                      destinationActivity: Option[Activity]
+                                     ): mutable.Map[String, Double] = {
 
+    val isWorkTrip = destinationActivity match {
+      case None =>
+        false
+      case Some(activity) =>
+        activity.getType().equalsIgnoreCase("work")
+    }
+    val workTrip = if(isWorkTrip) {1} else {0}
+    val beamMode = beamTrip.tripClassifier
+    val linksTransit = beamMode match{
+      case RIDE_HAIL_TRANSIT =>
+        true
+      case DRIVE_TRANSIT =>
+        true
+      case WALK_TRANSIT =>
+        true
+      case _ =>
+        false
+    }
+    val linkToTransit = if(linksTransit) {1} else {0}
+    // NEED to add: OriginActivity (boolean: true if home, else false); Employed/Student
+
+    mutable.Map[String,Double](
+      "gender" -> gender,
+      "age_30_to_50"->age_30_to_50,
+      "age_50_to_70"->age_50_to_70,
+      "age_70_over" -> age_70_over,
+      "income_under_35k"->income_under_35k,
+      "income_35_to_100k"->income_35_to_100k,
+      "income_100k_more"->income_100k_more,
+      "workTrip"->workTrip,
+      "linkToTransit"->linkToTransit,
+      "car_owner"->car_owner)
+  }
   def getVOT(generalizedTime: Double): Double = {
     valueOfTime * generalizedTime
   }
