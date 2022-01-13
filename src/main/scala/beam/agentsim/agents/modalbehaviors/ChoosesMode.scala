@@ -1318,8 +1318,20 @@ trait ChoosesMode {
   }
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
-    val chosenTrip = data.pendingChosenTrip.get
+    val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
+    val chosenTrip =
+      if (
+        pendingTrip.tripClassifier.isTransit
+        && pendingTrip.legs.head.beamLeg.startTime > tick
+      ) {
+        //we need to start trip as soon as our activity finishes (current tick) in order to
+        //correctly show waiting time for the transit in the OD skims
+        pendingTrip.updatePersonalLegsStartTime(tick)
+      } else {
+        pendingTrip
+      }
+
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
     // Our aim should be that every transition from a link to another link be accounted for.
@@ -1396,6 +1408,7 @@ trait ChoosesMode {
       beamVehicles.remove(vehicle.id)
       vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
     }
+
     scheduler ! CompletionNotice(
       triggerId,
       Vector(
