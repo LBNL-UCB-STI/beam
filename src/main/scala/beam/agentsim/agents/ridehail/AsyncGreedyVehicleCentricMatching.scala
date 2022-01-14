@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail
 
 import java.math.BigInteger
-
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.sim.BeamServices
 import org.matsim.core.utils.collections.QuadTree
@@ -44,6 +43,10 @@ class AsyncGreedyVehicleCentricMatching(
       v,
       demand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     )
+
+    customers = if (!v.vehicle.beamVehicleType.isWheelchairAccessible) {
+      customers.filterNot(req => req.requireVehicleAccessible)
+    } else customers
 
     // heading same direction
     customers = RideHailMatching.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)

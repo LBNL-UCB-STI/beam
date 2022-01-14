@@ -41,6 +41,10 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
       spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
     )
 
+    customers = if (!v.vehicle.beamVehicleType.isWheelchairAccessible) {
+      customers.filterNot(req => req.requireVehicleAccessible)
+    } else customers
+
     // heading same direction
     customers = RideHailMatching.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
 

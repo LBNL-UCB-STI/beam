@@ -167,7 +167,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             requestWithUpdatedLoc.destinationUTM,
             rideHailManager.radiusInMeters,
             tick,
-            maxWaitTimeInSec
+            maxWaitTimeInSec,
+            requireWheelchairAccessible = request.withWheelchair
           ) match {
           case Some(agentETA) =>
             val routeRequired = RoutingRequiredToAllocateVehicle(

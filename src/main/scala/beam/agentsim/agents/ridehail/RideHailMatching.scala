@@ -63,6 +63,7 @@ object RideHailMatching {
     person: PersonIdWithActorRef,
     pickup: MobilityRequest,
     dropoff: MobilityRequest,
+    requireVehicleAccessible: Boolean,
     triggerId: Long
   ) extends RVGraphNode
       with HasTriggerId {
@@ -269,6 +270,7 @@ object RideHailMatching {
     departureTime: Int,
     dst: Location,
     beamServices: BeamServices,
+    withWheelchair: Boolean,
     triggerId: Long
   ): CustomerRequest = {
     val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
@@ -319,6 +321,7 @@ object RideHailMatching {
         Math.round(departureTime + skim.time + waitingTimeInSec + travelTimeDelayAsFraction * skim.time).toInt,
         skim.distance.toInt
       ),
+      withWheelchair,
       triggerId: Long
     )
   }
@@ -352,6 +355,7 @@ object RideHailMatching {
           tick,
           rhr.destinationUTM,
           rideHailManager.beamServices,
+          rhr.withWheelchair,
           rhr.triggerId
         )
       },

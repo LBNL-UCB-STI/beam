@@ -174,7 +174,8 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     var start = System.currentTimeMillis()
     val nearbyAvailableRideHailAgents: ParIterable[RideHailAgentLocation] = {
       val agentsInRadius = selectAgentsInRadius(pickupLocation, radius, includeRepositioningVehicles)
-      val searchOnlyVehicles = selectVehiclesToSearchOn(excludeRideHailVehicles, includeRepositioningVehicles, requireWheelchairAccessible)
+      val searchOnlyVehicles =
+        selectVehiclesToSearchOn(excludeRideHailVehicles, includeRepositioningVehicles, requireWheelchairAccessible)
       filterRideHailAgentsFromVehicles(pickupLocation, dropOffLocation, agentsInRadius, searchOnlyVehicles)
     }
     var end = System.currentTimeMillis()
@@ -289,7 +290,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     } else {
       getIdleVehiclesAndFilterOutExluded.keySet.toSet
     }
-    val filteredAccessibleVehicles: Set[Id[BeamVehicle]] = if(requireWheelchairAccessible) {
+    val filteredAccessibleVehicles: Set[Id[BeamVehicle]] = if (requireWheelchairAccessible) {
       filteredIdleVehicles.filter(getRideHailAgentLocation(_).vehicleType.isWheelchairAccessible)
     } else filteredIdleVehicles
     filteredAccessibleVehicles -- excludeRideHailVehicles -- vehicleOutOfCharge
