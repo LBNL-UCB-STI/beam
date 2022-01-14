@@ -274,7 +274,7 @@ object PopulationAdjustment extends LazyLogging {
               beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.minimumValueOfTime
             ).getOrElse(beamScenario.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime)
           )
-
+      }
     // Generate the AttributesOfIndividual object as save it as custom attribute - "beam-attributes" for the person
     AttributesOfIndividual(
       householdAttributes = householdAttributes,

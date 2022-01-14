@@ -7,6 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
 import beam.router.model.EmbodiedBeamLeg
+import beam.router.model.EmbodiedBeamTrip
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._

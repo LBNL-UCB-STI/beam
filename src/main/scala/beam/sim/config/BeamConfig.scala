@@ -589,7 +589,7 @@ object BeamConfig {
               workTrip: scala.Double,
               linkToTransit: scala.Double,
               car_owner: scala.Double
-                              ))
+                              )
             object CAV{
               def apply(c: com.typesafe.config.Config
                        ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.OtherMultiplier.CAV = {
@@ -1020,10 +1020,6 @@ object BeamConfig {
               ),
               useDefaultVOT = 
                 if (c.hasPathOrNull("useDefaultVOT")) c.getBoolean("useDefaultVOT") else false,
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
-              ),
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
