@@ -516,7 +516,7 @@ class RideHailManager(
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)
 
-    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _, _, _, _) =>
+    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _, _, _, _, _) =>
       val s = System.currentTimeMillis
       handleRideHailInquiry(inquiry)
       val diff = System.currentTimeMillis - s
@@ -623,7 +623,7 @@ class RideHailManager(
       inquiryIdToInquiryAndResponse.remove(request.requestId)
       responses.foreach(routingResp => routeRequestIdToRideHailRequestId.remove(routingResp.requestId))
 
-    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _, _, _, _, triggerId) =>
+    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _, _, _, _, _, triggerId) =>
       handleReservationRequest(reserveRide, triggerId)
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(

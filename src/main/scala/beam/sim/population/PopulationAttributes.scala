@@ -25,7 +25,8 @@ case class AttributesOfIndividual(
   availableModes: Seq[BeamMode],
   valueOfTime: Double,
   age: Option[Int],
-  income: Option[Double]
+  income: Option[Double],
+  wheelchairUser: Boolean = false
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
 

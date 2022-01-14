@@ -306,6 +306,10 @@ class PersonAgent(
   var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
 
+  def wheelchairUser: Boolean = {
+    attributes.wheelchairUser
+  }
+
   def updateFuelConsumed(fuelOption: Option[FuelConsumed]): Unit = {
     val newFuelConsumed = fuelOption.getOrElse(FuelConsumed(0.0, 0.0))
     curFuelConsumed = FuelConsumed(
@@ -949,6 +953,7 @@ class PersonAgent(
         _currentTick.get,
         beamServices.geo.wgs2Utm(legSegment.last.beamLeg.travelPath.endPoint.loc),
         nextLeg.isPooledTrip,
+        wheelchairUser,
         requestTime = _currentTick,
         quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
         triggerId = getCurrentTriggerIdOrGenerate

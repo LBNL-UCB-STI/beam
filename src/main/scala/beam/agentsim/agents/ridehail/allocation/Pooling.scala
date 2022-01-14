@@ -26,6 +26,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
         radius = rideHailManager.radiusInMeters,
         customerRequestTime = inquiry.departAt,
         maxWaitingTimeInSec = maxWaitTimeInSec,
+        requireWheelchairAccessible = inquiry.withWheelchair,
         includeRepositioningVehicles = true
       ) match {
       case Some(agentETA) =>
@@ -114,6 +115,7 @@ class Pooling(val rideHailManager: RideHailManager) extends RideHailResourceAllo
               customerRequestTime = tick,
               maxWaitingTimeInSec = maxWaitTimeInSec,
               excludeRideHailVehicles = alreadyAllocated,
+              requireWheelchairAccessible = twoToPool.head.withWheelchair | twoToPool.last.withWheelchair,
               includeRepositioningVehicles = true
             ) match {
             case Some(agentETA) =>
