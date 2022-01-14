@@ -168,7 +168,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     customerRequestTime: Int,
     maxWaitingTimeInSec: Double,
     excludeRideHailVehicles: Set[Id[BeamVehicle]] = Set(),
-    requireWheelchairAccessible: Boolean = false,
+    requireWheelchairAccessible: Boolean,
     includeRepositioningVehicles: Boolean = false
   ): Option[RideHailAgentETA] = {
     var start = System.currentTimeMillis()
@@ -176,7 +176,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       val agentsInRadius = selectAgentsInRadius(pickupLocation, radius, includeRepositioningVehicles)
       val searchOnlyVehicles =
         selectVehiclesToSearchOn(excludeRideHailVehicles, includeRepositioningVehicles, requireWheelchairAccessible)
-      filterRideHailAgentsFromVehicles(pickupLocation, dropOffLocation, agentsInRadius, searchOnlyVehicles)
+      filterRideHailAgentsFromVehicles(pickupLocation, dropOffLocation, agentsInRadius, searchOnlyVehicles, requireWheelchairAccessible)
     }
     var end = System.currentTimeMillis()
     val diff1 = end - start
@@ -286,14 +286,11 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     requireWheelchairAccessible: Boolean = false
   ): Set[Id[BeamVehicle]] = {
     val filteredIdleVehicles: Set[Id[BeamVehicle]] = if (includeRepositioningVehicles) {
-      getIdleAndRepositioningVehiclesAndFilterOutExluded.keySet.toSet
+      getIdleAndRepositioningVehiclesAndFilterOutExcludedWithAccessibility(requireWheelchairAccessible).keySet.toSet
     } else {
-      getIdleVehiclesAndFilterOutExluded.keySet.toSet
+      getIdleVehiclesAndFilterOutExcludedWithAccessibility(requireWheelchairAccessible).keySet.toSet
     }
-    val filteredAccessibleVehicles: Set[Id[BeamVehicle]] = if (requireWheelchairAccessible) {
-      filteredIdleVehicles.filter(getRideHailAgentLocation(_).vehicleType.isWheelchairAccessible)
-    } else filteredIdleVehicles
-    filteredAccessibleVehicles -- excludeRideHailVehicles -- vehicleOutOfCharge
+    filteredIdleVehicles -- excludeRideHailVehicles -- vehicleOutOfCharge
   }
 
   private def selectAgentsInRadius(
@@ -313,10 +310,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     pickupLocation: Location,
     dropoffLocation: Location,
     nearbyRideHailAgents: ParIterable[RideHailAgentLocation],
-    searchOnlyVehicles: Set[Id[BeamVehicle]]
+    searchOnlyVehicles: Set[Id[BeamVehicle]],
+    requireWheelchairAccessible: Boolean
   ): ParIterable[RideHailAgentLocation] = {
     nearbyRideHailAgents
       .filter { x =>
+        (x.vehicleType.isWheelchairAccessible || !requireWheelchairAccessible) &&
         searchOnlyVehicles.contains(x.vehicleId) &&
         (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
         (x.geofence.isDefined && x.geofence.get
@@ -339,6 +338,33 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     ): Unit = {
       idleOrRepositioning.foreach { case (vehicleId, location) =>
         if (!rideHailManager.doNotUseInAllocation.contains(vehicleId)) {
+          filteredVehicles.put(vehicleId, location)
+        }
+      }
+    }
+
+    addIfNotInAllocation(idleRideHailVehicles)
+    addIfNotInAllocation(repositioningVehicles)
+
+    filteredVehicles.asScala
+  }
+
+  def getIdleAndRepositioningVehiclesAndFilterOutExcludedWithAccessibility(
+    requireWheelchairAccessible: Boolean = false
+  ): mutable.Map[Id[BeamVehicle], RideHailAgentLocation] = {
+    val repositioningVehicles = getRepositioningVehicles
+    val maxSize = idleRideHailVehicles.size + repositioningVehicles.size
+    val filteredVehicles = new java.util.HashMap[Id[BeamVehicle], RideHailAgentLocation](maxSize)
+
+    def addIfNotInAllocation(
+      idleOrRepositioning: mutable.HashMap[Id[BeamVehicle], RideHailManagerHelper.RideHailAgentLocation]
+    ): Unit = {
+      idleOrRepositioning.foreach { case (vehicleId, location) =>
+        if (
+          !rideHailManager.doNotUseInAllocation.contains(
+            vehicleId
+          ) & (location.vehicleType.isWheelchairAccessible | !requireWheelchairAccessible)
+        ) {
           filteredVehicles.put(vehicleId, location)
         }
       }
@@ -381,6 +407,16 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
 
   def getIdleVehiclesAndFilterOutExluded: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
     idleRideHailVehicles.filter(elem => !rideHailManager.doNotUseInAllocation.contains(elem._1))
+  }
+
+  def getIdleVehiclesAndFilterOutExcludedWithAccessibility(
+    requireWheelchairAccessible: Boolean = false
+  ): mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
+    idleRideHailVehicles.filter(elem =>
+      !rideHailManager.doNotUseInAllocation.contains(
+        elem._1
+      ) & (elem._2.vehicleType.isWheelchairAccessible | !requireWheelchairAccessible)
+    )
   }
 
   def getIdleAndInServiceVehicles: Map[Id[BeamVehicle], RideHailAgentLocation] = {

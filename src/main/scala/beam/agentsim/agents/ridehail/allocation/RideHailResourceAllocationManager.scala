@@ -43,7 +43,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       inquiry.destinationUTM,
       rideHailManager.radiusInMeters,
       maxWaitTimeInSec,
-      inquiry.departAt
+      inquiry.departAt,
+      requireWheelchairAccessible = inquiry.withWheelchair
     ) match {
       case Some(agentETA) =>
         SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None)
@@ -196,7 +197,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             rideHailManager.radiusInMeters,
             tick,
             maxWaitTimeInSec,
-            excludeRideHailVehicles = alreadyAllocated
+            excludeRideHailVehicles = alreadyAllocated,
+            requireWheelchairAccessible = request.withWheelchair
           ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId

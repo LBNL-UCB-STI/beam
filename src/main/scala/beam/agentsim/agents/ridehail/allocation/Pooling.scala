@@ -239,7 +239,8 @@ object Pooling {
         pickUpTime,
         maxWaitTimeInSec,
         excludeRideHailVehicles = alreadyAllocated,
-        includeRepositioningVehicles = true
+        includeRepositioningVehicles = true,
+        requireWheelchairAccessible = request.withWheelchair
       ) match {
       case Some(agentETA) =>
         RoutingRequiredToAllocateVehicle(
