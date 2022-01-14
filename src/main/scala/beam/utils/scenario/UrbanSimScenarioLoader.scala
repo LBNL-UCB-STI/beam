@@ -537,10 +537,12 @@ class UrbanSimScenarioLoader(
       personAttrib.putAttribute(personId, "age", personInfo.age)
       personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
       personAttrib.putAttribute(personId, "sex", sexChar)
+      personAttrib.putAttribute(personId, "wheelchairUser", personInfo.wheelchairUser)
 
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+      person.getAttributes.putAttribute("wheelchairUser", personInfo.wheelchairUser)
 
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamScenario,

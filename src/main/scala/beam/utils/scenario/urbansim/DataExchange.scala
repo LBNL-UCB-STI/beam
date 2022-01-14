@@ -14,7 +14,8 @@ object DataExchange {
     age: Int,
     excludedModes: String,
     isFemale: Boolean,
-    valueOfTime: Double
+    valueOfTime: Double,
+    wheelchairUser: Boolean = false
   )
 
   case class PlanElement(
