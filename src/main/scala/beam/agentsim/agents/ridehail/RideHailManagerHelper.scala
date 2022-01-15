@@ -173,10 +173,10 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   ): Option[RideHailAgentETA] = {
     var start = System.currentTimeMillis()
     val nearbyAvailableRideHailAgents: ParIterable[RideHailAgentLocation] = {
-      val agentsInRadius = selectAgentsInRadius(pickupLocation, radius, includeRepositioningVehicles)
+      val agentsInRadius = selectAgentsInRadius(pickupLocation, radius, includeRepositioningVehicles, requireWheelchairAccessible)
       val searchOnlyVehicles =
         selectVehiclesToSearchOn(excludeRideHailVehicles, includeRepositioningVehicles, requireWheelchairAccessible)
-      filterRideHailAgentsFromVehicles(pickupLocation, dropOffLocation, agentsInRadius, searchOnlyVehicles, requireWheelchairAccessible)
+      filterRideHailAgentsFromVehicles(pickupLocation, dropOffLocation, agentsInRadius, searchOnlyVehicles)
     }
     var end = System.currentTimeMillis()
     val diff1 = end - start
@@ -296,26 +296,26 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   private def selectAgentsInRadius(
     pickupLocation: Location,
     radius: Double,
-    includeRepositioningVehicles: Boolean
+    includeRepositioningVehicles: Boolean,
+    requireWheelchairAccessible: Boolean = false
   ): ParSeq[RideHailAgentLocation] = {
     val newSource =
       if (includeRepositioningVehicles)
         Seq(idleRideHailAgentSpatialIndex, inServiceRideHailAgentSpatialIndex)
       else
         Seq(idleRideHailAgentSpatialIndex)
-    RideHailManagerHelper.selectAgentsInRadius(pickupLocation, radius, newSource.par)
+    val inRadius = RideHailManagerHelper.selectAgentsInRadius(pickupLocation, radius, newSource.par)
+    if (requireWheelchairAccessible) {inRadius.filter(_.vehicleType.isWheelchairAccessible)} else inRadius
   }
 
   private[ridehail] def filterRideHailAgentsFromVehicles(
     pickupLocation: Location,
     dropoffLocation: Location,
     nearbyRideHailAgents: ParIterable[RideHailAgentLocation],
-    searchOnlyVehicles: Set[Id[BeamVehicle]],
-    requireWheelchairAccessible: Boolean
+    searchOnlyVehicles: Set[Id[BeamVehicle]]
   ): ParIterable[RideHailAgentLocation] = {
     nearbyRideHailAgents
       .filter { x =>
-        (x.vehicleType.isWheelchairAccessible || !requireWheelchairAccessible) &&
         searchOnlyVehicles.contains(x.vehicleId) &&
         (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
         (x.geofence.isDefined && x.geofence.get
