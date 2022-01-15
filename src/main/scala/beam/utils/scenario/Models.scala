@@ -41,4 +41,4 @@ case class PlanElement(
 
 case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, locationX: Double, locationY: Double)
 
-case class VehicleInfo(vehicleId: String, vehicleTypeId: String, householdId: String)
+case class VehicleInfo(vehicleId: String, vehicleTypeId: String, initialSoc: Option[Double], householdId: String)

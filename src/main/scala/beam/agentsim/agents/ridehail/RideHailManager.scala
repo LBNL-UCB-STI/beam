@@ -24,7 +24,7 @@ import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager, _}
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
-import beam.agentsim.events.{RideHailFleetStateEvent, SpaceTime}
+import beam.agentsim.events.{FleetStoredElectricityEvent, RideHailFleetStateEvent, SpaceTime}
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -424,7 +424,8 @@ class RideHailManager(
         s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs ms, nFindAllocationsAndProcess: $nFindAllocationsAndProcess, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
       )
 
-    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+      eventsManager.processEvent(createStoredElectricityEvent(tick))
       sender ! CompletionNotice(triggerId, Vector())
 
     case TAZSkimsCollectionTrigger(tick) =>
@@ -476,6 +477,7 @@ class RideHailManager(
       cleanUp(triggerId)
 
     case Finish =>
+      eventsManager.processEvent(createStoredElectricityEvent(maxTime))
       if (beamServices.beamConfig.beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations) {
         rideHailFleetInitializer.overrideRideHailAgentInitializers(createRideHailAgentInitializersFromCurrentState)
       }
@@ -829,6 +831,26 @@ class RideHailManager(
 
     case msg =>
       ridehailManagerCustomizationAPI.receiveMessageHook(msg, sender())
+  }
+
+  private def createStoredElectricityEvent(tick: Int) = {
+    val electricVehicleStates = resources.values.collect {
+      case vehicle if vehicle.beamVehicleType.primaryFuelType == Electricity =>
+        vehicle -> rideHailManagerHelper.getVehicleState(vehicle.id)
+    }
+    val (storedElectricityInJoules, storageCapacityInJoules) = electricVehicleStates.foldLeft(0.0, 0.0) {
+      case ((fuelLevel, fuelCapacity), (vehicle, state)) =>
+        (
+          fuelLevel + MathUtils.clamp(state.primaryFuelLevel, 0, vehicle.beamVehicleType.primaryFuelCapacityInJoule),
+          fuelCapacity + vehicle.beamVehicleType.primaryFuelCapacityInJoule
+        )
+    }
+    new FleetStoredElectricityEvent(
+      tick,
+      "all-ridehail-fleet-vehicles",
+      storedElectricityInJoules,
+      storageCapacityInJoules
+    )
   }
 
   def continueProcessingTimeoutIfReady(triggerId: Long): Unit = {
@@ -1375,8 +1397,11 @@ class RideHailManager(
             "Creation of RideHailAgentInitializers for linking across iterations has not been tested for PHEVs."
           )
         }
-        val stateOfCharge =
-          beamVehicleState.primaryFuelLevel / rideHailAgentLocation.vehicleType.primaryFuelCapacityInJoule
+        val stateOfCharge = MathUtils.clamp(
+          beamVehicleState.primaryFuelLevel / rideHailAgentLocation.vehicleType.primaryFuelCapacityInJoule,
+          0,
+          1
+        )
 
         RideHailAgentInitializer(
           rideHailVehicleId.id,

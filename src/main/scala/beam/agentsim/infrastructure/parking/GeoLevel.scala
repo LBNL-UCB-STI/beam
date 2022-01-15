@@ -53,7 +53,8 @@ object GeoLevel {
 
     override def defaultGeoId: Id[Link] = LinkLevelOperations.DefaultLinkId
 
-    override def geoSampling: GeoSampling[Link] = (_: Random, _: Location, link: Link, _: Double) => link.getCoord
+    override def geoSampling: GeoSampling[Link] = (_: Random, _: Location, link: Link, _: Double, _: Boolean) =>
+      link.getCoord
 
     override def centroidLocation(a: Link): Location = a.getCoord
   }
