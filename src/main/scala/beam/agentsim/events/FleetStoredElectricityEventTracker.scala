@@ -9,14 +9,14 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
   * Track the initial and final [[FleetStoredElectricityEvent]]s in an iteration to determine the electricity
   * stored in the fleet at the beginning and end of the iteration.
   */
-trait RideHailFleetStoredElectricityEventTracker extends LazyLogging {
+trait FleetStoredElectricityEventTracker extends LazyLogging {
   protected val storedElectricityEventQueue = new ConcurrentLinkedQueue[FleetStoredElectricityEvent]()
 
-  /** Handle RideHailFleetStoredElectricityEvent. */
+  /** Handle FleetStoredElectricityEvent. */
   def handleFleetStoredElectricityEvent(
-    rideHailFleetStoredElectricityEvent: FleetStoredElectricityEvent
+    fleetStoredElectricityEvent: FleetStoredElectricityEvent
   ): Unit = {
-    storedElectricityEventQueue.add(rideHailFleetStoredElectricityEvent)
+    storedElectricityEventQueue.add(fleetStoredElectricityEvent)
   }
 
   /** Reset internal state. Should be called after every iteration. */

@@ -478,7 +478,7 @@ class RideHailManager(
 
     case Finish =>
       eventsManager.processEvent(createStoredElectricityEvent(maxTime))
-      if (beamServices.beamConfig.beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations) {
+      if (beamServices.beamConfig.beam.agentsim.agents.rideHail.linkSocAcrossIterations) {
         rideHailFleetInitializer.overrideRideHailAgentInitializers(createRideHailAgentInitializersFromCurrentState)
       }
 

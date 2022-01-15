@@ -4,7 +4,7 @@ import beam.sim.config.BeamConfigHolder
 import beam.sim.termination.{
   CustomTerminateAtFixedIterationNumber,
   DefaultTerminationCriterionRegistry,
-  TerminateAtRideHailFleetStoredElectricityConvergence
+  TerminateAtFleetStoredElectricityConvergence
 }
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.ControlerConfigGroup
@@ -47,7 +47,7 @@ class DefaultTerminationCriterionFactory extends TerminationCriterionFactory {
         case DefaultTerminationCriterionRegistry.TerminateAtFixedIterationNumber =>
           new CustomTerminateAtFixedIterationNumber(controlerConfigGroup, beamConfigHolder)
         case DefaultTerminationCriterionRegistry.TerminateAtRideHailFleetStoredElectricityConvergence =>
-          new TerminateAtRideHailFleetStoredElectricityConvergence(beamConfigHolder, eventsManager)
+          new TerminateAtFleetStoredElectricityConvergence(beamConfigHolder, eventsManager)
         case x =>
           throw new IllegalStateException(s"Unidentified termination criterion: `$x`")
       }

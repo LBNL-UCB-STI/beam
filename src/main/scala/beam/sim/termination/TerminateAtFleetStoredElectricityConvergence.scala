@@ -1,6 +1,6 @@
 package beam.sim.termination
 
-import beam.agentsim.events.{FleetStoredElectricityEvent, RideHailFleetStoredElectricityEventTracker}
+import beam.agentsim.events.{FleetStoredElectricityEvent, FleetStoredElectricityEventTracker}
 import beam.sim.config.BeamConfigHolder
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -10,16 +10,17 @@ import org.matsim.core.controler.TerminationCriterion
 import org.matsim.core.events.handler.BasicEventHandler
 
 /**
-  * Termination criterion to stop the iterations when the electricity stored in the ride hail fleet at the beginning of
-  * the iteration is close to the amount stored at the end.
+  * Termination criterion to stop the iterations when the electricity stored in the ride hail fleet and private evs
+  * at the beginning of the iteration is close to the amount stored at the end.
   *
   * The combination of setting the config parameter beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations to true
+  * and beam.agentsim.agents.vehicles.linkSocAcrossIterations to true
   * and selecting this termination criterion enables fixed point iteration for the electricity stored in the ride hail
-  * fleet's batteries. After a couple of iterations, the electricity stored in the ride hail fleet at the beginning
-  * of the iteration should be close to the amount stored at the end of the iteration. In this case, we say that the
-  * fixed point iteration converged. It is worth noting that we target convergence for the total electricity stored in
-  * the fleet and not for the electricity stored in each individual vehicle because getting convergence for each
-  * individual vehicle is much more challenging.
+  * fleet's batteries. After a couple of iterations, the electricity stored in the ride hail fleet and private evs at the
+  * beginning of the iteration should be close to the amount stored at the end of the iteration. In this case, we say
+  * that the fixed point iteration converged. It is worth noting that we target convergence for the total electricity
+  * stored in the fleet and not for the electricity stored in each individual vehicle because getting convergence for
+  * each individual vehicle is much more challenging.
   *
   * There is no guarantee that the algorithm will converge. Coarsely, fixed point iteration theory tells us that there
   * will be convergence if the mapping from electricity stored at the beginning to electricity stored at the end
@@ -42,33 +43,37 @@ import org.matsim.core.events.handler.BasicEventHandler
   *
   * @see <a href="http://fourier.eng.hmc.edu/e176/lectures/NM/node17.html">More information on fixed point iteration</a>
   */
-class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
+class TerminateAtFleetStoredElectricityConvergence @Inject() (
   beamConfigHolder: BeamConfigHolder,
   eventsManager: EventsManager
 ) extends TerminationCriterion
     with BasicEventHandler
     with LazyLogging
-    with RideHailFleetStoredElectricityEventTracker {
+    with FleetStoredElectricityEventTracker {
   eventsManager.addHandler(this)
 
   private val minLastIteration =
-    beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.minLastIteration
+    beamConfigHolder.beamConfig.beam.sim.termination.terminateAtFleetStoredElectricityConvergence.minLastIteration
 
   private val maxLastIteration =
-    beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.maxLastIteration
+    beamConfigHolder.beamConfig.beam.sim.termination.terminateAtFleetStoredElectricityConvergence.maxLastIteration
 
   private val relativeTolerance =
-    beamConfigHolder.beamConfig.beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.relativeTolerance
+    beamConfigHolder.beamConfig.beam.sim.termination.terminateAtFleetStoredElectricityConvergence.relativeTolerance
 
   assert(minLastIteration <= maxLastIteration, "minLastIteration cannot be larger than maxLastIteration")
 
-  if (!beamConfigHolder.beamConfig.beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations) {
+  if (!beamConfigHolder.beamConfig.beam.agentsim.agents.rideHail.linkSocAcrossIterations) {
     logger.warn("linkFleetStateAcrossIterations is false. Stored energy convergence is very unlikely.")
+  }
+
+  if (!beamConfigHolder.beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations) {
+    logger.warn("linkSocAcrossIterations is false. Stored energy convergence is very unlikely.")
   }
 
   /**
     * Allows iterations to continue before minLastIteration. Then, stops iterations if the relative difference between
-    * electricity stored in the ride hail fleet's batteries is less than relativeTolerance.
+    * electricity stored in the ride hail fleet and private ev's batteries is less than relativeTolerance.
     * If this does not happen before reaching maxLastIteration, the iteration is stopped.
     *
     * Note: this method is called right before iteration starts.
@@ -108,7 +113,7 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
 
   override def reset(iteration: Int): Unit = {
     super[BasicEventHandler].reset(iteration)
-    super[RideHailFleetStoredElectricityEventTracker].reset()
+    super[FleetStoredElectricityEventTracker].reset()
   }
 
   /**
