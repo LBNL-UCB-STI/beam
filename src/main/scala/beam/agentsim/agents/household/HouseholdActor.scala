@@ -322,6 +322,9 @@ object HouseholdActor {
               chargingNetworkManager,
               eventsManager,
               person.getId,
+              VehicleManager
+                .createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household)
+                .managerId,
               self,
               selectedPlan,
               fleetManagers.toSeq,

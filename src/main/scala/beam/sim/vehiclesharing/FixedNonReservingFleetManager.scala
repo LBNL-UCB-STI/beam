@@ -57,7 +57,6 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       Id.createVehicleId(self.path.name + "-" + ix),
       new Powertrain(0.0),
       vehicleType,
-      vehicleManagerId = new AtomicReference(vehicleManagerId),
       rand.nextInt()
     )
     vehicle.setManager(Some(self))

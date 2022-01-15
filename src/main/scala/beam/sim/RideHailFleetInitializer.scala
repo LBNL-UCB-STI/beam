@@ -321,7 +321,6 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManagerId = new AtomicReference(rideHailManagerId),
         randomSeed
       )
 

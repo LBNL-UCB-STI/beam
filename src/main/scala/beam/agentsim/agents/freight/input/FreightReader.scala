@@ -117,9 +117,6 @@ trait FreightReader {
       beamVehicleId,
       powertrain,
       vehicleType,
-      vehicleManagerId = new AtomicReference(
-        VehicleManager.createOrGetReservedFor(carrierId.toString, VehicleManager.TypeEnum.Freight).managerId
-      ),
       randomSeed
     )
     vehicle.spaceTime = SpaceTime(initialLocation, 0)

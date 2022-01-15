@@ -24,7 +24,6 @@ import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.Random
@@ -480,8 +479,7 @@ class ZonalParkingManagerSpec
     val vehicle = new BeamVehicle(
       id = Id.createVehicleId("car-01"),
       powerTrain = new Powertrain(0.0),
-      beamVehicleType = vehicleType,
-      vehicleManagerId = new AtomicReference(reservedFor.managerId)
+      beamVehicleType = vehicleType
     )
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
@@ -503,8 +501,7 @@ class ZonalParkingManagerSpec
     val vehicle = new BeamVehicle(
       id = Id.createVehicleId("car-01"),
       powerTrain = new Powertrain(0.0),
-      beamVehicleType = vehicleType,
-      vehicleManagerId = new AtomicReference(reservedFor.managerId)
+      beamVehicleType = vehicleType
     )
     val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)

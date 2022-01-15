@@ -118,6 +118,9 @@ class PersonAgentSpec
           self,
           eventsManager,
           Id.create("dummyAgent", classOf[PersonAgent]),
+          VehicleManager
+            .createOrGetReservedFor(hoseHoldDummyId.toString, VehicleManager.TypeEnum.Household)
+            .managerId,
           plan,
           parkingManager,
           self,

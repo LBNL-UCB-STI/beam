@@ -55,6 +55,7 @@ object RideHailAgent {
     chargingNetworkManager: ActorRef,
     rideHailAgentId: Id[RideHailAgent],
     rideHailManager: ActorRef,
+    rideHailManagerId: Id[VehicleManager],
     vehicle: BeamVehicle,
     shifts: Option[List[Shift]],
     geofence: Option[Geofence]
@@ -63,6 +64,7 @@ object RideHailAgent {
       new RideHailAgent(
         rideHailAgentId,
         rideHailManager,
+        rideHailManagerId,
         scheduler,
         vehicle,
         shifts,
@@ -189,6 +191,7 @@ object RideHailAgent {
 class RideHailAgent(
   override val id: Id[RideHailAgent],
   rideHailManager: ActorRef,
+  rideHailManagerId: Id[VehicleManager],
   val scheduler: ActorRef,
   vehicle: BeamVehicle,
   val shifts: Option[List[Shift]],
@@ -1140,7 +1143,7 @@ class RideHailAgent(
     val inquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, time),
       "charge",
-      VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
+      VehicleManager.getReservedFor(this.rideHailManagerId).get,
       beamVehicle = Some(vehicle),
       parkingDuration = parkingDuration,
       triggerId = getCurrentTriggerIdOrGenerate

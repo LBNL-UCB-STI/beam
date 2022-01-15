@@ -6,7 +6,7 @@ import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, _}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
@@ -15,7 +15,7 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.RouteHistory
-import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -31,11 +31,10 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.matsim.vehicles._
+import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-import org.scalatest.funspec.AnyFunSpecLike
 
-import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 
 class PersonWithPersonalVehiclePlanSpec
@@ -324,8 +323,7 @@ class PersonWithPersonalVehiclePlanSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          vehicleType,
-          vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
+          vehicleType
         )
 
       val household = householdsFactory.createHousehold(hoseHoldDummyId)

@@ -390,8 +390,7 @@ trait BeamHelper extends LazyLogging {
       val (vehicleIdToVehicle, vehicleIdToSoc) = readVehiclesFile(
         beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
         vehicleTypes,
-        beamConfig.matsim.modules.global.randomSeed,
-        VehicleManager.AnyManager.managerId
+        beamConfig.matsim.modules.global.randomSeed
       )
       TrieMap(
         vehicleIdToVehicle.toSeq: _*

@@ -40,9 +40,6 @@ import beam.router.{Modes, RoutingWorker}
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  private val emergencyGeoId =
-    GeoLevel.getSpecialGeoIds(beamServices.beamConfig.beam.agentsim.taz.parkingManager.level)._1
-
   val dummyRHVehicle: StreetVehicle = createDummyVehicle(
     "dummyRH",
     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
@@ -84,7 +81,7 @@ trait ChoosesMode {
     mode: BeamMode,
     asDriver: Boolean,
     needsToCalculateCost: Boolean
-  ) =
+  ): StreetVehicle =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
       Id.create(
@@ -725,7 +722,7 @@ trait ChoosesMode {
               seq :+ (vehicleOnTrip -> ParkingInquiry.init(
                 SpaceTime(geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc), leg.beamLeg.endTime),
                 nextAct.getType,
-                VehicleManager.getReservedFor(veh.vehicleManagerId.get).get,
+                VehicleManager.getReservedFor(this.vehicleManagerId).get,
                 Some(veh),
                 None,
                 Some(this.id),

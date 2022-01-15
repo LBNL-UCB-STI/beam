@@ -1,8 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.router.model.BeamLeg
 
 /**
   * BEAM

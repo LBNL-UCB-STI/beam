@@ -113,7 +113,7 @@ trait ChoosesParking extends {
     val parkingInquiry = ParkingInquiry.init(
       SpaceTime(destinationUtm, lastLeg.beamLeg.endTime),
       nextActivityType,
-      VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get,
+      VehicleManager.getReservedFor(this.vehicleManagerId).get,
       Some(this.currentBeamVehicle),
       remainingTripData,
       Some(this.id),

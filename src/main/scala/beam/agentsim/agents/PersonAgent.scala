@@ -47,13 +47,12 @@ import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
-import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 
@@ -76,6 +75,7 @@ object PersonAgent {
     chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     personId: Id[PersonAgent],
+    vehicleManagerId: Id[VehicleManager],
     householdRef: ActorRef,
     plan: Plan,
     fleetManagers: Seq[ActorRef],
@@ -95,6 +95,7 @@ object PersonAgent {
         rideHailManager,
         eventsManager,
         personId,
+        vehicleManagerId,
         plan,
         parkingManager,
         chargingNetworkManager,
@@ -256,6 +257,7 @@ class PersonAgent(
   val rideHailManager: ActorRef,
   val eventsManager: EventsManager,
   override val id: Id[PersonAgent],
+  val vehicleManagerId: Id[VehicleManager],
   val matsimPlan: Plan,
   val parkingManager: ActorRef,
   val chargingNetworkManager: ActorRef,
@@ -288,8 +290,7 @@ class PersonAgent(
   val body: BeamVehicle = new BeamVehicle(
     BeamVehicle.createId(id, Some("body")),
     new Powertrain(bodyType.primaryFuelConsumptionInJoulePerMeter),
-    bodyType,
-    vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
+    bodyType
   )
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))

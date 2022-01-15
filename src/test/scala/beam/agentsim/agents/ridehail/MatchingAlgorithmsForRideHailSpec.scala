@@ -214,13 +214,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(5000, 5000),
         8.hours.toSeconds.toInt,
         None,
-        4,
-        VehicleManager
-          .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.TypeEnum.RideHail
-          )
-          .managerId
+        4
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -229,13 +223,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 2000),
         8.hours.toSeconds.toInt,
         None,
-        4,
-        VehicleManager
-          .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.TypeEnum.RideHail
-          )
-          .managerId
+        4
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -290,13 +278,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(5000, 5000),
         8.hours.toSeconds.toInt,
         Some(CircularGeofence(10000, 10000, 13400)),
-        4,
-        VehicleManager
-          .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.TypeEnum.RideHail
-          )
-          .managerId
+        4
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -305,13 +287,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 2000),
         8.hours.toSeconds.toInt,
         Some(CircularGeofence(10000, 10000, 13400)),
-        4,
-        VehicleManager
-          .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.TypeEnum.RideHail
-          )
-          .managerId
+        4
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(
@@ -392,13 +368,7 @@ object MatchingAlgorithmsForRideHailSpec {
         taz4Loc,
         0,
         None,
-        remainingRangeInM,
-        VehicleManager
-          .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.TypeEnum.RideHail
-          )
-          .managerId
+        remainingRangeInM
       )
     val v2: VehicleAndSchedule =
       RideHailMatching.createVehicleAndSchedule(
@@ -407,13 +377,7 @@ object MatchingAlgorithmsForRideHailSpec {
         taz4Loc,
         0,
         None,
-        remainingRangeInM,
-        VehicleManager
-          .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
-            VehicleManager.TypeEnum.RideHail
-          )
-          .managerId
+        remainingRangeInM
       )
     val p1Req: CustomerRequest =
       RideHailMatching.createPersonRequest(

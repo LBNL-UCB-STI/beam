@@ -275,7 +275,6 @@ trait ScaleUpCharging extends {
       Id.create(VIRTUAL_CAR_ALIAS + "-" + nextId, classOf[BeamVehicle]),
       powerTrain,
       vehicleType,
-      new AtomicReference(reservedFor.managerId),
       randomSeed = rand.nextInt
     )
     beamVehicle.initializeFuelLevels(soc)

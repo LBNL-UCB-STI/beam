@@ -149,15 +149,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          vehicleType,
-          vehicleManagerId = new AtomicReference(
-            VehicleManager
-              .createOrGetReservedFor(
-                services.beamConfig.beam.agentsim.agents.rideHail.name,
-                VehicleManager.TypeEnum.RideHail
-              )
-              .managerId
-          )
+          vehicleType
         )
       beamVehicle.setManager(Some(self))
 
@@ -174,6 +166,12 @@ class RideHailAgentSpec
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
           self,
+          VehicleManager
+            .createOrGetReservedFor(
+              services.beamConfig.beam.agentsim.agents.rideHail.name,
+              VehicleManager.TypeEnum.RideHail
+            )
+            .managerId,
           scheduler,
           beamVehicle,
           None,
@@ -235,15 +233,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          vehicleType,
-          new AtomicReference(
-            VehicleManager
-              .createOrGetReservedFor(
-                services.beamConfig.beam.agentsim.agents.rideHail.name,
-                VehicleManager.TypeEnum.RideHail
-              )
-              .managerId
-          )
+          vehicleType
         )
       beamVehicle.setManager(Some(self))
 
@@ -260,6 +250,12 @@ class RideHailAgentSpec
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
           self,
+          VehicleManager
+            .createOrGetReservedFor(
+              services.beamConfig.beam.agentsim.agents.rideHail.name,
+              VehicleManager.TypeEnum.RideHail
+            )
+            .managerId,
           scheduler,
           beamVehicle,
           None,
@@ -313,15 +309,7 @@ class RideHailAgentSpec
         new BeamVehicle(
           vehicleId,
           new Powertrain(0.0),
-          vehicleType,
-          new AtomicReference(
-            VehicleManager
-              .createOrGetReservedFor(
-                services.beamConfig.beam.agentsim.agents.rideHail.name,
-                VehicleManager.TypeEnum.RideHail
-              )
-              .managerId
-          )
+          vehicleType
         )
       beamVehicle.setManager(Some(self))
 
@@ -338,6 +326,12 @@ class RideHailAgentSpec
         new RideHailAgent(
           Id.create("1", classOf[RideHailAgent]),
           self,
+          VehicleManager
+            .createOrGetReservedFor(
+              services.beamConfig.beam.agentsim.agents.rideHail.name,
+              VehicleManager.TypeEnum.RideHail
+            )
+            .managerId,
           scheduler,
           beamVehicle,
           None,

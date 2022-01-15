@@ -156,8 +156,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        vehicleType,
-        vehicleManagerId = new AtomicReference(managerId)
+        vehicleType
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -313,8 +312,7 @@ class PersonWithVehicleSharingSpec
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        vehicleType,
-        vehicleManagerId = new AtomicReference(managerId)
+        vehicleType
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -423,8 +421,7 @@ class PersonWithVehicleSharingSpec
       val vehicle2 = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
-        vehicleType,
-        vehicleManagerId = new AtomicReference(managerId)
+        vehicleType
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? ParkingInquiry.init(
@@ -483,10 +480,7 @@ class PersonWithVehicleSharingSpec
       val car1 = new BeamVehicle(
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
-        vehicleType,
-        vehicleManagerId = new AtomicReference(
-          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
-        )
+        vehicleType
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 

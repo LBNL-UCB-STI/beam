@@ -11,7 +11,6 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import java.util
-import java.util.concurrent.atomic.AtomicReference
 import scala.util.Random
 
 object BeamVehicleUtils {
@@ -19,8 +18,7 @@ object BeamVehicleUtils {
   def readVehiclesFile(
     filePath: String,
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
-    randomSeed: Long,
-    vehicleManagerId: Id[VehicleManager]
+    randomSeed: Long
   ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
 
@@ -39,7 +37,6 @@ object BeamVehicleUtils {
             vehicleId,
             powerTrain,
             vehicleType,
-            new AtomicReference(vehicleManagerId),
             randomSeed = rand.nextInt
           )
 

@@ -1342,6 +1342,7 @@ class RideHailManager(
       chargingNetworkManager,
       rideHailAgentInitializer.rideHailAgentId,
       self,
+      id,
       rideHailBeamVehicle,
       rideHailAgentInitializer.shifts,
       rideHailAgentInitializer.geofence
