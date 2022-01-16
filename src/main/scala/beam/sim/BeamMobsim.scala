@@ -180,7 +180,7 @@ class BeamMobsim @Inject() (
   }
 
   private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
-    households.getHouseholds.values.forEach { household =>
+    households.getHouseholds.values.asScala.par.foreach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
       val persons = household.getMemberIds.asScala.collect { case personId =>
