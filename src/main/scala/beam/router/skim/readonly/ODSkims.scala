@@ -55,7 +55,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                                         => 0.0
     }
-    Skim(
+    val calculatedDefaultValue = Skim(
       travelTime,
       travelTime * votMultiplier,
       travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
@@ -64,6 +64,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       0,
       0.0 // TODO get default energy information
     )
+    Skim(Int.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue)
   }
 
   def getRideHailPoolingTimeAndCostRatios(
