@@ -104,7 +104,6 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
           RoutingWorker.props(
             beamScenario,
             transportNetwork,
-            None,
             services.networkHelper,
             services.fareCalculator,
             services.tollCalculator
