@@ -358,6 +358,14 @@ object ODSkimmer extends LazyLogging {
   def fromCsv(
     row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    def toIntOrDefaultIfNull(stringValue: String, defaultValue: Int): Int = {
+      if (stringValue == null) {
+        defaultValue
+      } else {
+        stringValue.toInt
+      }
+    }
+
     (
       ODSkimmerKey(
         hour = row("hour").toInt,
@@ -373,8 +381,8 @@ object ODSkimmer extends LazyLogging {
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        observations = row("observations").toInt,
-        iterations = row("iterations").toInt
+        observations = toIntOrDefaultIfNull(row("observations"), 0),
+        iterations = toIntOrDefaultIfNull(row("iterations"), 1)
       )
     )
   }
