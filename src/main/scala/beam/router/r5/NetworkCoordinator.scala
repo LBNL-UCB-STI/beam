@@ -58,8 +58,6 @@ trait NetworkCoordinator extends LazyLogging {
   val beamConfig: BeamConfig
 
   var transportNetwork: TransportNetwork
-  var networks2: Option[(TransportNetwork, Network)] = None
-
   var network: Network
 
   protected def preprocessing(): Unit
@@ -85,18 +83,6 @@ trait NetworkCoordinator extends LazyLogging {
         val networkPath = Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)
         network = readOrCreateNetwork(networkPath)
 
-        networks2 = for {
-          dir2 <- beamConfig.beam.routing.r5.directory2
-        } yield {
-          val path2 = Paths.get(dir2).resolve(path.getFileName)
-          logger.info(
-            s"Initializing the second router by reading network from: ${path2.toAbsolutePath}"
-          )
-          (
-            KryoNetworkSerializer.read(path2.toFile),
-            readOrCreateNetwork(Paths.get(dir2).resolve(networkPath.getFileName))
-          )
-        }
       } { path =>
         logger.info(
           s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
@@ -125,22 +111,6 @@ trait NetworkCoordinator extends LazyLogging {
         KryoNetworkSerializer.write(transportNetwork, path.toFile)
         // Needed because R5 closes DB on write
         transportNetwork = KryoNetworkSerializer.read(path.toFile)
-
-        networks2 = for {
-          tn   <- maybeTN
-          dir2 <- beamConfig.beam.routing.r5.directory2
-          networkPath2 = Paths.get(dir2).resolve(networkPath.getFileName)
-          net2 = createPhyssimNetwork(tn, networkPath2)
-          path2 = Paths.get(dir2).resolve(path.getFileName)
-          _ = KryoNetworkSerializer.write(tn, path2.toFile)
-          // Needed because R5 closes DB on write
-        } yield {
-          logger.info(
-            s"Saved the second transport network to: ${path2.toAbsolutePath}"
-          )
-          (KryoNetworkSerializer.read(path2.toFile), net2)
-        }
-
       }
       .get
   }

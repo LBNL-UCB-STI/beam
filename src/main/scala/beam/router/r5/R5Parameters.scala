@@ -1,7 +1,5 @@
 package beam.router.r5
 
-import java.time.ZonedDateTime
-
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelType
@@ -11,12 +9,12 @@ import beam.router.osm.TollCalculator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
-import beam.utils.{DateUtils, FileUtils, LoggingUtil, NetworkHelper, NetworkHelperImpl}
+import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.Network
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+
+import java.time.ZonedDateTime
 
 case class R5Parameters(
   beamConfig: BeamConfig,
@@ -33,7 +31,7 @@ case class R5Parameters(
 
 object R5Parameters {
 
-  def fromConfig(config: Config): (R5Parameters, Option[(TransportNetwork, Network)]) = {
+  def fromConfig(config: Config): R5Parameters = {
     val beamConfig = BeamConfig(config)
     val outputDirectory = FileUtils.getConfigOutputFile(
       beamConfig.beam.outputs.baseOutputDirectory,
@@ -58,20 +56,17 @@ object R5Parameters {
     val fareCalculator = new FareCalculator(beamConfig)
     val tollCalculator = new TollCalculator(beamConfig)
     BeamRouter.checkForConsistentTimeZoneOffsets(dates, networkCoordinator.transportNetwork)
-    (
-      R5Parameters(
-        beamConfig = beamConfig,
-        transportNetwork = networkCoordinator.transportNetwork,
-        vehicleTypes = vehicleTypes,
-        fuelTypePrices = fuelTypePrices,
-        ptFares = ptFares,
-        geo = geo,
-        dates = dates,
-        networkHelper = new NetworkHelperImpl(networkCoordinator.network),
-        fareCalculator = fareCalculator,
-        tollCalculator = tollCalculator
-      ),
-      networkCoordinator.networks2
+    R5Parameters(
+      beamConfig = beamConfig,
+      transportNetwork = networkCoordinator.transportNetwork,
+      vehicleTypes = vehicleTypes,
+      fuelTypePrices = fuelTypePrices,
+      ptFares = ptFares,
+      geo = geo,
+      dates = dates,
+      networkHelper = new NetworkHelperImpl(networkCoordinator.network),
+      fareCalculator = fareCalculator,
+      tollCalculator = tollCalculator
     )
   }
 }

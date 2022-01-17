@@ -321,7 +321,6 @@ trait BeamHelper extends LazyLogging {
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
-      networkCoordinator.networks2,
       networkCoordinator.network,
       trainStopQuadTree,
       tazMap,

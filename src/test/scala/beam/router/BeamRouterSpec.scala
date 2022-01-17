@@ -111,7 +111,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
     BeamScenario(
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
-      TrieMap.empty,
+      privateVehicles = TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
@@ -120,12 +120,10 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       ),
       ptFares = PtFares(List.empty),
       transportNetwork = mock(classOf[TransportNetwork]),
-      //todo: this is a quick fix for merging develop, MUST investigate
-      networks2 = None,
       network = mock(classOf[Network]),
       new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
-      None,
+      exchangeGeoMap = None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,

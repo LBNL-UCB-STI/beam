@@ -35,7 +35,7 @@ object RouteRequester extends BeamHelper {
     val manualArgs = Array[String]("--config", configPath)
     val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)
 
-    val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)._1
+    val r5Parameters: R5Parameters = R5Parameters.fromConfig(cfg)
     val router: CarGraphHopperWrapper = getCarGraphHopperWrapper(cfg, r5Parameters) // getUniversalODRouter(cfg) //
 
     def doRequest(originUTM: Location, destinationUTM: Location): RoutingResponse = {
