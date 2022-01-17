@@ -20,9 +20,11 @@ object ResidentialGeoParser {
 
   def parse(input: String): Try[String] = {
     val fromTo = input.substring(markerLength)
-    inputMapping.collectFirst {
-      case (prefix, length) if input.startsWith(prefix, length) =>
-        Success(fromTo.substring(0, length))
-    }.getOrElse(Failure(new IllegalStateException(s"Don't know how to handle GeoLevel'${fromTo}', input: '${input}'")))
+    inputMapping
+      .collectFirst {
+        case (prefix, length) if input.startsWith(prefix, length) =>
+          Success(fromTo.substring(0, length))
+      }
+      .getOrElse(Failure(new IllegalStateException(s"Don't know how to handle GeoLevel'${fromTo}', input: '${input}'")))
   }
 }
