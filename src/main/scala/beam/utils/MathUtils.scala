@@ -142,6 +142,15 @@ object MathUtils {
     Math.round(floor + addition)
   }
 
+  /**
+    *  clamps a value between an upper and lower bound
+    * @param v value
+    * @param lo lower bound
+    * @param up upper bound
+    * @return
+    */
+  def clamp(v: Double, lo: Double, up: Double): Double = Math.max(lo, Math.min(up, v))
+
   def formatBytes(v: Long): String = {
     if (v < 1024) return v + " B"
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10

@@ -1567,6 +1567,7 @@ object BeamConfig {
           fractionOfInitialVehicleFleet: scala.Double,
           fractionOfPeopleWithBicycle: scala.Double,
           fuelTypesFilePath: java.lang.String,
+          linkSocAcrossIterations: scala.Boolean,
           linkToGradePercentFilePath: java.lang.String,
           meanPrivateVehicleStartingSOC: scala.Double,
           meanRidehailVehicleStartingSOC: scala.Double,
@@ -1787,6 +1788,8 @@ object BeamConfig {
               fuelTypesFilePath =
                 if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
                 else "/test/input/beamville/beamFuelTypes.csv",
+              linkSocAcrossIterations =
+                c.hasPathOrNull("linkSocAcrossIterations") && c.getBoolean("linkSocAcrossIterations"),
               linkToGradePercentFilePath =
                 if (c.hasPathOrNull("linkToGradePercentFilePath")) c.getString("linkToGradePercentFilePath") else "",
               meanPrivateVehicleStartingSOC =

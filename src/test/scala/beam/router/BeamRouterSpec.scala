@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 /**
   * Specs for BeamRouter
