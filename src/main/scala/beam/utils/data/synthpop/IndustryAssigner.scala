@@ -15,12 +15,11 @@ class IndustryAssigner {}
 object IndustryAssigner {
 
   def main(args: Array[String]): Unit = {
-    require(args.length == 2, "Expected two args: 1) path to CTPP 2) Path to plans")
-    val pathToCTPP: String = args(0) // "d:/Work/beam/CTPP/"
-//    val pathToPlans: String = args(1) // "D:/Work/beam/NewYork/results_07-10-2020_22-13-14/plans.csv.gz"
-    val pathToPlans: String = args(
-      1
-    ) // "C:/repos/beam/test/input/newyork/generic_scenario/4040k-NY-related/plans.csv.gz"
+    require(args.length == 2, "Expected two args: 1) path to CTPP 2) Path to plans, like " +
+      "'d:/Work/beam/CTPP/'," +
+      "'/beam/test/input/newyork/generic_scenario/4040k-NY-related/plans.csv.gz' ")
+    val pathToCTPP: String = args(0)
+    val pathToPlans: String = args(1)
     val databaseInfo = CTPPDatabaseInfo(PathToData(pathToCTPP), Set("36", "34"))
 
     val odList = new IndustryTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`TAZ To TAZ`).read()

@@ -16,7 +16,7 @@ object R5MapStatsCalculator {
   def main(args: Array[String]): Unit = {
     require(
       args.length == 1,
-      "Expected path for OSM file" ///test/input/newyork/r5-prod/newyork-14-counties.osm.pbf
+      "Expected path for OSM file, like '//test/input/newyork/r5-prod/newyork-14-counties.osm.pbf'"
     )
     val pathToOsm = args(0)
     val minimumTagFrequencyToPrintTagOut = 1000

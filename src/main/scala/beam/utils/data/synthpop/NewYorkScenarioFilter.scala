@@ -19,10 +19,9 @@ object NewYorkScenarioFilter extends LazyLogging {
   def main(args: Array[String]): Unit = {
     require(
       args.length == 3,
-      "Expected input path and outputBase"
-      // /test/input/newyork/generic_scenario/10034k
-      // /test/input/newyork/generic_scenario/New"
-      // fips_codes.csv https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv
+      "Expected input path and outputBase, like '/test/input/newyork/generic_scenario/10034k'," +
+        "'/test/input/newyork/generic_scenario/New'," +
+        "'fips_codes.csv https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv'"
     )
 
     val output = OutputPath(args(1) + SimpleScenarioGenerator.getCurrentDateTime)
