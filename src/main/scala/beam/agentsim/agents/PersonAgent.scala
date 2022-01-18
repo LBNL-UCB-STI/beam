@@ -1012,11 +1012,10 @@ class PersonAgent(
 
         val tick = _currentTick.get
         val triggerId = _currentTriggerId.get
-        val needToFinishSequence = nextLeg.beamLeg.endTime > lastTickOfSimulation
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
           scheduler ! CompletionNotice(
             triggerId,
-            if (needToFinishSequence) Vector.empty
+            if (nextLeg.beamLeg.endTime > lastTickOfSimulation) Vector.empty
             else Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
           )
         }
@@ -1024,7 +1023,6 @@ class PersonAgent(
         // decide next state to go, whether we need to complete the trigger, start a leg or both
         val (stateToGo, updatedData) = {
           if (needEnroute) {
-            if (needToFinishSequence) scheduler ! CompletionNotice(triggerId)
             (ReadyToChooseParking, tempData.copy(enrouteData = tempData.enrouteData.copy(isInEnrouteState = true)))
           } else if (nextLeg.beamLeg.mode == CAR || vehicle.isSharedVehicle) {
             sendCompletionNoticeAndScheduleStartLegTrigger()
