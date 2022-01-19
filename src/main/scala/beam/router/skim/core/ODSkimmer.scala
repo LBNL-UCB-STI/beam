@@ -8,7 +8,7 @@ import beam.router.skim.{readonly, GeoUnit, Skims}
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
-import beam.utils.ProfilingUtils
+import beam.utils.{MathUtils, ProfilingUtils}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
@@ -111,30 +111,42 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
   ): AbstractSkimmerInternal = {
-    val prevSkim = prevObservation
-      .map(_.asInstanceOf[ODSkimmerInternal])
-      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 1, 0, observations = 0))
     val currSkim = currObservation.asInstanceOf[ODSkimmerInternal]
-    ODSkimmerInternal(
-      travelTimeInS =
-        (prevSkim.travelTimeInS * prevSkim.observations + currSkim.travelTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      generalizedTimeInS =
-        (prevSkim.generalizedTimeInS * prevSkim.observations + currSkim.generalizedTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      generalizedCost =
-        (prevSkim.generalizedCost * prevSkim.observations + currSkim.generalizedCost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      distanceInM =
-        (prevSkim.distanceInM * prevSkim.observations + currSkim.distanceInM * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      cost =
-        (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      energy =
-        (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      level4CavTravelTimeScalingFactor =
-        (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.observations + currSkim.level4CavTravelTimeScalingFactor * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
-      observations = prevSkim.observations + currSkim.observations,
+    prevObservation.asInstanceOf[Option[ODSkimmerInternal]] match {
+      case None => currSkim.copy(iterations = matsimServices.getIterationNumber + 1)
+      case Some(prevSkim) if currSkim.failedTrips > 0 =>
+        aggregateFailedOnly(skim = prevSkim, failedData = currSkim)
+      case Some(prevSkim) if MathUtils.doubleToInt(prevSkim.failedTrips) == prevSkim.observations =>
+        aggregateFailedOnly(skim = currSkim, failedData = prevSkim)
+      case Some(prevSkim) =>
+        ODSkimmerInternal(
+          travelTimeInS =
+            (prevSkim.travelTimeInS * prevSkim.observations + currSkim.travelTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          generalizedTimeInS =
+            (prevSkim.generalizedTimeInS * prevSkim.observations + currSkim.generalizedTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          generalizedCost =
+            (prevSkim.generalizedCost * prevSkim.observations + currSkim.generalizedCost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          distanceInM =
+            (prevSkim.distanceInM * prevSkim.observations + currSkim.distanceInM * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          cost =
+            (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          energy =
+            (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          level4CavTravelTimeScalingFactor =
+            (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.observations + currSkim.level4CavTravelTimeScalingFactor * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+          failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
+          observations = prevSkim.observations + currSkim.observations,
+          iterations = matsimServices.getIterationNumber + 1
+        )
+    }
+  }
+
+  private def aggregateFailedOnly(skim: ODSkimmerInternal, failedData: ODSkimmerInternal): ODSkimmerInternal =
+    skim.copy(
+      failedTrips = skim.failedTrips + failedData.failedTrips,
+      observations = skim.observations + failedData.observations,
       iterations = matsimServices.getIterationNumber + 1
     )
-  }
 
   // *****
   // Helpers
@@ -379,7 +391,7 @@ object ODSkimmer extends LazyLogging {
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        failedTrips = row("failedTrips").toInt,
+        failedTrips = row.get("failedTrips").map(_.toDouble).getOrElse(0.0),
         observations = row("observations").toInt,
         iterations = row("iterations").toInt
       )
@@ -394,7 +406,7 @@ object ODSkimmer extends LazyLogging {
     cost: Double,
     energy: Double,
     level4CavTravelTimeScalingFactor: Double,
-    failedTrips: Int,
+    failedTrips: Double,
     observations: Int = 1,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
@@ -436,7 +448,7 @@ object ODSkimmer extends LazyLogging {
     generalizedCost: Double = 0,
     distance: Double = 0,
     cost: Double = 0,
-    failedTrips: Int = 0,
+    failedTrips: Double = 0,
     count: Int = 0,
     energy: Double = 0,
     level4CavTravelTimeScalingFactor: Double = 1.0

@@ -20,6 +20,8 @@ object MathUtils {
     BigDecimal.decimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
+  def doubleToInt(value: Double): Int = Math.round(value).toInt
+
   /**
     * Calculates the median for the given collection of doubles
     * @param list the list of data

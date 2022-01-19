@@ -32,6 +32,9 @@ import org.matsim.core.utils.misc.Time
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import beam.agentsim.infrastructure.parking.GeoLevel
+import beam.router.skim.core.ODSkimmer
+import beam.router.skim.event.ODSkimmerFailedTripEvent
+import beam.router.skim.readonly.ODSkims
 import beam.router.{Modes, RoutingWorker}
 
 /**
@@ -1186,6 +1189,14 @@ trait ChoosesMode {
       ) ++ rideHail2TransitIinerary.toVector
       //      val test = createRideHail2TransitItin(rideHail2TransitAccessResult, rideHail2TransitEgressResult, routingResponse)
 
+      choosesModeData.personData.currentTourMode match {
+        case Some(mode) if mode.isTransit && !combinedItinerariesForChoice.exists(_.tripClassifier == mode) =>
+          eventsManager.processEvent(
+            createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, mode)
+          )
+        case _ =>
+      }
+
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
       ).filterNot(mode => choosesModeData.excludeModes.contains(mode))
@@ -1302,6 +1313,37 @@ trait ChoosesMode {
               )
           }
       }
+  }
+
+  private def createFailedTransitODSkimmerEvent(
+    originLocation: Location,
+    destinationLocation: Location,
+    mode: BeamMode
+  ): ODSkimmerFailedTripEvent = {
+    val skim: ODSkimmer.Skim = ODSkims.getSkimDefaultValue(
+      beamServices.beamConfig,
+      mode,
+      originLocation,
+      destinationLocation,
+      beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId),
+      0
+    )
+
+    val origTazId = beamScenario.tazTreeMap
+      .getTAZ(originLocation.getX, originLocation.getY)
+      .tazId
+    val destTazId = beamScenario.tazTreeMap
+      .getTAZ(destinationLocation.getX, destinationLocation.getY)
+      .tazId
+    ODSkimmerFailedTripEvent(
+      origin = origTazId.toString,
+      destination = destTazId.toString,
+      eventTime = _currentTick.get,
+      mode = mode,
+      skim,
+      beamServices.matsimServices.getIterationNumber,
+      skimName = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
+    )
   }
 
   private def allRequiredParkingResponsesReceived(

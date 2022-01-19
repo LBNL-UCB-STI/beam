@@ -1,11 +1,12 @@
 package beam.router.skim.event
 
 import beam.router.Modes
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.SkimsUtils
 import beam.router.skim.core.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
-import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey, ODSkimmer}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
 
@@ -106,6 +107,33 @@ object ODSkimmerEvent {
       ),
       origCoord,
       destCoord
+    )
+  }
+}
+
+case class ODSkimmerFailedTripEvent(
+  origin: String,
+  destination: String,
+  eventTime: Double,
+  mode: BeamMode,
+  skim: ODSkimmer.Skim,
+  iterationNumber: Int,
+  override val skimName: String
+) extends AbstractSkimmerEvent(eventTime) {
+
+  override def getKey: AbstractSkimmerKey =
+    ODSkimmerKey(SkimsUtils.timeToBin(Math.round(eventTime).toInt), mode, origin, destination)
+
+  override def getSkimmerInternal: AbstractSkimmerInternal = {
+    ODSkimmerInternal(
+      skim.time,
+      skim.generalizedTime,
+      skim.generalizedCost,
+      skim.distance,
+      skim.cost,
+      skim.energy,
+      skim.level4CavTravelTimeScalingFactor,
+      failedTrips = 1
     )
   }
 }

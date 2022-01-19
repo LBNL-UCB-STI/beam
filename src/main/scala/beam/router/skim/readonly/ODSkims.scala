@@ -34,38 +34,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     destinationUTM: Location,
     beamVehicleType: BeamVehicleType,
     fuelPrice: Double
-  ): Skim = {
-    val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
-    val votMultiplier: Double = mode match {
-      case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
-      case _   => 1.0
-    }
-    val travelCost: Double = mode match {
-      case CAR | CAV =>
-        DrivingCost.estimateDrivingCost(
-          travelDistance,
-          travelTime,
-          beamVehicleType,
-          fuelPrice
-        )
-      case RIDE_HAIL =>
-        beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
-      case RIDE_HAIL_POOLED =>
-        beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
-      case _                                                                         => 0.0
-    }
-    Skim(
-      travelTime,
-      travelTime * votMultiplier,
-      travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
-      travelDistance,
-      travelCost,
-      0,
-      0,
-      0.0 // TODO get default energy information
-    )
-  }
+  ): Skim = ODSkims.getSkimDefaultValue(beamConfig, mode, originUTM, destinationUTM, beamVehicleType, fuelPrice)
 
   def getRideHailPoolingTimeAndCostRatios(
     origin: Location,
@@ -250,6 +219,46 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
 }
 
 object ODSkims extends BeamHelper {
+
+  def getSkimDefaultValue(
+    beamConfig: BeamConfig,
+    mode: BeamMode,
+    originUTM: Location,
+    destinationUTM: Location,
+    beamVehicleType: BeamVehicleType,
+    fuelPrice: Double
+  ): Skim = {
+    val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
+    val votMultiplier: Double = mode match {
+      case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
+      case _   => 1.0
+    }
+    val travelCost: Double = mode match {
+      case CAR | CAV =>
+        DrivingCost.estimateDrivingCost(
+          travelDistance,
+          travelTime,
+          beamVehicleType,
+          fuelPrice
+        )
+      case RIDE_HAIL =>
+        beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
+      case RIDE_HAIL_POOLED =>
+        beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
+      case _                                                                         => 0.0
+    }
+    Skim(
+      travelTime,
+      travelTime * votMultiplier,
+      travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
+      travelDistance,
+      travelCost,
+      0,
+      0,
+      0.0 // TODO get default energy information
+    )
+  }
 
   def main(args: Array[String]): Unit = {
     val (_, config) = prepareConfig(args, true)
