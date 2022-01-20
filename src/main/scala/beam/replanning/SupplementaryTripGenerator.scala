@@ -14,15 +14,16 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.{List, Set}
-import scala.collection.mutable.{ListBuffer, Set}
+import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices,
-  val personId: Id[Person]
+  val personId: Id[Person],
+  val maybeFixedHourOfTripFromODSkims: Option[Int]
 ) {
   val r: Random.type = scala.util.Random
   val personSpecificSeed: Long = personId.hashCode().toLong
@@ -89,7 +90,7 @@ class SupplementaryTripGenerator(
     val tripAccumulator = ListBuffer.empty[Leg]
 
     elements.sliding(3).foreach {
-      case List(prev, curr, next) =>
+      case List(_, curr, next) =>
         if (curr.getType.equalsIgnoreCase("temp")) {
           anyChanges = true
           val (newActivities, newLegs) =
@@ -160,8 +161,8 @@ class SupplementaryTripGenerator(
     fillInModes: Boolean = false
   ): Leg = {
     if (fillInModes) {
-
-      val modeToTimeAndCost = getTazCost(nextActivity, prevActivity, availableModes, false)
+      val modeToTimeAndCost =
+        getTazCost(nextActivity, prevActivity, availableModes, bothDirections = false, maybeFixedHourOfTripFromODSkims)
       val alternativeToTimeAndCost = modeToTimeAndCost.map { case (mode, timesAndCost) =>
         val departureTime = prevActivity.getEndTime
         val arrivalTime = timesAndCost.accessTime + departureTime
@@ -323,7 +324,13 @@ class SupplementaryTripGenerator(
           additionalActivity.setStartTime(startTime)
           additionalActivity.setEndTime(endTime)
           val cost =
-            getTazCost(additionalActivity, alternativeActivity, modes)
+            getTazCost(
+              additionalActivity,
+              alternativeActivity,
+              modes,
+              bothDirections = true,
+              maybeFixedHourOfTripFromODSkims
+            )
           val alternative =
             DestinationChoiceModel.SupplementaryTripAlternative(
               taz,
@@ -360,13 +367,15 @@ class SupplementaryTripGenerator(
     additionalActivity: Activity,
     alternativeActivity: Activity,
     modes: collection.immutable.Set[BeamMode],
-    bothDirections: Boolean = true
+    bothDirections: Boolean = true,
+    maybeFixedHourOfTripFromODSkims: Option[Int] = None
   ): Map[BeamMode, DestinationChoiceModel.TimesAndCost] = {
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
     val activityDuration = additionalActivity.getEndTime - additionalActivity.getStartTime
-    val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime)
-    val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime)
+    val desiredDepartTimeBin =
+      maybeFixedHourOfTripFromODSkims.getOrElse(secondsToIndex(additionalActivity.getStartTime))
+    val desiredReturnTimeBin = maybeFixedHourOfTripFromODSkims.getOrElse(secondsToIndex(additionalActivity.getEndTime))
     val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
     val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
@@ -492,15 +501,22 @@ class SupplementaryTripGenerator(
     }
   }
 
-  private def generateTazChoiceSet(n: Int, coord: Coord): List[TAZ] = {
+  private def generateTazChoiceSet(
+    n: Int,
+    coord: Coord
+  ): List[TAZ] = {
     val maxDistance =
       beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_distance_meters
     val r_repeat = new scala.util.Random
+    val tazToChooseFrom: Seq[TAZ] = {
+      val sortedTazInRadius =
+        beamServices.beamScenario.tazTreeMap.getTAZInRadius(coord, maxDistance).asScala.toSeq.sortBy(_.tazId.toString)
+      sortedTazInRadius
+    }
+
     r_repeat.setSeed(personSpecificSeed)
     r_repeat
-      .shuffle(
-        beamServices.beamScenario.tazTreeMap.getTAZInRadius(coord, maxDistance).asScala.toSeq.sortBy(_.tazId.toString)
-      )
+      .shuffle(tazToChooseFrom)
       .take(n)
       .toList
   }

@@ -180,6 +180,16 @@ class BeamMobsim @Inject() (
   }
 
   private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
+    val maybeFixedHourOfTripFromODSkims: Option[Int] = {
+      val fixedHour =
+        beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fixed_trip_hour_from_skims_for_secondary_activity
+      if (fixedHour > 0) {
+        Some(fixedHour)
+      } else {
+        None
+      }
+    }
+
     households.getHouseholds.values.asScala.par.foreach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
@@ -225,7 +235,8 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId
+              person.getId,
+              maybeFixedHourOfTripFromODSkims
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(
