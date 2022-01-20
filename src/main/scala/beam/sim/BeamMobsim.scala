@@ -179,7 +179,7 @@ class BeamMobsim @Inject() (
   }
 
   private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
-    households.getHouseholds.values.forEach { household =>
+    households.getHouseholds.values.asScala.par.foreach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
       val persons = household.getMemberIds.asScala.collect { case personId =>
@@ -208,7 +208,7 @@ class BeamMobsim @Inject() (
 
       val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
-      persons.foreach { person =>
+      persons.par.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
           val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
           addSupplementaryTrips.run(person)
