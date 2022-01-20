@@ -65,7 +65,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       0.0 // TODO get default energy information
     )
     val maxSkims = Skim(Int.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue)
-    calculatedDefaultValue
+    maxSkims
   }
 
   def getRideHailPoolingTimeAndCostRatios(
