@@ -419,6 +419,8 @@ class BeamVehicle(
 
   def isEV: Boolean = isBEV || isPHEV
 
+  def getStateOfCharge: Double = primaryFuelLevelInJoules / beamVehicleType.primaryFuelCapacityInJoule
+
   /**
     * Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
     *

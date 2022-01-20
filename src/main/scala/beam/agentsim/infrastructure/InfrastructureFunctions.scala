@@ -73,7 +73,12 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     * @param geoArea GEO
     * @return
     */
-  protected def sampleParkingStallLocation(inquiry: ParkingInquiry, parkingZone: ParkingZone[GEO], geoArea: GEO): Coord
+  protected def sampleParkingStallLocation(
+    inquiry: ParkingInquiry,
+    parkingZone: ParkingZone[GEO],
+    geoArea: GEO,
+    inClosestZone: Boolean = false
+  ): Coord
 
   // ************
 
@@ -124,6 +129,17 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         inquiry.originUtm.orElse(inquiry.beamVehicle.map(_.spaceTime)).map(_.loc)
       )
 
+    val closestZone =
+      Option(
+        parkingZoneSearchParams.zoneQuadTree
+          .getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY)
+      )
+
+    val closestZoneId = closestZone match {
+      case Some(foundZone) => GeoLevel[GEO].getId(foundZone)
+      case _               => GeoLevel[GEO].emergencyGeoId
+    }
+
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
     val parkingZoneFilterFunction: ParkingZone[GEO] => Boolean =
@@ -141,7 +157,9 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
               s"somehow have a ParkingZone with geoId ${zone.geoId} which is not found in the idToGeoMapping"
             )
             new Coord()
-          case Some(taz) => sampleParkingStallLocation(inquiry, zone, taz)
+          case Some(taz) =>
+            val inClosestZone = closestZoneId == zone.geoId
+            sampleParkingStallLocation(inquiry, zone, taz, inClosestZone)
         }
       }
 

@@ -21,28 +21,33 @@ object BeamVehicleUtils {
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
     randomSeed: Long,
     vehicleManagerId: Id[VehicleManager]
-  ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
+  ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
 
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) { case (line, acc) =>
-      val vehicleIdString = line.get("vehicleId")
-      val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
+    readCsvFileByLine(filePath, (Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
+      case (line, (vehicleAcc, socAcc)) =>
+        val vehicleIdString = line.get("vehicleId")
+        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
-      val vehicleTypeIdString = line.get("vehicleTypeId")
-      val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
+        val vehicleTypeIdString = line.get("vehicleTypeId")
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-      val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-      val beamVehicle =
-        new BeamVehicle(
-          vehicleId,
-          powerTrain,
-          vehicleType,
-          new AtomicReference(vehicleManagerId),
-          randomSeed = rand.nextInt
+        val beamVehicle =
+          new BeamVehicle(
+            vehicleId,
+            powerTrain,
+            vehicleType,
+            new AtomicReference(vehicleManagerId),
+            randomSeed = rand.nextInt
+          )
+
+        val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).getOrElse("")
+        (
+          vehicleAcc + (vehicleId -> beamVehicle),
+          if (initialSocStr.isEmpty) socAcc else socAcc + (vehicleId -> initialSocStr.toDouble)
         )
-      acc += ((vehicleId, beamVehicle))
-      acc
     }
   }
 
