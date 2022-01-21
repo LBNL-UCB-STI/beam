@@ -26,6 +26,7 @@ case class RideHailRequest(
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
+  def thisRequestWithGroupedRequests: List[RideHailRequest] = this :: groupedWithOtherRequests
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
 

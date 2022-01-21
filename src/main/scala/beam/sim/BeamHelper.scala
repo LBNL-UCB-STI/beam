@@ -19,7 +19,7 @@ import beam.router._
 import beam.router.gtfs.{FareCalculator, GTFSUtils}
 import beam.router.osm.TollCalculator
 import beam.router.r5._
-import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
+import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, RideHailSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
 import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
@@ -249,6 +249,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TAZSkimmer]).asEagerSingleton()
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
+          bind(classOf[RideHailSkimmer]).asEagerSingleton()
           bind(classOf[ActivitySimSkimmer]).asEagerSingleton()
           bind(classOf[Skims]).asEagerSingleton()
 

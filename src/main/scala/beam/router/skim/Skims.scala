@@ -8,10 +8,11 @@ import beam.router.skim.core.{
   AbstractSkimmerReadOnly,
   DriveTimeSkimmer,
   ODSkimmer,
+  RideHailSkimmer,
   TAZSkimmer,
   TransitCrowdingSkimmer
 }
-import beam.router.skim.readonly.{DriveTimeSkims, ODSkims, TAZSkims, TransitCrowdingSkims}
+import beam.router.skim.readonly.{DriveTimeSkims, ODSkims, RideHailSkims, TAZSkims, TransitCrowdingSkims}
 import beam.sim.config.BeamConfig.Beam.Router
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -25,6 +26,7 @@ class Skims @Inject() (
   tazSkimmer: TAZSkimmer,
   driveTimeSkimmer: DriveTimeSkimmer,
   transitCrowdingSkimmer: TransitCrowdingSkimmer,
+  rideHaileSkimmer: RideHailSkimmer,
   asSkimmer: ActivitySimSkimmer
 ) extends LazyLogging {
 
@@ -33,12 +35,14 @@ class Skims @Inject() (
   lazy val taz_skimmer: TAZSkims = lookup(SkimType.TAZ_SKIMMER).asInstanceOf[TAZSkims]
   lazy val dt_skimmer: DriveTimeSkims = lookup(SkimType.DT_SKIMMER).asInstanceOf[DriveTimeSkims]
   lazy val tc_skimmer: TransitCrowdingSkims = lookup(SkimType.TC_SKIMMER).asInstanceOf[TransitCrowdingSkims]
+  lazy val rh_skimmer: RideHailSkims = lookup(SkimType.RH_SKIMMER).asInstanceOf[RideHailSkims]
 
   private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
   skims.put(SkimType.OD_SKIMMER, addEvent(odSkimmer))
   skims.put(SkimType.TAZ_SKIMMER, addEvent(tazSkimmer))
   skims.put(SkimType.DT_SKIMMER, addEvent(driveTimeSkimmer))
   skims.put(SkimType.TC_SKIMMER, addEvent(transitCrowdingSkimmer))
+  skims.put(SkimType.RH_SKIMMER, addEvent(rideHaileSkimmer))
   skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
 
   private def addEvent(skimmer: AbstractSkimmer): AbstractSkimmer = {
@@ -59,6 +63,7 @@ object Skims {
     val TAZ_SKIMMER: skim.Skims.SkimType.Value = Value("taz-skimmer")
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
+    val RH_SKIMMER: skim.Skims.SkimType.Value = Value("ridehail-skimmer")
     val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
   }
 
@@ -66,6 +71,7 @@ object Skims {
     SkimType.OD_SKIMMER  -> skimCfg.origin_destination_skimmer.fileBaseName,
     SkimType.TAZ_SKIMMER -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER  -> skimCfg.drive_time_skimmer.fileBaseName,
+    SkimType.RH_SKIMMER  -> RideHailSkimmer.fileBaseName,
     SkimType.TC_SKIMMER  -> skimCfg.transit_crowding_skimmer.fileBaseName
   )
 
