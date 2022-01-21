@@ -2,7 +2,7 @@ package beam.utils.map
 
 import com.conveyal.osmlib.{OSM, Way}
 import com.conveyal.r5.point_to_point.builder.TNBuilderConfig
-import com.conveyal.r5.streets.EdgeStore
+import com.conveyal.r5.streets.{EdgeStore, StreetLayer}
 import com.conveyal.r5.streets.EdgeStore.EdgeFlag
 import com.conveyal.r5.transit.TransportNetwork
 
@@ -16,8 +16,10 @@ object R5MapStatsCalculator {
     // LoggerFactory.getLogger("com.conveyal").asInstanceOf[Logger].setLevel(Level.INFO)
     val pathToOsm = args(0)
     val minimumTagFrequencyToPrintTagOut = 1000
+    // TODO use `beamConfig.beam.routing.r5.linkRadiusMeters`
+    val linkRadiusMeters = StreetLayer.LINK_RADIUS_METERS
 
-    analyzeR5Map(pathToOsm)
+    analyzeR5Map(pathToOsm, linkRadiusMeters)
     analyzeOSMMap(pathToOsm, minTagFrequency = minimumTagFrequencyToPrintTagOut)
   }
 
@@ -143,14 +145,15 @@ object R5MapStatsCalculator {
     }
   }
 
-  private def analyzeR5Map(pathToOsm: String): Unit = {
+  private def analyzeR5Map(pathToOsm: String, linkRadiusMeters: Double): Unit = {
     println(s"OSM file: $pathToOsm")
     val tn = TransportNetwork.fromFiles(
       pathToOsm,
       new util.ArrayList[String](),
       TNBuilderConfig.defaultConfig,
       true,
-      false
+      false,
+      linkRadiusMeters
     )
     val cursor = tn.streetLayer.edgeStore.getCursor
     val it = new Iterator[EdgeStore#Edge] {

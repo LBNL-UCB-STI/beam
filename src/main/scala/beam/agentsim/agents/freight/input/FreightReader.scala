@@ -164,7 +164,7 @@ object FreightReader {
     val config = beamConfig.beam.agentsim.agents.freight
     beamConfig.beam.agentsim.agents.freight.reader match {
       case "NREL" =>
-        new NRELFreightReader(config, geoUtils, rand, streetLayer)
+        new NRELFreightReader(config, geoUtils, rand, streetLayer, beamConfig)
       case "Generic" =>
         new GenericFreightReader(config, geoUtils, rand, tazMap)
       case s =>

@@ -3,6 +3,7 @@ package beam.agentsim.agents.freight.input
 import beam.agentsim.agents.freight._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -14,8 +15,13 @@ import org.matsim.households.Household
 
 import scala.util.Random
 
-class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random, streetLayer: StreetLayer)
-    extends LazyLogging
+class NRELFreightReader(
+  val config: Freight,
+  val geoUtils: GeoUtils,
+  rnd: Random,
+  streetLayer: StreetLayer,
+  val beamConfig: BeamConfig
+) extends LazyLogging
     with FreightReader {
 
   val freightIdPrefix = "freight"
@@ -30,7 +36,7 @@ class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random
 
   private def findClosestUTMPointOnMap(utmCoord: Coord): Option[Coord] = {
     val wsgCoord = geoUtils.utm2Wgs(utmCoord)
-    val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord)
+    val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, beamConfig.beam.routing.r5.linkRadiusMeters)
     if (theSplit == null) {
       None
     } else {
