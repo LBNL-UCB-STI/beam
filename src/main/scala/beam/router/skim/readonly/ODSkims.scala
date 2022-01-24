@@ -37,9 +37,11 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     mode: BeamMode,
     result: String
   ) = {
-    skimsDebugCalculation.append(
-      Seq(origin.toString, destination.toString, departureTime.toString, mode.toString, result)
-    )
+    synchronized {
+      skimsDebugCalculation.append(
+        Seq(origin.toString, destination.toString, departureTime.toString, mode.toString, result)
+      )
+    }
   }
 
   def getSkimDefaultValue(
