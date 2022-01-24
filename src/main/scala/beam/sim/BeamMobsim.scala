@@ -259,7 +259,8 @@ class BeamMobsim @Inject() (
     }
     logger.info("Done filling in secondary trips in plans")
     val csvWriter = new CsvWriter(
-      "GenerationOfSecondaryActivities-ODSkimsUsage.csv.gz",
+      beamServices.matsimServices.getControlerIO
+        .getOutputFilename("GenerationOfSecondaryActivities-ODSkimsUsage.csv.gz"),
       "origin,destination,departureTime,mode,result"
     )
     beamServices.skims.od_skimmer.skimsDebugCalculation.foreach(entry => csvWriter.write(entry))
