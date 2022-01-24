@@ -199,8 +199,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    // TODO change to valid dep (this is for testing)
-    implementation(group: 'com.conveyal', name: 'r5', version: '4.5.4-SNAPSHOT-linkRadiusMeters') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.5.3_linkRadiusMeters') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
