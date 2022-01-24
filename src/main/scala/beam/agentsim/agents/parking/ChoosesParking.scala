@@ -9,20 +9,27 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleCategory, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrentType}
+import beam.agentsim.infrastructure.parking.PricingModel
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.core.ParkingSkimmer.ChargerType
+import beam.router.skim.event.ParkingSkimmerEvent
 import beam.sim.common.GeoUtils
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import org.matsim.core.api.experimental.events.EventsManager
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -35,13 +42,16 @@ object ChoosesParking {
   case object ReleasingParkingSpot extends BeamAgentState
   case object ReleasingChargingPoint extends BeamAgentState
   case object ConnectingToChargingPoint extends BeamAgentState
+  private val logger = LoggerFactory.getLogger(this.getClass)
 
   def handleUseParkingSpot(
     tick: Int,
     currentBeamVehicle: BeamVehicle,
     driver: Id[_],
     geo: GeoUtils,
-    eventsManager: EventsManager
+    eventsManager: EventsManager,
+    tazTreeMap: TAZTreeMap,
+    restOfTrip: Option[List[EmbodiedBeamLeg]]
   ): Unit = {
     currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
       currentBeamVehicle.useParkingStall(stall)
@@ -53,6 +63,37 @@ object ChoosesParking {
         driverId = driver.toString
       )
       eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
+      if (currentBeamVehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car && restOfTrip.isDefined) {
+        val legs = restOfTrip.get
+        if (legs.size >= 2 && legs(0).beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
+          val walkLeg = legs(1)
+          val tazId = tazTreeMap.getTAZ(walkLeg.beamLeg.travelPath.endPoint.loc).tazId
+          val chargerType = stall.chargingPointType match {
+            case Some(chargingType)
+                if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
+              ChargerType.DCFastCharger
+            case Some(_) => ChargerType.ACSlowCharger
+            case None    => ChargerType.NoCharger
+          }
+          val parkingCostPerHour = stall.pricingModel
+            .map {
+              case PricingModel.FlatFee(costInDollars)                => costInDollars
+              case PricingModel.Block(costInDollars, intervalSeconds) => costInDollars / intervalSeconds * 3600
+            }
+            .getOrElse(stall.costInDollars)
+          eventsManager.processEvent(
+            new ParkingSkimmerEvent(
+              tick,
+              tazId,
+              chargerType,
+              walkLeg.beamLeg.travelPath.distanceInM,
+              parkingCostPerHour
+            )
+          )
+        } else {
+          logger.error("Cannot create parking skimmmer event with this rest of trip: {}", legs)
+        }
+      }
     }
     currentBeamVehicle.setReservedParkingStall(None)
   }
@@ -128,7 +169,11 @@ trait ChoosesParking extends {
   when(ConnectingToChargingPoint) {
     case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
-      handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
+      val restOfTrip: Option[List[EmbodiedBeamLeg]] = data match {
+        case personData: BasePersonData => Some(personData.restOfCurrentTrip)
+        case _                          => None
+      }
+      handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, restOfTrip)
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
     case _ @Event(WaitingToCharge(tick, vehicleId, triggerId), data) =>

@@ -50,33 +50,22 @@ class RideHailSkimmer @Inject() (
   override protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
     currIteration: Option[AbstractSkimmerInternal]
-  ): AbstractSkimmerInternal = {
-    val maybePrevSkim = prevIteration.map(_.asInstanceOf[RidehailSkimmerInternal])
-    val maybeCurrSkim = currIteration.map(_.asInstanceOf[RidehailSkimmerInternal])
-    (maybePrevSkim, maybeCurrSkim) match {
-      case (Some(prevSkim), None) => prevSkim
-      case (None, Some(currSkim)) => currSkim
-      case (None, None)           => throw new IllegalArgumentException("Cannot aggregate nothing")
-      case (Some(prevSkim), Some(currSkim)) =>
-        val agg = new Aggregator(prevSkim, currSkim, prevSkim.iterations, currSkim.iterations)
-        RidehailSkimmerInternal(
-          waitTime = agg.aggregate(_.waitTime),
-          costPerMile = agg.aggregate(_.costPerMile),
-          unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
-          observations = agg.aggregate(_.observations),
-          iterations = agg.aggregateObservations
-        )
+  ): AbstractSkimmerInternal =
+    AbstractSkimmer.aggregateOverIterations[RidehailSkimmerInternal](prevIteration, currIteration) { agg =>
+      RidehailSkimmerInternal(
+        waitTime = agg.aggregate(_.waitTime),
+        costPerMile = agg.aggregate(_.costPerMile),
+        unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
+        observations = agg.aggregate(_.observations),
+        iterations = agg.aggregateObservations
+      )
     }
-  }
 
   override protected def aggregateWithinIteration(
     prevObservation: Option[AbstractSkimmerInternal],
     currObservation: AbstractSkimmerInternal
-  ): AbstractSkimmerInternal = {
-    val maybePrevSkim = prevObservation.asInstanceOf[Option[RidehailSkimmerInternal]]
-    maybePrevSkim.fold(currObservation) { prevSkim =>
-      val currSkim = currObservation.asInstanceOf[RidehailSkimmerInternal]
-      val agg = new Aggregator(prevSkim, currSkim, prevSkim.observations, currSkim.observations)
+  ): AbstractSkimmerInternal =
+    AbstractSkimmer.aggregateWithinIteration[RidehailSkimmerInternal](prevObservation, currObservation) { agg =>
       RidehailSkimmerInternal(
         waitTime = agg.aggregate(_.waitTime),
         costPerMile = agg.aggregate(_.costPerMile),
@@ -84,7 +73,6 @@ class RideHailSkimmer @Inject() (
         observations = agg.aggregateObservations
       )
     }
-  }
 }
 
 object RideHailSkimmer extends LazyLogging {
@@ -103,7 +91,7 @@ object RideHailSkimmer extends LazyLogging {
     observations: Int = 1,
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
-    override def toCsv: String = productIterator.mkString(",")
+    override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }
 
 }
