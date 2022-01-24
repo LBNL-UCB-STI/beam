@@ -27,6 +27,7 @@ import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
 import beam.utils._
+import beam.utils.csv.CsvWriter
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -257,6 +258,13 @@ class BeamMobsim @Inject() (
 
     }
     logger.info("Done filling in secondary trips in plans")
+    val csvWriter = new CsvWriter(
+      "GenerationOfSecondaryActivities-ODSkimsUsage.csv.gz",
+      "origin,destination,departureTime,mode,result"
+    )
+    beamServices.skims.od_skimmer.skimsDebugCalculation.foreach(entry => csvWriter.write(entry))
+    csvWriter.close()
+    logger.info("Skims usage debugging done")
   }
 
   private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {

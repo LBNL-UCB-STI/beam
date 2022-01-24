@@ -6,17 +6,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE_TRANSIT,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE_TRANSIT, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
@@ -27,6 +17,9 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.immutable
 
 case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+
+  val skimsDebugCalculation =
+    scala.collection.mutable.ListBuffer.empty[String]
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -66,14 +59,11 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     )
     val maxSkims = Skim(Int.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue)
 
-    val skimsLogKey = s"ODSKIMS for '$originUTM', '$destinationUTM', '$mode', '$beamVehicleType', '$fuelPrice'"
     if (
       beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.return_max_skims_instead_of_calculated_for_missing_OD_pairs
     ) {
-      logger.info(s"$skimsLogKey, MaxSkimsForMissingOD, '$maxSkims'")
       maxSkims
     } else {
-      logger.info(s"$skimsLogKey, CalculatedSkimsForMissingOD, '$maxSkims'")
       calculatedDefaultValue
     }
   }
@@ -154,18 +144,24 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     )
-    val skimsLogKey = s"ODSKIMS for '$originUTM', '$destinationUTM', '$mode', '$vehicleType', '$fuelPrice'"
     getSkimValue(departureTime, mode, origTaz, destTaz) match {
       case Some(skimValue) =>
         beamScenario.vehicleTypes.get(vehicleTypeId) match {
           case Some(vehicleType) if vehicleType.automationLevel == 4 =>
-            logger.info(s"$skimsLogKey, SkimExternalForLevel4CAV, '${skimValue.toSkimExternalForLevel4CAV}'")
+            skimsDebugCalculation.append(s"$origTaz,$destTaz,$departureTime,$mode,Found - SkimExternalForLevel4CAV")
             skimValue.toSkimExternalForLevel4CAV
           case _ =>
-            logger.info(s"$skimsLogKey, SkimExternal, '${skimValue.toSkimExternal}'")
+            skimsDebugCalculation.append(s"$origTaz,$destTaz,$departureTime,$mode,Found - SkimExternal")
             skimValue.toSkimExternal
         }
       case None =>
+        if (
+          beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.return_max_skims_instead_of_calculated_for_missing_OD_pairs
+        ) {
+          skimsDebugCalculation.append(s"$origTaz,$destTaz,$departureTime,$mode,NotFound - MAX Skims")
+        } else {
+          skimsDebugCalculation.append(s"$origTaz,$destTaz,$departureTime,$mode,NotFound - Defaulc Calculateds Skims")
+        }
         getSkimDefaultValue(
           mode,
           originUTM,
