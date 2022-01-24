@@ -65,7 +65,17 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       0.0 // TODO get default energy information
     )
     val maxSkims = Skim(Int.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue, Double.MaxValue)
-    maxSkims
+
+    val skimsLogKey = s"ODSKIMS for '$originUTM', '$destinationUTM', '$mode', '$beamVehicleType', '$fuelPrice'"
+    if (
+      beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.return_max_skims_instead_of_calculated_for_missing_OD_pairs
+    ) {
+      logger.info(s"$skimsLogKey, MaxSkimsForMissingOD, '$maxSkims'")
+      maxSkims
+    } else {
+      logger.info(s"$skimsLogKey, CalculatedSkimsForMissingOD, '$maxSkims'")
+      calculatedDefaultValue
+    }
   }
 
   def getRideHailPoolingTimeAndCostRatios(
@@ -144,12 +154,15 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
     val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     )
+    val skimsLogKey = s"ODSKIMS for '$originUTM', '$destinationUTM', '$mode', '$vehicleType', '$fuelPrice'"
     getSkimValue(departureTime, mode, origTaz, destTaz) match {
       case Some(skimValue) =>
         beamScenario.vehicleTypes.get(vehicleTypeId) match {
           case Some(vehicleType) if vehicleType.automationLevel == 4 =>
+            logger.info(s"$skimsLogKey, SkimExternalForLevel4CAV, '${skimValue.toSkimExternalForLevel4CAV}'")
             skimValue.toSkimExternalForLevel4CAV
           case _ =>
+            logger.info(s"$skimsLogKey, SkimExternal, '${skimValue.toSkimExternal}'")
             skimValue.toSkimExternal
         }
       case None =>

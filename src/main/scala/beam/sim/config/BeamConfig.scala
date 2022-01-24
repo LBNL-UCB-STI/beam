@@ -1509,6 +1509,7 @@ object BeamConfig {
             max_destination_choice_set_size: scala.Int,
             max_destination_distance_meters: scala.Double,
             mode_nest_scale_factor: scala.Double,
+            return_max_skims_instead_of_calculated_for_missing_OD_pairs: scala.Boolean,
             trip_nest_scale_factor: scala.Double
           )
 
@@ -1541,6 +1542,9 @@ object BeamConfig {
                   else 32000,
                 mode_nest_scale_factor =
                   if (c.hasPathOrNull("mode_nest_scale_factor")) c.getDouble("mode_nest_scale_factor") else 1.0,
+                return_max_skims_instead_of_calculated_for_missing_OD_pairs = c.hasPathOrNull(
+                  "return_max_skims_instead_of_calculated_for_missing_OD_pairs"
+                ) && c.getBoolean("return_max_skims_instead_of_calculated_for_missing_OD_pairs"),
                 trip_nest_scale_factor =
                   if (c.hasPathOrNull("trip_nest_scale_factor")) c.getDouble("trip_nest_scale_factor") else 1.0
               )
