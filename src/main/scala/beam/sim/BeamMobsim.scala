@@ -261,11 +261,11 @@ class BeamMobsim @Inject() (
     val csvWriter = new CsvWriter(
       beamServices.matsimServices.getControlerIO
         .getOutputFilename("GenerationOfSecondaryActivities-ODSkimsUsage.csv.gz"),
-      "origin,destination,departureTime,mode,result"
+    "origin,destination,departureTime,mode,result"
     )
-    beamServices.skims.od_skimmer.skimsDebugCalculation.foreach(entry => csvWriter.write(entry))
+    beamServices.skims.od_skimmer.skimsDebugCalculation.foreach(entry => csvWriter.writeRow(entry))
     csvWriter.close()
-    logger.info("Skims usage debugging done")
+    logger.info(s"Skims usage debugging written ${beamServices.skims.od_skimmer.skimsDebugCalculation.length} rows out.")
   }
 
   private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {
