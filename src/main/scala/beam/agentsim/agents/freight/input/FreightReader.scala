@@ -163,10 +163,8 @@ object FreightReader {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val config = beamConfig.beam.agentsim.agents.freight
     beamConfig.beam.agentsim.agents.freight.reader match {
-      case "NREL" =>
-        new NRELFreightReader(config, geoUtils, rand, streetLayer)
       case "Generic" =>
-        new GenericFreightReader(config, geoUtils, rand, tazMap)
+        new GenericFreightReader(config, geoUtils, rand, tazMap, Some(streetLayer))
       case s =>
         throw new RuntimeException(s"Unknown freight reader $s")
     }
