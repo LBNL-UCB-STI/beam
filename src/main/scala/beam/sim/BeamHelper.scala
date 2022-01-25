@@ -312,10 +312,12 @@ trait BeamHelper extends LazyLogging {
       logger.info(s"Following activities will have fixed durations: ${fixedActivitiesDurations.mkString(",")}")
     }
 
+    val (privateVehicleMap, privateVehicleSoc) = readPrivateVehicles(beamConfig, vehicleTypes)
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
-      readPrivateVehicles(beamConfig, vehicleTypes),
+      privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
+      privateVehicleSoc,
       new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
       beamConfig,
       dates,
@@ -381,18 +383,19 @@ trait BeamHelper extends LazyLogging {
   def readPrivateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
-  ): TrieMap[Id[BeamVehicle], BeamVehicle] =
+  ): (TrieMap[Id[BeamVehicle], BeamVehicle], TrieMap[Id[BeamVehicle], Double]) =
     if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
-      TrieMap[Id[BeamVehicle], BeamVehicle]()
+      TrieMap.empty[Id[BeamVehicle], BeamVehicle] -> TrieMap.empty[Id[BeamVehicle], Double]
     } else {
-      TrieMap(
-        readVehiclesFile(
-          beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
-          vehicleTypes,
-          beamConfig.matsim.modules.global.randomSeed,
-          VehicleManager.AnyManager.managerId
-        ).toSeq: _*
+      val (vehicleIdToVehicle, vehicleIdToSoc) = readVehiclesFile(
+        beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
+        vehicleTypes,
+        beamConfig.matsim.modules.global.randomSeed,
+        VehicleManager.AnyManager.managerId
       )
+      TrieMap(
+        vehicleIdToVehicle.toSeq: _*
+      ) -> TrieMap(vehicleIdToSoc.toSeq: _*)
     }
 
   // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo

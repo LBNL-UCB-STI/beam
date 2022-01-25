@@ -1,16 +1,14 @@
 package beam.router.skim
 
-import java.io.{BufferedReader, File}
-import java.util
-
 import beam.router.skim.core.{AbstractSkimmerInternal, AbstractSkimmerKey}
 import com.typesafe.scalalogging.Logger
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.core.utils.io.IOUtils
 
+import java.io.{BufferedReader, File}
+import java.util
 import scala.collection.JavaConverters._
-import scala.collection.immutable
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -46,7 +44,7 @@ class CsvSkimReader(
 
   def readSkims(reader: BufferedReader): Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
     tryReadSkims(reader).recover { case ex: Throwable =>
-      logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}")
+      logger.warn(s"Could not read warmStart skim from '$aggregatedSkimsFilePath'", ex)
       Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
     }.get
   }
@@ -59,14 +57,14 @@ class CsvSkimReader(
         csvParser.getRecordMetadata.headers()
       }
       val mapReader = csvParser.iterateRecords(reader).asScala
-      val res = mapReader
+      val res: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mapReader
         .map(rec => {
           val a = convertRecordToMap(rec, headers)
           val newPair = fromCsv(a)
           newPair
         })
         .toMap
-      logger.info(s"warmStart skim successfully loaded from path '$aggregatedSkimsFilePath'")
+      logger.info(s"warmStart skim (${res.size} map size) successfully loaded from path '$aggregatedSkimsFilePath'")
       res
     }
     Try(csvParser.stopParsing())
