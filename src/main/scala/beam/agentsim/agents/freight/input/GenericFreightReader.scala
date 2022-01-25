@@ -38,10 +38,10 @@ class GenericFreightReader(
     }
   }
 
-  private def findClosestUTMPointOnMap(utmCoord: Coord): Option[Coord] = {
+  private def findClosestUTMPointOnMap(wsgCoord: Coord): Option[Coord] = {
     streetLayerMaybe match {
       case Some(streetLayer) =>
-        val wsgCoord = geoUtils.utm2Wgs(utmCoord)
+        //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
         val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord)
         if (theSplit == null) {
           None
@@ -50,7 +50,9 @@ class GenericFreightReader(
           val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
           Some(utmCoord)
         }
-      case _ => Some(utmCoord)
+      case _ =>
+        Some(geoUtils.wgs2Utm(wsgCoord))
+      // Some(utmCoord)
     }
   }
 
@@ -260,16 +262,7 @@ class GenericFreightReader(
     if (checkNullOrEmpty(strX) || checkNullOrEmpty(strY)) {
       val taz = getTaz(strZone)
       (Some(taz.tazId), Some(getDistributedTazLocation(taz)))
-    } else {
-      val loc = location(strX.toDouble, strY.toDouble)
-      val locOnMap = findClosestUTMPointOnMap(loc) orElse {
-        logger.error(
-          f"Following freight tour row discarded because departure location is not reachable: X=$strX,Y=$strY"
-        )
-        None
-      }
-      (None, locOnMap)
-    }
+    } else (None, findClosestUTMPointOnMap(location(strX.toDouble, strY.toDouble)))
   }
 
   @Override
