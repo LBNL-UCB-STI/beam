@@ -20,7 +20,7 @@ class NRELFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   streetLayer: StreetLayer,
-  val beamConfig: BeamConfig
+  val r5LinkRadiusMeters: Double
 ) extends LazyLogging
     with FreightReader {
 
@@ -36,7 +36,7 @@ class NRELFreightReader(
 
   private def findClosestUTMPointOnMap(utmCoord: Coord): Option[Coord] = {
     val wsgCoord = geoUtils.utm2Wgs(utmCoord)
-    val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, beamConfig.beam.routing.r5.linkRadiusMeters)
+    val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
     if (theSplit == null) {
       None
     } else {
