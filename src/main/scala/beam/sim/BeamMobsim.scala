@@ -260,22 +260,22 @@ class BeamMobsim @Inject() (
     }
     logger.info("Done filling in secondary trips in plans")
 
-    def writeDebugCSV(): File = {
-      val outputFile = beamServices.matsimServices.getControlerIO.getOutputFilename(
-        "GenerationOfSecondaryActivities-ODSkimsUsage.csv"
-      )
-      val header = Iterator(beamServices.skims.od_skimmer.skimsDebugCalculationHeader, LineSeparator)
-      val data = beamServices.skims.od_skimmer.skimsDebugCalculation
-        .map(_.mkString("", FieldSeparator, LineSeparator))
-        .toArray
-      val content = header ++ data
-      FileUtils.writeToFile(outputFile, content)
-      val f = new File(outputFile)
-      logger.info(
-        s"Skims usage debugging written ${data.length} rows out."
-      )
-      f
-    }
+//    def writeDebugCSV(): File = {
+//      val outputFile = beamServices.matsimServices.getControlerIO.getOutputFilename(
+//        "GenerationOfSecondaryActivities-ODSkimsUsage.csv"
+//      )
+//      val header = Iterator(beamServices.skims.od_skimmer.skimsDebugCalculationHeader, LineSeparator)
+//      val data = beamServices.skims.od_skimmer.skimsDebugCalculation
+//        .map(_.mkString("", FieldSeparator, LineSeparator))
+//        .toArray
+//      val content = header ++ data
+//      FileUtils.writeToFile(outputFile, content)
+//      val f = new File(outputFile)
+//      logger.info(
+//        s"Skims usage debugging written ${data.length} rows out."
+//      )
+//      f
+//    }
 //    writeDebugCSV()
   }
 
