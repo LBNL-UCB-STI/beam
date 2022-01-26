@@ -8,6 +8,7 @@ import beam.router.skim.CsvSkimReader
 import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
+import com.google.common.math.IntMath
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -16,7 +17,9 @@ import org.matsim.core.controler.listener.{IterationEndsListener, IterationStart
 import org.matsim.core.events.handler.BasicEventHandler
 
 import java.io.BufferedWriter
+import java.math.RoundingMode
 import java.nio.file.Paths
+import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable
 import scala.collection.JavaConverters._
@@ -157,12 +160,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
       case e: AbstractSkimmerEvent if e.getEventType == eventType =>
         currentSkimInternal.compute(
           e.getKey,
-          (_, v) => {
-            val value =
-              if (v == null) aggregateWithinIteration(None, e.getSkimmerInternal)
-              else aggregateWithinIteration(Some(v), e.getSkimmerInternal)
-            value
-          }
+          (_, v) => aggregateWithinIteration(Option(v), e.getSkimmerInternal)
         )
       case _ =>
     }
@@ -222,4 +220,67 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
 object AbstractSkimmer {
   val AGG_SUFFIX = "_Aggregated.csv.gz"
+
+  class Aggregator[T](val a: T, val b: T, val aObservations: Int, val bObservations: Int) {
+
+    def aggregate(extractValue: T => Double): Double =
+      AbstractSkimmer.aggregate(extractValue(a), extractValue(b), aObservations, bObservations)
+
+    def aggregate(extractValue: T => Int): Int =
+      IntMath.divide(
+        extractValue(a) * aObservations + extractValue(b) * bObservations,
+        aggregateObservations,
+        RoundingMode.HALF_UP
+      )
+
+    val aggregateObservations: Int = aObservations + bObservations
+  }
+
+  def aggregate(a: Double, b: Double, aObservations: Int, bObservations: Int): Double =
+    if (b.isNaN) a
+    else if (a.isNaN) b
+    else (a * aObservations + b * bObservations) / (aObservations + bObservations)
+
+  def aggregateWithinIteration[T <: AbstractSkimmerInternal](
+    prevObservation: Option[AbstractSkimmerInternal],
+    currObservation: AbstractSkimmerInternal
+  )(aggregate: Aggregator[T] => T): AbstractSkimmerInternal = {
+    val maybePrevSkim = prevObservation.asInstanceOf[Option[T]]
+    maybePrevSkim.fold(currObservation) { prevSkim =>
+      val currSkim = currObservation.asInstanceOf[T]
+      aggregate(new Aggregator(prevSkim, currSkim, prevSkim.observations, currSkim.observations))
+    }
+  }
+
+  def aggregateOverIterations[T <: AbstractSkimmerInternal](
+    prevIteration: Option[AbstractSkimmerInternal],
+    currIteration: Option[AbstractSkimmerInternal]
+  )(aggregate: Aggregator[T] => T): AbstractSkimmerInternal = {
+    val maybePrevSkim = prevIteration.map(_.asInstanceOf[T])
+    val maybeCurrSkim = currIteration.map(_.asInstanceOf[T])
+    (maybePrevSkim, maybeCurrSkim) match {
+      case (Some(prevSkim), None) => prevSkim
+      case (None, Some(currSkim)) => currSkim
+      case (None, None)           => throw new IllegalArgumentException("Cannot aggregate nothing")
+      case (Some(prevSkim), Some(currSkim)) =>
+        aggregate(new Aggregator(prevSkim, currSkim, prevSkim.iterations, currSkim.iterations))
+    }
+  }
+
+  val floatingPointShortFormat = new DecimalFormat("#.###")
+
+  def toCsv(values: Iterator[Any]): String = {
+    values
+      .map {
+        case d: Double if d.isNaN => ""
+        case d: Double            => floatingPointShortFormat.format(d)
+        case f: Float if f.isNaN  => ""
+        case f: Float             => floatingPointShortFormat.format(f)
+        case null                 => ""
+        case None                 => ""
+        case Some(x)              => x.toString
+        case x                    => x.toString
+      }
+      .mkString(",")
+  }
 }

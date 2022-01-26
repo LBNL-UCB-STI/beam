@@ -309,7 +309,8 @@ trait ChoosesMode {
           departTime,
           nextAct.getCoord,
           withWheelchair = wheelchairUser,
-          triggerId = getCurrentTriggerIdOrGenerate
+          triggerId = getCurrentTriggerIdOrGenerate,
+          asPooled = true
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
