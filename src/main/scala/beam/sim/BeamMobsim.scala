@@ -264,7 +264,7 @@ class BeamMobsim @Inject() (
       val outputFile = beamServices.matsimServices.getControlerIO.getOutputFilename(
         "GenerationOfSecondaryActivities-ODSkimsUsage.csv"
       )
-      val header = Iterator("origin,destination,departureTime,mode,result", LineSeparator)
+      val header = Iterator(beamServices.skims.od_skimmer.skimsDebugCalculationHeader, LineSeparator)
       val data = beamServices.skims.od_skimmer.skimsDebugCalculation
         .map(_.mkString("", FieldSeparator, LineSeparator))
         .toArray
@@ -276,7 +276,7 @@ class BeamMobsim @Inject() (
       )
       f
     }
-    writeDebugCSV()
+//    writeDebugCSV()
   }
 
   private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {
