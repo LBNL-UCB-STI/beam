@@ -592,14 +592,16 @@ class PersonAgent(
         response.directTripTravelProposal.map(_.travelDistanceForCustomer(bodyVehiclePersonId)),
         response.directTripTravelProposal.map(proposal =>
           proposal.travelTimeForCustomer(bodyVehiclePersonId) + proposal.timeToCustomer(bodyVehiclePersonId)
-        )
+        ),
+        response.request.withWheelchair
       )
     )
     eventsManager.processEvent(
       new UnmatchedRideHailRequestSkimmerEvent(
         eventTime = tick,
         tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
-        reservationType = if (response.request.asPooled) Pooled else Solo
+        reservationType = if (response.request.asPooled) Pooled else Solo,
+        wheelchairRequired = response.request.withWheelchair
       )
     )
     eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
@@ -680,7 +682,8 @@ class PersonAgent(
             _.passengerSchedule.legsWithPassenger(bodyVehiclePersonId).headOption.map(_.startTime)
           ),
           directTripTravelProposal.map(_.travelDistanceForCustomer(bodyVehiclePersonId)),
-          directTripTravelProposal.map(_.travelTimeForCustomer(bodyVehiclePersonId))
+          directTripTravelProposal.map(_.travelTimeForCustomer(bodyVehiclePersonId)),
+          req.withWheelchair
         )
       )
       eventsManager.processEvent(
@@ -692,7 +695,9 @@ class PersonAgent(
           costPerMile =
             travelProposal.get.estimatedPrice(req.customer.personId) / travelProposal.get.travelDistanceForCustomer(
               req.customer
-            ) * 1609
+            ) * 1609,
+          wheelchairRequired = req.withWheelchair,
+          vehicleIsWheelchairAccessible = travelProposal.get.rideHailAgentLocation.vehicleType.isWheelchairAccessible
         )
       )
       handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
@@ -991,7 +996,8 @@ class PersonAgent(
           id,
           _currentTick.get,
           nextLeg.beamLeg.travelPath.startPoint.loc,
-          legSegment.last.beamLeg.travelPath.endPoint.loc
+          legSegment.last.beamLeg.travelPath.endPoint.loc,
+          wheelchairUser
         )
       )
       goto(WaitingForReservationConfirmation)
