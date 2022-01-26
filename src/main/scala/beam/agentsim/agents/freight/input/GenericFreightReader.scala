@@ -1,6 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.common.GeoUtils
@@ -154,9 +155,9 @@ class GenericFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Ran
   }
 
   @Override
-  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = Id.createPersonId(s"freight-agent-$vehicleId")
+  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = Id.createPersonId(s"$FREIGHT_ID_PREFIX-agent-$vehicleId")
 
   @Override
-  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household] = s"freight-household-$vehicleId".createId
+  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household] = s"$FREIGHT_ID_PREFIX-household-$vehicleId".createId
 
 }

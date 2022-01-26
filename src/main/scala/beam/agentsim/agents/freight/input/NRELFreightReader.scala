@@ -1,6 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
@@ -17,8 +18,6 @@ import scala.util.Random
 class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random, streetLayer: StreetLayer)
     extends LazyLogging
     with FreightReader {
-
-  val freightIdPrefix = "freight"
 
   private def getRowValue(table: String, row: java.util.Map[String, String], key: String): String = {
     if (row.containsKey(key)) {
@@ -208,9 +207,9 @@ class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
       // carrierId,tourId,vehicleId,vehicleTypeId,depot_zone,depot_zone_x,depot_zone_y
-      val carrierId: Id[FreightCarrier] = s"$freightIdPrefix-carrier-${get("carrierId")}".createId
+      val carrierId: Id[FreightCarrier] = s"$FREIGHT_ID_PREFIX-carrier-${get("carrierId")}".createId
       val tourId: Id[FreightTour] = get("tourId").createId
-      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"$freightIdPrefix-vehicle-${get("vehicleId")}")
+      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"$FREIGHT_ID_PREFIX-vehicle-${get("vehicleId")}")
       val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
       val warehouseLocationUTM = location(get("depot_zone_x").toDouble, get("depot_zone_y").toDouble)
 
@@ -242,19 +241,19 @@ class NRELFreightReader(val config: Freight, val geoUtils: GeoUtils, rnd: Random
 
   @Override
   def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = {
-    if (vehicleId.toString.startsWith(freightIdPrefix)) {
+    if (vehicleId.toString.startsWith(FREIGHT_ID_PREFIX)) {
       Id.createPersonId(s"$vehicleId-agent")
     } else {
-      Id.createPersonId(s"$freightIdPrefix-$vehicleId-agent")
+      Id.createPersonId(s"$FREIGHT_ID_PREFIX-$vehicleId-agent")
     }
   }
 
   @Override
   def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household] = {
-    if (vehicleId.toString.startsWith(freightIdPrefix)) {
+    if (vehicleId.toString.startsWith(FREIGHT_ID_PREFIX)) {
       s"$vehicleId-household".createId
     } else {
-      s"$freightIdPrefix-$vehicleId-household".createId
+      s"$FREIGHT_ID_PREFIX-$vehicleId-household".createId
     }
   }
 }
