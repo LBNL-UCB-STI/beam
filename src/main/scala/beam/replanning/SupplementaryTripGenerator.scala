@@ -373,9 +373,10 @@ class SupplementaryTripGenerator(
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
     val activityDuration = additionalActivity.getEndTime - additionalActivity.getStartTime
-    val desiredDepartTimeBin =
-      maybeFixedHourOfTripFromODSkims.getOrElse(secondsToIndex(additionalActivity.getStartTime))
-    val desiredReturnTimeBin = maybeFixedHourOfTripFromODSkims.getOrElse(secondsToIndex(additionalActivity.getEndTime))
+    val desiredDepartTimeInSeconds =
+      maybeFixedHourOfTripFromODSkims.getOrElse(secondsToIndex(additionalActivity.getStartTime)) * 3600
+    val desiredReturnTimeInSeconds =
+      maybeFixedHourOfTripFromODSkims.getOrElse(secondsToIndex(additionalActivity.getEndTime)) * 3600
     val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
     val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
@@ -385,7 +386,7 @@ class SupplementaryTripGenerator(
           beamServices.skims.od_skimmer.getTimeDistanceAndCost(
             alternativeActivity.getCoord,
             additionalActivity.getCoord,
-            desiredDepartTimeBin,
+            desiredDepartTimeInSeconds,
             mode,
             vehicleType.id,
             vehicleType,
@@ -396,7 +397,7 @@ class SupplementaryTripGenerator(
             beamServices.skims.od_skimmer.getTimeDistanceAndCost(
               additionalActivity.getCoord,
               alternativeActivity.getCoord,
-              desiredReturnTimeBin,
+              desiredReturnTimeInSeconds,
               mode,
               vehicleType.id,
               vehicleType,
