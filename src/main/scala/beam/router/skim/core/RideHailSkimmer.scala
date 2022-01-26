@@ -24,7 +24,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,wheelchairRequired,waitTime,costPerMile,unmatchedRequestsPercent,observations,iterations"
+    "tazId,hour,reservationType,wheelchairRequired,waitTime,costPerMile,unmatchedRequestsPercent,accessibleVehiclesPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
 

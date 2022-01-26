@@ -25,7 +25,8 @@ class RideHailSkimmerEvent(
   override val getKey: AbstractSkimmerKey =
     RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired)
 
-  override val getSkimmerInternal: AbstractSkimmerInternal = RidehailSkimmerInternal(waitTime, costPerMile, 0, if (vehicleIsWheelchairAccessible) 1.0 else 0.0)
+  override val getSkimmerInternal: AbstractSkimmerInternal =
+    RidehailSkimmerInternal(waitTime, costPerMile, 0, if (vehicleIsWheelchairAccessible) 1.0 else 0.0)
 }
 
 class UnmatchedRideHailRequestSkimmerEvent(
