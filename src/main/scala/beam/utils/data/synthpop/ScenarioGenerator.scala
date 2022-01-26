@@ -613,27 +613,22 @@ object SimpleScenarioGenerator extends StrictLogging {
 
     val parkingFilePath = s"$pathToOutput/taz-parking.csv"
     CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, scenarioResult.geoIdToAreaResidentsAndWorkers)
-    println(s"Wrote parking information to $parkingFilePath")
 
     val households = generatedData.map(_._1).toVector
     val householdFilePath = s"$pathToOutput/households.csv"
     CsvHouseholdInfoWriter.write(householdFilePath, households)
-    logger.info(s"Wrote households information to $householdFilePath")
 
     val blocks = generatedData.map(_._3).toVector
     val blockFilePath = s"$pathToOutput/blocks.csv"
     CsvBlocksInfoWriter.write(blockFilePath, blocks)
-    logger.info(s"Wrote blocks information to $blockFilePath")
 
     val persons = generatedData.flatMap(_._2.map(_.person)).toVector
     val personsFilePath = s"$pathToOutput/persons.csv"
     CsvPersonInfoWriter.write(personsFilePath, persons)
-    logger.info(s"Wrote persons information to $personsFilePath")
 
     val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
     val plansFilePath = s"$pathToOutput/plans.csv"
     CsvPlanElementWriter.write(plansFilePath, planElements)
-    logger.info(s"Wrote plans information to $plansFilePath")
 
     val geoUtils: GeoUtils = new GeoUtils {
       override def localCRS: String = parsedArgs.localCRS
@@ -662,7 +657,7 @@ object SimpleScenarioGenerator extends StrictLogging {
     '--defaultValueOfTime', '8.0',
     '--localCRS', 'EPSG:3084',
     '--outputFolder', 'D:/Work/beam/NewYork/results',
-    '--linkRadiusMeters', '9000.0'
+    '--linkRadiusMeters', '10000.0'
     "] -PlogbackCfg=logback.xml
      */
     ProfilingUtils.timed("Scenario generation", x => logger.info(x)) {

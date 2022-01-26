@@ -13,14 +13,15 @@ import scala.util.Try
 object R5MapStatsCalculator {
 
   def main(args: Array[String]): Unit = {
-    // LoggerFactory.getLogger("com.conveyal").asInstanceOf[Logger].setLevel(Level.INFO)
+    // args: <osm-path> <link-radius-meters>
     val pathToOsm = args(0)
-    val minimumTagFrequencyToPrintTagOut = 1000
-    // TODO use `beamConfig.beam.routing.r5.linkRadiusMeters`
-    val linkRadiusMeters = StreetLayer.LINK_RADIUS_METERS
+    val linkRadiusMeters = Try(args(1).toDouble).getOrElse(10000.0)
+
+    println(s"pathToOsm: $pathToOsm")
+    println(s"linkRadiusMeters: $linkRadiusMeters")
 
     analyzeR5Map(pathToOsm, linkRadiusMeters)
-    analyzeOSMMap(pathToOsm, minTagFrequency = minimumTagFrequencyToPrintTagOut)
+    analyzeOSMMap(pathToOsm, 1000)
   }
 
   private def analyzeOSMMap(pathToOsm: String, minTagFrequency: Int): Unit = {
@@ -146,7 +147,6 @@ object R5MapStatsCalculator {
   }
 
   private def analyzeR5Map(pathToOsm: String, linkRadiusMeters: Double): Unit = {
-    println(s"OSM file: $pathToOsm")
     val tn = TransportNetwork.fromFiles(
       pathToOsm,
       new util.ArrayList[String](),
