@@ -60,6 +60,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       ),
       ptFares = PtFares(List.empty),
       transportNetwork = mock(classOf[TransportNetwork]),
+      networks2 = None,
       network = mock(classOf[Network]),
       trainStopQuadTree = new QuadTree[Stop](0, 0, 10, 10),
       tazTreeMap = tazMap,

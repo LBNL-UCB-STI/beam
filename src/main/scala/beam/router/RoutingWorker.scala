@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
@@ -405,7 +406,7 @@ object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
 
   def fromConfig(config: Config) {
-    val workerParams = R5Parameters.fromConfig(config)
+    val (workerParams, _) = R5Parameters.fromConfig(config)
     new RoutingWorker(workerParams)
   }
 

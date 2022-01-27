@@ -1,24 +1,26 @@
 package beam.utils.map
 
+import java.nio.charset.StandardCharsets
+import java.time.LocalDate
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
 import beam.router.BeamRouter.RoutingRequest
+import beam.router.{BeamRouter, FreeFlowTravelTime}
 import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK_TRANSIT}
 import beam.router.Modes.{toR5StreetMode, BeamMode}
 import beam.router.R5Requester.prepareConfig
 import beam.router.r5.{R5Parameters, R5Wrapper}
-import beam.router.{BeamRouter, FreeFlowTravelTime}
 import beam.sim.common.GeoUtils
-import beam.utils.ParquetReader
+import beam.utils.{NetworkHelperImpl, ParquetReader}
 import beam.utils.csv.CsvWriter
 import beam.utils.json.AllNeededFormats._
+import com.conveyal.r5.point_to_point.builder.PointToPointQuery
 import com.conveyal.r5.streets.{StreetLayer, StreetRouter}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.util.Utf8
 import org.matsim.api.core.v01.Coord
 
-import java.nio.charset.StandardCharsets
-import java.time.LocalDate
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.JavaConverters._
 
 object NewYorkRouteDebugging {
@@ -44,9 +46,19 @@ object NewYorkRouteDebugging {
     val runArgs = args
     val (_, cfg) = prepareConfig(runArgs, isConfigArgRequired = true)
 
-    val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+    val (workerParams: R5Parameters, maybeNetworks2) = R5Parameters.fromConfig(cfg)
     println(s"baseDate: ${workerParams.dates.localBaseDate}")
     val r5Wrapper: R5Wrapper = new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
+    val r5Wrapper2: Option[R5Wrapper] = maybeNetworks2.map { case (transportNetwork, network) =>
+      new R5Wrapper(
+        workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
+        new FreeFlowTravelTime,
+        travelTimeNoiseFraction = 0
+      )
+    }
+    val ppQuery = new PointToPointQuery(workerParams.transportNetwork)
+
+    var totalWalkTransitsByPointToPointQuery: Int = 0
 
 //    showDatesAndServices(workerParams)
 //    writeTransitServiceInfo(workerParams)
@@ -56,9 +68,13 @@ object NewYorkRouteDebugging {
     val nDone = new AtomicInteger(0)
     val s = System.currentTimeMillis()
     requests.par.foreach { req =>
-      val resp = r5Wrapper.calcRoute(req)
-      if (subwayPresented(resp)) {
+      val resp1 = r5Wrapper.calcRoute(req)
+      val resp = r5Wrapper2.map(wrapper => wrapper.calcRoute(req)).getOrElse(resp1)
+      if (subwayPresented(resp1)) {
         withSubwayTransit1.incrementAndGet()
+      }
+      if (subwayPresented(resp)) {
+        withSubwayTransit2.incrementAndGet()
       }
       val idx = nDone.getAndIncrement()
       if (idx % 1000 == 0) {

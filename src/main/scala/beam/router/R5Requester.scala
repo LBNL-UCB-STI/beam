@@ -309,7 +309,7 @@ object R5Requester extends BeamHelper {
   }
 
   private def createR5Wrapper(cfg: Config): R5Wrapper = {
-    val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+    val (workerParams: R5Parameters, _) = R5Parameters.fromConfig(cfg)
     new R5Wrapper(workerParams, new FreeFlowTravelTime, travelTimeNoiseFraction = 0)
   }
 

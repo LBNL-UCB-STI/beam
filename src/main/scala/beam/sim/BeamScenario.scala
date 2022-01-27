@@ -40,6 +40,7 @@ case class BeamScenario(
   dates: DateUtils,
   ptFares: PtFares,
   transportNetwork: TransportNetwork,
+  networks2: Option[(TransportNetwork, Network)],
   network: Network,
   trainStopQuadTree: QuadTree[Stop],
   tazTreeMap: TAZTreeMap,
