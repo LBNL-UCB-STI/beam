@@ -352,10 +352,10 @@ class PersonAgent(
       if (personData.enrouteData.isInEnrouteState) personData.restOfCurrentTrip.head.beamVehicleId
       else personData.currentVehicle.head
 
-    val currentBeamVehicle = beamVehicles(vehicleId).vehicle
+    val beamVehicle = beamVehicles(vehicleId).vehicle
 
     val refuelNeeded: Boolean =
-      currentBeamVehicle.isRefuelNeeded(
+      beamVehicle.isRefuelNeeded(
         beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters,
         beamScenario.beamConfig.beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters
       )
@@ -363,11 +363,11 @@ class PersonAgent(
     if (refuelNeeded) {
 
       val primaryFuelLevelInJoules: Double = beamScenario
-        .privateVehicles(currentBeamVehicle.id)
+        .privateVehicles(vehicleId)
         .primaryFuelLevelInJoules
 
       val primaryFuelConsumptionInJoulePerMeter: Double =
-        currentBeamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter
+        beamVehicle.beamVehicleType.primaryFuelConsumptionInJoulePerMeter
 
       val remainingTourDist: Double = nextActivity(personData) match {
         case Some(nextAct) =>
@@ -404,9 +404,9 @@ class PersonAgent(
                       pair.last.activity.getCoord,
                       0,
                       CAR,
-                      currentBeamVehicle.beamVehicleType.id,
-                      currentBeamVehicle.beamVehicleType,
-                      beamServices.beamScenario.fuelTypePrices(currentBeamVehicle.beamVehicleType.primaryFuelType)
+                      beamVehicle.beamVehicleType.id,
+                      beamVehicle.beamVehicleType,
+                      beamServices.beamScenario.fuelTypePrices(beamVehicle.beamVehicleType.primaryFuelType)
                     )
                     .distance
                 )
@@ -803,7 +803,7 @@ class PersonAgent(
           data @ BasePersonData(
             _,
             _,
-            restOfCurrentTrip @ head :: tail,
+            currentTrip @ headOfCurrentTrip :: restOfCurrentTrip,
             _,
             _,
             _,
@@ -816,13 +816,15 @@ class PersonAgent(
             enrouteData
           )
         ) =>
-      // do not travel the "head" leg if on enroute charging
       val (trip, cost) = if (enrouteData.isInEnrouteState) {
-        log.debug("ReadyToChooseParking, enroute trip: {}", restOfCurrentTrip.toString())
-        (restOfCurrentTrip, currentCost.toDouble)
+        log.debug("ReadyToChooseParking, enroute trip: {}", currentTrip.toString())
+        // if enroute, keep the original trip and cost
+        (currentTrip, currentCost.toDouble)
       } else {
-        log.debug("ReadyToChooseParking, trip: {}", tail.toString())
-        (tail, currentCost.toDouble + head.cost)
+        log.debug("ReadyToChooseParking, trip: {}", restOfCurrentTrip.toString())
+        // "head" of the current trip is travelled, and returning rest of the trip
+        // adding the cost of the "head" of the trip to the current cost
+        (restOfCurrentTrip, currentCost.toDouble + headOfCurrentTrip.cost)
       }
 
       goto(ChoosingParkingSpot) using data.copy(
@@ -916,10 +918,10 @@ class PersonAgent(
     // unset enroute state, and update `data` with new legs
     val stall2DestinationCarLegs = data.enrouteData.stall2DestLegs
     val walkTemp = data.currentTrip.head.legs.head
-    val walk1 = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
-    val walk4 = data.currentTrip.head.legs.last
+    val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
+    val walkRest = data.currentTrip.head.legs.last
     val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-      EmbodiedBeamLeg.makeLegsConsistent(walk1 +: (stall2DestinationCarLegs :+ walk4))
+      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest))
     val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
     (
       newRestOfTrip.head.beamLeg.startTime,

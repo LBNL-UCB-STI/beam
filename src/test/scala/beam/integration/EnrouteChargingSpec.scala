@@ -137,7 +137,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
 
       beenToEnroute shouldBe true
       refuelEvents.zipWithIndex foreach { case (RefuelEventData(energyAdded, powerInKW), id) =>
-        chargingPlugInEvents(id) + energyAdded shouldBe chargingPlugOutEvents(id)
+        chargingPlugInEvents(id) + energyAdded shouldBe (chargingPlugOutEvents(id) +- 0.000001)
         powerInKW should be > ChargingPointType.FastChargingThreshold
       }
     }

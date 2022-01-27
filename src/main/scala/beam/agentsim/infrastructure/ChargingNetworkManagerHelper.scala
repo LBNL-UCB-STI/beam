@@ -108,7 +108,7 @@ trait ChargingNetworkManagerHelper extends {
           Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
         case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
           log.debug(
-            s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. SOC: {}",
+            s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. State of Charge: {}",
             chargingVehicle.vehicle.id,
             chargingVehicle.stall,
             cycle.energyToCharge,

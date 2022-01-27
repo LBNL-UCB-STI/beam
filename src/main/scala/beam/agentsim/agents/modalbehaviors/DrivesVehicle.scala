@@ -337,7 +337,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       generateTCSEventIfPossible(pte)
 
       val isInEnrouteState = data match {
-        case data: BasePersonData => data.enrouteData.isInEnrouteState; case _ => false
+        case data: BasePersonData => data.enrouteData.isEnrouting; case _ => false
       }
       if (!isLastLeg) {
         // we don't want to choose parking stall if vehicle is in enroute
