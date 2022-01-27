@@ -1345,18 +1345,19 @@ trait ChoosesMode {
           .activities(data.personData.currentActivityIndex + 1)
           .getCoord
       )
+      val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
       _experiencedBeamPlan
         .activities(data.personData.currentActivityIndex)
         .setLinkId(
           Id.createLinkId(
-            beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, origin)
+            beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, origin, linkRadiusMeters)
           )
         )
       _experiencedBeamPlan
         .activities(data.personData.currentActivityIndex + 1)
         .setLinkId(
           Id.createLinkId(
-            beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination)
+            beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination, linkRadiusMeters)
           )
         )
     }

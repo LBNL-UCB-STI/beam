@@ -1,7 +1,9 @@
 package beam.utils.scenario.generic.writers
 
 import beam.utils.csv.CsvWriter
+import beam.utils.data.synthpop.SimpleScenarioGenerator.logger
 import beam.utils.scenario.PersonInfo
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Try
 
@@ -9,7 +11,7 @@ trait PersonInfoWriter {
   def write(path: String, xs: Iterable[PersonInfo]): Unit
 }
 
-object CsvPersonInfoWriter extends PersonInfoWriter {
+object CsvPersonInfoWriter extends PersonInfoWriter with LazyLogging {
 
   private val headers: Array[String] =
     Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime")
@@ -27,8 +29,9 @@ object CsvPersonInfoWriter extends PersonInfoWriter {
           person.valueOfTime
         )
       }
+      logger.info(s"Wrote persons information to $path")
     } finally {
-      Try(csvWriter.close())
+      csvWriter.close()
     }
   }
 }
