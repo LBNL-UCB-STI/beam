@@ -99,7 +99,7 @@ trait ChoosesMode {
       needsToCalculateCost = needsToCalculateCost
     )
 
-  private var teleportationVehiclesCount = 0
+  private var sharedTeleportationVehiclesCount = 0
 
   private lazy val teleportationVehicleBeamType: BeamVehicleType = {
     val sharedVehicleType = beamScenario.vehicleTypes(
@@ -113,9 +113,9 @@ trait ChoosesMode {
   }
 
   private def createSharedTeleportationVehicle(location: SpaceTime): BeamVehicle = {
-    teleportationVehiclesCount += 1
+    sharedTeleportationVehiclesCount += 1
 
-    val stringId = s"${BeamVehicle.idPrefixSharedTeleportationVehicle}-$teleportationVehiclesCount"
+    val stringId = s"${BeamVehicle.idPrefixSharedTeleportationVehicle}-$sharedTeleportationVehiclesCount"
     val vehicle = new BeamVehicle(
       BeamVehicle.createId(id, Some(stringId)),
       new Powertrain(0.0),

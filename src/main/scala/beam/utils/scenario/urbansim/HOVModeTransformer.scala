@@ -2,14 +2,8 @@ package beam.utils.scenario.urbansim
 
 import beam.router.Modes.BeamMode._
 import beam.utils.scenario._
-import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedCarHOVTransformer.{
-  isForcedCarHOVTrip,
-  mapToForcedCarHOVTrip
-}
-import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedHOVTeleportationTransformer.{
-  isForcedHOVTeleportationTrip,
-  mapToForcedHOVTeleportation
-}
+import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedCarHOVTransformer.{isForcedCarHOVTrip, mapToForcedCarHOVTrip}
+import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedHOVTeleportationTransformer.{isForcedHOVTeleportationTrip, mapToForcedHOVTeleportation}
 import beam.utils.scenario.urbansim.HOVModeTransformer.RandomCarHOVTransformer.mapRandomHOVTeleportationOrCar
 import com.typesafe.scalalogging.LazyLogging
 
@@ -75,13 +69,11 @@ object HOVModeTransformer extends LazyLogging {
     var forcedCarHOV3Count = 0
 
     def thereAreMoreHOVTeleportations: Boolean = {
-      forcedHOV2Teleports > forcedCarHOV2Count ||
-      forcedHOV3Teleports > forcedCarHOV3Count * 2
+      (forcedHOV2Teleports > forcedCarHOV2Count) || (forcedHOV3Teleports > forcedCarHOV3Count * 2)
     }
 
     def thereAreMoreHOVCars: Boolean = {
-      forcedCarHOV2Count > forcedHOV2Teleports ||
-      forcedCarHOV3Count * 2 > forcedHOV3Teleports
+      (forcedCarHOV2Count > forcedHOV2Teleports) || (forcedCarHOV3Count * 2 > forcedHOV3Teleports)
     }
 
     def replaceHOVwithCar(trip: List[PlanElement]): List[PlanElement] = {
@@ -90,7 +82,7 @@ object HOVModeTransformer extends LazyLogging {
           forcedHOV2Teleports -= 1
           hov2Leg.copy(legMode = Some(CAR_HOV2.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
-          //as car_hov3 contains two passengers, reduce by 2
+          // as car_hov3 contains two passengers, reduce by 2
           forcedHOV3Teleports -= 2
           hov3Leg.copy(legMode = Some(CAR_HOV3.value))
         case other => other
