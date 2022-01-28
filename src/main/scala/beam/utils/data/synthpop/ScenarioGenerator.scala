@@ -22,6 +22,7 @@ import beam.utils.data.synthpop.generators.{
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
+import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{
   CsvBlocksInfoWriter,
   CsvHouseholdInfoWriter,
@@ -87,7 +88,7 @@ class SimpleScenarioGenerator(
     planIndex = 0,
     planScore = 0,
     planSelected = true,
-    planElementType = "activity",
+    planElementType = PlanElement.Activity,
     planElementIndex = 1,
     activityType = None,
     activityLocationX = None,
@@ -310,7 +311,7 @@ class SimpleScenarioGenerator(
                         // Create Home Activity: end time is when a person leaves a home
                         val leavingHomeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 1,
                           activityType = Some("Home"),
                           activityLocationX = Some(wgsHouseholdLocation.getX),
@@ -320,7 +321,11 @@ class SimpleScenarioGenerator(
                         )
                         // Create Leg
                         val leavingHomeLeg = planElementTemplate
-                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+                          .copy(
+                            personId = createdPerson.personId,
+                            planElementType = PlanElement.Leg,
+                            planElementIndex = 2
+                          )
 
                         val timeLeavingWorkSeconds = {
                           val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
@@ -335,7 +340,7 @@ class SimpleScenarioGenerator(
 
                         val leavingWorkActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 3,
                           activityType = Some("Work"),
                           activityLocationX = Some(wgsWorkingLocation.getX),
@@ -344,12 +349,16 @@ class SimpleScenarioGenerator(
                           geoId = Some(toTazGeoId(workTazGeoId.state, workTazGeoId.county, workTazGeoId.taz))
                         )
                         val leavingWorkLeg = planElementTemplate
-                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+                          .copy(
+                            personId = createdPerson.personId,
+                            planElementType = PlanElement.Leg,
+                            planElementIndex = 4
+                          )
 
                         // Create Home Activity: end time not defined
                         val homeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 5,
                           activityType = Some("Home"),
                           activityLocationX = Some(wgsHouseholdLocation.getX),
@@ -633,7 +642,7 @@ object SimpleScenarioGenerator extends StrictLogging {
     val geoUtils: GeoUtils = new GeoUtils {
       override def localCRS: String = parsedArgs.localCRS
     }
-    val allActivities = planElements.filter(_.planElementType == "activity").map { plan =>
+    val allActivities = planElements.filter(_.planElementType == PlanElement.Activity).map { plan =>
       geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
     }
     gen.writeH3(pathToOutput, allActivities, 1000)

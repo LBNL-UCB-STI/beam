@@ -16,13 +16,28 @@ case class PersonInfo(
   valueOfTime: Double
 )
 
+object PlanElement {
+  sealed trait PlanElementType
+
+  object PlanElementType {
+
+    def apply(planElementType: String): PlanElementType =
+      planElementType match {
+        case "activity" => Activity
+        case "leg"      => Leg
+      }
+  }
+  object Activity extends PlanElementType
+  object Leg extends PlanElementType
+}
+
 case class PlanElement(
   tripId: String,
   personId: PersonId,
   planIndex: Int,
   planScore: Double,
   planSelected: Boolean,
-  planElementType: String,
+  planElementType: PlanElement.PlanElementType,
   planElementIndex: Int,
   activityType: Option[String],
   activityLocationX: Option[Double],

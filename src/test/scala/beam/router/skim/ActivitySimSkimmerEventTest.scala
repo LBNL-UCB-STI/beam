@@ -2,6 +2,7 @@ package beam.router.skim
 
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import org.matsim.api.core.v01.Id
 import org.mockito.Mockito.when
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -17,6 +18,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     when(beamLeg.mode).thenReturn(mode)
     when(beamLeg.duration).thenReturn(duration)
     when(leg.beamLeg).thenReturn(beamLeg)
+    when(leg.beamVehicleId).thenReturn(Id.createVehicleId("MockVechicleId"))
     leg
   }
 
