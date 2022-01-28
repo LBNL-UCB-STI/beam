@@ -160,16 +160,6 @@ object BeamVehicleUtils {
   }
 
   /**
-    * @param energyInJoule - Joule
-    * @param powerInKW - KW
-    * @return Second
-    */
-  def toDurationInSecond(energyInJoule: Double, powerInKW: Double): Double = {
-    if (powerInKW > 0) (energyInJoule / 3.6e+6) / powerInKW
-    else -1
-  }
-
-  /**
     * @param energyInJoule Joules
     * @param durationInSecond Seconds
     * @return KW

@@ -149,7 +149,7 @@ object ParkingZoneSearch {
       iterations: Int = 1
     ): Option[ParkingZoneSearchResult[GEO]] = {
       // a lookup of the (next) search ring for TAZs
-      searchMode.lookupParkingZones(params.zoneQuadTree) match {
+      searchMode.lookupParkingZonesInNextSearchAreaUnlessThresholdReached(params.zoneQuadTree) match {
         case Some(theseZones) =>
           // ParkingZones as as ParkingAlternatives
           val alternatives: List[ParkingSearchAlternative[GEO]] = {
@@ -245,7 +245,7 @@ object ParkingZoneSearch {
   }
 
   trait SearchMode[GEO] {
-    def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]]
+    def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]]
   }
 
   object SearchMode {
@@ -259,7 +259,9 @@ object ParkingZoneSearch {
       private var thisInnerRadius: Double = 0.0
       private var thisOuterRadius: Double = searchStartRadius
 
-      override def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]] = {
+      override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
+        zoneQuadTree: QuadTree[GEO]
+      ): Option[List[GEO]] = {
         if (thisInnerRadius > searchMaxRadius) None
         else {
           val result = zoneQuadTree
@@ -284,7 +286,9 @@ object ParkingZoneSearch {
       private val maxDistance: Double = startDistance * searchMaxDistanceToFociInPercent
       private var thisInnerDistance: Double = startDistance
 
-      override def lookupParkingZones(zoneQuadTree: QuadTree[GEO]): Option[List[GEO]] = {
+      override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
+        zoneQuadTree: QuadTree[GEO]
+      ): Option[List[GEO]] = {
         if (thisInnerDistance > maxDistance) None
         else {
           val result = zoneQuadTree
