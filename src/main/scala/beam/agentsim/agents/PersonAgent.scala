@@ -468,6 +468,59 @@ class PersonAgent(
     }
   }
 
+  def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
+    def activityEndTime =
+      if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
+        activity.getEndTime
+      } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
+        tick
+      } else {
+        // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
+        // TODO consider ending the day here to match MATSim convention for start/end activity
+        tick + 60 * 10
+      }
+    val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+      case Some(fixedDuration) => tick + fixedDuration
+      case _                   => activityEndTime
+    }
+
+    if (lastTickOfSimulation >= tick) {
+      Math.min(lastTickOfSimulation, endTime)
+    } else {
+      endTime
+    }
+  }
+
+  def endActivityAndDepart(
+    tick: Double,
+    currentTrip: EmbodiedBeamTrip,
+    data: BasePersonData
+  ): Unit = {
+    assert(currentActivity(data).getLinkId != null)
+
+    // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
+    // hail a ride. We stay at the party until our Uber is there.
+
+    eventsManager.processEvent(
+      new ActivityEndEvent(
+        tick,
+        id,
+        currentActivity(data).getLinkId,
+        currentActivity(data).getFacilityId,
+        currentActivity(data).getType
+      )
+    )
+
+    eventsManager.processEvent(
+      new PersonDepartureEvent(
+        tick,
+        id,
+        currentActivity(data).getLinkId,
+        currentTrip.tripClassifier.value
+      )
+    )
+  }
+
   when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
     goto(Initialized) replying CompletionNotice(
       triggerId,
@@ -525,28 +578,7 @@ class PersonAgent(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
           data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, false, _, _, _)
         ) =>
-      assert(currentActivity(data).getLinkId != null)
-
-      // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
-      // hail a ride. We stay at the party until our Uber is there.
-      eventsManager.processEvent(
-        new ActivityEndEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentActivity(data).getFacilityId,
-          currentActivity(data).getType
-        )
-      )
-
-      eventsManager.processEvent(
-        new PersonDepartureEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentTrip.tripClassifier.value
-        )
-      )
+      endActivityAndDepart(tick, currentTrip, data)
 
       val arrivalTime = tick + currentTrip.totalTravelTimeInSecs
       scheduler ! CompletionNotice(
@@ -588,28 +620,8 @@ class PersonAgent(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
           data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, false, _, _, _)
         ) =>
-      assert(currentActivity(data).getLinkId != null)
+      endActivityAndDepart(tick, currentTrip, data)
 
-      // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
-      // hail a ride. We stay at the party until our Uber is there.
-      eventsManager.processEvent(
-        new ActivityEndEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentActivity(data).getFacilityId,
-          currentActivity(data).getType
-        )
-      )
-
-      eventsManager.processEvent(
-        new PersonDepartureEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentTrip.tripClassifier.value
-        )
-      )
       holdTickAndTriggerId(tick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
 
@@ -1098,21 +1110,7 @@ class PersonAgent(
       nextActivity(data) match {
         case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
-          val endTime =
-            if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-              activity.getEndTime
-            } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-              tick
-            } else {
-              // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
-              // TODO consider ending the day here to match MATSim convention for start/end activity
-              tick + 60 * 10
-            }
-          val newEndTime = if (lastTickOfSimulation >= tick) {
-            Math.min(lastTickOfSimulation, endTime)
-          } else {
-            endTime
-          }
+          val activityEndTime = calculateActivityEndTime(activity, tick)
 
           assert(activity.getLinkId != null)
           eventsManager.processEvent(
@@ -1130,7 +1128,7 @@ class PersonAgent(
           )
           scheduler ! CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(ActivityEndTrigger(newEndTime.toInt), self))
+            Vector(ScheduleTrigger(ActivityEndTrigger(activityEndTime.toInt), self))
           )
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
@@ -1167,28 +1165,8 @@ class PersonAgent(
       nextActivity(data) match {
         case Some(activity) =>
           val (tick, triggerId) = releaseTickAndTriggerId()
-          def calculateActivityEndTime = {
-            if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-              activity.getEndTime
-            } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-              tick
-            } else {
-              // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
-              // TODO consider ending the day here to match MATSim convention for start/end activity
-              tick + 60 * 10
-            }
-          }
+          val activityEndTime = calculateActivityEndTime(activity, tick)
 
-          val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
-            case Some(fixedDuration) => tick + fixedDuration
-            case _                   => calculateActivityEndTime
-          }
-
-          val newEndTime = if (lastTickOfSimulation >= tick) {
-            Math.min(lastTickOfSimulation, endTime)
-          } else {
-            endTime
-          }
           // Report travelled distance for inclusion in experienced plans.
           // We currently get large unaccountable differences in round trips, e.g. work -> home may
           // be twice as long as home -> work. Probably due to long links, and the location of the activity
@@ -1270,7 +1248,7 @@ class PersonAgent(
 
           scheduler ! CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(ActivityEndTrigger(newEndTime.toInt), self))
+            Vector(ScheduleTrigger(ActivityEndTrigger(activityEndTime.toInt), self))
           )
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
