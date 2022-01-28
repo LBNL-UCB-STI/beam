@@ -91,7 +91,7 @@ object ChoosesParking {
             )
           )
         } else {
-          logger.error("Cannot create parking skimmmer event with this rest of trip: {}", legs)
+          logger.error("Cannot create parking skimmer event with this rest of trip: {}", legs)
         }
       }
     }
@@ -169,10 +169,7 @@ trait ChoosesParking extends {
   when(ConnectingToChargingPoint) {
     case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
-      val restOfTrip: Option[List[EmbodiedBeamLeg]] = data match {
-        case personData: BasePersonData => Some(personData.restOfCurrentTrip)
-        case _                          => None
-      }
+      val restOfTrip: Option[List[EmbodiedBeamLeg]] = findPersonData(data).map(_.restOfCurrentTrip)
       handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, restOfTrip)
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data

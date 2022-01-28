@@ -250,6 +250,11 @@ object PersonAgent {
       trip
     }
   }
+
+  def findPersonData(data: DrivingData): Option[BasePersonData] = data match {
+    case basePersonData: BasePersonData => Some(basePersonData)
+    case _                          => None
+  }
 }
 
 class PersonAgent(

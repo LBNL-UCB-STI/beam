@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
-import beam.router.model.{BeamLeg, BeamPath}
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.TransitCrowdingSkimmerEvent
 import beam.sim.common.GeoUtils
@@ -396,7 +396,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ConnectingToChargingPoint")
           goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
-          handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, None)
+          val restOfTrip: Option[List[EmbodiedBeamLeg]] = findPersonData(data).map(_.restOfCurrentTrip)
+          handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, restOfTrip)
           self ! LastLegPassengerSchedule(triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to DrivingInterrupted with $triggerId")
           goto(DrivingInterrupted) using data.asInstanceOf[T]
