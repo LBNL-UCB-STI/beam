@@ -21,29 +21,14 @@ import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  EndingRefuelSession,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  WaitingToCharge
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager.{EndingRefuelSession, StartingRefuelSession, UnhandledVehicle, WaitingToCharge}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -468,18 +453,7 @@ class PersonAgent(
     }
   }
 
-//  protected val strictLogger: Logger = Logger(LoggerFactory.getLogger(getClass.getName))
-
   when(Uninitialized) { case Event(TriggerWithId(InitializeTrigger(_), triggerId), _) =>
-    //    val currentPlanLegModes = this.matsimPlan.getPlanElements.asScala
-    //      .flatMap {
-    //        case leg: Leg => Some(leg.getMode)
-    //        case _        => None
-    //      }
-    //      .mkString(",")
-    //
-    //    strictLogger.info(s"DEBUGGING. Initializing actor ${this.id} with following modes: $currentPlanLegModes")
-
     goto(Initialized) replying CompletionNotice(
       triggerId,
       Vector(ScheduleTrigger(ActivityStartTrigger(0), self))
@@ -1310,12 +1284,6 @@ class PersonAgent(
           scheduler ! CompletionNotice(triggerId)
           stop
       }
-
-//    case event =>
-//      logDebug(s"PersonAgent nextActivity returned None. event is $event")
-//      val (_, triggerId) = releaseTickAndTriggerId()
-//      scheduler ! CompletionNotice(triggerId)
-//      stop
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
