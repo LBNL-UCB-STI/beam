@@ -2,8 +2,14 @@ package beam.utils.scenario.urbansim
 
 import beam.router.Modes.BeamMode._
 import beam.utils.scenario._
-import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedCarHOVTransformer.{isForcedCarHOVTrip, mapToForcedCarHOVTrip}
-import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedHOVTeleportationTransformer.{isForcedHOVTeleportationTrip, mapToForcedHOVTeleportation}
+import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedCarHOVTransformer.{
+  isForcedCarHOVTrip,
+  mapToForcedCarHOVTrip
+}
+import beam.utils.scenario.urbansim.HOVModeTransformer.ForcedHOVTeleportationTransformer.{
+  isForcedHOVTeleportationTrip,
+  mapToForcedHOVTeleportation
+}
 import beam.utils.scenario.urbansim.HOVModeTransformer.RandomCarHOVTransformer.mapRandomHOVTeleportationOrCar
 import com.typesafe.scalalogging.LazyLogging
 
