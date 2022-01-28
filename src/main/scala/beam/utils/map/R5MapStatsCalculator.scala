@@ -2,7 +2,7 @@ package beam.utils.map
 
 import com.conveyal.osmlib.{OSM, Way}
 import com.conveyal.r5.point_to_point.builder.TNBuilderConfig
-import com.conveyal.r5.streets.EdgeStore
+import com.conveyal.r5.streets.{EdgeStore, StreetLayer}
 import com.conveyal.r5.streets.EdgeStore.EdgeFlag
 import com.conveyal.r5.transit.TransportNetwork
 
@@ -13,12 +13,15 @@ import scala.util.Try
 object R5MapStatsCalculator {
 
   def main(args: Array[String]): Unit = {
-    // LoggerFactory.getLogger("com.conveyal").asInstanceOf[Logger].setLevel(Level.INFO)
+    // args: <osm-path> <link-radius-meters>
     val pathToOsm = args(0)
-    val minimumTagFrequencyToPrintTagOut = 1000
+    val linkRadiusMeters = Try(args(1).toDouble).getOrElse(10000.0)
 
-    analyzeR5Map(pathToOsm)
-    analyzeOSMMap(pathToOsm, minTagFrequency = minimumTagFrequencyToPrintTagOut)
+    println(s"pathToOsm: $pathToOsm")
+    println(s"linkRadiusMeters: $linkRadiusMeters")
+
+    analyzeR5Map(pathToOsm, linkRadiusMeters)
+    analyzeOSMMap(pathToOsm, 1000)
   }
 
   private def analyzeOSMMap(pathToOsm: String, minTagFrequency: Int): Unit = {
@@ -143,14 +146,14 @@ object R5MapStatsCalculator {
     }
   }
 
-  private def analyzeR5Map(pathToOsm: String): Unit = {
-    println(s"OSM file: $pathToOsm")
+  private def analyzeR5Map(pathToOsm: String, linkRadiusMeters: Double): Unit = {
     val tn = TransportNetwork.fromFiles(
       pathToOsm,
       new util.ArrayList[String](),
       TNBuilderConfig.defaultConfig,
       true,
-      false
+      false,
+      linkRadiusMeters
     )
     val cursor = tn.streetLayer.edgeStore.getCursor
     val it = new Iterator[EdgeStore#Edge] {

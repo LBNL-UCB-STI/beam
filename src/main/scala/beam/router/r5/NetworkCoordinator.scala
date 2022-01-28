@@ -100,7 +100,8 @@ trait NetworkCoordinator extends LazyLogging {
           transportNetwork = TransportNetwork.fromDirectory(
             Paths.get(beamConfig.beam.routing.r5.directory).toFile,
             true,
-            false
+            false,
+            beamConfig.beam.routing.r5.linkRadiusMeters
           )
 
           // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.

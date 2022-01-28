@@ -102,8 +102,11 @@ class UrbanSimScenarioLoader(
       householdsInsideBoundingBox
     }
     val inputPlans = Await.result(plansF, 1800.seconds)
+    logger.info(s"Reading plans done.")
     val persons = Await.result(personsF, 1800.seconds)
+    logger.info(s"Reading persons done.")
     val households = Await.result(householdsF, 1800.seconds)
+    logger.info(s"Reading households done.")
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
@@ -146,6 +149,7 @@ class UrbanSimScenarioLoader(
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
     beamScenario.privateVehicles.clear()
+    beamScenario.privateVehicleInitialSoc.clear()
   }
 
   private[utils] def getPersonsWithPlan(

@@ -1,12 +1,13 @@
 package beam.agentsim.agents.freight
 
-import beam.agentsim.agents.freight.input.PayloadPlansConverter
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.jspritwrapper._
 import beam.router.Modes.BeamMode
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Plan}
@@ -23,14 +24,12 @@ import scala.util.Random
 class FreightReplanner(
   beamServices: BeamServices,
   skimmer: ODSkims,
-  rnd: Random
+  rnd: Random,
+  freightReader: FreightReader
 ) extends LazyLogging {
+  val freightConfig: Freight = freightReader.config
 
-  def replanIfNeeded(
-    freightCarrier: FreightCarrier,
-    iteration: Int,
-    freightConfig: BeamConfig.Beam.Agentsim.Agents.Freight
-  ): Unit = {
+  def replanIfNeeded(freightCarrier: FreightCarrier, iteration: Int): Unit = {
     if (FreightReplanner.needReplanning(iteration, freightCarrier, freightConfig)) {
       replan(freightCarrier)
     }
@@ -41,6 +40,7 @@ class FreightReplanner(
     val departureTime = beamServices.beamConfig.beam.agentsim.agents.freight.replanning.departureTime
     val routes = calculateRoutes(freightCarrier, strategyName, departureTime)
     val population = beamServices.matsimServices.getScenario.getPopulation.getPersons
+
     val newPlans = convertToPlans(routes, population, freightCarrier)
 
     newPlans.foreach { newPlan =>
@@ -63,8 +63,7 @@ class FreightReplanner(
   ): Iterable[Plan] = {
     routes.groupBy(_.vehicle.id).map { case (vehicleIdStr, routes) =>
       val vehicleId = Id.createVehicleId(vehicleIdStr)
-      val person = population.get(PayloadPlansConverter.createPersonId(vehicleId))
-
+      val person = population.get(freightReader.createPersonId(vehicleId))
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
         convertToFreightTourWithPayloadPlans(
           s"freight-tour-${route.vehicle.id}-$i".createId,
@@ -74,10 +73,7 @@ class FreightReplanner(
       }
       val tours = toursAndPlans.map(_._1)
       val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
-
-      val convertWgs2Utm = beamServices.beamConfig.beam.exchange.scenario.convertWgs2Utm
-      PayloadPlansConverter
-        .createPersonPlan(tours, plansPerTour, person, if (convertWgs2Utm) Some(beamServices.geo) else None)
+      freightReader.createPersonPlan(tours, plansPerTour, person)
     }
   }
 
@@ -94,18 +90,26 @@ class FreightReplanner(
     )
 
     val plans = route.activities.zipWithIndex.map { case (activity, i) =>
-      val freightRequestType: FreightRequestType = activity.service match {
+      val requestType: FreightRequestType = activity.service match {
         case _: Dropoff => FreightRequestType.Unloading
         case _: Pickup  => FreightRequestType.Loading
       }
       val payloadPlan = payloadPlans(activity.service.id.createId)
+
+      val activityType = if (freightConfig.generateFixedActivitiesDurations) {
+        s"${requestType.toString}|${payloadPlan.operationDurationInSec}"
+      } else {
+        requestType.toString
+      }
+
       PayloadPlan(
         activity.service.id.createId,
         i,
         tour.tourId,
         payloadPlan.payloadType,
         activity.service.capacity,
-        freightRequestType,
+        requestType,
+        activityType,
         activity.service.location,
         activity.arrivalTime,
         payloadPlan.arrivalTimeWindowInSec,
@@ -120,7 +124,7 @@ class FreightReplanner(
   private implicit def toCoord(location: Location): Coord = new Coord(location.x, location.y)
 
   private def getVehicleHouseholdLocation(vehicle: BeamVehicle): Location = {
-    val householdIdStr = PayloadPlansConverter.createHouseholdId(vehicle.id).toString
+    val householdIdStr = freightReader.createHouseholdId(vehicle.id).toString
     val x = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
       .getAttribute(householdIdStr, "homecoordx")
       .asInstanceOf[Double]
@@ -165,9 +169,9 @@ class FreightReplanner(
       val serviceId = payloadPlan.payloadId.toString
       payloadPlan.requestType match {
         case FreightRequestType.Unloading =>
-          Dropoff(serviceId, payloadPlan.location, payloadPlan.weight, payloadPlan.operationDurationInSec)
+          Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weight, payloadPlan.operationDurationInSec)
         case FreightRequestType.Loading =>
-          Pickup(serviceId, payloadPlan.location, payloadPlan.weight, payloadPlan.operationDurationInSec)
+          Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weight, payloadPlan.operationDurationInSec)
       }
     }
 

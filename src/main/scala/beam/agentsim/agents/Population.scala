@@ -6,18 +6,22 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
 import beam.agentsim.agents.household.HouseholdActor.{GetVehicleTypes, VehicleTypesResponse}
+import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.events.FleetStoredElectricityEvent
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.MathUtils
 import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
@@ -65,11 +69,15 @@ class Population(
 
   def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
     initHouseholds(vehicleTypes)
+    eventsManager.processEvent(createStoredElectricityEvent(0))
     scheduler ! CompletionNotice(triggerId, Vector())
     val awaitFinish: Receive = {
       case Terminated(_) =>
       // Do nothing
       case Finish =>
+        eventsManager.processEvent(
+          createStoredElectricityEvent(Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime).toInt)
+        )
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
         contextBecome { case Terminated(_) =>
@@ -100,7 +108,7 @@ class Population(
       }
       if (
         scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString.toLowerCase(), "homecoordy") == null
+          .getAttribute(household.getId.toString, "homecoordy") == null
       ) {
         log.error(
           s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
@@ -153,6 +161,19 @@ class Population(
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
     }
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
+  }
+
+  private def createStoredElectricityEvent(tick: Int) = {
+    val (storedElectricityInJoules, storageCapacityInJoules) = beamServices.beamScenario.privateVehicles.values
+      .filter(_.beamVehicleType.primaryFuelType == Electricity)
+      .foldLeft(0.0, 0.0) { case ((fuelLevel, fuelCapacity), vehicle) =>
+        val primaryFuelCapacityInJoule = vehicle.beamVehicleType.primaryFuelCapacityInJoule
+        (
+          fuelLevel + MathUtils.clamp(vehicle.primaryFuelLevelInJoules, 0, primaryFuelCapacityInJoule),
+          fuelCapacity + primaryFuelCapacityInJoule
+        )
+      }
+    new FleetStoredElectricityEvent(tick, "all-private-vehicles", storedElectricityInJoules, storageCapacityInJoules)
   }
 
 }
