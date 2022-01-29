@@ -14,6 +14,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
+import org.apache.commons.lang3.math.NumberUtils
 
 import scala.util.control.NonFatal
 
@@ -373,8 +374,8 @@ object ODSkimmer extends LazyLogging {
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        observations = row("observations").toInt,
-        iterations = row("iterations").toInt
+        observations = NumberUtils.toInt(row("observations"), 0),
+        iterations = NumberUtils.toInt(row("iterations"), 1)
       )
     )
   }

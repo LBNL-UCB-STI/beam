@@ -95,7 +95,7 @@ object RepositioningAnalyzer extends LazyLogging {
             Iterator.continually(csvRdr.read(header: _*)).takeWhile(_ != null).map(toPlanInfo).toArray
           }
           .filter(x =>
-            x.planElementType == "activity" && x.activityEndTime.isDefined && !x.activityEndTime
+            x.planElementType == PlanElement.Activity && x.activityEndTime.isDefined && !x.activityEndTime
               .contains(Double.NegativeInfinity)
           )
           .map { planElement =>

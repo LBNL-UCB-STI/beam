@@ -4024,7 +4024,8 @@ object BeamConfig {
         numberOfSamples: scala.Int,
         osmFile: java.lang.String,
         osmMapdbFile: java.lang.String,
-        travelTimeNoiseFraction: scala.Double
+        travelTimeNoiseFraction: scala.Double,
+        linkRadiusMeters: scala.Double
       )
 
       object R5 {
@@ -4080,7 +4081,8 @@ object BeamConfig {
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
             travelTimeNoiseFraction =
-              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0,
+            linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0
           )
         }
       }
