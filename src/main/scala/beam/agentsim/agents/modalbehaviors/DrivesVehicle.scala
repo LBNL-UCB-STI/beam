@@ -27,7 +27,7 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.event.TransitCrowdingSkimmerEvent
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamConfigChangesObservable, BeamScenario, BeamServices}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
@@ -42,7 +42,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.language.postfixOps
 
 /**
