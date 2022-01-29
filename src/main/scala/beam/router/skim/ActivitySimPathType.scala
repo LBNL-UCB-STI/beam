@@ -164,6 +164,7 @@ object ActivitySimPathType {
 
   private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
     case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM | BeamMode.CABLE_CAR => true
+
     case BeamMode.CAR | BeamMode.CAV | BeamMode.RIDE_HAIL | BeamMode.RIDE_HAIL_POOLED | BeamMode.FUNICULAR |
         BeamMode.GONDOLA | BeamMode.WALK | BeamMode.BIKE | BeamMode.BIKE_TRANSIT | BeamMode.TRANSIT |
         BeamMode.WALK_TRANSIT | BeamMode.DRIVE_TRANSIT | BeamMode.RIDE_HAIL_TRANSIT | BeamMode.CAR_HOV2 |

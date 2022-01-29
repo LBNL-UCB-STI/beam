@@ -183,46 +183,6 @@ trait ChoosesMode {
             _
           ) =>
         self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
-      // If we don't know the mode in advance we'll see what's out there
-      case ChoosesModeData(
-            BasePersonData(
-              _,
-              _,
-              _,
-              _,
-              Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _
-            ),
-            currentLocation,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          ) =>
-        val teleportationVehicle = createSharedTeleportationVehicle(currentLocation)
-        val vehicles = Vector(ActualVehicle(teleportationVehicle))
-        self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
       case ChoosesModeData(
             BasePersonData(
@@ -270,7 +230,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None,
+              None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
               _,
               _,
               _,
@@ -305,55 +265,6 @@ trait ChoosesMode {
           vehicleFleets,
           currentLocation,
           _experiencedBeamPlan.activities(currentActivityIndex)
-        ) pipeTo self
-      // If we know the mode in advance we need to make sure a vehicle exists
-      case ChoosesModeData(
-            BasePersonData(
-              currentActivityIndex,
-              _,
-              _,
-              _,
-              Some(mode @ (CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT | CAR_HOV2 | CAR_HOV3)),
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _
-            ),
-            currentLocation,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          ) =>
-        implicit val executionContext: ExecutionContext = context.system.dispatcher
-        val requireVehicleCategoryAvailable = mode match {
-          case CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3 => Some(VehicleCategory.Car)
-          case BIKE_TRANSIT | BIKE                       => Some(VehicleCategory.Bike)
-          case _                                         => None
-        }
-        requestAvailableVehicles(
-          vehicleFleets,
-          currentLocation,
-          _experiencedBeamPlan.activities(currentActivityIndex),
-          requireVehicleCategoryAvailable
         ) pipeTo self
       // Otherwise, send empty list to self
       case _ =>
@@ -573,11 +484,7 @@ trait ChoosesMode {
                   )
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 case _ =>
-                  makeRequestWith(
-                    withTransit = false,
-                    Vector(bodyStreetVehicle)
-                  )
-                  logger.error("If the agent has this trip in their plans, we should have created a vehicle for them")
+                  makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
               }
             case _ =>
@@ -1462,11 +1369,10 @@ trait ChoosesMode {
                   body.toStreetVehicle,
                   geo
                 )
-                val dataForNextStep = choosesModeData.copy(
+                goto(FinishingModeChoice) using choosesModeData.copy(
                   pendingChosenTrip = Some(bushwhackingTrip),
                   availableAlternatives = availableAlts
                 )
-                goto(FinishingModeChoice) using dataForNextStep
               }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive

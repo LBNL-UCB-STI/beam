@@ -440,7 +440,6 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
 }
 
 object HOVModeTransformerTest {
-
   private val random = new Random()
 
   def newTrip(

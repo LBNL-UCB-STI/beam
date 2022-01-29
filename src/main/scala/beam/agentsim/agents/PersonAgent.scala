@@ -611,64 +611,6 @@ class PersonAgent(
 
   }
 
-  when(Teleporting) {
-    case Event(
-          TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
-        ) =>
-      assert(currentActivity(data).getLinkId != null)
-
-      // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
-      // hail a ride. We stay at the party until our Uber is there.
-      eventsManager.processEvent(
-        new ActivityEndEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentActivity(data).getFacilityId,
-          currentActivity(data).getType
-        )
-      )
-
-      eventsManager.processEvent(
-        new PersonDepartureEvent(
-          tick,
-          id,
-          currentActivity(data).getLinkId,
-          currentTrip.tripClassifier.value
-        )
-      )
-
-      val arrivalTime = tick + currentTrip.totalTravelTimeInSecs
-      scheduler ! CompletionNotice(
-        triggerId,
-        Vector(ScheduleTrigger(TeleportationEndsTrigger(arrivalTime), self))
-      )
-
-      stay() using data.copy(hasDeparted = true)
-
-    case Event(
-          TriggerWithId(TeleportationEndsTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, true, _, _, _)
-        ) =>
-      holdTickAndTriggerId(tick, triggerId)
-
-      val teleportationEvent = new TeleportationEvent(
-        time = tick,
-        person = id,
-        departureTime = currentTrip.legs.head.beamLeg.startTime,
-        arrivalTime = tick,
-        startX = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getX,
-        startY = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getY,
-        endX = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getX,
-        endY = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getY,
-        currentTourMode = maybeCurrentTourMode.map(_.value)
-      )
-      eventsManager.processEvent(teleportationEvent)
-
-      goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
-  }
-
   when(WaitingForDeparture) {
 
     /**
