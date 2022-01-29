@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -328,7 +329,7 @@ class RideHailIterationsStatsCollector(
     val vehicleId = event.vehicleId.toString
     val numPass = event.numberOfPassengers
 
-    if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
+    if (BeamMode.isCar(mode) && vehicleId.contains("rideHail")) {
       if (numPass > 0) {
         vehicles.put(vehicleId, 1)
       } else if (vehicles.getOrElse(vehicleId, -1) < 0) {

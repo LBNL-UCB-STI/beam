@@ -106,11 +106,17 @@ object SimpleScenarioGeneratorArgParser {
         .action((value, args) => args.copy(outputFolder = value))
         .validate(value => if (value.isEmpty) failure("`outputFolder` cannot be empty") else success)
         .text("Path to output folder with the results")
+      opt[String]("linkRadiusMeters")
+        .action((value, args) => args.copy(linkRadiusMeters = value.toDouble))
+        .validate(value =>
+          if (Try(value.toDouble).isFailure) failure("`linkRadiusMeters` is not a double")
+          else success
+        )
     }
   }
 
   private def parseArguments(parser: OptionParser[Arguments], args: Array[String]): Option[Arguments] = {
-    parser.parse(args, init = Arguments("", "", Set.empty, "", "", "", "", "", 1, 0.0, 0.0, "", ""))
+    parser.parse(args, init = Arguments("", "", Set.empty, "", "", "", "", "", 1, 0.0, 0.0, "", "", 0.0))
   }
 
   def parseArguments(args: Array[String]): Option[Arguments] = parseArguments(buildParser, args)

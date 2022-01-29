@@ -12,7 +12,6 @@ class UrbansimReaderV2(
   val inputPersonPath: String,
   val inputPlanPath: String,
   val inputHouseholdPath: String,
-  val inputTripsPath: String,
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean,
@@ -60,7 +59,7 @@ class UrbansimReaderV2(
       merger
         .merge(planReader.iterator())
         .map { plan: PlanElement =>
-          if (plan.planElementType.equalsIgnoreCase("activity") && shouldConvertWgs2Utm) {
+          if (plan.planElementType == PlanElement.Activity && shouldConvertWgs2Utm) {
             val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
             plan.copy(activityLocationX = Some(utmCoord.getX), activityLocationY = Some(utmCoord.getY))
           } else {
