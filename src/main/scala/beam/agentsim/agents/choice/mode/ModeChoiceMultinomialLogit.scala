@@ -1,10 +1,8 @@
 package beam.agentsim.agents.choice.mode
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{ModeCostTimeTransfer, _}
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit._
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.BeamVehicle
@@ -15,13 +13,16 @@ import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.BikeLanesAdjustment
 import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
-import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
+
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * BEAM
@@ -575,22 +576,15 @@ object ModeChoiceMultinomialLogit {
     )
     val scale_factor: Double =
       configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
+
+    val carIntercept = Map("intercept" -> UtilityFunctionOperation("intercept", params.car_intercept))
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      BeamMode.CAR.value -> Map(
-        "intercept" ->
-        UtilityFunctionOperation("intercept", params.car_intercept)
-      ),
-      BeamMode.CAR_HOV2.value -> Map(
-        "intercept" ->
-        UtilityFunctionOperation("intercept", params.car_intercept)
-      ),
-      BeamMode.CAR_HOV3.value -> Map(
-        "intercept" ->
-        UtilityFunctionOperation("intercept", params.car_intercept)
-      ),
-      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
-      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
+      BeamMode.CAR.value      -> carIntercept,
+      BeamMode.CAR_HOV2.value -> carIntercept,
+      BeamMode.CAR_HOV3.value -> carIntercept,
+      "cav"                   -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
+      "walk"                  -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
+      "ride_hail"             -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
       "ride_hail_pooled" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),

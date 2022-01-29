@@ -1,7 +1,9 @@
 package beam.utils.scenario.generic.writers
 
 import beam.utils.csv.CsvWriter
+import beam.utils.data.synthpop.SimpleScenarioGenerator.logger
 import beam.utils.scenario.PlanElement
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Try
 
@@ -9,9 +11,10 @@ trait PlanElementWriter {
   def write(path: String, xs: Iterable[PlanElement]): Unit
 }
 
-object CsvPlanElementWriter extends PlanElementWriter {
+object CsvPlanElementWriter extends PlanElementWriter with LazyLogging {
 
   private val headers: Array[String] = Array(
+    "tripId",
     "personId",
     "planIndex",
     "planScore",
@@ -40,6 +43,7 @@ object CsvPlanElementWriter extends PlanElementWriter {
       xs.foreach { planElement =>
         val legRouteLinks = planElement.legRouteLinks.mkString("|")
         csvWriter.write(
+          planElement.tripId,
           planElement.personId.id,
           planElement.planIndex,
           planElement.planScore,
@@ -62,8 +66,9 @@ object CsvPlanElementWriter extends PlanElementWriter {
           planElement.geoId.getOrElse("")
         )
       }
+      logger.info(s"Wrote plans information to $path")
     } finally {
-      Try(csvWriter.close())
+      csvWriter.close()
     }
 
   }

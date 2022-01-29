@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 /**
   * Specs for BeamRouter
@@ -112,6 +113,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
       TrieMap.empty,
+      TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
@@ -121,6 +123,7 @@ class BeamRouterSpec extends AnyFlatSpec {
       ptFares = PtFares(List.empty),
       transportNetwork = mock(classOf[TransportNetwork]),
       network = mock(classOf[Network]),
+      new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
       None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
@@ -128,7 +131,8 @@ class BeamRouterSpec extends AnyFlatSpec {
       linkToTAZMapping = Map.empty,
       modeIncentives = null,
       h3taz = null,
-      freightCarriers = IndexedSeq.empty
+      freightCarriers = IndexedSeq.empty,
+      fixedActivitiesDurations = Map.empty[String, Double]
     )
   }
 

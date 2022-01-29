@@ -1,5 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock
 
+import java.io
+
 trait EntityTransformer[T] {
 
   def getIfNotNull(

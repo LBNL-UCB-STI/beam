@@ -70,9 +70,6 @@ trips <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010/trips.csv.gz")
 # persons <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/persons.csv.gz"))
 # households <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/households.csv.gz"))
 # blocks <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/blocks.csv.gz"))
-
-
-
 refueling_person_ids <- unique(refuel_actstart$person)
 plans <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/plans.csv.gz"))
 plans$person_id <- as.character(plans$person_id)
@@ -231,7 +228,7 @@ oakland_charging_events_merged_with_urbansim_tripIds_scaledUpby10 <- scaleUpAllS
 #   quote=FALSE,
 #   na="")
 #
-# 
+#
 # initInfra_1_5_updated_constrained_non_AlamedaOakland[startsWith(reservedFor, "household")]
 #
 # initInfra_1_5[household_id == 1800619]
@@ -358,9 +355,6 @@ write.csv(
   row.names=FALSE,
   quote=FALSE,
   na="")
-
-
-test <- readCsv(pp(workDir, "/2021Aug22-Oakland/stations/gemini-base-scenario-2-charging-with-household-infra16.csv"))
 
 
 #####

@@ -4,7 +4,6 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
@@ -25,10 +24,9 @@ import scala.collection.JavaConverters._
 abstract class GraphHopperWrapper(
   graphDir: String,
   geo: GeoUtils,
-  id2Link: Map[Int, (Coord, Coord)]
+  id2Link: Map[Int, (Coord, Coord)],
+  useAlternativeRoutes: Boolean
 ) extends Router {
-
-  protected val beamMode: BeamMode
 
   private val graphHopper = {
     val profile = getProfile()
@@ -62,6 +60,9 @@ abstract class GraphHopperWrapper(
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
+    if (useAlternativeRoutes) {
+      request.setAlgorithm(Parameters.Algorithms.ALT_ROUTE)
+    }
     prepareRequest(request)
 
     val response = graphHopper.route(request)
@@ -147,7 +148,7 @@ abstract class GraphHopperWrapper(
     try {
       val beamLeg = BeamLeg(
         routingRequest.departureTime,
-        beamMode,
+        streetVehicle.mode,
         beamTotalTravelTime,
         BeamPath(
           linkIds,
@@ -169,7 +170,8 @@ abstract class GraphHopperWrapper(
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("GH")
         )
       )
     } catch {

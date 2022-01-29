@@ -4,6 +4,8 @@ case class PersonId(id: String) extends AnyVal
 
 case class HouseholdId(id: String) extends AnyVal
 
+case class BlockId(id: Long) extends AnyVal
+
 case class PersonInfo(
   personId: PersonId,
   householdId: HouseholdId,
@@ -30,6 +32,7 @@ object PlanElement {
 }
 
 case class PlanElement(
+  tripId: String,
   personId: PersonId,
   planIndex: Int,
   planScore: Double,
@@ -54,4 +57,6 @@ case class PlanElement(
 
 case class HouseholdInfo(householdId: HouseholdId, cars: Int, income: Double, locationX: Double, locationY: Double)
 
-case class VehicleInfo(vehicleId: String, vehicleTypeId: String, householdId: String)
+case class VehicleInfo(vehicleId: String, vehicleTypeId: String, initialSoc: Option[Double], householdId: String)
+
+case class BlockInfo(blockId: BlockId, x: Double, y: Double)

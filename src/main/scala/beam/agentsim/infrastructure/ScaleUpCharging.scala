@@ -58,12 +58,13 @@ trait ScaleUpCharging extends {
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
-      self ! virtualParkingInquiries.getOrElse(
-        requestId,
-        log.error(
-          s"Something is broken in ScaleUpCharging. Request $requestId is not present in virtualParkingInquiries"
-        )
-      )
+      virtualParkingInquiries.get(requestId) match {
+        case Some(inquiry) => self ! inquiry
+        case _ =>
+          log.error(
+            s"Something is broken in ScaleUpCharging. Request $requestId is not present in virtualParkingInquiries"
+          )
+      }
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")

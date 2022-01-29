@@ -58,15 +58,11 @@ for(j in 1:nrow(publicLoads)){
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
-# sc2 <- all.sessions[code=="SC2"&!startsWith(parkingZoneId,"X")]
-# sc3 <- all.sessions[code=="SC3"&!startsWith(parkingZoneId,"X")]
-# nrow(sc2)*900/3600
-# nrow(sc3)*900/3600
 
 #####
 #scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
-scenarioBaselineLabel <- 'Scenario4'
+scenarioNames <- c('Scenario2', 'Scenario3')
+scenarioBaselineLabel <- 'Scenario2'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -157,6 +153,13 @@ register_google(key = google_api_key_1)
 oakland_map <- ggmap::get_googlemap("oakland california", zoom = 14, maptype = "roadmap")
 
 # Plot it
+ggmap(oakland_map) +
+  theme_void() +
+  ggtitle("terrain") +
+  theme(
+    plot.title = element_text(colour = "orange"),
+    panel.border = element_rect(colour = "grey", fill=NA, size=2)
+  )
 hours_to_show <- c(0, 8, 12, 18)
 toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% hours_to_show]
 toplot$hour.bin2.label <- "12am"
@@ -189,6 +192,18 @@ p <- all.loads[region=="Oakland-Alameda"&site=='public'&name%in%scenarioNames][,
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
   facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
+ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
+
+## **************************************
+##  public charging by scenario
+p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+  theme_marain() +
+  geom_area(colour="black", size=0.3) +
+  scale_fill_manual(values = chargingTypes.colors, name = "") +
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
+  theme(strip.text = element_text(size=rel(1.2))) +
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
 ## **************************************

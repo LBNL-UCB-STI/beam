@@ -151,14 +151,21 @@ class ParkingFunctions[GEO: GeoLevel](
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
-    geoArea: GEO
+    geoArea: GEO,
+    inClosestZone: Boolean = true
   ): Coord = {
     if (parkingZone.link.isDefined)
       parkingZone.link.get.getCoord
     else if (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household)
       inquiry.destinationUtm.loc
     else
-      GeoLevel[GEO].geoSampling(new Random(seed), inquiry.destinationUtm.loc, geoArea, parkingZone.availability)
+      GeoLevel[GEO].geoSampling(
+        new Random(seed),
+        inquiry.destinationUtm.loc,
+        geoArea,
+        parkingZone.availability,
+        inClosestZone
+      )
   }
 
   /**

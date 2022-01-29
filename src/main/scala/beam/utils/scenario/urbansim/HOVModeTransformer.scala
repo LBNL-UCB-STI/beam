@@ -71,23 +71,15 @@ object HOVModeTransformer extends LazyLogging {
     var forcedHOV2Teleports = 0
     var forcedHOV3Teleports = 0
 
-    if (forcedHOV2Teleports > 0 || forcedHOV3Teleports > 0) {
-      logger.info(
-        s"There were $forcedHOV2Teleports hov2 and $forcedHOV3Teleports hov3 forced teleports because actors did not get access to a car."
-      )
-    }
-
     var forcedCarHOV2Count = 0
     var forcedCarHOV3Count = 0
 
     def thereAreMoreHOVTeleportations: Boolean = {
-      forcedHOV2Teleports > forcedCarHOV2Count ||
-      forcedHOV3Teleports > forcedCarHOV3Count * 2
+      (forcedHOV2Teleports > forcedCarHOV2Count) || (forcedHOV3Teleports > forcedCarHOV3Count * 2)
     }
 
     def thereAreMoreHOVCars: Boolean = {
-      forcedCarHOV2Count > forcedHOV2Teleports ||
-      forcedCarHOV3Count * 2 > forcedHOV3Teleports
+      (forcedCarHOV2Count > forcedHOV2Teleports) || (forcedCarHOV3Count * 2 > forcedHOV3Teleports)
     }
 
     def replaceHOVwithCar(trip: List[PlanElement]): List[PlanElement] = {
@@ -96,7 +88,7 @@ object HOVModeTransformer extends LazyLogging {
           forcedHOV2Teleports -= 1
           hov2Leg.copy(legMode = Some(CAR_HOV2.value))
         case hov3Leg if itIsAnHOV3Leg(hov3Leg) =>
-          //as car_hov3 contains two passengers, reduce by 2
+          // as car_hov3 contains two passengers, reduce by 2
           forcedHOV3Teleports -= 2
           hov3Leg.copy(legMode = Some(CAR_HOV3.value))
         case other => other
@@ -233,9 +225,9 @@ object HOVModeTransformer extends LazyLogging {
 
     if (cantSplitTripsForPersons.nonEmpty) {
       logger.info(
-        "Cannot split plans to trips because plans does not start and end by Home activity for {} persons: {} etc.",
+        "Cannot split plans to trips because plans does not start and end by Home activity for {} persons: {}",
         cantSplitTripsForPersons.size,
-        cantSplitTripsForPersons.take(10).mkString(",")
+        cantSplitTripsForPersons.mkString(",")
       )
     }
 

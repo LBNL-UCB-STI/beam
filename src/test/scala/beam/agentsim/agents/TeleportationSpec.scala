@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.ActorSystem
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, TeleportationEvent}
+import beam.agentsim.events.{PathTraversalEvent, TeleportationEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
@@ -80,7 +80,7 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
         // links
         activitiesList.map(_._1) shouldBe List("300", "142", "300", "142", "300", "142")
         // times
-        activitiesList.map(_._2) shouldBe List(21891.0, 26430.0, 32697.0, 37231.0, 39891.0, 44282.0)
+        activitiesList.map(_._2) shouldBe List(21886.0, 26425.0, 32693.0, 37226.0, 39886.0, 44279.0)
         // type
         activitiesList.map(_._3) shouldBe List("Other", "Home", "Other", "Home", "Other", "Home")
       }

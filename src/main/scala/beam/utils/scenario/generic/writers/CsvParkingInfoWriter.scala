@@ -3,6 +3,7 @@ package beam.utils.scenario.generic.writers
 import beam.utils.csv.CsvWriter
 import beam.utils.data.synthpop.GeoService
 import beam.utils.data.synthpop.models.Models.{GenericGeoId, TazGeoId}
+import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
@@ -14,7 +15,7 @@ trait ParkingInfoWriter {
   def write(path: String, geoService: GeoService, tazCounts: Map[GenericGeoId, (Int, Int)]): Unit
 }
 
-object CsvParkingInfoWriter extends ParkingInfoWriter {
+object CsvParkingInfoWriter extends ParkingInfoWriter with LazyLogging {
 
   private val headers: Array[String] =
     Array("taz", "parkingType", "pricingModel", "chargingPointType", "numStalls", "feeInCents", "reservedFor")
@@ -46,8 +47,9 @@ object CsvParkingInfoWriter extends ParkingInfoWriter {
           }
         }
       }
+      logger.info(s"Wrote parking information to $path")
     } finally {
-      Try(csvWriter.close())
+      csvWriter.close()
     }
   }
 

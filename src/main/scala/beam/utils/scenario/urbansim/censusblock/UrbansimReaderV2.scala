@@ -12,7 +12,6 @@ class UrbansimReaderV2(
   val inputPersonPath: String,
   val inputPlanPath: String,
   val inputHouseholdPath: String,
-  val inputTripsPath: String,
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean,
