@@ -14,8 +14,8 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.{List, Set}
-import scala.collection.mutable.{ListBuffer, Set}
+import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class SupplementaryTripGenerator(
@@ -365,8 +365,8 @@ class SupplementaryTripGenerator(
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
     val activityDuration = additionalActivity.getEndTime - additionalActivity.getStartTime
-    val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime)
-    val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime)
+    val desiredDepartTimeInSeconds = additionalActivity.getStartTime.floor.toInt
+    val desiredReturnTimeInSeconds = additionalActivity.getEndTime.floor.toInt
     val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
     val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
@@ -376,7 +376,7 @@ class SupplementaryTripGenerator(
           beamServices.skims.od_skimmer.getTimeDistanceAndCost(
             alternativeActivity.getCoord,
             additionalActivity.getCoord,
-            desiredDepartTimeBin,
+            desiredDepartTimeInSeconds,
             mode,
             vehicleType.id,
             vehicleType,
@@ -387,7 +387,7 @@ class SupplementaryTripGenerator(
             beamServices.skims.od_skimmer.getTimeDistanceAndCost(
               additionalActivity.getCoord,
               alternativeActivity.getCoord,
-              desiredReturnTimeBin,
+              desiredReturnTimeInSeconds,
               mode,
               vehicleType.id,
               vehicleType,
