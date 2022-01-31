@@ -106,6 +106,16 @@ object ReplanningUtil {
     newPlan
   }
 
+  def createPlanFromActivitiesAndTrips(originalPlan: Plan, activities: Vector[Activity], legs: Vector[Leg]): Plan = {
+    val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+    for (i <- legs.indices) {
+      newPlan.getPlanElements.add(activities(i))
+      newPlan.getPlanElements.add(legs(i))
+    }
+    newPlan.getPlanElements.add(activities.last)
+    newPlan
+  }
+
   def addNoModeBeamTripsToPlanWithOnlyActivities(originalPlan: Plan): Plan = {
     val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
     for (i <- 0 until originalPlan.getPlanElements.size() - 1) {
