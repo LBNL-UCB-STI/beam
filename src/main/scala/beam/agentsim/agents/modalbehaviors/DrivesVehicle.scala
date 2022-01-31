@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalbehaviors
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
-import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.parking.ChoosesParking.{handleUseParkingSpot, ConnectingToChargingPoint}
@@ -396,8 +396,22 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           log.debug(s"state(DrivesVehicle.Driving) $id is going to ConnectingToChargingPoint")
           goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
-          val restOfTrip: Option[List[EmbodiedBeamLeg]] = findPersonData(data).map(_.restOfCurrentTrip)
-          handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, restOfTrip)
+          val maybePersonData = findPersonData(data)
+          val maybeNextActivity =
+            maybePersonData.flatMap(personData => this.asInstanceOf[PersonAgent].nextActivity(personData))
+          val trip = maybePersonData.flatMap(_.currentTrip)
+          val restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
+          handleUseParkingSpot(
+            tick,
+            currentBeamVehicle,
+            id,
+            geo,
+            eventsManager,
+            beamScenario.tazTreeMap,
+            maybeNextActivity,
+            trip,
+            restOfTrip
+          )
           self ! LastLegPassengerSchedule(triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to DrivingInterrupted with $triggerId")
           goto(DrivingInterrupted) using data.asInstanceOf[T]

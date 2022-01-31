@@ -6,6 +6,8 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
+import beam.agentsim.agents.freight.FreightRequestType
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_REQUEST_TYPE
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -23,11 +25,12 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
-import beam.router.skim.event.ParkingSkimmerEvent
+import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.api.experimental.events.EventsManager
 import org.slf4j.LoggerFactory
 
@@ -51,6 +54,8 @@ object ChoosesParking {
     geo: GeoUtils,
     eventsManager: EventsManager,
     tazTreeMap: TAZTreeMap,
+    nextActivity: Option[Activity],
+    trip: Option[EmbodiedBeamTrip],
     restOfTrip: Option[List[EmbodiedBeamLeg]]
   ): Unit = {
     currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
@@ -63,39 +68,87 @@ object ChoosesParking {
         driverId = driver.toString
       )
       eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
-      if (currentBeamVehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car && restOfTrip.isDefined) {
-        val legs = restOfTrip.get
+      restOfTrip.foreach { legs =>
         if (legs.size >= 2 && legs(0).beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
-          val walkLeg = legs(1)
-          val tazId = tazTreeMap.getTAZ(walkLeg.beamLeg.travelPath.endPoint.loc).tazId
-          val chargerType = stall.chargingPointType match {
-            case Some(chargingType)
-                if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
-              ChargerType.DCFastCharger
-            case Some(_) => ChargerType.ACSlowCharger
-            case None    => ChargerType.NoCharger
-          }
-          val parkingCostPerHour = stall.pricingModel
-            .map {
-              case PricingModel.FlatFee(costInDollars)                => costInDollars
-              case PricingModel.Block(costInDollars, intervalSeconds) => costInDollars / intervalSeconds * 3600
-            }
-            .getOrElse(stall.costInDollars)
-          eventsManager.processEvent(
-            new ParkingSkimmerEvent(
-              tick,
-              tazId,
-              chargerType,
-              walkLeg.beamLeg.travelPath.distanceInM,
-              parkingCostPerHour
+          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, tazTreeMap, nextActivity, stall, legs)
+          eventsManager.processEvent(parkingSkimmerEvent)
+          val freightRequestType =
+            nextActivity.flatMap(activity =>
+              Option(activity.getAttributes.getAttribute(FREIGHT_REQUEST_TYPE)).asInstanceOf[Option[FreightRequestType]]
             )
-          )
-        } else {
-          logger.error("Cannot create parking skimmer event with this rest of trip: {}", legs)
+          freightRequestType.foreach { requestType =>
+            val freightSkimmerEvent = createFreightSkimmerEvent(tick, trip, parkingSkimmerEvent, requestType)
+            eventsManager.processEvent(freightSkimmerEvent)
+          }
         }
       }
     }
     currentBeamVehicle.setReservedParkingStall(None)
+  }
+
+  private def createFreightSkimmerEvent(
+    tick: Int,
+    trip: Option[EmbodiedBeamTrip],
+    parkingSkimmerEvent: ParkingSkimmerEvent,
+    requestType: FreightRequestType
+  ) = {
+    val (loading, unloading) = requestType match {
+      case FreightRequestType.Unloading => (0, 1)
+      case FreightRequestType.Loading   => (1, 0)
+    }
+    val costPerMile = trip
+      .map { trip =>
+        val carDistanceInM = trip.beamLegs.collect {
+          case leg if leg.mode == BeamMode.CAR => leg.travelPath.distanceInM
+        }.sum
+        logger.info("Cost: {}, dist: {}", trip.costEstimate, carDistanceInM)
+        trip.costEstimate / carDistanceInM * 1609.0
+      }
+      .getOrElse(Double.NaN)
+    val freightSkimmerEvent = new FreightSkimmerEvent(
+      tick,
+      parkingSkimmerEvent.tazId,
+      loading,
+      unloading,
+      costPerMile,
+      parkingSkimmerEvent.walkAccessDistanceInM,
+      parkingSkimmerEvent.parkingCostPerHour
+    )
+    freightSkimmerEvent
+  }
+
+  private def createParkingSkimmerEvent(
+    tick: Int,
+    tazTreeMap: TAZTreeMap,
+    nextActivity: Option[Activity],
+    stall: ParkingStall,
+    restOfTrips: List[EmbodiedBeamLeg]
+  ): ParkingSkimmerEvent = {
+    val walkLeg = restOfTrips(1)
+    val tazId = tazTreeMap.getTAZ(walkLeg.beamLeg.travelPath.endPoint.loc).tazId
+    val chargerType = stall.chargingPointType match {
+      case Some(chargingType) if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
+        ChargerType.DCFastCharger
+      case Some(_) => ChargerType.ACSlowCharger
+      case None    => ChargerType.NoCharger
+    }
+    val parkingCostPerHour = (stall.pricingModel, nextActivity) match {
+      case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) => costInDollars / intervalSeconds * 3600
+      case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
+          if activity.getEndTime - activity.getStartTime > 0 =>
+        costInDollars / (activity.getEndTime - activity.getStartTime) * 3600
+      case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
+      case (None, _)                                      => 0
+    }
+    val walkAccessDistance = walkLeg.beamLeg.travelPath.distanceInM
+    val parkingSkimmerEvent = new ParkingSkimmerEvent(
+      tick,
+      tazId,
+      chargerType,
+      walkAccessDistance,
+      parkingCostPerHour
+    )
+    parkingSkimmerEvent
   }
 
   def calculateScore(
@@ -169,8 +222,21 @@ trait ChoosesParking extends {
   when(ConnectingToChargingPoint) {
     case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
-      val restOfTrip: Option[List[EmbodiedBeamLeg]] = findPersonData(data).map(_.restOfCurrentTrip)
-      handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, restOfTrip)
+      val maybePersonData = findPersonData(data)
+      val maybeNextActivity = maybePersonData.flatMap(nextActivity)
+      val trip = maybePersonData.flatMap(_.currentTrip)
+      val restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
+      handleUseParkingSpot(
+        tick,
+        currentBeamVehicle,
+        id,
+        geo,
+        eventsManager,
+        beamScenario.tazTreeMap,
+        maybeNextActivity,
+        trip,
+        restOfTrip
+      )
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
     case _ @Event(WaitingToCharge(tick, vehicleId, triggerId), data) =>

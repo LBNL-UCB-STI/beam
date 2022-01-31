@@ -1121,7 +1121,7 @@ class RideHailAgent(
   }
 
   def startRefueling(tick: Int, triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
-    handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, None)
+    handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, None, None, None)
     handleStartRefuel(triggerId, triggers)
   }
 
