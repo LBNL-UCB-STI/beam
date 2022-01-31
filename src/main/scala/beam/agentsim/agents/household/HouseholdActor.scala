@@ -198,8 +198,8 @@ object HouseholdActor {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val homeCoordFromPlans = household.members
-          .flatMap(per =>
-            per.getSelectedPlan.getPlanElements.asScala.flatMap {
+          .flatMap(person =>
+            person.getSelectedPlan.getPlanElements.asScala.flatMap {
               case act: Activity if act.getType == "Home" => Some(act.getCoord)
               case _                                      => None
             }
