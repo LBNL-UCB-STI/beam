@@ -2,10 +2,12 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -27,7 +29,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
 
   import ChargingNetwork._
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
 
   protected val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
     chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
@@ -84,28 +86,19 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
     request: ChargingPlugRequest,
     activityType: String,
     theSender: ActorRef
-  ): Option[ChargingVehicle] = {
-    lookupStation(request.stall.parkingZoneId)
-      .map(
-        _.connect(
-          request.tick,
-          request.vehicle,
-          request.stall,
-          request.personId,
-          activityType,
-          request.shiftStatus,
-          request.shiftDuration,
-          theSender
-        )
+  ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
+    .map(
+      _.connect(
+        request.tick,
+        request.vehicle,
+        request.stall,
+        request.personId,
+        activityType,
+        request.shiftStatus,
+        request.shiftDuration,
+        theSender
       )
-      .orElse {
-        logger.error(
-          s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
-          s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
-        )
-        None
-      }
-  }
+    )
 
   /**
     * @param vehicleId vehicle to end charge
@@ -161,23 +154,26 @@ object ChargingNetwork extends LazyLogging {
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    seed: Int
+    skims: Option[Skims],
+    fuelPrice: Map[FuelType, Double]
   ): ChargingNetwork[GEO] = {
     new ChargingNetwork[GEO](chargingZones) {
-      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
         new ChargingFunctions[GEO](
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,
           chargingZones,
           distanceFunction,
-          minSearchRadius,
-          maxSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci,
+          beamConfig.beam.agentsim.agents.vehicles.enroute.avgChargingDurationInSecond,
           envelopeInUTM,
-          seed,
-          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+          beamConfig.matsim.modules.global.randomSeed,
+          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+          skims,
+          fuelPrice
         )
       )
     }
@@ -192,9 +188,8 @@ object ChargingNetwork extends LazyLogging {
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices],
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    seed: Int
+    skims: Option[Skims] = None,
+    fuelPrice: Map[FuelType, Double] = Map()
   ): ChargingNetwork[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
@@ -213,9 +208,8 @@ object ChargingNetwork extends LazyLogging {
       envelopeInUTM,
       beamConfig,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      seed
+      skims,
+      fuelPrice
     )
   }
 
@@ -229,12 +223,11 @@ object ChargingNetwork extends LazyLogging {
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
       identity[TAZ](_),
-      envelopeInUTM: Envelope,
+      envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
-      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamServices.beamConfig.matsim.modules.global.randomSeed
+      Some(beamServices.skims),
+      beamServices.beamScenario.fuelTypePrices
     )
   }
 
@@ -254,9 +247,8 @@ object ChargingNetwork extends LazyLogging {
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
-      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamServices.beamConfig.matsim.modules.global.randomSeed
+      Some(beamServices.skims),
+      beamServices.beamScenario.fuelTypePrices
     )
   }
 

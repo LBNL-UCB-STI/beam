@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object ParkingMNL {
 
@@ -11,6 +10,7 @@ object ParkingMNL {
     Parameters.ParkingTicketCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.RangeAnxietyCost                      -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.WalkingEgressCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.EnrouteDetourCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
   )
 
@@ -72,6 +72,7 @@ object ParkingMNL {
     final case object QueueingTimeCost extends Parameters with Serializable
     final case object ChargingTimeCost extends Parameters with Serializable
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
+    final case object EnrouteDetourCost extends Parameters with Serializable
 
     def shortName(parameter: Parameters): String = parameter match {
       case ParkingTicketCost                     => "park"
@@ -82,6 +83,7 @@ object ParkingMNL {
       case QueueingTimeCost                      => "queue"
       case ChargingTimeCost                      => "charge"
       case HomeActivityPrefersResidentialParking => "home"
+      case EnrouteDetourCost                     => "enroute"
     }
   }
 }

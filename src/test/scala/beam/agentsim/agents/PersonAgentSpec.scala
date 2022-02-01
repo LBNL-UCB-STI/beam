@@ -124,8 +124,7 @@ class PersonAgentSpec
           self,
           services.tollCalculator,
           self,
-          routeHistory = new RouteHistory(beamConfig),
-          boundingBox = boundingBox
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -193,7 +192,6 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -406,7 +404,6 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -694,7 +691,6 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -873,8 +869,6 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
     }
 
   }

@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType}
+import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
@@ -38,6 +38,8 @@ case class ParkingInquiry(
   reserveStall: Boolean = true,
   requestId: Int =
     ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  searchMode: ParkingSearchMode = ParkingSearchMode.Destination,
+  originUtm: Option[SpaceTime] = None,
   triggerId: Long
 ) extends HasTriggerId {
   val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
@@ -45,10 +47,16 @@ case class ParkingInquiry(
 
 object ParkingInquiry extends LazyLogging {
   sealed abstract class ParkingActivityType extends EnumEntry
+  sealed abstract class ParkingSearchMode extends EnumEntry
+
+  object ParkingSearchMode extends Enum[ParkingSearchMode] {
+    val values: immutable.IndexedSeq[ParkingSearchMode] = findValues
+    case object EnRoute extends ParkingSearchMode
+    case object Destination extends ParkingSearchMode
+  }
 
   object ParkingActivityType extends Enum[ParkingActivityType] {
     val values: immutable.IndexedSeq[ParkingActivityType] = findValues
-
     case object Charge extends ParkingActivityType
     case object Init extends ParkingActivityType
     case object Wherever extends ParkingActivityType
@@ -81,6 +89,8 @@ object ParkingInquiry extends LazyLogging {
     parkingDuration: Double = 0,
     reserveStall: Boolean = true,
     requestId: Int = ParkingManagerIdGenerator.nextId,
+    searchMode: ParkingSearchMode = ParkingSearchMode.Destination,
+    originUtm: Option[SpaceTime] = None,
     triggerId: Long
   ): ParkingInquiry =
     ParkingInquiry(
@@ -94,6 +104,8 @@ object ParkingInquiry extends LazyLogging {
       parkingDuration,
       reserveStall,
       requestId,
+      searchMode,
+      originUtm,
       triggerId = triggerId
     )
 }
