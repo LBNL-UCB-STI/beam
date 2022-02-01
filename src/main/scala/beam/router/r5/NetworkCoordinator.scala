@@ -25,7 +25,8 @@ case class LinkParam(
   length: Option[Double],
   lanes: Option[Int],
   alpha: Option[Double],
-  beta: Option[Double]
+  beta: Option[Double],
+  hgv: Option[Boolean]
 ) {
 
   def overwriteFor(link: Link, cursor: EdgeStore#Edge): Unit = {
@@ -49,6 +50,9 @@ case class LinkParam(
     }
     beta.foreach { value =>
       link.getAttributes.putAttribute("beta", value)
+    }
+    hgv.foreach { value =>
+      link.getAttributes.putAttribute("hgv", value)
     }
   }
 }
@@ -146,6 +150,7 @@ trait NetworkCoordinator extends LazyLogging {
       "PhysSim speed scaling factor value is too high"
     )
 
+    // RRP
     // Overwrite link stats if needed
     overwriteLinkParams(getOverwriteLinkParam(beamConfig), transportNetwork, network)
 
@@ -195,6 +200,7 @@ trait NetworkCoordinator extends LazyLogging {
 
   private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {
     val path = beamConfig.beam.physsim.overwriteLinkParamPath
+    println(s"==================== path: $path ---------------------------")
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
@@ -207,7 +213,8 @@ trait NetworkCoordinator extends LazyLogging {
             val lanes = Option(line.get("lanes")).map(_.toDouble.toInt)
             val alpha = Option(line.get("alpha")).map(_.toDouble)
             val beta = Option(line.get("beta")).map(_.toDouble)
-            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes, alpha, beta)
+            val hgv = Option(line.get("hgv")).map(_.toBoolean)
+            val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes, alpha, beta, hgv)
 
             z += ((linkId, lp))
         }
@@ -287,6 +294,7 @@ object NetworkCoordinator {
     highwayType.residential.capacity.foreach(capacity => map.put(HighwayType.Residential, capacity))
     highwayType.livingStreet.capacity.foreach(capacity => map.put(HighwayType.LivingStreet, capacity))
     highwayType.unclassified.capacity.foreach(capacity => map.put(HighwayType.Unclassified, capacity))
+
     map
   }
 

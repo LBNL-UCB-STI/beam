@@ -3,6 +3,7 @@ package beam.router.r5;
 import beam.sim.config.BeamConfig;
 import beam.utils.osm.WayFixer$;
 import com.conveyal.osmlib.OSM;
+import com.conveyal.osmlib.OSMEntity;
 import com.conveyal.osmlib.Way;
 import com.conveyal.r5.streets.EdgeStore;
 import com.conveyal.r5.transit.TransportNetwork;
@@ -17,6 +18,10 @@ import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -57,7 +62,7 @@ public class R5MnetBuilder {
         mNetwork = NetworkUtils.createNetwork();
     }
 
-    public void buildMNet() {
+    public void buildMNet() throws IOException {
         // Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
         Map<Long, Way> ways = new OSM(osmFile).ways;
         WayFixer$.MODULE$.fix(ways, beamConfig);
@@ -67,6 +72,12 @@ public class R5MnetBuilder {
 
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
+
+//        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/link4.csv")));
+//        StringBuffer s = new StringBuffer();
+//        s.append("link_id,highway=primary,highway=trunk,highway=motorway,hgv=designated,hgv=yes\n");
+//        s.append("link_id,highway=motorway,hgv=designated,hgv=yes\n");
+//        s.append("link_id,hgv=designated,hgv=yes\n");
 
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
@@ -103,6 +114,27 @@ public class R5MnetBuilder {
             Node fromNode = getOrMakeNode(fromCoord);
             Node toNode = getOrMakeNode(toCoord);
             Link link;
+
+//            boolean hgv = false;
+//            if (way != null) {
+//                for (OSMEntity.Tag tag: way.tags) {
+//                    int highwayPrimary = tag.toString().contains("highway=primary") ? 1 : 0;
+//                    int highwayTrunk = tag.toString().contains("highway=trunk") ? 1 : 0;
+//                    int highwayMotorway = tag.toString().contains("highway=motorway") ? 1 : 0;
+//                    int hgvDesignated = tag.toString().contains("hgv=designated") ? 1 : 0;
+//                    int hgvYes = tag.toString().contains("hgv=yes") ? 1 : 0;
+
+//                    int flag = highwayPrimary + highwayTrunk + highwayMotorway + hgvDesignated + hgvYes;
+//                    if (flag >= 1) {
+////                        s.append(edgeIndex + "," + highwayPrimary + "," + highwayTrunk + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
+////                        s.append(edgeIndex + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
+//                        s.append(edgeIndex + "," + hgvDesignated + "," + hgvYes + "\n");
+//                        hgv = true;
+//                        break;
+//                    }
+//                }
+//            }
+
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
                 link = buildLink(edgeIndex, flagStrings, length, fromNode, toNode);
@@ -122,6 +154,11 @@ public class R5MnetBuilder {
                 numberOfFixes += 1;
             }
         }
+
+//        bwr.write(s.toString());
+//        bwr.flush();
+//        bwr.close();
+
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
         }
