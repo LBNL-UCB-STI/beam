@@ -253,7 +253,7 @@ object PersonAgent {
 
   def findPersonData(data: DrivingData): Option[BasePersonData] = data match {
     case basePersonData: BasePersonData => Some(basePersonData)
-    case _                          => None
+    case _                              => None
   }
 }
 
