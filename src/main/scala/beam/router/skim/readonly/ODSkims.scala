@@ -90,6 +90,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
+          crowdingLevel = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }
@@ -113,6 +114,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
+          crowdingLevel = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }

@@ -1,7 +1,8 @@
 package beam.agentsim.agents.freight
 
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.jspritwrapper.{Dropoff, Pickup}
-import beam.sim.BeamServices
+import beam.sim.{BeamHelper, BeamServices}
 import beam.utils.TestConfigUtils
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -16,15 +17,17 @@ import scala.util.Random
 /**
   * @author Dmitry Openkov
   */
-class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
+class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper {
+
+  val beamServices: BeamServices = TestConfigUtils.configToBeamServices(
+    TestConfigUtils.testConfig("test/input/beamville/beam-freight.conf").resolve()
+  )
 
   "FreightReplanner" should {
     "solve with singleVehicle strategy" in {
-      val beamServices: BeamServices = TestConfigUtils.configToBeamServices(
-        TestConfigUtils.testConfig("test/input/beamville/beam-freight.conf").resolve()
-      )
-
-      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, new Random(100))
+      val rnd = new Random(100)
+      val freightReader = FreightReader(beamServices)
+      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
       val carrier =
         beamServices.beamScenario.freightCarriers.find(_.carrierId == "carrier-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "singleTour", 0)
@@ -55,14 +58,12 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
     }
 
     "solve with wholeFleet strategy for a single vehicle" in {
-      val beamServices: BeamServices = TestConfigUtils.configToBeamServices(
-        TestConfigUtils.testConfig("test/input/beamville/beam-freight.conf").resolve()
-      )
-
       //jsprit doesn't support multiple tours for a single vehicle. Because the first carrier has a single vehicle
       //then a single tour is returned
 
-      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, new Random(100))
+      val rnd = new Random(100)
+      val freightReader = FreightReader(beamServices)
+      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
       val carrier =
         beamServices.beamScenario.freightCarriers.find(_.carrierId == "carrier-1".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
@@ -79,11 +80,9 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
     }
 
     "solve with wholeFleet strategy for multiple vehicles" in {
-      val beamServices: BeamServices = TestConfigUtils.configToBeamServices(
-        TestConfigUtils.testConfig("test/input/beamville/beam-freight.conf").resolve()
-      )
-
-      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, new Random(100))
+      val rnd = new Random(100)
+      val freightReader = FreightReader(beamServices)
+      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
       val carrier =
         beamServices.beamScenario.freightCarriers.find(_.carrierId == "carrier-2".createId[FreightCarrier]).get
       val routes = replanner.calculateRoutes(carrier, "wholeFleet", 0)
@@ -116,7 +115,9 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers {
           .withFallback(testConfig("test/input/beamville/beam-freight.conf").resolve())
       )
 
-      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, new Random(100))
+      val rnd = new Random(100)
+      val freightReader = FreightReader(beamServices)
+      val replanner = new FreightReplanner(beamServices, beamServices.skims.od_skimmer, rnd, freightReader)
       val carrier =
         beamServices.beamScenario.freightCarriers.find(_.carrierId == "carrier-1".createId[FreightCarrier]).get
       replanner.replan(carrier)

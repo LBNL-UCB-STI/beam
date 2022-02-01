@@ -20,11 +20,12 @@ object R5NetworkPlayground extends BeamHelper {
     }
 
     val transportNetwork = nc.transportNetwork
+    val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
 
     // split is null
-    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.358396043, 38.7670573007))
+    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.358396043, 38.7670573007), linkRadiusMeters)
     // split is null
-    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.180062255, 38.7728279981))
+    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.180062255, 38.7728279981), linkRadiusMeters)
 
     val gpxWriter = new GpxWriter("corners_production.gpx", geoUtils)
 

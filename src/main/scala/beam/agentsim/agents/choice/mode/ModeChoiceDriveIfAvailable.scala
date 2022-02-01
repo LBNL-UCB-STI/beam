@@ -2,8 +2,10 @@ package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAR
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.core.ODSkimmer
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
@@ -53,6 +55,12 @@ class ModeChoiceDriveIfAvailable(val beamServices: BeamServices) extends ModeCho
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = 0.0
+
+  def utilityOf(
+    mode: BeamMode,
+    skim: ODSkimmer.Skim,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
 

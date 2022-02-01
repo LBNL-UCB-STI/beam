@@ -3,6 +3,7 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
@@ -32,6 +33,7 @@ class SupplementaryTripGenerator(
   val activityRates: ActivityRates = destinationChoiceModel.activityRates
   val activityVOTs: ActivityVOTs = destinationChoiceModel.activityVOTs
   val activityDurations: ActivityDurations = destinationChoiceModel.activityDurations
+  val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
 
   def generateNewPlans(
     plan: Plan,
@@ -49,11 +51,11 @@ class SupplementaryTripGenerator(
     var tourModes = collection.mutable.Set(modesToConsider.toArray: _*)
 
     val modeMNL: MultinomialLogit[
-      SupplementaryTripAlternative,
+      BeamMode,
       DestinationChoiceModel.DestinationParameters
     ] =
       MultinomialLogit(
-        Map.empty,
+        destinationChoiceModel.DefaultModeParameters,
         destinationChoiceModel.DefaultMNLParameters,
         beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.mode_nest_scale_factor
       )
@@ -155,7 +157,7 @@ class SupplementaryTripGenerator(
   private def generateLeg(
     prevActivity: Activity,
     nextActivity: Activity,
-    modeMNL: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
+    modeMNL: MultinomialLogit[BeamMode, DestinationParameters],
     availableModes: collection.immutable.Set[BeamMode] = collection.immutable.Set[BeamMode](CAR),
     fillInModes: Boolean = false
   ): Leg = {
@@ -173,11 +175,11 @@ class SupplementaryTripGenerator(
             (arrivalTime - nextActivity.getEndTime).toInt,
             arrivalTime.toInt
           )
-        supplementaryTripAlternative -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
+        mode -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
       }
       val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, r)
       PopulationUtils.createLeg(alternativeChosen match {
-        case Some(alt) => alt.alternativeType.mode.value
+        case Some(alt) => alt.alternativeType.value
         case None      => ""
       })
     } else {
@@ -190,7 +192,7 @@ class SupplementaryTripGenerator(
     prevActivity: Activity,
     currentActivity: Activity,
     nextActivity: Activity,
-    modeMNL: MultinomialLogit[SupplementaryTripAlternative, DestinationParameters],
+    modeMNL: MultinomialLogit[BeamMode, DestinationParameters],
     destinationMNL: MultinomialLogit[SupplementaryTripAlternative, TripParameters],
     tripMNL: MultinomialLogit[Boolean, TripParameters],
     availableModes: collection.immutable.Set[BeamMode] = collection.immutable.Set[BeamMode](CAR),
@@ -209,7 +211,7 @@ class SupplementaryTripGenerator(
       case "None" => (List(alternativeActivity), List.empty[Leg])
       case _ =>
         val (
-          modeTazCosts: Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[
+          modeTazCosts: Map[SupplementaryTripAlternative, Map[BeamMode, Map[
             DestinationParameters,
             Double
           ]]],
@@ -240,7 +242,7 @@ class SupplementaryTripGenerator(
             val chosenModeOptionForTaz = modeMNL.sampleAlternative(modeCost, r)
             chosenModeOptionForTaz match {
               case Some(chosenModeForTaz) if fillInModes =>
-                alt.taz -> Some(chosenModeForTaz.alternativeType.mode)
+                alt.taz -> Some(chosenModeForTaz.alternativeType)
               case _ =>
                 alt.taz -> None
             }
@@ -303,7 +305,7 @@ class SupplementaryTripGenerator(
     alternativeActivity: Activity,
     modes: collection.immutable.Set[BeamMode]
   ): (
-    Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]],
+    Map[SupplementaryTripAlternative, Map[BeamMode, Map[DestinationParameters, Double]]],
     Map[TripParameters, Double]
   ) = {
     val alternativeActivityUtility =
@@ -312,10 +314,9 @@ class SupplementaryTripGenerator(
       ExpMaxUtility -> alternativeActivityUtility
     )
 
-    val modeToTazToCost
-      : Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]] =
+    val modeToTazToCost: Map[SupplementaryTripAlternative, Map[BeamMode, Map[DestinationParameters, Double]]] =
       if (TAZs.isEmpty) {
-        Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]]()
+        Map[SupplementaryTripAlternative, Map[BeamMode, Map[DestinationParameters, Double]]]()
       } else {
         TAZs.map { taz =>
           val destinationCoord: Coord = TAZTreeMap.randomLocationInTAZ(taz)
@@ -333,13 +334,7 @@ class SupplementaryTripGenerator(
               startTime
             )
           alternative -> cost.map { case (x, y) =>
-            DestinationChoiceModel.SupplementaryTripAlternative(
-              taz,
-              newActivityType,
-              x,
-              endTime - startTime,
-              startTime
-            ) -> DestinationChoiceModel.toUtilityParameters(y)
+            x -> DestinationChoiceModel.toUtilityParameters(y)
           }
         }.toMap
       }
@@ -414,17 +409,15 @@ class SupplementaryTripGenerator(
             )
           case None => 0.0
         }
-
         val newActivityBenefit: Double =
           destinationChoiceModel.getActivityUtility(additionalActivity, attributesOfIndividual)
-
         val timesAndCost = egressTripSkimOption match {
           case Some(egressTripSkim) =>
             TimesAndCost(
               accessTripSkim.time,
               egressTripSkim.time,
-              attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
-              attributesOfIndividual.getVOT(egressTripSkim.generalizedTime / 3600) + egressTripSkim.cost,
+              -modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual),
+              -modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual),
               schedulePenalty,
               newActivityBenefit + previousActivityBenefit
             )

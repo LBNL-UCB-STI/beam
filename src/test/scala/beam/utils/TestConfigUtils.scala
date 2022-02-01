@@ -1,5 +1,6 @@
 package beam.utils
 
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.sim.{BeamHelper, BeamServices}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
@@ -44,11 +45,10 @@ object TestConfigUtils extends BeamHelper {
     val beamServices: BeamServices = injector.getInstance(classOf[BeamServices])
 
     generatePopulationForPayloadPlans(
-      beamConfig,
-      beamServices.geo,
       beamScenario,
       scenario.getPopulation,
-      scenario.getHouseholds
+      scenario.getHouseholds,
+      FreightReader(beamServices)
     )
 
     beamServices

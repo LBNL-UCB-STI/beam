@@ -103,7 +103,7 @@ class ActivitiesClustering(val pathToPlansCsv: String, nClusters: Int) extends S
   private def readActivities(pathToPlansCsv: String): Array[PlanElement] = {
     BeamCsvScenarioReader
       .readPlansFile(pathToPlansCsv)
-      .collect { case p if p.planElementType.contains("activity") => p }
+      .collect { case p if p.planElementType == PlanElement.Activity => p }
   }
 
   private def createAndInitializeDatabase(acts: scala.collection.Iterable[PlanElement]): Database = {
