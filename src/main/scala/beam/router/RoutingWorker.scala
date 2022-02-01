@@ -42,7 +42,10 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.reflect.io.Directory
 
-class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
+class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetwork, Network)])
+    extends Actor
+    with ActorLogging
+    with MetricsSupport {
 
   private val carRouter = workerParams.beamConfig.beam.routing.carRouter
 
@@ -83,6 +86,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
     new FreeFlowTravelTime,
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
+
+  private var secondR5: Option[R5Wrapper] = for {
+    (transportNetwork, network) <- networks2
+  } yield new R5Wrapper(
+    workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
+    new FreeFlowTravelTime,
+    workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+  )
+
   private val graphHopperDir: String = Paths.get(workerParams.beamConfig.beam.inputDirectory, "graphhopper").toString
   private val carGraphHopperDir: String = Paths.get(graphHopperDir, "car").toString
   private var binToCarGraphHopper: Map[Int, GraphHopperWrapper] = _
@@ -204,6 +216,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
+      secondR5 = for {
+        (transportNetwork, network) <- networks2
+      } yield new R5Wrapper(
+        workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
+        newTravelTime,
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+      )
       log.info("{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
@@ -218,6 +237,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
       r5 = new R5Wrapper(
         workerParams,
+        newTravelTime,
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+      )
+      secondR5 = for {
+        (transportNetwork, network) <- networks2
+      } yield new R5Wrapper(
+        workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
@@ -406,14 +432,15 @@ object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
 
   def fromConfig(config: Config) {
-    val (workerParams, _) = R5Parameters.fromConfig(config)
-    new RoutingWorker(workerParams)
+    val (workerParams, networks2) = R5Parameters.fromConfig(config)
+    new RoutingWorker(workerParams, networks2)
   }
 
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
+    networks2: Option[(TransportNetwork, Network)],
     networkHelper: NetworkHelper,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
@@ -430,7 +457,8 @@ object RoutingWorker {
         networkHelper,
         fareCalculator,
         tollCalculator
-      )
+      ),
+      networks2
     )
   )
 
