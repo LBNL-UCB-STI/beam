@@ -1,7 +1,6 @@
 package beam.agentsim.agents.choice.mode
 
 import java.util.Random
-
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.{Mandatory, TourType}
 import beam.agentsim.agents.choice.logit.MultinomialLogit.MNLSample
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
@@ -10,6 +9,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, BIKE_TRANSIT, DRIVE_TRANSIT, RIDE_HAIL, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.core.ODSkimmer
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, MapStringDouble}
 import beam.sim.population.AttributesOfIndividual
@@ -285,6 +285,12 @@ class ModeChoiceLCCM(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity]
+  ): Double = 0.0
+
+  def utilityOf(
+    mode: BeamMode,
+    skim: ODSkimmer.Skim,
+    attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
 
   override def computeAllDayUtility(

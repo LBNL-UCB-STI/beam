@@ -17,18 +17,20 @@ case class ODSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double,
+  crowdingLevel: Double,
   override val skimName: String
 ) extends AbstractSkimmerEvent(eventTime) {
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
-  val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
+  val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, crowdingLevel)
 
   private def observeTrip(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double,
+    crowdingLevel: Double,
     level4CavTravelTimeScalingFactor: Double = 1.0
   ): (ODSkimmerKey, ODSkimmerInternal) = {
     val mode = trip.tripClassifier
@@ -48,6 +50,7 @@ case class ODSkimmerEvent(
         else { 1.0 },
         cost = correctedTrip.costEstimate,
         energy = energyConsumption,
+        crowdingLevel = crowdingLevel,
         level4CavTravelTimeScalingFactor = level4CavTravelTimeScalingFactor
       )
     (key, payload)
@@ -73,7 +76,8 @@ object ODSkimmerEvent {
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
-    energyConsumption: Double
+    energyConsumption: Double,
+    crowdingLevel: Double = 0.0
   ): (ODSkimmerEvent, Coord, Coord) = {
     import beamServices._
     val beamLegs = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier).beamLegs
@@ -98,6 +102,7 @@ object ODSkimmerEvent {
         generalizedTimeInHours = generalizedTimeInHours,
         generalizedCost = generalizedCost,
         energyConsumption = energyConsumption,
+        crowdingLevel = crowdingLevel,
         skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
       ),
       origCoord,

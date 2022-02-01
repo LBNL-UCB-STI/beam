@@ -11,6 +11,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.BikeLanesAdjustment
+import beam.router.skim.core.ODSkimmer
 import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
@@ -29,7 +30,7 @@ import scala.collection.mutable.ListBuffer
   */
 class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
-  val model: MultinomialLogit[EmbodiedBeamTrip, String],
+  val routeModel: MultinomialLogit[EmbodiedBeamTrip, String],
   val modeModel: MultinomialLogit[BeamMode, String],
   beamConfigHolder: BeamConfigHolder,
   transitCrowding: TransitCrowdingSkims,
@@ -70,10 +71,10 @@ class ModeChoiceMultinomialLogit(
         (mct.embodiedBeamTrip, theParams ++ transferParam)
       }.toMap
 
-      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
-      val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
+      val alternativesWithUtility = routeModel.calcAlternativesWithUtility(inputData)
+      val chosenModeOpt = routeModel.sampleAlternative(alternativesWithUtility, random)
 
-      expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
+      expectedMaximumUtility = routeModel.getExpectedMaximumUtility(inputData).getOrElse(0)
 
       if (shouldLogDetails) {
         val personId = person.map(_.getId)
@@ -123,8 +124,8 @@ class ModeChoiceMultinomialLogit(
       val inputData = group
         .map(mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers))
         .toMap
-      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
-      val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
+      val alternativesWithUtility = routeModel.calcAlternativesWithUtility(inputData)
+      val chosenModeOpt = routeModel.sampleAlternative(alternativesWithUtility, random)
       chosenModeOpt
         .flatMap(sample => group.find(_.embodiedBeamTrip == sample.alternativeType))
         .getOrElse(group minBy timeAndCost)
@@ -534,7 +535,7 @@ class ModeChoiceMultinomialLogit(
   }
 
   private def utilityOf(mct: ModeCostTimeTransfer): Double = {
-    model
+    routeModel
       .getUtilityOfAlternative(mct.embodiedBeamTrip, attributes(mct.cost, mct.transitOccupancyLevel, mct.numTransfers))
       .getOrElse(0)
   }
@@ -547,6 +548,18 @@ class ModeChoiceMultinomialLogit(
     transitOccupancyLevel: Double
   ): Double = {
     modeModel.getUtilityOfAlternative(mode, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
+  }
+
+  def utilityOf(
+    mode: BeamMode,
+    skim: ODSkimmer.Skim,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = {
+    val timeCost = attributesOfIndividual.getVOT(skim.generalizedTime / 3600)
+    val monetaryCost = skim.cost
+    modeModel
+      .getUtilityOfAlternative(mode, attributes(timeCost + monetaryCost, skim.crowdingLevel, 0))
+      .getOrElse(0) // TODO: Capture transfers in skims?
   }
 
   private def attributes(cost: Double, transitOccupancyLevel: Double, numTransfers: Int) = {
