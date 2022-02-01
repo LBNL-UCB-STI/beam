@@ -37,6 +37,7 @@ import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.conveyal.r5.transit.TransportNetwork
+import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -215,7 +216,7 @@ object HouseholdActor {
         val vehiclesByAllCategories = List(Car, Bike)
           .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
           .toMap
-        val fleetManagers = vehiclesByAllCategories.map { case (category, vs) =>
+        val fleetManagers = vehiclesByAllCategories.map { case (category, vehicleMap) =>
           val emergencyGenerator = new EmergencyHouseholdVehicleGenerator(
             household,
             homeCoordFromPlans,
@@ -228,7 +229,7 @@ object HouseholdActor {
               Props(
                 new HouseholdFleetManager(
                   parkingManager,
-                  vs,
+                  vehicleMap,
                   homeCoordFromPlans,
                   Some(emergencyGenerator),
                   beamServices.beamConfig.beam.debug
@@ -547,7 +548,7 @@ object HouseholdActor {
     beamScenario: BeamScenario,
     vehiclesAdjustment: VehiclesAdjustment,
     defaultCategory: VehicleCategory
-  ) {
+  ) extends LazyLogging {
     private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
@@ -586,7 +587,11 @@ object HouseholdActor {
                     classOf[BeamVehicleType]
                   )
                 )
-            case _ => None
+            case _ =>
+              logger.warn(
+                s"Person $personId is requiring a vehicle that belongs to category $category that is neither Car nor Bike"
+              )
+              None
           }
         } else None
       vehicleTypeMaybe map { vehicleType =>
