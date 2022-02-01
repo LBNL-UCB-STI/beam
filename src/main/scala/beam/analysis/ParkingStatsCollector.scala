@@ -67,23 +67,21 @@ class ParkingStatsCollector(beamServices: BeamServices) extends GraphAnalysis wi
              start tracking the departing person
        */
       case modeChoiceEvent: ModeChoiceEvent =>
-        modeChoiceEvent.mode match {
-          case BeamMode.CAR.value | BeamMode.DRIVE_TRANSIT.value =>
-            // start tracking the person for outbound stats
-            if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
-              personOutboundParkingStatsTracker.put(
-                modeChoiceEvent.personId.toString,
-                ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
-              )
-            }
-            // start tracking the person for inbound stats
-            if (!personInboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
-              personInboundParkingStatsTracker.put(
-                modeChoiceEvent.personId.toString,
-                ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
-              )
-            }
-          case _ =>
+        if (BeamMode.isCar(modeChoiceEvent.mode) || modeChoiceEvent.mode == BeamMode.DRIVE_TRANSIT.value) {
+          // start tracking the person for outbound stats
+          if (!personOutboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
+            personOutboundParkingStatsTracker.put(
+              modeChoiceEvent.personId.toString,
+              ParkingStatsCollector.EMPTY_PERSON_OUTBOUND_STATS
+            )
+          }
+          // start tracking the person for inbound stats
+          if (!personInboundParkingStatsTracker.contains(modeChoiceEvent.personId.toString)) {
+            personInboundParkingStatsTracker.put(
+              modeChoiceEvent.personId.toString,
+              ParkingStatsCollector.EMPTY_PERSON_INBOUND_STATS
+            )
+          }
         }
 
       /*

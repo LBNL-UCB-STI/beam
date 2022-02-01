@@ -193,6 +193,7 @@ class TransitInitializer(
   ): Option[StreetPath] = {
     val fromStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx)
     val toStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx)
+    val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
     if (fromStopIndex == -1 || toStopIndex == -1) {
       if (fromStopIndex == -1) limitedWarn(fromStopIdx)
       if (toStopIndex == -1) limitedWarn(toStopIdx)
@@ -218,8 +219,8 @@ class TransitInitializer(
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = StreetMode.valueOf("CAR")
       streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-        if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
+        if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
           streetRouter.route()
           val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
           if (lastState != null) {
