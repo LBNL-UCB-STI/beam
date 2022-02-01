@@ -411,17 +411,13 @@ class SupplementaryTripGenerator(
         }
         val newActivityBenefit: Double =
           destinationChoiceModel.getActivityUtility(additionalActivity, attributesOfIndividual)
-        val accessTripUtility = modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual)
-        val egressTripUtility = modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual)
-        val accessTripUtilityV2 =
-          attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost
         val timesAndCost = egressTripSkimOption match {
           case Some(egressTripSkim) =>
             TimesAndCost(
               accessTripSkim.time,
               egressTripSkim.time,
-              attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
-              attributesOfIndividual.getVOT(egressTripSkim.generalizedTime / 3600) + egressTripSkim.cost,
+              -modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual),
+              -modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual),
               schedulePenalty,
               newActivityBenefit + previousActivityBenefit
             )
