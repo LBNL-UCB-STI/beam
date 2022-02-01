@@ -499,7 +499,6 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
