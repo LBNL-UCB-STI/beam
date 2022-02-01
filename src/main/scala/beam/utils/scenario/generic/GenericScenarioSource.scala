@@ -19,7 +19,7 @@ class GenericScenarioSource(
 
   override def getPlans: Iterable[PlanElement] = {
     CsvPlanElementReader.read(pathToPlans).map { plan: PlanElement =>
-      if (plan.planElementType.equalsIgnoreCase("activity") && shouldConvertWgs2Utm) {
+      if (plan.planElementType == PlanElement.Activity && shouldConvertWgs2Utm) {
         val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
         plan.copy(activityLocationX = Some(utmCoord.getX), activityLocationY = Some(utmCoord.getY))
       } else {

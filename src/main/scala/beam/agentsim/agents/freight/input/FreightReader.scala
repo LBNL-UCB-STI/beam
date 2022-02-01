@@ -172,7 +172,8 @@ object FreightReader {
     val config = beamConfig.beam.agentsim.agents.freight
     beamConfig.beam.agentsim.agents.freight.reader match {
       case "NREL" =>
-        new NRELFreightReader(config, geoUtils, rand, streetLayer)
+        val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
+        new NRELFreightReader(config, geoUtils, rand, streetLayer, linkRadiusMeters)
       case "Generic" =>
         new GenericFreightReader(config, geoUtils, rand, tazMap)
       case s =>

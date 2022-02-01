@@ -21,7 +21,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode.{HOV2_TELEPORTATION, HOV3_TELEPORTATION, WALK}
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.TransitCrowdingSkimmerEvent
@@ -219,6 +219,20 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   def updateLatestObservedTick(newTick: Int): Unit = if (newTick > latestObservedTick) latestObservedTick = newTick
 
   when(Driving) {
+    case Event(
+          TriggerWithId(EndLegTrigger(tick), triggerId),
+          LiterallyDrivingData(data: BasePersonData, _, _)
+        ) if data.currentTourMode.contains(HOV2_TELEPORTATION) || data.currentTourMode.contains(HOV3_TELEPORTATION) =>
+      updateLatestObservedTick(tick)
+
+      val dataForNextLegOrActivity: BasePersonData = data.copy(
+        currentVehicle = Vector(),
+        currentTripCosts = 0.0
+      )
+
+      holdTickAndTriggerId(tick, triggerId)
+      goto(ProcessingNextLegOrStartActivity) using dataForNextLegOrActivity.asInstanceOf[T]
+
     case _ @Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(data, legEndingAt, _)
@@ -309,13 +323,16 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val tollOnCurrentLeg = toll(currentLeg)
       tollsAccumulated += tollOnCurrentLeg
       val riders = data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
+      val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTourMode(data, currentLeg, riders)
+      val currentTourMode: Option[String] = getCurrentTourMode(data)
       val pte = PathTraversalEvent(
         tick,
         currentVehicleUnderControl,
         id.toString,
         currentBeamVehicle.beamVehicleType,
-        riders.size,
+        numberOfPassengers,
         currentLeg,
+        currentTourMode,
         fuelConsumed.primaryFuel,
         fuelConsumed.secondaryFuel,
         currentBeamVehicle.primaryFuelLevelInJoules,
@@ -454,6 +471,35 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       stay()
   }
 
+  private def getCurrentTourMode(data: DrivingData): Option[String] = {
+    data match {
+      case bpd: BasePersonData =>
+        bpd.currentTourMode match {
+          case Some(mode: BeamMode) => Some(mode.value)
+          case _                    => None
+        }
+      case _ => None
+    }
+  }
+
+  private def calculateNumberOfPassengersBasedOnCurrentTourMode(
+    data: DrivingData,
+    currentLeg: BeamLeg,
+    riders: immutable.IndexedSeq[Id[Person]]
+  ): Int = {
+    val numberOfPassengers = data match {
+      case bpd: BasePersonData =>
+        (bpd.currentTourMode, currentLeg.mode) match {
+          // can't directly check HOV2/3 because the equals in BeamMode is overridden
+          case (Some(mode @ BeamMode.CAR), BeamMode.CAR) if mode.value == BeamMode.CAR_HOV2.value => riders.size + 1
+          case (Some(mode @ BeamMode.CAR), BeamMode.CAR) if mode.value == BeamMode.CAR_HOV3.value => riders.size + 2
+          case _                                                                                  => riders.size
+        }
+      case _ => riders.size
+    }
+    numberOfPassengers
+  }
+
   when(DrivingInterrupted) {
     case ev @ Event(StopDriving(stopTick, triggerId), LiterallyDrivingData(data, _, _)) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
@@ -481,13 +527,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
         val tollOnCurrentLeg = toll(partiallyCompletedBeamLeg)
         tollsAccumulated += tollOnCurrentLeg
+        val numberOfPassengers: Int =
+          calculateNumberOfPassengersBasedOnCurrentTourMode(data, partiallyCompletedBeamLeg, riders)
+        val currentTourMode: Option[String] = getCurrentTourMode(data)
         val pte = PathTraversalEvent(
           updatedStopTick,
           currentVehicleUnderControl,
           id.toString,
           currentBeamVehicle.beamVehicleType,
-          riders.size,
+          numberOfPassengers,
           partiallyCompletedBeamLeg,
+          currentTourMode,
           fuelConsumed.primaryFuel,
           fuelConsumed.secondaryFuel,
           currentBeamVehicle.primaryFuelLevelInJoules,
