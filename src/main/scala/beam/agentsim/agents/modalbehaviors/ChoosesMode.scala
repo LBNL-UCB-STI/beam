@@ -1370,7 +1370,9 @@ trait ChoosesMode {
       ) {
         //we need to start trip as soon as our activity finishes (current tick) in order to
         //correctly show waiting time for the transit in the OD skims
-        pendingTrip.updatePersonalLegsStartTime(tick)
+        val activityEndTime = currentActivity(data.personData).getEndTime
+        val legStartTime = Math.max(tick, activityEndTime)
+        pendingTrip.updatePersonalLegsStartTime(legStartTime.toInt)
       } else {
         pendingTrip
       }
