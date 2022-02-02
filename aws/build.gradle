@@ -193,6 +193,72 @@ task deployPilates(type: AWSLambdaInvokeTask) {
     }
 }
 
+task deployCalibrate(type: AWSLambdaInvokeTask) {
+    doFirst {
+        def propsFileName = "../gradle.deployCalibrate.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            if (project.hasProperty(paramName)) {
+                return project.findProperty(paramName)
+            } else {
+                return propsFile.getProperty(paramName)
+            }
+        }
+
+        def defaultParamVals = [:]
+        def defRegion = ext.getParameterValue('region') ?: defaultRegion
+        defaultParamVals['region'] = defRegion
+        defaultParamVals['dataRegion'] = defRegion
+        defaultParamVals['beamBranch'] = getCurrentGitBranch()
+        defaultParamVals['dataBranch'] = 'develop'
+
+        def paramMap = [:]
+        def missing = []
+
+        // all possible parameters
+        ['runName', 'beamBranch', 'dataBranch', 'beamCommit',
+         'beamConfig', 'targetFcf', 'beamIteration',
+         'beamFcfIteration', 'mode', 'relNudgeTrials',
+         'fcfStartIteration', 'speedWeight','targetFcf',
+         'forcedMaxRAM', 'profiler_type',
+         'storageSize', 'instanceType', 'dataRegion', 'region',
+         'shutdownWait', 'shutdownBehaviour'].each {
+            def pval = ext.getParameterValue(it)
+            if (pval) {
+                paramMap[it] = pval
+            } else if (defaultParamVals.containsKey(it)) {
+                paramMap[it] = defaultParamVals[it]
+            } else {
+                missing += it
+            }
+        }
+
+        paramMap['runName'] = paramMap['runName'] + '_' + getCurrentGitUserEmail()
+
+        println("parameters wasn't specified: " + missing.join(', '))
+
+        println "Using data branch ${paramMap['dataBranch']}"
+
+        // create a string with json object which contains all parameters
+        def pload = "{\n" + paramMap.collect { key, val -> "   \"$key\": \"$val\"" }.join(",\n") + "\n}"
+
+        functionName = "runCalibrate"
+        invocationType = InvocationType.RequestResponse
+        payload = pload
+    }
+
+    doLast {
+        println payload
+        println new String(invokeResult.payload.array(), "UTF-8")
+    }
+}
+
 task startEC2(type: AWSLambdaInvokeTask) {
     doFirst {
         checkInstanceId()
