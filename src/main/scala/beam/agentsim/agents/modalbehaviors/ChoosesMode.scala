@@ -202,6 +202,7 @@ trait ChoosesMode {
               _,
               _,
               _,
+              _,
               _
             ),
             currentLocation,
@@ -1560,42 +1561,43 @@ trait ChoosesMode {
         val (vehiclesUsed, vehiclesNotUsed) = data.availablePersonalStreetVehicles
           .partition(vehicle => chosenTrip.vehiclesInTrip.contains(vehicle.id))
 
-    var isCurrentPersonalVehicleVoided = false
-    vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
-      data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
-        if (currentVehicle == vehicle.id) {
-          logError(
-            s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
-          )
-          isCurrentPersonalVehicleVoided = true
+        var isCurrentPersonalVehicleVoided = false
+        vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
+          data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
+            if (currentVehicle == vehicle.id) {
+              logError(
+                s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
+              )
+              isCurrentPersonalVehicleVoided = true
+            }
+          }
+          beamVehicles.remove(vehicle.id)
+          vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
         }
-      }
-      beamVehicles.remove(vehicle.id)
-      vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
-    }
 
-    scheduler ! CompletionNotice(
-      triggerId,
-      Vector(
-        ScheduleTrigger(
-          PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)),
-          self
+        scheduler ! CompletionNotice(
+          triggerId,
+          Vector(
+            ScheduleTrigger(
+              PersonDepartureTrigger(math.max(chosenTrip.legs.head.beamLeg.startTime, tick)),
+              self
+            )
+          )
         )
-      )
-    )
-    goto(WaitingForDeparture) using data.personData.copy(
-      currentTrip = Some(chosenTrip),
-      restOfCurrentTrip = chosenTrip.legs.toList,
-      currentTourMode = data.personData.currentTourMode
-        .orElse(Some(chosenTrip.tripClassifier)),
-      currentTourPersonalVehicle =
-        if (isCurrentPersonalVehicleVoided)
-          vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
-        else
-          data.personData.currentTourPersonalVehicle
-            .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)),
-      failedTrips = data.personData.failedTrips ++ data.personData.currentTrip
-    )
+        goto(WaitingForDeparture) using data.personData.copy(
+          currentTrip = Some(chosenTrip),
+          restOfCurrentTrip = chosenTrip.legs.toList,
+          currentTourMode = data.personData.currentTourMode
+            .orElse(Some(chosenTrip.tripClassifier)),
+          currentTourPersonalVehicle =
+            if (isCurrentPersonalVehicleVoided)
+              vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
+            else
+              data.personData.currentTourPersonalVehicle
+                .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)),
+          failedTrips = data.personData.failedTrips ++ data.personData.currentTrip
+        )
+    }
   }
 }
 
