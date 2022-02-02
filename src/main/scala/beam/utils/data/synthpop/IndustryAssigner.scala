@@ -3,6 +3,7 @@ package beam.utils.data.synthpop
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.IndustryTableReader
+import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 
 class IndustryAssigner {}
@@ -28,7 +29,7 @@ object IndustryAssigner {
     val homeWorkActivities = CsvPlanElementReader
       .read(pathToPlans)
       .filter { plan =>
-        plan.planElementType.equalsIgnoreCase("activity") && plan.activityType.exists(act =>
+        plan.planElementType == PlanElement.Activity && plan.activityType.exists(act =>
           act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
         )
       }

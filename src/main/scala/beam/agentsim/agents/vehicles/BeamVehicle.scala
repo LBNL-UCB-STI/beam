@@ -299,8 +299,6 @@ class BeamVehicle(
     )
   }
 
-  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
-
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal + fuelInJoules
@@ -415,6 +413,8 @@ class BeamVehicle(
 
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
+
+  def getStateOfCharge: Double = primaryFuelLevelInJoules / beamVehicleType.primaryFuelCapacityInJoule
 
   /**
     * Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
@@ -540,6 +540,17 @@ object BeamVehicle {
                           primaryLoggingData: IndexedSeq[LoggingData],
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
   )
+
+  val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
+  val idPrefixRideHail = "rideHailVehicle"
+
+  def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixRideHail)
+  }
+
+  def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
+  }
 
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")

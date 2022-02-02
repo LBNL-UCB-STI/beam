@@ -15,7 +15,7 @@ case class EmbodiedBeamLeg(
   isPooledTrip: Boolean = false,
   replanningPenalty: Double = 0
 ) {
-  val isRideHail: Boolean = beamVehicleId.toString.startsWith("rideHailVehicle")
+  val isRideHail: Boolean = BeamVehicle.isRidehailVehicle(beamVehicleId)
 }
 
 object EmbodiedBeamLeg {
