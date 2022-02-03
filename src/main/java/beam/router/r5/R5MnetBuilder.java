@@ -22,10 +22,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Build the pruned R5 network and MATSim network. These two networks have 1-1 link parity.
@@ -64,7 +61,8 @@ public class R5MnetBuilder {
 
     public void buildMNet() throws IOException {
         // Load the OSM file for retrieving the number of lanes, which is not stored in the R5 network
-        Map<Long, Way> ways = new OSM(osmFile).ways;
+        OSM osm = new OSM(osmFile);
+        Map<Long, Way> ways = osm.ways;
         WayFixer$.MODULE$.fix(ways, beamConfig);
 
         EdgeStore.Edge cursor = r5Network.streetLayer.edgeStore.getCursor();  // Iterator of edges in R5 network
@@ -73,11 +71,11 @@ public class R5MnetBuilder {
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
-//        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/link4.csv")));
-//        StringBuffer s = new StringBuffer();
+        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/sfbay-link-3.csv")));
+        StringBuffer s = new StringBuffer();
 //        s.append("link_id,highway=primary,highway=trunk,highway=motorway,hgv=designated,hgv=yes\n");
 //        s.append("link_id,highway=motorway,hgv=designated,hgv=yes\n");
-//        s.append("link_id,hgv=designated,hgv=yes\n");
+        s.append("link_id,hgv\n");
 
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
@@ -115,23 +113,13 @@ public class R5MnetBuilder {
             Node toNode = getOrMakeNode(toCoord);
             Link link;
 
-            boolean hgv = false;
+//            boolean hgv = false;
             if (way != null) {
-                for (OSMEntity.Tag tag: way.tags) {
-                    int highwayPrimary = tag.toString().contains("highway=primary") ? 1 : 0;
-//                    int highwayTrunk = tag.toString().contains("highway=trunk") ? 1 : 0;
-                    int highwayMotorway = tag.toString().contains("highway=motorway") ? 1 : 0;
-                    int hgvDesignated = tag.toString().contains("hgv=designated") ? 1 : 0;
-                    int hgvYes = tag.toString().contains("hgv=yes") ? 1 : 0;
-
-                    int flag = /* highwayTrunk + */highwayPrimary + highwayMotorway + hgvDesignated + hgvYes;
-                    if (flag >= 1) {
-//                        s.append(edgeIndex + "," + highwayPrimary + "," + highwayTrunk + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
-//                        s.append(edgeIndex + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
-//                        s.append(edgeIndex + "," + hgvDesignated + "," + hgvYes + "\n");
-                        hgv = true;
-                        break;
-                    }
+                String longString = way.tags.toString();
+                boolean hgv = longString.contains("highway=motorway") || longString.contains("hgv=designated") || longString.contains("hgv=yes");
+                boolean i580 = longString.contains("ref=I 580");
+                if (hgv && !i580) {
+                    s.append(edgeIndex + ",true\n");
                 }
             }
 
@@ -142,7 +130,7 @@ public class R5MnetBuilder {
                 log.debug("Created special link: {}", link);
             } else {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
-                link.getAttributes().putAttribute("hgv", hgv);
+//                link.getAttributes().putAttribute("hgv", hgv);
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
@@ -156,9 +144,9 @@ public class R5MnetBuilder {
             }
         }
 
-//        bwr.write(s.toString());
-//        bwr.flush();
-//        bwr.close();
+        bwr.write(s.toString());
+        bwr.flush();
+        bwr.close();
 
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
