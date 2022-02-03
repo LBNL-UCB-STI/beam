@@ -115,25 +115,25 @@ public class R5MnetBuilder {
             Node toNode = getOrMakeNode(toCoord);
             Link link;
 
-//            boolean hgv = false;
-//            if (way != null) {
-//                for (OSMEntity.Tag tag: way.tags) {
-//                    int highwayPrimary = tag.toString().contains("highway=primary") ? 1 : 0;
+            boolean hgv = false;
+            if (way != null) {
+                for (OSMEntity.Tag tag: way.tags) {
+                    int highwayPrimary = tag.toString().contains("highway=primary") ? 1 : 0;
 //                    int highwayTrunk = tag.toString().contains("highway=trunk") ? 1 : 0;
-//                    int highwayMotorway = tag.toString().contains("highway=motorway") ? 1 : 0;
-//                    int hgvDesignated = tag.toString().contains("hgv=designated") ? 1 : 0;
-//                    int hgvYes = tag.toString().contains("hgv=yes") ? 1 : 0;
+                    int highwayMotorway = tag.toString().contains("highway=motorway") ? 1 : 0;
+                    int hgvDesignated = tag.toString().contains("hgv=designated") ? 1 : 0;
+                    int hgvYes = tag.toString().contains("hgv=yes") ? 1 : 0;
 
-//                    int flag = highwayPrimary + highwayTrunk + highwayMotorway + hgvDesignated + hgvYes;
-//                    if (flag >= 1) {
-////                        s.append(edgeIndex + "," + highwayPrimary + "," + highwayTrunk + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
-////                        s.append(edgeIndex + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
+                    int flag = /* highwayTrunk + */highwayPrimary + highwayMotorway + hgvDesignated + hgvYes;
+                    if (flag >= 1) {
+//                        s.append(edgeIndex + "," + highwayPrimary + "," + highwayTrunk + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
+//                        s.append(edgeIndex + "," + highwayMotorway + "," + hgvDesignated + "," + hgvYes + "\n");
 //                        s.append(edgeIndex + "," + hgvDesignated + "," + hgvYes + "\n");
-//                        hgv = true;
-//                        break;
-//                    }
-//                }
-//            }
+                        hgv = true;
+                        break;
+                    }
+                }
+            }
 
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
@@ -142,6 +142,7 @@ public class R5MnetBuilder {
                 log.debug("Created special link: {}", link);
             } else {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
+                link.getAttributes().putAttribute("hgv", hgv);
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }

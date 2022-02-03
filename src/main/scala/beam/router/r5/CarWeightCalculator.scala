@@ -59,8 +59,8 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
 
     val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
     if (hgv) {
-      if (isLinkHgv) Math.min(linkTravelTime, maxTravelTime) / 10
-      else Math.min(linkTravelTime, maxTravelTime) * 10
+      if (isLinkHgv) Math.min(linkTravelTime, maxTravelTime) / 50
+      else Math.min(linkTravelTime, maxTravelTime) * 50
     } else {
       Math.min(linkTravelTime, maxTravelTime)
     }
