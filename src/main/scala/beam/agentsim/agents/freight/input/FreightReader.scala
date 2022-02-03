@@ -1,5 +1,7 @@
 package beam.agentsim.agents.freight.input
 
+import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading}
+import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
 import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
@@ -11,8 +13,8 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import com.conveyal.r5.streets.StreetLayer
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PlanElement, PopulationFactory}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactory, Income, IncomeImpl}
 import org.matsim.vehicles.Vehicle
@@ -38,6 +40,14 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
+  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
+    val initialWeight = 0.0
+    plans.foldLeft(IndexedSeq(initialWeight)) {
+      case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _)) => acc :+ acc.last - weight
+      case (acc, PayloadPlan(_, _, _, _, weight, Loading, _, _, _, _, _))   => acc :+ acc.last + weight
+    }
+  }
+
   def createPersonPlan(
     tours: IndexedSeq[FreightTour],
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
@@ -61,7 +71,15 @@ trait FreightReader {
         Seq(activity, leg)
       }
 
-      tourInitialActivity +: firstLeg +: planElements
+      val elements = tourInitialActivity +: firstLeg +: planElements
+      val weightsToCarry: IndexedSeq[Double] = calculatePayloadWeights(plans)
+      elements
+        .collect { case leg: Leg => leg }
+        .zip(weightsToCarry)
+        .foreach { case (leg, payloadWeight) =>
+          leg.getAttributes.putAttribute(PAYLOAD_WEIGHT_IN_KG, payloadWeight)
+        }
+      elements
     }
 
     val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1)
@@ -153,6 +171,8 @@ trait FreightReader {
 }
 
 object FreightReader {
+  val FREIGHT_ID_PREFIX = "freight"
+  val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
 
   def apply(
     beamConfig: BeamConfig,
