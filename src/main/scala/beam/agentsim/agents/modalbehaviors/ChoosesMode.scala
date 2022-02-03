@@ -374,6 +374,7 @@ trait ChoosesMode {
           currentPersonLocation.loc,
           departTime,
           nextAct.getCoord,
+          requestTime = _currentTick,
           triggerId = getCurrentTriggerIdOrGenerate
         )
         //        println(s"requesting: ${inquiry.requestId}")
@@ -966,6 +967,7 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
+      requestTime = _currentTick,
       triggerId = getCurrentTriggerIdOrGenerate
     )
     //    println(s"requesting: ${inquiry.requestId}")
