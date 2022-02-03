@@ -79,16 +79,15 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       "MTA_Brooklyn_20200118.zip",
       "MTA_Manhattan_20200123.zip",
       "MTA_Queens_20200118.zip",
-      "MTA_Staten_Island_20200118.zip",
+      "MTA_Staten_Island_20200118.zip"
     )
     if (Files.isDirectory(dir))
       Files
         .walk(dir, 1)
-        .filter(
-          (file: Path) =>
-            Files.isRegularFile(file)
-            && filesToTransform.contains(file.getFileName.toString)
-            && "zip".equalsIgnoreCase(FilenameUtils.getExtension(file.getFileName.toString))
+        .filter((file: Path) =>
+          Files.isRegularFile(file)
+          && filesToTransform.contains(file.getFileName.toString)
+          && "zip".equalsIgnoreCase(FilenameUtils.getExtension(file.getFileName.toString))
         )
         .sorted()
         .collect(Collectors.toList[Path])
@@ -105,28 +104,29 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       Files.createDirectories(cfg.out.getParent)
     }
     //todo load from file
-    val modifiedRouteIds = Set(
-      "B15",
-      "M79+",
-      "M103",
-      "B82+",
-      "M7",
-      "M11",
-      "M5",
-      "B35",
-      "B41",
-      "B44",
-      "Q58",
-      "M1",
-      "M102",
-      "B8",
-      "M42",
-      "M31",
-      "M15+",
-      "B6",
-      "M86+",
-      "M15"
-    )
+//    val modifiedRouteIds = Set(
+//      "B15",
+//      "M79+",
+//      "M103",
+//      "B82+",
+//      "M7",
+//      "M11",
+//      "M5",
+//      "B35",
+//      "B41",
+//      "B44",
+//      "Q58",
+//      "M1",
+//      "M102",
+//      "B8",
+//      "M42",
+//      "M31",
+//      "M15+",
+//      "B6",
+//      "M86+",
+//      "M15"
+//    )
+    val modifiedRouteIds: Set[String] = Set.empty[String]
     val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>

@@ -82,11 +82,10 @@ object GtfsUtils {
 
         stopTimes.tail
           .zip(stopTimes.init)
-          .map {
-            case (current, previous) =>
-              val arrivalDiff = current.getArrivalTime - previous.getArrivalTime
-              val departureDiff = current.getDepartureTime - previous.getDepartureTime
-              (current, arrivalDiff, departureDiff)
+          .map { case (current, previous) =>
+            val arrivalDiff = current.getArrivalTime - previous.getArrivalTime
+            val departureDiff = current.getDepartureTime - previous.getDepartureTime
+            (current, arrivalDiff, departureDiff)
           }
           .foldLeft(TripDiffAcc(tripWithStopTimes, Nil, Nil, Nil)) {
             case (acc, (stopTime, arrivalDiff, departureDiff)) =>
@@ -143,7 +142,7 @@ object GtfsUtils {
       val totalNum = modifiedTrips.size
       val numExtraTrips = Math.round(totalNum * (factor - 1)) % totalNum
       val (specialTrips, regularTrips) = Random.shuffle(modifiedTrips).splitAt(numExtraTrips)
-      (specialTrips.map(tripAndStopTimes => tripAndStopTimes.trip   -> (factor.toInt + 1))
+      (specialTrips.map(tripAndStopTimes => tripAndStopTimes.trip -> (factor.toInt + 1))
       ++ regularTrips.map(tripAndStopTimes => tripAndStopTimes.trip -> factor.toInt))
     }.toMap
 
@@ -152,29 +151,27 @@ object GtfsUtils {
         // doubling trips between first stop and the last but one
         trips.tail
           .zip(trips.init)
-          .foreach {
-            case (current, previous) =>
-              val factor = factors(previous.trip)
-              for (idx <- 1 until factor) {
-                val (newTrip, newFrequencies) = createNewTrip(previous.trip, idx, dao)
-                strategy.addEntity(newTrip)
-                newFrequencies.foreach(strategy.addEntity)
+          .foreach { case (current, previous) =>
+            val factor = factors(previous.trip)
+            for (idx <- 1 until factor) {
+              val (newTrip, newFrequencies) = createNewTrip(previous.trip, idx, dao)
+              strategy.addEntity(newTrip)
+              newFrequencies.foreach(strategy.addEntity)
 
-                previous.stopTimes
-                  .zip(current.stopTimes)
-                  .foreach {
-                    case (prevStopTime, curStopTime) =>
-                      val newStopTime = createStopTime(
-                        newTrip,
-                        prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / factor * idx,
-                        prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / factor * idx,
-                        prevStopTime.getStop,
-                        prevStopTime.getStopSequence
-                      )
-                      strategy.addEntity(newStopTime)
-                  }
-              }
-              current
+              previous.stopTimes
+                .zip(current.stopTimes)
+                .foreach { case (prevStopTime, curStopTime) =>
+                  val newStopTime = createStopTime(
+                    newTrip,
+                    prevStopTime.getDepartureTime + (curStopTime.getDepartureTime - prevStopTime.getDepartureTime) / factor * idx,
+                    prevStopTime.getArrivalTime + (curStopTime.getArrivalTime - prevStopTime.getArrivalTime) / factor * idx,
+                    prevStopTime.getStop,
+                    prevStopTime.getStopSequence
+                  )
+                  strategy.addEntity(newStopTime)
+                }
+            }
+            current
           }
         // doubling trips between last stop and the midnight
         val lastTrip = trips.last
@@ -215,25 +212,23 @@ object GtfsUtils {
           // calculate new stop times (without first stop time - it remains as original)
           val offsetsBetweenStopTimes = trip.stopTimes.tail
             .zip(trip.stopTimes.init)
-            .map {
-              case (current, previous) =>
-                (
-                  ((current.getArrivalTime - previous.getArrivalTime) * scale).toInt,
-                  ((current.getDepartureTime - previous.getDepartureTime) * scale).toInt
-                )
+            .map { case (current, previous) =>
+              (
+                ((current.getArrivalTime - previous.getArrivalTime) * scale).toInt,
+                ((current.getDepartureTime - previous.getDepartureTime) * scale).toInt
+              )
             }
           // mutate all stop times and append their modifications to the strategy
           trip.stopTimes.tail
             .zip(trip.stopTimes.init)
             .zip(offsetsBetweenStopTimes)
-            .map {
-              case ((current, previous), (arrivalOffset, departureOffset)) =>
-                current.setArrivalTime(previous.getArrivalTime + arrivalOffset)
-                current.setDepartureTime(previous.getDepartureTime + departureOffset)
-                strategy.addModification(
-                  new TypedEntityMatch(classOf[StopTime], new StopTimeMatch(current)),
-                  new StopTimeUpdateStrategy(current.getArrivalTime, current.getDepartureTime)
-                )
+            .map { case ((current, previous), (arrivalOffset, departureOffset)) =>
+              current.setArrivalTime(previous.getArrivalTime + arrivalOffset)
+              current.setDepartureTime(previous.getDepartureTime + departureOffset)
+              strategy.addModification(
+                new TypedEntityMatch(classOf[StopTime], new StopTimeMatch(current)),
+                new StopTimeUpdateStrategy(current.getArrivalTime, current.getDepartureTime)
+              )
             }
         }
       }
@@ -259,16 +254,28 @@ object GtfsUtils {
     val removeEntityUpdateStrategy = new RemoveEntityUpdateStrategy()
     val resultStrategy = new EntitiesTransformStrategy()
     deletedRoutes.foreach { route =>
-      resultStrategy.addModification(new TypedEntityMatch(classOf[Route], {
-        case rt: Route => rt.getId == route.getId
-        case _         => false
-      }), removeEntityUpdateStrategy)
+      resultStrategy.addModification(
+        new TypedEntityMatch(
+          classOf[Route],
+          {
+            case rt: Route => rt.getId == route.getId
+            case _         => false
+          }
+        ),
+        removeEntityUpdateStrategy
+      )
     }
     toDelete.foreach { trip =>
-      resultStrategy.addModification(new TypedEntityMatch(classOf[Trip], {
-        case trp: Trip => trp.getId == trip.getId
-        case _         => false
-      }), removeEntityUpdateStrategy)
+      resultStrategy.addModification(
+        new TypedEntityMatch(
+          classOf[Trip],
+          {
+            case trp: Trip => trp.getId == trip.getId
+            case _         => false
+          }
+        ),
+        removeEntityUpdateStrategy
+      )
     }
     resultStrategy
   }
@@ -289,8 +296,8 @@ object GtfsUtils {
       .filter(_.stopTimes.last.getDepartureTime <= timeFrame.endTime)
       .map(_.trip)
 
-    val routeToTrips = allTrips.groupBy(_.getRoute).filter {
-      case (route, _) => modifiedRouteIds.contains(route.getId.getId)
+    val routeToTrips = allTrips.groupBy(_.getRoute).filter { case (route, _) =>
+      modifiedRouteIds.contains(route.getId.getId)
     }
     println(s"routeToTrips = ${routeToTrips.mapValues(_.size)}")
 
@@ -299,10 +306,16 @@ object GtfsUtils {
     val removeEntityUpdateStrategy = new RemoveEntityUpdateStrategy()
     val resultStrategy = new EntitiesTransformStrategy()
     toDelete.foreach { trip =>
-      resultStrategy.addModification(new TypedEntityMatch(classOf[Trip], {
-        case trp: Trip => trp.getId == trip.getId
-        case _         => false
-      }), removeEntityUpdateStrategy)
+      resultStrategy.addModification(
+        new TypedEntityMatch(
+          classOf[Trip],
+          {
+            case trp: Trip => trp.getId == trip.getId
+            case _         => false
+          }
+        ),
+        removeEntityUpdateStrategy
+      )
     }
     resultStrategy
   }
@@ -313,10 +326,16 @@ object GtfsUtils {
     val removeEntityUpdateStrategy = new RemoveEntityUpdateStrategy()
     val resultStrategy = new EntitiesTransformStrategy()
     modifiedRouteIds.foreach { routeId =>
-      resultStrategy.addModification(new TypedEntityMatch(classOf[Route], {
-        case rt: Route => rt.getId.getId == routeId
-        case _         => false
-      }), removeEntityUpdateStrategy)
+      resultStrategy.addModification(
+        new TypedEntityMatch(
+          classOf[Route],
+          {
+            case rt: Route => rt.getId.getId == routeId
+            case _         => false
+          }
+        ),
+        removeEntityUpdateStrategy
+      )
     }
     resultStrategy
   }
@@ -376,6 +395,7 @@ object GtfsUtils {
     * @param endTime   end time in milliseconds
     */
   final case class TimeFrame(startTime: Int, endTime: Int)
+
   final object TimeFrame {
     val WholeDay: TimeFrame = TimeFrame(0, 86400)
   }
@@ -386,6 +406,7 @@ object GtfsUtils {
     departureDiffs: List[Int],
     stops: List[Stop]
   )
+
   private final case class HandledRepeatingAcc(
     handledDiffs: List[TripDiffAcc],
     repeatingTrips: TrieMap[String, Seq[(TripAndStopTimes, Int)]]
@@ -393,11 +414,13 @@ object GtfsUtils {
 
   // additional classes for 'onebusaway' strategies
   final class IntValueSetter(replacementValue: Integer) extends ValueSetter {
+
     override def setValue(bean: BeanWrapper, propertyName: String): Unit =
       if (replacementValue != null) bean.setPropertyValue(propertyName, replacementValue)
   }
 
   final class StopTimeMatch(stopTime: StopTime) extends EntityMatch {
+
     override def isApplicableToObject(obj: Any): Boolean = obj match {
       case testStopTime: StopTime => testStopTime.getId == stopTime.getId
       case _                      => false
@@ -405,6 +428,7 @@ object GtfsUtils {
   }
 
   final class StopTimeUpdateStrategy(arrivalTime: Int, departureTime: Int) extends EntityTransformStrategy {
+
     override def run(context: TransformContext, dao: GtfsMutableRelationalDao, entity: Any): Unit = entity match {
       case stopTime: StopTime =>
         stopTime.setArrivalTime(arrivalTime)
@@ -414,6 +438,7 @@ object GtfsUtils {
   }
 
   final class FilterServiceIdStrategy(serviceIdFilter: String) extends GtfsTransformStrategy {
+
     override def run(context: TransformContext, dao: GtfsMutableRelationalDao): Unit = {
       for (serviceId <- dao.getAllServiceIds.asScala if serviceId.getId != serviceIdFilter) {
         for (trip <- dao.getTripsForServiceId(serviceId).asScala) {
