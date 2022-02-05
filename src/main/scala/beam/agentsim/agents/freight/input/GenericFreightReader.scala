@@ -12,6 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
+import org.apache.commons.lang3.StringUtils.isBlank
 
 import scala.util.Random
 
@@ -241,10 +242,8 @@ class GenericFreightReader(
     closestUTMPointOnMapMaybe.map(_.find(location, geoUtils)).getOrElse(Some(geoUtils.wgs2Utm(location)))
   }
 
-  private def checkNullOrEmpty(str: String): Boolean = str == null || str.isEmpty
-
   private def extractCoordOrTaz(strX: String, strY: String, strZone: String): (Option[Id[TAZ]], Option[Coord]) = {
-    if (checkNullOrEmpty(strX) || checkNullOrEmpty(strY)) {
+    if (isBlank(strX) || isBlank(strY)) {
       val taz = getTaz(strZone)
       (Some(taz.tazId), Some(getDistributedTazLocation(taz)))
     } else {
