@@ -249,9 +249,9 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 )
             }
 
-        //"hour,mode,origTaz,destTaz,                      travelTimeInS,generalizedTimeInS,         cost,            generalizedCost,           distanceInM,        payloadWeightInKg,       energy,            crowdingLevel,           level4CavTravelTimeScalingFactor,observations,iterations"
+        // "hour,     mode, origTaz,      destTaz,         travelTimeInS, generalizedTimeInS,         cost,            generalizedCost,         distanceInM,         payloadWeightInKg,        energy,          crowdingLevel,           level4CavTravelTimeScalingFactor,           observations,     iterations"
         writer.write(
-          s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.crowdingLevel},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.count}\n" ???
+          s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.crowdingLevel},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.count},0\n"
         )
       }
   }
@@ -436,9 +436,10 @@ object ODSkimmer extends LazyLogging {
         level4CavTravelTimeScalingFactor
       )
 
+    // the key: "hour,mode,origTaz,destTaz,
+    // the value: travelTimeInS,generalizedTimeInS,   cost,         generalizedCost,        distanceInM,     payloadWeightInKg,          energy,        crowdingLevel,       level4CavTravelTimeScalingFactor,       observations"
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + energy + "," + crowdingLevel + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations ???
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + payloadWeightInKg + "," + energy + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations
+      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM+ "," + payloadWeightInKg + "," + energy + "," + crowdingLevel + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations
   }
 
   case class Skim(

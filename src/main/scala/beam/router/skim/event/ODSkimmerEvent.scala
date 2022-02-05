@@ -26,8 +26,7 @@ case class ODSkimmerEvent(
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
   val (key, skimInternal) =
-    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, maybePayloadWeightInKg)
-  val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, crowdingLevel)
+    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, crowdingLevel, maybePayloadWeightInKg)
 
   private def observeTrip(
     trip: EmbodiedBeamTrip,

@@ -1218,8 +1218,7 @@ class PersonAgent(
             correctedTrip,
             generalizedTime,
             generalizedCost,
-            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
-            crowdingLevel
+            crowdingLevel,
             maybePayloadWeightInKg,
             curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )
