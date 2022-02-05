@@ -43,8 +43,8 @@ trait FreightReader {
   def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
     val initialWeight = 0.0
     plans.foldLeft(IndexedSeq(initialWeight)) {
-      case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _)) => acc :+ acc.last - weight
-      case (acc, PayloadPlan(_, _, _, _, weight, Loading, _, _, _, _, _))   => acc :+ acc.last + weight
+      case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) => acc :+ acc.last - weight
+      case (acc, PayloadPlan(_, _, _, _, weight, Loading, _, _, _, _, _, _, _))   => acc :+ acc.last + weight
     }
   }
 
@@ -183,11 +183,14 @@ object FreightReader {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val config = beamConfig.beam.agentsim.agents.freight
     beamConfig.beam.agentsim.agents.freight.reader match {
-      case "NREL" =>
-        val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
-        new NRELFreightReader(config, geoUtils, rand, streetLayer, linkRadiusMeters)
       case "Generic" =>
-        new GenericFreightReader(config, geoUtils, rand, tazMap)
+        new GenericFreightReader(
+          config,
+          geoUtils,
+          rand,
+          tazMap,
+          Some(ClosestUTMPointOnMap(streetLayer, beamConfig.beam.routing.r5.linkRadiusMeters))
+        )
       case s =>
         throw new RuntimeException(s"Unknown freight reader $s")
     }
@@ -205,4 +208,19 @@ object FreightReader {
       beamServices.beamScenario.transportNetwork.streetLayer,
       beamServices.beamScenario.tazTreeMap
     )
+
+  case class ClosestUTMPointOnMap(streetLayer: StreetLayer, r5LinkRadiusMeters: Double) {
+
+    def find(wsgCoord: Coord, geoUtils: GeoUtils): Option[Coord] = {
+      //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
+      val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
+      if (theSplit == null) {
+        None
+      } else {
+        val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
+        val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
+        Some(utmCoord)
+      }
+    }
+  }
 }
