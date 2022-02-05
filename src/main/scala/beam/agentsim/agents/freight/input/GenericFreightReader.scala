@@ -1,18 +1,17 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
+import beam.agentsim.agents.freight.input.FreightReader.ClosestUTMPointOnMap
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
-import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
-import beam.agentsim.infrastructure.taz.TAZ
 
 import scala.util.Random
 
@@ -24,7 +23,7 @@ class GenericFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   tazTree: TAZTreeMap,
-  streetLayerMaybe: Option[StreetLayer]
+  closestUTMPointOnMapMaybe: Option[ClosestUTMPointOnMap]
 ) extends LazyLogging
     with FreightReader {
 
@@ -35,24 +34,6 @@ class GenericFreightReader(
       row.get(key)
     } else {
       throw new IllegalArgumentException(s"Missing key '$key' in table '$table'.")
-    }
-  }
-
-  private def findClosestUTMPointOnMap(wsgCoord: Coord): Option[Coord] = {
-    streetLayerMaybe match {
-      case Some(streetLayer) =>
-        //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
-        val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord)
-        if (theSplit == null) {
-          None
-        } else {
-          val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
-          val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
-          Some(utmCoord)
-        }
-      case _ =>
-        Some(geoUtils.wgs2Utm(wsgCoord))
-      // Some(utmCoord)
     }
   }
 
@@ -256,13 +237,19 @@ class GenericFreightReader(
   private def getDistributedTazLocation(taz: TAZ): Coord =
     convertedLocation(TAZTreeMap.randomLocationInTAZ(taz, rnd))
 
+  private def getLocationFromCoord(location: Coord): Option[Coord] = {
+    closestUTMPointOnMapMaybe.map(_.find(location, geoUtils)).getOrElse(Some(geoUtils.wgs2Utm(location)))
+  }
+
   private def checkNullOrEmpty(str: String): Boolean = str == null || str.isEmpty
 
   private def extractCoordOrTaz(strX: String, strY: String, strZone: String): (Option[Id[TAZ]], Option[Coord]) = {
     if (checkNullOrEmpty(strX) || checkNullOrEmpty(strY)) {
       val taz = getTaz(strZone)
       (Some(taz.tazId), Some(getDistributedTazLocation(taz)))
-    } else (None, findClosestUTMPointOnMap(location(strX.toDouble, strY.toDouble)))
+    } else {
+      (None, getLocationFromCoord(location(strX.toDouble, strY.toDouble)))
+    }
   }
 
   @Override
