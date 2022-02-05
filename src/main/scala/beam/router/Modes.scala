@@ -66,6 +66,7 @@ object Modes {
     case object RIDE_HAIL_POOLED
         extends BeamMode(value = "ride_hail_pooled", Some(Left(LegMode.CAR)), TransportMode.other)
 
+    case object FREIGHT extends BeamMode(value = "freight", Some(Left(LegMode.CAR)), TransportMode.truck)
     // Transit
 
     case object BUS extends BeamMode(value = "bus", Some(Right(TransitModes.BUS)), TransportMode.pt)

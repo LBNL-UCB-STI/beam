@@ -23,6 +23,7 @@ class ODSkimmerEventFactory extends AbstractSkimmerEventFactory {
     generalizedCost,
     energyConsumption,
     crowdingLevel = 0.0,
+    None,
     // If you change this name, make sure it is properly reflected in `AbstractSkimmer.handleEvent`
     skimName = "od-skimmer"
   )

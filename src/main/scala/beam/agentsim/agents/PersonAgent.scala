@@ -5,6 +5,7 @@ import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
@@ -1199,6 +1200,12 @@ class PersonAgent(
             modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
             .getVOT(generalizedTime)
+          val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+
+          if (maybePayloadWeightInKg.isDefined && correctedTrip.tripClassifier != BeamMode.CAR) {
+            logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
+          }
+
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           val crowdingLevel =
             beamServices.skims.tc_skimmer.getTransitOccupancyLevelForPercentile(
@@ -1213,6 +1220,8 @@ class PersonAgent(
             generalizedCost,
             curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
             crowdingLevel
+            maybePayloadWeightInKg,
+            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )
           eventsManager.processEvent(odSkimmerEvent)
           if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
@@ -1283,6 +1292,14 @@ class PersonAgent(
           scheduler ! CompletionNotice(triggerId)
           stop
       }
+  }
+
+  private def getPayloadWeightFromLeg(currentActivityIndex: Int): Option[Double] = {
+    val currentLegIndex = currentActivityIndex * 2 + 1
+    if (currentLegIndex < matsimPlan.getPlanElements.size()) {
+      val accomplishedLeg = matsimPlan.getPlanElements.get(currentLegIndex)
+      Option(accomplishedLeg.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG)).asInstanceOf[Option[Double]]
+    } else None
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
