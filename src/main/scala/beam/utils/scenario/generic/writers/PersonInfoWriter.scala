@@ -2,6 +2,7 @@ package beam.utils.scenario.generic.writers
 
 import beam.utils.csv.CsvWriter
 import beam.utils.scenario.PersonInfo
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Try
 
@@ -9,7 +10,7 @@ trait PersonInfoWriter {
   def write(path: String, xs: Iterator[PersonInfo]): Unit
 }
 
-class CsvPersonInfoWriter(val path: String) extends AutoCloseable {
+class CsvPersonInfoWriter(val path: String) extends AutoCloseable with LazyLogging {
   import beam.utils.scenario.generic.writers.CsvPersonInfoWriter._
 
   private val csvWriter = new CsvWriter(path, headers)
@@ -23,7 +24,7 @@ class CsvPersonInfoWriter(val path: String) extends AutoCloseable {
   }
 }
 
-object CsvPersonInfoWriter extends PersonInfoWriter {
+object CsvPersonInfoWriter extends PersonInfoWriter with LazyLogging {
 
   private val headers: Array[String] =
     Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime")
@@ -32,8 +33,9 @@ object CsvPersonInfoWriter extends PersonInfoWriter {
     val csvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
+      logger.info(s"Wrote persons information to $path")
     } finally {
-      Try(csvWriter.close())
+      csvWriter.close()
     }
   }
 

@@ -2,6 +2,7 @@ package beam.utils.scenario.generic.writers
 
 import beam.utils.csv.CsvWriter
 import beam.utils.scenario.PlanElement
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Try
 
@@ -22,7 +23,7 @@ class CsvPlanElementWriter(val path: String) extends AutoCloseable {
   }
 }
 
-object CsvPlanElementWriter extends PlanElementWriter {
+object CsvPlanElementWriter extends PlanElementWriter with LazyLogging {
 
   private val headers: Array[String] = Array(
     "tripId",
@@ -52,8 +53,9 @@ object CsvPlanElementWriter extends PlanElementWriter {
     val csvWriter: CsvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
+      logger.info(s"Wrote plans information to $path")
     } finally {
-      Try(csvWriter.close())
+      csvWriter.close()
     }
   }
 

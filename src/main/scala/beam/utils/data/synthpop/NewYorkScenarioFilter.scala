@@ -193,7 +193,7 @@ object NewYorkScenarioFilter extends LazyLogging {
   ): collection.Map[PersonId, collection.Set[String]] = {
     // The geoid from activity is enough, no need to read leg
     val (it: Iterator[PlanElement], toClose: Closeable) =
-      CsvPlanElementReader.readWithFilter(pathToPlans, x => x.planElementType.equalsIgnoreCase("activity"))
+      CsvPlanElementReader.readWithFilter(pathToPlans, x => x.planElementType == PlanElement.Activity)
 
     try {
       it.foldLeft(mutable.HashMap.empty[PersonId, mutable.HashSet[String]]) {

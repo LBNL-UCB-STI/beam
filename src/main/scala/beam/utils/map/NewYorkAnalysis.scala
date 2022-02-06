@@ -2,6 +2,7 @@ package beam.utils.map
 
 import beam.sim.common.GeoUtils
 import beam.utils.csv.CsvWriter
+import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import beam.utils.shape.{NoAttributeShapeWriter, ShapeWriter}
 import com.conveyal.osmlib.OSM
@@ -23,7 +24,7 @@ object NewYorkAnalysis {
     val pathToNetwork = "D:/Work/beam/NewYork/input/OSM/newyork-simplified.osm.pbf"
     val pathToPlans = "D:/Work/beam/NewYork/results_06-30-2020_10-36-34/plans.csv"
 
-    val activities = CsvPlanElementReader.read(pathToPlans).filter(x => x.planElementType.equalsIgnoreCase("activity"))
+    val activities = CsvPlanElementReader.read(pathToPlans).filter(x => x.planElementType == PlanElement.Activity)
 
     val coords = activities
       .map { activity =>

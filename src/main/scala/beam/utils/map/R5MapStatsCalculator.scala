@@ -14,15 +14,20 @@ import scala.util.Try
 object R5MapStatsCalculator {
 
   def main(args: Array[String]): Unit = {
+    // args: <osm-path> <link-radius-meters>
     require(
-      args.length == 1,
-      "Expected path for OSM file, like '//test/input/newyork/r5-prod/newyork-14-counties.osm.pbf'"
+      args.length == 2,
+      "Expected path for OSM file, like '//test/input/newyork/r5-prod/newyork-14-counties.osm.pbf' and link-radius-meters number"
     )
-    val pathToOsm = args(0)
-    val minimumTagFrequencyToPrintTagOut = 1000
 
-    analyzeR5Map(pathToOsm)
-    analyzeOSMMap(pathToOsm, minTagFrequency = minimumTagFrequencyToPrintTagOut)
+    val pathToOsm = args(0)
+    val linkRadiusMeters = Try(args(1).toDouble).getOrElse(10000.0)
+
+    println(s"pathToOsm: $pathToOsm")
+    println(s"linkRadiusMeters: $linkRadiusMeters")
+
+    analyzeR5Map(pathToOsm, linkRadiusMeters)
+    analyzeOSMMap(pathToOsm, 1000)
   }
 
   private def analyzeOSMMap(pathToOsm: String, minTagFrequency: Int): Unit = {
@@ -147,14 +152,14 @@ object R5MapStatsCalculator {
     }
   }
 
-  private def analyzeR5Map(pathToOsm: String): Unit = {
-    println(s"OSM file: $pathToOsm")
+  private def analyzeR5Map(pathToOsm: String, linkRadiusMeters: Double): Unit = {
     val tn = TransportNetwork.fromFiles(
       pathToOsm,
       new util.ArrayList[String](),
       TNBuilderConfig.defaultConfig,
       true,
-      false
+      false,
+      linkRadiusMeters
     )
     val cursor = tn.streetLayer.edgeStore.getCursor
     val it = new Iterator[EdgeStore#Edge] {

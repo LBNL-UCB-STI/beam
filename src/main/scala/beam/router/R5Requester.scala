@@ -101,7 +101,7 @@ object R5Requester extends BeamHelper {
 
     val workWithHome = CsvPlanElementReader
       .read(pathToPlans)
-      .filter(x => x.planElementType.equalsIgnoreCase("activity"))
+      .filter(x => x.planElementType == PlanElement.Activity)
       .groupBy(x => x.personId.id)
       .toSeq
       .filter { case (_, xs) =>
@@ -352,7 +352,7 @@ object R5Requester extends BeamHelper {
       0,
       0,
       true,
-      "Activity",
+      PlanElement.Activity,
       0,
       Some(activityType),
       Some(utmCoord.getX),

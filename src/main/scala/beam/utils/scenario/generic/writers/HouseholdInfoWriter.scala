@@ -2,6 +2,7 @@ package beam.utils.scenario.generic.writers
 
 import beam.utils.csv.CsvWriter
 import beam.utils.scenario.HouseholdInfo
+import com.typesafe.scalalogging.LazyLogging
 
 import scala.util.Try
 
@@ -19,19 +20,20 @@ class CsvHouseholdInfoWriter(val path: String) extends AutoCloseable {
   }
 
   override def close(): Unit = {
-    Try(csvWriter.close())
+    csvWriter.close()
   }
 }
 
-object CsvHouseholdInfoWriter extends HouseholdInfoWriter {
+object CsvHouseholdInfoWriter extends HouseholdInfoWriter with LazyLogging {
   private val headers: Array[String] = Array("householdId", "cars", "incomeValue", "locationX", "locationY")
 
   override def write(path: String, xs: Iterator[HouseholdInfo]): Unit = {
     val csvWriter = new CsvWriter(path, headers)
     try {
       writeTo(xs, csvWriter)
+      logger.info(s"Wrote households information to $path")
     } finally {
-      Try(csvWriter.close())
+      csvWriter.close()
     }
   }
 

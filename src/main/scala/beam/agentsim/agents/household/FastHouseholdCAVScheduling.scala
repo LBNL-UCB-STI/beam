@@ -282,15 +282,16 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
             asDriver = true,
             needsToCalculateCost = true
           )
+          val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
           val origLink = beamServices.geo.getNearestR5Edge(
             transportNetwork.streetLayer,
             beamServices.geo.utm2Wgs(orig.activity.getCoord),
-            10e3
+            linkRadiusMeters
           )
           val destLink = beamServices.geo.getNearestR5Edge(
             transportNetwork.streetLayer,
             beamServices.geo.utm2Wgs(dest.activity.getCoord),
-            10e3
+            linkRadiusMeters
           )
           routeHistory.getRoute(origLink, destLink, orig.baselineNonPooledTime) match {
             case Some(rememberedRoute) =>

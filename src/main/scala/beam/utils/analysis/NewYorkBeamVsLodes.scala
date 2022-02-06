@@ -213,9 +213,8 @@ object NewYorkBeamVsLodes {
 
   private def getHomeWorkLocations(pathToPlans: String, isUtmCoord: Boolean): Seq[((Coord, Coord), Double)] = {
     def filter(planElement: PlanElement): Boolean = {
-      planElement.planSelected && planElement.planElementType == "activity" && planElement.activityType.exists(
-        actType => actType.toLowerCase == "home" || actType.toLowerCase == "work"
-      )
+      planElement.planSelected && planElement.planElementType == PlanElement.Activity && planElement.activityType
+        .exists(actType => actType.toLowerCase == "home" || actType.toLowerCase == "work")
     }
 
     val (tempPlans, toClose) = CsvPlanElementReader.readWithFilter(pathToPlans, filter)

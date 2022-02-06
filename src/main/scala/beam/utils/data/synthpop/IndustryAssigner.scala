@@ -8,6 +8,7 @@ import beam.utils.data.ctpp.models.{ResidenceGeography, ResidenceToWorkplaceFlow
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.ctpp.readers.flow.IndustryTableReader
 import beam.utils.data.ctpp.readers.residence
+import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 
 class IndustryAssigner {}
@@ -104,10 +105,9 @@ object IndustryAssigner {
       CsvPlanElementReader
         .read(pathToPlans)
         .filter { plan =>
-          val isActivity = plan.planElementType.equalsIgnoreCase("activity")
-          val isHomeOrWork =
-            plan.activityType.exists(act => act.equalsIgnoreCase("home") || act.equalsIgnoreCase("work"))
-          isActivity && isHomeOrWork
+          plan.planElementType == PlanElement.Activity && plan.activityType.exists(act =>
+            act.equalsIgnoreCase("home") || act.equalsIgnoreCase("Work")
+          )
         }
     }
     println(s"Read ${homeWorkActivities.length} home-work activities")
