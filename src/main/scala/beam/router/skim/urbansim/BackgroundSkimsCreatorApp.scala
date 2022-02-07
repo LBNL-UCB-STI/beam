@@ -96,6 +96,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       weightedWalkAccess = rec.get("WACC_minutes").toDouble,
       weightedWalkEgress = rec.get("WEGR_minutes").toDouble,
       weightedWalkAuxiliary = rec.get("WAUX_minutes").toDouble,
+      weightedWaitInitial = rec.getOrDefault("IWAIT_minutes", "0").toDouble,
+      weightedWaitTransfer = rec.getOrDefault("XWAIT_minutes", "0").toDouble,
       weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
       weightedDriveTimeInMinutes = rec.get("DTIM_minutes").toDouble,
       weightedDriveDistanceInMeters = rec.get("DDIST_meters").toDouble,
