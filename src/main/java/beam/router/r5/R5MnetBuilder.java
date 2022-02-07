@@ -72,14 +72,14 @@ public class R5MnetBuilder {
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
-        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/sfbay-link-3.csv")));
-        BufferedWriter bwr1 = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/i580.csv")));
+        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/sfbay-link-2.csv")));
+//        BufferedWriter bwr1 = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/i580.csv")));
         StringBuffer s = new StringBuffer();
-        StringBuffer s1 = new StringBuffer();
+//        StringBuffer s1 = new StringBuffer();
 //        s.append("link_id,highway=primary,highway=trunk,highway=motorway,hgv=designated,hgv=yes\n");
 //        s.append("link_id,highway=motorway,hgv=designated,hgv=yes\n");
         s.append("link_id,hgv\n");
-        s1.append("link_id,osm_id,motorway,hgvYes,hgvDesignated,hgvNo,fromX,fromY,toX,toY\n");
+//        s1.append("link_id,osm_id,motorway,hgvYes,hgvDesignated,hgvNo,fromX,fromY,toX,toY\n");
 
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
@@ -144,7 +144,7 @@ public class R5MnetBuilder {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
 //                link.getAttributes().putAttribute("hgv", hgv);
                 String longString = way.tags.toString();
-                boolean hgv = longString.contains("highway=motorway") || longString.contains("hgv=designated") || longString.contains("hgv=yes");
+                boolean hgv = /*longString.contains("highway=motorway") || */ longString.contains("hgv=designated") || longString.contains("hgv=yes");
                 boolean i580 = longString.contains("ref=I 580");
                 if (i580) {
                     int motorway = longString.contains("highway=motorway") ? 1 : 0;
@@ -155,9 +155,9 @@ public class R5MnetBuilder {
                     double fromY = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getY();
                     double toX = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getX();
                     double toY = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getY();
-                    s1.append(link.getId() + "," + osmID + "," + motorway + "," + hgvDesignated + "," + hgvYes + "," + hgvNo + "," + fromX + "," + fromY + "," + toX + "," + toY + "\n");
+//                    s1.append(link.getId() + "," + osmID + "," + motorway + "," + hgvDesignated + "," + hgvYes + "," + hgvNo + "," + fromX + "," + fromY + "," + toX + "," + toY + "\n");
                 }
-                if (hgv && !i580) {
+                if (hgv /* && !i580*/) {
                     s.append(edgeIndex + ",true\n");
                 }
                 mNetwork.addLink(link);
@@ -176,9 +176,9 @@ public class R5MnetBuilder {
         bwr.write(s.toString());
         bwr.flush();
         bwr.close();
-        bwr1.write(s1.toString());
-        bwr1.flush();
-        bwr1.close();
+//        bwr1.write(s1.toString());
+//        bwr1.flush();
+//        bwr1.close();
 
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
