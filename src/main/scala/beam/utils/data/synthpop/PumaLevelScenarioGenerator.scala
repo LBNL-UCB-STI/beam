@@ -320,7 +320,7 @@ class PumaLevelScenarioGenerator(
       blockGroupGeoId -> res
     }
 
-    ScenarioResult(0, 0, 0, Map.empty)
+    ScenarioResult(0, 0, 0, 0, Map.empty)
   }
 
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {

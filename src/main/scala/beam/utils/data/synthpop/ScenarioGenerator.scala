@@ -23,6 +23,7 @@ import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.writers.{
+  CsvBlocksInfoWriter,
   CsvHouseholdInfoWriter,
   CsvParkingInfoWriter,
   CsvPersonInfoWriter,
@@ -53,6 +54,7 @@ case class ScenarioResult(
   totalNumberOfHouseholds: Int,
   totalNumberOfPeople: Int,
   totalNumberOfPlanElements: Int,
+  totalNumberOfBlockElements: Int,
   geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)]
 )
 
@@ -262,14 +264,17 @@ class SimpleScenarioGenerator(
     val householdFilePath = s"$pathToOutput/households.csv.gz"
     val personsFilePath = s"$pathToOutput/persons.csv.gz"
     val plansFilePath = s"$pathToOutput/plans.csv.gz"
+    val blocksFilePath = s"$pathToOutput/blocks.csv.gz"
 
     val householdInfoWriter = new CsvHouseholdInfoWriter(householdFilePath)
     val personInfoWriter = new CsvPersonInfoWriter(personsFilePath)
     val plansInfoWriter = new CsvPlanElementWriter(plansFilePath)
+    val blocksFileWriter = new CsvBlocksInfoWriter(blocksFilePath)
 
     var totalNumberOfHouseholds: Int = 0
     var totalNumberOfPeople: Int = 0
     var totalNumberOfPlanElements: Int = 0
+    var totalNumberOfBlockElements: Int = 0
 
     val wgsActivityLocations = ArrayBuffer[Coord]()
 
@@ -292,6 +297,12 @@ class SimpleScenarioGenerator(
                 HouseholdId(household.fullId),
                 household.numOfVehicles,
                 household.income,
+                wgsHouseholdLocation.getX,
+                wgsHouseholdLocation.getY
+              )
+
+              val createBlock = BlockInfo(
+                BlockId(blockGroupGeoId.asUniqueKey.toLong),
                 wgsHouseholdLocation.getX,
                 wgsHouseholdLocation.getY
               )
@@ -390,7 +401,7 @@ class SimpleScenarioGenerator(
                 }
               globalPersonId = lastPersonId
               if (personsAndPlans.size == personsWithData.size) {
-                Some((createdHousehold, personsAndPlans))
+                Some((createdHousehold, personsAndPlans, createBlock))
               } else None
           }
           cnt += 1
@@ -406,6 +417,10 @@ class SimpleScenarioGenerator(
           plansInfoWriter.write(plans.toIterator)
           totalNumberOfPlanElements += plans.size
 
+          val blockList = res.map(_._3)
+          blocksFileWriter.write(blockList.toIterator)
+          totalNumberOfBlockElements += blockList.size
+
           plans.filter(_.planElementType == PlanElement.Activity).foreach { plan =>
             val wgsCoord = geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
             wgsActivityLocations += wgsCoord
@@ -415,6 +430,7 @@ class SimpleScenarioGenerator(
       plansInfoWriter.close()
       personInfoWriter.close()
       householdInfoWriter.close()
+      blocksFileWriter.close()
     }
 
     writeH3(pathToOutput, wgsActivityLocations, 1000)
@@ -423,6 +439,7 @@ class SimpleScenarioGenerator(
       totalNumberOfHouseholds = totalNumberOfHouseholds,
       totalNumberOfPeople = totalNumberOfPeople,
       totalNumberOfPlanElements = totalNumberOfPlanElements,
+      totalNumberOfBlockElements = totalNumberOfBlockElements,
       geoIdToAreaResidentsAndWorkers = geoIdToAreaResidentsAndWorkers
     )
   }
