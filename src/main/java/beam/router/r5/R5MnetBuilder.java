@@ -1,5 +1,6 @@
 package beam.router.r5;
 
+import beam.sim.common.GeoUtils;
 import beam.sim.config.BeamConfig;
 import beam.utils.osm.WayFixer$;
 import com.conveyal.osmlib.OSM;
@@ -72,10 +73,13 @@ public class R5MnetBuilder {
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
         BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/sfbay-link-3.csv")));
+        BufferedWriter bwr1 = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/i580.csv")));
         StringBuffer s = new StringBuffer();
+        StringBuffer s1 = new StringBuffer();
 //        s.append("link_id,highway=primary,highway=trunk,highway=motorway,hgv=designated,hgv=yes\n");
 //        s.append("link_id,highway=motorway,hgv=designated,hgv=yes\n");
         s.append("link_id,hgv\n");
+        s1.append("link_id,osm_id,motorway,hgvYes,hgvDesignated,hgvNo,fromX,fromY,toX,toY\n");
 
         while (cursor.advance()) {
 //            log.debug("Edge Index:{}. Cursor {}.", cursor.getEdgeIndex(), cursor);
@@ -114,14 +118,22 @@ public class R5MnetBuilder {
             Link link;
 
 //            boolean hgv = false;
-            if (way != null) {
-                String longString = way.tags.toString();
-                boolean hgv = longString.contains("highway=motorway") || longString.contains("hgv=designated") || longString.contains("hgv=yes");
-                boolean i580 = longString.contains("ref=I 580");
-                if (hgv && !i580) {
-                    s.append(edgeIndex + ",true\n");
-                }
-            }
+//            if (way != null) {
+//                String longString = way.tags.toString();
+//                boolean hgv = longString.contains("highway=motorway") || longString.contains("hgv=designated") || longString.contains("hgv=yes");
+//                boolean i580 = longString.contains("ref=I 580");
+//                if (i580) {
+//                    int id = link.getId();
+//                    int motorway = longString.contains("highway=motorway") ? 1 : 0;
+//                    int hgvDesignated = longString.contains("hgv=designated") ? 1 : 0;
+//                    int hgvYes = longString.contains("hgv=yes") ? 1 : 0;
+//                    int hgvNo = longString.contains("hgv=no") ? 1 : 0;
+//
+//                }
+//                if (hgv && !i580) {
+//                    s.append(edgeIndex + ",true\n");
+//                }
+//            }
 
             if (way == null) {
                 // Made up numbers, this is a PT to road network connector or something
@@ -131,6 +143,23 @@ public class R5MnetBuilder {
             } else {
                 link = OTM.createLink(way, osmID, edgeIndex, fromNode, toNode, length, flagStrings);
 //                link.getAttributes().putAttribute("hgv", hgv);
+                String longString = way.tags.toString();
+                boolean hgv = longString.contains("highway=motorway") || longString.contains("hgv=designated") || longString.contains("hgv=yes");
+                boolean i580 = longString.contains("ref=I 580");
+                if (i580) {
+                    int motorway = longString.contains("highway=motorway") ? 1 : 0;
+                    int hgvDesignated = longString.contains("hgv=designated") ? 1 : 0;
+                    int hgvYes = longString.contains("hgv=yes") ? 1 : 0;
+                    int hgvNo = longString.contains("hgv=no") ? 1 : 0;
+                    double fromX = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getX();
+                    double fromY = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getY();
+                    double toX = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getX();
+                    double toY = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getY();
+                    s1.append(link.getId() + "," + osmID + "," + motorway + "," + hgvDesignated + "," + hgvYes + "," + hgvNo + "," + fromX + "," + fromY + "," + toX + "," + toY + "\n");
+                }
+                if (hgv && !i580) {
+                    s.append(edgeIndex + ",true\n");
+                }
                 mNetwork.addLink(link);
                 log.debug("Created regular link: {}", link);
             }
@@ -147,6 +176,9 @@ public class R5MnetBuilder {
         bwr.write(s.toString());
         bwr.flush();
         bwr.close();
+        bwr1.write(s1.toString());
+        bwr1.flush();
+        bwr1.close();
 
         if (numberOfFixes > 0) {
             log.warn("Fixed {} links which were having the same `fromNode` and `toNode`", numberOfFixes);
