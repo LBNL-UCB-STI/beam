@@ -577,7 +577,7 @@ class PersonAgent(
   when(Teleporting) {
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, false, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
         ) =>
       endActivityAndDepart(tick, currentTrip, data)
 
@@ -619,7 +619,7 @@ class PersonAgent(
       */
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, false, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _)
         ) =>
       endActivityAndDepart(tick, currentTrip, data)
 
