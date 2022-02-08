@@ -104,7 +104,11 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
 
     "do enroute upon not enough charging" in {
       val enrouteConfig: Config = ConfigFactory
-        .parseString("beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.5")
+        .parseString(
+          s"""
+             |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.5
+      """.stripMargin
+        )
         .withFallback(defaultConfig)
         .resolve()
       var beenToEnroute: Boolean = false

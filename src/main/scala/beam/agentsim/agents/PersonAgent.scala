@@ -1084,7 +1084,7 @@ class PersonAgent(
           val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc)
           //sometimes this distance is zero which causes parking stall search to get stuck
           val distUtm = geo.distUTMInMeters(originUtm, destinationUtm)
-          val distanceWrtBatteryCapacity = totalDistance / vehicle.getTotalRemainingRange
+          val distanceWrtBatteryCapacity = totalDistance / vehicle.beamVehicleType.getTotalRange
           if (
             distanceWrtBatteryCapacity > enrouteConfig.remainingDistanceWrtBatteryCapacityThreshold ||
             totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters ||
