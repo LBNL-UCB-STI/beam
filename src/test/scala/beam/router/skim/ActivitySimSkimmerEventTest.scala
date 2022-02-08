@@ -28,6 +28,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
   def carLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.CAR)
   def busLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.BUS)
   def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS)
+  def railLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.SUBWAY)
 
   "skimmer event" should "parse trip 1" in {
     val trip = new EmbodiedBeamTrip(
@@ -83,5 +84,18 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.walkAuxiliaryInMinutes shouldBe 0 / 60.0
     event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.SOV
+  }
+
+  "skimmer event" should "parse trip 6" in {
+    val trip = new EmbodiedBeamTrip(
+      IndexedSeq(walkLeg15, busLeg10, railLeg15, walkLeg10)
+    )
+    val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
+    event.skimInternal.walkAccessInMinutes shouldBe 15 / 60.0
+    event.skimInternal.walkEgressInMinutes shouldBe 10 / 60.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 25 / 60.0
+    event.skimInternal.keyInVehicleTimeInMinutes shouldBe 15 / 60.0
+    event.key.pathType shouldBe ActivitySimPathType.WLK_HVY_WLK
   }
 }
