@@ -72,7 +72,7 @@ public class R5MnetBuilder {
         int numberOfFixes = 0;
         HashMap<String, Integer> highwayTypeToCounts = new HashMap<>();
 
-        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/sfbay-link-2.csv")));
+        BufferedWriter bwr = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/overwriteLinkParamPath-sflight-hgvOnly.csv")));
 //        BufferedWriter bwr1 = new BufferedWriter(new FileWriter(new File("/home/rutvik/Desktop/hgv/i580.csv")));
         StringBuffer s = new StringBuffer();
 //        StringBuffer s1 = new StringBuffer();
@@ -145,19 +145,19 @@ public class R5MnetBuilder {
 //                link.getAttributes().putAttribute("hgv", hgv);
                 String longString = way.tags.toString();
                 boolean hgv = /*longString.contains("highway=motorway") || */ longString.contains("hgv=designated") || longString.contains("hgv=yes");
-                boolean i580 = longString.contains("ref=I 580");
-                if (i580) {
-                    int motorway = longString.contains("highway=motorway") ? 1 : 0;
-                    int hgvDesignated = longString.contains("hgv=designated") ? 1 : 0;
-                    int hgvYes = longString.contains("hgv=yes") ? 1 : 0;
-                    int hgvNo = longString.contains("hgv=no") ? 1 : 0;
-                    double fromX = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getX();
-                    double fromY = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getY();
-                    double toX = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getX();
-                    double toY = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getY();
-//                    s1.append(link.getId() + "," + osmID + "," + motorway + "," + hgvDesignated + "," + hgvYes + "," + hgvNo + "," + fromX + "," + fromY + "," + toX + "," + toY + "\n");
-                }
-                if (hgv /* && !i580*/) {
+//                boolean i580 = longString.contains("ref=I 580");
+//                if (i580) {
+//                    int motorway = longString.contains("highway=motorway") ? 1 : 0;
+//                    int hgvDesignated = longString.contains("hgv=designated") ? 1 : 0;
+//                    int hgvYes = longString.contains("hgv=yes") ? 1 : 0;
+//                    int hgvNo = longString.contains("hgv=no") ? 1 : 0;
+//                    double fromX = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getX();
+//                    double fromY = GeoUtils.GeoUtilsNad83().utm2Wgs(fromNode.getCoord()).getY();
+//                    double toX = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getX();
+//                    double toY = GeoUtils.GeoUtilsNad83().utm2Wgs(toNode.getCoord()).getY();
+////                    s1.append(link.getId() + "," + osmID + "," + motorway + "," + hgvDesignated + "," + hgvYes + "," + hgvNo + "," + fromX + "," + fromY + "," + toX + "," + toY + "\n");
+//                }
+                if (hgv) { /* && !i580*/
                     s.append(edgeIndex + ",true\n");
                 }
                 mNetwork.addLink(link);
