@@ -1579,24 +1579,31 @@ object BeamConfig {
           }
 
           case class Enroute(
-            avgChargingDurationInSecond: scala.Int,
+            estimateOfMeanChargingDurationInSecond: scala.Int,
             noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
-            noRefuelThresholdOffsetInMeters: scala.Double
+            noRefuelThresholdOffsetInMeters: scala.Double,
+            remainingDistanceWrtBatteryCapacityThreshold: scala.Int
           )
 
           object Enroute {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
-                avgChargingDurationInSecond =
-                  if (c.hasPathOrNull("avgChargingDurationInSecond")) c.getInt("avgChargingDurationInSecond") else 1800,
+                estimateOfMeanChargingDurationInSecond =
+                  if (c.hasPathOrNull("estimateOfMeanChargingDurationInSecond"))
+                    c.getInt("estimateOfMeanChargingDurationInSecond")
+                  else 1800,
                 noRefuelAtRemainingDistanceThresholdInMeters =
                   if (c.hasPathOrNull("noRefuelAtRemainingDistanceThresholdInMeters"))
                     c.getInt("noRefuelAtRemainingDistanceThresholdInMeters")
                   else 500,
                 noRefuelThresholdOffsetInMeters =
                   if (c.hasPathOrNull("noRefuelThresholdOffsetInMeters")) c.getDouble("noRefuelThresholdOffsetInMeters")
-                  else 32186.9
+                  else 32186.9,
+                remainingDistanceWrtBatteryCapacityThreshold =
+                  if (c.hasPathOrNull("remainingDistanceWrtBatteryCapacityThreshold"))
+                    c.getInt("remainingDistanceWrtBatteryCapacityThreshold")
+                  else 3
               )
             }
           }
@@ -4019,13 +4026,13 @@ object BeamConfig {
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
         directory: java.lang.String,
+        linkRadiusMeters: scala.Double,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmFile: java.lang.String,
         osmMapdbFile: java.lang.String,
-        travelTimeNoiseFraction: scala.Double,
-        linkRadiusMeters: scala.Double
+        travelTimeNoiseFraction: scala.Double
       )
 
       object R5 {
@@ -4066,6 +4073,7 @@ object BeamConfig {
               if (c.hasPathOrNull("bikeLaneScaleFactor")) c.getDouble("bikeLaneScaleFactor") else 1.0,
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
+            linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0,
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
@@ -4081,8 +4089,7 @@ object BeamConfig {
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
             travelTimeNoiseFraction =
-              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0,
-            linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
         }
       }

@@ -1075,7 +1075,7 @@ class PersonAgent(
           val enrouteConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute
           val firstLeg = data.restOfCurrentTrip.head
           val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
-          val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
+          val totalDistance: Double = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
           // Calculating distance to cross before enroute charging
           val refuelRequiredThresholdInMeters = totalDistance
           val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdOffsetInMeters
@@ -1084,7 +1084,9 @@ class PersonAgent(
           val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc)
           //sometimes this distance is zero which causes parking stall search to get stuck
           val distUtm = geo.distUTMInMeters(originUtm, destinationUtm)
+          val distanceWrtBatteryCapacity = totalDistance / vehicle.getTotalRemainingRange
           if (
+            distanceWrtBatteryCapacity > enrouteConfig.remainingDistanceWrtBatteryCapacityThreshold ||
             totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters ||
             distUtm < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters
           ) false
