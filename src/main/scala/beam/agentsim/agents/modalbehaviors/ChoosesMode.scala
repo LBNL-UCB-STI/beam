@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
@@ -41,9 +42,6 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-
-  private val emergencyGeoId =
-    GeoLevel.getSpecialGeoIds(beamServices.beamConfig.beam.agentsim.taz.parkingManager.level)._1
 
   val dummyRHVehicle: StreetVehicle = createDummyVehicle(
     "dummyRH",
@@ -277,7 +275,8 @@ trait ChoosesMode {
   private def requestAvailableVehicles(
     vehicleFleets: Seq[ActorRef],
     location: SpaceTime,
-    activity: Activity
+    activity: Activity,
+    requireVehicleCategoryAvailable: Option[VehicleCategory] = None
   ): Future[MobilityStatusResponse] = {
     implicit val executionContext: ExecutionContext = context.system.dispatcher
     Future
@@ -287,6 +286,7 @@ trait ChoosesMode {
             id,
             location,
             activity,
+            requireVehicleCategoryAvailable,
             getCurrentTriggerIdOrGenerate
           )
         )

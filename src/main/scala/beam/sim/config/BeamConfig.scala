@@ -1567,6 +1567,7 @@ object BeamConfig {
           fractionOfInitialVehicleFleet: scala.Double,
           fractionOfPeopleWithBicycle: scala.Double,
           fuelTypesFilePath: java.lang.String,
+          generateEmergencyHouseholdVehicleWhenPlansRequireIt: scala.Boolean,
           linkSocAcrossIterations: scala.Boolean,
           linkToGradePercentFilePath: java.lang.String,
           meanPrivateVehicleStartingSOC: scala.Double,
@@ -1788,6 +1789,9 @@ object BeamConfig {
               fuelTypesFilePath =
                 if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
                 else "/test/input/beamville/beamFuelTypes.csv",
+              generateEmergencyHouseholdVehicleWhenPlansRequireIt = c.hasPathOrNull(
+                "generateEmergencyHouseholdVehicleWhenPlansRequireIt"
+              ) && c.getBoolean("generateEmergencyHouseholdVehicleWhenPlansRequireIt"),
               linkSocAcrossIterations =
                 c.hasPathOrNull("linkSocAcrossIterations") && c.getBoolean("linkSocAcrossIterations"),
               linkToGradePercentFilePath =
@@ -4028,13 +4032,13 @@ object BeamConfig {
         departureWindow: scala.Double,
         directory: java.lang.String,
         directory2: scala.Option[java.lang.String],
+        linkRadiusMeters: scala.Double,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmFile: java.lang.String,
         osmMapdbFile: java.lang.String,
-        travelTimeNoiseFraction: scala.Double,
-        linkRadiusMeters: scala.Double
+        travelTimeNoiseFraction: scala.Double
       )
 
       object R5 {
@@ -4076,6 +4080,7 @@ object BeamConfig {
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
             directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
             directory2 = if (c.hasPathOrNull("directory2")) Some(c.getString("directory2")) else None,
+            linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0,
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
               if (c.hasPathOrNull("mNetBuilder")) c.getConfig("mNetBuilder")
               else com.typesafe.config.ConfigFactory.parseString("mNetBuilder{}")
@@ -4091,8 +4096,7 @@ object BeamConfig {
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
             travelTimeNoiseFraction =
-              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0,
-            linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
         }
       }
