@@ -1603,7 +1603,7 @@ object BeamConfig {
                 remainingDistanceWrtBatteryCapacityThreshold =
                   if (c.hasPathOrNull("remainingDistanceWrtBatteryCapacityThreshold"))
                     c.getInt("remainingDistanceWrtBatteryCapacityThreshold")
-                  else 3
+                  else 2
               )
             }
           }

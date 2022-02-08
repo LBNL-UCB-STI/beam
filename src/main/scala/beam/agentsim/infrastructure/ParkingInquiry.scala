@@ -9,7 +9,7 @@ import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
 import enumeratum.{Enum, EnumEntry}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 
 import scala.collection.immutable
@@ -43,6 +43,11 @@ case class ParkingInquiry(
   triggerId: Long
 ) extends HasTriggerId {
   val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
+
+  val departureLocation: Option[Coord] = searchMode match {
+    case ParkingSearchMode.EnRoute => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
+    case _                         => None
+  }
 }
 
 object ParkingInquiry extends LazyLogging {
