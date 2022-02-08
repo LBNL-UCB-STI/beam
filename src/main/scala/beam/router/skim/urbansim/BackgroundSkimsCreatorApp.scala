@@ -100,7 +100,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       weightedDriveTimeInMinutes = rec.get("DTIM_minutes").toDouble,
       weightedDriveDistanceInMeters = rec.get("DDIST_meters").toDouble,
       weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
-      weightedLightRailInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
+      weightedKeyInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
       weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
       weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
       debugText = rec.get("DEBUG_TEXT")

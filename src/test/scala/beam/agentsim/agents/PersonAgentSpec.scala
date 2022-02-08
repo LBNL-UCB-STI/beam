@@ -21,6 +21,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -190,7 +191,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig)
+          new RouteHistory(beamConfig),
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -398,10 +400,11 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0),
+          fallbackHomeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig)
+          new RouteHistory(beamConfig),
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -687,7 +690,8 @@ class PersonAgentSpec
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
-          new RouteHistory(beamConfig)
+          new RouteHistory(beamConfig),
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
