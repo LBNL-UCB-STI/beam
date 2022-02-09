@@ -42,20 +42,23 @@ class EventToHourFrequency(val controlerIO: OutputDirectoryHierarchy)
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val filePath = controlerIO.getIterationFilename(event.getIteration, "PhysSimEventToHourFrequency.csv")
-    val csvWriter = new CsvWriter(filePath, Vector("event_type", "hour", "count"))
-    val maxHour = eventToHourFreq.values.flatten.map(_._1).max
-    logger.info(s"Handled $cnt events. MaxHour: $maxHour")
+    val hours = eventToHourFreq.values.flatten.map(_._1)
+    val maxHourOpt = if (hours.isEmpty) None else Some(hours.max)
+    logger.info(s"Handled $cnt events. MaxHour: ${maxHourOpt.mkString}")
 
-    try {
-      (0 to maxHour).map { hour =>
-        eventToHourFreq.map { case (event, hourFreq) =>
-          val cnt = hourFreq.getOrElse(hour, 0)
-          csvWriter.write(event, hour, cnt)
+    maxHourOpt.foreach { maxHour =>
+      val filePath = controlerIO.getIterationFilename(event.getIteration, "PhysSimEventToHourFrequency.csv")
+      val csvWriter = new CsvWriter(filePath, Vector("event_type", "hour", "count"))
+      try {
+        (0 to maxHour).map { hour =>
+          eventToHourFreq.map { case (event, hourFreq) =>
+            val cnt = hourFreq.getOrElse(hour, 0)
+            csvWriter.write(event, hour, cnt)
+          }
         }
+      } finally {
+        Try(csvWriter.close())
       }
-    } finally {
-      Try(csvWriter.close())
     }
   }
 }
