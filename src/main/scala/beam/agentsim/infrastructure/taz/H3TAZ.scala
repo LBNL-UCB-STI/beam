@@ -27,9 +27,9 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
   private val toH3CoordSystem =
     try {
       new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
-    }
-    catch {
-      case e: NoClassDefFoundError => println(e)
+    } catch {
+      case e: NoClassDefFoundError =>
+        println(e)
         throw e
     }
 
