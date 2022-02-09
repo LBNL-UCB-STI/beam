@@ -509,8 +509,7 @@ class BeamMobsimIteration(
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
-      routeHistory,
-      envelopeInUTM
+      routeHistory
     ),
     "population"
   )

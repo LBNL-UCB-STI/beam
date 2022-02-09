@@ -1,7 +1,7 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
-import beam.utils.scenario.urbansim.censusblock.entities.{InputHousehold}
+import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
