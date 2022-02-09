@@ -25,13 +25,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
     logger.error("lowerBoundResolution > upperBoundResolution")
 
   private val toH3CoordSystem =
-    try {
-      new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
-    } catch {
-      case e: NoClassDefFoundError =>
-        println(e)
-        throw e
-    }
+    new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
 
   private val toScenarioCoordSystem =
     new GeotoolsTransformation(H3TAZ.H3Projection, beamConfig.matsim.modules.global.coordinateSystem)
