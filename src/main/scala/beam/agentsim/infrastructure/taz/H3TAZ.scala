@@ -29,7 +29,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
       new GeotoolsTransformation(beamConfig.matsim.modules.global.coordinateSystem, H3TAZ.H3Projection)
     }
     catch {
-      case e: ClassNotFoundException => println(e)
+      case e: NoClassDefFoundError => println(e)
         throw e
     }
 
