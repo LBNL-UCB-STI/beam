@@ -53,7 +53,7 @@ class NetworkRelaxationScenarioGenerator {
   def generateVehicles(count: Int = 2000) = {
     println(s"Generating $count vehicles")
     val vehicles = for (i <- 1 to count) yield {
-      VehicleInfo(i.toString, "car", None, i.toString)
+      VehicleInfo(i.toString, "Car", None, i.toString)
     }
     val csvWriter = new CsvWriter(
       "test/input/relaxation-network-scenario/vehicles.csv",
@@ -179,9 +179,9 @@ class NetworkRelaxationScenarioGenerator {
 
   def generate() = {
 //    generateHouseholds()
-//    generateVehicles()
+    generateVehicles()
 //    generatePersons()
-    generatePlans()
+//    generatePlans()
   }
 }
 
