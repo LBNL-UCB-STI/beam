@@ -91,6 +91,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
+          crowdingLevel = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }
@@ -115,6 +116,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
+          crowdingLevel = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }

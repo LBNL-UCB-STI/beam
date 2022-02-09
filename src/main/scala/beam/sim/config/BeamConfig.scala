@@ -1478,6 +1478,7 @@ object BeamConfig {
             activity_file_path: java.lang.String,
             additional_trip_utility: scala.Double,
             destination_nest_scale_factor: scala.Double,
+            fill_in_modes_from_skims: scala.Boolean,
             generate_secondary_activities: scala.Boolean,
             intercept_file_path: java.lang.String,
             max_destination_choice_set_size: scala.Int,
@@ -1497,6 +1498,8 @@ object BeamConfig {
                 destination_nest_scale_factor =
                   if (c.hasPathOrNull("destination_nest_scale_factor")) c.getDouble("destination_nest_scale_factor")
                   else 1.0,
+                fill_in_modes_from_skims =
+                  c.hasPathOrNull("fill_in_modes_from_skims") && c.getBoolean("fill_in_modes_from_skims"),
                 generate_secondary_activities =
                   c.hasPathOrNull("generate_secondary_activities") && c.getBoolean("generate_secondary_activities"),
                 intercept_file_path =

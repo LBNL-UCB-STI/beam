@@ -18,6 +18,7 @@ case class ODSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double,
+  crowdingLevel: Double,
   maybePayloadWeightInKg: Option[Double],
   override val skimName: String
 ) extends AbstractSkimmerEvent(eventTime) {
@@ -25,13 +26,14 @@ case class ODSkimmerEvent(
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
   val (key, skimInternal) =
-    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, maybePayloadWeightInKg)
+    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, crowdingLevel, maybePayloadWeightInKg)
 
   private def observeTrip(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double,
+    crowdingLevel: Double,
     maybePayloadWeightInKg: Option[Double],
     level4CavTravelTimeScalingFactor: Double = 1.0
   ): (ODSkimmerKey, ODSkimmerInternal) = {
@@ -53,6 +55,7 @@ case class ODSkimmerEvent(
         cost = correctedTrip.costEstimate,
         payloadWeightInKg = maybePayloadWeightInKg.getOrElse(0.0),
         energy = energyConsumption,
+        crowdingLevel = crowdingLevel,
         level4CavTravelTimeScalingFactor = level4CavTravelTimeScalingFactor
       )
     (key, payload)
@@ -78,6 +81,7 @@ object ODSkimmerEvent {
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
+    crowdingLevel: Double = 0.0,
     maybePayloadWeightInKg: Option[Double],
     energyConsumption: Double
   ): (ODSkimmerEvent, Coord, Coord) = {
@@ -105,6 +109,7 @@ object ODSkimmerEvent {
         generalizedCost = generalizedCost,
         maybePayloadWeightInKg = maybePayloadWeightInKg,
         energyConsumption = energyConsumption,
+        crowdingLevel = crowdingLevel,
         skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
       ),
       origCoord,

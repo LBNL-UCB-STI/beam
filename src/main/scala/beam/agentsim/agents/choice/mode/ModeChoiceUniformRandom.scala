@@ -2,7 +2,9 @@ package beam.agentsim.agents.choice.mode
 
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.router.Modes
+import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.core.ODSkimmer
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -44,6 +46,12 @@ class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalc
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
+    attributesOfIndividual: AttributesOfIndividual
+  ): Double = 0.0
+
+  def utilityOf(
+    mode: BeamMode,
+    skim: ODSkimmer.Skim,
     attributesOfIndividual: AttributesOfIndividual
   ): Double = 0.0
 }
