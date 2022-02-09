@@ -795,7 +795,7 @@ class RideHailAgent(
       stash()
       goto(Offline)
     case ev @ Event(WaitingToCharge(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      log.debug("state(RideHailingAgent.WaitingToDrive.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
