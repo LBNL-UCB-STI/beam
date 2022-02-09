@@ -26,7 +26,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
 
-case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -87,6 +87,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
           generalizedCost = 0,
           distanceInM = travelDistance.toDouble,
           cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
+          payloadWeightInKg = 0.0,
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
@@ -110,6 +111,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
             solo.travelTimeInS * poolingTravelTimeOveheadFactor,
             beamConfig
           ),
+          payloadWeightInKg = 0.0,
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           observations = 0,
@@ -210,6 +212,8 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       .zip(weights)
       .map(tup => tup._1 * tup._2)
       .sum / sumWeights
+    val weightedPayloadWeight =
+      individualSkims.map(_.payloadWeight).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
     val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
     val weightedTravelTimeScaleFactor = individualSkims
       .map(_.level4CavTravelTimeScalingFactor)
@@ -228,6 +232,7 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       weightedGeneralizedCost = weightedGeneralizedCost,
       weightedDistance = weightedDistance,
       sumWeights = sumWeights,
+      weightedPayloadWeight = weightedPayloadWeight,
       weightedEnergy = weightedEnergy,
       weightedLevel4TravelTimeScaleFactor = weightedTravelTimeScaleFactor
     )

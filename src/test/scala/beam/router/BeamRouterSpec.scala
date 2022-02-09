@@ -25,6 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.time.ZonedDateTime
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 /**
   * Specs for BeamRouter
@@ -111,6 +112,7 @@ class BeamRouterSpec extends AnyFlatSpec {
     BeamScenario(
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
+      TrieMap.empty,
       TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,

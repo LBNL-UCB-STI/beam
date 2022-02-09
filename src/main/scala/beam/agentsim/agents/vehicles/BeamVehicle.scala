@@ -49,6 +49,7 @@ class BeamVehicle(
   val vehicleManagerId: AtomicReference[Id[VehicleManager]] = new AtomicReference(VehicleManager.AnyManager.managerId),
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
+
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
   def setManager(value: Option[ActorRef]): Unit = this.manager.set(value)
   def getManager: Option[ActorRef] = this.manager.get
@@ -299,8 +300,6 @@ class BeamVehicle(
     )
   }
 
-  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
-
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal + fuelInJoules
@@ -415,6 +414,10 @@ class BeamVehicle(
 
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
+
+  def isEV: Boolean = isBEV || isPHEV
+
+  def getStateOfCharge: Double = primaryFuelLevelInJoules / beamVehicleType.primaryFuelCapacityInJoule
 
   /**
     * Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
@@ -541,6 +544,17 @@ object BeamVehicle {
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
   )
 
+  val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
+  val idPrefixRideHail = "rideHailVehicle"
+
+  def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixRideHail)
+  }
+
+  def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
+  }
+
   def noSpecialChars(theString: String): String =
     theString.replaceAll("[\\\\|\\\\^]+", ":")
 
@@ -652,4 +666,5 @@ object BeamVehicle {
       case _ => 1.0
     }
   }
+
 }

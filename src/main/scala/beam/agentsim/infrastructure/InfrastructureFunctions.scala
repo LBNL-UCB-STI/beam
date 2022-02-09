@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -27,6 +27,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  searchMaxDistanceRelativeToEllipseFoci: Double,
+  enrouteDuration: Double,
   boundingBox: Envelope,
   seed: Int
 ) extends StrictLogging {
@@ -71,7 +73,12 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     * @param geoArea GEO
     * @return
     */
-  protected def sampleParkingStallLocation(inquiry: ParkingInquiry, parkingZone: ParkingZone[GEO], geoArea: GEO): Coord
+  protected def sampleParkingStallLocation(
+    inquiry: ParkingInquiry,
+    parkingZone: ParkingZone[GEO],
+    geoArea: GEO,
+    inClosestZone: Boolean = false
+  ): Coord
 
   // ************
 
@@ -88,8 +95,10 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     ParkingZoneSearchConfiguration(
       minSearchRadius,
       maxSearchRadius,
+      searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
-      distanceFunction
+      distanceFunction,
+      enrouteDuration
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {
@@ -111,12 +120,25 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       ParkingZoneSearchParams(
         inquiry.destinationUtm.loc,
         inquiry.parkingDuration,
+        inquiry.searchMode,
         mnlMultiplierParameters,
         zoneSearchTree,
         parkingZones,
         geoQuadTree,
-        new Random(seed)
+        new Random(seed),
+        inquiry.departureLocation
       )
+
+    val closestZone =
+      Option(
+        parkingZoneSearchParams.zoneQuadTree
+          .getClosest(inquiry.destinationUtm.loc.getX, inquiry.destinationUtm.loc.getY)
+      )
+
+    val closestZoneId = closestZone match {
+      case Some(foundZone) => GeoLevel[GEO].getId(foundZone)
+      case _               => GeoLevel[GEO].emergencyGeoId
+    }
 
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
@@ -135,7 +157,9 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
               s"somehow have a ParkingZone with geoId ${zone.geoId} which is not found in the idToGeoMapping"
             )
             new Coord()
-          case Some(taz) => sampleParkingStallLocation(inquiry, zone, taz)
+          case Some(taz) =>
+            val inClosestZone = closestZoneId == zone.geoId
+            sampleParkingStallLocation(inquiry, zone, taz, inClosestZone)
         }
       }
 

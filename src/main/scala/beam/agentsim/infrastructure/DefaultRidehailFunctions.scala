@@ -42,6 +42,8 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      0.0,
+      0.0,
       boundingBox,
       seed
     ) {
@@ -157,7 +159,8 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
     parkingZone: ParkingZone[GEO],
-    geoArea: GEO
+    geoArea: GEO,
+    inClosestZone: Boolean = true
   ): Coord = {
     import GeoLevel.ops._
     geoArea.centroidLocation
@@ -207,7 +210,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   }
 
   def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone[GEO]): Boolean = {
-    val soc = beamVehicle.primaryFuelLevelInJoules / beamVehicle.beamVehicleType.primaryFuelCapacityInJoule
+    val soc = beamVehicle.getStateOfCharge
     soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
   }
 

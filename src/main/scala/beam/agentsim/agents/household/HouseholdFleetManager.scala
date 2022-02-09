@@ -1,67 +1,69 @@
 package beam.agentsim.agents.household
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
-import java.util.concurrent.TimeUnit
-import akka.actor.Status.{Failure, Success}
+
 import akka.actor.ActorRef
+import akka.actor.Status.{Failure, Success}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.household.HouseholdActor.{
-  GetVehicleTypes,
-  MobilityStatusInquiry,
-  MobilityStatusResponse,
-  ReleaseVehicle,
-  ReleaseVehicleAndReply,
-  VehicleTypesResponse
-}
+import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle,VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
-import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.HasTriggerId
+import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug
-import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.logging.pattern.ask
+import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.households.Household
 
+import java.util.concurrent.TimeUnit
+import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 
 class HouseholdFleetManager(
   parkingManager: ActorRef,
   chargingNetworkManager: ActorRef,
-  household: Household,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
-  homeCoord: Coord,
-  implicit val debug: Debug
-) extends LoggingMessageActor
+  homeAndStartingWorkLocations: Map[Id[Person], (String, Coord)],
+  maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator]
+)(implicit val debug: Debug)
+    extends LoggingMessageActor
     with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
+  private var nextVehicleIndex = 0
+
+  private val vehiclesInternal: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
+    collection.mutable.Map(vehicles.toSeq: _*)
 
   private var availableVehicles: List[BeamVehicle] = Nil
-
   var triggerSender: Option[ActorRef] = None
+
+  private val trackingVehicleAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
 
   override def loggedReceive: Receive = {
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
       xs.foreach { case (id, resp) =>
-        val veh = vehicles(id)
+        val veh = vehiclesInternal(id)
         veh.setManager(Some(self))
-        veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
+        veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
         veh.setMustBeDrivenHome(true)
         veh.useParkingStall(resp.stall)
         if (resp.stall.chargingPointType.isDefined) {
           chargingNetworkManager ! ChargingPlugRequest(
-            0, veh, resp.stall, 
+            0,
+            veh,
+            resp.stall,
             // use first household member id as stand-in.
-            household.getMemberIds().get(0),  
+            trackingVehicleAssignmentAtInitialization(id),
             triggerId
           )
         }
@@ -72,37 +74,43 @@ class HouseholdFleetManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-
-      val listOfFutures: 
-        List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = 
-          // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV, 
-          // send the request to the charging manager. Otherwise send request to the parking manager.
-          vehicles.toList.map { case (id, vehicle) =>
-            if (vehicle.isBEV | vehicle.isPHEV) {
-              (chargingNetworkManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), 
-                "init",
-                VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
-                beamVehicle = Option(vehicle), triggerId = triggerId))
-                .mapTo[ParkingInquiryResponse]
-                .map ( r =>
-                  (id, r)
-                )
-            } else {
-              (parkingManager ? ParkingInquiry.init(SpaceTime(homeCoord, 0), "init", triggerId = triggerId))
-                .mapTo[ParkingInquiryResponse]
-                .map { r =>
-                  (id, r)
-                }
-            }
-          }
+      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = {
+        // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV,
+        // send the request to the charging manager. Otherwise send request to the parking manager.
+        val workingPersonsList = homeAndStartingWorkLocations.filter(_._2._1 == "Work").keys.toBuffer
+        vehicles.toList.map { case (id, vehicle) =>
+          val personId: Id[Person] =
+            if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
+            else
+              homeAndStartingWorkLocations
+                .find(_._2._1 == "Home")
+                .map(_._1)
+                .getOrElse(homeAndStartingWorkLocations.keys.head)
+          trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
+          val inquiry = ParkingInquiry.init(
+            SpaceTime(homeAndStartingWorkLocations(personId)._2, 0),
+            "init",
+            VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
+            beamVehicle = Option(vehicle),
+            triggerId = triggerId
+          )
+          if (vehicle.isEV) (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
+          else (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
+        }
+      }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
       response.pipeTo(self)
 
     case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
-      vehicles(vehId).spaceTime = whenWhere
-      logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
+      vehiclesInternal.get(vehId) match {
+        case Some(vehicle) =>
+          vehicle.spaceTime = whenWhere
+          logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
+        case _ =>
+          logger.error("Why is not this vehicle {} at location {} yet!", vehId, whenWhere)
+      }
 
     case ReleaseVehicle(vehicle, _) =>
       vehicle.unsetDriver()
@@ -126,25 +134,88 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(_, _, _, triggerId) =>
-      availableVehicles = availableVehicles match {
-        case firstVehicle :: rest =>
-          logger.debug("Vehicle {} is now taken", firstVehicle.id)
-          firstVehicle.becomeDriver(sender)
-          sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
-          rest
-        case Nil =>
-          sender() ! MobilityStatusResponse(Vector(), triggerId)
-          Nil
+    case MobilityStatusInquiry(personId, whenWhere, _, requireVehicleCategoryAvailable, triggerId) =>
+      {
+        for {
+          neededVehicleCategory              <- requireVehicleCategoryAvailable
+          emergencyHouseholdVehicleGenerator <- maybeEmergencyHouseholdVehicleGenerator
+        } yield {
+          val vehicleCreatedOutOfThinAir: Boolean = if (availableVehicles.isEmpty) {
+            emergencyHouseholdVehicleGenerator.createVehicle(
+              personId,
+              nextVehicleIndex,
+              neededVehicleCategory,
+              whenWhere,
+              self
+            ) match {
+              case Some(vehicle) =>
+                logger.warn(
+                  s"No vehicles available for category ${neededVehicleCategory} available for person ${personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+                )
+                nextVehicleIndex += 1
+                val mobilityRequester = sender()
+                vehiclesInternal(vehicle.id) = vehicle
+
+                // Pipe my car through the parking manager
+                // and complete initialization only when I got them all.
+                val responseFuture = parkingManager ? ParkingInquiry.init(
+                  whenWhere,
+                  "wherever",
+                  triggerId = triggerId
+                )
+                responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+                  vehicle.useParkingStall(stall)
+                  logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
+                  vehicle.becomeDriver(mobilityRequester)
+                  MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+                } pipeTo mobilityRequester
+                true
+              case _ =>
+                false
+            }
+          } else false
+
+          if (!vehicleCreatedOutOfThinAir) {
+            availableVehicles = availableVehicles match {
+              case firstVehicle :: rest =>
+                logger.debug("Vehicle {} is now taken", firstVehicle.id)
+                firstVehicle.becomeDriver(sender)
+                sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
+                rest
+              case _ =>
+                logger.error(s"THE LIST OF VEHICLES SHOULDN'T BE EMPTY")
+                Nil
+            }
+          }
+        }
+      }.getOrElse {
+        availableVehicles = availableVehicles match {
+          case firstVehicle :: rest =>
+            logger.debug("Vehicle {} is now taken", firstVehicle.id)
+            firstVehicle.becomeDriver(sender)
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
+            rest
+          case Nil =>
+            logger.debug(s"Not returning vehicle because no default is defined")
+            sender() ! MobilityStatusResponse(Vector(), triggerId)
+            Nil
+        }
       }
 
-    case Finish =>
-      context.stop(self)
-
-    case Success =>
     case pir: ParkingInquiryResponse =>
       logger.error(s"STUCK with ParkingInquiryResponse: $pir")
-
+    case e @ StartingRefuelSession(_, _) =>
+      logger.debug("HouseholdFleetManager.StartingRefuelSession: {}", e)
+    case e @ UnhandledVehicle(_, _, _) =>
+      logger.debug("HouseholdFleetManager.UnhandledVehicle: {}", e)
+    case e @ WaitingToCharge(_, _, _) =>
+      logger.debug("HouseholdFleetManager.WaitingInLine: {}", e)
+    case e @ EndingRefuelSession(_, _, triggerId) =>
+      logger.debug("HouseholdFleetManager.EndingRefuelSession: {}", e)
+      triggerSender.get ! CompletionNotice(triggerId)
+    case Finish =>
+      context.stop(self)
+    case Success =>
     case x =>
       logger.warn(s"No handler for $x")
   }

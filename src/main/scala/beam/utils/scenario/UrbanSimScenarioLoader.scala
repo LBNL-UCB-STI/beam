@@ -1,13 +1,14 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
@@ -52,6 +53,7 @@ class UrbanSimScenarioLoader(
       val activities = plans.view.filter { p =>
         p.activityType.exists(actType => actType.toLowerCase == "home")
       }
+
       val personIdsWithinRange =
         activities
           .filter { act =>
@@ -100,10 +102,18 @@ class UrbanSimScenarioLoader(
       householdsInsideBoundingBox
     }
     val inputPlans = Await.result(plansF, 1800.seconds)
+    logger.info(s"Reading plans done.")
     val persons = Await.result(personsF, 1800.seconds)
+    logger.info(s"Reading persons done.")
     val households = Await.result(householdsF, 1800.seconds)
+    logger.info(s"Reading households done.")
 
-    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
+    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
+
+    val plans = {
+      HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
+    }
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -128,6 +138,7 @@ class UrbanSimScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
+
     scenario -> plansMerged
   }
 
@@ -138,6 +149,7 @@ class UrbanSimScenarioLoader(
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
     beamScenario.privateVehicles.clear()
+    beamScenario.privateVehicleInitialSoc.clear()
   }
 
   private[utils] def getPersonsWithPlan(
@@ -269,7 +281,7 @@ class UrbanSimScenarioLoader(
         None
     }
     val planTripStats = planElements.toSeq
-      .filter(_.planElementType == "activity")
+      .filter(_.planElementType == PlanElement.Activity)
       .sliding(2)
       .flatMap {
         case Seq(firstElement, secondElement, _*) =>
@@ -561,7 +573,7 @@ class UrbanSimScenarioLoader(
           person.setSelectedPlan(plan)
         }
         val planElement = planInfo.planElementType
-        if (planElement.equalsIgnoreCase("leg")) {
+        if (planElement == PlanElement.Leg) {
           planInfo.legMode match {
             case Some(mode) =>
               val leg = PopulationUtils.createLeg(mode)
@@ -573,7 +585,7 @@ class UrbanSimScenarioLoader(
               leg.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
               plan.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
           }
-        } else if (planElement.equalsIgnoreCase("activity")) {
+        } else if (planElement == PlanElement.Activity) {
           assert(
             planInfo.activityLocationX.isDefined,
             s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
