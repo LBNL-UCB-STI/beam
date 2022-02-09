@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -126,7 +126,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         parkingZones,
         geoQuadTree,
         new Random(seed),
-        inquiry.originUtm.orElse(inquiry.beamVehicle.map(_.spaceTime)).map(_.loc)
+        inquiry.departureLocation
       )
 
     val closestZone =

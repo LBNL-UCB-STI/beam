@@ -81,7 +81,6 @@ class HouseholdFleetManager(
         case _ =>
           logger.error("Why is not this vehicle {} at location {} yet!", vehId, whenWhere)
       }
-      logger.debug("updated vehicle {} with location {}", vehId, whenWhere)
 
     case ReleaseVehicle(vehicle, _) =>
       vehicle.unsetDriver()

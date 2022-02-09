@@ -5,6 +5,7 @@ import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
@@ -1075,7 +1076,7 @@ class PersonAgent(
           val enrouteConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute
           val firstLeg = data.restOfCurrentTrip.head
           val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
-          val totalDistance = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
+          val totalDistance: Double = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
           // Calculating distance to cross before enroute charging
           val refuelRequiredThresholdInMeters = totalDistance
           val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdOffsetInMeters
@@ -1084,7 +1085,9 @@ class PersonAgent(
           val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc)
           //sometimes this distance is zero which causes parking stall search to get stuck
           val distUtm = geo.distUTMInMeters(originUtm, destinationUtm)
+          val distanceWrtBatteryCapacity = totalDistance / vehicle.beamVehicleType.getTotalRange
           if (
+            distanceWrtBatteryCapacity > enrouteConfig.remainingDistanceWrtBatteryCapacityThreshold ||
             totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters ||
             distUtm < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters
           ) false
@@ -1338,6 +1341,12 @@ class PersonAgent(
             modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity(data))
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
             .getVOT(generalizedTime)
+          val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+
+          if (maybePayloadWeightInKg.isDefined && correctedTrip.tripClassifier != BeamMode.CAR) {
+            logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
+          }
+
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
           val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
             tick,
@@ -1345,6 +1354,7 @@ class PersonAgent(
             correctedTrip,
             generalizedTime,
             generalizedCost,
+            maybePayloadWeightInKg,
             curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )
           eventsManager.processEvent(odSkimmerEvent)
@@ -1416,6 +1426,14 @@ class PersonAgent(
           scheduler ! CompletionNotice(triggerId)
           stop
       }
+  }
+
+  private def getPayloadWeightFromLeg(currentActivityIndex: Int): Option[Double] = {
+    val currentLegIndex = currentActivityIndex * 2 + 1
+    if (currentLegIndex < matsimPlan.getPlanElements.size()) {
+      val accomplishedLeg = matsimPlan.getPlanElements.get(currentLegIndex)
+      Option(accomplishedLeg.getAttributes.getAttribute(PAYLOAD_WEIGHT_IN_KG)).asInstanceOf[Option[Double]]
+    } else None
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
