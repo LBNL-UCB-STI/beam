@@ -303,7 +303,6 @@ class PersonAndTransitDriverSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )

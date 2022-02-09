@@ -139,7 +139,6 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            boundingBox,
             VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
@@ -297,7 +296,6 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            boundingBox,
             VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
@@ -561,7 +559,6 @@ class PersonWithVehicleSharingSpec
           Vector(mockSharedVehicleFleet.ref),
           Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )

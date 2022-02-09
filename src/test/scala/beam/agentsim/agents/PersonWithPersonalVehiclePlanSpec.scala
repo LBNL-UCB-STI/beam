@@ -132,7 +132,6 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            boundingBox,
             VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
@@ -280,6 +279,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
+      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
@@ -370,7 +370,6 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            boundingBox,
             VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
@@ -520,7 +519,6 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -629,7 +627,6 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set(vehicleType),
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -737,7 +734,6 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )

@@ -569,7 +569,8 @@ class RideHailAgent(
     case _ @Event(StartingRefuelSession(_, _), _) =>
       stash()
       stay()
-    case _ @Event(EndingRefuelSession(_, _, _), _) =>
+    case _ @Event(EndingRefuelSession(_, _, triggerId), _) =>
+      scheduler ! CompletionNotice(triggerId)
       stash()
       stay()
     case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
@@ -794,7 +795,7 @@ class RideHailAgent(
       stash()
       goto(Offline)
     case ev @ Event(WaitingToCharge(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      log.debug("state(RideHailingAgent.WaitingToDrive.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
@@ -978,7 +979,7 @@ class RideHailAgent(
       stay
     case ev @ Event(UnpluggingVehicle(tick, energyCharged, triggerId), _) =>
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      log.debug("state(RideHailingAgent.Refueling.UnpluggingVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, energyCharged, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {

@@ -483,6 +483,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       vehicleManagerId = new AtomicReference(reservedFor.managerId)
     )
+    vehicle.spaceTime = SpaceTime(coord.getX - 200, coord.getY - 200, 0)
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
     assert(response.isDefined, "no response")
@@ -506,6 +507,7 @@ class ZonalParkingManagerSpec
       beamVehicleType = vehicleType,
       vehicleManagerId = new AtomicReference(reservedFor.managerId)
     )
+    vehicle.spaceTime = SpaceTime(spaceTime.loc.getX - 200, spaceTime.loc.getY - 200, 0)
     val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])

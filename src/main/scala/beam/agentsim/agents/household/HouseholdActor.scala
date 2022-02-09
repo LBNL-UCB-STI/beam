@@ -38,7 +38,6 @@ import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -80,7 +79,6 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    boundingBox: Envelope,
     vehiclesAdjustment: VehiclesAdjustment
   ): Props = {
     Props(
@@ -103,7 +101,6 @@ object HouseholdActor {
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
         routeHistory,
-        boundingBox,
         vehiclesAdjustment
       )
     )
@@ -156,7 +153,6 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    boundingBox: Envelope,
     vehiclesAdjustment: VehiclesAdjustment
   ) extends LoggingMessageActor
       with HasTickAndTrigger
@@ -365,8 +361,7 @@ object HouseholdActor {
               fleetManagers.toSeq,
               sharedVehicleFleets,
               possibleSharedVehicleTypes,
-              routeHistory,
-              boundingBox
+              routeHistory
             ),
             person.getId.toString
           )
