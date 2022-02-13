@@ -7,7 +7,7 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.IterationEndsEvent
 
-object DeadHeadingAnalysisMain {
+object DeadHeadingAnalysisExample {
 
   def main(args: Array[String]): Unit = {
     val outputDirectoryHierarchy = new OutputDirectoryHierarchy("temp", OverwriteFileSetting.deleteDirectoryIfExists)

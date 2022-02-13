@@ -50,7 +50,8 @@ trait BeamScenarioForTest extends AnyFlatSpec {
     BeamScenario(
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
-      TrieMap.empty,
+      privateVehicles = TrieMap.empty,
+      privateVehicleInitialSoc = TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
@@ -70,7 +71,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       modeIncentives = null,
       h3taz = null,
       freightCarriers = null,
-      Map.empty[String, Double]
+      fixedActivitiesDurations = Map.empty
     )
   }
 }

@@ -32,7 +32,6 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
   import GeoService._
 
   val crsCode: String = "EPSG:4326"
-  private val THRESHOLD_IN_METERS: Double = 1000.0
 
   val mapBoundingBox: Envelope = GeoService.getBoundingBoxOfOsmMap(param.pathToOSMFile)
   logger.info(s"mapBoundingBox: $mapBoundingBox")
@@ -126,12 +125,12 @@ class GeoService(param: GeoServiceInputParam, uniqueGeoIds: Set[BlockGroupGeoId]
     ShapefileReader.read(crsCode, pathToPumaShapeFile, _ => true, map).toMap
   }
 
-  def coordinatesWithinBoundaries(wgsCoord: Coord): CheckResult = {
+  def coordinatesWithinBoundaries(wgsCoord: Coord, linkRadiusMeters: Double): CheckResult = {
     val isWithinBoudingBox = mapBoundingBox.contains(wgsCoord.getX, wgsCoord.getY)
     if (isWithinBoudingBox) {
-      val split = geoUtils.getR5Split(transportNetwork.streetLayer, wgsCoord, THRESHOLD_IN_METERS)
+      val split = geoUtils.getR5Split(transportNetwork.streetLayer, wgsCoord, linkRadiusMeters)
       if (split == null) {
-        CheckResult.NotFeasibleForR5(THRESHOLD_IN_METERS)
+        CheckResult.NotFeasibleForR5(linkRadiusMeters)
       } else {
         CheckResult.InsideBoundingBoxAndFeasbleForR5
       }

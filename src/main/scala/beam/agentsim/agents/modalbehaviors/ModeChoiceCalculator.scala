@@ -127,6 +127,13 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
+  def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
+    ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
+      beamServices.beamScenario.vehicleTypes,
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
+        .getOrElse(List.empty)
+    )
+
   def apply(
     classname: String,
     beamServices: BeamServices,
@@ -140,17 +147,11 @@ object ModeChoiceCalculator {
           attributesOfIndividual match {
             case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
               val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
-              val transitVehicleTypeVOTMultipliers: Map[Id[BeamVehicleType], Double] =
-                ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
-                  beamServices.beamScenario.vehicleTypes,
-                  beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
-                    .getOrElse(List.empty)
-                )
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 model,
                 modeModel,
-                transitVehicleTypeVOTMultipliers,
+                getTransitVehicleTypeVOTMultipliers(beamServices),
                 configHolder,
                 beamServices.skims.tc_skimmer,
                 eventsManager
@@ -168,18 +169,12 @@ object ModeChoiceCalculator {
         _ => new ModeChoiceUniformRandom(beamServices.beamConfig)
       case "ModeChoiceMultinomialLogit" =>
         val (routeLogit, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
-        val transitVehicleTypeVOTMultipliers: Map[Id[BeamVehicleType], Double] =
-          ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
-            beamServices.beamScenario.vehicleTypes,
-            beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
-              .getOrElse(List.empty)
-          )
         _ =>
           new ModeChoiceMultinomialLogit(
             beamServices,
             routeLogit,
             modeLogit,
-            transitVehicleTypeVOTMultipliers,
+            getTransitVehicleTypeVOTMultipliers(beamServices),
             configHolder,
             beamServices.skims.tc_skimmer,
             eventsManager

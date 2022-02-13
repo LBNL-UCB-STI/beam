@@ -2,7 +2,6 @@ package beam.router.r5
 
 import java.io.File
 import java.nio.file.{Files, Path, Paths}
-
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Physsim
 import beam.utils.{BeamVehicleUtils, FileUtils}
@@ -75,74 +74,78 @@ trait NetworkCoordinator extends LazyLogging {
   def loadNetwork(): Unit = {
     val GRAPH_FILE = "/network.dat"
     val graphPath = Paths.get(beamConfig.beam.routing.r5.directory, GRAPH_FILE)
-    FileUtils
-      .readOrCreateFile(graphPath) { path =>
-        logger.info(
-          s"Initializing router by reading network from: ${path.toAbsolutePath}"
-        )
-        transportNetwork = KryoNetworkSerializer.read(path.toFile)
-
-        val networkPath = Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)
-        network = readOrCreateNetwork(networkPath)
-
-        networks2 = for {
-          dir2 <- beamConfig.beam.routing.r5.directory2
-        } yield {
-          val path2 = Paths.get(dir2).resolve(path.getFileName)
+    try {
+      FileUtils
+        .readOrCreateFile(graphPath) { path =>
           logger.info(
-            s"Initializing the second router by reading network from: ${path2.toAbsolutePath}"
+            s"Initializing router by reading network from: ${path.toAbsolutePath}"
           )
-          (
-            KryoNetworkSerializer.read(path2.toFile),
-            readOrCreateNetwork(Paths.get(dir2).resolve(networkPath.getFileName))
-          )
-        }
-      } { path =>
-        logger.info(
-          s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
-        )
-        transportNetwork = TransportNetwork.fromDirectory(
-          Paths.get(beamConfig.beam.routing.r5.directory).toFile,
-          true,
-          false
-        )
+          transportNetwork = KryoNetworkSerializer.read(path.toFile)
 
-        val maybeTN = for {
-          dir2str <- beamConfig.beam.routing.r5.directory2
-        } yield {
-          val path2 = Paths.get(dir2str)
+          val networkPath = Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)
+          network = readOrCreateNetwork(networkPath)
+
+          networks2 = for {
+            dir2 <- beamConfig.beam.routing.r5.directory2
+          } yield {
+            val path2 = Paths.get(dir2).resolve(path.getFileName)
+            logger.info(
+              s"Initializing the second router by reading network from: ${path2.toAbsolutePath}"
+            )
+            (
+              KryoNetworkSerializer.read(path2.toFile),
+              readOrCreateNetwork(Paths.get(dir2).resolve(networkPath.getFileName))
+            )
+          }
+        } { path =>
           logger.info(
-            s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
+            s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
           )
-          TransportNetwork.fromDirectory(path2.toFile)
-        }
+          transportNetwork = TransportNetwork.fromDirectory(
+            Paths.get(beamConfig.beam.routing.r5.directory).toFile,
+            true,
+            false,
+            beamConfig.beam.routing.r5.linkRadiusMeters
+          )
 
-        // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
-        // Please, fix me in the future
-        val networkPath = Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)
-        network = createPhyssimNetwork(transportNetwork, networkPath)
+          val maybeTN = for {
+            dir2str <- beamConfig.beam.routing.r5.directory2
+          } yield {
+            val path2 = Paths.get(dir2str)
+            logger.info(
+              s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
+            )
+            TransportNetwork.fromDirectory(path2.toFile)
+          }
 
-        KryoNetworkSerializer.write(transportNetwork, path.toFile)
-        // Needed because R5 closes DB on write
-        transportNetwork = KryoNetworkSerializer.read(path.toFile)
+          // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
+          // Please, fix me in the future
+          val networkPath = Paths.get(beamConfig.matsim.modules.network.inputNetworkFile)
+          network = createPhyssimNetwork(transportNetwork, networkPath)
 
-        networks2 = for {
-          tn   <- maybeTN
-          dir2 <- beamConfig.beam.routing.r5.directory2
-          networkPath2 = Paths.get(dir2).resolve(networkPath.getFileName)
-          net2 = createPhyssimNetwork(tn, networkPath2)
-          path2 = Paths.get(dir2).resolve(path.getFileName)
-          _ = KryoNetworkSerializer.write(tn, path2.toFile)
+          KryoNetworkSerializer.write(transportNetwork, path.toFile)
           // Needed because R5 closes DB on write
-        } yield {
-          logger.info(
-            s"Saved the second transport network to: ${path2.toAbsolutePath}"
-          )
-          (KryoNetworkSerializer.read(path2.toFile), net2)
-        }
+          transportNetwork = KryoNetworkSerializer.read(path.toFile)
 
-      }
-      .get
+          networks2 = for {
+            tn   <- maybeTN
+            dir2 <- beamConfig.beam.routing.r5.directory2
+            networkPath2 = Paths.get(dir2).resolve(networkPath.getFileName)
+            net2 = createPhyssimNetwork(tn, networkPath2)
+            path2 = Paths.get(dir2).resolve(path.getFileName)
+            _ = KryoNetworkSerializer.write(tn, path2.toFile)
+            // Needed because R5 closes DB on write
+          } yield {
+            logger.info(
+              s"Saved the second transport network to: ${path2.toAbsolutePath}"
+            )
+            (KryoNetworkSerializer.read(path2.toFile), net2)
+          }
+        }
+        .get
+    } catch {
+      case e: Exception => logger.error(s"Error in router initialization ${e.getMessage}")
+    }
   }
 
   private def readOrCreateNetwork(cachedPath: Path): Network = {
@@ -215,8 +218,8 @@ trait NetworkCoordinator extends LazyLogging {
     network
   }
 
-  def convertFrequenciesToTrips(tn: TransportNetwork): Unit = {
-    tn.transitLayer.tripPatterns.asScala.foreach { tp =>
+  def convertFrequenciesToTrips(transportNetwork: TransportNetwork): Unit = {
+    transportNetwork.transitLayer.tripPatterns.asScala.foreach { tp =>
       if (tp.hasFrequencies) {
         val toAdd: Vector[TripSchedule] = tp.tripSchedules.asScala.toVector.flatMap { ts =>
           val tripStartTimes = ts.startTimes(0).until(ts.endTimes(0)).by(ts.headwaySeconds(0)).toVector
@@ -245,7 +248,7 @@ trait NetworkCoordinator extends LazyLogging {
         tp.hasSchedules = true
       }
     }
-    tn.transitLayer.hasFrequencies = false
+    transportNetwork.transitLayer.hasFrequencies = false
   }
 
   private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {

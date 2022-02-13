@@ -1,7 +1,5 @@
 package beam.router.r5
 
-import java.time.ZonedDateTime
-
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.FuelType
@@ -11,12 +9,13 @@ import beam.router.osm.TollCalculator
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile}
-import beam.utils.{DateUtils, FileUtils, LoggingUtil, NetworkHelper, NetworkHelperImpl}
+import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Network
-import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+
+import java.time.ZonedDateTime
 
 case class R5Parameters(
   beamConfig: BeamConfig,

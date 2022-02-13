@@ -27,6 +27,11 @@ trait ScenarioCsvWriter {
     new File(outputFile)
   }
 
+  final def toCsvWithHeader[A](elements: Iterator[A], outputFile: String): File = {
+    FileUtils.writeToFile(outputFile, header ++ contentIterator(elements))
+    new File(outputFile)
+  }
+
 }
 
 object ScenarioCsvWriter {

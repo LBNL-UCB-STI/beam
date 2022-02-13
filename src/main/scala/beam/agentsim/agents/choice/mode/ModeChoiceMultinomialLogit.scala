@@ -1,7 +1,5 @@
 package beam.agentsim.agents.choice.mode
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{
@@ -18,14 +16,17 @@ import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.BikeLanesAdjustment
 import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
-import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
+
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * BEAM
@@ -317,16 +318,16 @@ class ModeChoiceMultinomialLogit(
 
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
     mutable.Map[Option[BeamMode], Double](
+      // Some(WAITING)        -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
       Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
       Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,
       Some(RIDE_HAIL_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
       Some(CAV)               -> modalBehaviors.modeVotMultiplier.CAV,
-//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
-      Some(BIKE) -> modalBehaviors.modeVotMultiplier.bike,
-      Some(WALK) -> modalBehaviors.modeVotMultiplier.walk,
-      Some(CAR)  -> modalBehaviors.modeVotMultiplier.drive,
-      None       -> modalBehaviors.modeVotMultiplier.waiting
+      Some(BIKE)              -> modalBehaviors.modeVotMultiplier.bike,
+      Some(WALK)              -> modalBehaviors.modeVotMultiplier.walk,
+      Some(CAR)               -> modalBehaviors.modeVotMultiplier.drive,
+      None                    -> modalBehaviors.modeVotMultiplier.waiting
     )
 
   lazy val poolingMultipliers: mutable.Map[automationLevel, Double] =
@@ -586,14 +587,15 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
     )
     val scale_factor: Double =
       configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
+
+    val carIntercept = Map("intercept" -> UtilityFunctionOperation("intercept", params.car_intercept))
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "car" -> Map(
-        "intercept" ->
-        UtilityFunctionOperation("intercept", params.car_intercept)
-      ),
-      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
-      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
+      BeamMode.CAR.value      -> carIntercept,
+      BeamMode.CAR_HOV2.value -> carIntercept,
+      BeamMode.CAR_HOV3.value -> carIntercept,
+      "cav"                   -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
+      "walk"                  -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
+      "ride_hail"             -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
       "ride_hail_pooled" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),

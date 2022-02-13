@@ -88,8 +88,10 @@ object MetadataReader {
   case class TableInfo(tblId: String, content: String, universe: String, numberOfCells: Int, runGeos: String)
 
   def main(args: Array[String]): Unit = {
+    val tblId: String = args.toList.headOption.getOrElse("A102214")
+
     val metaRdr = new MetadataReader("D:/Work/beam/Austin/2012-2016 CTPP documentation/")
-    metaRdr.readShellTable.filter(x => x.tblId == "A102214").foreach(println)
+    metaRdr.readShellTable.filter(x => x.tblId == tblId).foreach(println)
 
     metaRdr.showTable("A102214")
   }

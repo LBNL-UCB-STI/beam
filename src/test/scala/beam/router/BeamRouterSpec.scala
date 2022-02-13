@@ -12,8 +12,8 @@ import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.utils.{BeamScenarioForTest, DateUtils}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{BeamScenarioForTest, DateUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
@@ -111,7 +111,8 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
     BeamScenario(
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
-      TrieMap.empty,
+      privateVehicles = TrieMap.empty,
+      privateVehicleInitialSoc = TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
@@ -123,9 +124,9 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       //todo: this is a quick fix for merging develop, MUST investigate
       networks2 = None,
       network = mock(classOf[Network]),
-      new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
+      trainStopQuadTree = new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
-      None,
+      exchangeGeoMap = None,
       linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
       linkIdMapping = Map.empty,
       linkToTAZMapping = Map.empty,

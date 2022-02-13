@@ -17,18 +17,18 @@ private case class OutputPath(path: String) extends AnyVal
 object NewYorkScenarioFilter extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
-    val input = InputPath("C:/repos/beam/test/input/newyork/generic_scenario/10034k")
-    val outputBase = "C:/repos/beam/test/input/newyork/generic_scenario/New"
+    require(
+      args.length == 3,
+      "Expected input path and outputBase, like '/test/input/newyork/generic_scenario/10034k'," +
+      "'/test/input/newyork/generic_scenario/New'," +
+      "'fips_codes.csv https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv'"
+    )
 
-    // https://beam-outputs.s3.us-east-2.amazonaws.com/new_city/fips_codes.csv
-    val fipsCodes = "C:/Users/User/Downloads/fips_codes.csv"
-
-    val output = OutputPath(outputBase + SimpleScenarioGenerator.getCurrentDateTime)
-
+    val output = OutputPath(args(1) + SimpleScenarioGenerator.getCurrentDateTime)
     val counties =
       Seq("Bronx County NY", "Kings County NY", "New York County NY", "Queens County NY", "Richmond County NY")
 
-    filterScenario(input, output, fipsCodes, counties)
+    filterScenario(InputPath(args(0)), output, args(2), counties)
   }
 
   def filterScenario(
@@ -193,7 +193,7 @@ object NewYorkScenarioFilter extends LazyLogging {
   ): collection.Map[PersonId, collection.Set[String]] = {
     // The geoid from activity is enough, no need to read leg
     val (it: Iterator[PlanElement], toClose: Closeable) =
-      CsvPlanElementReader.readWithFilter(pathToPlans, x => x.planElementType.equalsIgnoreCase("activity"))
+      CsvPlanElementReader.readWithFilter(pathToPlans, x => x.planElementType == PlanElement.Activity)
 
     try {
       it.foldLeft(mutable.HashMap.empty[PersonId, mutable.HashSet[String]]) {

@@ -31,9 +31,12 @@ class HierarchicalParkingManager(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
   tazMap: TAZTreeMap,
   linkToTAZMapping: Map[Link, TAZ],
+  distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  boundingBox: Envelope,
   seed: Int,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
   checkThatNumberOfStallsMatch: Boolean = false
 ) extends ParkingNetwork[Link](parkingZones) {
 
@@ -53,7 +56,24 @@ class HierarchicalParkingManager(
   protected val tazZoneSearchTree: ZoneSearchTree[TAZ] =
     ParkingZoneFileUtils.createZoneSearchTree(tazParkingZones.values.toSeq)
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  //HierarchicalParkingManager cannot provide search functions for its basic GEO unit
+  //it uses tazSearchFunctions to do the first level parking search
+  override protected val searchFunctions: Option[InfrastructureFunctions[Link]] = None
+
+  private val tazSearchFunctions = new ParkingFunctions[TAZ](
+    tazMap.tazQuadTree,
+    tazMap.idToTAZMapping,
+    identity[TAZ],
+    tazParkingZones,
+    distanceFunction,
+    minSearchRadius,
+    maxSearchRadius,
+    0.0,
+    0.0,
+    boundingBox,
+    seed,
+    mnlParkingConfig
+  )
 
   val DefaultParkingZone: ParkingZone[Link] =
     ParkingZone.defaultInit(
@@ -81,7 +101,7 @@ class HierarchicalParkingManager(
     logger.debug("Received parking inquiry: {}", inquiry)
 
     val Some(ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _)) =
-      searchFunctions.get.searchForParkingStall(inquiry)
+      tazSearchFunctions.searchForParkingStall(inquiry)
 
     val (parkingStall: ParkingStall, parkingZone: ParkingZone[Link]) =
       tazLinks.get(tazParkingZone.geoId.asInstanceOf[Id[TAZ]]) match {
@@ -265,26 +285,14 @@ object HierarchicalParkingManager {
       parkingZones,
       tazMap,
       linkToTAZMapping,
+      distanceFunction,
       minSearchRadius,
       maxSearchRadius,
+      boundingBox,
       seed,
+      mnlParkingConfig,
       checkThatNumberOfStallsMatch
-    ) {
-      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
-        new ParkingFunctions[TAZ](
-          tazMap.tazQuadTree,
-          tazMap.idToTAZMapping,
-          identity[TAZ],
-          tazParkingZones,
-          distanceFunction,
-          minSearchRadius,
-          maxSearchRadius,
-          boundingBox,
-          seed,
-          mnlParkingConfig
-        )
-      )
-    }
+    )
   }
 
   def init(

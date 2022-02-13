@@ -1,18 +1,14 @@
 package beam.utils.beam_to_matsim.visualization.via
 
-import java.io.File
-import java.nio.file.Files
-
 import beam.utils.beam_to_matsim.events_filter.{MutablePopulationFilter, MutableSamplingFilter, PopulationSample}
-import beam.utils.beam_to_matsim.io.{HashSetReader, Reader, Writer}
+import beam.utils.beam_to_matsim.io.{Reader, Writer}
 import beam.utils.beam_to_matsim.via_event.ViaEvent
 
+import java.io.File
+import java.nio.file.Files
 import scala.collection.mutable
 
 object visualization_12 extends App {
-//  val personsInCircleFilePath = "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.persons.txt"
-//  val personsInCircle = HashSetReader.fromFile(personsInCircleFilePath)
-
   val basePath = "D:/Work/beam/NewYork/Runs/calibrated/new-york-200k-baseline__2020-09-01_22-53-55_sfi"
 
   val beamEventsFilePath = s"${basePath}/10.events.csv"

@@ -4,7 +4,6 @@ import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicInteger
-
 import beam.agentsim.infrastructure.geozone._
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment
@@ -14,7 +13,6 @@ import beam.utils.csv.CsvWriter
 import beam.utils.data.ctpp.models.ResidenceToWorkplaceFlowGeography
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.GeoService.CheckResult
-import beam.utils.data.synthpop.SimpleScenarioGenerator.getBlockGroupToTazs
 import beam.utils.data.synthpop.generators.{
   RandomWorkDestinationGenerator,
   TimeLeavingHomeGenerator,
@@ -25,6 +23,7 @@ import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
 import beam.utils.scenario.generic.writers.{
+  CsvBlocksInfoWriter,
   CsvHouseholdInfoWriter,
   CsvParkingInfoWriter,
   CsvPersonInfoWriter,
@@ -55,6 +54,7 @@ case class ScenarioResult(
   totalNumberOfHouseholds: Int,
   totalNumberOfPeople: Int,
   totalNumberOfPlanElements: Int,
+  totalNumberOfBlockElements: Int,
   geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)]
 )
 
@@ -70,7 +70,8 @@ class SimpleScenarioGenerator(
   val offPeakSpeedMetersPerSecond: Double,
   val localCoordinateReferenceSystem: String,
   val defaultValueOfTime: Double = 8.0,
-  val shouldRemoveNonWorkers: Boolean = false
+  val shouldRemoveNonWorkers: Boolean = false,
+  val linkRadiusMeters: Double
 ) extends ScenarioGenerator
     with StrictLogging {
 
@@ -92,7 +93,7 @@ class SimpleScenarioGenerator(
     planIndex = 0,
     planScore = 0,
     planSelected = true,
-    planElementType = "activity",
+    planElementType = PlanElement.Activity,
     planElementIndex = 1,
     activityType = None,
     activityLocationX = None,
@@ -219,7 +220,10 @@ class SimpleScenarioGenerator(
               ProfilingUtils.timed(s"Generate $nWorkingPlaces geo points in $tazGeoId", x => logger.info(x)) {
                 val initLocations = pointsGenerator.generate(geom, (nPointsMultiplier * nWorkingPlaces).toInt)
                 val withinMapConstrains = initLocations.filter(c =>
-                  geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
+                  geoSvc.coordinatesWithinBoundaries(
+                    c,
+                    linkRadiusMeters
+                  ) == CheckResult.InsideBoundingBoxAndFeasbleForR5
                 )
                 val finalLocations = withinMapConstrains.take(nWorkingPlaces)
                 logger.info(
@@ -243,7 +247,7 @@ class SimpleScenarioGenerator(
           val initLocations =
             pointsGenerator.generate(blockGeomOfHousehold, (nPointsMultiplier * householdsWithPersonData.size).toInt)
           val withinMapConstrains = initLocations.filter(c =>
-            geoSvc.coordinatesWithinBoundaries(c) == CheckResult.InsideBoundingBoxAndFeasbleForR5
+            geoSvc.coordinatesWithinBoundaries(c, linkRadiusMeters) == CheckResult.InsideBoundingBoxAndFeasbleForR5
           )
           val finalLocations = withinMapConstrains.take(householdsWithPersonData.size)
           logger.info(
@@ -260,14 +264,17 @@ class SimpleScenarioGenerator(
     val householdFilePath = s"$pathToOutput/households.csv.gz"
     val personsFilePath = s"$pathToOutput/persons.csv.gz"
     val plansFilePath = s"$pathToOutput/plans.csv.gz"
+    val blocksFilePath = s"$pathToOutput/blocks.csv.gz"
 
     val householdInfoWriter = new CsvHouseholdInfoWriter(householdFilePath)
     val personInfoWriter = new CsvPersonInfoWriter(personsFilePath)
     val plansInfoWriter = new CsvPlanElementWriter(plansFilePath)
+    val blocksFileWriter = new CsvBlocksInfoWriter(blocksFilePath)
 
     var totalNumberOfHouseholds: Int = 0
     var totalNumberOfPeople: Int = 0
     var totalNumberOfPlanElements: Int = 0
+    var totalNumberOfBlockElements: Int = 0
 
     val wgsActivityLocations = ArrayBuffer[Coord]()
 
@@ -290,6 +297,12 @@ class SimpleScenarioGenerator(
                 HouseholdId(household.fullId),
                 household.numOfVehicles,
                 household.income,
+                wgsHouseholdLocation.getX,
+                wgsHouseholdLocation.getY
+              )
+
+              val createBlock = BlockInfo(
+                BlockId(blockGroupGeoId.asUniqueKey.toLong),
                 wgsHouseholdLocation.getX,
                 wgsHouseholdLocation.getY
               )
@@ -322,7 +335,7 @@ class SimpleScenarioGenerator(
                         // Create Home Activity: end time is when a person leaves a home
                         val leavingHomeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 1,
                           activityType = Some("Home"),
                           activityLocationX = Some(wgsHouseholdLocation.getX),
@@ -332,7 +345,11 @@ class SimpleScenarioGenerator(
                         )
                         // Create Leg
                         val leavingHomeLeg = planElementTemplate
-                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+                          .copy(
+                            personId = createdPerson.personId,
+                            planElementType = PlanElement.Leg,
+                            planElementIndex = 2
+                          )
 
                         val timeLeavingWorkSeconds = {
                           val utmHouseholdCoord = geoUtils.wgs2Utm(wgsHouseholdLocation)
@@ -347,7 +364,7 @@ class SimpleScenarioGenerator(
 
                         val leavingWorkActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 3,
                           activityType = Some("Work"),
                           activityLocationX = Some(wgsWorkingLocation.getX),
@@ -356,12 +373,16 @@ class SimpleScenarioGenerator(
                           geoId = Some(toTazGeoId(workTazGeoId.state, workTazGeoId.county, workTazGeoId.taz))
                         )
                         val leavingWorkLeg = planElementTemplate
-                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+                          .copy(
+                            personId = createdPerson.personId,
+                            planElementType = PlanElement.Leg,
+                            planElementIndex = 4
+                          )
 
                         // Create Home Activity: end time not defined
                         val homeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 5,
                           activityType = Some("Home"),
                           activityLocationX = Some(wgsHouseholdLocation.getX),
@@ -380,7 +401,7 @@ class SimpleScenarioGenerator(
                 }
               globalPersonId = lastPersonId
               if (personsAndPlans.size == personsWithData.size) {
-                Some((createdHousehold, personsAndPlans))
+                Some((createdHousehold, personsAndPlans, createBlock))
               } else None
           }
           cnt += 1
@@ -396,7 +417,11 @@ class SimpleScenarioGenerator(
           plansInfoWriter.write(plans.toIterator)
           totalNumberOfPlanElements += plans.size
 
-          plans.filter(_.planElementType == "activity").foreach { plan =>
+          val blockList = res.map(_._3)
+          blocksFileWriter.write(blockList.toIterator)
+          totalNumberOfBlockElements += blockList.size
+
+          plans.filter(_.planElementType == PlanElement.Activity).foreach { plan =>
             val wgsCoord = geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
             wgsActivityLocations += wgsCoord
           }
@@ -405,6 +430,7 @@ class SimpleScenarioGenerator(
       plansInfoWriter.close()
       personInfoWriter.close()
       householdInfoWriter.close()
+      blocksFileWriter.close()
     }
 
     writeH3(pathToOutput, wgsActivityLocations, 1000)
@@ -413,6 +439,7 @@ class SimpleScenarioGenerator(
       totalNumberOfHouseholds = totalNumberOfHouseholds,
       totalNumberOfPeople = totalNumberOfPeople,
       totalNumberOfPlanElements = totalNumberOfPlanElements,
+      totalNumberOfBlockElements = totalNumberOfBlockElements,
       geoIdToAreaResidentsAndWorkers = geoIdToAreaResidentsAndWorkers
     )
   }
@@ -616,7 +643,8 @@ object SimpleScenarioGenerator extends StrictLogging {
     offPeakSpeedMetersPerSecond: Double,
     defaultValueOfTime: Double,
     localCRS: String,
-    outputFolder: String
+    outputFolder: String,
+    linkRadiusMeters: Double
   )
 
   def getCurrentDateTime: String = {
@@ -659,7 +687,8 @@ object SimpleScenarioGenerator extends StrictLogging {
         randomSeed = parsedArgs.randomSeed,
         offPeakSpeedMetersPerSecond = parsedArgs.offPeakSpeedMetersPerSecond,
         localCoordinateReferenceSystem = parsedArgs.localCRS,
-        defaultValueOfTime = parsedArgs.defaultValueOfTime
+        defaultValueOfTime = parsedArgs.defaultValueOfTime,
+        linkRadiusMeters = parsedArgs.linkRadiusMeters
       )
 
     gen.writeTazCenters(pathToOutput)
@@ -691,7 +720,8 @@ object SimpleScenarioGenerator extends StrictLogging {
     '--offPeakSpeedMetersPerSecond', '12.5171',
     '--defaultValueOfTime', '8.0',
     '--localCRS', 'EPSG:3084',
-    '--outputFolder', 'D:/Work/beam/NewYork/results'
+    '--outputFolder', 'D:/Work/beam/NewYork/results',
+    '--linkRadiusMeters', '10000.0'
     "] -PlogbackCfg=logback.xml
      */
     ProfilingUtils.timed("Scenario generation", x => logger.info(x)) {

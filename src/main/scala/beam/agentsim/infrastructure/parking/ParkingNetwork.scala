@@ -10,7 +10,7 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
     extends LazyLogging {
 
   // Generic
-  protected val searchFunctions: Option[InfrastructureFunctions[_]]
+  protected val searchFunctions: Option[InfrastructureFunctions[GEO]]
 
   // Core
   protected var totalStallsInUse: Long = 0L
@@ -26,7 +26,7 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = {
     logger.debug("Received parking inquiry: {}", inquiry)
-    searchFunctions.map(_.searchForParkingStall(inquiry)).getOrElse(None) map {
+    searchFunctions.flatMap(_.searchForParkingStall(inquiry)) map {
       case ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =>
         // reserveStall is false when agent is only seeking pricing information
         if (inquiry.reserveStall) {
