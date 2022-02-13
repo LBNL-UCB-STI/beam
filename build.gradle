@@ -207,7 +207,7 @@ dependencies {
     implementation "com.sigopt:sigopt-java:4.9.0"
     implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
 
-    implementation("com.uber:h3:3.4.1")
+    implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
