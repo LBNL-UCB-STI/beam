@@ -7,6 +7,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.core.ODSkimmer
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
@@ -76,6 +77,12 @@ trait ModeChoiceCalculator {
     time: Double,
     numTransfers: Int = 0,
     transitOccupancyLevel: Double = 0.0
+  ): Double
+
+  def utilityOf(
+    mode: BeamMode,
+    skim: ODSkimmer.Skim,
+    attributesOfIndividual: AttributesOfIndividual
   ): Double
 
   def getNonTimeCost(embodiedBeamTrip: EmbodiedBeamTrip, includeReplanningPenalty: Boolean = false): Double = {

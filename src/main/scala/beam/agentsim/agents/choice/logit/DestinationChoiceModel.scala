@@ -1,5 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
+import beam.agentsim.agents.choice.logit.DestinationChoiceModel.DestinationParameters.Intercept
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
@@ -42,12 +43,14 @@ object DestinationChoiceModel {
   sealed trait DestinationParameters
 
   object DestinationParameters {
+    final case object Intercept extends DestinationParameters with Serializable
     final case object AccessCost extends DestinationParameters with Serializable
     final case object EgressCost extends DestinationParameters with Serializable
     final case object SchedulePenalty extends DestinationParameters with Serializable
     final case object ActivityBenefit extends DestinationParameters with Serializable
 
     def shortName(parameter: DestinationParameters): String = parameter match {
+      case Intercept       => "acc"
       case AccessCost      => "acc"
       case EgressCost      => "eg"
       case SchedulePenalty => "pen"
@@ -67,6 +70,8 @@ object DestinationChoiceModel {
     }
   }
 
+  type ModeChoiceConfig = Map[BeamMode, Map[DestinationParameters, UtilityFunctionOperation]]
+
   type DestinationMNLConfig = Map[DestinationParameters, UtilityFunctionOperation]
 
   type TripMNLConfig = Map[TripParameters, UtilityFunctionOperation]
@@ -81,6 +86,30 @@ object DestinationChoiceModel {
 class DestinationChoiceModel(
   val beamConfig: BeamConfig
 ) {
+  val params = beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params
+
+  val DefaultModeParameters: DestinationChoiceModel.ModeChoiceConfig = Map(
+    BeamMode.CAR       -> Map(Intercept -> UtilityFunctionOperation("intercept", params.car_intercept)),
+    BeamMode.CAV       -> Map(Intercept -> UtilityFunctionOperation("intercept", params.cav_intercept)),
+    BeamMode.WALK      -> Map(Intercept -> UtilityFunctionOperation("intercept", params.walk_intercept)),
+    BeamMode.RIDE_HAIL -> Map(Intercept -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
+    BeamMode.RIDE_HAIL_POOLED -> Map(
+      Intercept -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
+    ),
+    BeamMode.RIDE_HAIL_TRANSIT -> Map(
+      Intercept -> UtilityFunctionOperation("intercept", params.ride_hail_transit_intercept)
+    ),
+    BeamMode.WALK_TRANSIT -> Map(
+      Intercept -> UtilityFunctionOperation("intercept", params.walk_transit_intercept)
+    ),
+    BeamMode.BIKE -> Map(Intercept -> UtilityFunctionOperation("intercept", params.bike_transit_intercept)),
+    BeamMode.DRIVE_TRANSIT -> Map(
+      Intercept -> UtilityFunctionOperation("intercept", params.drive_transit_intercept)
+    ),
+    BeamMode.BIKE_TRANSIT -> Map(
+      Intercept -> UtilityFunctionOperation("intercept", params.bike_transit_intercept)
+    )
+  )
 
   val DefaultMNLParameters: DestinationChoiceModel.DestinationMNLConfig = Map(
     DestinationChoiceModel.DestinationParameters.AccessCost      -> UtilityFunctionOperation.Multiplier(-1.0),

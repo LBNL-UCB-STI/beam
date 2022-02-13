@@ -1348,12 +1348,18 @@ class PersonAgent(
           }
 
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
+          val crowdingLevel =
+            beamServices.skims.tc_skimmer.getTransitOccupancyLevelForPercentile(
+              correctedTrip,
+              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+            )
           val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
             tick,
             beamServices,
             correctedTrip,
             generalizedTime,
             generalizedCost,
+            crowdingLevel,
             maybePayloadWeightInKg,
             curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
           )

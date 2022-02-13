@@ -109,35 +109,6 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
     }
   }
 
-  it should "Stop simulation, trow runtime exception and write plans with only Work and Home activities with modes to the output folder." in {
-    val config = ConfigFactory
-      .parseString(s"""
-                      |beam.agentsim.simulationName = "beamville_terminated_without_secondary_activities_with_modes"
-                      |beam.agentsim.lastIteration = 0
-                      |beam.output.writePlansAndStopSimulation = true
-                      |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = false
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
-         """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
-
-    val outputDirectory = runSimulationAndCatchException(config)
-
-    val plansPath = Paths.get(outputDirectory, "generatedPlans.csv.gz").toFile
-    val activitiesTypes = readActivitiesTypesFromPlan(plansPath.getPath)
-    val LegInfo = readLegsInfoFromPlans(plansPath.getPath)
-
-    activitiesTypes.contains("Work") shouldBe true
-    activitiesTypes.contains("Home") shouldBe true
-    activitiesTypes.size shouldBe 2
-
-    LegInfo.length should not be 0
-    LegInfo.foreach { legInfo: LegInfo =>
-      legInfo.legMode should be(null) withClue s"in plans for person ${legInfo.personId} with planIndex 0"
-    }
-  }
-
   it should "Stop simulation, trow runtime exception and write plans with different activities with modes to the output folder." in {
     val config = ConfigFactory
       .parseString(s"""
