@@ -197,6 +197,7 @@ class BeamSim @Inject() (
       eventsManager.addHandler(transitOccupancyByStop)
       eventsManager.addHandler(modeChoiceAlternativesCollector)
       eventsManager.addHandler(rideHailUtilizationCollector)
+      eventsManager.addHandler(travelTimeGoogleStatistic)
       maybePickUpDropOffCollector.foreach(eventsManager.addHandler(_))
       carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     }
@@ -640,7 +641,6 @@ class BeamSim @Inject() (
       })
 
     beamServices.simMetricCollector.close()
-
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {

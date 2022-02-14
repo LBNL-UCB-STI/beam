@@ -8,17 +8,26 @@ import com.conveyal.r5.transit.TransportNetwork
 
 import java.{lang, util}
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Try
 
 object R5MapStatsCalculator {
 
   def main(args: Array[String]): Unit = {
-    // LoggerFactory.getLogger("com.conveyal").asInstanceOf[Logger].setLevel(Level.INFO)
-    val pathToOsm = args(0)
-    val minimumTagFrequencyToPrintTagOut = 1000
+    // args: <osm-path> <link-radius-meters>
+    require(
+      args.length == 2,
+      "Expected path for OSM file, like '//test/input/newyork/r5-prod/newyork-14-counties.osm.pbf' and link-radius-meters number"
+    )
 
-    analyzeR5Map(pathToOsm)
-    analyzeOSMMap(pathToOsm, minTagFrequency = minimumTagFrequencyToPrintTagOut)
+    val pathToOsm = args(0)
+    val linkRadiusMeters = Try(args(1).toDouble).getOrElse(10000.0)
+
+    println(s"pathToOsm: $pathToOsm")
+    println(s"linkRadiusMeters: $linkRadiusMeters")
+
+    analyzeR5Map(pathToOsm, linkRadiusMeters)
+    analyzeOSMMap(pathToOsm, 1000)
   }
 
   private def analyzeOSMMap(pathToOsm: String, minTagFrequency: Int): Unit = {
@@ -143,14 +152,14 @@ object R5MapStatsCalculator {
     }
   }
 
-  private def analyzeR5Map(pathToOsm: String): Unit = {
-    println(s"OSM file: $pathToOsm")
+  private def analyzeR5Map(pathToOsm: String, linkRadiusMeters: Double): Unit = {
     val tn = TransportNetwork.fromFiles(
       pathToOsm,
       new util.ArrayList[String](),
       TNBuilderConfig.defaultConfig,
       true,
-      false
+      false,
+      linkRadiusMeters
     )
     val cursor = tn.streetLayer.edgeStore.getCursor
     val it = new Iterator[EdgeStore#Edge] {
@@ -186,5 +195,44 @@ object R5MapStatsCalculator {
     }
     println(s"Number of edges in R5: ${tn.streetLayer.edgeStore.nEdges()}")
     println(s"Number of vertices in R5: ${tn.streetLayer.edgeStore.vertexStore.getVertexCount}")
+    val osm = new OSM(null)
+    try {
+      osm.readFromFile(pathToOsm)
+
+      println(s"Number of OSM nodes: ${osm.nodes.size()}")
+      val waysCnt = osm.ways.size()
+      val waysWithoutSpeedCnt = osm.ways.asScala.count(w => w._2.getTag("maxspeed") == null)
+      println(s"Number of OSM ways: $waysCnt")
+      println(
+        s"Number of OSM ways without speed: $waysWithoutSpeedCnt, which is ${1.0 * waysWithoutSpeedCnt / waysCnt * 100.0}"
+      )
+
+      def printWays(ways: mutable.Map[java.lang.Long, Way]): Unit = {
+        ways
+          .groupBy { case (_, way) => way.getTag("maxspeed") == null }
+          .foreach { case (doesNotHaveSpeedTag, ways) =>
+            if (doesNotHaveSpeedTag) {
+              println(s"\t\t${ways.size} does not have speed tag")
+            } else {
+              println(s"\t\t${ways.size} has speed tag")
+            }
+            ways
+          }
+      }
+
+      osm.ways.asScala
+        .groupBy { case (_, way) => way.getTag("highway") }
+        .foreach {
+          case (null, w) =>
+            println(s"unclassified: ${w.size}")
+            printWays(w)
+          case (tag, w) =>
+            println(s"$tag: ${w.size}")
+            printWays(w)
+        }
+
+    } finally {
+      Try(osm.close())
+    }
   }
 }

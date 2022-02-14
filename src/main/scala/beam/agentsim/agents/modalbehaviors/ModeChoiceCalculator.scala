@@ -3,12 +3,14 @@ package beam.agentsim.agents.modalbehaviors
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -34,7 +36,12 @@ trait ModeChoiceCalculator {
     embodiedBeamTrip.totalTravelTimeInSecs / 3600
   }
 
+  def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+    0.0
+  }
+
   def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
@@ -120,6 +127,13 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
+  def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
+    ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
+      beamServices.beamScenario.vehicleTypes,
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
+        .getOrElse(List.empty)
+    )
+
   def apply(
     classname: String,
     beamServices: BeamServices,
@@ -137,6 +151,7 @@ object ModeChoiceCalculator {
                 beamServices,
                 model,
                 modeModel,
+                getTransitVehicleTypeVOTMultipliers(beamServices),
                 configHolder,
                 beamServices.skims.tc_skimmer,
                 eventsManager
@@ -159,6 +174,7 @@ object ModeChoiceCalculator {
             beamServices,
             routeLogit,
             modeLogit,
+            getTransitVehicleTypeVOTMultipliers(beamServices),
             configHolder,
             beamServices.skims.tc_skimmer,
             eventsManager

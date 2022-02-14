@@ -11,8 +11,6 @@ import beam.utils.data.synthpop.generators.{RandomWorkDestinationGenerator, Work
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaGeoId, PumaGeoId}
 import beam.utils.scenario._
-import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
-import beam.utils.scenario.generic.writers.{CsvHouseholdInfoWriter, CsvPersonInfoWriter, CsvPlanElementWriter}
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.{Envelope, Geometry}
@@ -64,7 +62,7 @@ class PumaLevelScenarioGenerator(
     planIndex = 0,
     planScore = 0,
     planSelected = true,
-    planElementType = "activity",
+    planElementType = PlanElement.Activity,
     planElementIndex = 1,
     activityType = None,
     activityLocationX = None,
@@ -144,7 +142,7 @@ class PumaLevelScenarioGenerator(
 
   logger.info(s"Initializing finished")
 
-  override def generate: ScenarioResult = {
+  override def generate(pathToOutput: String): ScenarioResult = {
     var globalPersonId: Int = 0
 
     val blockGroupGeoIdToHouseholds = getBlockGroupIdToHouseholdAndPeople(blockGroupToPumaMap, geoIdToHouseholds)
@@ -212,6 +210,12 @@ class PumaLevelScenarioGenerator(
               utmHouseholdCoord.getY
             )
 
+            val createBlock = BlockInfo(
+              BlockId(blockGroupGeoId.asUniqueKey.toLong),
+              utmHouseholdCoord.getX,
+              utmHouseholdCoord.getY
+            )
+
             val (personsAndPlans, lastPersonId) =
               personsWithData.foldLeft((List.empty[PersonWithPlans], globalPersonId)) {
                 case ((xs, nextPersonId), PersonWithExtraInfoPuma(person, workDestPumaGeoId, timeLeavingHomeRange)) =>
@@ -230,14 +234,15 @@ class PumaLevelScenarioGenerator(
                           age = person.age,
                           excludedModes = Seq.empty,
                           isFemale = person.gender == Gender.Female,
-                          valueOfTime = valueOfTime
+                          valueOfTime = valueOfTime,
+                          industry = person.industry
                         )
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
                         // Create Home Activity: end time is when a person leaves a home
                         val leavingHomeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 1,
                           activityType = Some("Home"),
                           activityLocationX = Some(utmHouseholdCoord.getX),
@@ -247,7 +252,11 @@ class PumaLevelScenarioGenerator(
                         )
                         // Create Leg
                         val leavingHomeLeg = planElementTemplate
-                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 2)
+                          .copy(
+                            personId = createdPerson.personId,
+                            planElementType = PlanElement.Leg,
+                            planElementIndex = 2
+                          )
 
                         val utmWorkingLocation = geoUtils.wgs2Utm(wgsWorkingLocation)
                         val margin = 1.3
@@ -259,7 +268,7 @@ class PumaLevelScenarioGenerator(
 
                         val leavingWorkActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 3,
                           activityType = Some("Work"),
                           activityLocationX = Some(utmWorkingLocation.getX),
@@ -267,12 +276,16 @@ class PumaLevelScenarioGenerator(
                           activityEndTime = Some(timeLeavingWorkSeconds / 3600.0)
                         )
                         val leavingWorkLeg = planElementTemplate
-                          .copy(personId = createdPerson.personId, planElementType = "leg", planElementIndex = 4)
+                          .copy(
+                            personId = createdPerson.personId,
+                            planElementType = PlanElement.Leg,
+                            planElementIndex = 4
+                          )
 
                         // Create Home Activity: end time not defined
                         val homeActivity = planElementTemplate.copy(
                           personId = createdPerson.personId,
-                          planElementType = "activity",
+                          planElementType = PlanElement.Activity,
                           planElementIndex = 5,
                           activityType = Some("Home"),
                           activityLocationX = Some(utmWorkingLocation.getX),
@@ -297,7 +310,7 @@ class PumaLevelScenarioGenerator(
               }
             globalPersonId = lastPersonId
             if (personsAndPlans.size == personsWithData.size) {
-              Some((createdHousehold, personsAndPlans))
+              Some((createdHousehold, personsAndPlans, createBlock))
             } else None
           } else {
             logger.info(s"Household location $wgsHouseholdLocation does not belong to bounding box $mapBoundingBox")
@@ -307,7 +320,7 @@ class PumaLevelScenarioGenerator(
       blockGroupGeoId -> res
     }
 
-    ScenarioResult(finalResult.values.flatten, Map.empty)
+    ScenarioResult(0, 0, 0, 0, Map.empty)
   }
 
   private def getBlockGroupToPuma: Map[BlockGroupGeoId, PumaGeoId] = {
@@ -471,33 +484,6 @@ object PumaLevelScenarioGenerator {
         42
       )
 
-    val scenarioResult = gen.generate
-    val generatedData = scenarioResult.householdWithTheirPeople
-    println(s"Number of households: ${generatedData.size}")
-    println(s"Number of of people: ${generatedData.flatMap(_._2).size}")
-
-    val households = generatedData.map(_._1).toVector
-    val householdFilePath = s"$pathToOutput/households.csv"
-    CsvHouseholdInfoWriter.write(householdFilePath, households)
-    println(s"Wrote households information to $householdFilePath")
-    val readHouseholds = CsvHouseholdInfoReader.read(householdFilePath)
-    val areHouseholdsEqual = readHouseholds.toVector == households
-    println(s"areHouseholdsEqual: $areHouseholdsEqual")
-
-    val persons = generatedData.flatMap(_._2.map(_.person)).toVector
-    val personsFilePath = s"$pathToOutput/persons.csv"
-    CsvPersonInfoWriter.write(personsFilePath, persons)
-    println(s"Wrote persons information to $personsFilePath")
-    val readPersons = CsvPersonInfoReader.read(personsFilePath)
-    val arePersonsEqual = readPersons.toVector == persons
-    println(s"arePersonsEqual: $arePersonsEqual")
-
-    val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
-    val plansFilePath = s"$pathToOutput/plans.csv"
-    CsvPlanElementWriter.write(plansFilePath, planElements)
-    println(s"Wrote plans information to $plansFilePath")
-    val readPlanElements = CsvPlanElementReader.read(plansFilePath)
-    val arePlanElementsEqual = readPlanElements.toVector == planElements
-    println(s"arePlanElementsEqual: $arePlanElementsEqual")
+    val scenarioResult = gen.generate(pathToOutput)
   }
 }

@@ -27,7 +27,6 @@ case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
-  val defaultMaxRadiusForMapSearch = 10000
   private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
 
   lazy val utm2Wgs: GeotoolsTransformation =
@@ -65,7 +64,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getNearestR5EdgeToUTMCoord(
     streetLayer: StreetLayer,
     coordUTM: Coord,
-    maxRadius: Double = defaultMaxRadiusForMapSearch
+    maxRadius: Double
   ): Int = {
     getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
   }
@@ -73,7 +72,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getNearestR5Edge(
     streetLayer: StreetLayer,
     coordWGS: Coord,
-    maxRadius: Double = defaultMaxRadiusForMapSearch
+    maxRadius: Double
   ): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
@@ -106,7 +105,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def snapToR5Edge(
     streetLayer: StreetLayer,
     coordWGS: Coord,
-    maxRadius: Double = defaultMaxRadiusForMapSearch,
+    maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
@@ -120,7 +119,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getR5Split(
     streetLayer: StreetLayer,
     coord: Coord,
-    maxRadius: Double = defaultMaxRadiusForMapSearch,
+    maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
     var radius = 10.0

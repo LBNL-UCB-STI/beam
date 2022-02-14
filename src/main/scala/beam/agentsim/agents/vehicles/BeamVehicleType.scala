@@ -40,6 +40,13 @@ case class BeamVehicleType(
   def isWheelchairAccessible: Boolean = {
     wheelchairAccessible.getOrElse(true)
   }
+
+  def getTotalRange: Double = {
+    val primaryRange = primaryFuelCapacityInJoule / primaryFuelConsumptionInJoulePerMeter
+    val secondaryRange =
+      secondaryFuelCapacityInJoule.getOrElse(0.0) / secondaryFuelConsumptionInJoulePerMeter.getOrElse(1.0)
+    primaryRange + secondaryRange
+  }
 }
 
 object FuelType {

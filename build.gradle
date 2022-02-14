@@ -199,15 +199,15 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.michaz', name: 'r5', version: '3ab4fa04') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.5.3_linkRadiusMeters') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
-
     implementation group: 'com.graphhopper', name: 'graphhopper-core', version: '2.3'
     implementation "com.sigopt:sigopt-java:4.9.0"
+    implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
 
-    implementation("com.uber:h3:3.4.1")
+    implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'

@@ -40,7 +40,8 @@ class UrbanSimScenarioSource(
         excludedModes = person.excludedModes.split(","),
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime,
-        wheelchairUser = person.wheelchairUser
+        wheelchairUser = person.wheelchairUser,
+        industry = person.industry
       )
     }
   }
@@ -60,7 +61,7 @@ class UrbanSimScenarioSource(
         tripId = "",
         personId = PersonId(plan.personId),
         planIndex = 0, // TODO FIXME!
-        planElementType = plan.planElement,
+        planElementType = PlanElement.PlanElementType(plan.planElement),
         planElementIndex = plan.planElementIndex,
         planScore = 0, // TODO: DataExchange.PlanElement does not have score
         planSelected = false, // TODO: DataExchange.PlanElement does not have planSelected

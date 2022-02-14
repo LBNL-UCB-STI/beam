@@ -97,6 +97,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     }
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("")
     val rank: Int = 0
+    val industry = Option(rec.get("industry"))
     val isWheelchairUser: Boolean = {
       val value = Try(getIfNotNull(rec, "in_wheelchair")).getOrElse("false")
       value.toLowerCase == "true" || value == "1"
@@ -109,7 +110,8 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       excludedModes = excludedModes,
       isFemale = isFemaleValue,
       valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0d)).getOrElse(0d),
-      wheelchairUser = isWheelchairUser
+      wheelchairUser = isWheelchairUser,
+      industry = industry
     )
   }
 

@@ -14,6 +14,7 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Agentsim
 import beam.utils.MathUtils.roundUniformly
+import beam.utils.BeamVehicleUtils.toPowerInKW
 import beam.utils.{MathUtils, VehicleIdGenerator}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
@@ -96,8 +97,9 @@ trait ScaleUpCharging extends {
       }
     case reply @ StartingRefuelSession(_, _) =>
       log.debug(s"Received parking response: $reply")
-    case reply @ EndingRefuelSession(_, _, _) =>
+    case reply @ EndingRefuelSession(_, _, triggerId) =>
       log.debug(s"Received parking response: $reply")
+      getScheduler ! CompletionNotice(triggerId)
     case reply @ WaitingToCharge(_, _, _) =>
       log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(_, _, triggerId) =>
@@ -336,15 +338,5 @@ object ScaleUpCharging {
     def getFuelCapacity(rand: Random, energy: Double, soc: Double): Double = {
       Math.max(meanFuelCapacity + (rand.nextGaussian() * stdFuelCapacity), if (soc == 1) energy else energy / (1 - soc))
     }
-  }
-
-  /**
-    * @param energy Joules
-    * @param duration Seconds
-    * @return
-    */
-  def toPowerInKW(energy: Double, duration: Int): Double = {
-    if (duration > 0 && energy >= 0) (energy / 3.6e+6) / (duration / 3600.0)
-    else 0
   }
 }
