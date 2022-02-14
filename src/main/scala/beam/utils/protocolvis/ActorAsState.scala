@@ -1,7 +1,7 @@
 package beam.utils.protocolvis
 
 import beam.utils.protocolvis.MessageReader._
-import beam.utils.protocolvis.SequenceDiagram.{userFriendlyActorName, userFriendlyPayload}
+import beam.utils.protocolvis.SequenceDiagram.{userFriendlyActorName, userFriendlyPayloadSimplified}
 
 import java.nio.file.Path
 import scala.collection.immutable
@@ -52,7 +52,7 @@ object ActorAsState {
         val stateTransition = StateTransition(
           userFriendlyActorName(message.sender),
           userFriendlyActorName(message.receiver),
-          userFriendlyPayload(message.payload)
+          userFriendlyPayloadSimplified(message.payload)
         )
         val transition = acc.getOrElse(stateTransition, stateTransition)
         acc.updated(stateTransition, transition.inc())

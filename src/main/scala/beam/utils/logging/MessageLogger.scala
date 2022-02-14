@@ -144,24 +144,6 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
       csvWriter.close()
     }
   }
-
-  private def userFriendly(actorRef: ActorRef) = {
-    val parent = userFriendlyParent(actorRef)
-    (parent, actorRef.path.name)
-  }
-
-  private def userFriendlyParent(actorRef: ActorRef) = {
-    val parentElements = actorRef.path.parent.elements.dropWhile(e => e != "BeamMobsim.iteration" && e != "temp").toList
-    val meaningful = if (parentElements.size <= 1) {
-      parentElements
-    } else if (parentElements.head == "BeamMobsim.iteration") {
-      parentElements.drop(1)
-    } else {
-      parentElements
-    }
-    val parent = meaningful.mkString("/")
-    parent
-  }
 }
 
 object MessageLogger {
@@ -179,6 +161,24 @@ object MessageLogger {
     tick: Int,
     triggerId: Long
   )
+
+  def userFriendly(actorRef: ActorRef): (String, String) = {
+    val parent = userFriendlyParent(actorRef.path.parent.elements)
+    (parent, actorRef.path.name)
+  }
+
+  def userFriendlyParent(parentPathElements: Iterable[String]): String = {
+    val parentElements = parentPathElements.dropWhile(e => e != "BeamMobsim.iteration" && e != "temp").toList
+    val meaningful = if (parentElements.size <= 1) {
+      parentElements
+    } else if (parentElements.head == "BeamMobsim.iteration") {
+      parentElements.drop(1)
+    } else {
+      parentElements
+    }
+    val parent = meaningful.mkString("/")
+    parent
+  }
 
   def props(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy): Props =
     Props(new MessageLogger(iterationNumber, controllerIO))

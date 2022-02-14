@@ -41,7 +41,7 @@ object VisualizingApp extends StrictLogging {
     }
   }
 
-  private def doJob(inputFile: Path, output: Path, extractorType: ExtractorType, diagramType: DiagramType): Unit = {
+  def doJob(inputFile: Path, output: Path, extractorType: ExtractorType, diagramType: DiagramType): Unit = {
     import java.time.temporal.ChronoUnit.SECONDS
     val startTime = LocalDateTime.now()
     logger.info(s"Generating diagram $diagramType")
