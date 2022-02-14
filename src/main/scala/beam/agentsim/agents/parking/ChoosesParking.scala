@@ -12,6 +12,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleCategory, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrentType}
 import beam.agentsim.infrastructure.parking.PricingModel
 import beam.agentsim.infrastructure.taz.TAZTreeMap
