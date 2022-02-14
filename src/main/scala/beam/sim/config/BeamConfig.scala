@@ -3108,7 +3108,8 @@ object BeamConfig {
 
       case class Network(
         maxSpeedInference: BeamConfig.Beam.Physsim.Network.MaxSpeedInference,
-        overwriteRoadTypeProperties: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties
+        overwriteRoadTypeProperties: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties,
+        removeIslands: scala.Boolean
       )
 
       object Network {
@@ -3542,7 +3543,8 @@ object BeamConfig {
             overwriteRoadTypeProperties = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
               if (c.hasPathOrNull("overwriteRoadTypeProperties")) c.getConfig("overwriteRoadTypeProperties")
               else com.typesafe.config.ConfigFactory.parseString("overwriteRoadTypeProperties{}")
-            )
+            ),
+            removeIslands = !c.hasPathOrNull("removeIslands") || c.getBoolean("removeIslands")
           )
         }
       }
