@@ -91,7 +91,7 @@ object EventReader {
     )
   }
 
-  def fixEvent(event: GenericEvent): Event = {
+  def fixEvent(event: Event): Event = {
     event.getEventType match {
       case PathTraversalEvent.EVENT_TYPE =>
         PathTraversalEvent(event)

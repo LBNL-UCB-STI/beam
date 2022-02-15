@@ -270,6 +270,7 @@ object SkimmerSpec extends LazyLogging {
         generalizedCost = row("generalizedCost").toDouble,
         distanceInM = row("distanceInM").toDouble,
         cost = row("cost").toDouble,
+        payloadWeightInKg = Option(row("payloadWeightInKg")).map(_.toDouble).getOrElse(0.0),
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor =
           Option(row("level4CavTravelTimeScalingFactor")).map(_.toDouble).getOrElse(1.0),

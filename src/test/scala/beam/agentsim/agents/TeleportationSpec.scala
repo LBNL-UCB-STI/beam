@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.ActorSystem
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, TeleportationEvent}
+import beam.agentsim.events.{PathTraversalEvent, TeleportationEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}

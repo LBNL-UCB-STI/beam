@@ -18,23 +18,26 @@ case class ODSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double,
+  maybePayloadWeightInKg: Option[Double],
   failedTrip: Boolean,
   override val skimName: String
 ) extends AbstractSkimmerEvent(eventTime) {
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
-  val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
+  val (key, skimInternal) =
+    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, maybePayloadWeightInKg)
 
   private def observeTrip(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double,
+    maybePayloadWeightInKg: Option[Double],
     level4CavTravelTimeScalingFactor: Double = 1.0
   ): (ODSkimmerKey, ODSkimmerInternal) = {
-    val mode = trip.tripClassifier
-    val correctedTrip = ODSkimmerEvent.correctTrip(trip, mode)
+    val mode = if (maybePayloadWeightInKg.isDefined) BeamMode.FREIGHT else trip.tripClassifier
+    val correctedTrip = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier)
     val beamLegs = correctedTrip.beamLegs
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val origLeg = beamLegs.head
@@ -49,6 +52,7 @@ case class ODSkimmerEvent(
         distanceInM = if (dist > 0.0) { dist }
         else { 1.0 },
         cost = correctedTrip.costEstimate,
+        payloadWeightInKg = maybePayloadWeightInKg.getOrElse(0.0),
         energy = energyConsumption,
         level4CavTravelTimeScalingFactor = level4CavTravelTimeScalingFactor,
         failedTrips = if (failedTrip) 1 else 0
@@ -76,6 +80,7 @@ object ODSkimmerEvent {
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
+    maybePayloadWeightInKg: Option[Double],
     energyConsumption: Double,
     failedTrip: Boolean
   ): (ODSkimmerEvent, Coord, Coord) = {
@@ -101,6 +106,7 @@ object ODSkimmerEvent {
         trip = trip,
         generalizedTimeInHours = generalizedTimeInHours,
         generalizedCost = generalizedCost,
+        maybePayloadWeightInKg = maybePayloadWeightInKg,
         energyConsumption = energyConsumption,
         failedTrip,
         skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name

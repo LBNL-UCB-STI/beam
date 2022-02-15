@@ -2,6 +2,7 @@ package beam.utils
 
 import java.util.concurrent.ThreadLocalRandom
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 import scala.util.Random
 
 /**
@@ -160,4 +161,24 @@ object MathUtils {
 
   def nanToZero(x: Double) = if (x.isNaN) { 0.0 }
   else { x }
+
+  def selectElementsByProbability[T](
+    rndSeed: Long,
+    elementToProbability: T => Double,
+    xs: Iterable[T]
+  )(implicit ct: ClassTag[T]): Array[T] = {
+    if (xs.isEmpty) Array.empty
+    else {
+      val rnd = new Random(rndSeed)
+      xs.flatMap { person =>
+        val removalProbability = elementToProbability(person)
+        if (removalProbability == 0.0) None
+        else {
+          val isSelected = rnd.nextDouble() < removalProbability
+          if (isSelected) Some(person)
+          else None
+        }
+      }.toArray
+    }
+  }
 }

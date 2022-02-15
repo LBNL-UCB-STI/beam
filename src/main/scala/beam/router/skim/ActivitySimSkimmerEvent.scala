@@ -2,6 +2,7 @@ package beam.router.skim
 
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
+import beam.router.skim.ActivitySimPathType.{toBeamMode, toKeyMode}
 import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.router.skim.event.ODSkimmerEvent
@@ -97,14 +98,22 @@ case class ActivitySimSkimmerEvent(
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val distInMeters = beamLegs.map(_.travelPath.distanceInM).sum
-    val (driveTimeInSeconds, driveDistanceInMeters, ferryTimeInSeconds, lightRailTimeInSeconds) =
-      beamLegs.foldLeft((0, 0.0, 0, 0)) { case ((driveTime, driveDistanceInM, ferryTime, railTime), leg) =>
+    val (driveTimeInSeconds, driveDistanceInMeters, ferryTimeInSeconds, keyInVehicleTimeInSeconds) =
+      beamLegs.foldLeft((0, 0.0, 0, 0)) { case ((driveTime, driveDistanceInM, ferryTime, keyTime), leg) =>
         leg.mode match {
           case BeamMode.CAV | BeamMode.CAR =>
-            (driveTime + leg.duration, driveDistanceInM + leg.travelPath.distanceInM, ferryTime, railTime)
-          case BeamMode.FERRY                => (driveTime, driveDistanceInM, ferryTime + leg.duration, railTime)
-          case BeamMode.TRAM | BeamMode.RAIL => (driveTime, driveDistanceInM, ferryTime, railTime + leg.duration)
-          case _                             => (driveTime, driveDistanceInM, ferryTime, railTime)
+            (driveTime + leg.duration, driveDistanceInM + leg.travelPath.distanceInM, ferryTime, keyTime)
+          case BeamMode.FERRY if toKeyMode(pathType).contains(BeamMode.TRAM) =>
+            (
+              driveTime,
+              driveDistanceInM,
+              ferryTime + leg.duration,
+              keyTime + leg.duration
+            ) // This is funky b/c light rail (a.k.a. tram) and ferry are grouped together in ASim modes
+          case BeamMode.FERRY => (driveTime, driveDistanceInM, ferryTime + leg.duration, keyTime)
+          case legMode if toKeyMode(pathType).contains(legMode) =>
+            (driveTime, driveDistanceInM, ferryTime, keyTime + leg.duration)
+          case _ => (driveTime, driveDistanceInM, ferryTime, keyTime)
         }
       }
 
@@ -131,7 +140,7 @@ case class ActivitySimSkimmerEvent(
         driveTimeInMinutes = driveTimeInSeconds / 60.0,
         driveDistanceInMeters = driveDistanceInMeters,
         ferryInVehicleTimeInMinutes = ferryTimeInSeconds / 60.0,
-        lightRailInVehicleTimeInMinutes = lightRailTimeInSeconds / 60.0,
+        keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
         transitBoardingsCount = numberOfTransitTrips
       )
     (key, payload)

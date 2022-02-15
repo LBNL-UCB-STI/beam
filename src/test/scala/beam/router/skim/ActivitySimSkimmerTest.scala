@@ -25,7 +25,7 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
       weightedWaitTransfer = 2.0,
       weightedDriveTimeInMinutes = 8.0,
       weightedDriveDistanceInMeters = 9.0,
-      weightedLightRailInVehicleTimeInMinutes = 10.0,
+      weightedKeyInVehicleTimeInMinutes = 10.0,
       weightedFerryInVehicleTimeInMinutes = 11.0,
       weightedTransitBoardingsCount = 12.0,
       weightedCost = 13.0,

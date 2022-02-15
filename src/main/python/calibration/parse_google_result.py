@@ -119,22 +119,23 @@ def parse_travel_time(travel_time_str):
 def parse_travel_distance(travel_distance):
     if isinstance(travel_distance, float) and math.isnan(travel_distance):
         return float('nan')
-    elif "km" in travel_distance:
-        return float(travel_distance.replace('km', '')) * 1000
-    elif "miles" in travel_distance:
-        # Miles to meteres
-        return float(travel_distance.replace('miles', '')) * 1.60934 * 1000
-    elif "mile" in travel_distance:
-        # Miles to meteres
-        return float(travel_distance.replace('mile', '')) * 1.60934 * 1000
-    elif "ft" in travel_distance:
-        # feet to meteres
-        return float(travel_distance.replace('ft', '')) * 0.3048
-    elif "m" in travel_distance:
-        return float(travel_distance.replace('m', ''))
     else:
-        raise Exception("Cannot parse '%s' as travel distance" % ((travel_distance)))
-
+        travel_distance = travel_distance.replace(",", "")
+        if "km" in travel_distance:
+            return float(travel_distance.replace('km', '')) * 1000
+        elif "miles" in travel_distance:
+            # Miles to meteres
+            return float(travel_distance.replace('miles', '')) * 1.60934 * 1000
+        elif "mile" in travel_distance:
+            # Miles to meteres
+            return float(travel_distance.replace('mile', '')) * 1.60934 * 1000
+        elif "ft" in travel_distance:
+            # feet to meteres
+            return float(travel_distance.replace('ft', '')) * 0.3048
+        elif "m" in travel_distance:
+            return float(travel_distance.replace('m', ''))
+        else:
+            raise Exception("Cannot parse '%s' as travel distance" % ((travel_distance)))
 
 def normalize(df):
     df['route_0_travel_distance_meters'] = df['route_0_travel_distance'].apply(lambda x: parse_travel_distance(x))

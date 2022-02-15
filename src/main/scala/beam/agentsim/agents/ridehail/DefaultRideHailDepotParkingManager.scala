@@ -59,7 +59,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     parkingZoneIdToParkingZoneDepotData.put(parkingZoneId, ParkingZoneDepotData.empty)
   }
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
 
   protected val chargingPlugTypesSortedByPower = parkingZones
     .flatMap(_._2.chargingPointType)
@@ -359,7 +359,7 @@ object DefaultRideHailDepotParkingManager {
       beamServices.matsimServices.getControlerIO,
       beamServices.beamConfig.beam.agentsim.agents.rideHail
     ) {
-      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
         new DefaultRidehailFunctions(
           geoQuadTree,
           idToGeoMapping,

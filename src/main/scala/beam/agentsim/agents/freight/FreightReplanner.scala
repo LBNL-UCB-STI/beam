@@ -85,6 +85,7 @@ class FreightReplanner(
     val tour = FreightTour(
       tourId,
       route.startTime,
+      None,
       route.startLocation,
       route.duration * 2
     )
@@ -110,9 +111,11 @@ class FreightReplanner(
         activity.service.capacity,
         requestType,
         activityType,
+        None,
         activity.service.location,
         activity.arrivalTime,
-        payloadPlan.arrivalTimeWindowInSec,
+        payloadPlan.arrivalTimeWindowInSecLower,
+        payloadPlan.arrivalTimeWindowInSecUpper,
         payloadPlan.operationDurationInSec
       )
     }
@@ -169,9 +172,9 @@ class FreightReplanner(
       val serviceId = payloadPlan.payloadId.toString
       payloadPlan.requestType match {
         case FreightRequestType.Unloading =>
-          Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weight, payloadPlan.operationDurationInSec)
+          Dropoff(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
         case FreightRequestType.Loading =>
-          Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weight, payloadPlan.operationDurationInSec)
+          Pickup(serviceId, payloadPlan.locationUTM, payloadPlan.weightInKg, payloadPlan.operationDurationInSec)
       }
     }
 
