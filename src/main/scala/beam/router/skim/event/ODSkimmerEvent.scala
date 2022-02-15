@@ -106,9 +106,9 @@ object ODSkimmerEvent {
         trip = trip,
         generalizedTimeInHours = generalizedTimeInHours,
         generalizedCost = generalizedCost,
-        maybePayloadWeightInKg = maybePayloadWeightInKg,
         energyConsumption = energyConsumption,
-        failedTrip,
+        maybePayloadWeightInKg = maybePayloadWeightInKg,
+        failedTrip = failedTrip,
         skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
       ),
       origCoord,
@@ -137,6 +137,7 @@ case class ODSkimmerFailedTripEvent(
       skim.generalizedCost,
       skim.distance,
       skim.cost,
+      skim.payloadWeight,
       skim.energy,
       skim.level4CavTravelTimeScalingFactor,
       failedTrips = 1

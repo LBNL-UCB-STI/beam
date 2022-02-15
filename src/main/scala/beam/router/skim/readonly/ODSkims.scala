@@ -259,9 +259,10 @@ object ODSkims extends BeamHelper {
       travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
       travelDistance,
       travelCost,
-      0,
-      0,
-      0.0 // TODO get default energy information
+      failedTrips = 0,
+      count = 0,
+      payloadWeight = 0,
+      energy = 0.0 // TODO get default energy information
     )
   }
 
