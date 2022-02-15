@@ -28,6 +28,8 @@
     </root>
 
     <logger name="com.conveyal.r5" level="${LOG_LEVEL:-ERROR}"/>
+    <logger name="com.conveyal.r5.streets.StreetRouter" level="ERROR"/>
+
 
     <logger name="org.matsim" level="ERROR"/>
 
