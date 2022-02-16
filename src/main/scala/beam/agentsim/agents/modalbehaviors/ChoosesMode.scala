@@ -441,7 +441,7 @@ trait ChoosesMode {
           )
         case Some(WALK) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
+          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
@@ -570,7 +570,7 @@ trait ChoosesMode {
      * Receive and store data needed for choice.
      */
     case Event(
-          theRouterResult @ RoutingResponse(_, requestId, _, _, _, _),
+          theRouterResult @ RoutingResponse(_, requestId, _, _, _, _, _),
           choosesModeData: ChoosesModeData
         ) if choosesModeData.routingRequestToLegMap.contains(requestId) =>
       //handling router responses for shared vehicles
@@ -616,7 +616,7 @@ trait ChoosesMode {
         )
 
     case Event(
-          theRouterResult @ RoutingResponse(_, requestId, _, _, _, _),
+          theRouterResult @ RoutingResponse(_, requestId, _, _, _, _, _),
           choosesModeData: ChoosesModeData
         ) if choosesModeData.rideHail2TransitRoutingRequestId.contains(requestId) =>
       theRouterResult.itineraries.view.foreach { resp =>
@@ -1391,11 +1391,10 @@ trait ChoosesMode {
         )
     }
 
-    val chosenMode = chosenTrip.tripClassifier.value
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
-      chosenMode,
+      chosenTrip.tripClassifier.value,
       data.personData.currentTourMode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       _experiencedBeamPlan
@@ -1406,7 +1405,9 @@ trait ChoosesMode {
       data.availablePersonalStreetVehicles.nonEmpty,
       chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
       _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
-      chosenTrip
+      chosenTrip,
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
+      nextActivity(data.personData).get.getType
     )
     eventsManager.processEvent(modeChoiceEvent)
 

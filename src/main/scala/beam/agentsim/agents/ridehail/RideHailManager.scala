@@ -1843,7 +1843,9 @@ class RideHailManager(
             rideHailAgent2CustomerResponse.requestId,
             None,
             isEmbodyWithCurrentTravelTime = false,
-            triggerId = triggerId
+            rideHailAgent2CustomerResponse.computedInMs,
+            rideHailAgent2CustomerResponse.searchedModes,
+            rideHailAgent2CustomerResponse.triggerId
           )
 
         ridehailManagerCustomizationAPI.processVehicleLocationUpdateAtEndOfContinueRepositioningHook(

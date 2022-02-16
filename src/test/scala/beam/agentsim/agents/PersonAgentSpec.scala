@@ -187,7 +187,7 @@ class PersonAgentSpec
           eventsManager,
           population,
           household,
-          Map(),
+          Map.empty,
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
@@ -686,7 +686,7 @@ class PersonAgentSpec
           eventsManager,
           population,
           household,
-          Map(),
+          Map.empty,
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
@@ -871,10 +871,6 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
     }
 
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
   }
 
   after {

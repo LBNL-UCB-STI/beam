@@ -5,7 +5,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class HouseholdSizeByUnitsInStructureTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(dbInfo, Table.HouseholdSizeByUnitsInStructure, Some(residenceGeography.level)) {
+    extends BaseTableReader(dbInfo, Table.Residence.HouseholdSizeByUnitsInStructure, Some(residenceGeography.level)) {
   private val `1-person household-lineNumber`: Int = 10
   private val `2-person household-lineNumber`: Int = 19
   private val `3-person household-lineNumber`: Int = 28

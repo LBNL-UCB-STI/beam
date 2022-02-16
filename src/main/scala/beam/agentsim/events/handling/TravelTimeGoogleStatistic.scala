@@ -50,6 +50,7 @@ object TravelTimeGoogleStatistic extends LazyLogging {
         logger.warn("google api key is empty")
       key
     }
+
     val enabled = cfg.enable && apiKey != null
     if (enabled) new TravelTimeGoogleStatisticImpl(cfg, actorSystem, geoUtils, enabled, apiKey)
     else EmptyTravelTimeGoogleStatistic
@@ -82,6 +83,8 @@ class TravelTimeGoogleStatisticImpl(
     if (
       enabled
       && cfg.iterationInterval > 0
+      // HACK: to avoid requests at iteration 0
+      && event.getIteration > 0
       && event.getIteration % cfg.iterationInterval == 0
     ) {
       logger.info(
@@ -158,7 +161,7 @@ class TravelTimeGoogleStatisticImpl(
             ec.event.endX,
             ec.event.arrivalTime - ec.event.departureTime,
             ec.route.durationIntervalInSeconds,
-            ec.route.durationInTrafficSeconds,
+            ec.route.durationInTrafficSeconds.getOrElse(-1).toString,
             geoUtils.distLatLon2Meters(
               new Coord(ec.event.startX, ec.event.startY),
               new Coord(ec.event.endX, ec.event.endY)

@@ -406,7 +406,7 @@ class RideHailAgent(
       isOnWayToParkAtStall = Some(stall)
       beamServices.beamRouter ! veh2StallRequest
       stay
-    case Event(resp @ RoutingResponse(itineraries, _, _, _, _, _), data) =>
+    case Event(resp @ RoutingResponse(itineraries, _, _, _, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       if (resp == RoutingResponse.dummyRoutingResponse.get) {
         logger.error(
@@ -576,7 +576,7 @@ class RideHailAgent(
     case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
       stash()
       stay()
-    case _ @Event(RoutingResponse(_, _, _, _, _, _), _) =>
+    case ev @ Event(RoutingResponse(_, _, _, _, _, _, _), _) =>
       stash()
       stay()
     case _ @Event(ModifyPassengerSchedule(_, _, _, _), _) =>

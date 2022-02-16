@@ -37,7 +37,7 @@ object ParquetRequester extends BeamHelper with LazyLogging {
 
   private def executeProgram(args: Array[String], filePath: String): Unit = {
     val (_, cfg) = prepareConfig(args, isConfigArgRequired = true)
-    val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+    val workerParams = R5Parameters.fromConfig(cfg)._1
     val requester = new CchRouteRequester(workerParams, new FreeFlowTravelTime)
 
     val portionSize = 500000
@@ -89,7 +89,7 @@ object ParquetRequester extends BeamHelper with LazyLogging {
     requests
   }
 
-  case class CliOptions(
+  final case class CliOptions(
     input: Path,
     config: Path
   )
