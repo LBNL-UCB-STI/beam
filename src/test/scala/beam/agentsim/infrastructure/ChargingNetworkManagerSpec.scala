@@ -45,7 +45,6 @@ class ChargingNetworkManagerSpec
     with BeforeAndAfterEach {
 
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
-  logger.error("filesPath = {}", filesPath)
 
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""

@@ -422,10 +422,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           } else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
           val maybePersonData = findPersonData(data)
-          val maybeNextActivity =
-            maybePersonData.flatMap(personData => this.asInstanceOf[PersonAgent].nextActivity(personData))
-          val trip = maybePersonData.flatMap(_.currentTrip)
-          val restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
+          val maybeNextActivity = for {
+            personData <- maybePersonData
+            nextActivity <- this match {
+              case agent: PersonAgent => agent.nextActivity(personData)
+              case _                  => None
+            }
+          } yield nextActivity
           handleUseParkingSpot(
             tick,
             currentBeamVehicle,
@@ -433,9 +436,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             geo,
             eventsManager,
             beamScenario.tazTreeMap,
-            maybeNextActivity,
-            trip,
-            restOfTrip
+            nextActivity = maybeNextActivity,
+            trip = maybePersonData.flatMap(_.currentTrip),
+            restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
           )
           self ! LastLegPassengerSchedule(triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to DrivingInterrupted with $triggerId")

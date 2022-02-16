@@ -28,6 +28,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
+import beam.utils.MeasureUnitConversion.SECONDS_IN_HOUR
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
@@ -123,9 +124,10 @@ object ChoosesParking {
     tazTreeMap: TAZTreeMap,
     nextActivity: Option[Activity],
     stall: ParkingStall,
-    restOfTrips: List[EmbodiedBeamLeg]
+    restOfTrip: List[EmbodiedBeamLeg]
   ): ParkingSkimmerEvent = {
-    val walkLeg = restOfTrips(1)
+    require(restOfTrip.size >= 2, "Rest of trip must consist of two legs at least: current car leg, walk leg")
+    val walkLeg = restOfTrip(1)
     val tazId = tazTreeMap.getTAZ(walkLeg.beamLeg.travelPath.endPoint.loc).tazId
     val chargerType = stall.chargingPointType match {
       case Some(chargingType) if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
@@ -134,10 +136,11 @@ object ChoosesParking {
       case None    => ChargerType.NoCharger
     }
     val parkingCostPerHour = (stall.pricingModel, nextActivity) match {
-      case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) => costInDollars / intervalSeconds * 3600
+      case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) =>
+        costInDollars / intervalSeconds * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
           if activity.getEndTime - activity.getStartTime > 0 =>
-        costInDollars / (activity.getEndTime - activity.getStartTime) * 3600
+        costInDollars / (activity.getEndTime - activity.getStartTime) * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
       case (None, _)                                      => 0
     }
@@ -241,9 +244,6 @@ trait ChoosesParking extends {
     case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
       val maybePersonData = findPersonData(data)
-      val maybeNextActivity = maybePersonData.flatMap(nextActivity)
-      val trip = maybePersonData.flatMap(_.currentTrip)
-      val restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
       handleUseParkingSpot(
         tick,
         currentBeamVehicle,
@@ -251,9 +251,9 @@ trait ChoosesParking extends {
         geo,
         eventsManager,
         beamScenario.tazTreeMap,
-        maybeNextActivity,
-        trip,
-        restOfTrip
+        nextActivity = maybePersonData.flatMap(nextActivity),
+        trip = maybePersonData.flatMap(_.currentTrip),
+        restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
       )
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
