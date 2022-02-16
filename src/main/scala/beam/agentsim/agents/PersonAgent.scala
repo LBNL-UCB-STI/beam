@@ -59,6 +59,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.MeasureUnitConversion.METERS_IN_MILE
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
@@ -802,7 +803,7 @@ class PersonAgent(
           costPerMile =
             travelProposal.get.estimatedPrice(req.customer.personId) / travelProposal.get.travelDistanceForCustomer(
               req.customer
-            ) * 1609
+            ) * METERS_IN_MILE
         )
       )
       handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
