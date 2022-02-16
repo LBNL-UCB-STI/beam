@@ -126,6 +126,7 @@ class SupplementaryTripGenerator(
           }
           val leg: Leg = generateLeg(curr, next, modeMNL, tourModes.toSet, fillInModes)
           tripAccumulator.append(leg)
+          next.setStartTime(curr.getEndTime + leg.getTravelTime)
           activityAccumulator.append(next)
           updatedPreviousActivity = next
           next.getType match {
@@ -178,10 +179,14 @@ class SupplementaryTripGenerator(
         mode -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
       }
       val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, r)
-      PopulationUtils.createLeg(alternativeChosen match {
-        case Some(alt) => alt.alternativeType.value
-        case None      => ""
-      })
+      alternativeChosen match {
+        case Some(alt) =>
+          val temporaryLeg = PopulationUtils.createLeg(alt.alternativeType.value)
+          val travelTime = modeToTimeAndCost(alt.alternativeType).accessTime
+          temporaryLeg.setTravelTime(travelTime)
+          temporaryLeg
+        case _ => PopulationUtils.createLeg("")
+      }
     } else {
       PopulationUtils.createLeg("")
     }
@@ -239,9 +244,10 @@ class SupplementaryTripGenerator(
 
         val tazToChosenMode: Map[TAZ, Option[BeamMode]] = {
           modeTazCosts.map { case (alt, modeCost) =>
-            val chosenModeOptionForTaz = modeMNL.sampleAlternative(modeCost, r)
+            val chosenModeOptionForTaz = if (fillInModes) { modeMNL.sampleAlternative(modeCost, r) }
+            else None
             chosenModeOptionForTaz match {
-              case Some(chosenModeForTaz) if fillInModes =>
+              case Some(chosenModeForTaz) =>
                 alt.taz -> Some(chosenModeForTaz.alternativeType)
               case _ =>
                 alt.taz -> None
@@ -270,13 +276,20 @@ class SupplementaryTripGenerator(
             val activityAfterNewActivity =
               PopulationUtils.createActivityFromCoord(nextActivity.getType, nextActivity.getCoord)
 
+            val (accessTime, returnTime) = tourModeOption match {
+              case Some(chosenMode) =>
+                val costMap = getTazCost(newActivity, alternativeActivity, Set(chosenMode))
+                (costMap.values.head.accessTime.toInt, costMap.values.head.returnTime.toInt)
+              case _ => (travelTimeBufferInSec, travelTimeBufferInSec)
+            }
+
             activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime)
-            activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
+            activityBeforeNewActivity.setEndTime(startTime - accessTime)
 
             newActivity.setStartTime(startTime)
             newActivity.setEndTime(endTime)
 
-            activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
+            activityAfterNewActivity.setStartTime(endTime + returnTime)
             activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime)
 
             val accessLeg = PopulationUtils.createLeg(tourModeOption match {
