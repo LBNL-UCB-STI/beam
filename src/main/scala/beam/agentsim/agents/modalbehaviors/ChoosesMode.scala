@@ -1214,10 +1214,12 @@ trait ChoosesMode {
         parkingResponses
       ) ++ rideHail2TransitIinerary.toVector
 
+      def isAvailable(mode: BeamMode): Boolean = combinedItinerariesForChoice.exists(_.tripClassifier == mode)
+
       choosesModeData.personData.currentTourMode match {
-        case Some(mode) if mode.isTransit && !combinedItinerariesForChoice.exists(_.tripClassifier == mode) =>
+        case Some(expectedMode) if expectedMode.isTransit && !isAvailable(expectedMode) =>
           eventsManager.processEvent(
-            createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, mode)
+            createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, expectedMode)
           )
         case _ =>
       }

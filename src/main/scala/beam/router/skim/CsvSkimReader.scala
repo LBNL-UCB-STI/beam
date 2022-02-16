@@ -36,7 +36,7 @@ class CsvSkimReader(
       skimsTryMap match {
         case Success(skimMap) => skimMap
         case Failure(ex) =>
-          logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath': ${ex.getMessage}", ex)
+          logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath'", ex)
           Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
       }
     }
