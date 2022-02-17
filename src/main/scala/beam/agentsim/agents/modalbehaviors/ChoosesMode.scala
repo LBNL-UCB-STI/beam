@@ -21,6 +21,9 @@ import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.core.ODSkimmer
+import beam.router.skim.event.ODSkimmerFailedTripEvent
+import beam.router.skim.readonly.ODSkims
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
@@ -156,7 +159,7 @@ trait ChoosesMode {
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _, _, _),
             _,
             _,
             _,
@@ -187,6 +190,7 @@ trait ChoosesMode {
               _,
               _,
               Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
+              _,
               _,
               _,
               _,
@@ -228,6 +232,7 @@ trait ChoosesMode {
               _,
               _,
               None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
+              _,
               _,
               _,
               _,
@@ -1209,6 +1214,16 @@ trait ChoosesMode {
         parkingResponses
       ) ++ rideHail2TransitIinerary.toVector
 
+      def isAvailable(mode: BeamMode): Boolean = combinedItinerariesForChoice.exists(_.tripClassifier == mode)
+
+      choosesModeData.personData.currentTourMode match {
+        case Some(expectedMode) if expectedMode.isTransit && !isAvailable(expectedMode) =>
+          eventsManager.processEvent(
+            createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, expectedMode)
+          )
+        case _ =>
+      }
+
       val availableModesForTrips: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson)
         .filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
@@ -1331,6 +1346,37 @@ trait ChoosesMode {
       }
   }
 
+  private def createFailedTransitODSkimmerEvent(
+    originLocation: Location,
+    destinationLocation: Location,
+    mode: BeamMode
+  ): ODSkimmerFailedTripEvent = {
+    val skim: ODSkimmer.Skim = ODSkims.getSkimDefaultValue(
+      beamServices.beamConfig,
+      mode,
+      originLocation,
+      destinationLocation,
+      beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId),
+      0
+    )
+
+    val origTazId = beamScenario.tazTreeMap
+      .getTAZ(originLocation.getX, originLocation.getY)
+      .tazId
+    val destTazId = beamScenario.tazTreeMap
+      .getTAZ(destinationLocation.getX, destinationLocation.getY)
+      .tazId
+    ODSkimmerFailedTripEvent(
+      origin = origTazId.toString,
+      destination = destTazId.toString,
+      eventTime = _currentTick.get,
+      mode = mode,
+      skim,
+      beamServices.matsimServices.getIterationNumber,
+      skimName = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
+    )
+  }
+
   private def allRequiredParkingResponsesReceived(
     routingResponse: RoutingResponse,
     parkingResponses: Map[VehicleOnTrip, ParkingInquiryResponse]
@@ -1346,8 +1392,22 @@ trait ChoosesMode {
   }
 
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
-    val chosenTrip = data.pendingChosenTrip.get
+    val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
+    val chosenTrip =
+      if (
+        pendingTrip.tripClassifier.isTransit
+        && pendingTrip.legs.head.beamLeg.startTime > tick
+      ) {
+        //we need to start trip as soon as our activity finishes (current tick) in order to
+        //correctly show waiting time for the transit in the OD skims
+        val activityEndTime = currentActivity(data.personData).getEndTime
+        val legStartTime = Math.max(tick, activityEndTime)
+        pendingTrip.updatePersonalLegsStartTime(legStartTime.toInt)
+      } else {
+        pendingTrip
+      }
+
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
     // Our aim should be that every transition from a link to another link be accounted for.
@@ -1444,6 +1504,7 @@ trait ChoosesMode {
           beamVehicles.remove(vehicle.id)
           vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
         }
+
         scheduler ! CompletionNotice(
           triggerId,
           Vector(
@@ -1463,10 +1524,10 @@ trait ChoosesMode {
               vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
             else
               data.personData.currentTourPersonalVehicle
-                .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
+                .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)),
+          failedTrips = data.personData.failedTrips ++ data.personData.currentTrip
         )
     }
-
   }
 }
 
