@@ -6,7 +6,17 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE_TRANSIT, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE_TRANSIT,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK_TRANSIT
+}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
@@ -18,11 +28,12 @@ import scala.collection.immutable
 
 class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
-//  val skimsDebugCalculationHeader = {
-////    "origin,destination,departureTime,mode,result"
+  val skimsDebugCalculationHeader = {
+    "origin,destination,departureTime,mode,result"
 //    "time,hour,mode,origin,destination,pastSkimsSize,pastSkimValue,aggregatedSkimsSkize,skimValue"
-//  }
-//  val skimsDebugCalculation = scala.collection.mutable.ListBuffer.empty[Seq[String]]
+  }
+  val skimsDebugCalculation = scala.collection.mutable.ListBuffer.empty[Seq[String]]
+
 //
 //  def addStringToDebugCalculation2(
 //    time: String,
@@ -39,20 +50,18 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
 //    }
 //  }
 //
-//  def addStringToDebugCalculation(
-//    origin: Id[TAZ],
-//    destination: Id[TAZ],
-//    departureTime: Int,
-//    mode: BeamMode,
-//    result: String
-//  ) = {
-//    val theSeq = Seq(origin.toString, destination.toString, departureTime.toString, mode.toString, result)
-//    //    synchronized {
-//    //      skimsDebugCalculation.append(
-//    //        Seq(origin.toString, destination.toString, departureTime.toString, mode.toString, result)
-//    //      )
-//    //    }
-//  }
+  def addStringToDebugCalculation(
+    origin: Id[TAZ],
+    destination: Id[TAZ],
+    departureTime: Int,
+    mode: BeamMode,
+    result: String
+  ) = {
+    val theSeq = Seq(origin.toString, destination.toString, departureTime.toString, mode.toString, result)
+    synchronized {
+      skimsDebugCalculation.append(theSeq)
+    }
+  }
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -185,20 +194,20 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case Some(skimValue) =>
         beamScenario.vehicleTypes.get(vehicleTypeId) match {
           case Some(vehicleType) if vehicleType.automationLevel == 4 =>
-//            addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "Found - SkimExternalForLevel4CAV")
+            addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "Found - SkimExternalForLevel4CAV")
             skimValue.toSkimExternalForLevel4CAV
           case _ =>
-//            addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "Found - SkimExternal")
+            addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "Found - SkimExternal")
             skimValue.toSkimExternal
         }
       case None =>
-//        if (
-        //          beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.return_max_skims_instead_of_calculated_for_missing_OD_pairs
-        //        ) {
-        //          addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "NotFound - MAX Skims")
-        //        } else {
-        //          addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "NotFound - Default Calculated Skims")
-        //        }
+        if (
+          beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.return_max_skims_instead_of_calculated_for_missing_OD_pairs
+        ) {
+          addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "NotFound - MAX Skims")
+        } else {
+          addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "NotFound - Default Calculated Skims")
+        }
         getSkimDefaultValue(
           mode,
           originUTM,
