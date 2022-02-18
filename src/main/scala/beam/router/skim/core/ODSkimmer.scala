@@ -4,12 +4,13 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.skim.readonly.ODSkims
-import beam.router.skim.{GeoUnit, Skims, readonly}
+import beam.router.skim.{readonly, GeoUnit, Skims}
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.math.NumberUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -369,15 +370,6 @@ object ODSkimmer extends LazyLogging {
   def fromCsv(
     row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-
-    def toIntOrDefaultIfNull(stringValue: String, defaultValue: Int): Int = {
-      if (stringValue == null) {
-        defaultValue
-      } else {
-        stringValue.toInt
-      }
-    }
-
     (
       ODSkimmerKey(
         hour = row("hour").toInt,
@@ -392,11 +384,11 @@ object ODSkimmer extends LazyLogging {
         distanceInM = row("distanceInM").toDouble,
         cost = row("cost").toDouble,
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        crowdingLevel = Option(row("crowdingLevel")).map(_.toDouble).getOrElse(0.0),
+        crowdingLevel = NumberUtils.toDouble(row("crowdingLevel"), 0.0),
         payloadWeightInKg = row.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        observations = toIntOrDefaultIfNull(row("observations"), 0),
-        iterations = toIntOrDefaultIfNull(row("iterations"), 1)
+        observations = NumberUtils.toInt(row("observations"), 0),
+        iterations = NumberUtils.toInt(row("iterations"), 1)
       )
     )
   }
@@ -447,7 +439,7 @@ object ODSkimmer extends LazyLogging {
     // the key: "hour,mode,origTaz,destTaz,
     // the value: travelTimeInS,generalizedTimeInS,   cost,         generalizedCost,        distanceInM,     payloadWeightInKg,          energy,        crowdingLevel,       level4CavTravelTimeScalingFactor,       observations"
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM+ "," + payloadWeightInKg + "," + energy + "," + crowdingLevel + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations
+      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + payloadWeightInKg + "," + energy + "," + crowdingLevel + "," + level4CavTravelTimeScalingFactor + "," + observations + "," + iterations
   }
 
   case class Skim(
