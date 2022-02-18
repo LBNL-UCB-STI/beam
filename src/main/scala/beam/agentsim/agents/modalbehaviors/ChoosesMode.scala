@@ -377,7 +377,8 @@ trait ChoosesMode {
           currentPersonLocation.loc,
           departTime,
           nextAct.getCoord,
-          triggerId = getCurrentTriggerIdOrGenerate
+          triggerId = getCurrentTriggerIdOrGenerate,
+          asPooled = true
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
