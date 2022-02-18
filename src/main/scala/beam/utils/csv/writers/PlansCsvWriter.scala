@@ -154,6 +154,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       planInfo.activityType.getOrElse(""),
       planInfo.activityLocationX.map(_.toString).getOrElse(""),
       planInfo.activityLocationY.map(_.toString).getOrElse(""),
+      planInfo.activityStartTime.map(_.toString).getOrElse(""),
       planInfo.activityEndTime.map(_.toString).getOrElse(""),
       planInfo.legMode.getOrElse(""),
       planInfo.legDepartureTime.getOrElse(""),
