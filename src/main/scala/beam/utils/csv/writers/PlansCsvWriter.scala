@@ -20,6 +20,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     "activityType",
     "activityLocationX",
     "activityLocationY",
+    "activityStartTime",
     "activityEndTime",
     "legMode",
     "legDepartureTime",
