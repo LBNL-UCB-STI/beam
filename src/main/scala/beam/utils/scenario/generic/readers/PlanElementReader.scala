@@ -3,6 +3,7 @@ package beam.utils.scenario.generic.readers
 import beam.utils.FileUtils
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.scenario.{PersonId, PlanElement}
+import org.apache.commons.lang3.math.NumberUtils
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
@@ -55,6 +56,7 @@ object CsvPlanElementReader extends PlanElementReader {
       activityType = activityType,
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
+      activityStartTime = Option(rec.get("activityStartTime")).map(NumberUtils.toDouble),
       activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
       legMode = Option(rec.get("legMode")),
       legDepartureTime = Option(rec.get("legDepartureTime")),
@@ -71,7 +73,6 @@ object CsvPlanElementReader extends PlanElementReader {
 }
 
 object XmlPlanElementReader extends PlanElementReader {
-  import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -115,6 +116,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityType = Option(activity.getType),
       activityLocationX = Option(activity.getCoord).map(_.getX),
       activityLocationY = Option(activity.getCoord).map(_.getY),
+      activityStartTime = Option(activity.getStartTime),
       activityEndTime = Option(activity.getEndTime),
       legMode = None,
       legDepartureTime = None,
@@ -144,6 +146,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityType = None,
       activityLocationX = None,
       activityLocationY = None,
+      activityStartTime = None,
       activityEndTime = None,
       legMode = Option(leg.getMode),
       legDepartureTime = Option(leg.getDepartureTime).map(_.toString),

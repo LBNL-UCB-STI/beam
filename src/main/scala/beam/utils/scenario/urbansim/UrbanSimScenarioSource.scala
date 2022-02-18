@@ -67,6 +67,7 @@ class UrbanSimScenarioSource(
         activityType = plan.activityType,
         activityLocationX = coord.map(_.getX),
         activityLocationY = coord.map(_.getY),
+        activityStartTime = None,
         activityEndTime = plan.endTime,
         legMode = plan.mode,
         // TODO: DataExchange.PlanElement does not have the following leg information

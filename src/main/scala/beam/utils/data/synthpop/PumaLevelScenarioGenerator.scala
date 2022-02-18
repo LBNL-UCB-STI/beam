@@ -67,6 +67,7 @@ class PumaLevelScenarioGenerator(
     activityType = None,
     activityLocationX = None,
     activityLocationY = None,
+    activityStartTime = None,
     activityEndTime = None,
     legMode = None,
     legDepartureTime = None,
