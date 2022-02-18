@@ -4,7 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.skim.readonly.ODSkims
-import beam.router.skim.{readonly, GeoUnit, Skims}
+import beam.router.skim.{GeoUnit, Skims, readonly}
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -370,25 +370,32 @@ object ODSkimmer extends LazyLogging {
   def fromCsv(
     row: scala.collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+    def getDoubleOrDefault(columnName: String, defaultValue: Double = 0.0): Double = {
+      NumberUtils.toDouble(row.getOrElse(columnName, null), defaultValue)
+    }
+    def getIntOrDefault(columnName: String, defaultValue: Int = 0): Int = {
+      NumberUtils.toInt(row.getOrElse(columnName, null), defaultValue)
+    }
+
     (
       ODSkimmerKey(
-        hour = row("hour").toInt,
+        hour = getIntOrDefault("hour"),
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
         origin = row("origTaz"),
         destination = row("destTaz")
       ),
       ODSkimmerInternal(
-        travelTimeInS = row("travelTimeInS").toDouble,
-        generalizedTimeInS = row("generalizedTimeInS").toDouble,
-        generalizedCost = row("generalizedCost").toDouble,
-        distanceInM = row("distanceInM").toDouble,
-        cost = row("cost").toDouble,
-        energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
-        crowdingLevel = NumberUtils.toDouble(row("crowdingLevel"), 0.0),
-        payloadWeightInKg = row.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
-        level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        observations = NumberUtils.toInt(row("observations"), 0),
-        iterations = NumberUtils.toInt(row("iterations"), 1)
+        travelTimeInS = getDoubleOrDefault("travelTimeInS"),
+        generalizedTimeInS = getDoubleOrDefault("generalizedTimeInS"),
+        generalizedCost = getDoubleOrDefault("generalizedCost"),
+        distanceInM = getDoubleOrDefault("distanceInM"),
+        cost = getDoubleOrDefault("cost"),
+        energy = getDoubleOrDefault("energy"),
+        crowdingLevel = getDoubleOrDefault("crowdingLevel"),
+        payloadWeightInKg = getDoubleOrDefault("payloadWeightInKg"),
+        level4CavTravelTimeScalingFactor = getDoubleOrDefault("level4CavTravelTimeScalingFactor"),
+        observations = getIntOrDefault("observations"),
+        iterations = getIntOrDefault("iterations", 1)
       )
     )
   }
