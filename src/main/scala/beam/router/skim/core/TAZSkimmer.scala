@@ -1,18 +1,17 @@
 package beam.router.skim.core
 
 import beam.router.skim.{readonly, Skims}
-import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.MatsimServices
 
-class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
+class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConfig)
     extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   import TAZSkimmer._
   private val config: BeamConfig.Beam.Router.Skim = beamConfig.beam.router.skim
 
-  override lazy val readOnlySkim: AbstractSkimmerReadOnly = readonly.TAZSkims(beamScenario)
+  override lazy val readOnlySkim: AbstractSkimmerReadOnly = new readonly.TAZSkims()
 
   override protected val skimName: String = config.taz_skimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TAZ_SKIMMER

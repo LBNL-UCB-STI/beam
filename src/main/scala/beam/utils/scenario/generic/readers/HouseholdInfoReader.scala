@@ -1,5 +1,7 @@
 package beam.utils.scenario.generic.readers
 
+import java.io.Closeable
+
 import beam.utils.csv.GenericCsvReader
 import beam.utils.scenario.{HouseholdId, HouseholdInfo, PersonInfo}
 
@@ -7,6 +9,8 @@ import scala.util.Try
 
 trait HouseholdInfoReader {
   def read(path: String): Array[HouseholdInfo]
+
+  def readWithFilter(path: String, filter: HouseholdInfo => Boolean): (Iterator[HouseholdInfo], Closeable)
 }
 
 object CsvHouseholdInfoReader extends HouseholdInfoReader {
@@ -19,6 +23,10 @@ object CsvHouseholdInfoReader extends HouseholdInfoReader {
     } finally {
       Try(toClose.close())
     }
+  }
+
+  override def readWithFilter(path: String, filter: HouseholdInfo => Boolean): (Iterator[HouseholdInfo], Closeable) = {
+    readAs[HouseholdInfo](path, toHouseholdInfo, filter)
   }
 
   private[readers] def toHouseholdInfo(rec: java.util.Map[String, String]): HouseholdInfo = {

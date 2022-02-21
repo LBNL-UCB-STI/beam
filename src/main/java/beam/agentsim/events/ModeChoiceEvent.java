@@ -24,6 +24,11 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PERSONAL_VEH_AVAILABLE = "personalVehicleAvailable";
     public final static String ATTRIBUTE_TRIP_LENGTH = "length";
     public final static String ATTRIBUTE_TOUR_INDEX = "tourIndex";
+    public final static String ATTRIBUTE_LEG_MODES = "legModes";
+    public final static String ATTRIBUTE_LEG_VEHICLE_IDS = "legVehicleIds";
+    public final static String ATTRIBUTE_CURRENT_ACTIVITY = "currentActivity";
+    public final static String ATTRIBUTE_NEXT_ACTIVITY = "nextActivity";
+
     public final EmbodiedBeamTrip chosenTrip;
     public final Id<Person> personId;
     public final String mode;
@@ -34,10 +39,12 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final String vehAvailable;
     public final Double length;
     public final Integer tourIndex;
+    public final String currentActivity;
+    public final String nextActivity;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
-                           Integer tourIndex, EmbodiedBeamTrip chosenTrip) {
+                           Integer tourIndex, EmbodiedBeamTrip chosenTrip, String currentActivity, String nextActivity) {
         super(time);
 
         this.personId = personId;
@@ -50,6 +57,8 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         this.length = length;
         this.tourIndex = tourIndex;
         this.chosenTrip = chosenTrip;
+        this.currentActivity = currentActivity;
+        this.nextActivity = nextActivity;
     }
 
     public static ModeChoiceEvent apply(Event event) {
@@ -65,7 +74,9 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
                     Boolean.parseBoolean(attr.get(ATTRIBUTE_PERSONAL_VEH_AVAILABLE)),
                     Double.parseDouble(attr.get(ATTRIBUTE_TRIP_LENGTH)),
                     Integer.parseInt(attr.get(ATTRIBUTE_TOUR_INDEX)),
-                    null
+                    null,
+                    attr.get(ATTRIBUTE_CURRENT_ACTIVITY),
+                    attr.get(ATTRIBUTE_NEXT_ACTIVITY)
             );
         }
         return (ModeChoiceEvent) event;
@@ -83,6 +94,12 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_PERSONAL_VEH_AVAILABLE, vehAvailable);
         attr.put(ATTRIBUTE_TRIP_LENGTH, length.toString());
         attr.put(ATTRIBUTE_TOUR_INDEX, tourIndex.toString());
+        if (chosenTrip != null) {
+            attr.put(ATTRIBUTE_LEG_MODES, chosenTrip.legModes().mkString(","));
+            attr.put(ATTRIBUTE_LEG_VEHICLE_IDS, chosenTrip.legVehicleIds().mkString(","));
+        }
+        attr.put(ATTRIBUTE_CURRENT_ACTIVITY, currentActivity);
+        attr.put(ATTRIBUTE_NEXT_ACTIVITY, nextActivity);
         return attr;
     }
 

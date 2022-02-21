@@ -9,23 +9,30 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
 
+import java.io.Closeable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 import scala.util.Try
 
 trait PlanElementReader {
   def read(path: String): Array[PlanElement]
+
+  def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable)
 }
 
 object CsvPlanElementReader extends PlanElementReader {
   import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
-    val (it, toClose) = readAs[PlanElement](path, toPlanElement, _ => true)
+    val (it: Iterator[PlanElement], toClose) = readAs[PlanElement](path, toPlanElement, _ => true)
     try {
       it.toArray
     } finally {
       Try(toClose.close())
     }
+  }
+
+  override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
+    readAs[PlanElement](path, toPlanElement, filter)
   }
 
   private[readers] def toPlanElement(rec: java.util.Map[String, String]): PlanElement = {
@@ -64,6 +71,7 @@ object CsvPlanElementReader extends PlanElementReader {
 }
 
 object XmlPlanElementReader extends PlanElementReader {
+  import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -82,6 +90,11 @@ object XmlPlanElementReader extends PlanElementReader {
         case (person, plan, planIdx, leg: Leg, planElIdx)      => toPlanElement(leg, plan, planIdx, person, planElIdx)
       }
       .toArray
+  }
+
+  override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
+    throw new NotImplementedError()
+//    readAs[PlanElement](path, toPlanElement, filter)
   }
 
   private def toPlanElement(

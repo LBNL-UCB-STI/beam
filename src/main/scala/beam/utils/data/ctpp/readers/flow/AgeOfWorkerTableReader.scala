@@ -9,7 +9,7 @@ class AgeOfWorkerTableReader(
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
 ) extends BaseTableReader(
       dbInfo,
-      Table.AgeOfWorker,
+      Table.Flow.AgeOfWorker,
       Some(residenceToWorkplaceFlowGeography.level)
     ) {
 

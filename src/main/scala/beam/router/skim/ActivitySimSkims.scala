@@ -57,6 +57,8 @@ case class ActivitySimSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) 
       0,
       0,
       0,
+      0,
+      0,
       0
     )
   }

@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
@@ -550,6 +550,7 @@ class UrbanSimScenarioLoader(
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse("#NO_DATA#"))
 
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamScenario,

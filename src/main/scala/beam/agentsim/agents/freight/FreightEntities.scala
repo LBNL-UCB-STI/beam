@@ -1,6 +1,7 @@
 package beam.agentsim.agents.freight
 
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.infrastructure.taz.TAZ
 import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -24,6 +25,7 @@ object FreightRequestType extends Enum[FreightRequestType] {
 case class FreightTour(
   tourId: Id[FreightTour],
   departureTimeInSec: Int,
+  warehouseLocationTaz: Option[Id[TAZ]],
   warehouseLocationUTM: Coord,
   maxTourDurationInSec: Int
 )
@@ -33,12 +35,14 @@ case class PayloadPlan(
   sequenceRank: Int,
   tourId: Id[FreightTour],
   payloadType: Id[PayloadType],
-  weight: Double,
+  weightInKg: Double,
   requestType: FreightRequestType,
   activityType: String,
+  locationZone: Option[Id[TAZ]],
   locationUTM: Coord,
   estimatedTimeOfArrivalInSec: Int,
-  arrivalTimeWindowInSec: Int,
+  arrivalTimeWindowInSecLower: Int,
+  arrivalTimeWindowInSecUpper: Int,
   operationDurationInSec: Int
 )
 

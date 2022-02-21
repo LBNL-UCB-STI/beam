@@ -1,6 +1,8 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
+import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading}
+import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_WEIGHT_IN_KG}
+import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
@@ -11,8 +13,8 @@ import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import com.conveyal.r5.streets.StreetLayer
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PlanElement, PopulationFactory}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactory, Income, IncomeImpl}
 import org.matsim.vehicles.Vehicle
@@ -38,6 +40,14 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
+  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
+    val initialWeight = 0.0
+    plans.foldLeft(IndexedSeq(initialWeight)) {
+      case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) => acc :+ acc.last - weight
+      case (acc, PayloadPlan(_, _, _, _, weight, Loading, _, _, _, _, _, _, _))   => acc :+ acc.last + weight
+    }
+  }
+
   def createPersonPlan(
     tours: IndexedSeq[FreightTour],
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
@@ -45,7 +55,7 @@ trait FreightReader {
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =
-        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec)
+        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec, None)
       val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
 
       val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
@@ -56,15 +66,23 @@ trait FreightReader {
       val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
         val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
         val activityType = plan.activityType
-        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime)
+        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime, Some(plan.requestType))
         val leg: Leg = createFreightLeg(activityEndTime)
         Seq(activity, leg)
       }
 
-      tourInitialActivity +: firstLeg +: planElements
+      val elements = tourInitialActivity +: firstLeg +: planElements
+      val weightsToCarry: IndexedSeq[Double] = calculatePayloadWeights(plans)
+      elements
+        .collect { case leg: Leg => leg }
+        .zip(weightsToCarry)
+        .foreach { case (leg, payloadWeight) =>
+          leg.getAttributes.putAttribute(PAYLOAD_WEIGHT_IN_KG, payloadWeight)
+        }
+      elements
     }
 
-    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1)
+    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1, None)
     val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
@@ -126,11 +144,17 @@ trait FreightReader {
     vehicle
   }
 
-  protected def createFreightActivity(activityType: String, locationUTM: Coord, endTime: Int): Activity = {
+  protected def createFreightActivity(
+    activityType: String,
+    locationUTM: Coord,
+    endTime: Int,
+    freightRequestType: Option[FreightRequestType]
+  ): Activity = {
     val act = PopulationUtils.createActivityFromCoord(activityType, locationUTM)
     if (endTime >= 0) {
       act.setEndTime(endTime)
     }
+    freightRequestType.foreach(act.getAttributes.putAttribute(FREIGHT_REQUEST_TYPE, _))
     act
   }
 
@@ -153,6 +177,9 @@ trait FreightReader {
 }
 
 object FreightReader {
+  val FREIGHT_ID_PREFIX = "freight"
+  val FREIGHT_REQUEST_TYPE = "FreightRequestType"
+  val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
 
   def apply(
     beamConfig: BeamConfig,
@@ -163,11 +190,14 @@ object FreightReader {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val config = beamConfig.beam.agentsim.agents.freight
     beamConfig.beam.agentsim.agents.freight.reader match {
-      case "NREL" =>
-        val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
-        new NRELFreightReader(config, geoUtils, rand, streetLayer, linkRadiusMeters)
       case "Generic" =>
-        new GenericFreightReader(config, geoUtils, rand, tazMap)
+        new GenericFreightReader(
+          config,
+          geoUtils,
+          rand,
+          tazMap,
+          Some(ClosestUTMPointOnMap(streetLayer, beamConfig.beam.routing.r5.linkRadiusMeters))
+        )
       case s =>
         throw new RuntimeException(s"Unknown freight reader $s")
     }
@@ -185,4 +215,19 @@ object FreightReader {
       beamServices.beamScenario.transportNetwork.streetLayer,
       beamServices.beamScenario.tazTreeMap
     )
+
+  case class ClosestUTMPointOnMap(streetLayer: StreetLayer, r5LinkRadiusMeters: Double) {
+
+    def find(wsgCoord: Coord, geoUtils: GeoUtils): Option[Coord] = {
+      //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
+      val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
+      if (theSplit == null) {
+        None
+      } else {
+        val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
+        val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
+        Some(utmCoord)
+      }
+    }
+  }
 }

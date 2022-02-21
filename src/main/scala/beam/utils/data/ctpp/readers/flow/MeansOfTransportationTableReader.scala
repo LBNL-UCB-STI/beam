@@ -7,7 +7,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToDat
 class MeansOfTransportationTableReader(
   dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends BaseTableReader(dbInfo, Table.MeanOfTransportation, Some(residenceToWorkplaceFlowGeography.level)) {
+) extends BaseTableReader(dbInfo, Table.Flow.MeanOfTransportation, Some(residenceToWorkplaceFlowGeography.level)) {
   private val interestedLineNumber: Set[Int] = MeansOfTransportation.all.map(_.lineNumber).toSet
 
   def read(): Iterable[OD[MeansOfTransportation]] = {
