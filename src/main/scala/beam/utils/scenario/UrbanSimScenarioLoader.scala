@@ -103,10 +103,21 @@ class UrbanSimScenarioLoader(
     }
     val inputPlans = Await.result(plansF, 1800.seconds)
     logger.info(s"Reading plans done.")
+    if (inputPlans.isEmpty) {
+      throw new RuntimeException("Filtered plans are empty")
+    }
+
     val persons = Await.result(personsF, 1800.seconds)
     logger.info(s"Reading persons done.")
+    if (persons.isEmpty) {
+      throw new RuntimeException("Filtered persons are empty")
+    }
+
     val households = Await.result(householdsF, 1800.seconds)
     logger.info(s"Reading households done.")
+    if (households.isEmpty) {
+      throw new RuntimeException("Filtered households are empty")
+    }
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
