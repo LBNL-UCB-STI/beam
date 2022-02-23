@@ -39,7 +39,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.8.6'
+version = '0.8.6.8'
 
 description = """"""
 
@@ -692,7 +692,7 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
 task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
-    repository = "beammodel/beam"
+    repository = "zaneedell/beam"
     tag = version
     targetImageId buildImageWithoutTags.getImageId()
 }
