@@ -189,8 +189,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
     val routers: Seq[R5Wrapper] = createR5Wrappers(typeSafeConfig)
 
-    val personTrips: ParSeq[PersonTrip] = inputTrips
-      .par
+    val personTrips: ParSeq[PersonTrip] = inputTrips.par
       .filter { trip => walkTransitModes.contains(trip.mode) }
       .flatMap { trip: Trip =>
         val request: BeamRouter.RoutingRequest = getRoutingRequest(

@@ -3,6 +3,7 @@ package beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.DestinationParameters.Intercept
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
+import beam.router.skim.core.ParkingSkimmer.ParkingSkimmerInternal
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
@@ -18,6 +19,7 @@ object DestinationChoiceModel {
     Map(
       DestinationParameters.AccessCost      -> timesAndCost.accessGeneralizedCost,
       DestinationParameters.EgressCost      -> timesAndCost.returnGeneralizedCost,
+      DestinationParameters.ParkingCost     -> timesAndCost.parkingCost,
       DestinationParameters.SchedulePenalty -> timesAndCost.schedulePenalty,
       DestinationParameters.ActivityBenefit -> timesAndCost.activityBenefit
     )
@@ -36,6 +38,7 @@ object DestinationChoiceModel {
     returnTime: Double = 0,
     accessGeneralizedCost: Double = 0,
     returnGeneralizedCost: Double = 0,
+    parkingCost: Double = 0,
     schedulePenalty: Double = 0,
     activityBenefit: Double = 0
   )
@@ -46,6 +49,7 @@ object DestinationChoiceModel {
     final case object Intercept extends DestinationParameters with Serializable
     final case object AccessCost extends DestinationParameters with Serializable
     final case object EgressCost extends DestinationParameters with Serializable
+    final case object ParkingCost extends DestinationParameters with Serializable
     final case object SchedulePenalty extends DestinationParameters with Serializable
     final case object ActivityBenefit extends DestinationParameters with Serializable
 
@@ -53,6 +57,7 @@ object DestinationChoiceModel {
       case Intercept       => "acc"
       case AccessCost      => "acc"
       case EgressCost      => "eg"
+      case ParkingCost     => "park"
       case SchedulePenalty => "pen"
       case ActivityBenefit => "act"
     }
@@ -114,6 +119,7 @@ class DestinationChoiceModel(
   val DefaultMNLParameters: DestinationChoiceModel.DestinationMNLConfig = Map(
     DestinationChoiceModel.DestinationParameters.AccessCost      -> UtilityFunctionOperation.Multiplier(-1.0),
     DestinationChoiceModel.DestinationParameters.EgressCost      -> UtilityFunctionOperation.Multiplier(-1.0),
+    DestinationChoiceModel.DestinationParameters.ParkingCost     -> UtilityFunctionOperation.Multiplier(-1.0),
     DestinationChoiceModel.DestinationParameters.SchedulePenalty -> UtilityFunctionOperation.Multiplier(-1.0),
     DestinationChoiceModel.DestinationParameters.ActivityBenefit -> UtilityFunctionOperation.Multiplier(1.0)
   )
@@ -264,6 +270,19 @@ class DestinationChoiceModel(
       case Failure(e) =>
         println(e)
         (DefaultActivityVOTs, DefaultActivityDurations)
+    }
+  }
+
+  def getActivityParkingCost(
+    activity: Activity,
+    parkingSkimOption: Option[ParkingSkimmerInternal]
+  ): Double = {
+    parkingSkimOption match {
+      case Some(parkingSkim) =>
+        val (actStart, actEnd) = getRealStartEndTime(activity)
+        val actDuration = actEnd - actStart
+        parkingSkim.parkingCostPerHour * actDuration / 3600
+      case None => 0.0
     }
   }
 

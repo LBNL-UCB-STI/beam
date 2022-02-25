@@ -144,6 +144,7 @@ case class ODSkimmerFailedTripEvent(
       skim.cost,
       skim.payloadWeight,
       skim.energy,
+      skim.crowdingLevel,
       skim.level4CavTravelTimeScalingFactor,
       failedTrips = 1
     )
