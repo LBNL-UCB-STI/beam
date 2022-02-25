@@ -58,6 +58,20 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg], router: Option[St
     })
   }
 
+  def updatePersonalLegsStartTime(newStartTime: Int): EmbodiedBeamTrip = {
+    val deltaStart = newStartTime - legs.head.beamLeg.startTime
+    val personalLegs = legs.takeWhile(leg =>
+      !leg.beamLeg.mode.isTransit
+      && !leg.beamLeg.mode.isRideHail
+      && leg.beamLeg.mode != RIDE_HAIL_POOLED
+      && leg.beamLeg.mode != CAV
+    )
+    val updatedLegs = personalLegs.map { leg =>
+      leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + deltaStart))
+    }
+    this.copy(legs = updatedLegs ++ legs.drop(updatedLegs.size))
+  }
+
   def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[BeamVehicle]] = {
     legs.map(leg => leg.beamVehicleId).distinct
   }
